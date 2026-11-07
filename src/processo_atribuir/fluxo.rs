@@ -137,6 +137,9 @@ impl ErroProcessoAtribuir {
             Self::EscritaAindaNaoVerificada => {
                 "a atribuição confirmada ainda não tem releitura de prova"
             }
+            Self::Preparacao(ErroAtribuir::AtribuicaoJaAplicada) => {
+                "a atribuição solicitada já está aplicada"
+            }
             Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
             Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
             Self::EfeitoIncertoNaAtribuicao { .. } => {
@@ -165,6 +168,16 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade).ok_or_else(|| {
         diagnostico_unidade_nao_observada(&aberto.arvore.aberto_em, unidade, rede.feitas())
     })?;
+    // A árvore já informa quando a operação não alteraria nada.
+    // Rejeitar antes de abrir o formulário evita um GET desnecessário,
+    // inclusive nas confirmações injetáveis, sem mudar o estado remoto.
+    let ja_aplicada = match pedido.usuario {
+        Some(login) => login == atual,
+        None => atual.is_empty(),
+    };
+    if ja_aplicada {
+        return Err(E::Preparacao(ErroAtribuir::AtribuicaoJaAplicada));
+    }
     let link = acoes
         .atribuir
         .map_err(E::Barra)?
