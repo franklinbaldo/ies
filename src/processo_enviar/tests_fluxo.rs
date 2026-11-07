@@ -215,8 +215,8 @@ fn bdd_sem_checkbox_recusa_antes_da_consulta_autocomplete() {
     // Dado uma tela sem a opção, quando solicito remoção,
     // então não há sequer o POST de consulta, muito menos escrita.
     let tela = tela_de_envio(Versao::V41, ID).replace(
-        "name=\\"chkSinRemoverAnotacoes\\"",
-        "name=\\"\\"",
+        r#"name="chkSinRemoverAnotacoes""#,
+        r#"name="""#,
     );
     let amb = ambiente();
     let (resultado, feitos) = rodar_com(
