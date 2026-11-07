@@ -293,7 +293,6 @@ fn dado_tipo_servido_no_xml_quando_previa_entao_mostra_o_tipo_do_destino() {
     assert_eq!(pedidos[4].metodo, "POST");
 }
 
-
 /// BDD-258-01. No PEN1 em 07/11/2026 a tela de relacionamento foi
 /// servida com o formulário único, mas sem nenhuma tabela (duas prévias
 /// live distintas: #258). Isso não deve bloquear a prévia de adição.
@@ -307,7 +306,10 @@ fn dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever(
         .expect("fixture publica a tabela");
     let (_, apos) = depois.split_once("</table>").expect("tabela fechada");
     let html = format!("{antes}{apos}");
-    assert!(!html.contains("<table"), "fixture deve representar a tela observada");
+    assert!(
+        !html.contains("<table"),
+        "fixture deve representar a tela observada"
+    );
     respostas.push(ok(html));
     respostas.push(ok(format!(
         "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento></complementos>"

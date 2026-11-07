@@ -35,6 +35,13 @@ struct TelaLida {
     conferida: TelaDeEnvio,
 }
 
+/// Mesmo formulário usado para observar e, quando autorizado, limpar.
+struct AnotacaoLida {
+    presente: bool,
+    html: String,
+    codificacao: CodificacaoDaTela,
+}
+
 /// Sem POST de escrita na prévia; um POST, nunca repetido.
 pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -42,9 +49,6 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoEnviado, C> {
-    if pedido.remover_anotacoes && pedido.confirmar {
-        return Err(C::RemocaoDeAnotacoesSemVerificacao);
-    }
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(C::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
@@ -57,50 +61,25 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         .ok_or(C::UnidadeDaSessaoNaoPublicada)?;
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
         .map_err(|motivo| C::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
-    let link = match (acoes.enviar, aberto_em.contains(&unidade)) {
-        // Fora da unidade, a barra (lida ou não) não muda a recusa.
-        (Ok(None) | Err(_), false) => {
-            return Err(C::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em });
-        }
-        (Ok(Some(_)), false) => return Err(C::UnidadeDaSessaoAusenteDaSituacao { aberto_em }),
-        (Ok(None), true) => return Err(C::EnvioNaoPublicadoNaBarra { aberto_em }),
-        (Err(erro), true) => return Err(C::Barra(erro)),
-        (Ok(Some(link)), true) => link,
-    };
+    let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
     let id = aberto.arvore.processo.id.clone();
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
-    let anotacao_antes = if pedido.remover_anotacoes {
-        match acoes.anotacoes.map_err(C::LinkDasAnotacoes)? {
-            Some(link) => {
-                let (html, _) =
-                    obter_tela(&mut rede, &cookie, &link).map_err(|falha| match falha {
-                        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
-                        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
-                        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
-                    })?;
-                Some(
-                    super::anotacoes::anotacao_presente(&html, &id)
-                        .map_err(C::LeituraDasAnotacoes)?,
-                )
-            }
-            None => None,
-        }
+    let link_anotacao = if pedido.remover_anotacoes {
+        acoes.anotacoes.map_err(C::LinkDasAnotacoes)?
     } else {
         None
     };
-    let metodo_remocao = if pedido.remover_anotacoes {
-        Some(if tela.conferida.remover_anotacoes_oferecida {
-            MetodoRemocao::CheckboxNoEnvio
-        } else if anotacao_antes.is_some() {
-            MetodoRemocao::LimparAnotacao
-        } else {
-            return Err(C::RemocaoDeAnotacoesNaoOferecida);
-        })
-    } else {
-        None
-    };
+    let anotacao_lida = ler_anotacao_antes(&mut rede, &cookie, link_anotacao.as_deref(), &id)?;
+    let anotacao_antes = anotacao_lida.as_ref().map(|lida| lida.presente);
+    let metodo_remocao = escolher_metodo(
+        pedido,
+        &tela.conferida,
+        anotacao_antes,
+        link_anotacao.as_deref(),
+        anotacao_lida.as_ref(),
+    )?;
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
@@ -114,6 +93,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         manter_aberto: pedido.manter_aberto,
         remover_anotacoes: pedido.remover_anotacoes,
         anotacao_antes,
+        anotacao_depois: None,
         metodo_remocao,
         destino,
         aberto_em,
@@ -124,11 +104,29 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(feito);
     }
+    // BDD-333-03/04: grava anotação vazia somente se havia texto.
+    // Cada POST é único e a releitura precisa comprovar a limpeza antes do envio.
+    if metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
+        && let (Some(link), Some(lida)) = (link_anotacao.as_deref(), anotacao_lida.as_ref())
+    {
+        if lida.presente {
+            limpar_anotacao(
+                &mut rede,
+                sessao,
+                &instalacao,
+                &cookie,
+                link,
+                lida,
+                &feito.id_procedimento,
+            )?;
+        }
+        feito.anotacao_depois = Some(false);
+    }
     let campos = campos_do_envio(
         &tela.conferida,
         &feito.destino,
         pedido.manter_aberto,
-        pedido.remover_anotacoes,
+        metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio),
     );
     let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let servida = TelaServida {
@@ -140,7 +138,158 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
     feito.requisicoes = rede.feitas();
-    conciliar(feito, falha, verificacao)
+    let mut feito = conciliar(feito, falha, verificacao)?;
+    if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+        // O segundo GET não segue o 302 do envio. É uma nova consulta do
+        // formulário da própria origem, com a identidade conferida de novo.
+        let link = link_anotacao
+            .as_deref()
+            .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
+        conferir_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento)?;
+        feito.anotacao_depois = Some(false);
+        feito.requisicoes = rede.feitas();
+    }
+    feito.requisicoes = rede.feitas();
+    Ok(feito)
+}
+
+/// A barra só autoriza a escrita quando a situação lista a unidade da sessão.
+fn conferir_link_do_envio(
+    enviar: Result<
+        Option<crate::arvore_processo::EnderecoDeEscrita>,
+        crate::arvore_processo::ErroEnviarNaBarra,
+    >,
+    aberto_em: &[String],
+    unidade: &str,
+) -> Result<crate::arvore_processo::EnderecoDeEscrita, C> {
+    let aberta = aberto_em.iter().any(|sigla| sigla == unidade);
+    match (enviar, aberta) {
+        (Ok(None) | Err(_), false) => Err(C::ProcessoNaoAbertoNaUnidadeDaSessao {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Ok(Some(_)), false) => Err(C::UnidadeDaSessaoAusenteDaSituacao {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Ok(None), true) => Err(C::EnvioNaoPublicadoNaBarra {
+            aberto_em: aberto_em.to_vec(),
+        }),
+        (Err(erro), true) => Err(C::Barra(erro)),
+        (Ok(Some(link)), true) => Ok(link),
+    }
+}
+
+/// Decide a estratégia publicada na tela sem confundir leitura com gravação.
+fn escolher_metodo(
+    pedido: &PedidoDoEnvio<'_>,
+    tela: &TelaDeEnvio,
+    anotacao_antes: Option<bool>,
+    link: Option<&str>,
+    anotacao_lida: Option<&AnotacaoLida>,
+) -> Result<Option<MetodoRemocao>, C> {
+    if !pedido.remover_anotacoes {
+        return Ok(None);
+    }
+    let metodo = if tela.remover_anotacoes_oferecida {
+        MetodoRemocao::CheckboxNoEnvio
+    } else if anotacao_antes.is_some() {
+        MetodoRemocao::LimparAnotacao
+    } else {
+        return Err(C::RemocaoDeAnotacoesNaoOferecida);
+    };
+    if pedido.confirmar
+        && (link.is_none()
+            || (metodo == MetodoRemocao::LimparAnotacao
+                && !anotacao_lida
+                    .is_some_and(|lida| super::anotacoes::salvar_oferecido(&lida.html))))
+    {
+        return Err(C::RemocaoDeAnotacoesSemVerificacao);
+    }
+    Ok(Some(metodo))
+}
+
+/// Prévia: o campo vazio só é ausência observada quando o formulário
+/// pertence ao mesmo processo. Falta de link continua não observada.
+fn ler_anotacao_antes<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: Option<&str>,
+    id: &str,
+) -> Result<Option<AnotacaoLida>, C> {
+    let Some(link) = link else {
+        return Ok(None);
+    };
+    let (html, mime) = obter_tela(rede, cookie, link).map_err(|falha| match falha {
+        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
+        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+    })?;
+    let presente =
+        super::anotacoes::anotacao_presente(&html, id).map_err(C::LeituraDasAnotacoes)?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
+    Ok(Some(AnotacaoLida {
+        presente,
+        html,
+        codificacao,
+    }))
+}
+
+/// Salva uma vez e comprova a limpeza antes de tramitar; efeito incerto
+/// interrompe a operação, sem segunda gravação da anotação nem envio.
+fn limpar_anotacao<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    cookie: &str,
+    link: &str,
+    lida: &AnotacaoLida,
+    id: &str,
+) -> Result<(), C> {
+    let servida = TelaServida {
+        url: link,
+        html: &lida.html,
+        codificacao: lida.codificacao,
+    };
+    let submissao = derivar_submissao(
+        &super::anotacoes::REGISTRAR_ANOTACAO,
+        instalacao,
+        &servida,
+        "",
+        &[("txaDescricao", "")],
+    )?;
+    let mut saiu = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
+        saiu = true;
+        rede.post(s, c)
+    });
+    if !saiu {
+        return Err(C::Formulario(
+            resposta.expect_err("sem POST só falha na derivação"),
+        ));
+    }
+    // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
+    match conferir_anotacao_depois(rede, cookie, link, id) {
+        Ok(()) => Ok(()),
+        Err(C::AnotacoesNaoRemovidasAposEnvio) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
+        Err(_) => Err(C::EfeitoIncertoNaLimpezaDaAnotacao),
+    }
+}
+
+/// A árvore já confirmou a tramitação; outro GET decide se a anotação
+/// realmente desapareceu, sem repetir POST diante de recusa ou incerteza.
+fn conferir_anotacao_depois<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: &str,
+    id: &str,
+) -> Result<(), C> {
+    let depois = obter_tela(rede, cookie, link)
+        .ok()
+        .and_then(|(html, _)| super::anotacoes::anotacao_presente(&html, id).ok());
+    match depois {
+        Some(false) => Ok(()),
+        Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
+        None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes),
+    }
 }
 
 /// GET da tela de envio (o link da barra), conferida sem rede.
@@ -232,6 +381,7 @@ fn conciliar(
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
         return Err(C::EfeitoIncertoNoEnvio {
             aberto_em: feito.aberto_em,
+            anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
         });

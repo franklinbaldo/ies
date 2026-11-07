@@ -2,6 +2,48 @@
 //! Forma observada no SEI 4.0.9 de treinamento (Todos,
 //! `tests/paginas_reais/processo_anotacao_registrar.html`).
 use crate::erro_html::ErroHtml;
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, ResultadoDoEnvio,
+};
+
+/// POST do botão Salvar no formulário de anotação observado no SEI 4.0.9.
+pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "anotacao_registrar",
+    formulario: "frmAnotacaoCadastro",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmRegistrarAnotacao"),
+    campos_ocultos_exigidos: &["hdnIdProtocolo"],
+    campos_ocultos_reescritos: &[],
+    campos_usuario: &["txaDescricao"],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::AnotacaoNaUnidade,
+    },
+};
+
+/// Sem o botão de salvar a tela não oferece edição, apenas leitura.
+pub(crate) fn salvar_oferecido(html: &str) -> bool {
+    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
+        return false;
+    };
+    let Ok(form) = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro") else {
+        return false;
+    };
+    form.children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .any(|tag| {
+            tag.name().as_utf8_str().eq_ignore_ascii_case("button")
+                && crate::html_atributos::valor_do_atributo(tag, "name")
+                    .ok()
+                    .flatten()
+                    .as_deref()
+                    == Some("sbmRegistrarAnotacao")
+                && !crate::html_atributos::atributo_presente(tag, "disabled").unwrap_or(true)
+        })
+}
 
 pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
     use crate::formulario_web::{decodificar_atributo, localizar_formulario};
