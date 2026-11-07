@@ -20,8 +20,8 @@ use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
 use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
-use std::io::Read;
 use crate::visao_do_controle::EnvioDoControle as _;
+use std::io::Read;
 use tela::{DestinoConsultado, Relacionamento, ler_destino, ler_linhas, url_complementar};
 
 const CONSULTA: ConsultaAjax = ConsultaAjax {
@@ -91,7 +91,7 @@ pub(crate) struct Previa {
 
 /// Números de processo são opacos; para buscar vínculos, diferenças de
 /// pontuação e caixa não mudam a sequência de letras e dígitos. Oráculo:
-/// Todos tipos.mesmo_protocolo e test_so_os_digitos_bastam @323eb01.
+/// Todos `tipos.mesmo_protocolo` e `test_so_os_digitos_bastam` @323eb01.
 fn forma_do_protocolo(numero: &str) -> String {
     numero
         .chars()
