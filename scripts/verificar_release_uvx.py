@@ -7,8 +7,8 @@ from pathlib import Path
 
 
 def conferir_tag(tag: str, raiz: Path) -> str:
-    if re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tag) is None:
-        raise ValueError("tag de release deve ter forma vMAJOR.MINOR.PATCH")
+    if re.fullmatch(r"v0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tag) is None:
+        raise ValueError("tag de release deve permanecer em v0.MINOR.PATCH")
 
     with (raiz / "Cargo.toml").open("rb") as arquivo:
         cargo = tomllib.load(arquivo)
