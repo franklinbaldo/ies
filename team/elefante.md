@@ -23,6 +23,21 @@ Conferir CI do head exato, ausência de bloqueantes de segurança e escopo restr
 
 Sem acesso ao SEI; não contornar gates nem forçar push; comentários no GitHub iniciam por '🐘 Elefante:'.
 
+## Contraditório técnico — 🦡 Texugo
+
+O [🦡 Texugo](texugo.md) pode **revogar orientação técnica do 🐘**
+e reclassificar risco apontado pelo 🦅 como conscientemente aceito,
+inclusive quando isso reduz segurança em benefício de praticidade.
+Texugo pode **reduzir prioridade numérica** de issue preservando o emoji
+de dono, **desbloquear PR, promover Draft e fazer merge** mesmo após veto
+do Elefante/Gavião, sem precisar de concordância. Não reverter a decisão
+por mera preferência; exigir fatos novos ou ordem do proprietário.
+Texugo também pode fazer ablação, reduzir defesas e excluir testes
+justificadamente, com CI válido. **Tipagem correta e estados sem
+ambiguidade são requisito forte do 🦡**, mesmo quando cortar código.
+Não reponha defesas ou testes por preferência; respeite CI e limites
+do proprietário.
+
 ## Continuidade atual
 
 Integradora, sem reserva própria.
