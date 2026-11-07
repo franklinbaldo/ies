@@ -170,10 +170,12 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
         .replace("infra_hash=FICTICIO", &format!("infra_hash={}", "b".repeat(64)))
         .replace(
             "</form><form id=\"frmAnexos\">",
-            "<input type=\"text\" name=\"txtDataElaboracao\" value=\"\">\\
-             <input type=\"radio\" name=\"rdoFormato\" value=\"N\" checked>\\
-             <input type=\"radio\" name=\"rdoNivelAcesso\" value=\"0\" checked>\\
-             </form><form id=\"frmAnexos\">",
+            concat!(
+                "<input type=\"text\" name=\"txtDataElaboracao\" value=\"\">",
+                "<input type=\"radio\" name=\"rdoFormato\" value=\"N\" checked>",
+                "<input type=\"radio\" name=\"rdoNivelAcesso\" value=\"0\" checked>",
+                "</form><form id=\"frmAnexos\">",
+            ),
         );
     respostas.push(a::ok(formulario));
     respostas.push(a::r302("controlador.php?acao=arvore_visualizar&id_documento=42"));
