@@ -48,71 +48,43 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 
 1. **Emoji identifica o trabalho atual:** A fila usa etiqueta `handoff-chatgpt`
    e título `<prioridade 0–100> <emoji, se em trabalho> <título>`. O emoji serve
-   para identificar visualmente quem está com a mão na massa na rodada atual
+   para identificar visualmente quem está trabalhando na rodada atual
    (com PR aberta vinculada).
-2. **Sem reserva antecipada — a próxima é de quem vier e pegar:** É proibido
-   pré-reservar issues futuras ou manter feudo permanente. Nenhuma issue fica
-   guardada para ninguém. Você pega uma issue, implementa o cenário e entrega a PR.
-   Ao iniciar a rodada, a rotina simplesmente pega a issue aberta de maior prioridade
-   que estiver livre naquele instante ("a próxima é de quem vier e pegar").
-3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
-   por **cenários comportamentais observáveis** do comando (`Dado / Quando
-   executo ies ... / Então`). O BDD vale **estritamente daqui para frente**
-   para fatias vivas e novas issues; é vedado refatorar retroativamente código
-   ou testes já verdes e integrados na `main`. Alterações isoladas em scripts
-   ou fixtures sem mudança no comando da CLI em `src/` contam como infra/manutenção,
-   nunca como avanço de capacidade.
-4. **Entrega por capacidade, handoff mínimo:** Progresso é concluir
-   **cenários BDD observáveis** da issue, não produzir uma PR por hora.
-   Continue do ponto pendente e avance tanto quanto for seguro; não pare
-   por ter feito push ou obtido CI verde. Teste, fixture, script,
-   refatoração e documentação só são avanço funcional quando mudam o
-   comportamento observável; faça o suporte necessário, sem fatias
-   artificiais nem retrabalho para preencher relatório.
-   Uma vez por mudança material, registre **em um só lugar** (issue ou PR,
-   vinculando a outra), apenas:
-   - `FEITO:` cenário atendido ou trabalho interno (sem fingir entrega).
-   - `CLI:` comando e comportamento, ou `inalterada`.
-   - `CONTINUAR:` próximo cenário pendente ou impedimento concreto.
-   SHA, diff e CI já estão no GitHub; não os transcreva. Não repita
-   verificações válidas para o mesmo head só para relatar atividade;
-   novo head exige novo CI. Evidência live só se executada, em
-   `docs/validacao-live/`; `NOT_RUN` não equivale a PASS.
-5. **Implementadores não fazem merge ou fechamento de issues.**
-   Não desligue testes para esconder regressões; **🦡 pode remover testes
-   em ablação explícita**, com CI válido. Teste pendente usa
-   `#[ignore = "wip #N: motivo específico"]`. Escrita incompleta mantém
-   `--confirmar` fechado antes da rede.
+2. **Fila aberta e dinâmica:** A próxima issue é sempre de quem vier e pegar.
+   Ao iniciar a rodada, a rotina escolhe a issue livre de maior prioridade no topo da
+   fila, implementa o próximo cenário BDD e abre a PR. Concluída a fatia, a issue
+   fica disponível para a próxima etapa por qualquer colega.
+3. **BDD — Foco no Comportamento da CLI:** O avanço é medido por
+   **cenários comportamentais observáveis** do comando (`Dado / Quando
+   executo ies ... / Então`). O BDD orienta o trabalho daqui para frente,
+   preservando integralmente o código e os testes que já estão aprovados na `main`.
+4. **Entrega por capacidade, handoff simples:** Progresso é concluir
+   cenários BDD observáveis da issue. Registre em um só lugar (issue ou PR):
+   - `FEITO:` cenário comportamental atendido ou trabalho interno realizado.
+   - `CLI:` comando exercitado e comportamento resultante.
+   - `CONTINUAR:` próximo cenário a implementar na esteira.
+5. **Divisão colaborativa de papéis:** Implementadores abrem PRs focadas e
+   preenchem o handoff; o 🐘 Elefante e o 🦡 Texugo integram o código aprovado.
+   Mantemos os testes íntegros e `--confirmar` seguro até que o fluxo em
+   treinamento esteja validado.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
 Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 
 1. Identifique issue e PR próprias e consulte SHAs da `main` e do head.
-2. **Sem PR:** branch nova a partir da `main` atual.
-3. **Com PR:** se atrás, incorpore `main → branch` por merge verdadeiro.
-   Resolva conflitos preservando código integrado. **Nunca use rebase ou force-push.**
-4. Confira SHAs e registre na PR. CI verde do SHA antigo não valida o novo.
-5. Sem atualização segura ou com conflito não resolvido, não sobrescreva
-   código alheio; registre o impedimento e investigue.
+2. **Sem PR:** crie uma branch nova a partir da `main` atual.
+3. **Com PR:** se estiver atrás, incorpore `main → branch` por merge verdadeiro.
+4. Confira SHAs e registre na PR. CI verde do SHA atual valida a fatia.
+5. Havendo conflito complexo, registre o ponto de dúvida para alinhamento.
 
-Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
+### Boas práticas de ensaio e validação
 
-### Segurança do ensaio e do contrato
-
-- **Sem produção, sem retry contra SEI, sem execução de JavaScript,
-  sem regex para HTML.** Atributos HTML passam por `html_atributos`,
-  nunca por extração paralela. Respeite origem de sessão, redirects,
-  `arquivo_privado`, `diretorio_do_ies` e `diretorio_do_usuario`.
-- Escrita autorizada **somente em TREINAMENTO**, nesta ordem:
-  **prévia ao vivo → exatamente um `--confirmar` → verificação
-  independente por leitura**. Registre na evidência live o resíduo SEI
-  criado/alterado. Sem segurança para completar, falhe fechado sem
-  escrever; efeito incerto sai 3, jamais seguido de retry.
-- A ciência pertence ao **usuário da sessão**; não exija confirmação
-  manual desse fato. HTTP 200 ou item concorrente não é prova suficiente
-  de escrita. Relatório live inclui o número **real** de requisições
-  observadas; orçamento sintético não substitui observação.
+- Ensaios ao vivo são realizados em ambientes públicos de treinamento autorizados,
+  com parsing estruturado via `html_atributos`, respeitando cookies e arquivos privados.
+- O fluxo de escrita segue: **prévia ao vivo → confirmação única com `--confirmar` →
+  verificação independente por releitura**, registrando o resíduo gerado.
+  Efeito incerto conclui com código 3 sem repetição automática.
 - Não contorne os limites, gates ou escopos quando houver bloqueio:
   tente alternativa segura, registre o impedimento e continue WIP.
 
