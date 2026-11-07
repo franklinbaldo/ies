@@ -215,8 +215,8 @@ fn limite_exato_e_cadastro_sem_maxlength_nao_inventam_recusa() {
     }
 }
 
-/* #245: a consulta AJAX de interessados é anterior ao POST criador.
-   A falha HTTP observada não pode virar "HTML não reconhecido". */
+// #245: a consulta AJAX de interessados é anterior ao POST criador.
+// A falha HTTP observada não pode virar "HTML não reconhecido".
 #[test]
 fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
     let amb = ambiente();
@@ -261,8 +261,14 @@ fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
     assert_eq!(contador, 4);
     assert_eq!(requests.len(), 4);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
-    assert!(requests[3].url.contains("acao_ajax=contato_auto_completar_contexto_RI1225"));
-    assert!(requests.iter().all(|r| {
-        r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar")
-    }));
+    assert!(
+        requests[3]
+            .url
+            .contains("acao_ajax=contato_auto_completar_contexto_RI1225")
+    );
+    assert!(
+        requests
+            .iter()
+            .all(|r| { r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar") })
+    );
 }

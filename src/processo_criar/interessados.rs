@@ -187,21 +187,20 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             )));
         }
         if !matches!(
-                resposta
-                    .resposta
-                    .mime
-                    .split(';')
-                    .next()
-                    .unwrap_or_default()
-                    .trim(),
-                "application/xml" | "text/xml"
-            )
-        {
+            resposta
+                .resposta
+                .mime
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .trim(),
+            "application/xml" | "text/xml"
+        ) {
             return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
         }
         let mime = resposta.resposta.mime.clone();
-        let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
-            .map_err(E::Transporte)?;
+        let bytes =
+            ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::Transporte)?;
         let xml = decode_http_body(&bytes, &mime)
             .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
