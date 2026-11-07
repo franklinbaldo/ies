@@ -153,7 +153,7 @@ fn aceite_da_forma_com_documento_e_contado_a_parte() {
 
 /// Um banco da versão 1 (antes da fatia 2) migra sem perder linhas.
 #[test]
-fn banco_da_versao_1_migra_para_3_sem_perder_linhas() {
+fn banco_da_versao_1_migra_para_4_sem_perder_linhas() {
     let raiz = pasta("doc-migracao");
     let caminho = raiz.join(NOME_DO_ARQUIVO);
     IndiceLocal::em(caminho.clone())
@@ -162,7 +162,8 @@ fn banco_da_versao_1_migra_para_3_sem_perder_linhas() {
     let conexao = rusqlite::Connection::open(&caminho).unwrap();
     conexao
         .execute_batch(
-            "DROP TABLE unidade;
+            "DROP TABLE controle_unidade;
+             DROP TABLE unidade;
              DROP TABLE lista_unidade;
              DROP TABLE documento;
              ALTER TABLE instalacao DROP COLUMN entrada_com_documento;

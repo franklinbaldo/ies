@@ -114,15 +114,15 @@ impl<'i> Colheita<'i> {
         let (indice, instalacao) = (alvo.indice, &alvo.instalacao);
         // Só publica o fato após o leitor REAL validar o Controle R/D.
         // O índice armazena a geração derivada do cookie, nunca o cookie.
-        if let Ok(nome) = crate::controle_reconhecido::unidade_do_controle(html) {
-            if let Some(observada) = iesei::observacao::UnidadeExibida::nova(&nome) {
+        if let Ok(nome) = crate::controle_reconhecido::unidade_do_controle(html)
+            && let Some(observada) = iesei::observacao::UnidadeExibida::nova(&nome)
+        {
                 let visao = if publica_visao_detalhada(html) {
                     iesei::observacao::VisaoDoControle::Detalhada
                 } else {
                     iesei::observacao::VisaoDoControle::Resumida
                 };
                 indice.registrar_unidade_observada(instalacao, &alvo.geracao, &observada, visao);
-            }
         }
         for (linha, url) in linhas_conferidas(alvo, html) {
             let gravado = registrar(alvo, &unidade, ACAO_DO_TRABALHO, &linha.id, &url);
