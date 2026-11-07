@@ -88,6 +88,7 @@ pub(crate) use barra_do_documento::{
 };
 #[allow(unused_imports)] // leitor da barra pronto; fluxo Web de comentários pendente (#257)
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
+pub(crate) use barra_do_processo::ler_link_das_anotacoes;
 pub(crate) use barra_do_processo::{
     EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_de_incluir_documento,
 };

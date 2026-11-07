@@ -83,6 +83,13 @@ pub(crate) enum ErroEnviar {
     RemocaoDeAnotacoesNaoOferecida,
     /// A escrita não tem releitura capaz de comprovar esse efeito extra.
     RemocaoDeAnotacoesSemVerificacao,
+    #[causa(interna)]
+    LinkDasAnotacoes(ErroHtml),
+    #[causa(interna)]
+    TelaDasAnotacoes(FalhaTransporte),
+    TelaDasAnotacoesRedirecionada,
+    #[causa(interna)]
+    LeituraDasAnotacoes(ErroHtml),
     DestinoNaoOferecidoPeloSei {
         oferecidos: Vec<String>,
     },
@@ -143,7 +150,7 @@ impl ErroEnviar {
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) => falha.status_http().cloned(),
+            Self::TelaDaEscrita(falha) | Self::TelaDasAnotacoes(falha) => falha.status_http().cloned(),
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Consulta(falha) => falha.status_http(),
             Self::Formulario(erro) => erro.status_http().cloned(),
@@ -195,6 +202,15 @@ impl ErroEnviar {
             }
             Self::RemocaoDeAnotacoesSemVerificacao => {
                 "não há releitura independente que comprove remoção de anotações; nada foi enviado"
+            }
+            Self::LinkDasAnotacoes(_) => {
+                "o link das anotações da origem não está na forma observada; nada foi enviado"
+            }
+            Self::TelaDasAnotacoes(_) | Self::TelaDasAnotacoesRedirecionada => {
+                "a tela das anotações não foi servida; nada foi enviado"
+            }
+            Self::LeituraDasAnotacoes(_) => {
+                "a anotação da origem não pôde ser lida com identidade conferida; nada foi enviado"
             }
             Self::DestinoNaoOferecidoPeloSei { .. } => {
                 "o SEI não oferece unidade de destino com essa sigla; nada foi enviado"

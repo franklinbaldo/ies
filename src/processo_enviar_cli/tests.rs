@@ -15,6 +15,7 @@ fn previa() -> ProcessoEnviado {
         alterado: false,
         manter_aberto: false,
         remover_anotacoes: false,
+        anotacao_antes: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),

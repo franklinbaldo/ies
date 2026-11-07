@@ -5,7 +5,6 @@
 //! SEI publica. Prévia sem POST de escrita; com `--confirmar`, um POST e
 //! uma leitura nova da árvore para verificar. Nunca repete a escrita.
 mod destino;
-#[cfg(test)]
 mod anotacoes;
 mod erro;
 mod fluxo;
@@ -74,6 +73,9 @@ pub(crate) struct ProcessoEnviado {
     pub(crate) alterado: bool,
     pub(crate) manter_aberto: bool,
     pub(crate) remover_anotacoes: bool,
+    /// Presença da anotação da unidade de origem, quando a tela a publicou.
+    /// None significa não observada, nunca ausência.
+    pub(crate) anotacao_antes: Option<bool>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,

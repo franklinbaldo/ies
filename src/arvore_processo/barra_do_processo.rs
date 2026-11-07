@@ -55,6 +55,28 @@ pub(crate) fn ler_link_das_propriedades(
         })
 }
 
+/// Anotações na origem: somente o link servido no nó PROCESSO.
+/// O GET deste endereço abre o formulário, não submete anotação.
+pub(crate) fn ler_link_das_anotacoes(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<String>, ErroHtml> {
+    let hrefs = hrefs_da_barra(html)
+        .map_err(|_| ErroHtml::html("barra_de_anotacoes_nao_interpretada"))?;
+    let candidatos: Vec<_> = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some("anotacao_registrar"))
+        .collect();
+    match candidatos.as_slice() {
+        [] => Ok(None),
+        [href] => conferir_endereco_relativo(instalacao, href, "anotacao_registrar", id)
+            .map(Some)
+            .map_err(|_| ErroHtml::valor("endereco_de_anotacoes_nao_reconhecido")),
+        _ => Err(ErroHtml::repetido("links_de_anotacoes_repetidos")),
+    }
+}
+
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkPrazo {

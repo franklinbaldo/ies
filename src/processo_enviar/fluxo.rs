@@ -74,6 +74,21 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     if pedido.remover_anotacoes && !tela.conferida.remover_anotacoes_oferecida {
         return Err(C::RemocaoDeAnotacoesNaoOferecida);
     }
+    let anotacao_antes = if pedido.remover_anotacoes {
+        match acoes.anotacoes.map_err(C::LinkDasAnotacoes)? {
+            Some(link) => {
+                let (html, _) = obter_tela(&mut rede, &cookie, &link).map_err(|falha| match falha {
+                    FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
+                    FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+                    FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+                })?;
+                Some(super::anotacoes::anotacao_presente(&html, &id).map_err(C::LeituraDasAnotacoes)?)
+            }
+            None => None,
+        }
+    } else {
+        None
+    };
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
@@ -86,6 +101,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         alterado: false,
         manter_aberto: pedido.manter_aberto,
         remover_anotacoes: pedido.remover_anotacoes,
+        anotacao_antes,
         destino,
         aberto_em,
         depois: None,

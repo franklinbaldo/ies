@@ -259,6 +259,8 @@ struct ResultadoEnvio<'a> {
     manter_aberto: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     remover_anotacoes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    anotacao_antes: Option<bool>,
     nup: &'a str,
     origem: &'static str,
     reconciliado_por_leitura: bool,
@@ -276,6 +278,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         alterado: feito.alterado,
         manter_aberto: feito.manter_aberto,
         remover_anotacoes: feito.remover_anotacoes.then_some(true),
+        anotacao_antes: feito.anotacao_antes,
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -366,6 +369,12 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
     ];
     if feito.remover_anotacoes {
         linhas.push("Remover anotações no envio: sim".to_owned());
+        let observada = match feito.anotacao_antes {
+            Some(true) => "sim",
+            Some(false) => "não",
+            None => "não observada",
+        };
+        linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
     }
     match (feito.confirmado, &feito.depois) {
         (false, _) => {
