@@ -73,6 +73,33 @@ pub(super) fn resolver_action(
     Ok(absoluta)
 }
 
+/// A action que o handler do formulário publica no script da tela ativa.
+/// O destino continua restrito ao controlador da instalação e ao hash
+/// assinado; não aceita URL absoluta, esquema, caminho raiz ou travessia.
+pub(super) fn resolver_action_declarada(
+    url_declarada: &str,
+    servida: &UrlHttps<'_>,
+    instalacao: &Instalacao,
+    operacao: &OperacaoDeFormulario,
+) -> Result<String, E> {
+    if url_declarada.contains(':')
+        || url_declarada.starts_with('/')
+        || url_declarada.split(['/', '?']).any(|s| s == "..")
+    {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    let absoluta = match servida.caminho.rsplit_once('/') {
+        Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
+        None => format!("https://{}/{url_declarada}", servida.host),
+    };
+    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+        return Err(E::AcaoDoFormularioForaDaInstalacao);
+    }
+    conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
+    Ok(absoluta)
+}
+
 /// `action` do login: resolvido contra a URL servida, no **host** da
 /// instalação, sem segmentos `.`/`..` e com consulta de nomes canônicos.
 /// O login não tem `acao=` nem `infra_hash`.

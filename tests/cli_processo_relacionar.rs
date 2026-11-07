@@ -35,7 +35,7 @@ fn sem_configuracao_previa_recusa_sem_rede() {
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
 #[test]
-fn confirmar_e_remover_confirmar_nao_abrem_sessao_nem_escrevem() {
+fn confirmar_e_remover_confirmar_sem_sessao_recusam_sem_escrita() {
     for remover in [false, true] {
         let mut args = vec![
             "processo",
@@ -53,7 +53,7 @@ fn confirmar_e_remover_confirmar_nao_abrem_sessao_nem_escrevem() {
         assert_eq!(saida.status.code(), Some(1));
         assert_eq!(
             json(&saida)["subcodigo"],
-            "confirmacao_de_relacionamento_nao_validada"
+            "arquivo_privado_ausente_ou_inacessivel"
         );
     }
 }
@@ -66,4 +66,71 @@ fn destino_obrigatorio_e_flag_desconhecida_saem_2() {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2));
     }
+}
+
+/// Regressão técnica da trava WIP (AGENTS.md); não é um BDD novo.
+#[test]
+fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-relacionar-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir(&pasta).unwrap();
+    let origem = pasta.join("origem");
+    let url = pasta.join("url");
+    let cookie = pasta.join("cookie");
+    for (arquivo, texto) in [
+        (&origem, "https://sei.invalid/sei".to_owned()),
+        (
+            &url,
+            format!(
+                "https://sei.invalid/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+                "a".repeat(64)
+            ),
+        ),
+        (&cookie, "PHPSESSID=SINTETICO".to_owned()),
+    ] {
+        fs::write(arquivo, texto).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(arquivo, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+    }
+    for remover in [false, true] {
+        let mut args = vec![
+            "processo",
+            "relacionar",
+            NUP,
+            "--com",
+            "00001.000002/2026-01",
+            "--confirmar",
+            "--json",
+        ];
+        if remover {
+            args.push("--remover");
+        }
+        let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(args)
+            .env_remove("IES_CONFIG_FILE")
+            .env("IES_URL_CONTROLE_FILE", &url)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("IES_INDICE_FILE", pasta.join("indice.sqlite3"))
+            .output()
+            .expect("IES deve iniciar");
+        assert_eq!(saida.status.code(), Some(1));
+        assert_eq!(
+            json(&saida)["subcodigo"],
+            "confirmacao_de_relacionamento_nao_validada"
+        );
+    }
+    fs::remove_dir_all(pasta).unwrap();
 }

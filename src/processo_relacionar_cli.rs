@@ -1,7 +1,7 @@
-//! CLI de prévia de relacionamento. Escrita intencionalmente bloqueada.
+//! CLI de relacionamento: prévia, remoção confirmada e efeito incerto.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
-use crate::processo_relacionar::{FalhaRelacionar, Pedido, Previa, prever};
+use crate::processo_relacionar::{FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, prever};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -29,14 +29,12 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         Ok(n) => n,
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
     };
-    if *confirmar {
-        // Zero rede, zero escrita até integrar a reconciliação.
-        return Some(falha(
-            cli.json,
-            &FalhaRelacionar::ConfirmacaoAindaNaoValidada,
-        ));
-    }
     Some(com_sessao(cli, |sessao, indice| {
+        // A escrita real só será habilitada após ensaio de treinamento.
+        // Esta trava não interfere na prévia nem nos testes offline do motor.
+        if *confirmar {
+            return falha(cli.json, &FalhaRelacionar::ConfirmacaoAindaNaoValidada);
+        }
         let pedido = Pedido {
             nup: &nup,
             com: &outro,
@@ -58,20 +56,32 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
 }
 
 fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "operacao_recusada",
-                "subcodigo": erro.subcodigo(),
-                "erro": "prévia indisponível ou confirmação ainda não validada",
-                "retentavel": false,
-            })
-        );
+    let incerto = erro.saida() == 3;
+    let mensagem = if incerto {
+        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
+    } else if matches!(erro, FalhaRelacionar::ConfirmacaoAindaNaoValidada) {
+        "Confirmação indisponível até validação em treinamento; a prévia continua disponível."
     } else {
-        eprintln!("IES: operação recusada [{}]", erro.subcodigo());
+        "Operação recusada ou prévia indisponível"
+    };
+    if json_mode {
+        let mut resposta = json!({
+            "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
+            "subcodigo": erro.subcodigo(),
+            "erro": mensagem,
+            "retentavel": false,
+        });
+        if let Some(status) = erro.status_http() {
+            resposta["status_http"] = json!(status.status);
+            if let Some(texto) = &status.mensagem_do_servidor {
+                resposta["mensagem_servidor"] = json!(texto);
+            }
+        }
+        println!("{resposta}");
+    } else {
+        eprintln!("IES: {mensagem} [{}]", erro.subcodigo());
     }
-    ExitCode::from(1)
+    ExitCode::from(erro.saida())
 }
 
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
@@ -83,22 +93,36 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
                 "id_procedimento": previa.id_procedimento,
                 "destino": previa.destino,
                 "id_destino": previa.id_destino,
+                "tipo_destino": previa.tipo_destino,
                 "remover": previa.remover,
-                "confirmado": false,
-                "alterado": false,
-                "sem_efeito": previa.sem_efeito,
+                "confirmado": previa.resultado == ResultadoRelacionar::Confirmado,
+                "alterado": previa.resultado == ResultadoRelacionar::Confirmado,
+                "sem_efeito": previa.sem_efeito(),
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
             })
         );
-    } else if previa.sem_efeito {
+    } else if previa.resultado == ResultadoRelacionar::Confirmado {
+        println!(
+            "Relacionamento {} e conferido: {} com {}. Requisições: {}",
+            if previa.remover { "removido" } else { "criado" },
+            previa.nup,
+            previa.destino,
+            previa.requisicoes
+        );
+    } else if previa.sem_efeito() {
         println!(
             "Nada a fazer: relação no estado pedido. Requisições: {}",
             previa.requisicoes
         );
     } else {
+        let tipo = previa
+            .tipo_destino
+            .as_deref()
+            .map(|nome| format!(" (tipo: {nome})"))
+            .unwrap_or_default();
         println!(
-            "Prévia: {} processo {} com {} (id: {}). Requisições: {}. Escrita ainda bloqueada.",
+            "Prévia: {} processo {} com {}{} (id: {}). Requisições: {}. {}.",
             if previa.remover {
                 "desvincular"
             } else {
@@ -106,8 +130,14 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             },
             previa.nup,
             previa.destino,
+            tipo,
             previa.id_destino.as_deref().unwrap_or("não observado"),
             previa.requisicoes,
+            if previa.remover {
+                "Remoção ainda não habilitada em treinamento"
+            } else {
+                "Adição ainda não habilitada em treinamento"
+            },
         );
     }
     ExitCode::SUCCESS
