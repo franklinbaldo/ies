@@ -36,7 +36,7 @@ class EnsaioUmaVez(unittest.TestCase):
     def respostas_validas(self):
         return [
             (0, {"tipo": "Ensaio", "especificacao": "Teste sintético", "nivel": "publico", "confirmado": False, "requisicoes": 3}),
-            (0, {"confirmado": True, "nup": NUP, "requisicoes": 6}),
+            (0, {"confirmado": True, "nup": NUP, "requisicoes": 7}),
             (0, {"numero": NUP, "id_procedimento": "10", "requisicoes": 2}),
         ]
 
@@ -50,7 +50,7 @@ class EnsaioUmaVez(unittest.TestCase):
         self.assertEqual(self.registro.stat().st_mode & 0o777, 0o600)
         self.assertEqual(json.loads(self.registro.read_text())["nup"], NUP)
         self.assertEqual(relatorio["requisicoes_previa"], 3)
-        self.assertEqual(relatorio["requisicoes_confirmacao"], 6)
+        self.assertEqual(relatorio["requisicoes_confirmacao"], 7)
         self.assertEqual(relatorio["requisicoes_verificacao"], 2)
 
     def test_previa_falhou_sem_trava_nem_post(self):
@@ -89,6 +89,16 @@ class EnsaioUmaVez(unittest.TestCase):
         codigo, relatorio = self.rodar(respostas)
         self.assertEqual((codigo, relatorio["estado"]), (3, "ORCAMENTO_DIVERGENTE"))
         self.assertEqual(len(self.chamadas), 3)
+
+    def test_orcamento_sem_terceira_leitura_verificadora_nao_declara_pass(self):
+        # Criador: 1 POST; prova independente: tela, arvore, propriedades (3 GET).
+        # O total antigo previa+3 nao comprova o fluxo atual da #245.
+        respostas = self.respostas_validas()
+        respostas[1][1]["requisicoes"] = 6
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "ORCAMENTO_DIVERGENTE"))
+        self.assertEqual(len(self.chamadas), 3)
+        self.assertEqual(relatorio["requisicoes_confirmacao"], 6)
 
     def test_releitura_sem_contagem_nao_declara_pass(self):
         respostas = self.respostas_validas()
