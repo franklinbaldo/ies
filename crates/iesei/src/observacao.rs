@@ -70,6 +70,9 @@ pub struct TabelaObservada<T> {
 }
 
 impl<T> TabelaObservada<T> {
+    /// # Errors
+    ///
+    /// Recusa uma tabela cuja contagem ou faixa contradiz o total declarado.
     pub fn nova(
         total_declarado: Option<usize>,
         faixa_observada: Option<FaixaObservada>,
@@ -167,12 +170,8 @@ mod tests {
 
     #[test]
     fn nao_publica_pagina_parcial_como_lista_vazia() {
-        let parcial = TabelaObservada::nova(
-            Some(10),
-            FaixaObservada::nova(1, 2),
-            vec!["1", "2"],
-        )
-        .unwrap();
+        let parcial =
+            TabelaObservada::nova(Some(10), FaixaObservada::nova(1, 2), vec!["1", "2"]).unwrap();
         assert!(parcial.pagina_verificavel());
         assert_eq!(parcial.total_declarado, Some(10));
     }
