@@ -143,6 +143,60 @@ pub struct PreviaCopia {
     /// só a releitura (`foto_local_divergente`) ou o salvar remoto (#89).
     pub base_verificada: bool,
     pub trecho_divergente: Option<TrechoDivergente>,
+    /// Mostrado só na saída humana; JSON legado não contém corpo HTML.
+    #[serde(skip_serializing)]
+    pub diff_humano: String,
+}
+
+/// Visualização local limitada: bloco contínuo que abrange as mudanças,
+/// não um diff mínimo. Linhas com atributos ou referências potencialmente
+/// sensíveis não são impressas; JSON permanece sem texto HTML.
+fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> String {
+    const LIMITE: usize = 1800;
+    let mut saida = String::new();
+    for linha in bytes
+        .split(|b| *b == b'\n')
+        .skip(inicio)
+        .take(fim.saturating_sub(inicio))
+    {
+        let texto = std::str::from_utf8(linha).ok().and_then(|texto| {
+            let baixo = texto.to_ascii_lowercase();
+            let sensivel = texto.len() > 512
+                || texto.contains(['=', '?'])
+                || baixo.contains("://")
+                || ["infra_hash", "cookie", "senha", "token", "authorization", "session"]
+                    .iter()
+                    .any(|s| baixo.contains(s));
+            (!sensivel).then_some(texto.trim_end_matches('\r'))
+        });
+        let linha = format!(
+            "{sinal}{}\n",
+            texto.unwrap_or("[linha omitida: binário ou referência potencialmente sensível]")
+        );
+        if saida.len() + linha.len() > LIMITE {
+            saida.push_str("… trecho abreviado (cópias locais preservadas)\n");
+            break;
+        }
+        saida.push_str(&linha);
+    }
+    saida
+}
+
+fn diff_humano(base: &[u8], trabalho: &[u8], trecho: TrechoDivergente) -> String {
+    format!(
+        "@@ base linhas {}..{}; edição linhas {}..{} (fim exclusivo; trecho contínuo) @@\n{}{}",
+        trecho.base_inicio,
+        trecho.base_fim_exclusivo,
+        trecho.trabalho_inicio,
+        trecho.trabalho_fim_exclusivo,
+        linhas_da_previa(base, trecho.base_inicio, trecho.base_fim_exclusivo, '-'),
+        linhas_da_previa(
+            trabalho,
+            trecho.trabalho_inicio,
+            trecho.trabalho_fim_exclusivo,
+            '+'
+        )
+    )
 }
 
 /// O par a comparar: com `--versao N`, (N, N + 1); sem, a maior versão
@@ -200,6 +254,11 @@ pub fn previa_local(
         escrita_remota: false,
         base_verificada: false,
         trecho_divergente: trecho_divergente(&base, &editada),
+        diff_humano: diff_humano(
+            &base,
+            &editada,
+            trecho_divergente(&base, &editada).expect("a edição difere da base"),
+        ),
     })
 }
 
