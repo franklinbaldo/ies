@@ -225,3 +225,51 @@ fn botao_exibir_todos_em_template_nao_autoriza_filtro() {
     );
     assert_eq!(filtro_de_todos(&html), Ok(false));
 }
+
+#[test]
+fn tipos_em_controles_hidden_nao_sao_oferecidos() {
+    // Adversarial sintético: hidden no próprio link ou em ancestral
+    // retira o tipo da oferta; a cópia visível segue selecionável.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
+        "a".repeat(64)
+    );
+    let visivel = format!(r#"<a href="{href}">Despacho</a>"#);
+    let oculto = format!(r#"<a hidden href="{href}">Despacho</a>"#);
+    for inerte in [&oculto, &format!("<div hidden>{visivel}</div>")] {
+        let lista =
+            format!(r#"<table id="tblSeries"><tr><td>{visivel}{inerte}</td></tr></table>"#);
+        assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
+        assert_eq!(
+            escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
+            Ok(EscolhaDoDocumento::Link(format!(
+                "https://sei.exemplo.gov.br/sei/{href}"
+            )))
+        );
+        let sem_visivel =
+            format!(r#"<table id="tblSeries"><tr><td>{inerte}</td></tr></table>"#);
+        assert_eq!(
+            tipos_oferecidos(&sem_visivel).unwrap(),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            escolha_do_tipo(&instalacao, &sem_visivel, "4864", "Despacho"),
+            Err(ErroCriar::TipoAusente)
+        );
+    }
+}
+
+#[test]
+fn exibir_todos_hidden_nao_autoriza_filtro() {
+    // Script real isolado não oferece o link oculto; não emitir POST.
+    let botao = r#"<a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
+    let botao_oculto = r#"<a hidden id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('T');">Todos</a>"#;
+    for inerte in [
+        format!("<div hidden>{botao}</div>"),
+        botao_oculto.to_owned(),
+    ] {
+        let tela = format!("<script>{EXIBIR}</script>{inerte}<table id=\"tblSeries\"></table>");
+        assert_eq!(filtro_de_todos(&tela), Ok(false));
+    }
+}
