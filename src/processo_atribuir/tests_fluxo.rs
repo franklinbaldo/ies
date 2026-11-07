@@ -192,6 +192,23 @@ fn remocao_ja_aplicada_recusa_antes_da_tela_sem_post() {
     }
 }
 
+// Login vazio é inválido, mesmo que a árvore informe ausência de atribuição.
+// Preservar a causa já publicada: não confundir pedido inválido com no-op.
+#[test]
+fn login_vazio_nao_se_torna_atribuicao_ja_aplicada() {
+    for confirmar in [false, true] {
+        let respostas = respostas_previa("");
+        let (resultado, pedidos) = if confirmar {
+            rodar_confirmacao(Some(""), respostas)
+        } else {
+            rodar(Some(""), respostas)
+        };
+        assert_eq!(resultado.unwrap_err().subcodigo(), "usuario_nao_atribuivel");
+        assert_eq!(pedidos, pedidos_previa());
+        assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+    }
+}
+
 #[test]
 fn barra_ausente_recusa_com_somente_tres_gets() {
     let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&[UNIDADE], &[])));
