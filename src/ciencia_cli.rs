@@ -112,9 +112,7 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
         }
     }
     if let Some(http) = erro.status_http() {
-        if http.status != 200 {
-            objeto["status_http"] = json!(http.status);
-        }
+        objeto["status_http"] = json!(http.status);
         if let Some(mensagem) = &http.mensagem_do_servidor {
             objeto["mensagem_do_servidor"] = json!(mensagem);
         }
