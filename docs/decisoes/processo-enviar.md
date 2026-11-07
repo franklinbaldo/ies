@@ -163,8 +163,14 @@ campo vazio e ausência de observação (sem link), nunca converte falta de
 link em prova de remoção. A estrutura foi observada no HTML público da
 UnB 4.0.9, `Todos/tests/paginas_reais/processo_anotacao_registrar.html`.
 O cenário BDD verifica GET independente antes do autocomplete e recusa
-tela de outro processo. Se a tela não a oferecer, a operação recusa antes da
-consulta AJAX. A lista de unidades em `aberto_em` **não** comprova
+tela de outro processo. Se o checkbox do envio estiver ausente, mas a
+anotação for editável pelo formulário oferecido, a prévia escolhe
+`metodo_remocao: limpar_anotacao` e planeja salvar `txaDescricao=""`
+antes da tramitação; sem ambos os controles a operação recusa antes da
+consulta AJAX. A alternativa é documentada pelo manual oficial do SEI,
+mas **ainda não executa POST mutador**: dois efeitos distintos exigiriam
+duas releituras, e uma falha entre eles deixaria alteração parcial.
+A lista de unidades em `aberto_em` **não** comprova
 remoção de anotações, portanto `--confirmar --remover-anotacoes` permanece
 fechado antes de qualquer sessão e requisição até haver leitura
 independente do efeito adicional. Esta decisão preserva a confirmação
