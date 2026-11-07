@@ -342,6 +342,7 @@ fn redirecionamento_302_local_com_arvore_comprovada() {
     for localizacao in [
         "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_visualizar&id_documento=102",
         "controlador.php?acao=documento_visualizar&id_documento=102",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=102",
     ] {
         let mut rede = RedeSintetica::default();
         let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
