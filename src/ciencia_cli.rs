@@ -86,12 +86,8 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
 /// Efeito incerto apenas depois do GET de escrita: contagem observada e
 /// proibição de repetição; a mensagem tipada indica a prova independente.
 fn aviso_da_falha(erro: &ErroCienciaProcesso) -> Option<String> {
-    match erro {
-        ErroCienciaProcesso::EfeitoIncerto { requisicoes, .. } => Some(format!(
-            "IES: {requisicoes} requisições; não repetir a escrita"
-        )),
-        _ => None,
-    }
+    erro.requisicoes()
+        .map(|requisicoes| format!("IES: {requisicoes} requisições; não repetir a escrita"))
 }
 
 pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
