@@ -13,10 +13,8 @@ comportamento**, não arquitetura a portar.
 
 ## Equipe de agentes e avatares
 
-O emoji é o **avatar** e o identificador de reserva da rotina. Cada membro
-possui ficha própria em `team/`, com o tipo OKF compartilhado `TeamMember` e especificação em
-`.okf/specs/`. Leia **este AGENTS.md e a ficha** antes de trabalhar: os
-prompts de agendamento só identificam quem executa.
+O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
+Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 
 | Avatar | Membro e especialidade | Ficha | Agenda |
 | --- | --- | --- | --- |
@@ -26,12 +24,11 @@ prompts de agendamento só identificam quem executa.
 | 🦅 | Gavião — revisão independente | [team/gaviao.md](team/gaviao.md) | :40 |
 | 🐙 | Polvo — documentos e editor | [team/polvo.md](team/polvo.md) | :46 |
 | 🦫 | Castor — qualidade Rust, DRY e tipagem de erros | [team/castor.md](team/castor.md) | :58 |
+| 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-A especialização é **preferencial**, não exclusiva. Preserve a issue já
-assumida mesmo quando for de outro domínio. Não edite branches de outros
-donos; relate problemas verificados na issue e ao 🦅. Revisora e
-integradora não assumem issues de implementação.
+A especialidade não altera a reserva atual. Não edite branches de
+outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues.
 
 **Commits por avatar:** toda mensagem de commit de uma rotina
 **começa no primeiro caractere** com o **emoji da própria rotina**
@@ -39,6 +36,12 @@ integradora não assumem issues de implementação.
 `🐙 WIP: ...`. Vale também para merge commits do 🐘
 (personalizar título). 🦅 não comita salvo autorização.
 Nunca use avatar alheio.
+
+**🦡 Texugo:** pode **revogar orientações técnicas** do 🦅 e 🐘 e
+**aceitar menos segurança por praticidade**, inclusive risco real,
+mediante decisão justificada de custo, benefício e risco conforme
+[sua ficha](team/texugo.md). 🦅 e 🐘 respeitam a decisão, sem dispensar
+CI verdadeiro, sigilo nem proibição de produção.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
@@ -105,10 +108,7 @@ sido atualizada na sessão anterior:
    alterações de outra rotina**. Registre o impedimento e faça apenas
    investigação independente até conseguir sincronizar.
 
-Esta regra é pré-condição de **toda fatia de implementação**, inclusive
-retomadas de WIP. 🦅 Gavião não possui branch própria e só verifica a
-atualização da PR ao revisar; 🐘 Elefante segue a regra de integração e
-atualiza branches de PRs conforme seu protocolo abaixo.
+Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
 ### Segurança do ensaio e do contrato
 
