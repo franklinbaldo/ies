@@ -11,7 +11,7 @@ VERIFICADOR = RAIZ / "scripts" / "verificar_release_uvx.py"
 
 
 class ReleaseUvxTest(unittest.TestCase):
-    def validar(self, tag, cargo="0.1.0", python="0.1.0"):
+    def validar(self, tag, cargo="0.1.0", python="0.1.0", lock="0.1.0"):
         with tempfile.TemporaryDirectory() as pasta:
             raiz = Path(pasta)
             (raiz / "Cargo.toml").write_text(
@@ -20,6 +20,15 @@ class ReleaseUvxTest(unittest.TestCase):
             )
             (raiz / "pyproject.toml").write_text(
                 f'[project]\nname = "ies-sei"\nversion = "{python}"\n',
+                encoding="utf-8",
+            )
+            (raiz / "Cargo.lock").write_text(
+                f\'version = 4\
+\
+[[package]]\
+name = "ies"\
+version = "{lock}"\
+\',
                 encoding="utf-8",
             )
             return subprocess.run(
@@ -43,7 +52,7 @@ class ReleaseUvxTest(unittest.TestCase):
                 resultado = self.validar(tag)
                 self.assertNotEqual(resultado.returncode, 0)
 
-    def test_rejeita_tag_versao_diferente(self):
+    def test_rejeita_cargo_lock_divergente(self):\n        resultado = self.validar("v0.1.0", lock="0.0.9")\n        self.assertNotEqual(resultado.returncode, 0)\n\n    def test_rejeita_tag_versao_diferente(self):
         resultado = self.validar("v0.2.0")
         self.assertNotEqual(resultado.returncode, 0)
 
