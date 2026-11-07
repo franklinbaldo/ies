@@ -13,13 +13,16 @@ fn controle_oferecido(
 ) -> Result<bool, ErroCriar> {
     let inicio = controle.boundaries(dom.parser()).0;
     let (inicio_formulario, fim_formulario) = formulario.boundaries(dom.parser());
-    let inertes = super::guarda_script::faixas_inertes(dom).ok_or(ErroCriar::CadastroForaDaForma)?;
+    let inertes =
+        super::guarda_script::faixas_inertes(dom).ok_or(ErroCriar::CadastroForaDaForma)?;
     let inativos = super::guarda_script::faixas_de_controles_inativos(dom)
         .ok_or(ErroCriar::CadastroForaDaForma)?;
     Ok(inicio > inicio_formulario
         && inicio <= fim_formulario
         && !super::guarda_script::dentro_de_template(inicio, &inertes)
-        && !inativos.iter().any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio)))
+        && !inativos
+            .iter()
+            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio)))
 }
 
 /// Verifica a identidade do cadastro antes de qualquer POST de criação.
