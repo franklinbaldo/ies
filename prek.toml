@@ -94,6 +94,15 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
+id = "semver-bump"
+name = "Versao 0.x SemVer: Cargo, wheel, lock e regressao"
+entry = "python3 -I scripts/check_bump_ci.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
 id = "wip-ignores"
 name = "Testes pendentes wip só em testes novos, com issue"
 entry = "python3 -I scripts/wip_ignores.py"
