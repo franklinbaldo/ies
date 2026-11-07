@@ -191,7 +191,11 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
 /// A opçao externa nao integra a lista de tipos de documento nativo.
 fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
     href.strip_prefix("controlador.php?")
-        .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_receber"))
+        .is_some_and(|consulta| {
+            consulta
+                .split('&')
+                .any(|par| par == "acao=documento_receber")
+        })
         || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
 }
 
