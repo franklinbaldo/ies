@@ -73,3 +73,42 @@ fn atender(fluxo: &mut TcpStream) -> io::Result<()> {
     )?;
     fluxo.flush()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pedir(alvo: &str) -> String {
+        let escuta = TcpListener::bind(("127.0.0.1", 0)).expect("bind local");
+        let endereco = escuta.local_addr().expect("endereco local");
+        let servidor = std::thread::spawn(move || {
+            let (mut fluxo, _) = escuta.accept().expect("aceitar conexao");
+            atender(&mut fluxo).expect("responder");
+        });
+
+        let mut cliente = TcpStream::connect(endereco).expect("conectar");
+        write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .expect("enviar GET");
+        cliente
+            .shutdown(std::net::Shutdown::Write)
+            .expect("encerrar escrita");
+        let mut resposta = String::new();
+        cliente.read_to_string(&mut resposta).expect("ler resposta");
+        servidor.join().expect("servidor terminou");
+        resposta
+    }
+
+    #[test]
+    fn saude_responde_no_protocolo_http_real() {
+        let resposta = pedir("/__anti_ies/health");
+        assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(resposta.contains(r#"{"status":"ok","servidor":"anti-ies"}"#));
+    }
+
+    #[test]
+    fn controlador_sei_nao_implementado_responde_501_no_fio() {
+        let resposta = pedir("/sei/controlador.php?acao=procedimento_trabalhar");
+        assert!(resposta.starts_with("HTTP/1.1 501 Not Implemented\r\n"));
+        assert!(resposta.contains("operacao_sei_nao_implementada"));
+    }
+}
