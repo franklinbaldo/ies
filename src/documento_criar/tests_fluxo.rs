@@ -267,3 +267,17 @@ fn causa_de_validacao_do_sei_preserva_status_e_mensagem_http() {
         Some("recusa sintética")
     );
 }
+
+#[test]
+fn resultado_tipado_distingue_previa_de_criacao_com_numero_observado() {
+    // Contrato da #246: não representar "confirmado" sem número SEI.
+    // O enum elimina bool + Option<String> independentes.
+    assert!(matches!(EstadoCriacao::Previa, EstadoCriacao::Previa));
+    let criado = EstadoCriacao::Criado {
+        numero_sei: "0000102".to_owned(),
+    };
+    let EstadoCriacao::Criado { numero_sei } = criado else {
+        panic!("uma criação confirmada exige número SEI");
+    };
+    assert_eq!(numero_sei, "0000102");
+}
