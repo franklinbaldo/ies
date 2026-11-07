@@ -252,7 +252,7 @@ class EnsaioAtribuicao(unittest.TestCase):
                 diretorio_apos_rename = True
             return fsync_original(fd)
 
-        with patch("ensaio_processo_atribuir.os.replace", side_effect=substituir), \\
+        with patch("ensaio_processo_atribuir.os.replace", side_effect=substituir), \
              patch("ensaio_processo_atribuir.os.fsync", side_effect=sincronizar):
             codigo, relatorio = self.rodar()
         self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
