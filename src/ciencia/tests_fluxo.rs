@@ -381,3 +381,72 @@ fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
     );
     assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
 }
+
+/// Caso observado no Todos `tests/test_ciclo_ciencia_010.py` @323eb01:
+/// a segunda ciência do mesmo dia é recusada pela Infra. A resposta
+/// HTTP 200 não autoriza reaplicar o GET nem considerar a escrita nova.
+/// A mensagem fica apresentação da validação, nunca classificação.
+#[test]
+fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    respostas.extend([
+        ok(tela()),
+        ok(
+            "<html><body><textarea id='txaInfraValidacao'>Usuário já deu ciência no processo hoje.</textarea></body></html>"
+                .to_owned(),
+        ),
+        ok(arvore_com_ciencias()),
+    ]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    assert_eq!(
+        erro.status_http()
+            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        Some("Usuário já deu ciência no processo hoje.")
+    );
+    assert!(matches!(
+        erro,
+        E::EfeitoIncerto {
+            falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
+            requisicoes: 6,
+            ..
+        }
+    ));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}
+
+/// RED #271: a árvore publicada por um <noscript> não executado
+/// não prova a ciência, ainda que a Lista antiga contenha o mesmo ID.
+/// Nenhuma consulta a essa lista deve ocorrer sem aceite válido.
+#[test]
+fn script_inerte_em_noscript_nao_confirma_ciencia_antiga() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
+    let html = aceite("42457")
+        .replacen("<script>", "<noscript><script>", 1)
+        .replacen("</script>", "</script></noscript>", 1);
+    respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
+    let (resultado, pedidos) = rodar(true, respostas);
+    let erro = resultado.expect_err("script em noscript nao executa");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert_eq!(pedidos.len(), 6, "sem consulta a lista antiga");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|pedido| pedido.url == link_de_ciencia())
+            .count(),
+        1,
+        "GET mutador unico; nunca retry"
+    );
+    assert_eq!(pedidos.last(), Some(&get(&url_arvore())));
+}

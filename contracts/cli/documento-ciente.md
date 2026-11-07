@@ -101,3 +101,43 @@ não comprova ciência, ainda que seu checkbox contenha o `id_atividade`
 do aceite. A releitura a recusa como forma não observada, retorna
 **efeito incerto (3)** e não repete o GET de escrita. Também se recusa
 `<template>` descendente da tabela, sem aceitar IDs antigos ou ocultos.
+
+## Segunda ciência e HTML inerte (#271, 06/11/2026)
+
+O Todos `tests/test_documento_ciente_010.py` @323eb01 registrou que a
+**segunda ciência no mesmo documento**, sem limite de dia, é recusada com
+`txaInfraValidacao`: «Usuário já deu ciência neste documento.».
+A recusa HTTP 200 preserva a causa tipada `ValidacaoDaInfra`, não comprova
+nova escrita e não autoriza repetição. Teste sintético: 6 GET totais,
+um GET potencialmente mutador, uma releitura e saída 3.
+
+O HTML da Lista de Ciências sob `<noscript>`, ou contendo checkbox dentro
+dele, não comprova ciência em contexto com JavaScript habilitado. O
+reconhecedor rejeita `<noscript>` ou `<template>` ancestral/descendente
+da tabela de prova; a confirmação sem prova fica em **efeito incerto (3)**.
+Teste documental: 7 GET, exatamente 1 mutador, sem retry. Nenhum efeito
+adicional da prévia. Falta validar as formas nas instalações de treinamento.
+
+## Script de aceite em `noscript` (regressão #271)
+
+Em `<noscript>`, um `<script>` não executado não comprova a recarga
+da árvore nem o `id_atividade` do documento quando a sessão Web usa JS.
+O leitor compartilhado recusa a forma inerte, mesmo que o parser HTML
+a exponha, e a ausência de prova após o GET único resulta em saída 3,
+sem repetir escrita. RED do leitor e do fluxo de processo:
+[CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489),
+2 falhas novas / 1.775 PASS / 22 ignored preexistentes.
+
+O replay offline dedicado de `processo-ciente` e `documento-ciente`
+usa os mesmos leitores e hashes do acervo. Não converte resposta 200/302
+em confirmação, nem dispensa leitura independente live.
+
+## Replay específico do acervo (#271)
+
+O [relatório de replay](../../docs/validacao-replay/2026-11-06-ciencia.md)
+registra 14 cards, 42 respostas e integridade verificada em sete
+instalações; porém o leitor recusou os 28 aceites como sem atividade
+reconhecida e não pôde verificar nenhuma das 14 listas. O teste de
+execução passou, **não a prova semântica**. Confrontar as respostas
+reais e separar tela preparatória de GET mutador antes de alegar
+compatibilidade. Os testes sintéticos ainda não substituem live.
