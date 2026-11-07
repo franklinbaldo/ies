@@ -326,4 +326,3 @@ fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
             .replace("</button>", "</button></fieldset>")
     ));
 }
-
