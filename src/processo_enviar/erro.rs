@@ -81,7 +81,7 @@ pub(crate) enum ErroEnviar {
     Consulta(FalhaDaConsulta),
     /// O checkbox não foi servido ou está indisponível na tela atual.
     RemocaoDeAnotacoesNaoOferecida,
-    /// A escrita não tem releitura capaz de comprovar esse efeito extra.
+    /// Confirmação pública fechada enquanto a nova escrita não foi validada em treinamento.
     RemocaoDeAnotacoesSemVerificacao,
     /// O envio foi confirmado pela árvore, mas a anotação ainda existe.
     AnotacoesNaoRemovidasAposEnvio,
@@ -215,7 +215,7 @@ impl ErroEnviar {
                 "a tela de envio não oferece remover anotações; nada foi enviado"
             }
             Self::RemocaoDeAnotacoesSemVerificacao => {
-                "não há releitura independente que comprove remoção de anotações; nada foi enviado"
+                "a remoção de anotações ainda não foi validada em treinamento; nada foi enviado"
             }
             Self::AnotacoesNaoRemovidasAposEnvio => {
                 "o processo foi enviado, mas a anotação continua presente na origem"

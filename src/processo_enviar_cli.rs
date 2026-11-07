@@ -39,6 +39,18 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
         Ok(sigla) => sigla,
         Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
     };
+    // A implementação já tem ensaios sintéticos, mas não passou pelo ciclo
+    // de escrita e releitura numa instalação de treinamento (#333).
+    // Bloquear a confirmação pública antes da sessão; manter a prévia livre.
+    if *remover_anotacoes && *confirmar {
+        let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
+        return Some(saida_erro::erro_fonte_http(
+            cli.json,
+            erro.subcodigo(),
+            erro.mensagem(),
+            erro.status_http(),
+        ));
+    }
     Some(enviar(
         cli,
         &nup,
