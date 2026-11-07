@@ -37,7 +37,23 @@ def origem_privada_permitida(permitidas: set[str]) -> str:
     modo = arquivo.lstat()
     if not stat.S_ISREG(modo.st_mode) or modo.st_mode & 0o077:
         raise ValueError("arquivo de origem não é arquivo privado 0600")
-    origem = arquivo.read_text(encoding="utf-8").strip()
+    # Alinhar com Instalacao::interpretar (ies-core): primeira linha é
+    # a base HTTPS; segunda, opcionalmente, "versao=X.Y[.Z[.W]]".
+    # Comparar a base à allowlist, nunca o arquivo inteiro.
+    linhas = arquivo.read_text(encoding="utf-8").splitlines()
+    if not 1 <= len(linhas) <= 2:
+        raise ValueError("arquivo de origem com linhas inválidas")
+    origem = linhas[0].strip()
+    if len(linhas) == 2:
+        declaracao = linhas[1].strip()
+        if not declaracao.startswith("versao="):
+            raise ValueError("metadado de origem não reconhecido")
+        versao = declaracao[len("versao="):]
+        partes = versao.split(".")
+        if (len(versao) > 32 or not 2 <= len(partes) <= 4
+                or any(not parte.isascii() or not parte.isdecimal()
+                       or int(parte) > 0xFFFFFFFF for parte in partes)):
+            raise ValueError("versão da origem inválida")
     if origem not in permitidas:
         raise ValueError("origem não consta das instalações de treinamento")
     return origem

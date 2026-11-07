@@ -206,6 +206,25 @@ mod testes_previa {
         );
     }
 
+    /// RED #271: o JSON não pode instruir "repetir" a escrita incerta.
+    /// O aviso humano já distingue releitura da Lista e nova confirmação.
+    #[test]
+    fn erro_json_documental_orienta_conferir_lista_antes_de_confirmar() {
+        let erro = ErroCienciaDocumento::EfeitoIncerto {
+            motivo: "aceite_sem_atividade_do_documento",
+            requisicoes: 6,
+            falha_do_aceite: None,
+        };
+        let publicado = json_da_falha(&erro);
+        let mensagem = publicado["erro"].as_str().expect("mensagem JSON");
+        assert!(mensagem.contains("Lista de Ciências"), "{mensagem}");
+        assert!(mensagem.contains("antes de nova confirmação"), "{mensagem}");
+        assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
+        assert_eq!(publicado["codigo"], "efeito_incerto");
+        assert_eq!(publicado["requisicoes"], 6);
+        assert_eq!(erro.saida(), 3);
+    }
+
     #[test]
     fn falha_previa_documental_nao_recebe_aviso_de_escrita() {
         assert!(aviso_da_falha(&ErroCienciaDocumento::CienciaNaoOferecida).is_none());
