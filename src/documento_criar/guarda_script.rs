@@ -222,7 +222,7 @@ pub(super) fn dentro_de_template(inicio: usize, faixas: &[(usize, usize)]) -> bo
 /// Elementos HTML com `hidden` e filhos de `fieldset disabled` não
 /// oferecem o acionador Salvar. Atributos são lidos pela peça única;
 /// a posição no DOM evita confundir um irmão com um ancestral.
-fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
+pub(super) fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
     let mut faixas = Vec::new();
     for no in dom.nodes() {
         let Some(tag) = no.as_tag() else {
