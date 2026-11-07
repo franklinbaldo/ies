@@ -20,17 +20,19 @@ class EnsaioUmaVez(unittest.TestCase):
         self.chamadas = []
         self.pausas = []
 
-    def rodar(self, respostas):
+    def rodar(self, respostas, *, interessados=None):
         fila = iter(respostas)
 
         def executar(_ies, argumentos):
             self.chamadas.append(argumentos)
             return next(fila)
 
+        opcoes = {} if interessados is None else {"interessados": interessados}
         return ensaiar(
             ies="binario-falso", registro=self.registro, tipo="Ensaio",
             especificacao="Teste sintético", nivel="publico", hipotese=None,
             origem=ORIGEM, executar=executar, pausa=self.pausas.append,
+            **opcoes,
         )
 
     def respostas_validas(self):
@@ -52,6 +54,39 @@ class EnsaioUmaVez(unittest.TestCase):
         self.assertEqual(relatorio["requisicoes_previa"], 3)
         self.assertEqual(relatorio["requisicoes_confirmacao"], 7)
         self.assertEqual(relatorio["requisicoes_verificacao"], 2)
+
+    def test_wip_245_interessados_sao_enviados_e_conferidos_sem_depender_da_ordem(self):
+        # JSON real da CLI: Criacao.interessados, via apresentacao.rs.
+        respostas = self.respostas_validas()
+        respostas[0][1]["interessados"] = ["Pessoa B", "Pessoa A"]
+        respostas[1][1]["interessados"] = ["Pessoa A", "Pessoa B"]
+        codigo, relatorio = self.rodar(respostas, interessados=("Pessoa A", "Pessoa B"))
+        self.assertEqual((codigo, relatorio["estado"]), (0, "PASS"))
+        for args in self.chamadas[:2]:
+            self.assertEqual(args.count("--interessado"), 2)
+            self.assertEqual(
+                [args[i + 1] for i, v in enumerate(args) if v == "--interessado"],
+                ["Pessoa A", "Pessoa B"],
+            )
+        self.assertEqual(self.chamadas[-1], ["processo", NUP])
+
+    def test_wip_245_previa_com_interessado_diferente_nao_chega_ao_post(self):
+        respostas = self.respostas_validas()
+        respostas[0][1]["interessados"] = ["Outra pessoa"]
+        codigo, relatorio = self.rodar(respostas, interessados=("Pessoa A",))
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertEqual(len(self.chamadas), 1)
+        self.assertFalse(self.registro.exists())
+
+    def test_wip_245_confirmacao_com_interessado_diferente_preserva_nup_sem_pass(self):
+        respostas = self.respostas_validas()
+        respostas[0][1]["interessados"] = ["Pessoa A"]
+        respostas[1][1]["interessados"] = ["Outra pessoa"]
+        codigo, relatorio = self.rodar(respostas, interessados=("Pessoa A",))
+        self.assertEqual((codigo, relatorio["estado"]), (3, "CONFIRMACAO_DIVERGENTE"))
+        self.assertEqual(relatorio["nup"], NUP)
+        self.assertEqual(len(self.chamadas), 3)
+        self.assertEqual(self.chamadas[-1], ["processo", NUP])
 
     def test_previa_falhou_sem_trava_nem_post(self):
         codigo, relatorio = self.rodar([(1, {"subcodigo": "tipo_nao_encontrado"})])

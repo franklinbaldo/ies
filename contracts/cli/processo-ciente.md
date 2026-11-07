@@ -242,3 +242,11 @@ A saída JSON permanece com `efeito_incerto`, `requisicoes` e
 `retentavel: false`, além da causa HTTP quando observada. Não há novo
 GET, retry, alteração de subcódigo, orçamento sintético ou mudança do código
 de saída 3; ensaio real em treinamento permanece NOT_RUN.
+
+## Instruções vazias no aceite (WIP #271)
+
+Um script clássico pode ter instruções vazias (`;`) antes da chamada
+literal de recarga; elas não impedem sua execução. A prova continua
+exigindo a função de inicialização ou a forma direta observada,
+URL da atividade vinculada ao processo e releitura independente.
+Qualquer instrução não vazia antes da recarga permanece fora da prova.
