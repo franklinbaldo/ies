@@ -37,11 +37,11 @@ outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues
 (personalizar título). 🦅 não comita salvo autorização.
 Nunca use avatar alheio.
 
-**🦡 Texugo:** pode **revogar orientações técnicas** do 🦅 e 🐘 e
-**aceitar menos segurança por praticidade**, inclusive risco real,
-mediante decisão justificada de custo, benefício e risco conforme
-[sua ficha](team/texugo.md). 🦅 e 🐘 respeitam a decisão, sem dispensar
-CI verdadeiro, sigilo nem proibição de produção.
+**🦡 Texugo:** pode **baixar prioridade** de issue, **revogar veto**
+do 🦅/🐘, promover PR a Ready e **fazer merge commit** mesmo contra
+parecer técnico, com decisão motivada ([regras](team/texugo.md)).
+Pode aceitar riscos por praticidade, mas não falsificar CI, expor
+segredos nem acessar produção. O 🐘 respeita a decisão registrada.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
@@ -49,8 +49,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 
 1. A fila usa etiqueta `handoff-chatgpt` e título
    `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade, definida **somente pelo 🐘**.
-   `em-andamento` não determina reserva.
+   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
+   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
 2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
    Procure primeiro issue com **seu** emoji imediatamente após o número,
    mesmo com prioridade reduzida. Com duas, continue apenas a de menor
@@ -189,10 +189,10 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   comportamento do Todos, depois issues de capacidade. Issues novas
   seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
   `Como trabalhar`) e incluem ensaio live para escrita.
-- Prioridades exclusivas do 🐘: **90–100** leituras/escritas de uso
-  diário e bugs de ensaio; **70–89** desbloqueadores; **40–69**
-  demais capacidades; **abaixo de 40** só sob pedido. Reavalie após
-  integração na main. Se nada mudou, **silêncio**.
+- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
+  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
+  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
+  prioridades expressas do proprietário. Sem mudança, **silêncio**.
 
 ## Método: observar → contratar → RED → GREEN → validar
 
