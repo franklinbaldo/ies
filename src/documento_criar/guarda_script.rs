@@ -219,10 +219,9 @@ pub(super) fn dentro_de_template(inicio: usize, faixas: &[(usize, usize)]) -> bo
         .any(|(primeiro, ultimo)| inicio > *primeiro && inicio <= *ultimo)
 }
 
-/// Elementos HTML com `hidden` e filhos de `fieldset disabled` não
-/// oferecem o acionador Salvar. Atributos são lidos pela peça única;
-/// a posição no DOM evita confundir um irmão com um ancestral.
-pub(super) fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
+/// Elementos com atributo HTML `hidden` (no próprio controle ou em
+/// ancestral) não oferecem um acionador selecionável.
+pub(super) fn faixas_ocultas(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
     let mut faixas = Vec::new();
     for no in dom.nodes() {
         let Some(tag) = no.as_tag() else {
@@ -232,6 +231,20 @@ pub(super) fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(us
             faixas.push(tag.boundaries(dom.parser()));
         }
     }
+    Some(faixas)
+}
+
+pub(super) fn dentro_de_faixa_oculta(inicio: usize, faixas: &[(usize, usize)]) -> bool {
+    faixas
+        .iter()
+        .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio))
+}
+
+/// Controles do cadastro também são inativos sob fieldset disabled.
+/// Não estender essa regra aos links da seleção: anchors não são
+/// automaticamente desabilitados por fieldset disabled.
+pub(super) fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(usize, usize)>> {
+    let mut faixas = faixas_ocultas(dom)?;
     for no in dom.query_selector("fieldset").into_iter().flatten() {
         let tag = no.get(dom.parser()).and_then(tl::Node::as_tag)?;
         if crate::html_atributos::atributo_presente(tag, "disabled").ok()? {
