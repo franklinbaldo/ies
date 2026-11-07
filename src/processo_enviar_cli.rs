@@ -261,6 +261,8 @@ struct ResultadoEnvio<'a> {
     remover_anotacoes: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     anotacao_antes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metodo_remocao: Option<crate::processo_enviar::MetodoRemocao>,
     nup: &'a str,
     origem: &'static str,
     reconciliado_por_leitura: bool,
@@ -279,6 +281,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         manter_aberto: feito.manter_aberto,
         remover_anotacoes: feito.remover_anotacoes.then_some(true),
         anotacao_antes: feito.anotacao_antes,
+        metodo_remocao: feito.metodo_remocao,
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -368,7 +371,15 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
         ),
     ];
     if feito.remover_anotacoes {
-        linhas.push("Remover anotações no envio: sim".to_owned());
+        linhas.push(match feito.metodo_remocao {
+            Some(crate::processo_enviar::MetodoRemocao::CheckboxNoEnvio) => {
+                "Remover anotações no envio: sim".to_owned()
+            }
+            Some(crate::processo_enviar::MetodoRemocao::LimparAnotacao) => {
+                "Remover anotações: limpar formulário de anotação antes do envio".to_owned()
+            }
+            None => "Remover anotações: método não observado".to_owned(),
+        });
         let observada = match feito.anotacao_antes {
             Some(true) => "sim",
             Some(false) => "não",
