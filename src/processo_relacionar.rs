@@ -84,6 +84,23 @@ pub(crate) struct Previa {
     pub(crate) requisicoes: u8,
 }
 
+/// Só uma linha do formulário pode comprovar o vínculo, sem consulta AJAX.
+fn relacionamento_existente<'a>(
+    relacionados: &'a [Relacionamento],
+    nup: &str,
+    id_origem: &str,
+) -> Result<Option<&'a Relacionamento>, FalhaRelacionar> {
+    let mut linhas = relacionados.iter().filter(|linha| linha.nup == nup);
+    let primeira = linhas.next();
+    if linhas.next().is_some() {
+        return Err(FalhaRelacionar::Estrutura("relacionamentos_repetidos_na_tela"));
+    }
+    if primeira.is_some_and(|linha| linha.id == id_origem) {
+        return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
+    }
+    Ok(primeira)
+}
+
 /// A confirmação é recusada ANTES da sessão e da primeira requisição.
 /// Não supor que a prévia prova o efeito da escrita.
 pub(crate) fn prever<V: EnvioDoProcesso>(
@@ -145,24 +162,12 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         }
         return Ok(previa);
     }
-    // A tabela já relaciona NUP e id do destino: consultar o complementar
-    // outra vez não acrescenta evidência e faz um POST de leitura dispensável.
-    let existentes: Vec<_> = relacionados
-        .iter()
-        .filter(|linha| linha.nup == pedido.com.as_str())
-        .collect();
-    match existentes.as_slice() {
-        [] => {}
-        [linha] => {
-            if linha.id == id {
-                return Err(E::RelacionamentoConsigoMesmo);
-            }
-            previa.id_destino = Some(linha.id.clone());
-            previa.destino.clone_from(&linha.nup);
-            previa.sem_efeito = true;
-            return Ok(previa);
-        }
-        _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
+    // A tabela já relaciona NUP e id: nenhum POST AJAX é necessário.
+    if let Some(linha) = relacionamento_existente(&relacionados, pedido.com.as_str(), &id)? {
+        previa.id_destino = Some(linha.id.clone());
+        previa.destino.clone_from(&linha.nup);
+        previa.sem_efeito = true;
+        return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
     let codificacao = codificacao_da_tela(&mime).ok_or(E::Estrutura(
