@@ -76,11 +76,22 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
             "{}",
             crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
         );
-        if let Some(requisicoes) = erro.requisicoes() {
-            eprintln!("IES: {requisicoes} requisições, não repetir a escrita; verificar no SEI");
+        if let Some(aviso) = aviso_da_falha(erro) {
+            eprintln!("{aviso}");
         }
     }
     ExitCode::from(erro.saida())
+}
+
+/// Efeito incerto apenas depois do GET de escrita: contagem observada e
+/// proibição de repetição; a mensagem tipada indica a prova independente.
+fn aviso_da_falha(erro: &ErroCienciaProcesso) -> Option<String> {
+    match erro {
+        ErroCienciaProcesso::EfeitoIncerto { requisicoes, .. } => Some(format!(
+            "IES: {requisicoes} requisições; não repetir a escrita"
+        )),
+        _ => None,
+    }
 }
 
 pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
@@ -120,7 +131,6 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     objeto
 }
 
-
 #[cfg(test)]
 mod testes_aviso {
     use super::*;
@@ -140,6 +150,12 @@ mod testes_aviso {
         assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
         assert_eq!(erro.requisicoes(), Some(6));
         assert_eq!(erro.saida(), 3);
+        assert_eq!(
+            aviso_da_falha(&erro).as_deref(),
+            Some("IES: 6 requisições; não repetir a escrita")
+        );
+        assert_eq!(json_de_erro(&erro)["codigo"], "efeito_incerto");
+        assert_eq!(json_de_erro(&erro)["requisicoes"], 6);
     }
 
     #[test]
@@ -147,5 +163,6 @@ mod testes_aviso {
         let erro = ErroCienciaProcesso::CienciaNaoOferecida;
         assert_eq!(erro.requisicoes(), None);
         assert_eq!(erro.saida(), 1);
+        assert!(aviso_da_falha(&erro).is_none());
     }
 }

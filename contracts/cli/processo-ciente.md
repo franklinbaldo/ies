@@ -228,3 +228,17 @@ a ciência continua sem prova de escrita e exige conferência no SEI.
 A saída humana mantém a mensagem de recusa e o aviso de efeito incerto.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
+
+## Orientação de efeito incerto no processo (#271, 07/11/2026)
+
+Se o GET de escrita foi enviado e a nova Lista de Ciências não comprovou a
+atividade, a mensagem humana informa que a ciência pode ter sido registrada
+e exige conferir a **Lista de Ciências antes de nova confirmação**. O aviso
+separado fornece o número de requisições realmente contabilizado e diz
+explicitamente **não repetir a escrita**. Uma nova prévia de leitura não é
+proibida. Erros anteriores à escrita não recebem esse aviso.
+
+A saída JSON permanece com `efeito_incerto`, `requisicoes` e
+`retentavel: false`, além da causa HTTP quando observada. Não há novo
+GET, retry, alteração de subcódigo, orçamento sintético ou mudança do código
+de saída 3; ensaio real em treinamento permanece NOT_RUN.
