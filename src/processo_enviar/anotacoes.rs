@@ -30,14 +30,20 @@ pub(crate) fn salvar_oferecido(html: &str) -> bool {
     let Ok(form) = crate::formulario_web::localizar_formulario(&dom, "frmAnotacaoCadastro") else {
         return false;
     };
-    form.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag).any(|tag| {
-        tag.name().as_utf8_str().eq_ignore_ascii_case("button")
-            && crate::html_atributos::valor_do_atributo(tag, "name")
-                .ok().flatten().as_deref() == Some("sbmRegistrarAnotacao")
-            && !crate::html_atributos::atributo_presente(tag, "disabled").unwrap_or(true)
-    })
+    form.children()
+        .all(dom.parser())
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .any(|tag| {
+            tag.name().as_utf8_str().eq_ignore_ascii_case("button")
+                && crate::html_atributos::valor_do_atributo(tag, "name")
+                    .ok()
+                    .flatten()
+                    .as_deref()
+                    == Some("sbmRegistrarAnotacao")
+                && !crate::html_atributos::atributo_presente(tag, "disabled").unwrap_or(true)
+        })
 }
-
 
 pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
     use crate::formulario_web::{decodificar_atributo, localizar_formulario};

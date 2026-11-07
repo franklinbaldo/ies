@@ -144,9 +144,7 @@ impl ErroEnviar {
             | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
             Self::EfeitoIncertoNoEnvio { .. }
             | Self::EfeitoIncertoNaRemocaoDeAnotacoes
-            | Self::EfeitoIncertoNaLimpezaDaAnotacao => {
-                "efeito_incerto"
-            }
+            | Self::EfeitoIncertoNaLimpezaDaAnotacao => "efeito_incerto",
             _ => "fonte_invalida",
         }
     }
