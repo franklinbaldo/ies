@@ -17,7 +17,9 @@ fn nao_inventa_controle_resumido_quando_falta_uma_tabela() {
         instalacao,
         unidade: UnidadeExibida::nova("PPI").unwrap(),
         forma: FormaDoControle::Resumida {
-            recebidos: Cobertura::Observada(TabelaObservada::<()>::nova(Some(0), None, vec![]).unwrap()),
+            recebidos: Cobertura::Observada(
+                TabelaObservada::<()>::nova(Some(0), None, vec![]).unwrap(),
+            ),
             gerados: Cobertura::NaoObservada,
         },
         proveniencia: Proveniencia::Cassette {
