@@ -34,6 +34,17 @@ impl From<rusqlite::Error> for Falha {
     }
 }
 
+/// Metadados SQL de uma observação R, sem tupla anônima de sete valores.
+struct Metadados {
+    unidade: String,
+    rec_total: Option<i64>,
+    rec_inicio: Option<i64>,
+    rec_fim: Option<i64>,
+    ger_total: Option<i64>,
+    ger_inicio: Option<i64>,
+    ger_fim: Option<i64>,
+}
+
 /// Cria o esquema da sessão de testes; nunca migra um banco operacional.
 ///
 /// # Errors
@@ -184,15 +195,6 @@ pub fn ler(
     cenario: &str,
 ) -> Result<Option<ControleResumido>, Falha> {
     let origem = instalacao.url_base();
-    type Metadados = (
-        String,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-    );
     let dados: Option<Metadados> = banco
         .query_row(
             "SELECT unidade, recebidos_total, recebidos_inicio, recebidos_fim,
@@ -200,22 +202,22 @@ pub fn ler(
              FROM controle_resumido WHERE origem=?1 AND cenario=?2",
             params![origem, cenario],
             |r| {
-                Ok((
-                    r.get(0)?,
-                    r.get(1)?,
-                    r.get(2)?,
-                    r.get(3)?,
-                    r.get(4)?,
-                    r.get(5)?,
-                    r.get(6)?,
-                ))
+                Ok(Metadados {
+                    unidade: r.get(0)?,
+                    rec_total: r.get(1)?,
+                    rec_inicio: r.get(2)?,
+                    rec_fim: r.get(3)?,
+                    ger_total: r.get(4)?,
+                    ger_inicio: r.get(5)?,
+                    ger_fim: r.get(6)?,
+                })
             },
         )
         .optional()?;
-    let Some((unidade, rt, ri, rf, gt, gi, gf)) = dados else {
+    let Some(dados) = dados else {
         return Ok(None);
     };
-    let unidade = UnidadeExibida::nova(&unidade).ok_or(Falha::DadoInvalido)?;
+    let unidade = UnidadeExibida::nova(&dados.unidade).ok_or(Falha::DadoInvalido)?;
     let mut recebidos = Vec::new();
     let mut gerados = Vec::new();
     let mut consulta = banco.prepare(
@@ -245,7 +247,7 @@ pub fn ler(
     Ok(Some(ControleResumido {
         instalacao: instalacao.clone(),
         unidade,
-        recebidos: tabela(rt, ri, rf, recebidos)?,
-        gerados: tabela(gt, gi, gf, gerados)?,
+        recebidos: tabela(dados.rec_total, dados.rec_inicio, dados.rec_fim, recebidos)?,
+        gerados: tabela(dados.ger_total, dados.ger_inicio, dados.ger_fim, gerados)?,
     }))
 }
