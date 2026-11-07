@@ -100,7 +100,6 @@ fn o_numero_de_controle_nao_e_reconhecido_como_id_de_processo() {
     assert!(matches!(ler_linhas(&html).unwrap().as_slice(), []));
 }
 
-
 fn tela_com_remocao_servida() -> String {
     // Estrutura literal do acaoRemover da página PEN1 em Todos @323eb01.
     let hash = "a".repeat(64);
@@ -142,10 +141,8 @@ fn action_solto_comentado_ou_em_template_nao_autoriza_remocao() {
     let em_template = format!("<html><head><template>{servido}</template></head></html>");
     assert!(super::tela::url_exclusao(&em_template).is_err());
 
-    let em_comentario = servido.replace(
-        "function acaoRemover(id){",
-        "/*\nfunction acaoRemover(id){",
-    );
+    let em_comentario =
+        servido.replace("function acaoRemover(id){", "/*\nfunction acaoRemover(id){");
     assert!(super::tela::url_exclusao(&em_comentario).is_err());
 }
 
@@ -154,15 +151,21 @@ fn action_solto_comentado_ou_em_template_nao_autoriza_remocao() {
 #[test]
 fn remocao_sem_passos_ou_com_handler_duplicado_e_recusada() {
     let servido = tela_com_remocao_servida();
-    assert!(super::tela::url_exclusao(
-        &servido.replace("getElementById('hdnInfraItemId').value=id;", "void(0);")
-    ).is_err());
-    assert!(super::tela::url_exclusao(
-        &servido.replace(
-            "getElementById('frmProcedimentoListarRelacionamentos').submit();",
-            "void(0);",
+    assert!(
+        super::tela::url_exclusao(
+            &servido.replace("getElementById('hdnInfraItemId').value=id;", "void(0);")
         )
-    ).is_err());
+        .is_err()
+    );
+    assert!(
+        super::tela::url_exclusao(
+            &servido.replace(
+                "getElementById('frmProcedimentoListarRelacionamentos').submit();",
+                "void(0);",
+            )
+        )
+        .is_err()
+    );
     let duplicada = servido.replace("</script>", "function acaoRemover(id){}\n</script>");
     assert!(super::tela::url_exclusao(&duplicada).is_err());
 }
