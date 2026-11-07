@@ -69,15 +69,22 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    quando isso for seguro, sem apagar o emoji alheio, e escolha outra.
    Desistência insuperável: remova só seu emoji e registre tentativas e
    bloqueio na issue. Não substitua dono porque a prioridade mudou.
-6. Em cada execução, entregue **fatia significativa**, RED antes da
-   implementação, commits e push. O comentário na issue/PR deve focar
-   em **informações úteis e relevantes**, sem liturgia ou negativas
-   óbvias ("li AGENTS, não fiz merge, não fechei issue"):
-   - **Avanço real:** o que a CLI faz/recusa agora no SEI (declare se foi apenas infra/teste interno).
-   - **Rede e escrita:** `--confirmar` fechado ou resultado live (requisições e resíduo em treinamento).
-   - **Evidência:** PR, head SHA e CI oficial verde (contagens de testes).
-   - **Próximo passo:** ação objetiva seguinte para fechar a issue.
-   Mantenha WIP e reserva até concluir; nunca alegue PASS sem ensaio real.
+6. A unidade de progresso é a **capacidade da issue**, não a rodada
+   horária, o commit ou a PR. Retome o comportamento ainda pendente e
+   avance o máximo seguro; não pare apenas porque houve push ou CI verde.
+   Evite fatias artificiais: scripts, testes, refatoração e documentação
+   servem à capacidade e aos gates, não são entrega da CLI por si só.
+   Não repita ensaios ou verificações já válidos para o mesmo head só para
+   demonstrar atividade; head novo continua exigindo CI próprio.
+   **Handoff mínimo**, uma vez por avanço material, na issue ou PR
+   (vincule a outra, sem duplicar relatório):
+   - `FEITO:` efeito demonstrável ou atividade interna realizada.
+   - `CLI:` comando e efeito observável, ou `inalterada`.
+   - `CONTINUAR:` próxima alteração funcional concreta ou bloqueio real.
+   Diff, SHA e CI ficam nos links do GitHub, sem transcrição ritual.
+   Evidência de ensaio live segue em `docs/validacao-live/` somente quando
+   houve execução; não transforme `NOT_RUN` em progresso. Mantenha WIP
+   e reserva até concluir; nunca alegue PASS sem ensaio real.
 7. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
    em ablação explícita**, com CI válido. Teste pendente usa
