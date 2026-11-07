@@ -158,3 +158,54 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
             .all(|p| !p.url.contains("documento_upload_anexo"))
     );
 }
+
+#[test]
+fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
+    // Uma resposta 302 nao basta para atribuir a criacao ao nosso POST.
+    let amb = a::ambiente();
+    let mut respostas = a::abertura(arvore());
+    respostas.push(a::ok(lista()));
+    respostas.push(a::ok(cadastro("1", false)));
+    let formulario = cadastro("1", true)
+        .replace("infra_hash=FICTICIO", &format!("infra_hash={}", "b".repeat(64)))
+        .replace(
+            "</form><form id=\"frmAnexos\">",
+            "<input type=\"text\" name=\"txtDataElaboracao\" value=\"\">\\
+             <input type=\"radio\" name=\"rdoFormato\" value=\"N\" checked>\\
+             <input type=\"radio\" name=\"rdoNivelAcesso\" value=\"0\" checked>\\
+             </form><form id=\"frmAnexos\">",
+        );
+    respostas.push(a::ok(formulario));
+    respostas.push(a::r302("controlador.php?acao=arvore_visualizar&id_documento=42"));
+    respostas.push(a::ok(arvore()));
+    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        let pdf = PdfLocal {
+            nome: "prova.pdf".into(),
+            tamanho_bytes: 68,
+            sha256: "ficticio".into(),
+        };
+        super::super::fluxo_confirmar::executar_confirmacao_via(
+            sessao, nup, None, "Anexo", &pdf, indice, rede,
+            |_, _, _, _, _| Ok(super::super::recibo::ReciboUpload {
+                nome_upload: "temp-42".into(),
+                nome: "prova.pdf".into(),
+                tipo: "application/pdf".into(),
+                tamanho_bytes: 68,
+                data_hora: "11/10/2026 11:07:50".into(),
+            }),
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
+            super::super::confirmacao::FalhaConfirmacao::EfeitoIncerto
+        ))
+    ));
+    assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 5);
+    let definitivos: Vec<_> = pedidos.iter().filter(|p|
+        p.metodo == "POST"
+            && p.corpo.as_ref().is_some_and(|c| c.contains("hdnFlagDocumentoCadastro=2"))
+    ).collect();
+    assert_eq!(definitivos.len(), 1, "exatamente um cadastro definitivo");
+    assert!(definitivos[0].corpo.as_ref().unwrap().contains("hdnAnexos=temp-42"));
+}
