@@ -117,9 +117,7 @@ fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::V
     if let Some(causa) = erro.causa_envio() {
         saida["causa_envio"] = json!(causa.subcodigo());
         if let Some(http) = causa.status_http() {
-            if http.status != 200 {
-                saida["status_http"] = json!(http.status);
-            }
+            saida["status_http"] = json!(http.status);
             if let Some(mensagem) = &http.mensagem_do_servidor {
                 saida["mensagem_do_servidor"] = json!(mensagem);
             }
