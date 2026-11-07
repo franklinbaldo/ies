@@ -12,6 +12,9 @@ import subprocess
 import sys
 import tomllib
 
+# -I remove o diretorio do script do sys.path; adicionar apenas nossa pasta
+# versionada, nunca o cwd ou um caminho fornecido pelo usuario.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from verificar_release_uvx import conferir_tag
 
 SERIE_ZERO = re.compile(r"0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
