@@ -206,7 +206,10 @@ fn dado_destino_quando_adicionar_confirmado_entao_post_unico_e_releitura() {
     assert_eq!(pedidos[4].metodo, "POST"); // Consulta complementar, sem mutação.
     assert_eq!(pedidos[5].metodo, "POST"); // Única escrita.
     assert!(pedidos[5].url.contains("acao=procedimento_relacionar"));
-    let corpo = pedidos[5].corpo.as_deref().expect("corpo do único POST mutador");
+    let corpo = pedidos[5]
+        .corpo
+        .as_deref()
+        .expect("corpo do único POST mutador");
     assert!(corpo.contains("hdnIdProtocolo=22"));
     assert!(corpo.contains("txtProtocolo="));
     assert!(corpo.contains("txtIdentificacaoProtocolo="));
