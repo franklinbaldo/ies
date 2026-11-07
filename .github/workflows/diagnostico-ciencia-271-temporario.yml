@@ -1,0 +1,77 @@
+name: Diagnostico temporario da ciencia #271 (somente offline)
+on:
+  push:
+    branches:
+      - codex/271-raposa-proc-aviso-confirmacao-20261107
+permissions:
+  contents: read
+jobs:
+  diagnostico:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Obter apenas ZIPs publicos verificados (nenhum endpoint SEI)
+        env:
+          IES_ACERVO_CACHE: .cache/ies-ciencia
+        run: python3 scripts/baixar_acervo_ciencia.py
+      - name: Classificacao estrutural sanitizada (sem HTML, IDs, URLs, cookies)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+            import base64, json, zipfile
+            from collections import Counter
+            from html.parser import HTMLParser
+            from pathlib import Path
+            from scripts.baixar_acervo_ciencia import _metadados
+            
+            class Scripts(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.depth = 0
+                    self.scripts = []
+                    self.current = ""
+                def handle_starttag(self, tag, attrs):
+                    if tag == "script":
+                        self.depth += 1
+                        self.current = ""
+                def handle_endtag(self, tag):
+                    if tag == "script" and self.depth:
+                        self.scripts.append(self.current)
+                        self.depth -= 1
+                def handle_data(self, data):
+                    if self.depth:
+                        self.current += data
+            
+            summaries=[]
+            for card in sorted(Path("cassettes").glob("*/*-ciente-*.md")):
+                m = _metadados(card)
+                zipname = m["source_zip"].split("/")[-1]
+                with zipfile.ZipFile(Path(".cache/ies-ciencia")/zipname) as z:
+                    data=json.loads(z.read(m["archive_member"]))
+                for item in data["interactions"]:
+                    op=item["request"].get("operation","")
+                    if op not in ("procedimento_ciencia", "documento_ciencia"):
+                        continue
+                    html=base64.b64decode(item["response"].get("body_base64","")).decode("utf8","replace")
+                    p=Scripts(); p.feed(html)
+                    scripts=p.scripts
+                    summaries.append({
+                        "site":card.parent.name,
+                        "target":"processo" if op == "procedimento_ciencia" else "documento",
+                        "scripts":len(scripts),
+                        "js_calls":sum(s.count("atualizarArvore(") for s in scripts),
+                        "id_script":sum("id_atividade=" in s for s in scripts),
+                        "id_body":int("id_atividade=" in html),
+                        "init":sum("function inicializar" in s for s in scripts),
+                        "visualiza":sum("visualizar_ciencias" in s for s in scripts),
+                        "quoted_calls":sum(("atualizarArvore('" in s or 'atualizarArvore("' in s) for s in scripts)
+                    })
+            for s in summaries:
+                print("DIAGNOSTICO_SAFE "+json.dumps(s,sort_keys=True))
+            print("TOTAL",len(summaries))
+            assert len(summaries)==28
+            
+          PY
