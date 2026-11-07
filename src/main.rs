@@ -18,6 +18,7 @@ mod ciencia_documento_cli;
 mod classe_link_processo;
 mod cli_documento;
 mod cli_processo;
+mod cli_unidade_aux;
 mod colheita_do_controle;
 mod configuracao;
 mod controle_contexto;
@@ -30,6 +31,8 @@ mod documento_assinar_cli;
 mod documento_buscar_cli;
 mod documento_cancelar;
 mod documento_cancelar_cli;
+mod documento_criar;
+mod documento_criar_cli;
 mod documento_externo_incluir;
 mod documento_externo_incluir_cli;
 mod documento_html_privado_cli;
@@ -112,6 +115,7 @@ mod relogin_cli;
 mod rodape_do_documento;
 mod saida;
 mod saida_erro;
+pub(crate) use saida_erro::erro_fonte;
 mod sessao_login;
 mod sessao_login_cli;
 mod setup_cli;
@@ -353,10 +357,6 @@ struct SetupArgs {
     origem: PathBuf,
 }
 
-fn erro_fonte(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
-    saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
-}
-
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
@@ -381,39 +381,13 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| processo_sobrestar_cli::tentar_operar(cli))
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
+        .or_else(|| documento_criar_cli::tentar_criar(cli))
         .or_else(|| documento_externo_incluir_cli::tentar_incluir(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }
 
-/// `ies unidade recebidos|gerados`: uma lista independente da caixa.
-fn listar(
-    cli: &Cli,
-    lista: &ListaDaUnidade,
-    categoria: unidade_categoria::CategoriaLista,
-) -> ExitCode {
-    unidade_categoria::listar_categoria(
-        cli.unidade.as_deref(),
-        cli.json,
-        lista.saida.as_deref(),
-        categoria,
-        lista.pagina.map(|n| n as usize),
-    )
-}
-
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
-    match definir {
-        None => unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
-        Some(definir) => unidade_colunas_definir_cli::definir_colunas(
-            cli.unidade.as_deref(),
-            cli.json,
-            definir,
-            confirmar,
-        ),
-    }
-}
-
 fn run(cli: &Cli) -> ExitCode {
     if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
         return status;
@@ -436,10 +410,18 @@ fn run(cli: &Cli) -> ExitCode {
         }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Recebidos),
+        }) => {
+            return cli_unidade_aux::listar(
+                cli,
+                lista,
+                unidade_categoria::CategoriaLista::Recebidos,
+            );
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => return listar(cli, lista, unidade_categoria::CategoriaLista::Gerados),
+        }) => {
+            return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Retornos { mes }),
         }) => {
@@ -457,7 +439,7 @@ fn run(cli: &Cli) -> ExitCode {
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return colunas(cli, definir.as_deref(), *confirmar),
+        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
         }) => {

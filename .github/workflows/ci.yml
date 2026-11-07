@@ -185,6 +185,39 @@ jobs:
           cargo +1.99.1 test --locked --bin ies observacao_dos_links_da_lupa_unb_no_acervo -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies replay_do_fluxo_completo_unb -- --ignored --nocapture --test-threads=1
 
+  replay_documento_criar:
+    # Gate obrigatório: a suíte normal não depende de ZIP externo,
+    # mas a PR e a main devem conferir e reproduzir o acervo de Goiás.
+    name: replay documento.criar (GO, offline)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Download verified public cassette ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cache/ies"
+          curl --fail --show-error --silent --location --max-time 240 --retry 0 \
+            --output "$HOME/.cache/ies/todos-sei-cassettes-go.zip" \
+            https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-go.zip
+          printf '%s  %s\n' \
+            '42a08cd3714bb863d136ed98e517221510a31982' \
+            "$HOME/.cache/ies/todos-sei-cassettes-go.zip" | sha1sum --check
+
+      - name: Replay with real readers and verified cassette members
+        run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
+
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
     # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
