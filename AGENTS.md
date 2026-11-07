@@ -29,19 +29,18 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 
 Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
-**Commits por avatar:** toda mensagem de commit de uma rotina
-**começa no primeiro caractere** com o **emoji da própria rotina**
-(tabela acima), sem espaço nem outro prefixo: `🦊 fix: ...`,
-`🐙 WIP: ...`. Vale também para merge commits do 🐘
-(personalizar título). 🦅 não comita salvo autorização.
+**Commits:** toda mensagem começa **no primeiro caractere**
+com o emoji da rotina (tabela): `🦊 fix: ...`, `🐙 WIP: ...`.
+Também nos merges 🐘/🦡; 🦅 não comita sem autorização.
 Nunca use avatar alheio.
 
 **🦡 Texugo:** pode baixar prioridade, revogar veto 🦅/🐘,
-abrir PR de **ablação de código e testes**, exigir menos código
-defensivo, inclusive **excluir testes**, e promover/mesclar PR
-contra parecer técnico, com decisão justificada
-([regras](team/texugo.md)). Pode aceitar risco por praticidade,
-mas não falsificar CI, expor segredos nem acessar produção.
+fazer ablação de código/testes (inclusive excluir testes), exigir
+menos defesa e mesclar PR contra parecer técnico, com decisão
+motivada ([ficha](team/texugo.md)). É **rigoroso com tipos precisos,
+sem estados ambíguos**, enums e erros que preservem causa; não
+tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
+risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 

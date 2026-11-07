@@ -14,7 +14,7 @@ Este complemento preserva as regras e a evolução incremental do
 
 A confirmação atual ainda pode devolver `efeito_incerto_na_criacao`/saída 3
 quando o POST criador falha ou não apresenta resultado verificável.
-A reconciliação **ainda não está ligada à CLI** e não há autorização
+A reconciliação está ligada à CLI, com classificação conservadora dos candidatos; não há autorização
 para repetir o POST de criação da UnB que já produziu
 `23106.001875/2026-93` (id 51731).
 
@@ -34,12 +34,10 @@ entre requisições e ainda falta verificar tipo/especificação em `processo NU
 Não expõe links assinados, cookie ou `infra_hash`.
 
 Os oito testes sintéticos da fatia usam só HTML local, com
-**zero requisições e zero POST**. Ainda faltam a captura prévia de Gerados
-antes da escrita, sua leitura posterior sem repetir requests,
-a verificação dos NUPs, os quatro resultados de transporte injetado
-(aplicada, não aplicada, candidatos ambíguos e erro de reconciliação),
-as duas causas no erro final e a prova live. Não interpretar a peça
-offline como reconciliação completa.
+**zero requisições e zero POST**. O fluxo Web já usa captura prévia, releitura posterior e verificação dos
+NUPs. As causas do POST e do GET posterior são preservadas; a presença
+de candidatos não prova autoria. A validação live em uma segunda
+instalação de treinamento continua pendente.
 
 | Subcódigo | Fato |
 | --- | --- |
@@ -56,9 +54,8 @@ Controle já efetuada. Exige mesma unidade, total declarado e cobertura
 integral; legenda paginada/indeterminada recusa com causa tipada
 `gerados_sem_cobertura_completa_para_reconciliacao`, saída 1, **sem
 POST criador** e **sem GET extra**. A prévia permanece disponível.
-Esse é um pré-requisito da reconciliação, **não** sua implementação:
-ainda não há comparação posterior nem classificação automática da falha
-do POST. Não interpretar a proteção como escrita homologada em live.
+A comparação posterior e a classificação conservadora já integram o
+fluxo Web. Isso não é homologação de escrita ao vivo.
 
 ### Releitura conservadora pós-POST e candidatos (issue #245)
 
@@ -77,11 +74,10 @@ O classificador offline `processo_criar/desfechos.rs` usa candidatos e
 provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
 e especificação exatos; falta de leitura, identidade divergente,
 prova duplicada e propriedades não observadas são recusadas.
-Uma correspondência: `Aplicada`; duas ou mais: `CandidatosAmbiguos`;
-zero: `SemCorrespondenciaObservada` — **não** prova de não aplicação.
-O classificador já confere candidatos pela Web depois de resposta inconclusiva.
-Ainda faltam desfechos públicos de não aplicação comprovada e ambiguidade,
-além do ensaio live.
+Uma correspondência: `CoincidenciaUnica` (possível resíduo, **não** autoria);
+duas ou mais: `CandidatosAmbiguos`; zero: `SemCorrespondenciaObservada`
+(**não** prova de não aplicação). A recusa expressa da Infra é o único caso
+observado de não aplicação comprovada; falta a validação live.
 
 | Subcódigo | Fato |
 | --- | --- |
@@ -100,8 +96,8 @@ nomeada `resposta_inesperada_apos_post_criador` ou
 `localizacao_invalida_apos_post_criador`, os candidatos apenas observados
 e a causa independente da releitura, quando esta falhar. A resposta continua
 `efeito_incerto_na_criacao`/saída 3 porque diferença de Gerados, inclusive
-vazia, não prova por si só criação nem não aplicação. Conferência de cada
-candidato por `processo NUP` e classificação final são trabalho pendente.
+vazia, não prova por si só criação nem não aplicação. A conferência de cada candidato por `processo NUP` e a classificação
+conservadora já estão ligadas ao fluxo Web.
 
 ### Verificação independente de novos candidatos (#245, fatia seguinte)
 
@@ -152,10 +148,10 @@ NUPs observados, além de `causa_post` e da fotografia posterior.
 No humano, identifica a ambiguidade e os NUPs, sem inferir o autor da
 escrita nem recomendar repetição. Com dois candidatos, a prova usa
 **3 GET antes + 1 POST criador + 1 GET Controle + 6 GET de processos = 11
-requisições** sintéticas, sem retry. Uma única correspondência, após
-verificar todos, continua permitindo saída 0; zero correspondências
-**não** prova não aplicação e mantém saída 3. O desfecho de não
-aplicação com prova própria continua pendente.
+requisições** sintéticas, sem retry. Uma única correspondência após verificar todos **continua saída 3**
+(`possivel_residuo`) sem resposta causal do POST; zero correspondências
+**não** prova não aplicação e mantém saída 3. Recusa expressa da Infra
+é prova distinta de não aplicação.
 
 
 ## Verificação após `Location` válido (#245)
@@ -281,3 +277,19 @@ não deve ser repetido.
 
 [Decisão de concorrência causal](../../../docs/decisoes/processo-criar/concorrencia-pos-post.md)
 · [Evidência RED e live NOT_RUN](../../../docs/validacao-live/2026-11-06-processo-criar-concorrencia-causal.md)
+
+## Contagem efetiva de requisições em erros (#245)
+
+O campo JSON `requisicoes` e a mensagem humana refletem o número
+**efetivamente tentado** de chamadas ao transporte na operação: incluem
+GETs de preparação, o único POST criador, eventual AJAX de consulta,
+releitura de Gerados e verificações independentes já realizadas. Não
+são orçamento estimado nem prova de aplicação. Mesmo com saída 3
+por efeito incerto, a contagem é conservada; nunca habilita retry.
+Falhas antes da primeira chamada publicam zero.
+
+Regressões offline: prévia 3 GET/0 POST; recusa de unidade após 1 GET;
+falha de POST com candidato coincidente e não causal, 8 chamadas e
+**exatamente 1 POST**, sem retry. RED no CI 42305129633:
+3 testes novos falharam, 1.773 passaram e 22 preexistentes ignorados.
+LIVE em segunda instalação de treinamento: NOT_RUN.

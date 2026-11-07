@@ -29,8 +29,12 @@ A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar**
 orientações e bloqueios deste parecer, inclusive aceitar menos segurança
 por praticidade. O Texugo também pode **desbloquear a PR e fazer merge** no SHA validado,
 mesmo contra seu parecer, sem seu LGTM, conforme a ficha própria.
-Não restaurar veto revogado sem novo fato técnico; respeitar CI e limites
-expressos do proprietário.
+O 🦡 pode fazer ablação de código, reduzir defesas e excluir testes
+com perda explícita de cobertura e CI válido. Não trate isso como
+bloqueio automático. Porém, exija com rigor **tipos precisos e
+não ambíguos**: enums de estados, erros com causa e dados de domínio
+sem strings/JSON genéricos indevidos. Não restaure veto sem fato novo;
+respeite CI e limites do proprietário.
 
 ## Continuidade atual
 

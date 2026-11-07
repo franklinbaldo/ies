@@ -100,6 +100,31 @@ no commit `043ad9b`. No CI
 Essa é evidência de RED **no CI**, não execução no sandbox local.
 Os testes adicionados não foram desabilitados.
 
+## Validação do maxlength observado na prévia (#245 / Todos #1248)
+
+A captura real do cadastro em `procedimento_gerar.html` (Todos @`323eb01`,
+SEI 4.0.9), corroborada pela captura GO 5.0.3, publica `maxlength=100`
+em `txtDescricao`. A recusa reproduzida na [issue Todos #1248](https://github.com/franklinbaldo/todos/issues/1248)
+não foi executada pelo IES nem justifica fixar 100 para toda instalação.
+A alternativa de validar apenas após `--confirmar` foi rejeitada:
+contradiz o objetivo da prévia e produz POST evitável.
+
+Escolha: ler `maxlength` com `html_atributos` no formulário da sessão,
+separar `None` de atributo ilegível, contar unidades UTF-16 e recusar
+comprimento superior **antes** de derivar a submissão criadora (inclusive
+antes de consultas AJAX dependentes). Sem atributo, não inferir limite.
+A causa tipada expõe apenas contagem e máximo no diagnóstico JSON/humano.
+O mecanismo não muda a validação do servidor: o SEI continua soberano,
+e resposta pós-POST incerta continua saída 3, sem retry.
+
+Testes de transporte sintéticos: prévia 101/100 e confirmação 101/100
+recusam com **3 GET / 0 POST**; 51 emoji não-BMP contam 102 unidades
+UTF-16, enquanto 100 ASCII exatos e formulário sem `maxlength` não
+inventam recusa. O RED foi documentado em [CI 42311417257](https://github.com/franklinbaldo/ies/actions/runs/42311417257):
+**3 novos testes FAIL / 1.777 PASS / 22 ignorados existentes**, antes
+da implementação. Esta decisão é baseada em capturas, não em validação
+autenticada numa segunda instalação de treinamento, ainda NOT_RUN.
+
 ## Evidências verificáveis
 
 - [Contrato parcial](../../contracts/cli/processo-criar.md)

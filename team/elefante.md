@@ -32,7 +32,11 @@ Texugo pode **reduzir prioridade numérica** de issue preservando o emoji
 de dono, **desbloquear PR, promover Draft e fazer merge** mesmo após veto
 do Elefante/Gavião, sem precisar de concordância. Não reverter a decisão
 por mera preferência; exigir fatos novos ou ordem do proprietário.
-Respeitar CI real e restrições expressas do proprietário.
+Texugo também pode fazer ablação, reduzir defesas e excluir testes
+justificadamente, com CI válido. **Tipagem correta e estados sem
+ambiguidade são requisito forte do 🦡**, mesmo quando cortar código.
+Não reponha defesas ou testes por preferência; respeite CI e limites
+do proprietário.
 
 ## Continuidade atual
 
