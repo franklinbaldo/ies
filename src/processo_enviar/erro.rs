@@ -79,6 +79,10 @@ pub(crate) enum ErroEnviar {
     TelaDeEnvio(ErroTelaDeEnvio),
     #[causa(interna)]
     Consulta(FalhaDaConsulta),
+    /// O checkbox não foi servido ou está indisponível na tela atual.
+    RemocaoDeAnotacoesNaoOferecida,
+    /// A escrita não tem releitura capaz de comprovar esse efeito extra.
+    RemocaoDeAnotacoesSemVerificacao,
     DestinoNaoOferecidoPeloSei {
         oferecidos: Vec<String>,
     },
@@ -185,6 +189,12 @@ impl ErroEnviar {
             }
             Self::Consulta(_) => {
                 "a consulta de unidades da tela de envio não respondeu na forma observada; nada foi enviado"
+            }
+            Self::RemocaoDeAnotacoesNaoOferecida => {
+                "a tela de envio não oferece remover anotações; nada foi enviado"
+            }
+            Self::RemocaoDeAnotacoesSemVerificacao => {
+                "não há releitura independente que comprove remoção de anotações; nada foi enviado"
             }
             Self::DestinoNaoOferecidoPeloSei { .. } => {
                 "o SEI não oferece unidade de destino com essa sigla; nada foi enviado"
