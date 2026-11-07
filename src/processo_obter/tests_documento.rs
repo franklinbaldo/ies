@@ -316,13 +316,12 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
     use crate::propriedades_documento::PropriedadesDocumento;
 
     let amb = ambiente();
-    let barra = barra(ID, ID_DOC, None)
-        .replace("acao=documento_alterar", "acao=documento_consultar");
+    let barra =
+        barra(ID, ID_DOC, None).replace("acao=documento_alterar", "acao=documento_consultar");
     let arvore = com_barra(&arvore_com(&src_visualizar(ID_DOC)), 1, &barra);
     let mut respostas = ate_a_arvore(arvore);
     respostas.push(ok(conteudo(DOC)));
-    respostas.push(ok(
-        r#"<form id="frmDocumentoCadastro">
+    respostas.push(ok(r#"<form id="frmDocumentoCadastro">
             <input id="hdnIdDocumento" value="21">
             <input id="hdnIdProcedimento" value="10">
             <label id="lblSerieTitulo">Ofício</label>
@@ -330,8 +329,8 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
             <input id="txtNomeArvore" value="Ofício 0011519">
             <textarea id="txaObservacoes">Somente consulta</textarea>
             <input name="rdoNivelAcesso" value="0" checked disabled>
-            </form>"#.to_owned(),
-    ));
+            </form>"#
+        .to_owned()));
     let url = url_controle();
     let sessao = SessaoDoProcesso {
         url_do_controle: &url,
@@ -347,9 +346,14 @@ fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
     };
     let mut roteiro = Roteiro::novo(respostas);
     let lido = obter_documento_com_propriedades(
-        &sessao, &pedido, PedidoDeVersoes::default(),
-        &amb.indice, &mut roteiro, true,
-    ).unwrap();
+        &sessao,
+        &pedido,
+        PedidoDeVersoes::default(),
+        &amb.indice,
+        &mut roteiro,
+        true,
+    )
+    .unwrap();
     let link = format!(
         "controlador.php?acao=documento_consultar&id_procedimento={ID}&id_documento={ID_DOC}&infra_hash={HASH_VERSOES}"
     );
