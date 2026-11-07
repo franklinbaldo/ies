@@ -68,6 +68,22 @@ fn publicar_sucesso(json_mode: bool, feito: &CienciaDoProcesso) -> ExitCode {
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
+    let objeto = json_de_erro(erro);
+    if json_mode {
+        println!("{objeto}");
+    } else {
+        eprintln!(
+            "{}",
+            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+        );
+        if let Some(requisicoes) = erro.requisicoes() {
+            eprintln!("IES: {requisicoes} requisições, não repetir a escrita; verificar no SEI");
+        }
+    }
+    ExitCode::from(erro.saida())
+}
+
+pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     let codigo = if erro.saida() == 3 {
         "efeito_incerto"
     } else {
@@ -96,23 +112,10 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
         }
     }
     if let Some(http) = erro.status_http() {
-        if http.status != 200 {
-            objeto["status_http"] = json!(http.status);
-        }
+        objeto["status_http"] = json!(http.status);
         if let Some(mensagem) = &http.mensagem_do_servidor {
             objeto["mensagem_do_servidor"] = json!(mensagem);
         }
     }
-    if json_mode {
-        println!("{objeto}");
-    } else {
-        eprintln!(
-            "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
-        );
-        if let Some(requisicoes) = erro.requisicoes() {
-            eprintln!("IES: {requisicoes} requisições, não repetir a escrita; verificar no SEI");
-        }
-    }
-    ExitCode::from(erro.saida())
+    objeto
 }
