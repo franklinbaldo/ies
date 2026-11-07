@@ -131,8 +131,19 @@ fn inspecionar_pdf_com_acao(
         }
         digest.update(&bloco[..lidos]);
     }
-    if total != antes.len() {
-        return Err(FalhaPdf::Leitura);
+    // Conferir o mesmo descritor após o hash: tamanho igual não prova
+    // imutabilidade, pois outro processo pode regravar bytes no meio da leitura.
+    let depois = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    let alterado = total != antes.len()
+        || depois.len() != antes.len()
+        || matches!((antes.modified(), depois.modified()), (Ok(a), Ok(b)) if a != b);
+    #[cfg(unix)]
+    let alterado = {
+        use std::os::unix::fs::MetadataExt;
+        alterado || (antes.ctime(), antes.ctime_nsec()) != (depois.ctime(), depois.ctime_nsec())
+    };
+    if alterado {
+        return Err(FalhaPdf::AlteradoDuranteLeitura);
     }
     Ok(PdfLocal {
         nome: nome.to_owned(),
