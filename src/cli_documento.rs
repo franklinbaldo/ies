@@ -21,6 +21,19 @@ pub(crate) enum DocumentoAcao {
         #[arg(long)]
         confirmar: bool,
     },
+    /// Inclui documento interno: prévia Web; confirmar faz escrita única com releitura.
+    Criar {
+        #[arg(long, required = true)]
+        processo: String,
+        #[arg(long, required = true)]
+        tipo: String,
+        #[arg(long)]
+        descricao: Option<String>,
+        #[arg(long, value_parser = ["publico", "restrito", "sigiloso"])]
+        nivel: Option<String>,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Prévia de cópia local; confirmação remota ainda bloqueada
     Salvar {
         numero: String,
