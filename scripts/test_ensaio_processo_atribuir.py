@@ -136,6 +136,40 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertTrue(self.registro.exists())
 
 
+    def rodar_com_falha_fsync(self, numero_da_chamada):
+        import os
+        from unittest.mock import patch
+
+        fsync_original = os.fsync
+        chamadas_fsync = 0
+
+        def fsync_com_falha(fd):
+            nonlocal chamadas_fsync
+            chamadas_fsync += 1
+            if chamadas_fsync == numero_da_chamada:
+                raise OSError("fsync simulado")
+            fsync_original(fd)
+
+        with patch("ensaio_processo_atribuir.os.fsync", side_effect=fsync_com_falha):
+            return self.rodar()
+
+    def test_fsync_apos_post_atribuicao_conserva_efeito_incerto(self):
+        codigo, relatorio = self.rodar_com_falha_fsync(2)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_atribuicao")
+        self.assertEqual(relatorio["motivo"], "registro_indisponivel_apos_post")
+        self.assertEqual(len(self.chamadas), 2)
+        self.assertTrue(self.registro.exists())
+
+    def test_fsync_apos_post_remocao_conserva_efeito_incerto(self):
+        codigo, relatorio = self.rodar_com_falha_fsync(6)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_remocao")
+        self.assertEqual(relatorio["motivo"], "registro_indisponivel_apos_post")
+        self.assertEqual(len(self.chamadas), 5)
+        self.assertTrue(self.registro.exists())
+
+
 class PrevooDaOrigem(unittest.TestCase):
     def test_tabela_com_crases_reais_contem_sete_origens(self):
         from ensaio_processo_atribuir import origens_de_treinamento
