@@ -107,11 +107,15 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
     // quando executo ies processo enviar --remover-anotacoes sem --confirmar,
     // entao o plano escolhe limpar a anotacao e nao faz escrita.
     let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
-    let tela = tela_de_envio(Versao::V41, ID)
-        .replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+    let tela =
+        tela_de_envio(Versao::V41, ID).replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
     let respostas = com(
         abertura(arvore(&[UNIDADE], &acoes)),
-        vec![ok(tela), ok(anotacao("Anotação de teste", ID)), ok(um_destino())],
+        vec![
+            ok(tela),
+            ok(anotacao("Anotação de teste", ID)),
+            ok(um_destino()),
+        ],
     );
     let amb = ambiente();
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
@@ -132,6 +136,9 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
         Some(super::MetodoRemocao::LimparAnotacao)
     );
     assert_eq!(feito.requisicoes, 6);
+    let json = crate::processo_enviar_cli::json_de_sucesso(&feito);
+    assert_eq!(json["metodo_remocao"], "limpar_anotacao");
+    assert!(crate::processo_enviar_cli::humano(&feito).contains("limpar formulário"));
     let mut esperado = pedidos_da_abertura();
     esperado.push(get(&url_da_tela()));
     esperado.push(get(&absoluta(&link_anotacao())));
