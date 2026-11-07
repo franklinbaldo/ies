@@ -51,5 +51,8 @@ fn localizar_controle_d_unb_no_acervo() {
         }
     }
     println!("RESUMO_UNB cards={cards} paginas_controle={paginas} paginas_D={detalhadas}");
-    assert!(cards > 0 && paginas > 0, "acervo UnB precisa ter GET Controle");
+    assert!(
+        cards > 0 && paginas > 0,
+        "acervo UnB precisa ter GET Controle"
+    );
 }
