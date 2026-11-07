@@ -180,6 +180,22 @@ class EnsaioUmaVez(unittest.TestCase):
         }):
             self.assertEqual(origem_privada_permitida({ORIGEM}), ORIGEM)
 
+    def test_wip_245_metadado_invalido_ou_linha_extra_recusada(self):
+        origem = Path(self.tmp.name) / "origem-com-metadado"
+        with patch.dict(os.environ, {
+            "IES_ORIGEM_FILE": str(origem), "IES_CONFIG_FILE": "",
+        }):
+            for conteudo in (
+                ORIGEM + "\nversao=4.x\n",
+                ORIGEM + "\nversao=4.0.9\nlinha-adicional\n",
+                ORIGEM + "\noutro=4.0.9\n",
+            ):
+                with self.subTest(conteudo=conteudo):
+                    origem.write_text(conteudo)
+                    origem.chmod(0o600)
+                    with self.assertRaises(ValueError):
+                        origem_privada_permitida({ORIGEM})
+
     def test_configuracao_local_nao_pode_substituir_origem_permitida(self):
         origem = Path(self.tmp.name) / "origem"
         origem.write_text(ORIGEM + "\n")
