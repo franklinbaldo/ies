@@ -1,7 +1,7 @@
 ---
 type: Guide
 title: "Prévia real de relacionamentos em PEN1 — 07/11/2026"
-description: "Duas prévias de leitura falharam por tabela ausente; correção BDD-258-01 validada apenas offline"
+description: "Duas prévias falharam por tabela ausente; terceira prévia PEN1 passou após a correção"
 ---
 
 # Processo relacionar — PEN1 em 07/11/2026
@@ -58,17 +58,40 @@ usa abertura de processo, formulário sem tabela e complemento XML:
 | Validação após a correção | Estado |
 | --- | --- |
 | BDD sintético da prévia sem tabela | **PASS** |
-| Prévia live de treinamento com o leitor corrigido | **NOT_RUN** |
+| Prévia live de treinamento com o leitor corrigido | **PASS em PEN1** |
 | Confirmação real de adição ou remoção | **NOT_RUN** |
 | Reconciliação real e resíduo de relacionamento | **NOT_RUN** |
 
 A CLI pública mantém `--confirmar` **bloqueado antes da rede**.
 Não confundir motor sintético da escrita com capacidade real liberada.
 
+## Revalidação live após a correção
+
+Em **07/11/2026 às 20:13:07 UTC**, outro par de processos da **PEN1 de
+treinamento** (não os quatro números das tentativas anteriores) foi
+usado com `ies processo relacionar NUP --com DESTINO`, sem `--confirmar`.
+A [evidência saneada registrada na issue](https://github.com/franklinbaldo/ies/issues/258#issuecomment-6712482131)
+mostra:
+
+| Etapa | Resultado observado |
+| --- | --- |
+| Login | **PASS**, exit 0, 6 requisições |
+| Listar processos | **PASS**, exit 0, 100 processos distintos na página |
+| Prévia da relação | **PASS**, exit 0, 4 requisições reportadas pela CLI |
+| Indicadores da prévia | `sem_efeito=false`, `confirmado=false`, `alterado=false` |
+| Escrita modificadora / retry | **0 / 0** |
+
+A contagem `4` pertence apenas ao comando de prévia; não é o total
+de requests do login, listagem e prévia, nem discrimina métodos HTTP.
+O ensaio **comprova a prévia BDD-258-01 na PEN1**, não valida
+confirmação de adição/remoção, reconciliação ou compatibilidade na UnB.
+O GET de abertura pode registrar recebimento; não se declara ausência
+de efeitos colaterais de leitura.
+
 ## Continuar
 
-Executar nova prévia em outro processo/instalação de **treinamento**,
-sem repetir uma requisição que falhou e sem acesso à produção.
-Somente após prévia válida, considerar uma confirmação única já
-autorizada na issue, seguida de releitura independente e registro do
-resíduo, sem retry em caso de resultado incerto.
+A prévia PEN1 passou. Para BDD-258-02/03/04, habilitar confirmação
+apenas no ensaio controlado em treinamento autorizado, com **um único
+POST mutador**, releitura independente e registro do resíduo. Não
+repetir escrita de resultado incerto. A CLI pública permanece bloqueada
+até validar esse caminho; UnB ainda não foi testada.
