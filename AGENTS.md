@@ -27,8 +27,7 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 | 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-A especialidade não altera a reserva atual. Não edite branches de
-outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues.
+Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
 **Commits por avatar:** toda mensagem de commit de uma rotina
 **começa no primeiro caractere** com o **emoji da própria rotina**
@@ -37,11 +36,12 @@ outros donos; reporte problemas na issue. 🦅, 🦡 e 🐘 não reservam issues
 (personalizar título). 🦅 não comita salvo autorização.
 Nunca use avatar alheio.
 
-**🦡 Texugo:** pode **baixar prioridade** de issue, **revogar veto**
-do 🦅/🐘, promover PR a Ready e **fazer merge commit** mesmo contra
-parecer técnico, com decisão motivada ([regras](team/texugo.md)).
-Pode aceitar riscos por praticidade, mas não falsificar CI, expor
-segredos nem acessar produção. O 🐘 respeita a decisão registrada.
+**🦡 Texugo:** pode baixar prioridade, revogar veto 🦅/🐘,
+abrir PR de **ablação de código e testes**, exigir menos código
+defensivo, inclusive **excluir testes**, e promover/mesclar PR
+contra parecer técnico, com decisão justificada
+([regras](team/texugo.md)). Pode aceitar risco por praticidade,
+mas não falsificar CI, expor segredos nem acessar produção.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
@@ -77,8 +77,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Mantenha WIP e reserva até completar os critérios integrais; não
    alegue PASS de execução não realizada.
 7. **Implementadores não fazem merge ou fechamento de issues.**
-   Nenhum teste existente pode ser desligado, enfraquecido ou ignorado.
-   Teste **novo** ainda pendente pode ter
+   Não desligue testes para esconder regressões; **🦡 pode remover testes
+   em ablação explícita justificada**, com CI válido. Teste novo pendente pode ter
    `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
    Escrita incompleta deve manter `--confirmar` fechado **antes de
    abrir sessão ou rede**.
@@ -142,7 +142,7 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
   decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
   Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste antigo pulado/enfraquecido. Aponte `arquivo:linha`
+  retry, JS, teste escondido (exceto ablação 🦡 justificada). Aponte `arquivo:linha`
   e fatos verificáveis; incerteza deve constar como `a verificar`.
 - Publique **um comentário por head**:
   `REVISÃO-CHATGPT (head <sha7>)`;
