@@ -53,8 +53,14 @@ fn metadados(
         return Err(Falha::ObservacaoInsuficiente);
     }
     let total = tabela.total_declarado.map(numero_sql).transpose()?;
-    let inicio = tabela.faixa_observada.map(|f| numero_sql(f.inicio())).transpose()?;
-    let fim = tabela.faixa_observada.map(|f| numero_sql(f.fim())).transpose()?;
+    let inicio = tabela
+        .faixa_observada
+        .map(|f| numero_sql(f.inicio()))
+        .transpose()?;
+    let fim = tabela
+        .faixa_observada
+        .map(|f| numero_sql(f.fim()))
+        .transpose()?;
     Ok((total, inicio, fim))
 }
 
@@ -159,8 +165,8 @@ fn tabela(
         (Some(i), Some(f)) => Some(FaixaObservada::nova(i, f).ok_or(Falha::DadoInvalido)?),
         _ => return Err(Falha::DadoInvalido),
     };
-    let tabela = TabelaObservada::nova(positivo(total)?, faixa, linhas)
-        .map_err(|_| Falha::DadoInvalido)?;
+    let tabela =
+        TabelaObservada::nova(positivo(total)?, faixa, linhas).map_err(|_| Falha::DadoInvalido)?;
     if !tabela.pagina_verificavel() {
         return Err(Falha::ObservacaoInsuficiente);
     }
