@@ -134,3 +134,30 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
         self.assertEqual(len(chamadas), 2)
         self.assertTrue(self.registro.exists())
+
+
+class PrevooDaOrigem(unittest.TestCase):
+    def test_tabela_com_crases_reais_contem_sete_origens(self):
+        from ensaio_processo_atribuir import origens_de_treinamento
+        tabela = (Path(__file__).resolve().parents[1] /
+                  "docs/interfaces/credenciais-de-treinamento.md")
+        origens = origens_de_treinamento(tabela)
+        self.assertEqual(len(origens), 7)
+        self.assertIn(ORIGEM, origens)
+        self.assertNotIn("https://sei.sistemas.ro.gov.br/sei", origens)
+
+    def test_origem_privada_exata_e_configuracao_paralela(self):
+        import os
+        from unittest.mock import patch
+        from ensaio_processo_atribuir import origem_privada_permitida
+        with tempfile.TemporaryDirectory() as pasta:
+            arquivo = Path(pasta) / "origem"
+            arquivo.write_text(ORIGEM, encoding="utf-8")
+            arquivo.chmod(0o600)
+            with patch.dict(os.environ, {"IES_ORIGEM_FILE": str(arquivo)}, clear=True):
+                self.assertEqual(origem_privada_permitida({ORIGEM}), ORIGEM)
+            with patch.dict(os.environ, {"IES_ORIGEM_FILE": str(arquivo),
+                                        "IES_CONFIG_FILE": "/config-concorrente.json"},
+                            clear=True):
+                with self.assertRaises(ValueError):
+                    origem_privada_permitida({ORIGEM})
