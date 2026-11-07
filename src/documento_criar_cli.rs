@@ -193,4 +193,25 @@ mod tests {
         );
         assert_eq!(saida["retentavel"], false);
     }
+
+    #[test]
+    fn efeito_incerto_da_releitura_preserva_http_e_contagem_sem_retry() {
+        use crate::processo_obter::ErroProcessoObter;
+        use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+
+        let erro = ErroPreviaCriacao::EfeitoIncertoNaReleitura(
+            ErroProcessoObter::Transporte(FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("leitura recusada".to_owned()),
+            })),
+        );
+        let saida = erro_incerto_json(&erro, 7);
+        assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+        assert_eq!(saida["status_http"], 403);
+        assert_eq!(saida["mensagem_do_servidor"], "leitura recusada");
+        assert_eq!(saida["requisicoes"], 7);
+        assert!(saida["causa_releitura"].is_string());
+        assert_eq!(saida["retentavel"], false);
+        assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
+    }
 }
