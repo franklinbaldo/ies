@@ -167,6 +167,7 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
 
 /// A confirmação é recusada ANTES da sessão e da primeira requisição.
 /// Não supor que a prévia prova o efeito da escrita.
+#[allow(clippy::too_many_lines)] // Fluxo de prévia por ação com contagem, sem mutação nem retry.
 pub(crate) fn prever<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &Pedido<'_>,
