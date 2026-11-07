@@ -74,11 +74,17 @@ fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
 }
 
 /// Formata a prévia humana usando somente dados já observados na abertura.
-/// A unidade ainda não é exibida nesta versão: regressão RED de UX #271.
+/// A unidade é opcional: não inventar localização quando ela não foi publicada.
 fn texto_da_previa(feito: &CienciaDoDocumento) -> String {
+    let unidade = feito
+        .unidade
+        .as_deref()
+        .filter(|nome| !nome.trim().is_empty())
+        .map(|nome| format!(", na unidade {nome}"))
+        .unwrap_or_default();
     format!(
-        "Prévia: ciência do usuário desta sessão no documento {} ({}) do processo {}.              O SEI permite uma por documento. Para executar: --confirmar. Requisições: {}.",
-        feito.numero, feito.rotulo, feito.processo_nup, feito.requisicoes
+        "Prévia: registrar ciência do usuário desta sessão no documento {} ({}) do processo {}{}. O SEI permite uma ciência por documento. Para executar: --confirmar. Requisições: {}.",
+        feito.numero, feito.rotulo, feito.processo_nup, unidade, feito.requisicoes
     )
 }
 
