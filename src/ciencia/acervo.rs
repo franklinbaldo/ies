@@ -159,7 +159,7 @@ fn cards_da_ciencia(raiz: &Path) -> Vec<PathBuf> {
 }
 
 #[test]
-#[ignore = "replay offline: requer ZIPs públicos verificados em IES_ACERVO_CACHE"]
+#[ignore = "wip #271: replay externo exige ZIPs públicos verificados; executado no gate dedicado"]
 fn replay_da_ciencia_no_acervo() {
     let raiz = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes");
     let pasta = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
