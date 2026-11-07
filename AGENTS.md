@@ -27,7 +27,7 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 | 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
+Respeite trabalhos em curso; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
 **Commits:** toda mensagem começa **no primeiro caractere**
 com o emoji da rotina (tabela): `🦊 fix: ...`, `🐙 WIP: ...`.
@@ -42,50 +42,43 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
-## Coordenação entre rotinas: reserva, prioridade e continuidade
+## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
-1. A fila usa etiqueta `handoff-chatgpt` e título
-   `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
-   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
-2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
-   Procure primeiro issue com **seu** emoji imediatamente após o número,
-   mesmo com prioridade reduzida. Com duas, continue apenas a de menor
-   número e sinalize duplicidade; não assuma outra antes de concluir.
-3. Leia issue, comentários (especialmente `Como trabalhar`), histórico da
-   PR, `AGENTS.md` e ficha. Retome **o mesmo branch e a mesma PR** se
-   ainda abertos. Quando o 🐘 registrar `fatia integrada na main`,
-   continue **a mesma issue** em **PR nova a partir da main**, começando
-   por testes `wip #N`.
-4. Só sem issue própria, escolha issue livre (sem emoji de dono) da
-   especialidade, de maior prioridade e, em empate, de **menor número**.
-   Se não houver issue livre especializada, escolha a maior prioridade
-   geral; nunca a mais antiga como desempate. Examine PRs relacionadas.
-5. Reserve inserindo **só o seu emoji** após o número, sem mudar a
-   prioridade nem o resto do título. **Releia imediatamente** para
-   detectar disputa; se outra rotina venceu, retire apenas sua inserção
-   quando isso for seguro, sem apagar o emoji alheio, e escolha outra.
-   Desistência insuperável: remova só seu emoji e registre tentativas e
-   bloqueio na issue. Não substitua dono porque a prioridade mudou.
-6. A unidade de progresso é a **capacidade da issue**, não a rodada
-   horária, o commit ou a PR. Retome o comportamento ainda pendente e
-   avance o máximo seguro; não pare apenas porque houve push ou CI verde.
-   Evite fatias artificiais: scripts, testes, refatoração e documentação
-   servem à capacidade e aos gates, não são entrega da CLI por si só.
-   Não repita ensaios ou verificações já válidos para o mesmo head só para
-   demonstrar atividade; head novo continua exigindo CI próprio.
-   **Handoff mínimo**, uma vez por avanço material, na issue ou PR
-   (vincule a outra, sem duplicar relatório):
-   - `FEITO:` efeito demonstrável ou atividade interna realizada.
-   - `CLI:` comando e efeito observável, ou `inalterada`.
-   - `CONTINUAR:` próxima alteração funcional concreta ou bloqueio real.
-   Diff, SHA e CI ficam nos links do GitHub, sem transcrição ritual.
-   Evidência de ensaio live segue em `docs/validacao-live/` somente quando
-   houve execução; não transforme `NOT_RUN` em progresso. Mantenha WIP
-   e reserva até concluir; nunca alegue PASS sem ensaio real.
-7. **Implementadores não fazem merge ou fechamento de issues.**
+1. **Emoji identifica o trabalho atual:** A fila usa etiqueta `handoff-chatgpt`
+   e título `<prioridade 0–100> <emoji, se em trabalho> <título>`. O emoji serve
+   para identificar visualmente quem está com a mão na massa na rodada atual
+   (com PR aberta vinculada).
+2. **Sem reserva antecipada — a próxima é de quem vier e pegar:** É proibido
+   pré-reservar issues futuras ou manter feudo permanente. Nenhuma issue fica
+   guardada para ninguém. Você pega uma issue, implementa o cenário e entrega a PR.
+   Ao iniciar a rodada, a rotina simplesmente pega a issue aberta de maior prioridade
+   que estiver livre naquele instante ("a próxima é de quem vier e pegar").
+3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
+   por **cenários comportamentais observáveis** do comando (`Dado / Quando
+   executo ies ... / Então`). O BDD vale **estritamente daqui para frente**
+   para fatias vivas e novas issues; é vedado refatorar retroativamente código
+   ou testes já verdes e integrados na `main`. Alterações isoladas em scripts
+   ou fixtures sem mudança no comando da CLI em `src/` contam como infra/manutenção,
+   nunca como avanço de capacidade.
+4. **Entrega por capacidade, handoff mínimo:** Progresso é concluir
+   **cenários BDD observáveis** da issue, não produzir uma PR por hora.
+   Continue do ponto pendente e avance tanto quanto for seguro; não pare
+   por ter feito push ou obtido CI verde. Teste, fixture, script,
+   refatoração e documentação só são avanço funcional quando mudam o
+   comportamento observável; faça o suporte necessário, sem fatias
+   artificiais nem retrabalho para preencher relatório.
+   Uma vez por mudança material, registre **em um só lugar** (issue ou PR,
+   vinculando a outra), apenas:
+   - `FEITO:` cenário atendido ou trabalho interno (sem fingir entrega).
+   - `CLI:` comando e comportamento, ou `inalterada`.
+   - `CONTINUAR:` próximo cenário pendente ou impedimento concreto.
+   SHA, diff e CI já estão no GitHub; não os transcreva. Não repita
+   verificações válidas para o mesmo head só para relatar atividade;
+   novo head exige novo CI. Evidência live só se executada, em
+   `docs/validacao-live/`; `NOT_RUN` não equivale a PASS.
+5. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
    em ablação explícita**, com CI válido. Teste pendente usa
    `#[ignore = "wip #N: motivo específico"]`. Escrita incompleta mantém
