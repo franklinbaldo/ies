@@ -300,10 +300,13 @@ fn dado_tipo_servido_no_xml_quando_previa_entao_mostra_o_tipo_do_destino() {
 #[test]
 fn dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
-    let html = formulario_com_relacionados(&[]).replace(
-        "<table summary=\"Lista de Processos Relacionados\">\\n<tr><th>Processo</th></tr>\\n\\n</table>",
-        "",
-    );
+
+    let pagina = formulario_com_relacionados(&[]);
+    let (antes, depois) = pagina
+        .split_once("<table summary=\"Lista de Processos Relacionados\">")
+        .expect("fixture publica a tabela");
+    let (_, apos) = depois.split_once("</table>").expect("tabela fechada");
+    let html = format!("{antes}{apos}");
     assert!(!html.contains("<table"), "fixture deve representar a tela observada");
     respostas.push(ok(html));
     respostas.push(ok(format!(
