@@ -444,3 +444,6 @@ fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
     );
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_da_lista()))));
 }
+
+#[path = "tests_documento/efeitos_incertos.rs"]
+mod efeitos_incertos;

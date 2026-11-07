@@ -198,16 +198,19 @@ pub(crate) fn atividade_do_aceite(
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
     use ErroCiencia as E;
-    // Script de template é inerte mesmo se o seletor DOM o percorrer.
-    // Não inferir atividade a partir de trecho que o navegador não executaria.
+    // Com JavaScript ativo, scripts em <template> e <noscript> não rodam,
+    // ainda que o parser HTML exponha esses nós a query_selector("script").
+    // Não inferir atividade de recarga inerte: poderia ser ciência antiga.
     let minusculas = html.to_ascii_lowercase();
-    if minusculas.split("<template").skip(1).any(|parte| {
-        parte
-            .split("</template")
-            .next()
-            .is_some_and(|fragmento| fragmento.contains("<script"))
-    }) {
-        return Err(E::AceiteSemAtividade);
+    for (abertura, fechamento) in [("<template", "</template"), ("<noscript", "</noscript")] {
+        if minusculas.split(abertura).skip(1).any(|parte| {
+            parte
+                .split(fechamento)
+                .next()
+                .is_some_and(|fragmento| fragmento.contains("<script"))
+        }) {
+            return Err(E::AceiteSemAtividade);
+        }
     }
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
     let parser = dom.parser();
@@ -266,35 +269,33 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     if tabela.name().as_utf8_str() != "table" {
         return Err(fora);
     }
-    // A tabela inteira também pode estar em um <template> ancestral. Nesse
-    // caso o parser a encontra pelo ID, mas o navegador não a exibe como
-    // Lista de Ciências: não serve como prova de escrita.
-    if dom
-        .query_selector("template")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-        .any(|template| {
-            template
-                .query_selector(parser, "table")
-                .into_iter()
-                .flatten()
-                .any(|no| no == *unica)
-        })
-    {
-        return Err(fora);
-    }
-    // O parser DOM também percorre descendentes de <template>, mas um
-    // checkbox inerte não prova a ciência. Recusar a tabela inteira é
-    // mais seguro do que escolher uma atividade sem prova de visibilidade.
-    if tabela
-        .query_selector(parser, "template")
-        .into_iter()
-        .flatten()
-        .next()
-        .is_some()
-    {
-        return Err(fora);
+    // O SEI depende de JavaScript ativo. Mesmo que o parser HTML indexe
+    // a tabela ou o checkbox dentro de <template> ou <noscript>, o navegador
+    // não os usa como a Lista de Ciências publicada quando JS está ativo.
+    // Recusar tanto os ancestrais da tabela como os fragmentos descendentes:
+    // uma atividade antiga num nó inerte não prova o efeito do GET atual.
+    for seletor in ["template", "noscript"] {
+        let ancestral_inerte = dom
+            .query_selector(seletor)
+            .into_iter()
+            .flatten()
+            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+            .any(|inerte| {
+                inerte
+                    .query_selector(parser, "table")
+                    .into_iter()
+                    .flatten()
+                    .any(|no| no == *unica)
+            });
+        let descendente_inerte = tabela
+            .query_selector(parser, seletor)
+            .into_iter()
+            .flatten()
+            .next()
+            .is_some();
+        if ancestral_inerte || descendente_inerte {
+            return Err(fora);
+        }
     }
     let legendas: Vec<String> = tabela
         .query_selector(parser, "caption")
@@ -337,6 +338,8 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     }
 }
 
+#[cfg(test)]
+mod acervo;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

@@ -83,3 +83,76 @@ protocolo Web. GREEN: consultar o CI do head publicado desta PR.
 **Live:** UnB NOT_RUN (0 pedidos), segunda instalação NOT_RUN (0),
 `--confirmar` NOT_RUN (0 GET mutadores), releitura NOT_RUN (0);
 replay dedicado de ciência NOT_RUN. **0 escritas e 0 resíduos novos**.
+
+## Continuação da Raposa — PR #337 (06/11/2026)
+
+A PR #317 foi integrada na `main` como `dcec619`; esta fatia usa
+nova branch baseada na `main`, mantendo a issue #271 aberta.
+
+**Observação:** no Todos, segunda ciência no processo é recusada se já
+houve ciência **no dia**, ao passo que no documento a recusa é da
+segunda ciência **do documento**, sem reinício diário
+(`tests/test_ciclo_ciencia_010.py` e `tests/test_documento_ciente_010.py`
+@323eb01). Os aceites recusados trazem `txaInfraValidacao` HTTP 200.
+Esse conteúdo é evidência do Todos, não de execução live desta fatia.
+
+**RED comprovado em CI** [42294900770](https://github.com/franklinbaldo/ies/actions/runs/42294900770):
+2 FAIL novos / 1.770 PASS / 22 ignored preexistentes, antes da correção.
+Um checkbox dentro de `<noscript>` e uma tabela inteira sob
+`<noscript>` eram tratados como prova; ambos são inertes com scripts
+habilitados. A recusa agora preserva o limite de uma escrita e não
+acrescenta GET.
+
+**Testes adicionais:** ciência repetida com mensagem Infra 200 tipada;
+documento com tabela inerte e atividade idêntica ao aceite. Orçamento
+sintético: 6 GET / 1 mutador / 0 retry para aceite recusado, ou 7 GET /
+1 mutador / 0 retry para lista sem prova. A saída é 3 (efeito incerto),
+sem alegar ciência nova e sem consultar lista antiga por um aceite
+não comprovado.
+
+**Live nesta continuação:** prévia UnB NOT_RUN (0), prévia segunda
+instalação NOT_RUN (0), confirmação única NOT_RUN (0 mutadores),
+verificação live NOT_RUN (0). Replay específico de `processo-ciente`/
+`documento-ciente` NOT_RUN. **0 requisições reais, 0 escritas e 0
+resíduos novos no SEI.** Os replays genéricos do CI não suprem essa prova.
+A issue permanece WIP até replay dedicado e ensaio seguro em treinamento.
+
+## 🦊 Continuação — script do aceite em `noscript` (#271)
+
+O parser do IES expunha a chamada `atualizarArvore` inserida dentro de
+`<noscript><script>...`, apesar de o navegador com JS habilitado não
+executá-la. O oráculo estrutural é a exigência de script ativo no aceite:
+a URL de uma ciência antiga não pode comprovar o GET atual.
+
+**RED comprovado:** [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489):
+`script_dentro_de_noscript_nao_prova_aceite` devolvia indevidamente
+`Ok("42457")`; `script_inerte_em_noscript_nao_confirma_ciencia_antiga`
+tentava GET de lista além do roteiro sintético.
+**2 FAIL novos / 1.775 PASS / 22 ignorados anteriores**. Não houve
+`#[ignore]` novo para mascarar a falha. Correção: recusa estática de
+script em `noscript`, releitura sem lista antiga e saída 3; orçamento
+sintético 6 GET, um único mutador, zero retry.
+
+Foi acrescentado replay offline específico com 14 cards das sete
+instalações e hashes verificados pelo leitor comum do acervo. **Resultado
+efetivo do replay: pendente da execução no runner**; não marcar PASS
+antes dos logs. Prévia live UnB **NOT_RUN (0 req)**; segunda instalação
+**NOT_RUN (0)**; confirmação **NOT_RUN (0 mutadores)**; releitura live
+**NOT_RUN (0)**. Até aqui, **0 requisições SEI, 0 escritas, 0 resíduos**.
+
+## Resultado real do replay específico — 06/11/2026
+
+[GitHub Actions 42303368527](https://github.com/franklinbaldo/ies/actions/runs/42303368527)
+**PASS técnico**, execução offline de 14 cassettes verificadas, 42
+respostas classificadas, sem acesso ao SEI. **Não foi PASS funcional:**
+28 respostas relacionadas ao aceite retornaram
+`aceite_da_ciencia_sem_atividade` e 14 respostas de Lista de Ciências
+ficaram não aplicáveis (`aceite_sem_atividade_observada`).
+**Zero atividades aceitas.** Ver
+[relatório detalhado](../validacao-replay/2026-11-06-ciencia.md).
+Investigar formato do HTML gravado e sequência das respostas antes
+de alegar conformidade, sem relaxar segurança ou inventar prova.
+
+Prévia UnB **NOT_RUN (0 req)**; segunda instalação **NOT_RUN (0)**;
+um `--confirmar` autorizado **NOT_RUN (0 mutadores)**; releitura live
+**NOT_RUN (0)**; **0 requisições reais, 0 escritas e 0 resíduos**.
