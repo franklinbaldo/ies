@@ -23,7 +23,7 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
     efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
-        o_que: EstadoDoProcesso::Relacionamento,
+        o_que: EstadoDoProcesso::RelacionamentosDoProcesso,
     },
 };
 
