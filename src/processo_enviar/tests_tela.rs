@@ -227,8 +227,8 @@ fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
         assert!(tela.remover_anotacoes_oferecida);
         // A ausência de name significa que não há controle enviável.
         let sem_opcao = html.replace(
-            "name=\\"chkSinRemoverAnotacoes\\"",
-            "name=\\"\\"",
+            r#"name="chkSinRemoverAnotacoes""#,
+            r#"name="""#,
         );
         assert!(
             !conferir_tela_de_envio(&sem_opcao, ID)
