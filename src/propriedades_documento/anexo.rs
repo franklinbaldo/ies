@@ -7,7 +7,7 @@ use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 
 /// Somente um vínculo inequívoco entre o id_anexo listado e o href servido.
-pub(super) fn ler_anexo_publicado(
+pub(crate) fn ler_anexo_publicado(
     instalacao: &Instalacao,
     html: &str,
     documento: &str,

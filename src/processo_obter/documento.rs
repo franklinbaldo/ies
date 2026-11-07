@@ -23,7 +23,7 @@ use crate::erro_html::ErroHtml;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
-use crate::propriedades_documento::{self, PropriedadesDocumento};
+use crate::propriedades_documento::PropriedadesDocumento;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "documento_erro.rs"]
@@ -391,8 +391,13 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         }
         ConteudoNaArvore::Vazio => {
             let cadastro = cadastro::ler(
-                instalacao, rede, lido.html, &no.id, &lido.processo.id,
-                pedido.propriedades, true,
+                instalacao,
+                rede,
+                lido.html,
+                &no.id,
+                &lido.processo.id,
+                pedido.propriedades,
+                true,
             )?;
             let Some(link) = cadastro.anexo.as_ref() else {
                 return Err(E::ConteudoNaoPublicadoNaArvore {
@@ -407,11 +412,18 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     };
     let propriedades = match cadastro_antecipado {
         Some(cadastro) => cadastro.propriedades,
-        None => cadastro::ler(
-            instalacao, rede, lido.html, &no.id, &lido.processo.id,
-            pedido.propriedades, false,
-        )?
-        .propriedades,
+        None => {
+            cadastro::ler(
+                instalacao,
+                rede,
+                lido.html,
+                &no.id,
+                &lido.processo.id,
+                pedido.propriedades,
+                false,
+            )?
+            .propriedades
+        }
     };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),

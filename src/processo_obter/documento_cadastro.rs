@@ -3,8 +3,8 @@ use super::{E, fora_de_palpite};
 use crate::arvore_processo::EnderecoDoConteudo;
 use crate::instalacao::Instalacao;
 use crate::processo_obter::EnvioDoProcesso;
-use crate::processo_obter::abertura::{Lida, Rede};
 use crate::processo_obter::ErroProcessoObter;
+use crate::processo_obter::abertura::{Lida, Rede};
 use crate::propriedades_documento::{self, PropriedadesDocumento};
 
 pub(super) struct Cadastro {
@@ -40,7 +40,10 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         });
     };
     if buscar_anexo
-        && !matches!(link.fonte, "documento_alterar_recebido" | "documento_consultar_recebido")
+        && !matches!(
+            link.fonte,
+            "documento_alterar_recebido" | "documento_consultar_recebido"
+        )
     {
         return Ok(Cadastro {
             propriedades: PropriedadesDocumento::NaoPublicadas,
