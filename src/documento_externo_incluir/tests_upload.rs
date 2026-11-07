@@ -51,6 +51,63 @@ fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado
 }
 
 #[test]
+fn recibo_do_upload_usa_o_mesmo_descritor_revalidado_na_previa() {
+    use super::{abrir_pdf_para_envio, inspecionar_pdf, FalhaPdf};
+    use std::fs;
+    use std::io::Read as _;
+    let caminho = std::env::temp_dir().join(format!(
+        "ies-332-reabertura-{}.pdf",
+        std::process::id()
+    ));
+    fs::write(&caminho, PDF).unwrap();
+    let previa = inspecionar_pdf(&caminho, None).unwrap();
+    let arquivo = abrir_pdf_para_envio(&caminho, &previa).unwrap();
+    let plano = preparar_pdf(
+        &previa.nome,
+        previa.tamanho_bytes,
+        "----ies332",
+        CodificacaoDaTela::Utf8,
+    )
+    .unwrap();
+    let mut tentativas = 0;
+    let recibo = enviar_via(
+        &plano,
+        arquivo,
+        "https://exemplo.gov.br/sei/controlador.php?acao=documento_upload_anexo",
+        "PHPSESSID=teste",
+        "https://exemplo.gov.br",
+        "https://exemplo.gov.br/sei/form",
+        |pedido| {
+            tentativas += 1;
+            let mut corpo = Vec::new();
+            pedido.corpo.read_to_end(&mut corpo).unwrap();
+            assert!(corpo.windows(PDF.len()).any(|janela| janela == PDF));
+            Ok(RespostaWeb {
+                status_code: 200,
+                mime: "text/plain; charset=iso-8859-1".into(),
+                content_length: Some(RECIBO.len()),
+                localizacao: None,
+                corpo: Cursor::new(RECIBO.as_bytes().to_vec()),
+            })
+        },
+        &previa.nome,
+        previa.tamanho_bytes,
+    )
+    .unwrap();
+    assert_eq!(recibo.nome, previa.nome);
+    assert_eq!(tentativas, 1);
+
+    let mut adulterado = PDF.to_vec();
+    adulterado[6] = b'X';
+    fs::write(&caminho, &adulterado).unwrap();
+    assert!(matches!(
+        abrir_pdf_para_envio(&caminho, &previa),
+        Err(FalhaPdf::DivergenteDaPrevia)
+    ));
+    fs::remove_file(caminho).unwrap();
+}
+
+#[test]
 fn falha_de_rede_no_upload_temporario_eh_incerta_sem_reenvio() {
     let plano = preparar_pdf(
         "prova.pdf",
