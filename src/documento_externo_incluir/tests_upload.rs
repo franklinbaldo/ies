@@ -52,13 +52,11 @@ fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado
 
 #[test]
 fn recibo_do_upload_usa_o_mesmo_descritor_revalidado_na_previa() {
-    use super::{abrir_pdf_para_envio, inspecionar_pdf, FalhaPdf};
+    use super::{FalhaPdf, abrir_pdf_para_envio, inspecionar_pdf};
     use std::fs;
     use std::io::Read as _;
-    let caminho = std::env::temp_dir().join(format!(
-        "ies-332-reabertura-{}.pdf",
-        std::process::id()
-    ));
+    let caminho =
+        std::env::temp_dir().join(format!("ies-332-reabertura-{}.pdf", std::process::id()));
     fs::write(&caminho, PDF).unwrap();
     let previa = inspecionar_pdf(&caminho, None).unwrap();
     let arquivo = abrir_pdf_para_envio(&caminho, &previa).unwrap();
