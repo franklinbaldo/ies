@@ -282,20 +282,22 @@ mod tests {
         );
         fs::remove_file(alias).unwrap();
     }
+
     #[test]
     fn escrita_concorrente_de_mesmo_tamanho_nao_pode_gerar_hash_de_foto_inconsistente() {
         // A data foi fixada no passado: a mudança é detectável sem sleeps/flakiness.
         let pasta = Pasta::nova();
         let caminho = pasta.arquivo("concorrente.pdf", PDF);
         let data_antiga = std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH);
-        std::fs::File::open(&caminho)
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&caminho)
             .unwrap()
             .set_times(data_antiga)
             .unwrap();
         let resultado = inspecionar_pdf_com_acao(&caminho, None, || {
-            fs::write(&caminho, b"%PDF-1.4\\n2 0 obj\\n%%EOF\\n").unwrap();
+            fs::write(&caminho, b"%PDF-1.4\n2 0 obj\n%%EOF\n").unwrap();
         });
         assert_eq!(resultado, Err(FalhaPdf::AlteradoDuranteLeitura));
     }
-
 }
