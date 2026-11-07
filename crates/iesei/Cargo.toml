@@ -1,0 +1,6 @@
+[package]
+name = "iesei"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Entidades e observacoes tipadas compartilhadas entre IES e anti-IES"
