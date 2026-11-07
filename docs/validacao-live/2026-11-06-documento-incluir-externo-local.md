@@ -20,6 +20,23 @@ O arquivo `franklinbaldo/todos/src/todos/documento_externo.py` documenta observa
 
 Em 07/11/2026 foram acrescentados três cenários: nomes contendo `&#` (incompatíveis com o upload observado no Todos), sequência de escape de terminal no nome em Unix e rejeição pela CLI antes da sessão. O RED [run 42334803924](https://github.com/franklinbaldo/ies/actions/runs/42334803924), head `d558491`, registrou no teste unitário **1.805 PASS, 2 FAIL, 23 ignored**, com `Rustfmt` e `Clippy` aprovados. O teste CLI fica para o estágio de integração após a correção. GREEN deve ser comprovado em run posterior do head final; nenhum teste RED é considerado PASS antecipadamente.
 
+## Retificação do contrato de erros — ADR 0005 (07/11/2026)
+
+A fatia anterior acrescentara nomes textuais de subcódigos, embora novas
+fatias devam publicar o erro tipado por Serde. Correção na mesma PR #352:
+`FalhaPdf::subcodigo()` removida; CLI publica `causa` diretamente,
+sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
+
+- **RED:** [CI 42335719860](https://github.com/franklinbaldo/ies/actions/runs/42335719860),
+  head `c5c78fc`: 5 falhas novas no teste de CLI, 1 teste de CLI
+  aprovado; 1.807 testes unitários aprovados, 23 ignorados já existentes.
+  O hook Rustfmt também acusou a formatação da etapa RED.
+- **GREEN:** candidato no commit `07a89d8` ([CI 42335957617](https://github.com/franklinbaldo/ies/actions/runs/42335957617)).
+  Consultar o resultado do SHA final após ajustes documentais; esta linha
+  não presume sucesso antes de todos os gates.
+- **Live remoto:** NOT_RUN; nenhuma sessão, GET, POST, upload, escrita ou
+  resíduo SEI. A confirmação continua recusada antes da rede.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
