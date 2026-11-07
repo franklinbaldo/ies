@@ -14,6 +14,8 @@ pub(crate) mod confirmacao;
 pub(crate) mod escolha;
 #[allow(dead_code)] // #332: prévia remota será chamada pela CLI.
 pub(crate) mod fluxo;
+#[allow(dead_code)] // #332: conectada à CLI após validar upload real em treinamento.
+pub(crate) mod fluxo_confirmar;
 #[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
 pub(crate) mod multipart;
