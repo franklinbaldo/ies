@@ -153,3 +153,62 @@ where
         unidade,
     })
 }
+
+/// Ponte real da sequência #332: o mesmo POST multipart único do transporte,
+/// seguido de cadastro único e releitura pelo fluxo já ensaiado offline.
+/// Não é invocada pela CLI antes da validação em TREINAMENTO.
+#[allow(dead_code, clippy::too_many_arguments)]
+pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    nup: &NumeroProcesso,
+    unidade_pedida: Option<&str>,
+    tipo: &str,
+    pdf: &PdfLocal,
+    arquivo: impl std::io::Read,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
+    let cookie = sessao
+        .cookie
+        .valor()
+        .map_err(|e| ErroConfirmacaoExterna::Previa(ErroPreviaExterna::Transporte(e)))?;
+    // A origem já foi validada quando a sessão foi aberta.
+    let origem = sessao
+        .origem
+        .split('/')
+        .take(3)
+        .collect::<Vec<_>>()
+        .join("/");
+    executar_confirmacao_via(
+        sessao,
+        nup,
+        unidade_pedida,
+        tipo,
+        pdf,
+        indice,
+        envio,
+        move |_, destino, referer, codificacao, pdf| {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos());
+            let fronteira = format!("----ies{}-{nanos:x}", std::process::id());
+            let plano = super::multipart::preparar_pdf(
+                &pdf.nome,
+                pdf.tamanho_bytes,
+                &fronteira,
+                codificacao,
+            )
+            .map_err(FalhaUpload::PreparacaoMultipart)?;
+            super::upload::enviar_https(
+                &plano,
+                arquivo,
+                destino,
+                cookie,
+                &origem,
+                referer,
+                &pdf.nome,
+                pdf.tamanho_bytes,
+            )
+        },
+    )
+}
