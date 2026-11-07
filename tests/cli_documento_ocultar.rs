@@ -19,7 +19,7 @@ fn documento_ocultar_inacessiveis_chega_a_validacao_da_sessao() {
     let valor: serde_json::Value =
         serde_json::from_slice(&saida.stdout).expect("a falha da CLI deve ser JSON");
     assert_ne!(
-        valor["subcodigo"], "nao_implementado",
+        valor["codigo"], "nao_implementado",
         "a opção deve ser atendida pelo leitor Web: {valor}"
     );
 }
