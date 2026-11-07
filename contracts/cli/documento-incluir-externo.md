@@ -34,6 +34,10 @@ incorreta, limite observado ultrapassado, alteração detectada durante o hash e
 de `--confirmar` ainda não validado sai 1; entrada não aceita sai 2.
 Nenhuma delas abre sessão ou rede.
 
+## Recibo temporário — núcleo offline da PR #380
+
+A função Rust `documento_externo_incluir::recibo::interpretar_resposta` reconhece o recibo `nome_upload#nome#tipo#tamanho#data_hora#` observado no Todos/UnB e a recusa explícita `ERRO#motivo`. O formato tem seis campos, com o último vazio. Um recibo só é aceito quando HTTP 200, nome e tamanho conferem com o PDF esperado e não há campo ausente ou adicional; resposta divergente, HTML genérico ou status inesperado vira `FalhaUpload::EfeitoIncerto`, sem autorizar cadastro ou retry. Esta etapa é **somente um interpretador testado com respostas sintéticas**, ainda sem transporte e sem vínculo com a CLI de escrita. Um recibo válido não prova documento criado.
+
 ## Escopo remoto ainda não implementado
 
 O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/documento_externo.py) descreve na UnB de TREINAMENTO (11/10/2026) **duas etapas HTTP mutadoras diferentes sob uma única confirmação**: upload temporário multipart `documento_upload_anexo` → recibo → cadastro `documento_receber` com `hdnAnexos` → releitura independente da árvore e metadados do anexo. Não é correto exigir apenas um POST total, nem interpretar recibo de upload como documento já incluído.
