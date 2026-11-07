@@ -1,7 +1,7 @@
 //! Prévia Web e confirmação de documento interno (#246).
 //! O formulário é derivado da tela servida, sem executar JS nem repetir escrita.
 use super::confirmacao::{FotoDaCriacao, postar_e_verificar};
-use super::guarda_script::cadastro_publica_script_de_criacao;
+use super::guarda_script::cadastro_oferece_salvar;
 use super::{
     ErroCriar, EscolhaDoDocumento, cadastro_redirecionado, conferir_cadastro, conferir_tipo,
     escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
@@ -316,7 +316,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         Some("publico"),
     )
     .map_err(E::Tipo)?;
-    if !cadastro_publica_script_de_criacao(&html_cadastro) {
+    if !cadastro_oferece_salvar(&html_cadastro) {
         return Err(E::SubmissaoNaoComprovada);
     }
     // Pasta fechada oculta documentos: impossível provar uma criação única.
