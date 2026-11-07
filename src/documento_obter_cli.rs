@@ -1,13 +1,5 @@
-//! `ies documento DOC [DOC ...] [--processo NUP] [--saida DIR] [--json]
-//! [--unidade SIGLA]` pela Web (Refs #60; contracts/cli/documento-obter-web.md):
-//! um documento por vez, na ordem pedida, cada um pelo caminho mais barato
-//! (processo informado, índice ou pesquisa rápida), a árvore e o link
-//! assinado do conteúdo. Publica metadados e
-//! texto visível; nunca URL, hash, cookie ou HTML no terminal. Com
-//! `--saida`, grava só a foto `DOC.vN.html` de cada interno (#207,
-//! idempotente) depois de todos lidos; o externo (fatia 3) liga o parcial
-//! `DOC.pdf`/`.txt`/`.html` gravado na leitura.
-//! `--versao N` e a foto: contracts/cli/documento-obter-versoes.md.
+//! Leitura Web de documentos e anexos. Contrato: contracts/cli/documento-obter-web.md.
+//! Refs #60; sem publicar URLs, HTML ou cookies.
 use crate::anexo_documento::LimiteDoAnexo;
 use crate::documento::NumeroDocumento;
 use crate::documento_versao_cli;
@@ -56,7 +48,10 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
         PropriedadesDocumento::NaoPedidas => {}
         PropriedadesDocumento::NaoPublicadas => {
             mapa.insert("propriedades".to_owned(), Value::Null);
-            mapa.insert("propriedades_motivo".to_owned(), json!("nao_publicadas_na_barra"));
+            mapa.insert(
+                "propriedades_motivo".to_owned(),
+                json!("nao_publicadas_na_barra"),
+            );
         }
         PropriedadesDocumento::Lidas(p) => {
             mapa.insert("propriedades".to_owned(), json!(p));
@@ -207,7 +202,12 @@ fn obter(
                 },
             };
             obter_documento_com_propriedades(
-                &sessao, &pedido, versoes, &indice, &mut EnvioHttps, com_propriedades,
+                &sessao,
+                &pedido,
+                versoes,
+                &indice,
+                &mut EnvioHttps,
+                com_propriedades,
             )
         })?;
         Ok((lidos, host))
@@ -492,8 +492,10 @@ fn publicar(
             match &d.propriedades {
                 PropriedadesDocumento::NaoPedidas => {}
                 PropriedadesDocumento::NaoPublicadas => println!("Cadastro não publicado."),
-                PropriedadesDocumento::Lidas(p) =>
-                    println!("Cadastro: {} — {} ({})", p.tipo, p.descricao, p.nome_na_arvore),
+                PropriedadesDocumento::Lidas(p) => println!(
+                    "Cadastro: {} — {} ({})",
+                    p.tipo, p.descricao, p.nome_na_arvore
+                ),
             }
             if let Some(linha) = documento_versao_cli::linha_humana(d) {
                 println!("{linha}");

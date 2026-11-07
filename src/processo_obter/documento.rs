@@ -116,7 +116,11 @@ pub(crate) fn obter_documento_com_propriedades<V: EnvioDoProcesso>(
     envio: &mut V,
     propriedades: bool,
 ) -> Result<DocumentoObtido, E> {
-    let leitura = LeituraDoNo { anexo: pedido.anexo, versoes, propriedades };
+    let leitura = LeituraDoNo {
+        anexo: pedido.anexo,
+        versoes,
+        propriedades,
+    };
     abrir(sessao, pedido, leitura, indice, envio)
 }
 
@@ -390,18 +394,20 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     let propriedades = if !pedido.propriedades {
         PropriedadesDocumento::NaoPedidas
     } else {
-        match propriedades_documento::ler_link(
-            instalacao, lido.html, &no.id, &lido.processo.id,
-        ).map_err(E::Html)? {
+        match propriedades_documento::ler_link(instalacao, lido.html, &no.id, &lido.processo.id)
+            .map_err(E::Html)?
+        {
             None => PropriedadesDocumento::NaoPublicadas,
             Some(url) => {
                 let html = match rede.get(&url).map_err(E::Processo)? {
                     Lida::Html { html, .. } => html,
                     Lida::Login => return Err(E::Processo(ErroProcessoObter::SessaoEncerrada)),
-                    Lida::Redirecionamento(local) =>
-                        return Err(E::Processo(fora_de_palpite(local.as_deref()))),
-                    Lida::Falha(falha) =>
-                        return Err(E::Processo(ErroProcessoObter::Transporte(falha))),
+                    Lida::Redirecionamento(local) => {
+                        return Err(E::Processo(fora_de_palpite(local.as_deref())));
+                    }
+                    Lida::Falha(falha) => {
+                        return Err(E::Processo(ErroProcessoObter::Transporte(falha)));
+                    }
                 };
                 PropriedadesDocumento::Lidas(
                     propriedades_documento::ler_formulario(&html, &no.id, &lido.processo.id)
