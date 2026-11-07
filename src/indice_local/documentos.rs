@@ -89,7 +89,7 @@ impl IndiceLocal {
         self.executar((), |banco, agora| {
             for (numero, id) in &ambiguos {
                 banco.execute(
-                    "DELETE FROM documento WHERE origem = ?1 \\
+                    "DELETE FROM documento WHERE origem = ?1 \
                      AND (numero_sei = ?2 OR id_documento = ?3)",
                     [origem.as_str(), numero, id],
                 )?;
