@@ -97,11 +97,17 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
             "{}",
             crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
         );
-        if erro.saida() == 3 {
-            eprintln!("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia");
+        if let Some(aviso) = aviso_da_falha(erro) {
+            eprintln!("{aviso}");
         }
     }
     ExitCode::from(erro.saida())
+}
+
+/// Aviso adicional para a apresentação humana; não muda o código de saída.
+fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<&'static str> {
+    (erro.saida() == 3)
+        .then_some("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia")
 }
 
 pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
@@ -172,5 +178,31 @@ mod testes_previa {
         let texto = texto_da_previa(&feito(None));
         assert!(texto.contains("do processo 0000001-22.2026.4.00.0000."));
         assert!(!texto.contains("na unidade"));
+    }
+
+    /// RED #271: stderr deve informar o custo real da tentativa de escrita
+    /// incerta e não sugerir que a próxima prévia (somente leitura) é proibida.
+    #[test]
+    fn erro_humano_da_ciencia_documental_informa_requests_e_nao_proibe_previa() {
+        let erro = ErroCienciaDocumento::EfeitoIncerto {
+            motivo: "aceite_sem_atividade_do_documento",
+            requisicoes: 6,
+            falha_do_aceite: None,
+        };
+        let aviso = aviso_da_falha(&erro).expect("efeito incerto deve ter aviso");
+        assert!(aviso.contains("6 requisições"), "aviso observado: {aviso}");
+        assert!(
+            aviso.contains("não repetir a escrita"),
+            "orientação de segurança ausente: {aviso}"
+        );
+        assert!(
+            !aviso.contains("nova prévia"),
+            "a prévia de leitura é permitida: {aviso}"
+        );
+    }
+
+    #[test]
+    fn falha_previa_documental_nao_recebe_aviso_de_escrita() {
+        assert!(aviso_da_falha(&ErroCienciaDocumento::CienciaNaoOferecida).is_none());
     }
 }
