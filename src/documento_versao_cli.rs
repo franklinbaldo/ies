@@ -25,21 +25,11 @@ pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes
 
 /// As fotos do lote, na ordem (`None` para o externo): todas conferidas
 /// antes da primeira gravação, então uma divergência não grava nenhuma.
+/// A foto editável recebe inode próprio, sem ligar ao cache privado.
 pub(crate) fn gravar_fotos(
     diretorio: &Path,
     obtidos: &[DocumentoObtido],
 ) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
-    gravar_fotos_com_cache(diretorio, obtidos, &[])
-}
-
-/// Com cache ativo, a foto explícita é um hard link para o arquivo privado,
-/// ou uma cópia exclusiva quando o destino estiver em outro filesystem.
-pub(crate) fn gravar_fotos_com_cache(
-    diretorio: &Path,
-    obtidos: &[DocumentoObtido],
-    caches: &[Option<crate::cache_documento::Registro>],
-) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
-    // Antes da primeira gravação, confere a coerência de todas as fotos.
     for d in obtidos {
         if let Some(f) = &d.versoes.foto {
             foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
@@ -47,31 +37,24 @@ pub(crate) fn gravar_fotos_com_cache(
     }
     obtidos
         .iter()
-        .enumerate()
-        .map(|(i, d)| {
+        .map(|d| {
             d.versoes
                 .foto
                 .as_ref()
-                .map(|f| {
-                    let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
-                    if !plano.gravado {
-                        return Ok(plano);
-                    }
-                    let Some(Some(cache)) = caches.get(i) else {
-                        return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
-                    };
-                    let destino = diretorio.join(&plano.nome);
-                    let gravado = crate::cache_documento::copiar_para_saida(
-                        &cache.caminho,
-                        &destino,
-                        &plano.sha256,
-                    )
-                    .map_err(|_| ErroCopia::GravacaoFalhou)?;
-                    Ok(FotoGravada { gravado, ..plano })
-                })
+                .map(|f| foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html))
                 .transpose()
         })
         .collect()
+}
+
+/// Mesmo com cache, a foto local precisa ser independente: um hard link
+/// permitiria que uma edição do usuário adulterasse o cache privado.
+pub(crate) fn gravar_fotos_com_cache(
+    diretorio: &Path,
+    obtidos: &[DocumentoObtido],
+    _caches: &[Option<crate::cache_documento::Registro>],
+) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    gravar_fotos(diretorio, obtidos)
 }
 
 /// O objeto `arquivo` de um documento gravado em `--saida`.
