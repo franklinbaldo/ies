@@ -136,6 +136,26 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
 }
 
 #[test]
+fn tipo_com_controle_direcional_nao_pode_enganar_a_saida_humana() {
+    // O marcador RTL é formatador Unicode, não char::is_control.
+    // Deve ser barrado antes da sessão/rede mesmo se o PDF for válido.
+    let pdf = PdfTeste::novo();
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        "23106.000001/2026-11",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "An\u{202e}exo",
+    ]);
+    assert_eq!(saida.status.code(), Some(2));
+    assert_eq!(json(&saida)["causa"], serde_json::json!({"Tipo": "Controle"}));
+}
+
+#[test]
 fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
     let saida = executar(&[
         "--json",
