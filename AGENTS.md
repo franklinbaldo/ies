@@ -33,6 +33,13 @@ assumida mesmo quando for de outro domínio. Não edite branches de outros
 donos; relate problemas verificados na issue e ao 🦅. Revisora e
 integradora não assumem issues de implementação.
 
+**Commits por avatar:** toda mensagem de commit de uma rotina
+**começa no primeiro caractere** com o **emoji da própria rotina**
+(tabela acima), sem espaço nem outro prefixo: `🦊 fix: ...`,
+`🐙 WIP: ...`. Vale também para merge commits do 🐘
+(personalizar título). 🦅 não comita salvo autorização.
+Nunca use avatar alheio.
+
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
