@@ -41,6 +41,21 @@ fn truncamento_e_pedaco_malformado_sao_falha_de_rede() {
     }
 }
 
+/// RED: após zero chunk, EOF não substitui a linha vazia que encerra trailers.
+/// Um proxy/servidor que trunca o trailer não comprovou fim íntegro do HTTP.
+#[test]
+fn trailer_chunked_truncado_nao_pode_parecer_resposta_completa() {
+    let prefixo = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\na\r\n0\r\n";
+    for sufixo in ["", "X-Teste: valor\r\n", "X-Teste: valor\r"] {
+        let bruto = format!("{prefixo}{sufixo}");
+        assert_eq!(corpo(&bruto), Err(FalhaTransporte::Rede), "{sufixo:?}");
+    }
+    assert_eq!(
+        corpo(&format!("{prefixo}X-Teste: valor\r\n\r\n")),
+        Ok(b"a".to_vec())
+    );
+}
+
 #[test]
 fn pedaco_acima_de_8_mb_e_recusado_antes_da_leitura() {
     let bruto = format!(
