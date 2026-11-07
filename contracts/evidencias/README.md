@@ -66,6 +66,7 @@ Passos sem cassette indexada: 0.
 - [documento.enviar_email](documento-enviar_email.md)
 - [documento.excluir](documento-excluir.md)
 - [documento.incluir](documento-incluir.md)
+- [documento.incluir-externo](documento-incluir-externo.md) — desdobramento IES #332; sem passos próprios na matriz
 - [documento.liberar_assinatura_externa](documento-liberar_assinatura_externa.md)
 - [documento.listar_publicacoes](documento-listar_publicacoes.md)
 - [documento.listar_versoes](documento-listar_versoes.md)
