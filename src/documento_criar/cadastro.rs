@@ -160,6 +160,7 @@ fn conferir_controles_obrigatorios(
             .map_err(|_| E::CadastroForaDaForma)?
             || crate::html_atributos::atributo_presente(tag, "disabled")
                 .map_err(|_| E::CadastroForaDaForma)?
+            || !controle_oferecido(dom, formulario, tag)?
         {
             continue;
         }

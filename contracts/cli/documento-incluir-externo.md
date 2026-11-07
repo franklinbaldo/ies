@@ -1,15 +1,15 @@
 ---
 type: CommandContract
-title: Inclusão de documento externo PDF — inspeção local antes da escrita
+title: Inclusão de documento externo PDF — inspeção local e prévia Web antes da escrita
 operation: documento.incluir-externo
-command: ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO [--confirmar]
+command: ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO [--consultar-sei] [--confirmar]
 effect: write-document-external
 implementation: partial
 ---
 
 # Incluir documento externo em processo — #332
 
-A capacidade está **PARCIAL LOCAL**: `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona **somente o arquivo local**, não a disponibilidade do formulário remoto. É uma etapa de preparação, **não uma prévia do SEI**. Não abre sessão, não consulta o processo, não oferece lista de tipos e não transmite o arquivo. A flag `--confirmar` é reconhecida, mas **recusa antes de sessão e rede** (causa tipada `CadastroNaoValidado`) até comprovar a operação completa.
+A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` ainda **recusa antes da sessão e da rede** (causa tipada `CadastroNaoValidado`), inclusive com `--consultar-sei`, até completar e comprovar as duas escritas remotas.
 
 ## Contrato atual do núcleo local
 
@@ -89,3 +89,17 @@ O núcleo Rust \`documento_externo_incluir::anexo::ler_plano\` lê declarações
 Dado um \`ReciboUpload\` aceito pelo interpretador já existente, o plano monta a **linha única** para \`hdnAnexos\` com a ordem servida, literais da tela e o tamanho apresentado pela função observada \`infraFormatarTamanhoBytes\` (arredondamento de duas casas). O separador \`±\` não pode atravessar um valor de recibo nem alterar o número de colunas. Esse campo é apenas a representação para um futuro cadastro; não constitui prova de documento criado.
 
 **BDD offline:** UnB SEI 4, PEN3 SEI 5 (terceiro argumento booleano), reordenação de colunas, coluna desconhecida, múltiplos uploads, \`template\` e recibo com separador. **A implementação continua WIP:** o núcleo não está conectado à CLI, não transmite os dois POSTs e não habilita \`--confirmar\`. Ainda faltam prévia Web com tipo/limites, cadastro definitivo, releitura independente e LIVE em treinamento. Testes sintéticos não são evidência live.
+
+## Cadastro recarregado e limite de PDF — fatia #394
+
+O núcleo `documento_externo_incluir::cadastro::observar_cadastro` interpreta o formulário `frmDocumentoCadastro` **já recarregado** depois da escolha de `selSerie`. Confere a opção do tipo solicitado exatamente uma vez, selecionada e coerente com `hdnIdSerie`; exige os controles ocultos de sinalizador e anexos. Lê a extensão `pdf` e o teto em MiB da declaração literal `arrExt` publicada no script servido, sem executar JavaScript; o arquivo acima desse teto é recusado antes de eventual upload. Em seguida, deriva o plano `hdnAnexos` já implementado, com o destino assinado mantido privado.
+
+**BDD sintético**: cadastro UnB SEI 4, terceiro argumento de upload no PEN3 SEI 5, tipo não selecionado, ausente ou duplicado, PDF acima do limite e extensão PDF não oferecida. São casos do acervo do Todos, não comprovação live. **CLI ainda não ligada a essa leitura:** `ies documento incluir-externo` permanece na inspeção local, e `--confirmar` continua recusando antes da sessão/rede. Faltam prévia Web integrada, confirmação única das duas escritas e releitura independente; LIVE: NOT_RUN.
+
+## Prévia Web somente leitura — continuação #394
+
+**Dado** um processo aberto na unidade e o link de inclusão publicado na barra, **quando** executo `ies documento incluir-externo --processo NUP --arquivo PDF --tipo Anexo --consultar-sei`, **então** a CLI abre a lista, escolhe a alternativa `Externo` publicada pelo SEI 4 como link `documento_receber` ou pelo SEI 5 via `escolher(-1)`, lê o cadastro inicial, identifica `selSerie` e o recarrega com `hdnFlagDocumentoCadastro=1`. O retorno deve conter o mesmo tipo selecionado, limite de `pdf` e plano de upload observado, sem transmitir o arquivo. O POST de recarga é navegação de formulário, **não** cadastro definitivo. Sinalizador `2` na tela inicial recusa antes de enviar qualquer POST.
+
+A saída `--json` acrescenta `escopo:"previa_web"`, `previa_remota:true`, `cadastro_sei_observado:true`, `id_tipo`, `unidade`, `limite_pdf_bytes`, `campos_oferecidos` (nomes dos controles visíveis/habilitados presentes no formulário, sem os valores), `arquivo` (nome/tamanho/SHA-256), `confirmado:false`, `escrita_remota:false` e contagem de requisições. Erros remotos expõem causa da etapa, status HTTP e mensagem saneada quando disponíveis, e a contagem mesmo se a prévia falhar. A inspeção local padrão conserva exatamente sua saída anterior.
+
+BDD sintético com transporte roteirizado (Todos UnB SEI 4): abertura → GET da lista → GET do cadastro inicial → um POST de **recarga**, sem `documento_upload_anexo` e sem POST definitivo; cenário com flag `2` recusa sem POST. Também há BDD de parsing da alternativa SEI 5 e do tipo inicial. O ensaio ao vivo do IES em instalação de treinamento ainda é **NOT_RUN**: os testes e replays sintéticos não provam disponibilidade remota de todas as instalações. **Confirmar ainda não está implementado**; faltam upload temporário único, cadastro definitivo e releitura independente, sem retry.

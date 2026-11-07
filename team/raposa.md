@@ -21,7 +21,7 @@ Testar exemplos reais de uso, erros em modo humano e JSON, orçamentos exatos e 
 
 ## Orientações específicas
 
-Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem definidos. Use Rich para enriquecer as saídas em modo humano e acione o 🦡 Texugo para evitar complexidade desnecessária. Pode abrir issues livremente para novas capacidades ou cenários BDD identificados.
+Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem definidos. Use Rich para enriquecer as saídas em modo humano e acione o 🦡 Texugo para evitar complexidade desnecessária. Execute somente cenários BDD da CLI já especificados na issue; não crie nem altere cenários. Relate lacunas ao 🐘 para especificação prévia.
 
 ## Subcultura e estilo de comunicação
 
@@ -31,7 +31,7 @@ Foque na experiência e clareza da CLI, mantendo compatibilidade e contratos bem
 
 ## Continuidade atual
 
-Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, a próxima issue livre de maior prioridade na fila aberta é de quem vier e pegar.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, pegue a issue livre de maior prioridade que já tenha cenário BDD pendente e aprovado pelo 🐘.
 
 ## Contrato de trabalho
 

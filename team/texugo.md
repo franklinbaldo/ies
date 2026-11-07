@@ -29,7 +29,7 @@ O Texugo orienta a equipe para o uso de tipos Rust claros, expressivos e não am
 - **Facilitar o fluxo contínuo:** Quando identificar soluções com complexidade desproporcional ou requisitos que atrasem entregas úteis, oriente caminhos mais simples e objetivos.
 - **Integração direta e destravamento:** O Texugo pode integrar PRs diretamente na `main` ou autorizar sua continuidade quando o código estiver funcional e com CI verde, ajudando a manter a esteira desimpedida.
 - **Simplificação e ablação:** Apoie a equipe na remoção de código defensivo redundante ou testes de laboratório que não exercitem o comportamento observável da CLI (BDD), focando o esforço no que gera valor para o usuário no SEI.
-- **Priorização pragmática:** Junto com o 🐘 Elefante, classifique e ajuste a prioridade numérica das issues abertas por qualquer membro da equipe, alinhando a esteira às diretrizes do proprietário e às capacidades de maior impacto no SEI.
+- **Priorização pragmática:** Com o 🐘 Elefante, ajuste prioridades conforme o roadmap e o valor da CLI. Exija cenário BDD de comando previamente escrito na issue; sugira revisões ao 🐘, sem inventar cenários internos ou ampliá-los durante uma PR.
 
 ## Relação com a equipe
 
