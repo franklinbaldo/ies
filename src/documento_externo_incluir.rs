@@ -301,6 +301,43 @@ mod tests {
         }
     }
 
+    #[test]
+    fn pdf_do_upload_deve_ser_o_mesmo_inspecionado_na_previa() {
+        // BDD-332-03, pré-condição técnica: nada de enviar bytes diferentes.
+        use std::io::Read as _;
+        let pasta = Pasta::nova();
+        let caminho = pasta.arquivo("prova.pdf", PDF);
+        let previa = inspecionar_pdf(&caminho, None).unwrap();
+        let mut arquivo = abrir_pdf_para_envio(&caminho, &previa).unwrap();
+        let mut bytes = Vec::new();
+        arquivo.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, PDF);
+
+        let mut adulterado = PDF.to_vec();
+        adulterado[8] = b'X';
+        fs::write(&caminho, &adulterado).unwrap();
+        assert!(matches!(
+            abrir_pdf_para_envio(&caminho, &previa),
+            Err(FalhaPdf::DivergenteDaPrevia)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pdf_substituido_por_symlink_nao_autoriza_upload() {
+        use std::os::unix::fs::symlink;
+        let pasta = Pasta::nova();
+        let caminho = pasta.arquivo("prova.pdf", PDF);
+        let previa = inspecionar_pdf(&caminho, None).unwrap();
+        let outro = pasta.arquivo("outro.pdf", PDF);
+        fs::remove_file(&caminho).unwrap();
+        symlink(&outro, &caminho).unwrap();
+        assert!(matches!(
+            abrir_pdf_para_envio(&caminho, &previa),
+            Err(FalhaPdf::LinkSimbolico)
+        ));
+    }
+
     #[cfg(unix)]
     #[test]
     fn arquivo_e_ancestral_simbolicos_sao_recusados() {
