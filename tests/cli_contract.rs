@@ -34,11 +34,13 @@ fn substantivo_sozinho_mostra_ajuda() {
 }
 
 #[test]
-fn comando_sem_execucao_retorna_falha_estruturada() {
-    let output = ies(&["documento", "77782513", "--com-propriedades", "--json"]);
+fn documento_com_propriedades_sem_sessao_falha_sem_rede() {
+    // Dado um documento e a flag agora Web, sem sessão.
+    // Quando solicito propriedades, então a falha é da sessão, não do stub.
+    let output = ies_sem_sessao(&["documento", "77782513", "--com-propriedades", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["codigo"], "nao_implementado");
+    assert_eq!(result["subcodigo"], "caminho_url_controle_nao_informado");
 }
 
 /// `ies documento DOC` lê a sessão Web (Refs #60): sem os arquivos de
@@ -183,7 +185,7 @@ fn opcoes_aposentadas_de_processo_sao_erro_de_uso() {
 
 #[test]
 fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
-    let output = ies(&[
+    let output = ies_sem_sessao(&[
         "documento",
         "77782513",
         "77782514",
@@ -199,13 +201,7 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "nao_implementado");
-    assert!(
-        value["dados"]["comando"]
-            .as_str()
-            .unwrap()
-            .contains("77782514")
-    );
+    assert_eq!(value["subcodigo"], "diretorio_texto_documento_ausente");
 }
 
 #[test]
