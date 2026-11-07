@@ -486,25 +486,34 @@ fn bdd_60_05_numero_ambiguo_recusa_sem_contaminar_indice() {
     // Então a CLI recusa a ambiguidade sem guardar um dos IDs como verdadeiro.
     let amb = ambiente();
     guardar_arvore(&amb);
+    // Um palpite anterior não pode sobreviver à observação ambígua.
+    amb.indice
+        .registrar_documentos(&instalacao(), ID, &[(DOC, "99")])
+        .unwrap();
     let dois_ids_para_doc = arvore(&[
         no_processo(0, ID, NUP),
         no_documento(1, ID_DOC, ID, DOC),
         no_documento(2, "23", ID, DOC),
         no_documento(3, ID_DOC2, ID, DOC2),
     ]);
-    let (resultado, pedidos) =
-        rodar_doc(&amb, DOC, Some(NUP), vec![ok(dois_ids_para_doc)]);
+    let (resultado, pedidos) = rodar_doc(&amb, DOC, Some(NUP), vec![ok(dois_ids_para_doc)]);
     assert_eq!(
-        resultado.unwrap_err().subcodigo(),
-        "numero_sei_repetido_na_arvore"
+        resultado.unwrap_err(),
+        ErroDocumentoObter::Html(crate::erro_html::ErroHtml::repetido(
+            "numero_sei_repetido_na_arvore"
+        ))
     );
     assert_eq!(pedidos, [get(&url_arvore(ID))], "nenhum GET de conteúdo");
     assert!(
-        amb.indice.documento_por_numero(&instalacao(), DOC).is_none(),
+        amb.indice
+            .documento_por_numero(&instalacao(), DOC)
+            .is_none(),
         "dois IDs observados não podem virar associação durável"
     );
     assert!(
-        amb.indice.documento_por_numero(&instalacao(), DOC2).is_some(),
+        amb.indice
+            .documento_por_numero(&instalacao(), DOC2)
+            .is_some(),
         "outro número inequívoco deve continuar disponível"
     );
 }
