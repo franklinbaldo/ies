@@ -2,11 +2,13 @@
 //! A única escrita de documento segue desabilitada até upload + cadastro + releitura.
 use super::{
     PdfLocal,
-    cadastro::observar_cadastro,
+    cadastro::{CadastroExterno, observar_cadastro},
+    confirmacao::FotoProcesso,
     escolha::{EscolhaExterna, escolher_externo, identificar_tipo},
 };
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
+    CodificacaoDaTela,
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
     enviar_submissao_via,
@@ -57,6 +59,17 @@ pub(crate) struct PreviaExterna {
     pub(crate) id_tipo: String,
     pub(crate) limite_pdf_bytes: u64,
     pub(crate) campos_oferecidos: Vec<String>,
+}
+
+/// Material exato da mesma navegação que ofereceu a prévia ao usuário.
+/// URLs assinadas e HTML não são expostos na apresentação nem em Debug.
+pub(crate) struct CadastroPreparado {
+    pub(crate) previa: PreviaExterna,
+    pub(crate) cadastro: CadastroExterno,
+    pub(crate) url_cadastro: String,
+    pub(crate) html_cadastro: String,
+    pub(crate) codificacao: CodificacaoDaTela,
+    pub(crate) foto_antes: FotoProcesso,
 }
 
 #[derive(Debug)]
@@ -134,6 +147,19 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<PreviaExterna, ErroPreviaExterna> {
+    preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
+        .map(|preparo| preparo.previa)
+}
+
+pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    nup: &NumeroProcesso,
+    unidade_pedida: Option<&str>,
+    tipo: &str,
+    pdf: &PdfLocal,
+    indice: &IndiceLocal,
+    envio: &mut V,
+) -> Result<CadastroPreparado, ErroPreviaExterna> {
     use ErroPreviaExterna as E;
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
@@ -220,11 +246,20 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     if observado.id_tipo != id_tipo {
         return Err(E::TipoNaoRecarregado);
     }
-    Ok(PreviaExterna {
+    let foto_antes = FotoProcesso::da_arvore(&aberto.arvore);
+    let previa = PreviaExterna {
         unidade,
-        id_tipo: observado.id_tipo,
+        id_tipo: observado.id_tipo.clone(),
         limite_pdf_bytes: observado.limite_pdf_bytes,
-        campos_oferecidos: observado.campos_oferecidos,
+        campos_oferecidos: observado.campos_oferecidos.clone(),
+    };
+    Ok(CadastroPreparado {
+        previa,
+        cadastro: observado,
+        url_cadastro: destino,
+        html_cadastro: recarregado,
+        codificacao,
+        foto_antes,
     })
 }
 
