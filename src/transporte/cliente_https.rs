@@ -89,12 +89,14 @@ pub(crate) fn abrir_conexao(
     Ok(tcp)
 }
 
+type CabecalhosEnvio<'a> = (&'a str, &'a str, &'a str, u64);
+
 fn montar_pedido(
     metodo: &str,
     host: &str,
     caminho: &str,
     cookie: &str,
-    envio: Option<&Envio<'_>>,
+    envio: Option<CabecalhosEnvio<'_>>,
 ) -> String {
     let mut pedido = format!(
         "{metodo} {caminho} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: {AGENTE}\r\n\
@@ -104,22 +106,46 @@ fn montar_pedido(
     if !cookie.is_empty() {
         let _ = write!(pedido, "Cookie: {cookie}\r\n");
     }
-    if let Some(envio) = envio {
+    if let Some((tipo, origem, referer, tamanho)) = envio {
         let _ = write!(
             pedido,
-            "Content-Type: {}\r\nContent-Length: {}\r\nOrigin: {}\r\nReferer: {}\r\n",
-            envio.tipo,
-            envio.corpo.len(),
-            envio.origem,
-            envio.referer
+            "Content-Type: {tipo}\r\nContent-Length: {tamanho}\r\nOrigin: {origem}\r\nReferer: {referer}\r\n"
         );
     }
     pedido.push_str("\r\n");
     pedido
 }
 
-/// Um pedido, uma conexão: `ambiente` decide o proxy e `envolver` faz o
-/// TLS (substituível nos testes). Devolve cabeçalhos com o corpo em fluxo.
+/// Compartilha a mesma conexão HTTPS, proxy, cabeçalhos e contagem de
+/// bytes com GET/POST regulares e com o multipart em fluxo.
+fn requisitar_com_leitor_via<S: Read + Write, R: Read>(
+    metodo: &str,
+    url: &str,
+    cookie: &str,
+    cabecalhos: Option<CabecalhosEnvio<'_>>,
+    corpo: R,
+    ambiente: impl Fn(&str) -> Option<String>,
+    envolver: impl FnOnce(&str, TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<Resposta<BufReader<S>>, FalhaTransporte> {
+    let (host, caminho) = alvo(url)?;
+    let pedido = montar_pedido(metodo, host, caminho, cookie, cabecalhos);
+    let tcp = abrir_conexao(host, ambiente)?;
+    let mut fluxo = envolver(host, tcp)?;
+    fluxo
+        .write_all(pedido.as_bytes())
+        .map_err(|_| FalhaTransporte::Rede)?;
+    let tamanho = cabecalhos.map_or(0, |(_, _, _, tamanho)| tamanho);
+    let enviados = std::io::copy(&mut corpo.take(tamanho), &mut fluxo)
+        .map_err(|_| FalhaTransporte::Rede)?;
+    if enviados != tamanho {
+        return Err(FalhaTransporte::Rede);
+    }
+    fluxo.flush().map_err(|_| FalhaTransporte::Rede)?;
+    Resposta::ler(BufReader::new(fluxo))
+}
+
+/// Um pedido, uma conexão, sem redirecionamento nem retry.
+/// POSTs pequenos mantêm a mesma interface legada de corpo em memória.
 pub(crate) fn requisitar_via<S: Read + Write>(
     metodo: &str,
     url: &str,
@@ -128,28 +154,38 @@ pub(crate) fn requisitar_via<S: Read + Write>(
     ambiente: impl Fn(&str) -> Option<String>,
     envolver: impl FnOnce(&str, TcpStream) -> Result<S, FalhaTransporte>,
 ) -> Result<Resposta<BufReader<S>>, FalhaTransporte> {
-    let (host, caminho) = alvo(url)?;
-    let pedido = montar_pedido(metodo, host, caminho, cookie, envio);
-    let tcp = abrir_conexao(host, ambiente)?;
-    let mut fluxo = envolver(host, tcp)?;
-    fluxo
-        .write_all(pedido.as_bytes())
-        .and_then(|()| fluxo.write_all(envio.map_or(&[][..], |e| e.corpo)))
-        .and_then(|()| fluxo.flush())
-        .map_err(|_| FalhaTransporte::Rede)?;
-    Resposta::ler(BufReader::new(fluxo))
+    let cabecalhos = envio.map(|e| (e.tipo, e.origem.as_str(), e.referer, e.corpo.len() as u64));
+    let bytes = envio.map_or(&[][..], |e| e.corpo);
+    requisitar_com_leitor_via(
+        metodo,
+        url,
+        cookie,
+        cabecalhos,
+        bytes,
+        ambiente,
+        envolver,
+    )
 }
 
-/// RED #332: POST multipart de tamanho conhecido pelo mesmo cliente HTTPS.
-#[allow(dead_code)] // O fluxo remoto ainda não está acessível pela CLI.
+/// POST multipart de tamanho conhecido, transmitido diretamente do leitor.
+/// Uma única tentativa. A operação avalia o efeito de eventual interrupção.
+#[allow(dead_code)] // #332: somente a bancada sintética usa a transmissão até o cadastro Web.
 pub(crate) fn requisitar_em_fluxo_via<S: Read + Write, R: Read>(
-    _url: &str,
-    _cookie: &str,
-    _envio: EnvioEmFluxo<'_, R>,
-    _ambiente: impl Fn(&str) -> Option<String>,
-    _envolver: impl FnOnce(&str, TcpStream) -> Result<S, FalhaTransporte>,
+    url: &str,
+    cookie: &str,
+    envio: EnvioEmFluxo<'_, R>,
+    ambiente: impl Fn(&str) -> Option<String>,
+    envolver: impl FnOnce(&str, TcpStream) -> Result<S, FalhaTransporte>,
 ) -> Result<Resposta<BufReader<S>>, FalhaTransporte> {
-    Err(FalhaTransporte::Rede)
+    requisitar_com_leitor_via(
+        "POST",
+        url,
+        cookie,
+        Some((envio.tipo, envio.origem, envio.referer, envio.tamanho)),
+        envio.corpo,
+        ambiente,
+        envolver,
+    )
 }
 
 /// Pedidos reais tentados por este processo (todos os comandos e o
@@ -170,6 +206,17 @@ pub(crate) fn requisitar(
 ) -> Result<Resposta<BufReader<FluxoTls>>, FalhaTransporte> {
     PEDIDOS_DO_PROCESSO.fetch_add(1, Ordering::Relaxed);
     requisitar_via(metodo, url, cookie, envio, ambiente_do_processo, tls_nativo)
+}
+
+/// Mesmo cliente real para upload multipart; o leitor é consumido uma só vez.
+#[allow(dead_code)] // #332: será chamado pela CLI após observar o cadastro em treinamento.
+pub(crate) fn requisitar_em_fluxo<R: Read>(
+    url: &str,
+    cookie: &str,
+    envio: EnvioEmFluxo<'_, R>,
+) -> Result<Resposta<BufReader<FluxoTls>>, FalhaTransporte> {
+    PEDIDOS_DO_PROCESSO.fetch_add(1, Ordering::Relaxed);
+    requisitar_em_fluxo_via(url, cookie, envio, ambiente_do_processo, tls_nativo)
 }
 
 /// Resposta como `RespostaWeb` dos comandos, sem ler o corpo.
