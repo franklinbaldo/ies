@@ -95,3 +95,55 @@ que a ciência foi gravada. Optou-se por **recusar apenas quando o template
 é ancestral ou descendente da tabela de prova**, sem invalidar templates
 sem relação com ela. Teste RED (antes do código) e fluxo de efeito incerto
 no relatório live; não há JavaScript executado, retry ou GET extra.
+
+## Decisão adicional: prova HTML inerte e ciência repetida (06/11/2026)
+
+**Alternativa escolhida:** tratar `<noscript>` como contêiner de prova
+não confiável, tal qual `<template>`, somente quando ancestral ou
+descendente da tabela `tblAndamentos`. Com scripts habilitados no SEI,
+uma linha inerte achada pelo parser não demonstra execução nem registro.
+É preferível sair com efeito incerto após uma leitura a aceitar um
+falso sucesso. Não interpretar nem executar JavaScript.
+
+Para a segunda ciência, manter a diferença observada no Todos:
+processo = repetição no mesmo dia; documento = repetição no documento,
+sem limite diário. A validação `txaInfraValidacao` de HTTP 200 é uma
+recusa, não um aceite com atividade, e exige a mesma reconciliação sem
+retry; o IES ainda não afirma equivalência live ou idempotência.
+
+RED sintético da prova em `<noscript>`:
+[run 42294900770](https://github.com/franklinbaldo/ies/actions/runs/42294900770),
+2 FAIL, 1.770 PASS, 22 ignores anteriores. Testes acrescentados em
+`src/ciencia/tests.rs`, `src/ciencia/tests_fluxo.rs` e
+`src/ciencia/tests_documento/efeitos_incertos.rs`. CI de GREEN deve ser
+conferido na PR #337, sempre no head exato.
+
+## Recusa de scripts em `noscript` e replay específico
+
+O leitor de aceite, além de recusar provas de tabela inerte, rejeita
+`atualizarArvore` quando o script está em `<noscript>` e o SEI exige
+JavaScript ativo. A árvore deve ser relida mesmo se a resposta do GET
+mutador for ilegível; não usar ciência anterior como sucesso.
+
+O [RED 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
+provou duas falhas antes do código: leitor retornava `Ok(id)` para
+script inerte e o fluxo tentava ler a lista sem aceite comprovável
+(1.775 PASS, 2 FAIL, 22 ignorados anteriores).
+
+Para confrontar as cassettes, o teste Rust `ciencia::acervo::replay_da_ciencia_no_acervo`
+lê exclusivamente os 14 cards das sete instalações; reutiliza o
+conferidor de ZIP/cassette e os leitores `atividade_do_aceite` e
+`atividade_na_lista`, sem executar GET nem JavaScript. A classificação
+é somente das **respostas gravadas**, não prova de escrita atual.
+
+## Lacuna observada no replay dedicado (#271)
+
+A conferência offline de 14 cards passou no
+[run 42303368527](https://github.com/franklinbaldo/ies/actions/runs/42303368527),
+mas 28 respostas de `procedimento_ciencia`/`documento_ciencia` não
+forneceram atividade reconhecida pelo leitor atual; 14 listas ficaram
+sem `id_atividade` verificável. Isso é **evidência de lacuna de
+conformidade**, não prova de falha do SEI. Próxima investigação:
+confrontar, de forma saneada, respostas preparatórias e mutadoras
+das capturas e seus HTMLs; manter saída 3 quando não houver prova.
+O teste offline não substitui prévia nem escrita live.

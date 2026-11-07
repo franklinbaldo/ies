@@ -155,3 +155,47 @@ de chamar a função, e uma exceção pode impedir a recarga.
 Após o único GET potencialmente mutador, essa resposta leva à
 releitura independente e **efeito incerto (saída 3)**, sem consultar
 a Lista de Ciências antiga nem repetir a escrita.
+
+## Segunda ciência e HTML inerte (#271, 06/11/2026)
+
+No oráculo Todos `tests/test_ciclo_ciencia_010.py` @323eb01, a segunda
+ciência **no mesmo dia** é recusada pelo SEI com validação Infra HTTP 200
+e mensagem «Usuário já deu ciência no processo hoje.». A resposta não publica
+`id_atividade` e não equivale a sucesso. O IES preserva a causa e a
+mensagem saneada, faz somente a releitura de reconciliação e devolve
+`efeito_incerto_na_ciencia` (saída 3): **6 GET sintéticos, exatamente
+um GET mutador, nenhum retry**. Não classificar a recusa pelo texto.
+
+Também é inerte a Lista de Ciências que o parser encontra inteiramente
+dentro de `<noscript>` (ou um checkbox nele), com scripts habilitados.
+A recusa conservadora é a mesma já aplicada a `<template>`: após o GET
+único, ausência de prova visível da atividade retorna saída 3, sem
+transformar uma ciência antiga em confirmação da tentativa. Esse controle
+não adiciona requisições. Live e replay específico ainda pendentes.
+
+## Aceite inerte dentro de `noscript` (regressão #271)
+
+A resposta do GET mutador também não comprova `id_atividade` quando
+`<script>atualizarArvore(...)</script>` aparece apenas dentro de
+`<noscript>` (com JavaScript habilitado). Assim como `<template>`,
+o contêiner não executa a recarga, embora o parser encontre a chamada.
+A verificação lê novamente a árvore, não usa a lista antiga sem aceite
+válido e retorna **efeito incerto (3)**: 6 GET sintéticos, exatamente
+um potencialmente mutador e zero retry. Testes RED de leitor e fluxo
+foram publicados antes da correção, no [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
+(2 FAIL / 1.775 PASS / 22 ignored anteriores).
+
+O replay de ciência dispõe de teste `ciencia::acervo::replay_da_ciencia_no_acervo`
+que confere os 14 cards, respectivos ZIPs/membros e chama os leitores
+reais offline. Sucesso do replay **não comprova sozinho** a ciência
+persistida; identidade do usuário e efeito ainda exigem ensaio live.
+
+## Replay dedicado executado — alcance parcial (#271)
+
+O [replay de 14 cards](../../docs/validacao-replay/2026-11-06-ciencia.md)
+passou na conferência de ZIPs/cassettes e execução Rust, mas **não
+reconheceu nenhuma atividade de aceite** nas 28 respostas gravadas;
+as 14 listas não puderam provar atividade. Não reivindicar equivalência
+ao vivo nem compatibilidade funcional dessas respostas. Caracterizar
+os formatos das respostas antes de alterar o leitor. A prévia live e
+a confirmação única seguem pendentes.
