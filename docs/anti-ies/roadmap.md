@@ -57,6 +57,11 @@ cassette comprova a forma D.
 governança. P2 começa após P1 integrada; P3 após P2 integrada. Cada
 issue gera uma PR Draft independente, partindo da main atual, e os
 critérios do AGENTS.md de revisão/CI/merge por SHA prevalecem.
+**Liberação automática da fila:** a 🐘 integra a PR anterior e então
+aplica `handoff-chatgpt` **somente** à próxima issue desbloqueada;
+P2/P3 ficam sem essa etiqueta até suas dependências estarem na main.
+Não reservar uma issue bloqueada por outra PR.
+
 Se qualquer PR ficar WIP, registrar resultado e continuar a própria
 issue sem declarar o marco concluído. Não criar branch nova sobre branch
 de outro agente nem fazer rebase/force-push.

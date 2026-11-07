@@ -151,6 +151,8 @@ Web trabalhada no IES, anote na issue/PR a cobertura anti-IES:
 teste diferencial faltante. Registrar a lacuna **não bloqueia** uma PR
 prioritária do IES. Preserve a reserva da rotina e abra ou referencie uma
 issue de emulação independente para a fatia seguinte.
+Quando as dependências estiverem na main, 🐘 libera a próxima issue
+com a etiqueta `handoff-chatgpt`; nunca antes.
 
 Uma capacidade só pode ser chamada **integrada** depois de resposta
 servida pelo anti-IES, interpretada pelo caminho **real** do IES e
