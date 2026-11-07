@@ -28,7 +28,20 @@ diretamente: **abertura + 1 GET da tela, zero POST**, sem pedir o
 complementar AJAX. Duas linhas com o mesmo NUP são ambíguas e recusadas
 sem POST. Só para destino ainda não relacionado, a consulta AJAX
 identifica o id: **abertura + 1 GET da tela + 1 POST de consulta
-(leitura lógica)**. Nenhum desses casos escreve relacionamento.
+(leitura lógica)**. A resposta complementar é XML (application/xml
+ou text/xml), não HTML; o IES verifica o id e o NUP retornados.
+A sequência completa de letras e dígitos do NUP identificado precisa
+corresponder à solicitada, ignorando caixa e pontuação. Um destino
+divergente é recusado antes de qualquer escrita.
+
+Ao localizar um vínculo já publicado, inclusive para remover, o NUP
+informado pode vir sem pontuação: primeiro prevalece texto exato sem
+distinguir caixa; na ausência dele, comparam-se letras e dígitos
+na ordem, como em Todos @323eb01. Dois equivalentes sem texto exato
+são ambíguos e recusados. Uma solicitação para relacionar o próprio
+processo também é recusada antes do AJAX. Protocolos alfanuméricos
+não são reduzidos a seus dígitos. Nenhum desses casos escreve
+relacionamento.
 
 **Prévia de remover:** encontra linha pelo NUP informado e exige
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
@@ -68,6 +81,9 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 | `tela_de_relacionamentos_redirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
 | `relacionamento_consigo_mesmo` | O destino informado é o próprio processo |
 | `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
+
+| `destino_da_consulta_diverge_do_pedido` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
+| `resposta_da_consulta_nao_xml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.
