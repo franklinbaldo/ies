@@ -53,7 +53,7 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
 fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
     let incerto = erro.saida() == 3;
     let mensagem = if incerto {
-        "O envio não comprovou a remoção. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
+        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
     } else {
         "Operação recusada ou prévia indisponível"
     };
@@ -97,8 +97,11 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
         );
     } else if previa.resultado == ResultadoRelacionar::Confirmado {
         println!(
-            "Relacionamento removido e conferido: {} com {}. Requisições: {}",
-            previa.nup, previa.destino, previa.requisicoes
+            "Relacionamento {} e conferido: {} com {}. Requisições: {}",
+            if previa.remover { "removido" } else { "criado" },
+            previa.nup,
+            previa.destino,
+            previa.requisicoes
         );
     } else if previa.sem_efeito() {
         println!(
@@ -126,7 +129,7 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             if previa.remover {
                 "Para remover, use --confirmar"
             } else {
-                "Escrita de adição ainda bloqueada"
+                "Para adicionar, use --confirmar"
             },
         );
     }

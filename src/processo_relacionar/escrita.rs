@@ -4,7 +4,7 @@ use super::{FalhaRelacionar as E, tela};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
-    derivar_submissao_com_action, enviar_submissao_via,
+    derivar_submissao, derivar_submissao_com_action, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -20,6 +20,21 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
     campos_ocultos_exigidos: &["hdnInfraItemId"],
     campos_ocultos_reescritos: &["hdnInfraItemId"],
     campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::RelacionamentosDoProcesso,
+    },
+};
+
+
+const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "procedimento_relacionar",
+    formulario: "frmProcedimentoListarRelacionamentos",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmAdicionar"),
+    campos_ocultos_exigidos: &["hdnIdProtocolo"],
+    campos_ocultos_reescritos: &["hdnIdProtocolo"],
+    campos_usuario: &["txtProtocolo", "txtIdentificacaoProtocolo"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
     efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
@@ -139,6 +154,86 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
     if linhas.iter().any(|linha| linha.id == id_alvo) {
+        return Err(E::EfeitoIncerto(None));
+    }
+    Ok(())
+}
+
+
+/**
+ * A tela PEN1 publica `sbmAdicionar`, `txtProtocolo`,
+ * `txtIdentificacaoProtocolo` e `hdnIdProtocolo` (Todos @323eb01).
+ * Um POST, aceite 302 explícito, releitura independente. Sem retry.
+ */
+#[allow(clippy::too_many_arguments)] // Contexto observado do formulário, identidade e rede.
+pub(super) fn adicionar<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    cookie: &str,
+    link: &str,
+    html: &str,
+    mime: &str,
+    id_destino: &str,
+    nup_destino: &str,
+    tipo_destino: &str,
+    rede: &mut Contador<'_, V>,
+) -> Result<(), E> {
+    let codificacao = codificacao_da_tela(mime).ok_or(E::Estrutura(
+        "charset_da_tela_de_relacionamentos_nao_suportado",
+    ))?;
+    let servida = TelaServida {
+        url: link,
+        html,
+        codificacao,
+    };
+    let submissao = derivar_submissao(
+        &ADICIONAR,
+        instalacao,
+        &servida,
+        "",
+        &[
+            ("txtProtocolo", nup_destino),
+            ("txtIdentificacaoProtocolo", tipo_destino),
+            ("hdnIdProtocolo", id_destino),
+        ],
+    )
+    .map_err(E::ConsultaDerivacao)?;
+    let id_origem = link
+        .split('?')
+        .nth(1)
+        .and_then(|query| {
+            query
+                .split('&')
+                .find_map(|par| par.strip_prefix("id_procedimento="))
+        })
+        .ok_or(E::Estrutura("id_da_origem_na_action_ausente"))?;
+    let mut enviou = false;
+    let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
+        enviou = true;
+        rede.post(post, c)
+    });
+    let resposta = resultado.map_err(|erro| {
+        if enviou {
+            E::EfeitoIncerto(Some(erro))
+        } else {
+            E::ConsultaDerivacao(erro)
+        }
+    })?;
+    match resposta {
+        // O mesmo marcador de retorno observado na tela de relacionamento:
+        // ação única, resultado=1 e, quando presente, origem identificada.
+        RespostaDoEnvio::Redirecionamento(redir)
+            if redir
+                .localizacao()
+                .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
+        _ => return Err(E::EfeitoIncerto(None)),
+    }
+    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
+    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
+    if !linhas
+        .iter()
+        .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino))
+    {
         return Err(E::EfeitoIncerto(None));
     }
     Ok(())

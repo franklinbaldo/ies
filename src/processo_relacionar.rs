@@ -38,7 +38,6 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 
 #[derive(Debug)]
 pub(crate) enum FalhaRelacionar {
-    ConfirmacaoAindaNaoValidada,
     Abertura(ErroProcessoObter),
     Barra(ErroRelacionarNaBarra),
     LinkNaoPublicado,
@@ -59,7 +58,6 @@ pub(crate) enum FalhaRelacionar {
 impl FalhaRelacionar {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::ConfirmacaoAindaNaoValidada => "confirmacao_de_relacionamento_nao_validada",
             Self::Abertura(erro) => erro.subcodigo(),
             Self::Barra(erro) => erro.subcodigo(),
             Self::LinkNaoPublicado => "relacionar_nao_publicado_na_barra",
@@ -200,8 +198,8 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
         .map_err(|_| E::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))
 }
 
-/// A confirmação percorre a prévia antes de qualquer escrita.
-/// Adicionar ainda recusa a escrita; remover faz POST único e releitura.
+/// A confirmação percorre a prévia antes da escrita única; em ambas as
+/// ações o POST deve publicar aceite e uma nova leitura comprovar o efeito.
 #[allow(clippy::too_many_lines)] // Fluxo de prévia por ação com contagem, sem mutação nem retry.
 pub(crate) fn prever<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -331,7 +329,22 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     previa.destino = nup;
     previa.requisicoes = rede.feitas();
     if pedido.confirmar && !previa.sem_efeito() {
-        return Err(E::ConfirmacaoAindaNaoValidada);
+        escrita::adicionar(
+            sessao,
+            &instalacao,
+            &cookie,
+            link.as_str(),
+            &html,
+            &mime,
+            previa.id_destino.as_deref().ok_or(E::Estrutura(
+                "destino_a_relacionar_nao_identificado",
+            ))?,
+            &previa.destino,
+            previa.tipo_destino.as_deref().unwrap_or(""),
+            &mut rede,
+        )?;
+        previa.resultado = ResultadoRelacionar::Confirmado;
+        previa.requisicoes = rede.feitas();
     }
     Ok(previa)
 }

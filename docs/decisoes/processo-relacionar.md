@@ -24,12 +24,13 @@ pela consulta AJAX de leitura com formulário_web, rejeitar autocorrelação e
 repetições. Só uma linha da tabela é evidência de vínculo: não buscar
 números livres pelo HTML.
 
-A remoção confirmada deriva a action do handler `acaoRemover`, envia um
-POST único e só confirma a remoção diante de 302 válido e leitura independente
-sem a linha. Falha do POST e ausência posterior da linha não provam
-causalidade: saída 3 com status preservado, sem retry. A adição mutadora
-continua bloqueada. Esta evidência PEN1 não presume paridade nas demais
-instalações. Live NOT_RUN.
+A remoção confirmada deriva a action do handler `acaoRemover` e exige POST
+único com 302 válido e leitura independente sem a linha. A adição envia o
+botão `sbmAdicionar` com os três campos publicados, preenchidos pelo
+complementar XML, e só confirma diante de 302 de aceite e releitura
+independente contendo id e NUP do destino. Qualquer falha no POST
+ou evidência inconclusiva dá saída 3 sem retry. Esta evidência PEN1
+não presume paridade nas demais instalações. Live NOT_RUN.
 
 ## Alternativas consideradas
 
@@ -47,10 +48,10 @@ da CLI.
 
 ## Decisão
 
-A fatia mantém prévia estrutural e consulta complementar única e habilita
-apenas a remoção confirmada, validada sinteticamente por envio único e
-reconciliação de leitura. A adição permanece sem escrita. O replay completo
-e a validação live em duas instalações permanecem pendentes.
+A fatia implementa prévia estrutural, consulta complementar única, adição
+e remoção com POST único e reconciliação independente, validadas por
+testes sintéticos. O replay completo e a validação live em duas
+instalações permanecem pendentes.
 
 ## Evidências verificáveis
 
@@ -65,6 +66,6 @@ e a validação live em duas instalações permanecem pendentes.
 O parser PEN1 não prova paridade nas demais instalações, nem o número
 exato de pedidos na primeira abertura de um processo sem índice. O GET
 da tela e a consulta POST (leitura) são distintos da futura escrita.
-A remoção confirmada tem POST único derivado e verificação independente
-em ensaios sintéticos; a adição mutadora ainda precisa de fluxo equivalente.
+A remoção e a adição confirmadas usam POST único derivado e verificação
+independente em ensaios sintéticos; resta comprovar em treinamento.
 Replay integral e live NOT_RUN; nenhuma requisição real ou resíduo.

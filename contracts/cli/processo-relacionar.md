@@ -9,10 +9,11 @@ implementation: partial
 
 # Relacionar processos (#258)
 
-**Prévia e remoção confirmada estão implementadas; adição mutadora segue bloqueada.**
-`--confirmar` sempre confere a tela e o estado existente antes de gravar.
-A adição nova continua recusada com `confirmacao_de_relacionamento_nao_validada`
-sem POST mutador; uma relação já existente é `sem_efeito` sem escrita.
+**Prévia, adição e remoção confirmadas estão implementadas em bancada sintética.**
+`--confirmar` confere a tela e o estado existente antes de gravar.
+Uma relação já existente é `sem_efeito` sem escrita. O aceite do POST
+mutador deve ser explícito e a leitura independente precisa comprovar
+o estado pretendido; caso contrário, saída 3, sem repetição.
 
 Abertura com a unidade da sessão exigida: a barra do nó PROCESSO fornece
 procedimento_relacionar como URL assinada. GET da tela de relacionamentos,
@@ -51,6 +52,18 @@ relacionamento.
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
 Orçamento: abertura + 1 GET da tela, sem POST.
 
+**Adição confirmada:** o IES submete o formulário observado via botão
+`sbmAdicionar`, com `txtProtocolo`, `txtIdentificacaoProtocolo` e
+`hdnIdProtocolo` obtidos do XML de consulta. Um único POST mutador
+é seguido de uma GET independente, que deve localizar exatamente o id
+e o NUP de destino na tabela. Aceita somente 302 de retorno à ação
+`procedimento_relacionar`, com `resultado=1`; um HTTP 200 genérico,
+403, transporte falho, 302 divergente ou vínculo ausente na releitura
+resulta em `efeito_incerto`, saída 3. Orçamento sintético a frio:
+**4 GET + 1 POST de consulta + 1 POST modificador + 1 GET**.
+O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
+sem alegação de validação ao vivo nas demais instalações.
+
 **Remoção confirmada:** um único POST com `hdnInfraItemId` do vínculo
 identificado, action `procedimento_excluir_relacionamento` extraída do
 `acaoRemover(id)` ativo e conferida pelo primitivo de formulário. O POST
@@ -83,15 +96,15 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
   action e submit literais; não se infere a rota de comentário, template
   ou literal solto. A derivação e o POST único são testados offline em
   `src/processo_relacionar/tests_escrita.rs`.
-- RED demonstrado no CI sintético da PR #390; GREEN depende do CI do head.
-  Live PEN1/UnB NOT_RUN (0 pedidos reais); escrita real NOT_RUN,
-  nenhum retry nem resíduo.
+- RED em CI da PR #390; GREEN exige CI no SHA que inclui adição.
+  A adição e a remoção foram exercitadas com respostas sintéticas,
+  não na instalação. Live PEN1/UnB NOT_RUN (0 pedidos reais),
+  escrita real NOT_RUN, nenhum retry nem resíduo.
 
 ## Subcódigos tipados da fatia
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
-| `confirmacao_de_relacionamento_nao_validada` | Adição nova com `--confirmar`: recusa antes de POST mutador |
 | `relacionar_nao_publicado_na_barra` | A barra do processo não publica `procedimento_relacionar` |
 | `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
 | `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
