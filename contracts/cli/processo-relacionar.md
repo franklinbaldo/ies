@@ -28,7 +28,10 @@ diretamente: **abertura + 1 GET da tela, zero POST**, sem pedir o
 complementar AJAX. Duas linhas com o mesmo NUP são ambíguas e recusadas
 sem POST. Só para destino ainda não relacionado, a consulta AJAX
 identifica o id: **abertura + 1 GET da tela + 1 POST de consulta
-(leitura lógica)**. A resposta complementar é XML (application/xml
+(leitura lógica)**. Quando a resposta publica `NomeTipoProcedimento`,
+a prévia também mostra o tipo do processo de destino (modo humano e
+campo JSON `tipo_destino`); sua ausência é `null`, não ausência de tipo.
+A resposta complementar é XML (application/xml
 ou text/xml), não HTML; o IES verifica o id e o NUP retornados.
 A sequência completa de letras e dígitos do NUP identificado precisa
 corresponder à solicitada, ignorando caixa e pontuação. Um destino
@@ -65,7 +68,10 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
   tests/paginas_reais/procedimento_relacionar.html.
 - Cassette PEN1 processo-relacionar-remover-pen1: 25 interações agregadas;
   replay completo IES NOT_RUN.
-- Testes sintéticos src/processo_relacionar/tests.rs.
+- Testes sintéticos src/processo_relacionar/tests.rs e tests_fluxo.rs.
+- Handler de remoção: função `acaoRemover(id)` no script ativo, com campo,
+  action e submit literais; não se infere a rota de comentário, template
+  ou literal solto. Essa derivação está testada, ainda não habilita escrita.
 - RED local NOT_RUN; CI a verificar. Live PEN1/UnB NOT_RUN (0 pedidos);
   escrita NOT_RUN, resíduo nenhum.
 
