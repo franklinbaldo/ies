@@ -79,6 +79,7 @@ pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
 pub(crate) use documento::{
     DocumentoNaArvoreAberto, DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo,
     PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_versoes,
+    obter_documento_com_propriedades,
 };
 #[cfg(test)]
 pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
