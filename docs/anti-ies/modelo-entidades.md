@@ -92,16 +92,16 @@ Nunca publicar cookies, `infra_hash` ou URLs assinadas do índice.
 
 ## Benchmark desde o início
 
-Comparar **mesmo ambiente e mesmos dados** antes/depois da fatia,
+Comparar **mesmo ambiente e mesmos dados** antes/depois de cada fatia,
 com casos sintéticos representando página pequena, intermediária e
 grande (por exemplo, 1, 1.000 e 10.000 registros quando pertinentes).
-Contar e reportar:
+Contar e reportar, **conforme a camada estiver implementada**:
 
 | Medida | O que demonstrar |
 | --- | --- |
 | Ingestão | tempo de parse e de upsert em lote, primeira e segunda gravação |
 | Leitura SQLite | número de consultas por GET, latência p50/p95, plano com `EXPLAIN QUERY PLAN` |
-| Servir HTTP | latência p50/p95 do GET em loopback, tamanho do HTML, throughput quando fizer sentido |
+| Servir HTTP (P2/P3) | latência p50/p95 do GET em loopback, tamanho do HTML, throughput quando fizer sentido |
 | Recursos | pico de memória/RSS, tamanho do arquivo SQLite, crescimento por lote |
 | Corretude/custo remoto | resultado e recusas iguais ao oráculo, **zero requests adicionais ao SEI** |
 
@@ -109,6 +109,9 @@ Não impor alvo arbitrário em milissegundos sem baseline nem medir
 tempo de rede do SEI como se fosse latência do anti-IES. Usar
 benchmark isolado de parse, persistência, consulta e HTTP, sem
 sacrificar tipos ou semântica para atingir números irrelevantes.
+Na P1.2, a baseline cobre parse/projeção e consultas SQL de bancada;
+a latência HTTP da capacidade só é medida nas P2/P3, quando
+houver renderizador funcional. O endpoint de saúde não é substituto.
 Gates determinísticos: orçamento de requisições, não ter N+1
 observável, idempotência e integração E2E. Métricas de latência
 podem começar como relatório, não como teste sensível à máquina do CI.
