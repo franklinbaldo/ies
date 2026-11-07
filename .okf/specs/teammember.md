@@ -18,6 +18,9 @@ tipo OKF próprio.
 - `avatar`: emoji identificador da rotina (🦊, 🦉, 🐢, 🐙, 🦫, 🦡, 🦅 ou 🐘).
 - `especialidade`: domínio de responsabilidade prioritária.
 - `frequencia`: horário/cadência da rotina, em forma legível.
+- `memorias_fixadas`: lista de paths OKF relativos à raiz, das
+  memórias `AgentMemory` que o agente quer ler sempre. A lista vazia
+  significa que nada está fixado; fixar/desafixar só edita a ficha.
 
 O esquema SQL é [`teammember.schema.sql`](teammember.schema.sql),
 gerado por `uvx --from okf-parser==0.48.2 okf-parser init team

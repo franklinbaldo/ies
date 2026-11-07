@@ -5,6 +5,7 @@ description: "Ficha da rotina Gavião do time IES"
 avatar: "🦅"
 especialidade: "Revisão independente"
 frequencia: "horária, minuto :40"
+memorias_fixadas: []
 ---
 
 # 🦅 Gavião

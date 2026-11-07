@@ -3,5 +3,6 @@ CREATE TABLE "TeamMember" (
     "description" VARCHAR,
     "especialidade" VARCHAR,
     "frequencia" VARCHAR,
+    "memorias_fixadas" VARCHAR[],
     "title" VARCHAR
 );

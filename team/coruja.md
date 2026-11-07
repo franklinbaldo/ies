@@ -5,6 +5,7 @@ description: "Ficha da rotina Coruja do time IES"
 avatar: "🦉"
 especialidade: "Processos e reconciliação"
 frequencia: "horária, minuto :22"
+memorias_fixadas: []
 ---
 
 # 🦉 Coruja

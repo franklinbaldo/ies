@@ -5,6 +5,7 @@ description: "Ficha da rotina Elefante do time IES"
 avatar: "🐘"
 especialidade: "Integração e gestão da fila"
 frequencia: "horária, minuto :05"
+memorias_fixadas: []
 ---
 
 # 🐘 Elefante
