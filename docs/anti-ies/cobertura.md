@@ -13,12 +13,18 @@ do cliente implica cobertura do servidor.
 
 | Operação observável | Estado do IES | Estado anti-IES | Próxima evidência |
 | --- | --- | --- | --- |
-| **unidade.atual** | Leitura Web real e testes em várias instalações (ver [contrato](../../contracts/cli/unidade-atual.md)) | **NÃO COBERTA**: bootstrap responde 501 ao controlador; sem Controle compatível | [P1 #353](https://github.com/franklinbaldo/ies/issues/353) → [P2 #354](https://github.com/franklinbaldo/ies/issues/354) → [P3 #355](https://github.com/franklinbaldo/ies/issues/355) |
+| **unidade.atual** | Leitura Web real e testes em várias instalações (ver [contrato](../../contracts/cli/unidade-atual.md)) | **NÃO COBERTA**: bootstrap responde 501 ao controlador; sem Controle compatível | [P1 #353](https://github.com/franklinbaldo/ies/issues/353) → [SQLite #358](https://github.com/franklinbaldo/ies/issues/358) → [P2 #354](https://github.com/franklinbaldo/ies/issues/354) → [P3 #355](https://github.com/franklinbaldo/ies/issues/355) |
 | unidade.listar_processos | Leitura Web existente | Não coberta | Depois de unidade.atual: listas, D, paginação, contagem |
 | processo.obter (NUP) | Leitura Web existente | Não coberta | Árvore, documentos, histórico, ausências |
 | documento.obter | Leitura Web em evolução | Não coberta | Conteúdo interno/externo, versão, MIME |
 | processo.enviar | Escrita Web com cenários live | Não coberta | Estado antes/depois, recusa, idempotência, efeito incerto |
 | documento.incluir PDF / documento nativo | Issues prioritárias em andamento | Não coberta | Fluxo de documentos após primeiras leituras |
+
+## SQLite companion
+
+O IES **alimenta** o [SQLite companion](sqlite-companion.md) com fatos observados no SEI;
+o anti-IES o **consulta** para servir respostas. A projeção para
+`unidade.atual` ainda depende da [#358](https://github.com/franklinbaldo/ies/issues/358).
 
 ## Estados admitidos
 
