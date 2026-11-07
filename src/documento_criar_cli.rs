@@ -308,6 +308,18 @@ mod tests {
     }
 
     #[test]
+    fn bdd_246_04_efeito_incerto_indica_nup_real_na_releitura() {
+        // Dado um efeito incerto ao incluir documento em um processo conhecido;
+        // Quando a CLI apresenta o erro; Então oferece comando de leitura copiável.
+        let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
+        let erro = ErroPreviaCriacao::EfeitoIncerto;
+        let saida = erro_incerto_json(&erro, 7, &nup);
+        assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
+        assert_eq!(saida["retentavel"], false);
+        assert_eq!(saida["codigo"], "efeito_incerto");
+    }
+
+    #[test]
     fn bdd_246_03_recusa_da_cli_explica_tipo_nao_oferecido_ou_ambiguo() {
         // Dado um tipo ausente ou repetido na lista oferecida pelo SEI,
         // Quando executo documento criar, Entao a recusa explica a causa.
