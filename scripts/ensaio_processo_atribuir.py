@@ -40,6 +40,21 @@ def atribuicao_da_unidade(resposta: dict, unidade: str) -> str | None:
     return None
 
 
+def sincronizar_diretorio(pasta: Path) -> None:
+    """Persistir a entrada de nome do registro, não só seus bytes.
+
+    Se a plataforma não permite fsync em diretórios, falhar fechado:
+    este executor manual não deve confirmar escrita sem trava durável.
+    """
+    if not hasattr(os, "O_DIRECTORY"):
+        raise OSError("fsync de diretório indisponível")
+    fd_diretorio = os.open(pasta, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd_diretorio)
+    finally:
+        os.close(fd_diretorio)
+
+
 def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             executar=chamar_ies, pausa=time.sleep) -> tuple[int, dict]:
     """Prévia → 1 POST → leitura → prévia remoção → 1 POST → leitura.
@@ -116,6 +131,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             os.close(temporario_fd)
             temporario_fd = -1
             os.replace(temporario, registro)
+            sincronizar_diretorio(registro.parent)
         finally:
             if temporario_fd != -1:
                 os.close(temporario_fd)
@@ -132,6 +148,9 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
 
     try:
         gravar()
+        # fsync(fd) não garante que o nome criado com O_EXCL sobreviva
+        # à queda do host. Nenhum POST ocorre antes do fsync do diretório.
+        sincronizar_diretorio(registro.parent)
         pausa(intervalo)
         confirmacao_iniciada = True
         codigo, escrita = etapa(atribuir + ["--confirmar"])
