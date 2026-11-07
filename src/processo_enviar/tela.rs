@@ -34,11 +34,12 @@ const OCULTOS: [&str; 5] = [
 const ORGAO: &str = "selOrgao";
 const TEXTO_DA_UNIDADE: &str = "txtUnidade";
 const MANTER_ABERTO: &str = "chkSinManterAberto";
+const REMOVER_ANOTACOES: &str = "chkSinRemoverAnotacoes";
 const UNIDADES: &str = "hdnUnidades";
 const SELECOES: [&str; 3] = ["selProcedimentos", ORGAO, "selUnidades"];
 const CAIXAS: [&str; 6] = [
     MANTER_ABERTO,
-    "chkSinRemoverAnotacoes",
+    REMOVER_ANOTACOES,
     "chkSinEnviarEmailNotificacao",
     "chkSinDiasUteis",
     "chkSinDiasUteisRetornoProgramado",
@@ -114,6 +115,8 @@ pub(crate) struct TelaDeEnvio {
     pub(crate) autocompletar: String,
     /// O `prepararExecucao` acrescenta `&unidade_atual=0` (4.1 e 5.0).
     pub(crate) unidade_atual: bool,
+    /// A opção foi oferecida habilitada no formulário real.
+    pub(crate) remover_anotacoes_oferecida: bool,
 }
 
 /// Confere a tela servida antes de qualquer POST: lista fechada de
@@ -126,6 +129,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
     let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
         .map_err(|_| ErroHtml::ausente("formulario_de_envio_ausente"))?;
     let mut preenchida = false;
+    let mut remover_anotacoes_oferecida = false;
     let mut textos = Vec::new();
     let mut selecao: Option<String> = None;
     let mut orgao: Option<String> = None;
@@ -191,6 +195,9 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             | ("input" | "button", "submit", BOTAO_ENVIAR) => {}
             ("select", _, n) if SELECOES.contains(&n) => selecao = Some(nome.clone()),
             ("input", "checkbox" | "radio", n) if CAIXAS.contains(&n) || RADIOS.contains(&n) => {
+                if n == REMOVER_ANOTACOES && tipo == "checkbox" {
+                    remover_anotacoes_oferecida = true;
+                }
                 preenchida |= marcado;
             }
             ("input", "text", n) if TEXTOS.contains(&n) => {
@@ -217,6 +224,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         textos,
         autocompletar,
         unidade_atual,
+        remover_anotacoes_oferecida,
     })
 }
 
