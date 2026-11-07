@@ -260,6 +260,38 @@ pub(crate) mod testes {
         std::fs::remove_dir_all(pasta).unwrap();
     }
 
+    // BDD-88-02: editar a foto local nao pode editar o cache privado.
+    // A releitura deve poder comparar os bytes originais e recusar a foto divergente.
+    #[test]
+    fn bdd_88_02_foto_editavel_nao_altera_cache_privado() {
+        let pasta = diretorio();
+        let cache_raiz = pasta.join("cache");
+        let cache = crate::cache_documento::gravar_em(
+            &cache_raiz, "sei.exemplo", "0011519", Some(1), "html", HTML.as_bytes(),
+        ).unwrap();
+        let registro = crate::cache_documento::Registro {
+            caminho: cache.clone(),
+            versao: Some(1),
+            sha256: foto_documento::sha256(HTML.as_bytes()),
+        };
+        let foto = com_foto("0011519", 1, HTML);
+        let gravadas = gravar_fotos_com_cache(&pasta, &[foto.clone()], &[Some(registro)]).unwrap();
+        assert!(gravadas[0].as_ref().unwrap().gravado);
+        let destino = pasta.join("0011519.v1.html");
+        std::fs::write(&destino, b"edicao local ainda nao enviada").unwrap();
+        assert_eq!(
+            std::fs::read(&cache).unwrap(),
+            HTML.as_bytes(),
+            "editar DOC.v1.html nao pode corromper o cache do HTML servido",
+        );
+        assert_eq!(
+            gravar_fotos(&pasta, &[foto]),
+            Err(ErroCopia::FotoDivergente),
+            "nova leitura recusa a foto divergente sem sobrescrever",
+        );
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
     #[test]
     fn campos_de_versao_e_do_arquivo() {
         let d = com_foto("0011519", 2, HTML);
