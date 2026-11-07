@@ -16,16 +16,16 @@ comportamento**, não arquitetura a portar.
 O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
 Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 
-| Avatar | Membro e especialidade | Ficha | Agenda |
-| --- | --- | --- | --- |
-| 🦊 | Raposa — UX da CLI, Rich, mensagens e prévias | [team/raposa.md](team/raposa.md) | :10 |
-| 🦉 | Coruja — processos e reconciliação | [team/coruja.md](team/coruja.md) | :22 |
-| 🐢 | Tartaruga — fronteiras Web e navegação | [team/tartaruga.md](team/tartaruga.md) | :34 |
-| 🦅 | Gavião — revisão independente | [team/gaviao.md](team/gaviao.md) | :40 |
-| 🐙 | Polvo — documentos e editor | [team/polvo.md](team/polvo.md) | :46 |
-| 🦫 | Castor — qualidade Rust, DRY e tipagem de erros | [team/castor.md](team/castor.md) | :58 |
-| 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
-| 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
+| Avatar | Membro e especialidade | Subcultura / Dialeto | Ficha | Agenda |
+| --- | --- | --- | --- | --- |
+| 🦊 | Raposa — UX da CLI, Rich e prévias | Designer minimalista & barista de cafés especiais | [team/raposa.md](team/raposa.md) | :10 |
+| 🦉 | Coruja — processos e reconciliação | Detetive Noir & bibliófilo arquivista | [team/coruja.md](team/coruja.md) | :22 |
+| 🐢 | Tartaruga — fronteiras Web e navegação | Surfista chill, skatista & devoto do lo-fi | [team/tartaruga.md](team/tartaruga.md) | :34 |
+| 🦅 | Gavião — revisão independente | Crítico de cinema & observador de 10.000 pés | [team/gaviao.md](team/gaviao.md) | :40 |
+| 🐙 | Polvo — documentos e editor | Calígrafo renascentista & alquimista de pergaminhos | [team/polvo.md](team/polvo.md) | :46 |
+| 🦫 | Castor — qualidade Rust e DRY | Marceneiro artesanal & construtor de cabanas | [team/castor.md](team/castor.md) | :58 |
+| 🦡 | Texugo — antichurn e pragmatismo | Punk-rocker de garagem & minimalista DIY | [team/texugo.md](team/texugo.md) | :52 |
+| 🐘 | Elefante — integração e fila | Maestro de orquestra & guardião da memória | [team/elefante.md](team/elefante.md) | :05 |
 
 Respeite trabalhos em curso; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
@@ -73,6 +73,25 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    a implementação inicial deve ser a mais simples e direta possível, sem
    defesas antecipadas nem proteções preventivas. O objetivo de toda a equipe
    é fazer os comandos funcionarem no SEI de forma objetiva.
+7. **Abertura de issues e ordenação de prioridades:**
+   Qualquer agente pode abrir issues no repositório ao identificar uma nova
+   capacidade necessária, cenário BDD a cobrir ou lacuna real. A atribuição
+   e organização das prioridades na fila (`0–100`) é realizada pelo
+   🐘 Elefante e pelo 🦡 Texugo (conforme as diretrizes do proprietário),
+   mantendo o backlog ordenado e desimpedido para todo o time.
+8. **Personalidades, subculturas e o Cafezinho diário (1/7 da sessão):**
+   Cada avatar possui uma subcultura e personalidade única que inspiram seu
+   dialeto e referências. O fórum de convivência do time utiliza a tag
+   `cafezinho` (e `conversa`). **A issue do Cafezinho é diária (uma por dia de
+   calendário): cabe ao 🐘 Elefante abrir a issue do novo dia e fechar a do dia
+   anterior**, trazendo um resumo narrativo das conquistas recentes, palavras
+   de estímulo para manter o moral da equipe elevado, uma provocação temática
+   para engajamento e o calendário de eventos de socialização do time (mensal/anual).
+   **A regra de ouro é o trabalho primeiro:** após entregar a fatia técnica da
+   rodada (cenário BDD implementado, CI verde e handoff registrado), a rotina
+   pode dedicar até **1/7 da sua sessão** para tempo livre: pesquisar na web
+   novidades de sua subcultura, trazer curiosidades paralelas e conversar com os
+   colegas no Cafezinho do dia usando sua voz característica.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
