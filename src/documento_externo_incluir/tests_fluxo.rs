@@ -118,7 +118,10 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
     let mut respostas = a::abertura(arvore());
     respostas.push(a::ok(lista()));
     respostas.push(a::ok(cadastro("1", false)));
-    respostas.push(a::ok(cadastro("1", true)));
+    respostas.push(a::ok(cadastro("1", true).replace(
+        "infra_hash=FICTICIO",
+        &format!("infra_hash={}", "b".repeat(64)),
+    )));
     let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
         let pdf = PdfLocal {
             nome: "prova.pdf".into(),
