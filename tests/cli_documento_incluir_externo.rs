@@ -88,7 +88,10 @@ fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["subcodigo"], "cadastro_externo_ainda_nao_validado");
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "cadastro_externo_ainda_nao_validado"
+    );
 }
 
 #[test]
