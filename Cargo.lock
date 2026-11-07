@@ -5,6 +5,10 @@ version = 4
 [[package]]
 name = "anti-ies"
 version = "0.1.0"
+dependencies = [
+ "iesei",
+ "rusqlite",
+]
 
 [[package]]
 name = "anstream"
@@ -313,6 +317,7 @@ dependencies = [
 name = "ies"
 version = "0.1.0"
 dependencies = [
+ "anti-ies",
  "base64",
  "clap",
  "iesei",
