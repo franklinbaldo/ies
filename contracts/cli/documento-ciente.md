@@ -141,3 +141,11 @@ reconhecida e não pôde verificar nenhuma das 14 listas. O teste de
 execução passou, **não a prova semântica**. Confrontar as respostas
 reais e separar tela preparatória de GET mutador antes de alegar
 compatibilidade. Os testes sintéticos ainda não substituem live.
+
+## Script ativo e contêiner inerte na mesma resposta (#271)
+
+A presença de um `<template>` ou `<noscript>` com script inerte não
+invalida um **outro script ativo** que publique a atividade do documento.
+O leitor ignora por nó DOM somente o script inerte; não confunde texto
+`<template><script>` dentro de literal JavaScript com marcação HTML.
+Identidade documental, releitura e política de GET único não mudam.
