@@ -270,4 +270,18 @@ mod tests {
         assert_eq!(saida["retentavel"], false);
         assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
     }
+    #[test]
+    fn efeito_incerto_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
+        // Teste auxiliar do BDD-246-04: efeito incerto exige leitura independente.
+        let erro = ErroPreviaCriacao::EfeitoIncerto;
+        let saida = erro_incerto_json(&erro, 7);
+        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["verificar_com"], "ies processo NUP");
+        assert!(saida["erro"]
+            .as_str()
+            .is_some_and(|mensagem| mensagem.contains("Confira o processo")));
+        assert_eq!(saida["retentavel"], false);
+        assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
+    }
+
 }
