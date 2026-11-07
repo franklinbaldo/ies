@@ -23,12 +23,7 @@ class ReleaseUvxTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (raiz / "Cargo.lock").write_text(
-                f\'version = 4\
-\
-[[package]]\
-name = "ies"\
-version = "{lock}"\
-\',
+                f'version = 4\n\n[[package]]\nname = "ies"\nversion = "{lock}"\n',
                 encoding="utf-8",
             )
             return subprocess.run(
@@ -52,7 +47,11 @@ version = "{lock}"\
                 resultado = self.validar(tag)
                 self.assertNotEqual(resultado.returncode, 0)
 
-    def test_rejeita_cargo_lock_divergente(self):\n        resultado = self.validar("v0.1.0", lock="0.0.9")\n        self.assertNotEqual(resultado.returncode, 0)\n\n    def test_rejeita_tag_versao_diferente(self):
+    def test_rejeita_cargo_lock_divergente(self):
+        resultado = self.validar("v0.1.0", lock="0.0.9")
+        self.assertNotEqual(resultado.returncode, 0)
+
+    def test_rejeita_tag_versao_diferente(self):
         resultado = self.validar("v0.2.0")
         self.assertNotEqual(resultado.returncode, 0)
 
