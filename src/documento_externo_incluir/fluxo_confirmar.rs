@@ -2,7 +2,7 @@
 //! Transporte de upload é injetado; o comando público não autoriza escrita
 //! até a validação em treinamento e a confirmação segura do fluxo completo.
 use super::{
-    PdfLocal,
+    FalhaPdf, PdfLocal,
     confirmacao::{FalhaConfirmacao, FotoProcesso, confirmar_sequencia},
     fluxo::{ErroPreviaExterna, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
@@ -23,12 +23,14 @@ pub(crate) struct InclusaoComprovada {
 #[derive(Debug)]
 pub(crate) enum ErroConfirmacaoExterna {
     Previa(ErroPreviaExterna),
+    Pdf(FalhaPdf),
     EnderecoDeUploadNaoObservado,
     Sequencia(FalhaConfirmacao),
 }
 impl ErroConfirmacaoExterna {
     pub(crate) fn codigo_saida(&self) -> u8 {
         match self {
+            Self::Pdf(_) => 2,
             Self::Previa(_) | Self::EnderecoDeUploadNaoObservado => 1,
             Self::Sequencia(e) => e.codigo_saida(),
         }
@@ -36,6 +38,7 @@ impl ErroConfirmacaoExterna {
 
     pub(crate) fn etapa(&self) -> &'static str {
         match self {
+            Self::Pdf(_) => "arquivo_local",
             Self::Previa(_) | Self::EnderecoDeUploadNaoObservado => "previa",
             Self::Sequencia(
                 FalhaConfirmacao::FotoInicialIncompleta
@@ -175,11 +178,15 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     unidade_pedida: Option<&str>,
     tipo: &str,
     pdf: &PdfLocal,
-    arquivo: impl std::io::Read,
+    caminho_pdf: &std::path::Path,
     indice: &IndiceLocal,
     envio: &mut V,
     upload_tentado: &mut bool,
 ) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
+    // Validar antes de abrir sessão/rede. É o mesmo descritor que será
+    // transmitido, não uma segunda abertura suscetível a substituição.
+    let arquivo = super::abrir_pdf_para_envio(caminho_pdf, pdf)
+        .map_err(ErroConfirmacaoExterna::Pdf)?;
     let cookie = sessao
         .cookie
         .valor()
