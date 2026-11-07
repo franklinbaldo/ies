@@ -97,3 +97,13 @@ fn dado_cadastro_sem_pdf_quando_avalio_entao_recuso_pdf_nao_oferecido() {
         Err(FalhaCadastroExterno::PdfNaoOferecido)
     ));
 }
+
+#[test]
+fn dado_tipo_desabilitado_quando_consulto_previa_entao_nao_e_oferecido() {
+    // BDD-332-02: um tipo desabilitado nao e opcao oferecida ao usuario.
+    let html = cadastro("", "selected=\"selected\" disabled", PDF);
+    assert!(matches!(
+        observar_cadastro(&html, "Anexo", 68),
+        Err(FalhaCadastroExterno::TipoNaoOferecido)
+    ));
+}
