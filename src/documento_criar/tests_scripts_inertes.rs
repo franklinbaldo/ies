@@ -238,8 +238,7 @@ fn tipos_em_controles_hidden_nao_sao_oferecidos() {
     let visivel = format!(r#"<a href="{href}">Despacho</a>"#);
     let oculto = format!(r#"<a hidden href="{href}">Despacho</a>"#);
     for inerte in [&oculto, &format!("<div hidden>{visivel}</div>")] {
-        let lista =
-            format!(r#"<table id="tblSeries"><tr><td>{visivel}{inerte}</td></tr></table>"#);
+        let lista = format!(r#"<table id="tblSeries"><tr><td>{visivel}{inerte}</td></tr></table>"#);
         assert_eq!(tipos_oferecidos(&lista).unwrap(), ["Despacho"]);
         assert_eq!(
             escolha_do_tipo(&instalacao, &lista, "4864", "Despacho"),
@@ -247,8 +246,7 @@ fn tipos_em_controles_hidden_nao_sao_oferecidos() {
                 "https://sei.exemplo.gov.br/sei/{href}"
             )))
         );
-        let sem_visivel =
-            format!(r#"<table id="tblSeries"><tr><td>{inerte}</td></tr></table>"#);
+        let sem_visivel = format!(r#"<table id="tblSeries"><tr><td>{inerte}</td></tr></table>"#);
         assert_eq!(
             tipos_oferecidos(&sem_visivel).unwrap(),
             Vec::<String>::new()
