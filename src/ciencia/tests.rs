@@ -403,3 +403,32 @@ fn script_dentro_de_noscript_nao_prova_aceite() {
         Err(E::AceiteSemAtividade)
     );
 }
+
+
+/// RED #271: o valor MIME do script HTML é insensível a maiúsculas.
+/// Uma recarga ativa com tipo JavaScript em caixa alta não pode virar
+/// efeito incerto por diferença meramente de apresentação do atributo.
+#[test]
+fn tipo_javascript_com_caixa_mista_preserva_prova_do_aceite() {
+    let html = aceite_processo("42457")
+        .replacen("<script>", "<script type='TeXt/JaVaScRiPt'>", 1);
+    assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
+}
+
+/// RED #271: `type=""` publica um script clássico, como a ausência
+/// do atributo. Isto não deve ser confundido com um script de dados.
+#[test]
+fn tipo_vazio_preserva_script_classico() {
+    let html = aceite_documento("42458")
+        .replacen("<script>", "<script type=''>", 1);
+    assert_eq!(atividade_do_aceite(&html, documento()), Ok("42458".into()));
+}
+
+/// Uma declaração MIME com parâmetros não é tipo JavaScript de script
+/// clássico segundo HTML, portanto permanece fora da prova de ciência.
+#[test]
+fn tipo_javascript_com_parametro_nao_e_prova() {
+    let html = aceite_processo("42457")
+        .replacen("<script>", "<script type='text/javascript; charset=utf-8'>", 1);
+    assert_eq!(atividade_do_aceite(&html, processo()), Err(E::AceiteSemAtividade));
+}
