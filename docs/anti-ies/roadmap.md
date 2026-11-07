@@ -17,6 +17,12 @@ saída do IES não pode ser usada como única fonte para construir a saída
 esperada do anti-IES. O anti-IES tampouco serve como substituto do SEI
 real ou como prova de equivalência entre instalações.
 
+**Domínio compartilhado:** `crates/iesei` centraliza os
+tipos de domínio, observações e APIs tipadas SQLite, sendo
+importado por **IES e anti-IES**. A [#360](https://github.com/franklinbaldo/ies/issues/360)
+migra o atual `ies-core` para `iesei` e elimina duplicação.
+Parser, HTTPS, CLI, roteador e renderizador ficam separados.
+
 **Dados e eficiência:** o IES acessa o SEI autorizado, interpreta as respostas e
 alimenta o [SQLite companion](sqlite-companion.md) com fatos efetivamente
 observados. O anti-IES **somente lê essa projeção** para gerar respostas;

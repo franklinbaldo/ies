@@ -11,6 +11,14 @@ autorizados, usa o parser existente e registra as entidades, fatos,
 relações e listas **efetivamente observados** no SQLite. Nenhum GET ou
 POST extra é feito apenas para alimentar o banco.
 
+**O `iesei` é a biblioteca comum.** IES e anti-IES importam
+os mesmos modelos e as operações tipadas de SQLite. IES escreve
+observações depois de ler e validar o SEI; anti-IES somente
+consulta a projeção autorizada. A [#360](https://github.com/franklinbaldo/ies/issues/360)
+consolida o atual `ies-core` em `iesei`, sem trazer parsers
+HTML, clientes HTTP, CLI ou templates do servidor para o crate.
+Ver [modelo](modelo-entidades.md).
+
 **SQLite é memória, não espelho completo.** O `ies.sqlite3` já contém
 identidades de processo/documento, unidades e links assinados. Evoluir
 esse índice e suas migrações para uma projeção tipada de observações,

@@ -13,6 +13,27 @@ HTMLs/JSONs, nem tentar modelar todas as operações antes de conhecer
 seus fatos e relações. Ver [SQLite companion](sqlite-companion.md),
 [roadmap](roadmap.md) e [#360](https://github.com/franklinbaldo/ies/issues/360).
 
+## Biblioteca comum: `iesei`
+
+A crate `crates/iesei` será importada **diretamente por `ies` e
+`anti-ies`**. Nela moram identidades e entidades de domínio,
+observações tipadas, proveniência, cobertura de listas, invariantes
+e o contrato versionado de persistência/consulta SQLite. O IES
+aciona a gravação de fatos obtidos do SEI; o anti-IES usa consultas
+tipadas read-only. A biblioteca não precisa de um processo servidor.
+
+Já existe `crates/ies-core`, atualmente com `Instalacao`.
+**Migrar esse conteúdo para `iesei` e aposentar `ies-core`**
+na [#360](https://github.com/franklinbaldo/ies/issues/360),
+sem manter dois domínios paralelos. `ies-derive` é uma macro
+procedural e pode continuar separada.
+
+**Não compartilhar implementações de fronteira:** o parser HTML,
+HTTPS, sessão e CLI são do IES; o roteador HTTP, HTML gerado e
+estado ficcional são do anti-IES. O crate comum não pode depender
+dos binários. Medir o custo de rebuild incremental e documentar
+a migração, conforme [#214](https://github.com/franklinbaldo/ies/issues/214).
+
 ## Três camadas diferentes
 
 1. **Entidade de domínio:** identidade durável de instalação, unidade,

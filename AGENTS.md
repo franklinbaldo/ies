@@ -144,8 +144,8 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
 ## Ciclo conjunto do IES e anti-IES
 
-O IES alimenta o SQLite com observações do SEI. O anti-IES lê a
-[projeção tipada](docs/anti-ies/sqlite-companion.md) e serve respostas;
+O `iesei` reúne tipos e SQLite; o IES grava a
+[projeção](docs/anti-ies/sqlite-companion.md), o anti-IES a lê;
 não consulta o SEI real nem altera o contrato da CLI. Para cada capacidade
 Web trabalhada no IES, anote na issue/PR a cobertura anti-IES:
 **não coberta / oráculo / servidor / integrada**, o cenário do SEI e o
