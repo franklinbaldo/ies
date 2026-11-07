@@ -112,6 +112,30 @@ fn arquivo_local_ausente_e_recusado_sem_sessao() {
 }
 
 #[test]
+fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
+    let nome = format!(
+        "ies-332-{}-{}&#1.pdf",
+        std::process::id(),
+        PROXIMO.fetch_add(1, Ordering::Relaxed)
+    );
+    let pdf = PdfTeste(std::env::temp_dir().join(nome));
+    fs::write(&pdf.0, b"%PDF-1.4\\n1 0 obj\\n%%EOF\\n").unwrap();
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        "23106.000001/2026-11",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "Anexo",
+    ]);
+    assert_eq!(saida.status.code(), Some(2));
+    assert_eq!(json(&saida)["subcodigo"], "nome_arquivo_pdf_invalido");
+}
+
+#[test]
 fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
     let saida = executar(&[
         "--json",
