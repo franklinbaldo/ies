@@ -3,8 +3,8 @@
 use super::{anexo::FalhaAnexo, cadastro::CadastroExterno, recibo::ReciboUpload};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada,
-    TelaServida, derivar_submissao,
+    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    derivar_submissao,
 };
 use crate::instalacao::Instalacao;
 
