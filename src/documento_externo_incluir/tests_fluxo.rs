@@ -102,3 +102,11 @@ fn dado_flag_de_gravacao_quando_consulto_previa_entao_nao_envio_post() {
     esperados.push(a::get(&url(&link_cadastro())));
     assert_eq!(pedidos, esperados, "flag 2 bloqueada antes de POST");
 }
+
+#[test]
+fn dado_cadastro_minimo_quando_consulto_sei_entao_projeto_campo_visivel_no_resultado() {
+    // BDD-332-02: o campo publicado vem do formulário recarregado.
+    let (resultado, _) = executar("1");
+    let previa = resultado.unwrap();
+    assert_eq!(previa.campos_oferecidos, ["selSerie"]);
+}
