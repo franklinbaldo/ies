@@ -164,6 +164,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn efeito_incerto_preserva_status_200_da_validacao_infra() {
+        use crate::formulario_web::ErroSubmissaoFormulario;
+        use crate::transporte::StatusHttpRecusado;
+
+        // HTTP 200 de validação é uma recusa real, não ausência de status.
+        // Sem rede: a fronteira só apresenta a causa do único envio tentado.
+        let erro = ErroPreviaCriacao::EfeitoIncertoNoEnvio(
+            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
+                status: 200,
+                mensagem_do_servidor: Some("Descrição obrigatória".to_owned()),
+            }),
+        );
+        let saida = erro_incerto_json(&erro, 6);
+        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["status_http"], 200);
+        assert_eq!(saida["mensagem_do_servidor"], "Descrição obrigatória");
+        assert_eq!(saida["requisicoes"], 6);
+        assert_eq!(saida["retentavel"], false);
+        assert_eq!(publicar_erro(false, &erro, 6), ExitCode::from(3));
+    }
+
+    #[test]
     fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
         let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
         assert_eq!(saida["codigo"], "efeito_incerto");
