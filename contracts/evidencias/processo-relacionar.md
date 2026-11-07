@@ -12,7 +12,7 @@ unresolved_steps: 0
 
 # processo.relacionar
 
-Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB — prévia e escrita única para adicionar/remover implementadas com reconciliação independente em testes sintéticos. Live NOT_RUN; ainda não há confirmação de execução em instalações de treinamento.
+Origem: matriz de demonstrações do Todos. IES Rust: PARCIAL WEB — a CLI publica prévia; `--confirmar` de adição e remoção é recusado antes da rede enquanto a escrita não for validada em treinamento. O motor de POST único e releitura independente existe apenas para testes sintéticos. Live NOT_RUN; ainda não há confirmação de execução em instalações de treinamento.
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -80,4 +80,4 @@ e [contrato provisório](../cli.md).
   [testes da CLI](../../tests/cli_processo_relacionar.rs).
 - RED local NOT_RUN; replay NOT_RUN; live PEN1 e UnB NOT_RUN,
   zero requisições, nenhum resíduo SEI.
-- **Escrita implementada em testes sintéticos**: o comando oferece `--confirmar` para adicionar ou remover, com um POST mutador único e releitura independente. As execuções reais em treinamento permanecem NOT_RUN; produção jamais acessada.
+- **Separação entre CLI e motor WIP**: os flags `--confirmar` e `--remover --confirmar` são aceitos pelo parser da CLI, mas produzem `confirmacao_de_relacionamento_nao_validada` (saída 1) sem requisição ao SEI. Em testes sintéticos internos, a escrita usa um único POST mutador, exige aceite e releitura independente; esse caminho **não está acessível pela CLI**. Execuções reais em treinamento permanecem NOT_RUN; produção jamais acessada.
