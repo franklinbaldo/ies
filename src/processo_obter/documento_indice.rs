@@ -203,7 +203,11 @@ mod tests {
             .unwrap();
         let geracao = geracao();
         amb.indice
-            .registrar_link(&inst, chave(&geracao, "procedimento_visualizar", ID), &url_arvore(ID))
+            .registrar_link(
+                &inst,
+                chave(&geracao, "procedimento_visualizar", ID),
+                &url_arvore(ID),
+            )
             .unwrap();
         let duplicado = arvore(&[
             no_processo(0, ID, NUP),
