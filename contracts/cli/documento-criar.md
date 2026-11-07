@@ -95,8 +95,12 @@ Após escrita comprovada: `{"nup":"…","tipo":"Despacho",
 "confirmado":true,"alterado":true,"numero_sei":"…",
 "requisicoes":N}`. Na saída 3 de efeito incerto, `requisicoes`
 informa as tentativas realmente contadas (inclusive POST e releitura);
-não se interpreta a contagem como prova de aceite. Nenhum segredo ou
-URL assinada na saída.
+não se interpreta a contagem como prova de aceite. Após a escrita, uma
+falha da leitura verificadora mantém saída 3, preserva a causa tipada
+em `causa_releitura` e publica `status_http` e
+`mensagem_do_servidor` quando observados. O POST não é repetido;
+`causa_envio` permanece reservado às falhas do próprio envio.
+Nenhum segredo ou URL assinada na saída.
 
 ## Evidências e validação
 

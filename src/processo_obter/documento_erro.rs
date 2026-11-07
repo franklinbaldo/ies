@@ -25,7 +25,7 @@ pub(crate) enum ErroDocumentoObter {
     #[causa(nome = "documento_cancelado_sem_conteudo_na_arvore")]
     DocumentoCancelado,
     /// `.src` vazio: a árvore não publica o conteúdo para esta sessão.
-    ConteudoNaoPublicadoNaArvore,
+    ConteudoNaoPublicadoNaArvore { requisicoes: u8 },
     /// O arquivo do documento externo (`documento_download_anexo`, fatia 3).
     #[causa(interna)]
     Anexo(ErroAnexo),
@@ -74,7 +74,7 @@ impl ErroDocumentoObter {
             Self::DocumentoCancelado => {
                 "o documento está cancelado e a árvore não publica conteúdo"
             }
-            Self::ConteudoNaoPublicadoNaArvore => {
+            Self::ConteudoNaoPublicadoNaArvore { .. } => {
                 "a árvore não publica o conteúdo deste documento para a sessão"
             }
             Self::Anexo(erro) => erro.mensagem(),

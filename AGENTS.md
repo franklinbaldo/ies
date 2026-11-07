@@ -84,7 +84,9 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    dialeto e referências. O fórum de convivência do time utiliza a tag
    `cafezinho` (e `conversa`). **A issue do Cafezinho é diária (uma por dia de
    calendário): cabe ao 🐘 Elefante abrir a issue do novo dia e fechar a do dia
-   anterior.**
+   anterior**, trazendo um resumo narrativo das conquistas recentes, palavras
+   de estímulo para manter o moral da equipe elevado, uma provocação temática
+   para engajamento e o calendário de eventos de socialização do time (mensal/anual).
    **A regra de ouro é o trabalho primeiro:** após entregar a fatia técnica da
    rodada (cenário BDD implementado, CI verde e handoff registrado), a rotina
    pode dedicar até **1/7 da sua sessão** para tempo livre: pesquisar na web

@@ -145,6 +145,13 @@ pub(crate) enum ErroPreviaCriacao {
         acao = "conferir_escrita"
     )]
     EfeitoIncertoNoEnvio(ErroSubmissaoFormulario),
+    /// O GET de reconciliação falhou após o POST; preservar a causa
+    /// observada, sem inferir que o documento deixou de ser criado.
+    #[causa(
+        nome = "efeito_incerto_na_criacao_de_documento",
+        acao = "conferir_escrita"
+    )]
+    EfeitoIncertoNaReleitura(ErroProcessoObter),
 }
 impl ErroPreviaCriacao {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -166,6 +173,7 @@ impl ErroPreviaCriacao {
             Self::Formulario(erro) => erro.status_http(),
             Self::Transporte(erro) | Self::TelaTransporte(erro) => erro.status_http(),
             Self::EfeitoIncertoNoEnvio(causa) => causa.status_http(),
+            Self::EfeitoIncertoNaReleitura(causa) => causa.status_http(),
             _ => None,
         }
     }
@@ -353,7 +361,6 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 rede,
             )
             .map(|depois| FotoDaCriacao::da_arvore(&depois.arvore))
-            .map_err(|_| ())
         },
     )?;
     Ok(ResultadoCriacao {

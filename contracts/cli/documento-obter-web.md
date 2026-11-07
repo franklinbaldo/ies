@@ -12,9 +12,12 @@ Complementa o [contrato de `documento.obter`](documento-obter.md).
 conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
 `--versao N`, `versao_atual` e a foto `DOC.vN.html` de `--saida`
 estão no [contrato de versões](documento-obter-versoes.md)
-(Refs #88, #207), sobre qualquer caminho que abriu a árvore. Opções ainda sem
-implementação (`--com-propriedades`, `--ocultar-inacessiveis`) continuam
-no stub (`nao_implementado`, saída 1). `--html-privado` segue o recorte local.
+(Refs #88, #207), sobre qualquer caminho que abriu a árvore.
+`--com-propriedades` continua no stub (`nao_implementado`, saída 1).
+`--ocultar-inacessiveis` é atendido na leitura Web: em lote, omite apenas
+um documento cujo nó foi comprovado mas não publicou `.src`, sem suprimir
+cancelamento, falha da sessão ou erro de identidade. `--html-privado`
+segue o recorte local.
 O documento **externo** (`.src` `documento_download_anexo`: PDF, TXT,
 HTML recebido) é lido pelo [GET binário](documento-obter-externo.md)
 (fatia 3); o subcódigo `documento_externo_por_download_de_anexo` foi
@@ -90,8 +93,15 @@ Nenhum `DOC.txt` nem `DOC.vN.txt` (substituídos em #207;
 
 ## Falhas tipadas
 
-O primeiro documento que falha encerra o comando (saída 1, nada
-publicado), com `documento` e `documentos_lidos_antes` no JSON.
+Sem `--ocultar-inacessiveis`, o primeiro documento que falha encerra
+o comando (saída 1, nada publicado), com `documento` e
+`documentos_lidos_antes` no JSON. Com a opção, apenas
+`ConteudoNaoPublicadoNaArvore` é omitido: saída 0 lista os documentos
+legíveis; `documentos_omitidos` informa somente a contagem (sem
+identificar os omitidos), e `requisicoes` inclui também a contagem
+observada até cada omissão. Se todos forem omitidos, `documentos: []`.
+Cancelamento, sessão encerrada, falha HTTP/transporte e divergência
+de identidade continuam erros. Sem GET adicional ou retry.
 
 | Subcódigo | Fato |
 | --- | --- |

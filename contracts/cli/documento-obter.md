@@ -49,9 +49,10 @@ original**, são recusados com variante Rust `Controle` e subcódigo
 Caracteres não ASCII/dígitos misturados continuam retornando
 `numero_documento_nao_numerico`; nunca converter números Unicode.\nUma entrada válida segue para a [leitura Web](documento-obter-web.md),
 que tipa sessão, ausência, inacessibilidade e cancelamento, lê o
-documento externo e aceita `--processo`, `--versao` e `--saida`; com
-`--com-propriedades` ou `--ocultar-inacessiveis`, ainda retorna
-`nao_implementado` e código 1.
+documento externo e aceita `--processo`, `--versao`, `--saida` e
+`--ocultar-inacessiveis` (somente ausência observada de `.src` é
+omitida no lote, com requisições contabilizadas). `--com-propriedades`
+ainda retorna `nao_implementado` e código 1.
 
 [documento.obter](../evidencias/documento-obter.md) e
 [formulários e payloads](../../docs/como-o-sei-funciona/formularios.md)
