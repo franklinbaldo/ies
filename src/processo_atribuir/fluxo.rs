@@ -24,6 +24,12 @@ pub(crate) struct PedidoDaAtribuicao<'a> {
     pub(crate) confirmar: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDaAtribuicao {
+    Previa,
+    AlteracaoConfirmada,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoAtribuido {
     pub(crate) nup: String,
@@ -32,8 +38,7 @@ pub(crate) struct ProcessoAtribuido {
     pub(crate) usuario_atual: String,
     pub(crate) usuario_pedido: Option<String>,
     pub(crate) valor_da_opcao: String,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
+    pub(crate) estado: EstadoDaAtribuicao,
     pub(crate) requisicoes: u8,
 }
 
@@ -190,8 +195,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         usuario_atual: atual.to_owned(),
         usuario_pedido: pedido.usuario.map(str::to_owned),
         valor_da_opcao: valor,
-        confirmado: false,
-        alterado: false,
+        estado: EstadoDaAtribuicao::Previa,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
@@ -255,8 +259,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
             requisicoes: feito.requisicoes,
         });
     }
-    feito.confirmado = true;
-    feito.alterado = true;
+    feito.estado = EstadoDaAtribuicao::AlteracaoConfirmada;
     Ok(feito)
 }
 
