@@ -1,6 +1,6 @@
 //! Prévia Web injetável da atribuição de processo: abertura, unidade,
 //! atribuição publicada na árvore, formulário da barra e payload local.
-//! A CLI mantém --confirmar fechado até haver validação live em treinamento.
+//! O resultado de escrita só é confirmado após aceite identificável e releitura.
 use crate::arvore_processo::{AbertoEm, ErroAtribuirNaBarra};
 use crate::formulario_web::{
     ErroSubmissaoFormulario, Redirecionamento302, RespostaDoEnvio, consulta_do_controlador,
@@ -60,8 +60,6 @@ pub(crate) enum ErroProcessoAtribuir {
     TelaDaAtribuicaoRedirecionada,
     SessaoEncerradaNaAtribuicao,
     OrigemNaoAutorizada,
-    #[causa(nome = "escrita_de_atribuicao_ainda_nao_verificada")]
-    EscritaAindaNaoVerificada,
     #[causa(interna)]
     Preparacao(ErroAtribuir),
     #[causa(interna)]
@@ -130,9 +128,6 @@ impl ErroProcessoAtribuir {
                 "a sessão encerrou antes da atribuição; rode ies login"
             }
             Self::OrigemNaoAutorizada => "a origem da sessão não é autorizada",
-            Self::EscritaAindaNaoVerificada => {
-                "a atribuição confirmada ainda não tem releitura de prova"
-            }
             Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
             Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
             Self::EfeitoIncertoNaAtribuicao { .. } => {
