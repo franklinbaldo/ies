@@ -64,8 +64,35 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str
             tabelas.push(tag);
         }
     }
-    let [tabela] = tabelas.as_slice() else {
-        return Err("tabela_de_relacionamentos_ausente_ou_repetida");
+    let tabela = match tabelas.as_slice() {
+        [unica] => *unica,
+        [] => {
+            // PEN1 (07/11/2026): a lista vazia não publica tabela,
+            // mas o formulário de relacionamento e seus campos existem.
+            // Não aceitar uma tela genérica apenas por não conter tabela.
+            let mut protocolo = 0;
+            let mut id_protocolo = 0;
+            for campo in form
+                .children()
+                .all(parser)
+                .iter()
+                .filter_map(tl::Node::as_tag)
+            {
+                if !campo.name().as_utf8_str().eq_ignore_ascii_case("input") {
+                    continue;
+                }
+                match atributo(campo, "id")?.as_deref() {
+                    Some("txtProtocolo") => protocolo += 1,
+                    Some("hdnIdProtocolo") => id_protocolo += 1,
+                    _ => {}
+                }
+            }
+            if protocolo == 1 && id_protocolo == 1 {
+                return Ok(Vec::new());
+            }
+            return Err("tabela_de_relacionamentos_ausente_ou_repetida");
+        }
+        _ => return Err("tabela_de_relacionamentos_ausente_ou_repetida"),
     };
     let mut lista = Vec::new();
     let mut ids = HashSet::new();
