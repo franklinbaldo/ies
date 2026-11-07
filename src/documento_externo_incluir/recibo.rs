@@ -59,7 +59,7 @@ pub(crate) fn interpretar_resposta(
     if !fim.is_empty()
         || nome_upload.is_empty()
         || nome.is_empty()
-        || tipo.is_empty()
+        || !tipo.eq_ignore_ascii_case("application/pdf")
         || data_hora.is_empty()
         || tamanho_bytes == 0
         || tamanho_bytes != tamanho_esperado
@@ -158,6 +158,21 @@ mod tests {
                 Err(FalhaUpload::EfeitoIncerto {
                     status_http: Some(200),
                 })
+            );
+        }
+    }
+
+    #[test]
+    fn recibo_temporario_de_outro_mime_nao_autoriza_cadastro() {
+        // BDD-332-03: sem recibo comprovando PDF, não cadastrar documento.
+        for mime in ["text/html", "image/png", "application/octet-stream"] {
+            let diferente = RECIBO.replace("application/pdf", mime);
+            assert_eq!(
+                interpretar_resposta(200, &diferente, "prova.pdf", 68),
+                Err(FalhaUpload::EfeitoIncerto {
+                    status_http: Some(200)
+                }),
+                "{mime}"
             );
         }
     }

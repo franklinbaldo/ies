@@ -113,7 +113,10 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
         abertura(arvore(&[UNIDADE], &acoes)),
         vec![
             ok(tela),
-            ok(anotacao("Anotação de teste", ID)),
+            ok(anotacao("Anotação de teste", ID).replace(
+                "</form>",
+                r#"<button type="submit" name="sbmRegistrarAnotacao" value="Salvar">Salvar</button></form>"#,
+            )),
             ok(um_destino()),
         ],
     );
