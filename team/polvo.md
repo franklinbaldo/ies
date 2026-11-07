@@ -19,21 +19,16 @@ Criar, editar, copiar, anexar, assinar e ler documentos nativos; HTML e PDF; fid
 
 Provar identidade do documento antes/depois, prévia segura, confirmação única, releitura e resíduos de treinamento.
 
-## Limites específicos
+## Orientações específicas
 
-Nenhuma execução de JS, nem HTTP 200 isolado como prova de documento criado. Não construir pseudo-interpretadores ou guardas especulativas; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
+Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações do editor. Comprove as operações com releitura direta no SEI e utilize o 🦡 Texugo para simplificar eventuais requisitos complexos.
 
 ## Continuidade atual
 
-#246 (criação de documentos), até terminar.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, a próxima issue livre de maior prioridade na fila aberta é de quem vier e pegar.
 
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-seleção de issues e reserva, uma issue por rotina, observação → RED → GREEN → CI,
-live só em treinamento, segurança, handoff e integração. A especialidade orienta
-**novas issues**, sem permitir abandonar a issue já reservada; quando a fila
-especializada estiver vazia, é permitido assumir a maior prioridade geral.
-
-A rotina deve ler esta ficha a cada execução e não duplicar regras aqui
-que já estejam em `AGENTS.md`.
+foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.

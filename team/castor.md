@@ -19,21 +19,16 @@ DRY, coesão e modularidade, causas tipadas perto do consumidor, uso de Result e
 
 Criar RED reproduzível para defeito real; diminuir duplicação sem alterar semântica pública ou enfraquecer checks.
 
-## Limites específicos
+## Orientações específicas
 
-Evitar churn de refatoração ampla, arquivos de outras frentes e novos mecanismos genéricos sem necessidade. Não criar defesas decorativas para especulações teóricas em scripts de teste; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
+Prefira mudanças modulares e coesas. Foque em melhorias reais de design Rust e simplificação de código; dialogue com a equipe e acione o 🦡 Texugo para manter o foco na simplicidade.
 
 ## Continuidade atual
 
-#264 (atribuição), até terminar.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, a próxima issue livre de maior prioridade na fila aberta é de quem vier e pegar.
 
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-seleção de issues e reserva, uma issue por rotina, observação → RED → GREEN → CI,
-live só em treinamento, segurança, handoff e integração. A especialidade orienta
-**novas issues**, sem permitir abandonar a issue já reservada; quando a fila
-especializada estiver vazia, é permitido assumir a maior prioridade geral.
-
-A rotina deve ler esta ficha a cada execução e não duplicar regras aqui
-que já estejam em `AGENTS.md`.
+foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.
