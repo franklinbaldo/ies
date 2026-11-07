@@ -14,6 +14,7 @@ fn previa() -> ProcessoEnviado {
         confirmado: false,
         alterado: false,
         manter_aberto: false,
+        remover_anotacoes: false,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
@@ -32,6 +33,7 @@ fn previa_publica_o_contrato_sem_url() {
         json_de_sucesso(&previa()),
         json!({"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
                "origem": "web", "confirmado": false, "alterado": false, "manter_aberto": false,
+               "remover_anotacoes": false,
                "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1",
                            "id_unidade": "110000002"},
                "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
@@ -188,6 +190,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     unidade: None,
                     para: DESTINO,
                     manter_aberto: false,
+                    remover_anotacoes: false,
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
