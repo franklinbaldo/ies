@@ -113,6 +113,16 @@ fatia, com recusa tipada.
   CI) e [relatório](../validacao-replay/2026-11-04-documento-obter-acervo.md).
 - [Ensaio live na UnB](../validacao-live/2026-11-04-documento-obter.md).
 
+## Omissão explícita na leitura do lote (Refs #60)
+
+`--ocultar-inacessiveis` distingue ausência de conteúdo publicado
+da recusa do próprio documento ou da sessão: apenas
+`ConteudoNaoPublicadoNaArvore` é omitido. A contagem real de
+requisições acompanha o erro tipado, e o lote prossegue sem retry.
+Não publicar a identidade do omitido; demais falhas continuam visíveis.
+BDD na CLI e testes sintéticos no agregador; ensaio específico live:
+NOT_RUN nesta fatia (sem sessão autenticada de treinamento).
+
 ## Limitações e revisão
 
 - Externos (`documento_download_anexo`): [apêndice](documento-obter/documento-externo.md);
