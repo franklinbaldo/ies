@@ -287,7 +287,7 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
     cookie: &str,
     link: &str,
     id: &str,
-    depois: Option<&[String]>,
+    unidades_apos_envio: Option<&[String]>,
 ) -> Result<(), C> {
     let depois = obter_tela(rede, cookie, link)
         .ok()
@@ -296,7 +296,7 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
         Some(false) => Ok(()),
         Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
         None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
-            depois: depois.map(ToOwned::to_owned),
+            depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
     }
 }
