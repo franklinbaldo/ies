@@ -159,7 +159,10 @@ fn recusa(arvore: String) -> ErroDocumentoObter {
 #[test]
 fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
     use ErroDocumentoObter as E;
-    assert_eq!(recusa(arvore_com("")), E::ConteudoNaoPublicadoNaArvore);
+    assert_eq!(
+        recusa(arvore_com("")),
+        E::ConteudoNaoPublicadoNaArvore { requisicoes: 4 }
+    );
     let cancelado = arvore_com("")
         .replace("svg/documento_interno.svg", "svg/documento_cancelado.svg")
         .replace(

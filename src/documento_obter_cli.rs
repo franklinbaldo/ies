@@ -27,6 +27,8 @@ use std::process::ExitCode;
 
 #[path = "documento_obter_cli/anexo.rs"]
 mod anexo;
+#[path = "documento_obter_cli/lote.rs"]
+mod lote;
 
 /// Metadados de um documento lido, sem o texto.
 pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, Value> {
@@ -72,8 +74,8 @@ pub(crate) fn cabecalho(d: &DocumentoObtido) -> String {
 }
 
 /// `Some` só para a leitura Web: sem `--html-privado`, subcomando nem
-/// opções desta operação ainda não implementadas (`--com-propriedades`,
-/// `--ocultar-inacessiveis`, que seguem para o stub). Número inválido e
+/// opção `--com-propriedades` ainda não implementada (segue para
+/// o stub). Número inválido e
 /// `--versao 0` ficam para a validação comum; NUP inválido em `--processo`
 /// é entrada inválida (saída 2).
 pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
@@ -81,7 +83,6 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         comando @ Documento {
             acao: None,
             html_privado: None,
-            ocultar_inacessiveis: false,
             com_propriedades: false,
             ..
         },
@@ -114,7 +115,14 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
             return Some(invalida(cli.json, erro.subcodigo(), mensagem));
         }
     };
-    Some(obter(cli, &numeros, processo.as_ref(), saida, versoes))
+    Some(obter(
+        cli,
+        &numeros,
+        processo.as_ref(),
+        saida,
+        versoes,
+        comando.ocultar_inacessiveis,
+    ))
 }
 
 fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
@@ -140,6 +148,7 @@ fn obter(
     processo: Option<&NumeroProcesso>,
     saida: Option<&Path>,
     versoes: PedidoDeVersoes,
+    ocultar_inacessiveis: bool,
 ) -> ExitCode {
     let Some(limite) = LimiteDoAnexo::do_ambiente() else {
         return anexo::limite_invalido(cli.json);
@@ -174,8 +183,7 @@ fn obter(
             .host()
             .to_owned();
         let indice = IndiceLocal::da_configuracao(&arquivos);
-        let mut obtidos = Vec::new();
-        for numero in numeros {
+        let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
             let pedido = PedidoDoDocumento {
                 numero,
                 unidade: cli.unidade.as_deref(),
@@ -186,28 +194,14 @@ fn obter(
                     cache_host: versoes.cache.then_some(host.as_str()),
                 },
             };
-            match obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps) {
-                Ok(obtido) => obtidos.push(obtido),
-                Err(erro) => {
-                    return Err(FalhaDoDocumento::Documento {
-                        numero: numero.as_str().to_owned(),
-                        lidos: obtidos.len(),
-                        erro,
-                    });
-                }
-            }
-        }
-        Ok((obtidos, host))
+            obter_documento_com_versoes(&sessao, &pedido, versoes, &indice, &mut EnvioHttps)
+        })?;
+        Ok((lidos, host))
     });
     match lido {
-        Ok(((obtidos, host), nota)) => publicar(
-            cli.json,
-            obtidos,
-            saida,
-            nota.as_ref(),
-            &host,
-            versoes.cache,
-        ),
+        Ok(((lidos, host), nota)) => {
+            publicar(cli.json, lidos, saida, nota.as_ref(), &host, versoes.cache)
+        }
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
             FalhaDoDocumento::Sessao(erro) => {
@@ -400,12 +394,17 @@ fn registrar_cache(
 
 fn publicar(
     json_mode: bool,
-    mut obtidos: Vec<DocumentoObtido>,
+    lidos: lote::LoteLido,
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
     host: &str,
     cache_ativo: bool,
 ) -> ExitCode {
+    let lote::LoteLido {
+        documentos: mut obtidos,
+        omitidos,
+        requisicoes_omitidas,
+    } = lidos;
     let mut caches = Vec::new();
     for d in &obtidos {
         match registrar_cache(host, cache_ativo, d) {
@@ -425,6 +424,7 @@ fn publicar(
         .iter()
         .map(|d| u32::from(d.requisicoes))
         .sum::<u32>()
+        .saturating_add(requisicoes_omitidas)
         .saturating_add(antes);
     let gravado = |i: usize| gravados.get(i).and_then(Option::as_ref);
     if json_mode {
@@ -458,6 +458,9 @@ fn publicar(
             })
             .collect();
         let mut valor = json!({"documentos": documentos, "requisicoes": total});
+        if omitidos > 0 {
+            valor["documentos_omitidos"] = json!(omitidos);
+        }
         relogin_cli::anotar(&mut valor, nota);
         if let Err(erro) = crate::saida::imprimir_json(&valor) {
             eprintln!("IES: falha ao emitir JSON: {erro}");
@@ -465,6 +468,11 @@ fn publicar(
         }
     } else {
         relogin_cli::avisar(json_mode, nota);
+        if omitidos > 0 {
+            println!(
+                "IES: {omitidos} documento(s) sem conteúdo publicado omitido(s); total de {total} requisições."
+            );
+        }
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
             if let Some(linha) = documento_versao_cli::linha_humana(d) {

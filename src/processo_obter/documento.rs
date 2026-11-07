@@ -369,7 +369,11 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
             return Err(E::DocumentoCancelado);
         }
-        ConteudoNaArvore::Vazio => return Err(E::ConteudoNaoPublicadoNaArvore),
+        ConteudoNaArvore::Vazio => {
+            return Err(E::ConteudoNaoPublicadoNaArvore {
+                requisicoes: rede.requisicoes.total_u8(),
+            });
+        }
     };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),

@@ -34,6 +34,46 @@ incorreta, limite observado ultrapassado, alteração detectada durante o hash e
 de `--confirmar` ainda não validado sai 1; entrada não aceita sai 2.
 Nenhuma delas abre sessão ou rede.
 
+## Recibo temporário — núcleo offline da PR #380
+
+A função Rust `documento_externo_incluir::recibo::interpretar_resposta` reconhece o recibo `nome_upload#nome#tipo#tamanho#data_hora#` observado no Todos/UnB e a recusa explícita `ERRO#motivo`. O formato tem seis campos, com o último vazio. Um recibo só é aceito quando HTTP 200, nome e tamanho conferem com o PDF esperado e não há campo ausente ou adicional; resposta divergente, HTML genérico ou status inesperado vira `FalhaUpload::EfeitoIncerto`, sem autorizar cadastro ou retry. Esta etapa é **somente um interpretador testado com respostas sintéticas**, ainda sem transporte e sem vínculo com a CLI de escrita. Um recibo válido não prova documento criado.
+
+## Preparação multipart offline — continuação da #380
+
+O módulo `documento_externo_incluir::multipart` monta um único corpo
+`multipart/form-data` para o campo `filArquivo`, com
+`Content-Disposition`, `Content-Type: application/pdf`, delimitadores
+e tamanho total **calculado antes do envio** (`Content-Length`).
+A função recebe o charset da tela já observada (`Iso88591` ou `Utf8`),
+codifica o nome sem substituir silenciosamente caracteres e transmite os
+bytes do PDF a partir de um leitor, sem materializar todo o arquivo em memória.
+Nome não representável no charset, fronteira inválida e tamanho que exceda
+`u64` são erros tipados `FalhaMultipart`. Os testes conferem o corpo byte a
+byte, nome acentuado nos dois charsets e o cálculo do comprimento.
+
+**Nenhum transporte remoto chama esse módulo ainda**; tampouco há uma
+prévia Web validada, upload ou confirmação. O valor de `Content-Length`
+não prova que os bytes de um futuro envio serão idênticos aos inspecionados:
+a vinculação à mesma abertura/descritor será feita na integração com o
+transporte. `--confirmar` permanece fechado antes de sessão/rede.
+
+## Transporte e recibo HTTP — bancada sintética da PR #380
+
+O cliente HTTPS único agora aceita um POST com leitor de corpo e tamanho
+conhecido. Ele usa a mesma conexão TLS/proxy dos demais comandos, envia
+`Content-Length` explícito, transmite o PDF em fluxo e não repete a
+requisição. O interpretador consome a resposta HTTP limitada do upload
+temporário, decodifica o charset declarado e distingue recibo válido,
+recusa explícita e efeito incerto, inclusive se o corpo for ilegível.
+
+O cenário BDD no proxy local exercita, numa conexão única:
+**Dado** PDF local e URL sintética de upload, **quando** o envio multipart
+ocorre e o servidor devolve o recibo, **então** os bytes, tamanho,
+`Content-Type` e recibo temporário são conferidos sem cadastro definitivo.
+A URL/cookie do teste são sintéticos; a camada TLS é substituída.
+**Nenhum comando da CLI chama ainda esse transporte**. Não é prova live
+do SEI, não habilita `--confirmar` e não comprova documento criado.
+
 ## Escopo remoto ainda não implementado
 
 O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/documento_externo.py) descreve na UnB de TREINAMENTO (11/10/2026) **duas etapas HTTP mutadoras diferentes sob uma única confirmação**: upload temporário multipart `documento_upload_anexo` → recibo → cadastro `documento_receber` com `hdnAnexos` → releitura independente da árvore e metadados do anexo. Não é correto exigir apenas um POST total, nem interpretar recibo de upload como documento já incluído.
