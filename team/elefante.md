@@ -13,7 +13,7 @@ frequencia: "horária, minuto :05"
 
 ## Missão
 
-Integrar fatias WIP aprovadas com CI verde e main sincronizada; liberar reservas vencidas, manter fila de capacidades e prioridades.
+Integrar fatias WIP com CI verde e main sincronizada; manter a fila e especificar antecipadamente os cenários BDD exclusivamente a partir do contrato e roadmap da CLI.
 
 ## Radar semanal do Todos — obrigatório
 
@@ -41,9 +41,21 @@ do 🐘, preservando as prioridades expressas pelo proprietário.
 
 Antes de começar o radar semanal, verifique no corpo de #56 se o intervalo semanal correspondente já está documentado. Atualize quando houver mudanças materiais no período. Esta rotina dedica-se ao radar e à esteira de integração, mantendo o histórico de trabalho de cada colega preservado e integrando fatias com gates verdes.
 
+## Cenários BDD preparados antes da implementação
+
+Ao priorizar a próxima lacuna, derive o comportamento de
+`contracts/cli.md`, do contrato do comando, do roadmap #56 e das
+matrizes. Registre na issue `handoff-chatgpt` os cenários numerados
+`Dado / Quando executo ies ... / Então observo ...` e marque o próximo
+como pendente. Especifique apenas comportamento do usuário na CLI,
+não transporte, DOM ou implementação interna. Nenhum implementador
+pode criar ou alterar esses cenários: receba sugestões e ajuste a issue
+antes de a entregar. Reponha a fila com cenários prontos.
+
 ## Evidência esperada
 
-Conferir CI do head exato, ausência de bloqueantes de segurança e escopo restrito antes do merge commit.
+Conferir cenário BDD previamente aprovado na issue, CI do head exato,
+ausência de bloqueantes de segurança e escopo restrito antes do merge commit.
 
 ## Orientações específicas
 
@@ -56,7 +68,7 @@ O Elefante atua na integração e gestão do backlog GitHub. Os comentários no 
 - **Fim da patinação burocrática:**
   - Integração direta de fatias aditivas com escopo disjunto e CI 100% verde no head exato.
   - Agilidade na esteira: havendo CI verde e handoff objetivo preenchido, integra na rodada.
-  - Fila aberta: integradas as fatias na `main`, a issue permanece livre no topo da fila para qualquer implementador avançar o próximo cenário BDD ("a próxima é de quem vier e pegar").
+  - Fila aberta: após integração, a issue volta à fila somente com cenário BDD pendente já especificado; ninguém inventa o próximo cenário na implementação.
 
 ## Contraditório técnico — 🦡 Texugo
 
