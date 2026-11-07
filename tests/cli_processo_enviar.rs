@@ -100,14 +100,11 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     let previa = sem_sessao(&base);
     assert_eq!(previa.status.code(), Some(1));
     assert_eq!(json(&previa)["codigo"], "fonte_invalida");
-    // Quando confirmo sem prova de releitura das anotações,
-    // Então a recusa tipada antecede qualquer acesso à sessão ou SEI.
+    // Sem sessão o comando não pode observar nem confirmar a tela.
+    // A recusa continua sem rede, mas agora a confirmação requer preflight.
     let mut confirmar = base.to_vec();
     confirmar.push("--confirmar");
     let saida = sem_sessao(&confirmar);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "remocao_de_anotacoes_sem_verificacao"
-    );
+    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
