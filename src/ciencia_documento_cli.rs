@@ -92,7 +92,7 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     ExitCode::from(erro.saida())
 }
 
-fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
+pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
         "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
         "subcodigo": erro.subcodigo(),
