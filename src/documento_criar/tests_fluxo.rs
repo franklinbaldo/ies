@@ -154,7 +154,10 @@ fn cadastro_ignora_required_de_controles_inativos() {
         "<template><input name=\"campoTemplate\" required></template>",
     ] {
         let html = cadastro()
-            .replace("<form ", "<label id=\"lblSerieTitulo\">Despacho</label><form ")
+            .replace(
+                "<form ",
+                "<label id=\"lblSerieTitulo\">Despacho</label><form ",
+            )
             .replace("</form>", &format!("{conteudo}</form>"));
         assert_eq!(
             conferir_cadastro(&html, "Despacho", None, Some("publico")),
