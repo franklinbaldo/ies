@@ -212,9 +212,11 @@ POST. Testes adversariais: 5 GET/0 POST; confirmação positiva: 6 GET,
 
 Um HTML 200 genérico, inclusive cadastro reapresentado, **não** confirma
 aceite: a árvore pode ter mudado por outro agente da conta compartilhada.
-A confirmação sintética só aceita resposta 302 para o mesmo controlador
-com ação `documento_visualizar` e `id_documento` único e igual ao nó
-novo observado na releitura. O redirecionamento jamais é seguido.
+A confirmação sintética aceita resposta 302 para o mesmo controlador
+com ação `documento_visualizar` ou `arvore_visualizar` e `id_documento`
+único e igual ao nó novo observado na releitura. A segunda forma está no
+oráculo Todos `tests/test_escritas_diretas_010.py @323eb01`, não constitui
+comprovação de escrita ao vivo no IES. O redirecionamento jamais é seguido.
 Mesmo após recusa HTTP 403/503 ou validação Infra, sempre se realiza
 a releitura independente uma vez; o efeito segue incerto (saída 3),
 com `causa_envio` tipada, `status_http` e mensagem saneada quando observados.

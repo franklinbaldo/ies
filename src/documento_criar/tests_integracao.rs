@@ -169,6 +169,56 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
 }
 
 #[test]
+fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
+    // Dado o 302 de cadastro para arvore_visualizar observado no oraculo
+    // Todos tests/test_escritas_diretas_010.py @323eb01;
+    // Quando executo ies documento criar --confirmar com --nivel publico;
+    // Entao um POST e a releitura independente comprovam o numero SEI.
+    let (resultado, pedidos) = executar(
+        true,
+        vec![
+            a::r302("controlador.php?acao=arvore_visualizar&id_documento=22"),
+            a::ok(arvore_verificadora(1)),
+        ],
+    );
+    let criado = match resultado {
+        Ok(criado) => criado,
+        Err(erro) => panic!("aceite recusado: {}", erro.subcodigo()),
+    };
+    assert!(matches!(
+        &criado.estado,
+        EstadoCriacao::Criado { numero_sei } if numero_sei == "0000102"
+    ));
+    assert_eq!(criado.requisicoes, 7);
+    let mut esperados = pedidos_antes_da_escrita();
+    esperados.push(pedido_criador());
+    esperados.push(a::get(&a::url_arvore()));
+    assert_eq!(
+        pedidos, esperados,
+        "5 GET de previa, POST unico, GET de conferencia"
+    );
+}
+
+#[test]
+fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
+    // Dado um 302 arvore_visualizar que aponta para outro id de documento;
+    // Quando executo a confirmacao e a releitura mostra um novo documento;
+    // Entao nao atribuo causalidade ao POST nem repito a escrita.
+    let (resultado, pedidos) = executar(
+        true,
+        vec![
+            a::r302("controlador.php?acao=arvore_visualizar&id_documento=999"),
+            a::ok(arvore_verificadora(1)),
+        ],
+    );
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    let mut esperados = pedidos_antes_da_escrita();
+    esperados.push(pedido_criador());
+    esperados.push(a::get(&a::url_arvore()));
+    assert_eq!(pedidos, esperados);
+}
+
+#[test]
 fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
     let (resultado, pedidos) = executar(
         true,

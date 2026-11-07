@@ -14,7 +14,7 @@ do link que a árvore publicou. Decisão:
 
 ## Link
 
-Só o link assinado da árvore: `controlador.php?acao=documento_download_anexo`
+O caminho principal usa só o link assinado da árvore: `controlador.php?acao=documento_download_anexo`
 com exatamente um `id_anexo` decimal, um `infra_hash` de 64 hex e chaves
 canônicas (forma das cassettes de PEN1, PEN2 e PEN4: `acao_origem`,
 `id_anexo`, `arvore`, `infra_sistema`, `infra_unidade_atual`,
@@ -23,6 +23,16 @@ canônicas (forma das cassettes de PEN1, PEN2 e PEN4: `acao_origem`,
 esse link (ADR 0003). Custo igual ao do interno em qualquer caminho da
 leitura Web (índice: 2, 3 ou 4; `--processo NUP`; pesquisa rápida: 4 ou
 5): o GET binário toma o lugar do GET do conteúdo.
+
+Se o `.src` de um externo não cancelado estiver vazio, mas a barra publicar
+`documento_alterar_recebido` ou `documento_consultar_recebido`, o IES faz
+**um GET adicional** desse cadastro (sem POST), confere os IDs ocultos,
+identifica o `id_anexo` em `hdnAnexos` e segue somente o link assinado
+`documento_download_anexo` publicado por `objTabelaAnexos.adicionarAcoes`.
+Sem vínculo inequívoco permanece a recusa, sem fabricar URL. Esse fallback
+foi derivado de `todos/tests/paginas_reais/documento_alterar_recebido.html`
+e da [issue Todos #1246](https://github.com/franklinbaldo/todos/issues/1246).
+A prova é offline; **live do fallback: NOT_RUN**.
 
 ## Transporte binário
 
