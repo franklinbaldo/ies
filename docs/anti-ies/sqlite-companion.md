@@ -32,6 +32,11 @@ Não compartilhar fatos entre usuários ou unidades sem contexto
 de identidade demonstrado. Falha de gravação do índice não deve
 derrubar a leitura Web do IES.
 
+O [modelo incremental de entidades](modelo-entidades.md) especifica
+identidades, observações, grau de cobertura e desempenho. A modelagem
+mínima [#360](https://github.com/franklinbaldo/ies/issues/360) vem
+**antes** da persistência da primeira observação na #358.
+
 Para escrita *simulada* futura, o anti-IES usará estado de bancada
 separado dos fatos históricos coletados pelo IES. Não extrair crate
 nova ou reescrever SQLite por antecipação: aproveitar `rusqlite`,
@@ -42,11 +47,13 @@ WAL e migrações existentes conforme
 
 1. [P1 #353](https://github.com/franklinbaldo/ies/issues/353):
    contrato e oráculo independentes para `unidade.atual`.
-2. [P1.5 #358](https://github.com/franklinbaldo/ies/issues/358):
+2. [P1.2 #360](https://github.com/franklinbaldo/ies/issues/360):
+   modelo Rust tipado e plano de schema/índices com medição de base.
+3. [P1.5 #358](https://github.com/franklinbaldo/ies/issues/358):
    o IES grava unidade/visão/Controle observados no SQLite.
-3. [P2 #354](https://github.com/franklinbaldo/ies/issues/354):
+4. [P2 #354](https://github.com/franklinbaldo/ies/issues/354):
    o anti-IES lê a projeção e serve o Controle por HTTP.
-4. [P3 #355](https://github.com/franklinbaldo/ies/issues/355):
+5. [P3 #355](https://github.com/franklinbaldo/ies/issues/355):
    teste E2E **IES → SQLite → anti-IES → IES** comparado
    ao SEI/cassette, inclusive erros e contagem de requests.
 
