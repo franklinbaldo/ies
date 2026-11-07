@@ -455,7 +455,10 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     let mut respostas = abertura(arvore_com_botao());
     respostas.extend([
         ok(tela_do_documento_40(ID, ID_DOC)),
-        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
+        ok(
+            "<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>"
+                .to_owned(),
+        ),
         ok(arvore_com_lista()),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
@@ -468,6 +471,10 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     assert_eq!(saida["retentavel"], false);
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
-        pedidos.iter().filter(|p| p.url == absoluta(&link_da_escrita())).count(), 1
+        pedidos
+            .iter()
+            .filter(|p| p.url == absoluta(&link_da_escrita()))
+            .count(),
+        1
     );
 }
