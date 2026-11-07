@@ -38,7 +38,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     // O nivel de escrita ja e uma pre-condicao independente da sessao.
     // A CLI deve informar essa causa antes de abrir arquivos privados.
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
-        return Some(publicar_erro(cli.json, &erro, 0));
+        return Some(publicar_erro(cli.json, &erro, 0, &nup));
     }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoCriacao {
@@ -53,7 +53,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         let mut contagem = Contador::novo(&mut envio);
         match executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar) {
             Ok(resultado) => publicar_resultado(cli.json, &resultado),
-            Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas()),
+            Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas(), &nup),
         }
     }))
 }
@@ -127,12 +127,16 @@ fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode
 
 const MENSAGEM_INCERTEZA: &str = "Criação de documento não comprovada. Confira o processo antes de qualquer nova confirmação; não repita --confirmar sem verificar.";
 
-fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::Value {
+fn erro_incerto_json(
+    erro: &ErroPreviaCriacao,
+    requisicoes: u8,
+    nup: &NumeroProcesso,
+) -> serde_json::Value {
     let mut saida = json!({
         "codigo": "efeito_incerto",
         "subcodigo": erro.subcodigo(),
         "erro": MENSAGEM_INCERTEZA,
-        "verificar_com": "ies processo NUP",
+        "verificar_com": format!("ies processo {}", nup.as_str()),
         "retentavel": false,
         "requisicoes": requisicoes
     });
@@ -168,7 +172,12 @@ fn mensagem_da_recusa(erro: &ErroPreviaCriacao) -> &'static str {
     }
 }
 
-fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> ExitCode {
+fn publicar_erro(
+    json_mode: bool,
+    erro: &ErroPreviaCriacao,
+    requisicoes: u8,
+    nup: &NumeroProcesso,
+) -> ExitCode {
     if matches!(
         erro,
         ErroPreviaCriacao::EfeitoIncerto
@@ -176,10 +185,10 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
             | ErroPreviaCriacao::EfeitoIncertoNaReleitura(_)
     ) {
         if json_mode {
-            println!("{}", erro_incerto_json(erro, requisicoes));
+            println!("{}", erro_incerto_json(erro, requisicoes, nup));
         } else {
             eprintln!("IES: {MENSAGEM_INCERTEZA}");
-            eprintln!("Verifique com: ies processo NUP");
+            eprintln!("Verifique com: ies processo {}", nup.as_str());
             eprintln!("Requisições: {requisicoes}");
             if let Some(causa) = erro.causa_envio() {
                 eprintln!(
@@ -216,6 +225,10 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
 mod tests {
     use super::*;
 
+    fn nup_de_teste() -> NumeroProcesso {
+        NumeroProcesso::novo("00001.000001/2026-01").unwrap()
+    }
+
     #[test]
     fn dado_previa_quando_json_entao_expoe_descricao_nivel_e_nenhuma_escrita() {
         // Dado pedido de criacao com descricao/nivel conferidos no cadastro;
@@ -251,18 +264,18 @@ mod tests {
                 mensagem_do_servidor: Some("Descrição obrigatória".to_owned()),
             }),
         );
-        let saida = erro_incerto_json(&erro, 6);
+        let saida = erro_incerto_json(&erro, 6, &nup_de_teste());
         assert_eq!(saida["codigo"], "efeito_incerto");
         assert_eq!(saida["status_http"], 200);
         assert_eq!(saida["mensagem_do_servidor"], "Descrição obrigatória");
         assert_eq!(saida["requisicoes"], 6);
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 6), ExitCode::from(3));
+        assert_eq!(publicar_erro(false, &erro, 6, &nup_de_teste()), ExitCode::from(3));
     }
 
     #[test]
     fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
-        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7);
+        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7, &nup_de_teste());
         assert_eq!(saida["codigo"], "efeito_incerto");
         assert_eq!(
             saida["requisicoes"], 7,
@@ -282,29 +295,29 @@ mod tests {
                 mensagem_do_servidor: Some("leitura recusada".to_owned()),
             }),
         ));
-        let saida = erro_incerto_json(&erro, 7);
+        let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
         assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
         assert_eq!(saida["status_http"], 403);
         assert_eq!(saida["mensagem_do_servidor"], "leitura recusada");
         assert_eq!(saida["requisicoes"], 7);
         assert!(saida["causa_releitura"].is_string());
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
+        assert_eq!(publicar_erro(false, &erro, 7, &nup_de_teste()), ExitCode::from(3));
     }
     #[test]
     fn efeito_incerto_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
         // Teste auxiliar do BDD-246-04: efeito incerto exige leitura independente.
         let erro = ErroPreviaCriacao::EfeitoIncerto;
-        let saida = erro_incerto_json(&erro, 7);
+        let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
         assert_eq!(saida["codigo"], "efeito_incerto");
-        assert_eq!(saida["verificar_com"], "ies processo NUP");
+        assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
         assert!(
             saida["erro"]
                 .as_str()
                 .is_some_and(|mensagem| mensagem.contains("Confira o processo"))
         );
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
+        assert_eq!(publicar_erro(false, &erro, 7, &nup_de_teste()), ExitCode::from(3));
     }
 
     #[test]
