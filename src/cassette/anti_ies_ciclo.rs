@@ -35,11 +35,10 @@ fn linhas_da_cassette(
 fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
     let card = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("cassettes/unb/unidade-processos-paginado-unb--e02dbcfde8c4.md");
-    let cache = std::env::var_os("IES_ACERVO_CACHE")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies")
-        });
+    let cache = match std::env::var_os("IES_ACERVO_CACHE") {
+        Some(valor) => std::path::PathBuf::from(valor),
+        None => std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
+    };
     let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-unb.zip")).unwrap();
     let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
     let instalacao = crate::cassette::acervo::gravacao::instalacao(&captura.json)
@@ -57,7 +56,7 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
     assert!(!crate::controle_reconhecido::publica_visao_detalhada(
         &original
     ));
-    let esperado = crate::paginas::juntar(&[original.clone()], None).unwrap();
+    let esperado = crate::paginas::juntar(std::slice::from_ref(&original), None).unwrap();
     let unidade = crate::unidade_atual_cli::unidade_validada(&original).unwrap();
     assert_eq!(esperado.unidade.as_deref(), Some(unidade.as_str()));
 
