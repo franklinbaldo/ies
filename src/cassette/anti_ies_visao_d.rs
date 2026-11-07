@@ -21,7 +21,7 @@ fn localizar_controle_d_unb_no_acervo() {
             continue;
         }
         let texto = std::fs::read_to_string(&card).unwrap();
-        if !texto.contains("- \`procedimento_controlar\`")
+        if !texto.contains("procedimento_controlar")
             || archive_filename(&card).ok().as_deref() != Some("todos-sei-cassettes-unb.zip")
         {
             continue;
