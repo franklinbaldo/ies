@@ -28,6 +28,29 @@ fn sobrescrita_computada_em_outro_script() -> String {
 }
 
 #[test]
+fn recusa_outro_script_classico_mesmo_sem_simbolo_literal() {
+    let html = lista_observada("831").replacen(
+        "</script>",
+        "</script><script>window['outraPropriedade'] = 1;</script>",
+        1,
+    );
+    assert_eq!(
+        conferir_oferta_exclusao(&instalacao_de_teste(), &html, "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn script_de_dados_adicional_nao_redefine_funcao_global() {
+    let html = lista_observada("831").replacen(
+        "</script>",
+        "</script><script type=\"application/json\">{\"acaoExcluir\":null}</script>",
+        1,
+    );
+    assert!(conferir_oferta_exclusao(&instalacao_de_teste(), &html, "10", "831").is_ok());
+}
+
+#[test]
 fn recusa_reatribuicao_antes_da_declaracao() {
     assert_eq!(
         conferir_oferta_exclusao(&instalacao_de_teste(), &sobrescrita_anterior(), "10", "831"),
@@ -66,7 +89,7 @@ fn instalacao_de_teste() -> Instalacao {
 }
 
 #[test]
-fn previa_recusa_ambas_sobrescritas_sem_post() {
+fn previa_recusa_sobrescritas_sem_post() {
     use crate::processo_acompanhar::fluxo::{ErroPrevia, Pedido, previa};
     use crate::processo_concluir::tests_apoio::{
         UNIDADE, abertura, absoluta, ambiente, arvore, get, ok, pedidos_da_abertura, rodar_com,
