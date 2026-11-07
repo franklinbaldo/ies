@@ -42,70 +42,49 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
-## Coordenação entre rotinas: reserva, prioridade e continuidade
+## Coordenação entre rotinas: BDD, revezamento e handoff estruturado
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
-1. A fila usa etiqueta `handoff-chatgpt` e título
-   `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
-   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
-2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
-   Procure primeiro issue com **seu** emoji imediatamente após o número,
-   mesmo com prioridade reduzida. Com duas, continue apenas a de menor
-   número e sinalize duplicidade; não assuma outra antes de concluir.
-3. Leia issue, comentários (especialmente `Como trabalhar`), histórico da
-   PR, `AGENTS.md` e ficha. Retome **o mesmo branch e a mesma PR** se
-   ainda abertos. Quando o 🐘 registrar `fatia integrada na main`,
-   continue **a mesma issue** em **PR nova a partir da main**, começando
-   por testes `wip #N`.
-4. Só sem issue própria, escolha issue livre (sem emoji de dono) da
-   especialidade, de maior prioridade e, em empate, de **menor número**.
-   Se não houver issue livre especializada, escolha a maior prioridade
-   geral; nunca a mais antiga como desempate. Examine PRs relacionadas.
-5. Reserve inserindo **só o seu emoji** após o número, sem mudar a
-   prioridade nem o resto do título. **Releia imediatamente** para
-   detectar disputa; se outra rotina venceu, retire apenas sua inserção
-   quando isso for seguro, sem apagar o emoji alheio, e escolha outra.
-   Desistência insuperável: remova só seu emoji e registre tentativas e
-   bloqueio na issue. Não substitua dono porque a prioridade mudou.
-6. Em cada execução, entregue **fatia significativa**, RED antes da
-   implementação, commits e push, e comentário na issue contendo:
-   realizado, restante, CI/SHA, RED e contagens, live
-   PASS/FAIL/NOT_RUN, requisições, resíduos, travas e próximos passos.
-   Mantenha WIP e reserva até completar os critérios integrais; não
-   alegue PASS de execução não realizada.
-7. **Implementadores não fazem merge ou fechamento de issues.**
+1. **Emoji identifica o trabalho atual:** A fila usa etiqueta `handoff-chatgpt`
+   e título `<prioridade 0–100> <emoji, se em trabalho> <título>`. O emoji serve
+   para identificar visualmente quem está com a mão na massa na rodada atual
+   (com PR aberta vinculada).
+2. **Sem reserva antecipada — a próxima é de quem vier e pegar:** É proibido
+   pré-reservar issues futuras ou manter feudo permanente. Nenhuma issue fica
+   guardada para ninguém. Você pega uma issue, implementa o cenário e entrega a PR.
+   Ao iniciar a rodada, a rotina simplesmente pega a issue aberta de maior prioridade
+   que estiver livre naquele instante ("a próxima é de quem vier e pegar").
+3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
+   por **cenários comportamentais observáveis** do comando (`Dado / Quando /
+   Então`). Alterações isoladas em scripts de ensaio ou fixtures sem mudança
+   no comportamento público da CLI em `src/` contam como infra/manutenção,
+   nunca como avanço da capacidade.
+4. **Formulário de Handoff Anti-Burlagem:** Toda PR e comentário na issue
+   devem preencher o formulário estruturado de fatos verificáveis:
+   - **Tipo da fatia:** `[ ] Capacidade da CLI (src/)` | `[ ] Apenas infra/teste`
+   - **Comando da CLI:** `ies <comando>` *(ou `Inalterado`)*
+   - **Cenário BDD (Antes vs Agora):** Dado / Quando / Então
+   - **Rede SEI:** `[ ] Bloqueado antes da rede` | `[ ] Live treinamento (reqs/resíduo)`
+   - **Evidência:** PR, head SHA e CI oficial verde
+   - **Próximo passo na CLI:** próximo cenário comportamental a atacar
+5. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
-   em ablação explícita justificada**, com CI válido. Teste novo pendente pode ter
-   `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
-   Escrita incompleta deve manter `--confirmar` fechado **antes de
-   abrir sessão ou rede**.
+   em ablação explícita**, com CI válido. Teste pendente usa
+   `#[ignore = "wip #N: motivo específico"]`. Escrita incompleta mantém
+   `--confirmar` fechado antes da rede.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
-Antes de modificar código, executar testes RED ou iniciar ensaios, **toda
-rotina implementadora** deve sincronizar **sua branch de trabalho** com
-a `main` mais recente. Faça isso a cada execução, mesmo que a branch tenha
-sido atualizada na sessão anterior:
+Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 
-1. Leia `AGENTS.md` e sua ficha, identifique a issue e a PR próprias e
-   consulte os SHAs atuais de `main` e do head da PR.
-2. **Sem PR/branch ainda:** crie uma branch nova **a partir da `main`
-   atual**, não de uma base salva em sessão anterior.
-3. **Com PR aberta:** compare o head com `main`; se estiver atrás,
-   incorpore **`main` → sua branch** pelo botão/API de atualizar a PR
-   (merge) ou por `git fetch origin && git merge --no-ff origin/main`.
-   Resolva conflitos preservando o trabalho já integrado e o de sua
-   issue. **Nunca use rebase, reset destrutivo ou force-push.**
-4. Confira novamente os SHAs e registre o merge na PR/issue. Rode os
-   gates e testes no novo head; CI verde **do SHA antigo** não valida
-   o SHA pós-merge. Se o CI falhar, trate a causa antes de solicitar
-   integração. A revisão do 🦅 também deve corresponder ao head atual.
-5. Se não houver acesso à atualização segura, ou se um conflito não
-   puder ser resolvido com evidência suficiente, **não sobrescreva
-   alterações de outra rotina**. Registre o impedimento e faça apenas
-   investigação independente até conseguir sincronizar.
+1. Identifique issue e PR próprias e consulte SHAs da `main` e do head.
+2. **Sem PR:** branch nova a partir da `main` atual.
+3. **Com PR:** se atrás, incorpore `main → branch` por merge verdadeiro.
+   Resolva conflitos preservando código integrado. **Nunca use rebase ou force-push.**
+4. Confira SHAs e registre na PR. CI verde do SHA antigo não valida o novo.
+5. Sem atualização segura ou com conflito não resolvido, não sobrescreva
+   código alheio; registre o impedimento e investigue.
 
 Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
