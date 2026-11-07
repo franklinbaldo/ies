@@ -213,6 +213,24 @@ mod tests {
         assert!(inspecionar_pdf(&pdf, Some(23)).is_ok());
     }
 
+    #[test]
+    fn nome_com_entidade_html_rejeitado_antes_de_qualquer_upload() {
+        // Oráculo: Todos documento_externo.py, NomeDeArquivoNaoAceito.
+        let pasta = Pasta::nova();
+        let path = pasta.arquivo("relatorio&#1.pdf", PDF);
+        let erro = inspecionar_pdf(&path, None).unwrap_err();
+        assert_eq!(erro.subcodigo(), "nome_arquivo_pdf_invalido");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nome_com_controle_terminal_rejeitado() {
+        let pasta = Pasta::nova();
+        let path = pasta.arquivo("relatorio\u{1b}[31m.pdf", PDF);
+        let erro = inspecionar_pdf(&path, None).unwrap_err();
+        assert_eq!(erro.subcodigo(), "nome_arquivo_pdf_invalido");
+    }
+
     #[cfg(unix)]
     #[test]
     fn arquivo_e_ancestral_simbolicos_sao_recusados() {
