@@ -150,6 +150,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .map(|preparo| preparo.previa)
 }
 
+#[allow(clippy::too_many_lines)] // Navegação Web existente, agora também conserva o cadastro.
 pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
