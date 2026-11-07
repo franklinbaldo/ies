@@ -84,6 +84,7 @@ pub(crate) struct Previa {
     pub(crate) id_procedimento: String,
     pub(crate) destino: String,
     pub(crate) id_destino: Option<String>,
+    pub(crate) tipo_destino: Option<String>,
     pub(crate) remover: bool,
     pub(crate) sem_efeito: bool,
     pub(crate) requisicoes: u8,
@@ -206,6 +207,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         id_procedimento: id.clone(),
         destino: pedido.com.as_str().to_owned(),
         id_destino: None,
+        tipo_destino: None,
         remover: pedido.remover,
         sem_efeito: false,
         requisicoes: rede.feitas(),
@@ -260,6 +262,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let DestinoConsultado {
         id: destino_id,
         nup,
+        tipo,
     } = ler_destino(&xml).map_err(E::Estrutura)?;
     if destino_id == id {
         return Err(E::RelacionamentoConsigoMesmo);
@@ -269,6 +272,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     }
     previa.sem_efeito = relacionados.iter().any(|linha| linha.id == destino_id);
     previa.id_destino = Some(destino_id);
+    previa.tipo_destino = tipo;
     previa.destino = nup;
     previa.requisicoes = rede.feitas();
     Ok(previa)
