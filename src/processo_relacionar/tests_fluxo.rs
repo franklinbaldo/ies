@@ -96,3 +96,48 @@ fn dado_nup_em_duas_linhas_quando_previa_entao_recusa_sem_ajax() {
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
 }
+
+
+/// Dado um pedido para relacionar o próprio NUP, quando executo a prévia,
+/// então recebo a recusa sem disparar o AJAX de identificação.
+#[test]
+fn dado_destino_igual_origem_quando_previa_entao_recusa_sem_ajax() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[])));
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        prever(
+            sessao,
+            &Pedido {
+                nup,
+                com: nup,
+                unidade: None,
+                remover: false,
+                confirmar: false,
+            },
+            indice,
+            rede,
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(FalhaRelacionar::RelacionamentoConsigoMesmo)
+    ));
+    assert_eq!(pedidos.len(), 4);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}
+
+/// Dado que o AJAX identifica outro processo que não o NUP solicitado,
+/// quando executo a prévia, então não aceito trocar silenciosamente o destino.
+#[test]
+fn dado_ajax_divergente_quando_previa_entao_recusa_destino_errado() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[])));
+    respostas.push(ok(
+        "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">99999.000099/2026-01</complemento></complementos>".to_owned(),
+    ));
+    let (resultado, pedidos) = executar(respostas);
+    assert!(resultado.is_err(), "NUP do AJAX diverge do pedido");
+    assert_eq!(pedidos.len(), 5);
+    assert_eq!(pedidos[4].metodo, "POST");
+}
