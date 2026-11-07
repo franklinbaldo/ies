@@ -1,6 +1,9 @@
 //! #332 — inspeção local do PDF, inteiramente anterior à sessão e à rede.
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
+use sha2::{Digest, Sha256};
+use std::fs::{self, OpenOptions};
+use std::io::{ErrorKind, Read};
 use std::path::Path;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,12 +41,83 @@ impl FalhaPdf {
 }
 
 /// Inspeção local; não prova que a instalação oferece tipo, limite ou upload.
+/// Só aceita o caminho e a extensão fornecidos; não segue links simbólicos.
 pub(crate) fn inspecionar_pdf(
-    _caminho: &Path,
-    _limite_observado: Option<u64>,
+    caminho: &Path,
+    limite_observado: Option<u64>,
 ) -> Result<PdfLocal, FalhaPdf> {
-    // Implementação só após RED dos testes sintéticos.
-    Err(FalhaPdf::Ausente)
+    // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
+    for parte in caminho.ancestors().filter(|p| !p.as_os_str().is_empty()) {
+        let info = fs::symlink_metadata(parte).map_err(|erro| {
+            if erro.kind() == ErrorKind::NotFound {
+                FalhaPdf::Ausente
+            } else {
+                FalhaPdf::Leitura
+            }
+        })?;
+        if info.file_type().is_symlink() {
+            return Err(FalhaPdf::LinkSimbolico);
+        }
+    }
+    let nome = caminho
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or(FalhaPdf::Extensao)?;
+    if !caminho
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+    {
+        return Err(FalhaPdf::Extensao);
+    }
+    let mut abertura = OpenOptions::new();
+    abertura.read(true);
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        // Mesmo O_NOFOLLOW/O_NONBLOCK da leitura privada do transporte.
+        abertura.custom_flags(0o400_000 | 0o4_000);
+    }
+    let mut arquivo = abertura.open(caminho).map_err(|_| FalhaPdf::Leitura)?;
+    let antes = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    if !antes.is_file() {
+        return Err(FalhaPdf::NaoRegular);
+    }
+    if antes.len() == 0 {
+        return Err(FalhaPdf::Vazio);
+    }
+    if limite_observado.is_some_and(|limite| antes.len() > limite) {
+        return Err(FalhaPdf::AcimaDoLimite);
+    }
+    let mut digest = Sha256::new();
+    let mut inicio = [0_u8; 5];
+    if arquivo.read_exact(&mut inicio).is_err() || inicio != *b"%PDF-" {
+        return Err(FalhaPdf::Conteudo);
+    }
+    digest.update(inicio);
+    let mut total = inicio.len() as u64;
+    let mut bloco = [0_u8; 64 * 1024];
+    loop {
+        let lidos = arquivo.read(&mut bloco).map_err(|_| FalhaPdf::Leitura)?;
+        if lidos == 0 {
+            break;
+        }
+        total = total
+            .checked_add(lidos as u64)
+            .ok_or(FalhaPdf::Leitura)?;
+        if limite_observado.is_some_and(|limite| total > limite) {
+            return Err(FalhaPdf::AcimaDoLimite);
+        }
+        digest.update(&bloco[..lidos]);
+    }
+    if total != antes.len() {
+        return Err(FalhaPdf::Leitura);
+    }
+    Ok(PdfLocal {
+        nome: nome.to_owned(),
+        tamanho_bytes: total,
+        sha256: format!("{:x}", digest.finalize()),
+    })
 }
 
 #[cfg(test)]
@@ -128,7 +202,10 @@ mod tests {
         let txt = pasta.arquivo("peticao.txt", PDF);
         let pdf = pasta.arquivo("peticao.pdf", PDF);
         assert_eq!(inspecionar_pdf(&txt, None), Err(FalhaPdf::Extensao));
-        assert_eq!(inspecionar_pdf(&pdf, Some(22)), Err(FalhaPdf::AcimaDoLimite));
+        assert_eq!(
+            inspecionar_pdf(&pdf, Some(22)),
+            Err(FalhaPdf::AcimaDoLimite)
+        );
         assert!(inspecionar_pdf(&pdf, Some(23)).is_ok());
     }
 
