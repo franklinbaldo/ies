@@ -137,7 +137,10 @@ fn dado_ajax_divergente_quando_previa_entao_recusa_destino_errado() {
         "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">99999.000099/2026-01</complemento></complementos>".to_owned(),
     ));
     let (resultado, pedidos) = executar(respostas);
-    assert!(matches!(resultado, Err(FalhaRelacionar::RelacionamentoConsigoMesmo)), "resultado do AJAX divergente: {resultado:?}");
+    assert!(
+        matches!(resultado, Err(FalhaRelacionar::DestinoDaConsultaDivergente)),
+        "resultado do AJAX divergente: {resultado:?}"
+    );
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
 }
@@ -231,4 +234,42 @@ fn dado_texto_exato_quando_remover_entao_prioriza_linha() {
     let previa = resultado.expect("a linha exata evita ambiguidade da forma");
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(pedidos.len(), 4);
+}
+
+
+/// Dado que o SEI serviu XML no complemento, quando executo uma prévia de
+/// relacionamento ainda ausente, então o IES lê o id e o NUP do XML, com
+/// um único POST de CONSULTA, sem POST modificador.
+#[test]
+fn dado_xml_do_complemento_quando_adicionar_entao_identifica_destino() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[])));
+    respostas.push(ok(format!(
+        "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento></complementos>"
+    )));
+    let (resultado, pedidos) = executar(respostas);
+    let previa = resultado.expect("XML do autocomplete deve ser lido como XML");
+    assert!(!previa.sem_efeito);
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(previa.destino, DESTINO);
+    assert_eq!(previa.requisicoes, 5);
+    assert_eq!(pedidos.len(), 5);
+    assert_eq!(pedidos[4].metodo, "POST");
+}
+
+/// Dado o protocolo pedido sem pontuação e o SEI devolvendo a forma
+/// publicada no XML, quando executo a prévia, então o id é identificado.
+#[test]
+fn dado_complemento_xml_formatado_quando_pedido_compacto_entao_equivale() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[])));
+    respostas.push(ok(format!(
+        "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento></complementos>"
+    )));
+    let compacto: String = DESTINO.chars().filter(|c| c.is_alphanumeric()).collect();
+    let (resultado, pedidos) = executar_com(respostas, &compacto, false);
+    let previa = resultado.expect("comparação tolera pontuação, sem perder letras");
+    assert_eq!(previa.destino, DESTINO);
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(pedidos.len(), 5);
 }
