@@ -24,8 +24,7 @@ fn formulario_com_relacionados(numeros: &[(&str, &str)]) -> String {
         .map(|(id, nup)| format!(
             "<tr><td><a href=\"controlador.php?acao=procedimento_trabalhar&id_procedimento={id}&infra_hash={hash}\">{nup}</a></td><td><a href=\"#ID-{id}\" onclick=\"acaoRemover('{id}');\">Remover</a></td></tr>"
         ))
-        .collect::<Vec<_>>()
-        .join("");
+        .collect::<String>();
     format!(
         r#"<html><script>
 objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={hash}');
@@ -40,9 +39,7 @@ objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_aj
     )
 }
 
-fn executar(
-    respostas: Vec<Resposta>,
-) -> (Result<super::Previa, FalhaRelacionar>, Vec<PedidoHttp>) {
+fn executar(respostas: Vec<Resposta>) -> (Result<super::Previa, FalhaRelacionar>, Vec<PedidoHttp>) {
     let amb = ambiente();
     let com = NumeroProcesso::novo(DESTINO).unwrap();
     rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
@@ -90,7 +87,9 @@ fn dado_nup_em_duas_linhas_quando_previa_entao_recusa_sem_ajax() {
     let (resultado, pedidos) = executar(respostas);
     assert!(matches!(
         resultado,
-        Err(FalhaRelacionar::Estrutura("relacionamentos_repetidos_na_tela"))
+        Err(FalhaRelacionar::Estrutura(
+            "relacionamentos_repetidos_na_tela"
+        ))
     ));
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
