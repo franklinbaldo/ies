@@ -275,6 +275,33 @@ mod tests {
     }
 
     #[test]
+    fn dado_cadastro_externo_com_titulo_vazio_quando_leio_entao_uso_tipo_selecionado() {
+        // Dado cadastro externo observado em Todos
+        // tests/paginas_reais/documento_alterar_recebido.html @main,
+        // com lblSerieTitulo vazio e selSerie selecionando Anexo,
+        // quando executo ies documento DOC --com-propriedades --json,
+        // entao o tipo publicado e Anexo, nao tipo_cadastro_documento_vazio.
+        let html = r#"<form id="frmDocumentoCadastro">
+            <input id="hdnIdDocumento" value="21">
+            <input id="hdnIdProcedimento" value="10">
+            <label id="lblSerieTitulo"></label>
+            <select id="selSerie">
+                <option value="null">&nbsp;</option>
+                <option value="293" selected="selected">Anexo</option>
+                <option value="290">Ofício</option>
+            </select>
+            <input id="txtDescricao" value="Backup de teste">
+            <input id="txtNomeArvore" value="Anexo externo">
+            <textarea id="txaObservacoes"></textarea>
+            <input name="rdoNivelAcesso" value="0" checked>
+        </form>"#;
+        let lida = ler_formulario(html, "21", "10").unwrap();
+        assert_eq!(lida.tipo, "Anexo");
+        assert_eq!(lida.descricao, "Backup de teste");
+        assert_eq!(lida.nivel_de_acesso, Some(Nivel::Publico));
+    }
+
+    #[test]
     fn dado_formulario_observado_quando_lido_entao_preserva_campos() {
         // Caso Todos tests/paginas_reais/documento_alterar.html @323eb01.
         let html = r#"<form id="frmDocumentoCadastro" method="post">
