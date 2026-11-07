@@ -33,9 +33,11 @@ da tela declara.
   2 (`mais_de_um_destino_nao_suportado`). Antes de qualquer arquivo.
 - `--manter-aberto`: marca "Manter processo aberto na unidade atual"
   (`chkSinManterAberto=on`). Sem ele, a caixa vai como servida (desmarcada).
-- `--remover-anotacoes`: na **prévia**, solicita a opção real
-  `chkSinRemoverAnotacoes` da tela, quando presente e habilitada. Ausência
-  da opção é recusa tipada; não assumir que todas as instalações a oferecem.
+- `--remover-anotacoes`: na **prévia**, escolhe o checkbox real
+  `chkSinRemoverAnotacoes`, quando habilitado na tela de envio. Se ausente,
+  mas a barra oferecer `anotacao_registrar` e o formulário do mesmo processo
+  for legível, planeja limpar `txaDescricao` antes do envio; sem ambos os
+  caminhos, recusa com `remocao_de_anotacoes_nao_oferecida`.
   `--confirmar` com essa opção permanece **indisponível antes da sessão/rede**
   até a leitura independente comprovar também a remoção das anotações.
   A leitura de `aberto_em` comprova tramitação, não exclusão de anotações.
@@ -101,8 +103,9 @@ da tela declara.
    3, como antes. Destino já em `aberto_em`: 1,
    `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
-   e o plano. `remover_anotacoes: true` aparece explicitamente na prévia, somente
-   quando o checkbox está na tela; sem a opção, a prévia o deixa desmarcado.
+   e o plano. Com `--remover-anotacoes`, publica `remover_anotacoes: true`
+   e `metodo_remocao: "checkbox_no_envio" | "limpar_anotacao"`, conforme
+   os controles observados. Sem a flag, não altera a saída legada.
    Quando a anotação foi lida, `anotacao_antes: true/false` aparece na
    prévia; se o link não foi oferecido, o campo é omitido.
    Nenhum POST de escrita.
