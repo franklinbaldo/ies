@@ -33,7 +33,6 @@ fn previa_publica_o_contrato_sem_url() {
         json_de_sucesso(&previa()),
         json!({"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
                "origem": "web", "confirmado": false, "alterado": false, "manter_aberto": false,
-               "remover_anotacoes": false,
                "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1",
                            "id_unidade": "110000002"},
                "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
@@ -339,4 +338,13 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
 
 fn json_de_falha(erro: &ErroEnviar) -> serde_json::Value {
     serde_json::to_value(super::json_de_falha(erro)).unwrap()
+}
+
+#[test]
+fn bdd_previa_publica_opcao_somente_se_solicitada() {
+    let mut feito = previa();
+    assert!(json_de_sucesso(&feito).get("remover_anotacoes").is_none());
+    feito.remover_anotacoes = true;
+    assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
+    assert!(humano(&feito).contains("Remover anotações no envio: sim"));
 }
