@@ -65,8 +65,33 @@ jobs:
                   html=base64.b64decode(item["response"].get("body_base64","")).decode("utf8","replace")
                   p=Scripts(); p.feed(html)
                   scripts=p.scripts
-                  summaries.append({
+                  # Nunca publicar fonte JS, URL, IDs ou valores: somente predicados.
+          id_scripts=[v for v in scripts if "id_atividade=" in v]
+          pistas=[]
+          for js in id_scripts:
+              cut=js.find("id_atividade=")
+              call=js[:cut].rfind("atualizarArvore(")
+              arg=js[call+len("atualizarArvore("):].lstrip() if call>=0 else ""
+              quote=arg[:1] if arg[:1] in ("'", '"') else ""
+              literal=arg[1:].split(quote,1)[0] if quote else ""
+              prefix=js[:call] if call>=0 else ""
+              pistas.append({
+                  "call_before_id":call>=0,
+                  "arg_quoted":bool(quote),
+                  "literal_controlador":literal.startswith("controlador.php?"),
+                  "literal_visualizar":"acao=procedimento_visualizar" in literal,
+                  "literal_marca_ciencia":"visualizar_ciencias=1" in literal,
+                  "literal_com_atividade":"id_atividade=" in literal,
+                  "prefix_function_init":"function inicializar()" in prefix,
+                  "prefix_if":"if(" in prefix or "if (" in prefix,
+                  "prefix_return":"return " in prefix,
+                  "prefix_throw":"throw " in prefix,
+                  "prefix_has_semicolon":";" in prefix,
+                  "script_before_call_bytes":len(prefix)
+              })
+          summaries.append({
                       "site":card.parent.name,
+            "pistas":pistas,
                       "target":"processo" if op == "procedimento_ciencia" else "documento",
                       "scripts":len(scripts),
                       "js_calls":sum(s.count("atualizarArvore(") for s in scripts),
