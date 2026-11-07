@@ -7,16 +7,12 @@ use super::{
     fluxo::{ErroPreviaExterna, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
-use crate::formulario_web::{
-    CodificacaoDaTela, TelaServida, enviar_submissao_via,
-};
+use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::leitura;
-use crate::processo_obter::{
-    EnvioDoProcesso, SessaoDoProcesso, obter_processo,
-};
+use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, obter_processo};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
@@ -42,14 +38,18 @@ impl ErroConfirmacaoExterna {
     pub(crate) fn etapa(&self) -> &'static str {
         match self {
             Self::Previa(_) | Self::EnderecoDeUploadNaoObservado => "previa",
-            Self::Sequencia(FalhaConfirmacao::FotoInicialIncompleta
-                | FalhaConfirmacao::FotoInicialInconsistente) => "fotografia_inicial",
-            Self::Sequencia(FalhaConfirmacao::UploadRecusado(_)
-                | FalhaConfirmacao::UploadIncerto(_)) => "upload_temporario",
+            Self::Sequencia(
+                FalhaConfirmacao::FotoInicialIncompleta
+                | FalhaConfirmacao::FotoInicialInconsistente,
+            ) => "fotografia_inicial",
+            Self::Sequencia(
+                FalhaConfirmacao::UploadRecusado(_) | FalhaConfirmacao::UploadIncerto(_),
+            ) => "upload_temporario",
             Self::Sequencia(FalhaConfirmacao::TemporarioSemCadastro(_)) => "preparo_do_cadastro",
             Self::Sequencia(FalhaConfirmacao::CadastroIncerto(_)) => "cadastro_definitivo",
-            Self::Sequencia(FalhaConfirmacao::ReleituraIncerta(_)
-                | FalhaConfirmacao::EfeitoIncerto) => "releitura_independente",
+            Self::Sequencia(
+                FalhaConfirmacao::ReleituraIncerta(_) | FalhaConfirmacao::EfeitoIncerto,
+            ) => "releitura_independente",
         }
     }
 
@@ -106,11 +106,16 @@ pub(crate) fn executar_confirmacao_via<V, U>(
 ) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
 where
     V: EnvioDoProcesso,
-    U: FnOnce(&mut V, &str, &str, CodificacaoDaTela, &PdfLocal) -> Result<ReciboUpload, FalhaUpload>,
+    U: FnOnce(
+        &mut V,
+        &str,
+        &str,
+        CodificacaoDaTela,
+        &PdfLocal,
+    ) -> Result<ReciboUpload, FalhaUpload>,
 {
-    let preparado = preparar_previa(
-        sessao, nup, unidade_pedida, tipo, pdf, indice, envio,
-    ).map_err(ErroConfirmacaoExterna::Previa)?;
+    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
+        .map_err(ErroConfirmacaoExterna::Previa)?;
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado)?;
     let destino = conferir_upload(&instalacao, preparado.cadastro.plano.url_upload())?;
@@ -121,15 +126,31 @@ where
     };
     let unidade = preparado.previa.unidade;
     let numero_sei = confirmar_sequencia(
-        envio, &instalacao, &tela, &unidade,
-        &preparado.cadastro, &preparado.foto_antes, tipo,
-        |rede| upload(rede, &destino, &preparado.url_cadastro, preparado.codificacao, pdf),
+        envio,
+        &instalacao,
+        &tela,
+        &unidade,
+        &preparado.cadastro,
+        &preparado.foto_antes,
+        tipo,
+        |rede| {
+            upload(
+                rede,
+                &destino,
+                &preparado.url_cadastro,
+                preparado.codificacao,
+                pdf,
+            )
+        },
         |rede, submissao| enviar_submissao_via(submissao, sessao.cookie, |s, c| rede.post(s, c)),
         |rede| {
-            obter_processo(
-                sessao, &leitura(nup, unidade_pedida, false), indice, rede,
-            ).map(|depois| FotoProcesso::da_arvore(&depois.arvore))
+            obter_processo(sessao, &leitura(nup, unidade_pedida, false), indice, rede)
+                .map(|depois| FotoProcesso::da_arvore(&depois.arvore))
         },
-    ).map_err(ErroConfirmacaoExterna::Sequencia)?;
-    Ok(InclusaoComprovada { numero_sei, unidade })
+    )
+    .map_err(ErroConfirmacaoExterna::Sequencia)?;
+    Ok(InclusaoComprovada {
+        numero_sei,
+        unidade,
+    })
 }
