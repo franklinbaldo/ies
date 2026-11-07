@@ -8,6 +8,8 @@ pub(crate) mod anexo;
 pub(crate) mod cadastro;
 #[allow(dead_code)] // #332: seleção externa será ligada à prévia Web.
 pub(crate) mod escolha;
+#[allow(dead_code)] // #332: prévia remota será chamada pela CLI.
+pub(crate) mod fluxo;
 #[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
 pub(crate) mod multipart;
