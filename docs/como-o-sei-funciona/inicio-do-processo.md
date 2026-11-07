@@ -65,6 +65,12 @@ instalações já apresentaram selects desabilitados**. Restrito exige hipótese
 na lista que o cadastro oferece (que pode depender de AJAX);
 **não presumir** que uma hipótese existe. Interessados fornecidos
 devem ser resolvidos univocamente pela busca da própria tela.
+No retorno AJAX de autocomplete, a lista publicada é `<itens>`,
+com os candidatos em elementos `<item>` internos. Itens que não
+pertencem à raiz observada não oferecem identidade selecionável.
+A regressão #245 injeta um `<item>` externo **sintético** para impedir
+a aceitação de identidade alheia; não atribui essa estrutura a uma
+instalação real.
 
 A amostra registra `btnSalvar` como botão de ação no navegador;
 o Todos observa que não integra o payload: o formulário é submetido
