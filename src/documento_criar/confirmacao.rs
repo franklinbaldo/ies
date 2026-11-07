@@ -67,7 +67,7 @@ fn redirecionamento_do_mesmo_controlador(
         let mut ids = consulta
             .split('&')
             .filter_map(|campo| campo.strip_prefix("id_documento="));
-        acoes.next() == Some("documento_visualizar")
+        matches!(acoes.next(), Some("documento_visualizar" | "arvore_visualizar"))
             && acoes.next().is_none()
             && ids.next() == Some(id_novo)
             && ids.next().is_none()
