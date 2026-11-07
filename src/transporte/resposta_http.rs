@@ -173,11 +173,8 @@ impl<R: BufRead> Corpo<R> {
             let tamanho = linha.split(';').next().unwrap_or_default().trim();
             let tamanho = usize::from_str_radix(tamanho, 16).map_err(|_| invalido())?;
             if tamanho == 0 {
-                // Trailers até a linha vazia (ou o fim da conexão).
-                while !ler_linha_io(&mut self.leitor)
-                    .unwrap_or_default()
-                    .is_empty()
-                {}
+                // Trailers terminam em linha vazia; EOF/truncamento é falha.
+                while !ler_linha_io(&mut self.leitor)?.is_empty() {}
                 self.modo = Modo::EmPedacos {
                     restante: 0,
                     total,
