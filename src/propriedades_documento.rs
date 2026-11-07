@@ -163,9 +163,29 @@ pub(crate) fn ler_formulario(
         return Err(ErroHtml::valor("identidade_cadastro_documento_divergente"));
     }
     let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser)?;
-    if tipo.trim().is_empty() {
-        return Err(ErroHtml::valor("tipo_cadastro_documento_vazio"));
-    }
+    let tipo = if tipo.trim().is_empty() {
+        // Cadastro do externo no SEI 4.0.9: o rótulo é vazio, mas o tipo
+        // efetivamente escolhido está no option selecionado de selSerie.
+        let select = campo(form, parser, "selSerie")?;
+        let mut selecionados = Vec::new();
+        for no in select.query_selector(parser, "option").into_iter().flatten() {
+            let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+                continue;
+            };
+            let a = atributos(tag)
+                .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+            if a.presente("selected") {
+                selecionados.push(texto(tag, parser)?);
+            }
+        }
+        match selecionados.as_slice() {
+            [unico] if !unico.trim().is_empty() => unico.clone(),
+            [] | [_] => return Err(ErroHtml::valor("tipo_cadastro_documento_vazio")),
+            _ => return Err(ErroHtml::repetido("tipo_cadastro_documento_repetido")),
+        }
+    } else {
+        tipo
+    };
     Ok(PropriedadesLidas {
         fonte: "documento_alterar",
         tipo,
