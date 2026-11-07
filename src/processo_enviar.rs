@@ -25,6 +25,8 @@ mod tests_destino;
 #[cfg(test)]
 mod tests_fluxo;
 #[cfg(test)]
+mod tests_fallback;
+#[cfg(test)]
 mod tests_reconciliacao;
 #[cfg(test)]
 mod tests_tela;
