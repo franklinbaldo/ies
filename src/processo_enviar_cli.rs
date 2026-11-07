@@ -16,7 +16,7 @@ use serde_json::json;
 use std::process::ExitCode;
 
 mod humano;
-use humano::humano;
+pub(crate) use humano::humano;
 
 /// `Some` só para `ies processo enviar`.
 pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
