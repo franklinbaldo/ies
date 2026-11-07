@@ -97,7 +97,6 @@ fn dado_nup_em_duas_linhas_quando_previa_entao_recusa_sem_ajax() {
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
 }
 
-
 /// Dado um pedido para relacionar o próprio NUP, quando executo a prévia,
 /// então recebo a recusa sem disparar o AJAX de identificação.
 #[test]
@@ -144,7 +143,6 @@ fn dado_ajax_divergente_quando_previa_entao_recusa_destino_errado() {
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
 }
-
 
 // Fonte comportamental: Todos tests/test_processo_relacionar_remover_010.py
 // @323eb01, test_so_os_digitos_bastam; não reduzir protocolo alfanumérico a dígitos.
@@ -215,7 +213,9 @@ fn dado_duas_pontuacoes_equivalentes_quando_remover_entao_ambiguo() {
     let (resultado, pedidos) = executar_com(respostas, "ABC", true);
     assert!(matches!(
         resultado,
-        Err(FalhaRelacionar::Estrutura("relacionamentos_repetidos_na_tela"))
+        Err(FalhaRelacionar::Estrutura(
+            "relacionamentos_repetidos_na_tela"
+        ))
     ));
     assert_eq!(pedidos.len(), 4);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -235,7 +235,6 @@ fn dado_texto_exato_quando_remover_entao_prioriza_linha() {
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(pedidos.len(), 4);
 }
-
 
 /// Dado que o SEI serviu XML no complemento, quando executo uma prévia de
 /// relacionamento ainda ausente, então o IES lê o id e o NUP do XML, com
