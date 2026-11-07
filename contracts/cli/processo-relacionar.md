@@ -9,9 +9,10 @@ implementation: partial
 
 # Relacionar processos (#258)
 
-**Nesta PR, somente prévia Web está implementada.** O --confirmar
-recusa antes de abrir a sessão ou enviar qualquer requisição, com subcódigo
-confirmacao_de_relacionamento_nao_validada.
+**Prévia e remoção confirmada estão implementadas; adição mutadora segue bloqueada.**
+`--confirmar` sempre confere a tela e o estado existente antes de gravar.
+A adição nova continua recusada com `confirmacao_de_relacionamento_nao_validada`
+sem POST mutador; uma relação já existente é `sem_efeito` sem escrita.
 
 Abertura com a unidade da sessão exigida: a barra do nó PROCESSO fornece
 procedimento_relacionar como URL assinada. GET da tela de relacionamentos,
@@ -50,16 +51,25 @@ relacionamento.
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
 Orçamento: abertura + 1 GET da tela, sem POST.
 
-A escrita futura requer um POST derivado da tela servida, uma única vez,
-sem seguir 302 e com releitura independente da mesma lista. Efeito incerto
-sai 3. A remoção requer a action procedimento_excluir_relacionamento
-observada dentro de acaoRemover, nunca texto solto. Não é implementada
-enquanto faltarem provas de escrita única e de verificação.
+**Remoção confirmada:** um único POST com `hdnInfraItemId` do vínculo
+identificado, action `procedimento_excluir_relacionamento` extraída do
+`acaoRemover(id)` ativo e conferida pelo primitivo de formulário. O POST
+precisa devolver 302 sem seguir o redirecionamento, para a própria tela
+`procedimento_relacionar` com `resultado=1`; então uma GET independente
+deve constatar a ausência do vínculo. Orçamento sintético a frio:
+**4 GET + 1 POST mutador + 1 GET de verificação**. Se o envio falhar,
+retornar 200 genérico, 302 inválido ou a releitura não comprovar a remoção,
+o efeito é **incerto, saída 3, sem retry**, preservando o status HTTP quando
+conhecido. Mesmo a ausência da linha depois de falha do POST não comprova
+o nosso envio (possível alteração concorrente).
 
-Campos de sucesso JSON: nup, id_procedimento, destino, id_destino (null
-quando não observado), remover, confirmado false, alterado false,
-sem_efeito, origem web e requisicoes. Nunca expor URL, infra_hash, cookie,
-senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
+Campos de sucesso JSON: `nup`, `id_procedimento`, `destino`, `id_destino`
+(null quando não observado), `tipo_destino` (null quando ausente),
+`remover`, `confirmado`, `alterado`, `sem_efeito`, `origem: web` e
+`requisicoes`. Os três indicadores decorrem de um único estado de domínio:
+prévia, sem efeito ou confirmação conferida. Nunca expor URL, `infra_hash`,
+cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
+1 recusa pré-envio, 2 uso inválido, 3 efeito incerto após envio.
 
 ## Evidência
 
@@ -71,15 +81,17 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 - Testes sintéticos src/processo_relacionar/tests.rs e tests_fluxo.rs.
 - Handler de remoção: função `acaoRemover(id)` no script ativo, com campo,
   action e submit literais; não se infere a rota de comentário, template
-  ou literal solto. Essa derivação está testada, ainda não habilita escrita.
-- RED local NOT_RUN; CI a verificar. Live PEN1/UnB NOT_RUN (0 pedidos);
-  escrita NOT_RUN, resíduo nenhum.
+  ou literal solto. A derivação e o POST único são testados offline em
+  `src/processo_relacionar/tests_escrita.rs`.
+- RED demonstrado no CI sintético da PR #390; GREEN depende do CI do head.
+  Live PEN1/UnB NOT_RUN (0 pedidos reais); escrita real NOT_RUN,
+  nenhum retry nem resíduo.
 
 ## Subcódigos tipados da fatia
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
-| `confirmacao_de_relacionamento_nao_validada` | `--confirmar` nesta fatia: saída 1 antes de abrir sessão ou rede |
+| `confirmacao_de_relacionamento_nao_validada` | Adição nova com `--confirmar`: recusa antes de POST mutador |
 | `relacionar_nao_publicado_na_barra` | A barra do processo não publica `procedimento_relacionar` |
 | `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
 | `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
@@ -89,6 +101,10 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 | `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
 | `destino_da_consulta_diverge_do_pedido` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
 | `resposta_da_consulta_nao_xml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
+| `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
+| `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
+| `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
+| `efeito_incerto` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 3 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.
