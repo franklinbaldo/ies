@@ -9,7 +9,7 @@ use super::tela::{
     AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
     campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
 };
-use super::{Destino, PedidoDoEnvio, ProcessoEnviado};
+use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
     CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
     derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
@@ -71,9 +71,6 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
-    if pedido.remover_anotacoes && !tela.conferida.remover_anotacoes_oferecida {
-        return Err(C::RemocaoDeAnotacoesNaoOferecida);
-    }
     let anotacao_antes = if pedido.remover_anotacoes {
         match acoes.anotacoes.map_err(C::LinkDasAnotacoes)? {
             Some(link) => {
@@ -93,6 +90,17 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     } else {
         None
     };
+    let metodo_remocao = if pedido.remover_anotacoes {
+        Some(if tela.conferida.remover_anotacoes_oferecida {
+            MetodoRemocao::CheckboxNoEnvio
+        } else if anotacao_antes.is_some() {
+            MetodoRemocao::LimparAnotacao
+        } else {
+            return Err(C::RemocaoDeAnotacoesNaoOferecida);
+        })
+    } else {
+        None
+    };
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
@@ -106,6 +114,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         manter_aberto: pedido.manter_aberto,
         remover_anotacoes: pedido.remover_anotacoes,
         anotacao_antes,
+        metodo_remocao,
         destino,
         aberto_em,
         depois: None,
