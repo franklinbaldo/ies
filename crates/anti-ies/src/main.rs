@@ -100,8 +100,8 @@ mod tests {
                 )
                 .unwrap();
             }
-            let acesso = (!matches!(tipo, BancoDoTeste::Nenhum))
-                .then_some((&banco, &instalacao, "ensaio"));
+            let acesso =
+                (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((&banco, &instalacao, "ensaio"));
             atender_http(&mut fluxo, acesso).expect("responder");
         });
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
@@ -124,13 +124,19 @@ mod tests {
 
     #[test]
     fn controlador_nao_implementado_responde_501_no_fio() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_trabalhar", BancoDoTeste::Observado);
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_trabalhar",
+            BancoDoTeste::Observado,
+        );
         assert!(resposta.starts_with("HTTP/1.1 501 Not Implemented\r\n"));
     }
 
     #[test]
     fn controle_r_servido_pelo_banco_no_http_real() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", BancoDoTeste::Observado);
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_controlar",
+            BancoDoTeste::Observado,
+        );
         assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(resposta.contains("<a id='lnkInfraUnidade'>TESTE</a>"));
         assert!(resposta.contains("<caption>0 registros:</caption>"));
@@ -139,7 +145,10 @@ mod tests {
 
     #[test]
     fn controle_sem_dados_nao_finge_lista_vazia() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", BancoDoTeste::Vazio);
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_controlar",
+            BancoDoTeste::Vazio,
+        );
         assert!(resposta.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
     }
 }
