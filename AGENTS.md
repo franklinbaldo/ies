@@ -42,43 +42,36 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
-## Coordenação entre rotinas: reserva, prioridade e continuidade
+## Coordenação entre rotinas: BDD, revezamento e handoff estruturado
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
-1. A fila usa etiqueta `handoff-chatgpt` e título
-   `<prioridade 0–100> <emoji de dono, se houver> <título>`.
+1. **Fila com emoji da fatia ativa:** A fila usa etiqueta `handoff-chatgpt`
+   e título `<prioridade 0–100> <emoji de dono, se houver> <título>`.
    Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
-   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
-2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
-   Procure primeiro issue com **seu** emoji imediatamente após o número,
-   mesmo com prioridade reduzida. Com duas, continue apenas a de menor
-   número e sinalize duplicidade; não assuma outra antes de concluir.
-3. Leia issue, comentários (especialmente `Como trabalhar`), histórico da
-   PR, `AGENTS.md` e ficha. Retome **o mesmo branch e a mesma PR** se
-   ainda abertos. Quando o 🐘 registrar `fatia integrada na main`,
-   continue **a mesma issue** em **PR nova a partir da main**, começando
-   por testes `wip #N`.
-4. Só sem issue própria, escolha issue livre (sem emoji de dono) da
-   especialidade, de maior prioridade e, em empate, de **menor número**.
-   Se não houver issue livre especializada, escolha a maior prioridade
-   geral; nunca a mais antiga como desempate. Examine PRs relacionadas.
-5. Reserve inserindo **só o seu emoji** após o número, sem mudar a
-   prioridade nem o resto do título. **Releia imediatamente** para
-   detectar disputa; se outra rotina venceu, retire apenas sua inserção
-   quando isso for seguro, sem apagar o emoji alheio, e escolha outra.
-   Desistência insuperável: remova só seu emoji e registre tentativas e
-   bloqueio na issue. Não substitua dono porque a prioridade mudou.
-6. Em cada execução, entregue **fatia significativa**, RED antes da
-   implementação, commits e push. O comentário na issue/PR deve focar
-   em **informações úteis e relevantes**, sem liturgia ou negativas
-   óbvias ("li AGENTS, não fiz merge, não fechei issue"):
-   - **Avanço real:** o que a CLI faz/recusa agora no SEI (declare se foi apenas infra/teste interno).
-   - **Rede e escrita:** `--confirmar` fechado ou resultado live (requisições e resíduo em treinamento).
-   - **Evidência:** PR, head SHA e CI oficial verde (contagens de testes).
-   - **Próximo passo:** ação objetiva seguinte para fechar a issue.
-   Mantenha WIP e reserva até concluir; nunca alegue PASS sem ensaio real.
-7. **Implementadores não fazem merge ou fechamento de issues.**
+   justificativa. O emoji identifica quem está trabalhando na **fatia atual**
+   (na PR aberta da rodada).
+2. **Revezamento Rotativo de Eixos (Anti-Feudo):** O emoji **não é casamento
+   vitalício com a issue**. Ninguém fica preso indefinidamente na mesma issue.
+   Ao concluir uma fatia e ter a PR integrada na `main`, a issue pode e deve
+   receber o próximo cenário BDD por outro implementador (olhar fresco).
+   Se uma issue empacar em dependência externa, o implementador deve mover seu
+   emoji para a próxima issue prioritária livre da fila em vez de inventar
+   micro-tarefas internas.
+3. **BDD — Foco no Comportamento da CLI:** O avanço é medido exclusivamente
+   por **cenários comportamentais observáveis** do comando (`Dado / Quando /
+   Então`). Alterações isoladas em scripts de ensaio ou fixtures sem mudança
+   no comportamento público da CLI em `src/` contam como infra/manutenção,
+   nunca como avanço da capacidade.
+4. **Formulário de Handoff Anti-Burlagem:** Toda PR e comentário na issue
+   devem preencher o formulário estruturado de fatos verificáveis:
+   - **Tipo da fatia:** `[ ] Capacidade da CLI (src/)` | `[ ] Apenas infra/teste`
+   - **Comando da CLI:** `ies <comando>` *(ou `Inalterado`)*
+   - **Cenário BDD (Antes vs Agora):** Dado / Quando / Então
+   - **Rede SEI:** `[ ] Bloqueado antes da rede` | `[ ] Live treinamento (reqs/resíduo)`
+   - **Evidência:** PR, head SHA e CI oficial verde
+   - **Próximo passo na CLI:** próximo cenário comportamental a atacar
+5. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
    em ablação explícita**, com CI válido. Teste pendente usa
    `#[ignore = "wip #N: motivo específico"]`. Escrita incompleta mantém
