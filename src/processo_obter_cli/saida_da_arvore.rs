@@ -139,10 +139,10 @@ pub(super) fn inserir_documentos(objeto: &mut Map<String, Value>, arvore: &Arvor
 /// Uma linha por documento, com a pasta, ou aviso de leitura parcial.
 pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
     if !arvore.documentos_incluidos {
-        let aviso = arvore
-            .aviso_leitura_parcial
-            .map(texto_do_aviso)
-            .unwrap_or_else(|| "leitura parcial do processo: lista de documentos incompleta".into());
+        let aviso = arvore.aviso_leitura_parcial.map_or_else(
+            || "leitura parcial do processo: lista de documentos incompleta".to_owned(),
+            texto_do_aviso,
+        );
         let _ = write!(texto, "\nAviso: {aviso}.");
         return;
     }
