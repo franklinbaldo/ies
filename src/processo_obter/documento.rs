@@ -392,7 +392,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     } else {
         match propriedades_documento::ler_link(
             instalacao, lido.html, &no.id, &lido.processo.id,
-        ).map_err(E::Propriedades)? {
+        ).map_err(E::Html)? {
             None => PropriedadesDocumento::NaoPublicadas,
             Some(url) => {
                 let html = match rede.get(&url).map_err(E::Processo)? {
@@ -405,7 +405,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
                 };
                 PropriedadesDocumento::Lidas(
                     propriedades_documento::ler_formulario(&html, &no.id, &lido.processo.id)
-                        .map_err(E::Propriedades)?,
+                        .map_err(E::Html)?,
                 )
             }
         }
