@@ -101,3 +101,25 @@ Emissor: [src/documento_web.rs](../../src/documento_web.rs).
 | `titulo_documento_sem_numero_sei` | Título documento sem número SEI. |
 | `titulo_documento_sem_tipo` | Título documento sem tipo. |
 | `titulos_de_documento_repetidos` | Títulos de documento repetidos. |
+
+### propriedades_documento
+
+Emissor: [src/propriedades_documento.rs](../../src/propriedades_documento.rs).
+Somente leitura do link assinado e do cadastro publicado; não há POST.
+
+| Subcódigo | Fato observado |
+| --- | --- |
+| `barra_cadastro_documento_ilegivel` | Barra do nó de documento não reconhecida. |
+| `cadastro_documento_ilegivel` | HTML ou atributo do cadastro malformado. |
+| `campo_cadastro_documento_ausente` | Controle esperado não publicado. |
+| `campo_cadastro_documento_repetido` | Controle identificado mais de uma vez. |
+| `formulario_cadastro_documento_ausente` | Não existe formulário observado. |
+| `formularios_cadastro_documento_repetidos` | Formulário publicado mais de uma vez. |
+| `identidade_cadastro_documento_divergente` | IDs ocultos diferem dos da árvore. |
+| `link_cadastro_documento_invalido` | Link assinado diverge da ação ou dos IDs. |
+| `links_cadastro_documento_repetidos` | Barra publica vários links de cadastro. |
+| `nivel_cadastro_documento_ilegivel` | Opções de nível ilegíveis. |
+| `nivel_cadastro_documento_inesperado` | Marcação de nível não reconhecida. |
+| `texto_cadastro_documento_ilegivel` | Texto não decodificável. |
+| `tipo_cadastro_documento_vazio` | Tipo não publicado no rótulo do cadastro. |
+| `valor_cadastro_documento_ausente` | Campo sem valor esperado. |
