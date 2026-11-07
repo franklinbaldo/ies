@@ -13,10 +13,8 @@ comportamento**, não arquitetura a portar.
 
 ## Equipe de agentes e avatares
 
-O emoji é o **avatar** e o identificador de reserva da rotina. Cada membro
-possui ficha própria em `team/`, com o tipo OKF compartilhado `TeamMember` e especificação em
-`.okf/specs/`. Leia **este AGENTS.md e a ficha** antes de trabalhar: os
-prompts de agendamento só identificam quem executa.
+O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
+Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 
 | Avatar | Membro e especialidade | Ficha | Agenda |
 | --- | --- | --- | --- |
@@ -26,19 +24,23 @@ prompts de agendamento só identificam quem executa.
 | 🦅 | Gavião — revisão independente | [team/gaviao.md](team/gaviao.md) | :40 |
 | 🐙 | Polvo — documentos e editor | [team/polvo.md](team/polvo.md) | :46 |
 | 🦫 | Castor — qualidade Rust, DRY e tipagem de erros | [team/castor.md](team/castor.md) | :58 |
+| 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-A especialização é **preferencial**, não exclusiva. Preserve a issue já
-assumida mesmo quando for de outro domínio. Não edite branches de outros
-donos; relate problemas verificados na issue e ao 🦅. Revisora e
-integradora não assumem issues de implementação.
+Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
-**Commits por avatar:** toda mensagem de commit de uma rotina
-**começa no primeiro caractere** com o **emoji da própria rotina**
-(tabela acima), sem espaço nem outro prefixo: `🦊 fix: ...`,
-`🐙 WIP: ...`. Vale também para merge commits do 🐘
-(personalizar título). 🦅 não comita salvo autorização.
+**Commits:** toda mensagem começa **no primeiro caractere**
+com o emoji da rotina (tabela): `🦊 fix: ...`, `🐙 WIP: ...`.
+Também nos merges 🐘/🦡; 🦅 não comita sem autorização.
 Nunca use avatar alheio.
+
+**🦡 Texugo:** pode baixar prioridade, revogar veto 🦅/🐘,
+fazer ablação de código/testes (inclusive excluir testes), exigir
+menos defesa e mesclar PR contra parecer técnico, com decisão
+motivada ([ficha](team/texugo.md)). É **rigoroso com tipos precisos,
+sem estados ambíguos**, enums e erros que preservem causa; não
+tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
+risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 ## Coordenação entre rotinas: reserva, prioridade e continuidade
 
@@ -46,8 +48,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 
 1. A fila usa etiqueta `handoff-chatgpt` e título
    `<prioridade 0–100> <emoji de dono, se houver> <título>`.
-   Maior valor = maior prioridade, definida **somente pelo 🐘**.
-   `em-andamento` não determina reserva.
+   Maior valor = maior prioridade; 🐘 administra, 🦡 pode reduzir com
+   justificativa sem contrariar o proprietário. `em-andamento` não reserva.
 2. Cada implementador 🦊🦉🐢🐙🦫 tem **no máximo uma issue** aberta.
    Procure primeiro issue com **seu** emoji imediatamente após o número,
    mesmo com prioridade reduzida. Com duas, continue apenas a de menor
@@ -74,8 +76,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Mantenha WIP e reserva até completar os critérios integrais; não
    alegue PASS de execução não realizada.
 7. **Implementadores não fazem merge ou fechamento de issues.**
-   Nenhum teste existente pode ser desligado, enfraquecido ou ignorado.
-   Teste **novo** ainda pendente pode ter
+   Não desligue testes para esconder regressões; **🦡 pode remover testes
+   em ablação explícita justificada**, com CI válido. Teste novo pendente pode ter
    `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
    Escrita incompleta deve manter `--confirmar` fechado **antes de
    abrir sessão ou rede**.
@@ -105,10 +107,7 @@ sido atualizada na sessão anterior:
    alterações de outra rotina**. Registre o impedimento e faça apenas
    investigação independente até conseguir sincronizar.
 
-Esta regra é pré-condição de **toda fatia de implementação**, inclusive
-retomadas de WIP. 🦅 Gavião não possui branch própria e só verifica a
-atualização da PR ao revisar; 🐘 Elefante segue a regra de integração e
-atualiza branches de PRs conforme seu protocolo abaixo.
+Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
 ### Segurança do ensaio e do contrato
 
@@ -142,7 +141,7 @@ atualiza branches de PRs conforme seu protocolo abaixo.
   RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
   decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
   Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste antigo pulado/enfraquecido. Aponte `arquivo:linha`
+  retry, JS, teste escondido (exceto ablação 🦡 justificada). Aponte `arquivo:linha`
   e fatos verificáveis; incerteza deve constar como `a verificar`.
 - Publique **um comentário por head**:
   `REVISÃO-CHATGPT (head <sha7>)`;
@@ -189,10 +188,10 @@ atualiza branches de PRs conforme seu protocolo abaixo.
   comportamento do Todos, depois issues de capacidade. Issues novas
   seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
   `Como trabalhar`) e incluem ensaio live para escrita.
-- Prioridades exclusivas do 🐘: **90–100** leituras/escritas de uso
-  diário e bugs de ensaio; **70–89** desbloqueadores; **40–69**
-  demais capacidades; **abaixo de 40** só sob pedido. Reavalie após
-  integração na main. Se nada mudou, **silêncio**.
+- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
+  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
+  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
+  prioridades expressas do proprietário. Sem mudança, **silêncio**.
 
 ## Método: observar → contratar → RED → GREEN → validar
 
