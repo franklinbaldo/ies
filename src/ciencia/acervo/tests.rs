@@ -289,3 +289,58 @@ fn lista_documental_sem_id_nao_prova_aceite_documental() {
         Resultado::NaoAplicavel("id_documento_da_lista_nao_observado")
     );
 }
+
+/// RED #271: o rótulo da cassette não pode transformar uma abertura
+/// `procedimento_visualizar` em GET de ciência. A prova depende da
+/// ação da URL realmente servida, não só do campo `request.operation`.
+#[test]
+fn rotulo_de_ciencia_com_url_de_visualizacao_nao_comprova_processo() {
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let aceite = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><input type='checkbox' name='chkInfraItem1' value='42'></table></html>";
+    let json = json!({"interactions": [
+        resposta_html(
+            "procedimento_ciencia",
+            &format!("{base}?acao=procedimento_visualizar&id_procedimento=10"),
+            aceite
+        ),
+        resposta_html(
+            "protocolo_ciencia_listar",
+            &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10"),
+            lista
+        )
+    ]});
+    let registros = replay("unb", &json);
+    assert_eq!(registros.len(), 2);
+    assert_eq!(
+        registros[0].resultado,
+        Resultado::NaoAplicavel("acao_de_ciencia_nao_observada")
+    );
+    assert_eq!(
+        registros[1].resultado,
+        Resultado::NaoAplicavel("aceite_sem_atividade_observada")
+    );
+}
+
+/// RED #271: no documento também não se aceita operação rotulada como
+/// ciência quando `acao` da URL é outra ou aparece duplicada.
+#[test]
+fn rotulo_documental_nao_substitui_acao_unica_da_url_servida() {
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let aceite = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=21&documento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    for consulta in [
+        "acao=procedimento_visualizar&id_procedimento=10&id_documento=21",
+        "acao=documento_ciencia&acao=procedimento_visualizar&id_procedimento=10&id_documento=21",
+    ] {
+        let json = json!({"interactions": [
+            resposta_html("documento_ciencia", &format!("{base}?{consulta}"), aceite)
+        ]});
+        let registros = replay("unb", &json);
+        assert_eq!(registros.len(), 1);
+        assert_eq!(
+            registros[0].resultado,
+            Resultado::NaoAplicavel("acao_de_ciencia_nao_observada"),
+            "{consulta}"
+        );
+    }
+}

@@ -96,7 +96,7 @@ impl ErroCienciaProcesso {
             Self::Tela(_) | Self::TelaRedirecionada => "a tela de ciência não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
             Self::EfeitoIncerto { .. } => {
-                "a ciência pode ter sido registrada; conferir no SEI antes de repetir"
+                "a ciência pode ter sido registrada; conferir a Lista de Ciências no SEI antes de nova confirmação"
             }
         }
     }
