@@ -289,4 +289,23 @@ mod tests {
         assert_eq!(saida["retentavel"], false);
         assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
     }
+
+    #[test]
+    fn bdd_246_03_recusa_da_cli_explica_tipo_nao_oferecido_ou_ambiguo() {
+        // Dado um tipo ausente ou repetido na lista oferecida pelo SEI,
+        // Quando executo documento criar, Entao a recusa explica a causa.
+        use crate::documento_criar::ErroCriar;
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente)),
+            "tipo de documento não oferecido pelo SEI"
+        );
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::Tipo(ErroCriar::TipoAmbiguo)),
+            "mais de um tipo de documento com o nome solicitado"
+        );
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade),
+            "processo não está aberto na unidade da sessão"
+        );
+    }
 }
