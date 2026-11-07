@@ -104,12 +104,18 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
     let dom = tl::parse(xml, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
     let parser = dom.parser();
-    let roots = dom.query_selector("itens").map_or(0, Iterator::count);
-    if roots != 1 {
+    let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
+    let [root] = roots.as_slice() else {
         return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
-    }
+    };
+    let root = root
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
     let mut itens = Vec::new();
-    for handle in dom.query_selector("item").into_iter().flatten() {
+    // Só itens subordinados à raiz oferecida no XML são selecionáveis;
+    // outros elementos do documento não são candidatos de interessado.
+    for handle in root.query_selector(parser, "item").into_iter().flatten() {
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
