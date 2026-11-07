@@ -89,7 +89,12 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     // Quando peço prévia, a gramática aceita a flag (sem sessão, não há GET);
     // Então o erro é de fonte, e não argumento desconhecido.
     let base = [
-        "processo", "enviar", NUP, "--para", "TESTE", "--remover-anotacoes",
+        "processo",
+        "enviar",
+        NUP,
+        "--para",
+        "TESTE",
+        "--remover-anotacoes",
         "--json",
     ];
     let previa = sem_sessao(&base);
@@ -101,5 +106,8 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     confirmar.push("--confirmar");
     let saida = sem_sessao(&confirmar);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["subcodigo"], "remocao_de_anotacoes_sem_verificacao");
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "remocao_de_anotacoes_sem_verificacao"
+    );
 }
