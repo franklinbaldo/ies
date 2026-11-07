@@ -22,8 +22,13 @@ vínculos. Uma linha repetida ou uma tabela ausente/repetida é recusa.
 **Prévia de adicionar:** a consulta AJAX protocolo_RI1023 declarada na tela
 recebe idProcedimento com o destino informado. O XML deve publicar
 IdProcedimento decimal e ProtocoloProcedimentoFormatado, ambos únicos.
-Não relaciona consigo mesmo. Id já presente na tabela retorna sem_efeito.
-Orçamento: abertura + 1 GET da tela + 1 POST de consulta (leitura lógica).
+Não relaciona consigo mesmo. Se a própria tabela já trouxer o NUP
+pedido em uma única linha, o IES publica o id e `sem_efeito: true`
+diretamente: **abertura + 1 GET da tela, zero POST**, sem pedir o
+complementar AJAX. Duas linhas com o mesmo NUP são ambíguas e recusadas
+sem POST. Só para destino ainda não relacionado, a consulta AJAX
+identifica o id: **abertura + 1 GET da tela + 1 POST de consulta
+(leitura lógica)**. Nenhum desses casos escreve relacionamento.
 
 **Prévia de remover:** encontra linha pelo NUP informado e exige
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
