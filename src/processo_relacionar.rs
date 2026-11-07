@@ -6,6 +6,9 @@ mod tests;
 #[cfg(test)]
 #[path = "processo_relacionar/tests_fluxo.rs"]
 mod tests_fluxo;
+#[cfg(test)]
+#[path = "processo_relacionar/tests_escrita.rs"]
+mod tests_escrita;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
 use crate::formulario_web::{
