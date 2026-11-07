@@ -197,8 +197,6 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
     }
     let mut uploads = Vec::new();
     let mut linhas = Vec::new();
-    #[cfg(test)]
-    eprintln!("anexo: templates={}, html_script={}", inertes.len(), html.matches("<script").count());
     for no in dom.query_selector("script").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
@@ -225,25 +223,18 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
             continue;
         }
         let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::FormaNaoObservada)?;
-        #[cfg(test)]
-        eprintln!("anexo: fonte_tem_upload={}, fonte_tem_colunas={}", fonte.contains("new infraUpload("), fonte.contains("objTabelaAnexos.adicionar(["));
-        for (_, encontrado) in fonte.match_indices("new infraUpload(") {
-            let restante = &encontrado["new infraUpload(".len()..];
-            let url = ler_url_upload(restante);
-            #[cfg(test)]
-            eprintln!("anexo: formato_upload={:?}", url.as_ref().err());
-            uploads.push(url?);
+        for (inicio, _) in fonte.match_indices("new infraUpload(") {
+            let restante = &fonte[inicio + "new infraUpload(".len()..];
+            uploads.push(ler_url_upload(restante)?);
         }
-        for (_, encontrado) in fonte.match_indices("objTabelaAnexos.adicionar([") {
-            let restante = &encontrado["objTabelaAnexos.adicionar([".len()..];
+        for (inicio, _) in fonte.match_indices("objTabelaAnexos.adicionar([") {
+            let restante = &fonte[inicio + "objTabelaAnexos.adicionar([".len()..];
             let (colunas, _) = restante
                 .split_once("]);")
                 .ok_or(FalhaAnexo::LinhaInvalida)?;
             linhas.push(ler_colunas(colunas)?);
         }
     }
-    #[cfg(test)]
-    eprintln!("anexo: uploads={}, linhas={}", uploads.len(), linhas.len());
     let [upload] = uploads.as_slice() else {
         return Err(FalhaAnexo::FormaNaoObservada);
     };
