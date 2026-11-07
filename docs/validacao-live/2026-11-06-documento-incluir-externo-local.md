@@ -44,6 +44,12 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 - **CI intermediário:** [42339719537](https://github.com/franklinbaldo/ies/actions/runs/42339719537) verificou Rust/Clippy/OKF com PASS, mas falhou somente em Rustfmt de três trechos; correções de formatação foram commitadas antes do head final. **Consultar o CI do head atual** para atestar GREEN definitivo.
 - **Acervo adicional lido, sem rede SEI:** [cassette PEN3 de prévia](../../cassettes/pen3/documento-juntar-previa-pen3--ec754357a3c7.md) (SEI 5.0.4: 9 interações na captura, 5 GET + 4 POST), [testes UnB 4](https://github.com/franklinbaldo/todos/blob/main/tests/test_documento_juntar_010.py) e [SEI 5](https://github.com/franklinbaldo/todos/blob/main/tests/test_documento_juntar_sei5_010.py). A evidência de versões diferentes, recibo e duas mutações está detalhada no [cartão da operação](../../contracts/evidencias/documento-incluir-externo.md). Contagens dessas capturas **não** são requisições desta execução do IES.
 
+## Teste adicional — mutação concorrente do PDF (07/11/2026)
+
+- **RED real:** [CI 42343893669](https://github.com/franklinbaldo/ies/actions/runs/42343893669), head `10180c4`, suíte Rust com **1.811 PASS, 1 FAIL novo, 23 ignored**. O teste altera bytes preservando o mesmo tamanho entre a primeira metadata e a leitura: a implementação anterior retornou `Ok(PdfLocal)` com hash do arquivo modificado, quando o teste exigia `AlteradoDuranteLeitura`. Rustfmt/Clippy/OKF não foram usados como substitutos do RED.
+- **GREEN proposto:** comparar metadados do **mesmo descritor** depois de ler até EOF (tamanho, modificação e ctime no Unix) e recusar mudança detectada por variante Rust tipada. Mesmo conteúdo estável após a inspeção não é garantido para futuro upload; trocar um ancestral por symlink ainda requer proteção específica. CI e wheel precisam ser verificados no SHA de GREEN.
+- **Execução remota:** NOT_RUN; **0 GET, 0 POST, 0 upload, 0 resíduos**; teste apenas sintético e local.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
