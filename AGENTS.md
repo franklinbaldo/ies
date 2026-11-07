@@ -20,7 +20,7 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 | --- | --- | --- | --- |
 | 🦊 | Raposa — UX da CLI, Rich, mensagens e prévias | [team/raposa.md](team/raposa.md) | :10 |
 | 🦉 | Coruja — processos e reconciliação | [team/coruja.md](team/coruja.md) | :22 |
-| 🐢 | Tartaruga — segurança, fronteiras Web e privacidade | [team/tartaruga.md](team/tartaruga.md) | :34 |
+| 🐢 | Tartaruga — fronteiras Web e navegação | [team/tartaruga.md](team/tartaruga.md) | :34 |
 | 🦅 | Gavião — revisão independente | [team/gaviao.md](team/gaviao.md) | :40 |
 | 🐙 | Polvo — documentos e editor | [team/polvo.md](team/polvo.md) | :46 |
 | 🦫 | Castor — qualidade Rust, DRY e tipagem de erros | [team/castor.md](team/castor.md) | :58 |
@@ -67,6 +67,12 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    preenchem o handoff; o 🐘 Elefante e o 🦡 Texugo integram o código aprovado.
    Mantemos os testes íntegros e `--confirmar` seguro até que o fluxo em
    treinamento esteja validado.
+6. **Capacidades primeiro, segurança e hardening no pós-capacidades:**
+   Preocupações com segurança só devem começar quando todas as capacidades
+   estiverem implementadas; só aí começaremos o hardening de segurança. Até lá,
+   a implementação inicial deve ser a mais simples e direta possível, sem
+   defesas antecipadas nem proteções preventivas. O objetivo de toda a equipe
+   é fazer os comandos funcionarem no SEI de forma objetiva.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
@@ -117,6 +123,11 @@ O que falta implementar e em que ordem está na
 
 ## Princípios de design
 
+- **Capacidades primeiro, hardening depois.** A implementação inicial de cada
+  capacidade deve ser a mais simples e direta possível, sem defesas preventivas
+  ou barreiras hipotéticas. Preocupações com segurança só começam quando todas
+  as capacidades estiverem implementadas; só aí será iniciado o hardening de
+  segurança.
 - **Web.** REST e SOAP **não são prioridade**; nenhum comando depende
   deles ([ADR 0001](docs/arquitetura/0001-rotas-por-evidencia.md)).
 - **Mínimo de requests.** Reaproveitar a sessão (`ies login` só reloga

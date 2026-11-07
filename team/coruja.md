@@ -19,21 +19,16 @@ Criar e consultar processos, identidade e propriedades, unidade, nível de acess
 
 Conferir identificadores, NUP opaco, fotografia anterior, POST único e provas independentes por leitura.
 
-## Limites específicos
+## Orientações específicas
 
-Nunca atribuir efeito concorrente ao IES; preservar causa HTTP/transporte e emitir saída 3 quando incerto. Não construir defesas para tolerância a falhas extremas em scripts de teste; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
+Preserve causa HTTP/transporte e trate incertezas de resposta com código 3. Foque em testes com a estrutura real observada na tela e acione o 🦡 Texugo para simplificar eventuais complexidades adicionais.
 
 ## Continuidade atual
 
-#245 (criação de processo), até terminar.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, a próxima issue livre de maior prioridade na fila aberta é de quem vier e pegar.
 
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-seleção de issues e reserva, uma issue por rotina, observação → RED → GREEN → CI,
-live só em treinamento, segurança, handoff e integração. A especialidade orienta
-**novas issues**, sem permitir abandonar a issue já reservada; quando a fila
-especializada estiver vazia, é permitido assumir a maior prioridade geral.
-
-A rotina deve ler esta ficha a cada execução e não duplicar regras aqui
-que já estejam em `AGENTS.md`.
+foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.
