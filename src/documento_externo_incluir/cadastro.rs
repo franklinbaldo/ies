@@ -120,7 +120,6 @@ fn limite_pdf(html: &str, dom: &tl::VDom<'_>) -> Result<u64, FalhaCadastroExtern
     }
 }
 
-
 /// Controles de usuário realmente publicados dentro do cadastro ativo.
 /// Não expõe valores, campos ocultos nem controles desabilitados.
 fn campos_oferecidos(
