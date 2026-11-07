@@ -226,10 +226,7 @@ fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
         let tela = conferir_tela_de_envio(&html, ID).unwrap();
         assert!(tela.remover_anotacoes_oferecida);
         // A ausência de name significa que não há controle enviável.
-        let sem_opcao = html.replace(
-            r#"name="chkSinRemoverAnotacoes""#,
-            r#"name="""#,
-        );
+        let sem_opcao = html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
         assert!(
             !conferir_tela_de_envio(&sem_opcao, ID)
                 .unwrap()
