@@ -18,7 +18,7 @@ O valor `--nivel` e eventuais hipóteses legais devem ser conferidos
 contra o cadastro servido; não há autorização para supor uma seleção
 implícita. A operação **não** grava texto no editor e **não** assina.
 
-Estado `partial`: a CLI oferece prévia nas telas com link direto e assinado para o cadastro (`documento_gerar`) **e** nas telas com `escolher(ID)` quando a função servida comprova duas instruções literais: atribuir `hdnIdSerie` e submeter `frmDocumentoEscolherTipo`. Nessa segunda forma, faz um POST **de navegação sem criação** para `documento_escolher_tipo`, valida a Location 302 assinada do mesmo processo e faz um GET do cadastro; não executa JS, não segue redirecionamentos automaticamente e não repete requisições. A confirmação tem um único POST **de escrita** e reconciliação por releitura, somente com `--nivel publico` explícito e script observado. Até CI, replay e ensaio live, tudo permanece WIP, sem validação para uso real. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
+Estado `partial`: a CLI oferece prévia nas telas com link direto e assinado para o cadastro (`documento_gerar`) **e** nas telas com `escolher(ID)` quando a função servida comprova duas instruções literais: atribuir `hdnIdSerie` e submeter `frmDocumentoEscolherTipo`. Nessa segunda forma, faz um POST **de navegação sem criação** para `documento_escolher_tipo`, valida a Location 302 assinada do mesmo processo e faz um GET do cadastro; não executa JS, não segue redirecionamentos automaticamente e não repete requisições. A confirmação tem um único POST **de escrita** e reconciliação por releitura, somente com `--nivel publico` explícito, controle Salvar e formulário observados. Até CI, replay e ensaio live, tudo permanece WIP, sem validação para uso real. Níveis restrito/sigiloso recusam antes de escrever, pois dependem de hipótese legal não resolvida.
 
 ## Prévia
 
@@ -245,3 +245,14 @@ reais: `tipos_em_controles_hidden_nao_sao_oferecidos` e
 A confirmação ao vivo e a atribuição causal de documento criado
 continuam pendentes exclusivamente em treinamento.
 
+
+## Atualização vigente — ablação da prova JavaScript (07/11/2026)
+Seções históricas de análise de JS acima não são requisito de confirmação atual.
+Por decisão motivada do 🦡 Texugo na PR #248, a guarda valida o botão
+Salvar ativo e o formulário servido (ação e campos), sem simular callbacks
+JavaScript. O servidor decide aceitar ou recusar a submissão HTTP; a CLI
+preserva prévia, exatamente um POST, 302 causal, releitura independente,
+número SEI e saída 3 para efeito incerto. Aceita-se o risco residual de
+divergência entre interação no navegador e POST da CLI. Testes de equivalência
+hipotética de JS foram removidos em ablação explícita e documentada.
+Isso não constitui validação live da criação de documento.
