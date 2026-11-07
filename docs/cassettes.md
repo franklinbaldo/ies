@@ -76,6 +76,10 @@ Com filtro, ele executa
 `cargo test --bin ies -- --ignored --nocapture --test-threads=1 FILTRO`.
 Os ZIPs ficam em `~/.cache/ies`, ou na pasta de `IES_ACERVO_CACHE`, com o
 nome do fim de `source_zip`; baixe-os e confira-os como no exemplo acima.
+No ciclo anti-IES, o ZIP conferido é a fonte durável; o cache do
+GitHub Actions só acelera a obtenção e o SQLite de testes é reconstruído.
+O [esquema evolutivo e ciclo fechado](anti-ies/ciclo-cassettes.md)
+permitem que a mesma PR altere parser, tipos, SQL e servidor.
 Falta de ZIP é pânico com o nome do arquivo; o script não baixa nada.
 `IES_ACERVO_SAIDA` grava o relatório num arquivo em vez de imprimi-lo
 (cada teste sobrescreve o arquivo; use com o filtro de um só teste).

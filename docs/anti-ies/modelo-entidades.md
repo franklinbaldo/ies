@@ -35,3 +35,12 @@ retorna `Option::None`, sem inventar lista, total ou unidade.
 faixas e totais para renderização completa pelo anti-IES. A etapa #354 deve
 recusar dados insuficientes, não apresentar 200 fictício. BDD AIES-01..04
 permanecem `NOT_RUN` no E2E.
+
+## Próxima etapa — banco derivado para compatibilidade
+
+O banco de teste reconstruído das cassettes **não é** o índice
+operacional `ies.sqlite3`. O primeiro tem esquema SQL explícito,
+versionado e evolutivo; o segundo conserva suas migrações próprias.
+Ao acrescentar entidades ou tabelas, evoluir tipos e SQL junto com
+o parser e a resposta do anti-IES na mesma PR de ciclo fechado.
+Ver o [contrato do ciclo de cassettes](ciclo-cassettes.md).
