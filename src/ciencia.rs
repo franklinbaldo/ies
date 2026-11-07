@@ -354,3 +354,5 @@ mod tests;
 mod tests_documento;
 #[cfg(test)]
 mod tests_fluxo;
+#[cfg(test)]
+mod tests_preparo;

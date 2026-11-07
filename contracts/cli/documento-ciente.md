@@ -180,3 +180,10 @@ saída 3, `requisicoes` observadas, HTTP e causa original, sem GET extra.
 RED da regressão JSON:
 [CI 42367722667](https://github.com/franklinbaldo/ies/actions/runs/42367722667),
 **1 FAIL novo, 1.872 PASS, 24 ignored**, antes da correção.
+
+## Instruções vazias no aceite (WIP #271)
+
+Separadores `;` sem instrução antes da recarga não tornam a chamada
+inalcançável. O leitor conserva a identidade do documento e a prova
+posterior na Lista de Ciências; instruções anteriores que possam
+interromper a recarga continuam não reconhecidas.
