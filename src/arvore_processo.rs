@@ -211,6 +211,10 @@ pub(crate) struct ArvoreLida {
     /// Alguma pasta veio fechada (com o nó `AGUARDE`): os documentos dela
     /// não estão nesta árvore.
     pub(crate) pastas_nao_carregadas: bool,
+    /// Indica se a lista de documentos foi integralmente confirmada.
+    pub(crate) documentos_incluidos: bool,
+    /// Aviso emitido quando a leitura foi parcial por inconsistência de pastas.
+    pub(crate) aviso_leitura_parcial: Option<String>,
     /// Os `PROCESSO_ANEXADO` filhos do processo, na ordem da árvore. Os
     /// documentos deles não são servidos nesta árvore.
     pub(crate) anexados: Vec<ProcessoNaArvore>,
@@ -274,6 +278,24 @@ pub(crate) fn ler_arvore(
     html: &str,
     nup_pedido: &str,
     id_aberto: &str,
+) -> Result<ArvoreLida, ErroArvore> {
+    ler_arvore_com_modo(html, nup_pedido, id_aberto, false)
+}
+
+#[allow(dead_code)]
+pub(crate) fn ler_arvore_parcial(
+    html: &str,
+    nup_pedido: &str,
+    id_aberto: &str,
+) -> Result<ArvoreLida, ErroArvore> {
+    ler_arvore_com_modo(html, nup_pedido, id_aberto, true)
+}
+
+pub(crate) fn ler_arvore_com_modo(
+    html: &str,
+    nup_pedido: &str,
+    id_aberto: &str,
+    permitir_parcial: bool,
 ) -> Result<ArvoreLida, ErroArvore> {
     let mut processo: Option<ProcessoNaArvore> = None;
     let mut anexados: Vec<AnexadoLido> = Vec::new();
@@ -358,13 +380,37 @@ pub(crate) fn ler_arvore(
     }
     let anexados = conferir_anexados(&processo, anexados, &documentos, &nos_de_pasta)?;
     let documentos_movidos = conferir_movidos(&processo, movidos, &documentos)?;
-    let (pastas, pastas_nao_carregadas) =
-        conferir_pastas(&processo.id, &nos_de_pasta, &protocolos, &documentos)?;
+    let (pastas, pastas_nao_carregadas, documentos, documentos_incluidos, aviso_leitura_parcial) =
+        match conferir_pastas(&processo.id, &nos_de_pasta, &protocolos, &documentos) {
+            Ok((pastas, pastas_nao_carregadas)) => (
+                pastas,
+                pastas_nao_carregadas,
+                documentos.into_iter().map(|d| d.documento).collect(),
+                true,
+                None,
+            ),
+            Err(erro) if permitir_parcial => {
+                use crate::erro_publico::Causa as _;
+                (
+                    Vec::new(),
+                    true,
+                    Vec::new(),
+                    false,
+                    Some(format!(
+                        "leitura parcial do processo: lista de documentos incompleta ({})",
+                        erro.folha()
+                    )),
+                )
+            }
+            Err(erro) => return Err(erro),
+        };
     Ok(ArvoreLida {
         processo,
-        documentos: documentos.into_iter().map(|d| d.documento).collect(),
+        documentos,
         pastas,
         pastas_nao_carregadas,
+        documentos_incluidos,
+        aviso_leitura_parcial,
         anexados,
         documentos_movidos,
         anexado_a: None,

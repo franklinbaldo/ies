@@ -8,11 +8,10 @@ use crate::arvore_processo::{
     ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
     ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento,
     ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
-    ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
-    ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
-    ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
-    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
-    ler_vinculo_de_anexacao,
+    ler_andamento_da_barra, ler_anexar_da_barra, ler_atribuir_da_barra, ler_concluir_da_barra,
+    ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
+    ler_link_dos_marcadores, ler_reabrir_da_barra, ler_relacionar_da_barra, ler_retomar_da_barra,
+    ler_sobrestar_da_barra, ler_tela_do_processo, ler_vinculo_de_anexacao,
 };
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
@@ -66,6 +65,7 @@ pub(super) struct Contexto<'a> {
     /// `documento DOC`: o número SEI procurado. Visível na árvore, as pastas
     /// fechadas não são abertas (a requisição a mais não é necessária).
     pub(super) documento_procurado: Option<&'a str>,
+    pub(super) permitir_leitura_parcial: bool,
 }
 
 impl Contexto<'_> {
@@ -81,6 +81,7 @@ impl Contexto<'_> {
             indice: self.indice,
             cookie: self.cookie,
             documento_procurado: self.documento_procurado,
+            permitir_leitura_parcial: self.permitir_leitura_parcial,
         }
     }
 
@@ -192,7 +193,13 @@ pub(super) fn ler_arvore_aberta(
     html: &str,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    ler_arvore_da_pagina(&contexto.instalacao, contexto.nup, html, id)
+    ler_arvore_da_pagina_com_modo(
+        &contexto.instalacao,
+        contexto.nup,
+        html,
+        id,
+        contexto.permitir_leitura_parcial,
+    )
 }
 
 /// A leitura da página da árvore, sem rede nem índice (também a do replay
@@ -203,7 +210,17 @@ pub(super) fn ler_arvore_da_pagina(
     html: &str,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
-    let mut arvore = ler_arvore(html, nup, id)?;
+    ler_arvore_da_pagina_com_modo(instalacao, nup, html, id, false)
+}
+
+pub(super) fn ler_arvore_da_pagina_com_modo(
+    instalacao: &Instalacao,
+    nup: &str,
+    html: &str,
+    id: &str,
+    permitir_parcial: bool,
+) -> Result<ArvoreAberta, ErroArvore> {
+    let mut arvore = crate::arvore_processo::ler_arvore_com_modo(html, nup, id, permitir_parcial)?;
     arvore.anexado_a = ler_vinculo_de_anexacao(instalacao, html, id)?;
     if arvore.anexado_a.is_some() {
         // O `.html` da raiz é o aviso do vínculo, não a situação.

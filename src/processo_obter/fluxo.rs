@@ -60,6 +60,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         indice,
         cookie: sessao.cookie,
         documento_procurado: None,
+        permitir_leitura_parcial: pedido.permitir_leitura_parcial,
     };
     let mut rede = Rede {
         envio,

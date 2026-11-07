@@ -223,6 +223,7 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
         indice,
         cookie: sessao.cookie,
         documento_procurado: Some(numero),
+        permitir_leitura_parcial: false,
     };
     let mut rede = Rede {
         envio,

@@ -11,7 +11,7 @@ use crate::marcadores_processo::{MarcadoresLidos, rotulo_do_marcador};
 use crate::processo::NumeroProcesso;
 use crate::processo_obter::{
     Andamentos, ErroProcessoObter, Marcadores, PedidoDeAndamentos, PedidoDoProcesso,
-    ProcessoAberto, Propriedades, SessaoDoProcesso, obter_processo,
+    ProcessoAberto, Propriedades, SessaoDoProcesso,
 };
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::visao_do_controle::EnvioHttps;
@@ -258,23 +258,31 @@ pub(crate) fn json_do_processo(
     }
     if !sem_documentos && let Some(objeto) = valor.as_object_mut() {
         saida_da_arvore::inserir_documentos(objeto, &aberto.arvore);
-        let pastas: Vec<Value> = aberto
-            .arvore
-            .pastas
-            .iter()
-            .map(|p| {
-                json!({
-                    "id": p.id,
-                    "rotulo": p.rotulo,
-                    "total": p.total_declarado,
-                    "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
-                    "conferidos_por_identidade": p.conferidos_por_identidade,
-                    "conferidos_por_contagem": p.conferidos_por_contagem,
+        let pastas: Vec<Value> = if aberto.arvore.documentos_incluidos {
+            aberto
+                .arvore
+                .pastas
+                .iter()
+                .map(|p| {
+                    json!({
+                        "id": p.id,
+                        "rotulo": p.rotulo,
+                        "total": p.total_declarado,
+                        "verificacao": p.verificacao.map(VerificacaoDaPasta::como_texto),
+                        "conferidos_por_identidade": p.conferidos_por_identidade,
+                        "conferidos_por_contagem": p.conferidos_por_contagem,
+                    })
                 })
-            })
-            .collect();
+                .collect()
+        } else {
+            Vec::new()
+        };
         objeto.insert("pastas".to_owned(), Value::Array(pastas));
-        let verificacao = verificacao_das_pastas(&aberto.arvore.pastas);
+        let verificacao = if aberto.arvore.documentos_incluidos {
+            verificacao_das_pastas(&aberto.arvore.pastas)
+        } else {
+            None
+        };
         objeto.insert(
             "verificacao_das_pastas".to_owned(),
             json!(verificacao.map(VerificacaoDaPasta::como_texto)),
@@ -328,17 +336,21 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
     }
     if !sem_documentos {
         let arvore = &aberto.arvore;
-        let _ = write!(
-            texto,
-            "\n{} documento(s) na árvore, {} pasta(s){}:",
-            arvore.documentos.len(),
-            arvore.pastas.len(),
-            verificacao_das_pastas(&arvore.pastas)
-                .map(|v| format!(" conferidas {}", v.como_texto()))
-                .unwrap_or_default()
-        );
-        saida_da_arvore::humano_dos_documentos(arvore, &mut texto);
-        saida_da_arvore::humano_dos_movidos(&arvore.documentos_movidos, &mut texto);
+        if arvore.documentos_incluidos {
+            let _ = write!(
+                texto,
+                "\n{} documento(s) na árvore, {} pasta(s){}:",
+                arvore.documentos.len(),
+                arvore.pastas.len(),
+                verificacao_das_pastas(&arvore.pastas)
+                    .map(|v| format!(" conferidas {}", v.como_texto()))
+                    .unwrap_or_default()
+            );
+            saida_da_arvore::humano_dos_documentos(arvore, &mut texto);
+            saida_da_arvore::humano_dos_movidos(&arvore.documentos_movidos, &mut texto);
+        } else {
+            saida_da_arvore::humano_dos_documentos(arvore, &mut texto);
+        }
     }
     match &aberto.andamentos {
         Andamentos::Lidos(lidos) => {
@@ -415,6 +427,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         propriedades: !comando.sem_propriedades,
         marcadores: !comando.sem_marcadores,
         unidade_exigida: false,
+        permitir_leitura_parcial: true,
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
     let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
@@ -430,7 +443,12 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
             cookie: referencias.cookie(),
         };
         let indice = IndiceLocal::da_configuracao(&arquivos);
-        obter_processo(&sessao, &pedido, &indice, &mut EnvioHttps)
+        crate::processo_obter::consulta_parcial::obter_processo_informativo(
+            &sessao,
+            &pedido,
+            &indice,
+            &mut EnvioHttps,
+        )
     });
     match lido {
         Ok((mut aberto, nota)) => {
