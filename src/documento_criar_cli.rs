@@ -125,11 +125,14 @@ fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode
     ExitCode::SUCCESS
 }
 
+const MENSAGEM_INCERTEZA: &str = "Criação de documento não comprovada. Confira o processo antes de qualquer nova confirmação; não repita --confirmar sem verificar.";
+
 fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::Value {
     let mut saida = json!({
         "codigo": "efeito_incerto",
         "subcodigo": erro.subcodigo(),
-        "erro": "escrita enviada; não é possível comprovar o efeito por leitura",
+        "erro": MENSAGEM_INCERTEZA,
+        "verificar_com": "ies processo NUP",
         "retentavel": false,
         "requisicoes": requisicoes
     });
@@ -158,7 +161,8 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
         if json_mode {
             println!("{}", erro_incerto_json(erro, requisicoes));
         } else {
-            eprintln!("IES: efeito incerto na criação do documento; não repita --confirmar");
+            eprintln!("IES: {MENSAGEM_INCERTEZA}");
+            eprintln!("Verifique com: ies processo NUP");
             eprintln!("Requisições: {requisicoes}");
             if let Some(causa) = erro.causa_envio() {
                 eprintln!(
