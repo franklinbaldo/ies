@@ -3,7 +3,7 @@
 # scripts/rotina_agentes.sh — Executor de agentes do IES via Antigravity CLI (agy)
 # ==============================================================================
 # Executa um agente em modo headless ('agy -p') com:
-# - Bloqueio via flock (evita execuções simultâneas e conflito de workspace)
+# - Bloqueio via flock por agente (evita sobreposição da mesma rotina)
 # - Detecção automática do executável 'agy'
 # - Timeout de proteção (--print-timeout 50m)
 # - Logs organizados com carimbo de data/hora
@@ -13,14 +13,15 @@
 # ==============================================================================
 
 set -euo pipefail
+umask 077  # Logs e locks privados desde a primeira criação.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Diretório de logs e arquivo de trava
+# Diretório privado de logs (inclusive se já existia de uma versão anterior).
 LOG_DIR="${IES_LOG_DIR:-/tmp/agy-ies/logs}"
-LOCK_FILE="${IES_LOCK_FILE:-/tmp/agy-ies.lock}"
-mkdir -p "${LOG_DIR}"
+mkdir -p -m 700 "${LOG_DIR}"
+chmod 700 "${LOG_DIR}"
 
 # Localização do binário agy
 AGY_BIN="${AGY_PATH:-$(command -v agy || true)}"
@@ -81,7 +82,7 @@ case "${ALVO}" in
   elefante)
     EMOJI="🐘"
     PAPEL="Integração e fila"
-    PROMPT="Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Inspecione PRs abertas com CI 100% verde (11/11), sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. No Cafezinho diário (#388 ou do dia), mantenha a moral da orquestra elevada."
+    PROMPT="Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Inspecione PRs abertas com CI oficial completo 7/7 verde no head exato, sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. Participe do Cafezinho diário do dia quando couber."
     ;;
   raposa)
     EMOJI="🦊"
@@ -130,17 +131,22 @@ case "${ALVO}" in
     ;;
 esac
 
+# Mesmo agente nunca executa em paralelo; os outros não são bloqueados.
+# IES_LOCK_FILE permite trava global apenas por escolha explícita do operador.
+LOCK_FILE="${IES_LOCK_FILE:-${LOG_DIR}/.${ALVO}.lock}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="${LOG_DIR}/${TIMESTAMP}_${ALVO}.log"
+touch "${LOG_FILE}"
+chmod 600 "${LOG_FILE}"
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${EMOJI} Iniciando rotina ${ALVO} (${PAPEL})..."
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Repositório: ${REPO_DIR}"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Log: ${LOG_FILE}"
 
-# Execução protegida por flock (impede colisões simultâneas)
+# Execução protegida por flock por avatar: não perde as demais rodadas.
 exec 200>"${LOCK_FILE}"
 if ! flock -n 200; then
-  echo "⚠️  [$(date '+%Y-%m-%d %H:%M:%S')] Outra rotina já está em execução (lock em ${LOCK_FILE}). Saindo para evitar sobreposição."
+  echo "⚠️  [$(date '+%Y-%m-%d %H:%M:%S')] Rodada ${ALVO} pulada: o mesmo agente já está em execução (lock em ${LOCK_FILE})." | tee -a "${LOG_FILE}"
   exit 0
 fi
 

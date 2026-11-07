@@ -1,7 +1,7 @@
 //! Saída do que vem só da árvore: documentos (com a natureza), movidos e
 //! `aberto_em` (contracts/cli/processo-obter-situacao.md).
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore, MotivoAbertoEm,
+    AbertoEm, ArvoreLida, DocumentoMovido, DocumentoNaArvore, ErroArvore, MotivoAbertoEm,
 };
 use serde_json::{Map, Value, json};
 use std::fmt::Write as _;
@@ -93,8 +93,29 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
     })
 }
 
+/// Converte o motivo tipado em aviso legível somente na fronteira da CLI.
+fn texto_do_aviso(causa: ErroArvore) -> String {
+    use crate::erro_publico::Causa as _;
+    format!(
+        "leitura parcial do processo: lista de documentos incompleta ({})",
+        causa.folha()
+    )
+}
+
 /// `documentos` e `documentos_movidos`, na ordem dos nós.
 pub(super) fn inserir_documentos(objeto: &mut Map<String, Value>, arvore: &ArvoreLida) {
+    if !arvore.documentos_incluidos {
+        objeto.insert("documentos_incluidos".to_owned(), json!(false));
+        objeto.insert("documentos".to_owned(), Value::Array(Vec::new()));
+        objeto.insert("documentos_movidos".to_owned(), Value::Array(Vec::new()));
+        if let Some(causa) = arvore.aviso_leitura_parcial {
+            objeto.insert(
+                "aviso_leitura_parcial".to_owned(),
+                json!(texto_do_aviso(causa)),
+            );
+        }
+        return;
+    }
     let documentos: Vec<Value> = arvore.documentos.iter().map(json_do_documento).collect();
     objeto.insert("documentos".to_owned(), Value::Array(documentos));
     let movidos: Vec<Value> = arvore
@@ -115,8 +136,16 @@ pub(super) fn inserir_documentos(objeto: &mut Map<String, Value>, arvore: &Arvor
     objeto.insert("documentos_movidos".to_owned(), Value::Array(movidos));
 }
 
-/// Uma linha por documento, com a pasta.
+/// Uma linha por documento, com a pasta, ou aviso de leitura parcial.
 pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
+    if !arvore.documentos_incluidos {
+        let aviso = arvore.aviso_leitura_parcial.map_or_else(
+            || "leitura parcial do processo: lista de documentos incompleta".to_owned(),
+            texto_do_aviso,
+        );
+        let _ = write!(texto, "\nAviso: {aviso}.");
+        return;
+    }
     for documento in &arvore.documentos {
         let _ = write!(texto, "\n- {} (id {})", documento.rotulo, documento.id);
         let pasta = documento

@@ -21,7 +21,7 @@ Se você estiver operando no terminal interativo com o Antigravity (`agy`), util
 Copie e execute no chat do Antigravity:
 
 ```text
-/schedule "5 * * * *" Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Verifique PRs abertas com CI 100% verde (11/11), sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. No Cafezinho diário (#388 ou do dia), mantenha a moral da orquestra elevada.
+/schedule "5 * * * *" Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Verifique PRs abertas com CI oficial completo 7/7 verde no SHA exato, sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. No Cafezinho diário (#388 ou do dia), mantenha a moral da orquestra elevada.
 ```
 
 ```text
@@ -62,7 +62,7 @@ Para manter os agentes trabalhando autonomamente mesmo com o terminal fechado, u
 
 ### Scripts fornecidos no repositório
 
-- [scripts/rotina_agentes.sh](../scripts/rotina_agentes.sh): Executor protegido por `flock` (impede corridas e sobreposição de workspaces), com detecção de executável, logs em `/tmp/agy-ies/logs` e timeout de 50 minutos.
+- [scripts/rotina_agentes.sh](../scripts/rotina_agentes.sh): Executor protegido por `flock` **por avatar** (uma rodada por agente, sem bloquear outros agentes), com detecção de executável, logs privados (diretório `0700`, arquivos `0600`) em `/tmp/agy-ies/logs` e timeout de 50 minutos.
 - [scripts/instalar_cron.sh](../scripts/instalar_cron.sh): Utilitário de inspeção e instalação automática no `crontab`.
 
 ### Instalação rápida
@@ -110,11 +110,11 @@ Em ambientes que não possuem serviço `cron` ativo (como containers, WSL sem sy
 nohup ./scripts/daemon_agentes.sh > /tmp/agy-ies-daemon.log 2>&1 &
 ```
 
-O daemon calcula o tempo exato até o próximo minuto agendado, aguarda via `sleep` e executa a rotina correspondente de forma contínua e sem sobreposição.
+O daemon calcula o próximo minuto agendado, aguarda via `sleep` e dispara as rotinas sem aguardar a conclusão das anteriores. Cada agente tem trava própria, impedindo apenas execuções simultâneas do **mesmo avatar**. Use cron **ou** daemon, nunca os dois ao mesmo tempo.
 
 ---
 
 ## 4. Monitoramento e Logs
 
-- Os logs de cada execução ficam em `/tmp/agy-ies/logs/<timestamp>_<avatar>.log`.
-- A trava exclusiva fica em `/tmp/agy-ies.lock`. Se uma execução anterior ainda estiver em andamento no minuto seguinte, o `flock` impede que outra rotina inicie, evitando conflitos na árvore git.
+- Os logs ficam em `/tmp/agy-ies/logs/<timestamp>_<avatar>.log` com diretório privado `0700` e arquivo `0600` (incluindo diretorio preexistente).
+- Cada avatar tem a própria trava privada em `/tmp/agy-ies/logs/.<avatar>.lock`. Uma rodada que encontrar o mesmo avatar ativo registra que foi pulada; os **outros** avatares continuam executando. `IES_LOCK_FILE` permite travamento global apenas se o operador o configurar explicitamente.

@@ -148,7 +148,7 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
             .pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap(),
     );
-    assert_eq!((linhas, versao), (3, 3));
+    assert_eq!((linhas, versao), (3, 4));
     for saida in [listar, pesquisar] {
         let texto = format!(
             "{}{}",

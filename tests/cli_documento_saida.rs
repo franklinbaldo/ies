@@ -164,3 +164,39 @@ fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
     );
     std::fs::remove_dir_all(pasta).unwrap();
 }
+
+#[test]
+fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
+    // BDD-89-01 preexistente na issue #89: comparar a foto local vN e a
+    // edição v(N+1), sem acessar sessão, índice ou SEI.
+    let pasta = pasta_vazia("bdd-89-01");
+    let base = "<html>\n<p>antigo</p>\n<p>igual</p>\n</html>";
+    let editada = "<html>\n<p>novo</p>\n<p>igual</p>\n</html>";
+    versao_local(&pasta, 2, base);
+    versao_local(&pasta, 3, editada);
+    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta)
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .env("IES_INDICE_FILE", pasta.join("ies.sqlite3"))
+        .args(["documento", "salvar", "0011519", "--versao", "2"])
+        .output()
+        .unwrap();
+    let humano = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(output.status.code(), Some(0), "{humano}");
+    assert!(humano.contains("-<p>antigo</p>"), "{humano}");
+    assert!(humano.contains("+<p>novo</p>"), "{humano}");
+    assert!(humano.contains("base não verificada"), "{humano}");
+    assert!(!pasta.join("ies.sqlite3").exists());
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
+        base
+    );
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(),
+        editada
+    );
+    std::fs::remove_dir_all(pasta).unwrap();
+}

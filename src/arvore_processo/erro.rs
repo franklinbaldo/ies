@@ -46,4 +46,18 @@ impl ErroArvore {
                 | Self::IdDoProcessoNaArvoreDiferenteDoAberto
         )
     }
+
+    /// Apenas lacunas de documentos toleram consulta informativa.
+    pub(crate) fn admite_leitura_parcial(self) -> bool {
+        matches!(
+            self,
+            Self::PastaCarregadaPelaMetade
+                | Self::PastasNaoCarregadasSemAcaoDeAbrir
+                | Self::PastasNaoCarregadasAposAbrirPastas
+                | Self::ContagemDaPastaDiferenteDaDeclarada
+        ) || matches!(
+            self,
+            Self::Html(erro) if erro == ErroHtml::ausente("protocolo_declarado_ausente_da_pasta")
+        )
+    }
 }

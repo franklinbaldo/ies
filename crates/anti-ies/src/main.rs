@@ -1,9 +1,36 @@
-//! Listener HTTP local, exclusivo para ensaios offline de compatibilidade.
-//! Não possui autenticação, persistência nem operações SEI implementadas.
-use anti_ies::{Estado, Resposta, despachar};
-use std::io::{self, BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+//! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
+use anti_ies::atender_http;
+use iesei::instalacao::Instalacao;
+use rusqlite::{Connection, OpenFlags};
+use std::net::TcpListener;
 use std::time::Duration;
+
+type Fonte = (Connection, Instalacao, String);
+
+fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
+    let caminho = std::env::var_os("ANTI_IES_CASSETTE_DB");
+    let origem = std::env::var("ANTI_IES_CASSETTE_ORIGEM").ok();
+    let cenario = std::env::var("ANTI_IES_CASSETTE_CENARIO").ok();
+    match (caminho, origem, cenario) {
+        (None, None, None) => Ok(None),
+        (Some(caminho), Some(origem), Some(cenario)) if !cenario.is_empty() => {
+            // Nunca usar diretamente o índice operacional com URLs de sessão.
+            if std::path::Path::new(&caminho).file_name()
+                == Some(std::ffi::OsStr::new("ies.sqlite3"))
+            {
+                return Err("o banco operacional do IES não é uma cassette".into());
+            }
+            let instalacao =
+                Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
+            let banco = Connection::open_with_flags(
+                caminho,
+                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+            )?;
+            Ok(Some((banco, instalacao, cenario)))
+        }
+        _ => Err("configuração incompleta da fonte anti-IES".into()),
+    }
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut argumentos = std::env::args().skip(1);
@@ -12,80 +39,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (Some(texto), None) => texto.parse::<u16>()?,
         _ => return Err("uso: anti-ies [porta]".into()),
     };
-
-    // A fatia inicial nunca expõe o listener em uma interface pública.
+    let fonte = fonte_da_cassette()?;
     let servidor = TcpListener::bind(("127.0.0.1", porta))?;
     eprintln!(
         "anti-IES experimental: http://{}/__anti_ies/health",
         servidor.local_addr()?
     );
-
     for conexao in servidor.incoming() {
         match conexao {
             Ok(mut fluxo) => {
-                if let Err(erro) = atender(&mut fluxo) {
-                    // Não registrar o pedido: pode conter URLs assinadas.
+                fluxo.set_read_timeout(Some(Duration::from_secs(3)))?;
+                fluxo.set_write_timeout(Some(Duration::from_secs(3)))?;
+                let acesso = fonte
+                    .as_ref()
+                    .map(|(banco, instalacao, cenario)| (banco, instalacao, cenario.as_str()));
+                if let Err(erro) = atender_http(&mut fluxo, acesso) {
+                    // Não registrar a requisição: pode conter URL assinada.
                     eprintln!("conexao encerrada: {erro}");
                 }
             }
             Err(erro) => eprintln!("falha ao aceitar conexao: {erro}"),
         }
     }
-
     Ok(())
-}
-
-fn atender(fluxo: &mut TcpStream) -> io::Result<()> {
-    fluxo.set_read_timeout(Some(Duration::from_secs(3)))?;
-    fluxo.set_write_timeout(Some(Duration::from_secs(3)))?;
-
-    // Apenas a linha inicial, limitada em bytes. Nenhuma ação usa headers,
-    // cookies, corpo, sessão ou estado do cliente nesta fatia.
-    let mut primeira_linha = Vec::new();
-    let lidos = BufReader::new(&mut *fluxo)
-        .take(4096)
-        .read_until(b'\n', &mut primeira_linha)?;
-    if lidos == 0 {
-        return Ok(());
-    }
-
-    let resposta = if primeira_linha.ends_with(b"\n") {
-        let texto = std::str::from_utf8(&primeira_linha).unwrap_or_default();
-        let mut partes = texto.split_ascii_whitespace();
-        match (partes.next(), partes.next(), partes.next(), partes.next()) {
-            (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) => {
-                despachar(metodo, alvo)
-            }
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
-        }
-    } else {
-        Resposta::nova(Estado::RequisicaoInvalida)
-    };
-
-    write!(
-        fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
-        resposta.estado.codigo_http(),
-        resposta.estado.motivo_http(),
-        resposta.tipo_conteudo,
-        resposta.corpo.len(),
-        resposta.corpo
-    )?;
-    fluxo.flush()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use iesei::banco_cassettes::{ControleResumido, guardar, iniciar};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
 
-    fn pedir(alvo: &str) -> String {
+    #[derive(Clone, Copy)]
+    enum BancoDoTeste {
+        Nenhum,
+        Vazio,
+        Observado,
+    }
+
+    fn pedir(alvo: &str, tipo: BancoDoTeste) -> String {
         let escuta = TcpListener::bind(("127.0.0.1", 0)).expect("bind local");
         let endereco = escuta.local_addr().expect("endereco local");
         let servidor = std::thread::spawn(move || {
             let (mut fluxo, _) = escuta.accept().expect("aceitar conexao");
-            atender(&mut fluxo).expect("responder");
+            let mut banco = Connection::open_in_memory().unwrap();
+            iniciar(&banco).unwrap();
+            let instalacao = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+            if matches!(tipo, BancoDoTeste::Observado) {
+                guardar(
+                    &mut banco,
+                    "ensaio",
+                    &ControleResumido {
+                        instalacao: instalacao.clone(),
+                        unidade: UnidadeExibida::nova("TESTE").unwrap(),
+                        recebidos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+                        gerados: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+                    },
+                )
+                .unwrap();
+            }
+            let acesso =
+                (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((&banco, &instalacao, "ensaio"));
+            atender_http(&mut fluxo, acesso).expect("responder");
         });
-
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
         write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").expect("enviar GET");
         cliente
@@ -99,15 +117,38 @@ mod tests {
 
     #[test]
     fn saude_responde_no_protocolo_http_real() {
-        let resposta = pedir("/__anti_ies/health");
+        let resposta = pedir("/__anti_ies/health", BancoDoTeste::Nenhum);
         assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(resposta.contains(r#"{"status":"ok","servidor":"anti-ies"}"#));
     }
 
     #[test]
-    fn controlador_sei_nao_implementado_responde_501_no_fio() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_trabalhar");
+    fn controlador_nao_implementado_responde_501_no_fio() {
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_trabalhar",
+            BancoDoTeste::Observado,
+        );
         assert!(resposta.starts_with("HTTP/1.1 501 Not Implemented\r\n"));
-        assert!(resposta.contains("operacao_sei_nao_implementada"));
+    }
+
+    #[test]
+    fn controle_r_servido_pelo_banco_no_http_real() {
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_controlar",
+            BancoDoTeste::Observado,
+        );
+        assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(resposta.contains("<a id='lnkInfraUnidade'>TESTE</a>"));
+        assert!(resposta.contains("<caption>0 registros:</caption>"));
+        assert!(resposta.contains("Content-Type: text/html; charset=utf-8"));
+    }
+
+    #[test]
+    fn controle_sem_dados_nao_finge_lista_vazia() {
+        let resposta = pedir(
+            "/sei/controlador.php?acao=procedimento_controlar",
+            BancoDoTeste::Vazio,
+        );
+        assert!(resposta.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
     }
 }

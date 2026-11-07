@@ -1,8 +1,15 @@
-//! Prévia Web de relacionamento de processos; não faz a escrita.
+//! Relações entre processos: prévia, escrita única e conferência independente.
+mod escrita;
 mod tela;
 #[cfg(test)]
 #[path = "processo_relacionar/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "processo_relacionar/tests_escrita.rs"]
+mod tests_escrita;
+#[cfg(test)]
+#[path = "processo_relacionar/tests_fluxo.rs"]
+mod tests_fluxo;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
 use crate::formulario_web::{
@@ -16,8 +23,9 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
 use crate::visao_do_controle::EnvioDoControle as _;
+use std::io::Read;
 use tela::{DestinoConsultado, Relacionamento, ler_destino, ler_linhas, url_complementar};
 
 const CONSULTA: ConsultaAjax = ConsultaAjax {
@@ -30,6 +38,7 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 
 #[derive(Debug)]
 pub(crate) enum FalhaRelacionar {
+    /// Caminho de escrita implementado offline, mas ainda sem validação live.
     ConfirmacaoAindaNaoValidada,
     Abertura(ErroProcessoObter),
     Barra(ErroRelacionarNaBarra),
@@ -43,6 +52,10 @@ pub(crate) enum FalhaRelacionar {
     ConsultaResposta(FalhaTransporte),
     RelacionamentoConsigoMesmo,
     RemocaoNaoOferecida,
+    DestinoDaConsultaDivergente,
+    ConsultaNaoXml,
+    /// O POST pode ter sido enviado; causa preservada quando disponível.
+    EfeitoIncerto(Option<ErroSubmissaoFormulario>),
 }
 impl FalhaRelacionar {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -60,6 +73,24 @@ impl FalhaRelacionar {
             Self::ConsultaDerivacao(erro) => erro.subcodigo(),
             Self::RelacionamentoConsigoMesmo => "relacionamento_consigo_mesmo",
             Self::RemocaoNaoOferecida => "remocao_de_relacionamento_nao_oferecida",
+            Self::DestinoDaConsultaDivergente => "destino_da_consulta_diverge_do_pedido",
+            Self::ConsultaNaoXml => "resposta_da_consulta_nao_xml",
+            Self::EfeitoIncerto(_) => "efeito_incerto",
+        }
+    }
+
+    pub(crate) const fn saida(&self) -> u8 {
+        if matches!(self, Self::EfeitoIncerto(_)) {
+            3
+        } else {
+            1
+        }
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::EfeitoIncerto(Some(causa)) => causa.status_http(),
+            _ => None,
         }
     }
 }
@@ -70,19 +101,109 @@ pub(crate) struct Pedido<'a> {
     pub(crate) remover: bool,
     pub(crate) confirmar: bool,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResultadoRelacionar {
+    Previa,
+    SemEfeito,
+    Confirmado,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Previa {
     pub(crate) nup: String,
     pub(crate) id_procedimento: String,
     pub(crate) destino: String,
     pub(crate) id_destino: Option<String>,
+    pub(crate) tipo_destino: Option<String>,
     pub(crate) remover: bool,
-    pub(crate) sem_efeito: bool,
+    pub(crate) resultado: ResultadoRelacionar,
     pub(crate) requisicoes: u8,
 }
 
-/// A confirmação é recusada ANTES da sessão e da primeira requisição.
-/// Não supor que a prévia prova o efeito da escrita.
+impl Previa {
+    pub(crate) fn sem_efeito(&self) -> bool {
+        self.resultado == ResultadoRelacionar::SemEfeito
+    }
+}
+
+/// Números de processo são opacos; para buscar vínculos, diferenças de
+/// pontuação e caixa não mudam a sequência de letras e dígitos. Oráculo:
+/// Todos `tipos.mesmo_protocolo` e `test_so_os_digitos_bastam` @323eb01.
+fn forma_do_protocolo(numero: &str) -> String {
+    numero
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn mesmo_protocolo(pedido: &str, mostrado: &str) -> bool {
+    let forma = forma_do_protocolo(pedido);
+    !forma.is_empty() && forma == forma_do_protocolo(mostrado)
+}
+
+/// O texto exato tem prioridade; dois equivalentes sem texto exato
+/// são ambíguos (AB-C e A-BC não permitem escolher por acaso).
+fn linhas_do_protocolo<'a>(
+    relacionados: &'a [Relacionamento],
+    nup: &str,
+) -> Vec<&'a Relacionamento> {
+    let literal = nup.trim().to_lowercase();
+    let exatas: Vec<_> = relacionados
+        .iter()
+        .filter(|linha| linha.nup.trim().to_lowercase() == literal)
+        .collect();
+    if !exatas.is_empty() {
+        return exatas;
+    }
+    relacionados
+        .iter()
+        .filter(|linha| mesmo_protocolo(nup, &linha.nup))
+        .collect()
+}
+
+/// Só uma linha do formulário pode comprovar o vínculo, sem consulta AJAX.
+fn relacionamento_existente<'a>(
+    relacionados: &'a [Relacionamento],
+    nup: &str,
+    id_origem: &str,
+) -> Result<Option<&'a Relacionamento>, FalhaRelacionar> {
+    match linhas_do_protocolo(relacionados, nup).as_slice() {
+        [] => Ok(None),
+        [linha] if linha.id == id_origem => Err(FalhaRelacionar::RelacionamentoConsigoMesmo),
+        [linha] => Ok(Some(*linha)),
+        _ => Err(FalhaRelacionar::Estrutura(
+            "relacionamentos_repetidos_na_tela",
+        )),
+    }
+}
+
+/// A consulta do protocolo é XML (e não a tela HTML do controle).
+/// Não reutilizar o decodificador exclusivo de text/html da infraestrutura.
+fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaRelacionar> {
+    use FalhaRelacionar as E;
+    if resposta.status_code != 200 {
+        return Err(E::ConsultaResposta(recusar_status(resposta)));
+    }
+    let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
+    if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
+        return Err(E::ConsultaNaoXml);
+    }
+    if resposta
+        .content_length
+        .is_some_and(|tamanho| tamanho > crate::MAX_HTML_BYTES)
+    {
+        return Err(E::ConsultaResposta(FalhaTransporte::RespostaExcessiva));
+    }
+    let bytes =
+        ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::ConsultaResposta)?;
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| E::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))
+}
+
+/// A confirmação percorre a prévia antes da escrita única; em ambas as
+/// ações o POST deve publicar aceite e uma nova leitura comprovar o efeito.
+#[allow(clippy::too_many_lines)] // Fluxo de prévia por ação com contagem, sem mutação nem retry.
 pub(crate) fn prever<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &Pedido<'_>,
@@ -90,9 +211,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, FalhaRelacionar> {
     use FalhaRelacionar as E;
-    if pedido.confirmar {
-        return Err(E::ConfirmacaoAindaNaoValidada);
-    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
@@ -115,22 +233,23 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
     })?;
     let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;
+    if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {
+        return Err(E::RelacionamentoConsigoMesmo);
+    }
     let mut previa = Previa {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: id.clone(),
         destino: pedido.com.as_str().to_owned(),
         id_destino: None,
+        tipo_destino: None,
         remover: pedido.remover,
-        sem_efeito: false,
+        resultado: ResultadoRelacionar::Previa,
         requisicoes: rede.feitas(),
     };
     if pedido.remover {
-        let achados: Vec<&Relacionamento> = relacionados
-            .iter()
-            .filter(|linha| linha.nup == pedido.com.as_str())
-            .collect();
+        let achados = linhas_do_protocolo(&relacionados, pedido.com.as_str());
         match achados.as_slice() {
-            [] => previa.sem_efeito = true,
+            [] => previa.resultado = ResultadoRelacionar::SemEfeito,
             [linha] => {
                 if !linha.pode_remover {
                     return Err(E::RemocaoNaoOferecida);
@@ -140,6 +259,31 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             }
             _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
         }
+        if pedido.confirmar && !previa.sem_efeito() {
+            let id_destino = previa
+                .id_destino
+                .as_deref()
+                .ok_or(E::Estrutura("destino_a_remover_sem_identificador"))?;
+            escrita::remover(
+                sessao,
+                &instalacao,
+                &cookie,
+                link.as_str(),
+                &html,
+                &mime,
+                id_destino,
+                &mut rede,
+            )?;
+            previa.resultado = ResultadoRelacionar::Confirmado;
+        }
+        previa.requisicoes = rede.feitas();
+        return Ok(previa);
+    }
+    // A tabela já relaciona NUP e id: nenhum POST AJAX é necessário.
+    if let Some(linha) = relacionamento_existente(&relacionados, pedido.com.as_str(), &id)? {
+        previa.id_destino = Some(linha.id.clone());
+        previa.destino.clone_from(&linha.nup);
+        previa.resultado = ResultadoRelacionar::SemEfeito;
         return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
@@ -166,17 +310,45 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_relacionamento_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = xml_da_consulta(resposta.resposta)?;
     let DestinoConsultado {
         id: destino_id,
         nup,
+        tipo,
     } = ler_destino(&xml).map_err(E::Estrutura)?;
     if destino_id == id {
         return Err(E::RelacionamentoConsigoMesmo);
     }
-    previa.sem_efeito = relacionados.iter().any(|linha| linha.id == destino_id);
+    if !mesmo_protocolo(pedido.com.as_str(), &nup) {
+        return Err(E::DestinoDaConsultaDivergente);
+    }
+    previa.resultado = if relacionados.iter().any(|linha| linha.id == destino_id) {
+        ResultadoRelacionar::SemEfeito
+    } else {
+        ResultadoRelacionar::Previa
+    };
     previa.id_destino = Some(destino_id);
+    previa.tipo_destino = tipo;
     previa.destino = nup;
     previa.requisicoes = rede.feitas();
+    if pedido.confirmar && !previa.sem_efeito() {
+        escrita::adicionar(
+            sessao,
+            &instalacao,
+            &cookie,
+            link.as_str(),
+            &html,
+            &mime,
+            previa
+                .id_destino
+                .as_deref()
+                .ok_or(E::Estrutura("destino_a_relacionar_nao_identificado"))?,
+            &previa.destino,
+            previa.tipo_destino.as_deref().unwrap_or(""),
+            &mut rede,
+        )?;
+        previa.resultado = ResultadoRelacionar::Confirmado;
+        previa.requisicoes = rede.feitas();
+    }
     Ok(previa)
 }

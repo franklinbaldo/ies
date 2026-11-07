@@ -13,7 +13,21 @@ conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
 `--versao N`, `versao_atual` e a foto `DOC.vN.html` de `--saida`
 estão no [contrato de versões](documento-obter-versoes.md)
 (Refs #88, #207), sobre qualquer caminho que abriu a árvore.
-`--com-propriedades` continua no stub (`nao_implementado`, saída 1).
+Com `--com-propriedades`, a CLI segue o link de cadastro **publicado na
+barra do documento**: `documento_alterar` ou `documento_consultar`
+(nativo em processo fechado), `documento_alterar_recebido` ou
+`documento_consultar_recebido` (externo). A forma de consulta em
+processo fechado e os rádios de nível desabilitados foram observados
+na UFRJ 4.1 (cassette `documento-consultar-fechado-ufrj`).
+Confere ação, IDs de documento e processo, lê `frmDocumentoCadastro`
+com um único GET adicional (sem POST) e publica `propriedades` com
+`fonte` igual à ação observada, `tipo`, `descricao`,
+`nome_na_arvore`, `observacoes` e `nivel_de_acesso`.
+Sem qualquer link de cadastro: `propriedades: null`,
+`propriedades_motivo: nao_publicadas_na_barra` e nenhum GET extra.
+Formulário ilegível ou identidade divergente são recusas tipadas.
+Não fabricar link de consulta nem tratar ausência de link como ausência
+do documento.
 `--ocultar-inacessiveis` é atendido na leitura Web: em lote, omite apenas
 um documento cujo nó foi comprovado mas não publicou `.src`, sem suprimir
 cancelamento, falha da sessão ou erro de identidade. `--html-privado`

@@ -37,5 +37,10 @@ pub(crate) fn archive_filename(card: &Path) -> Result<String, String> {
     Ok(name.to_owned())
 }
 
+#[path = "cassette/anti_ies_ciclo.rs"]
+mod anti_ies_ciclo;
+#[cfg(test)]
+mod anti_ies_retornos;
+
 #[path = "cassette/tests.rs"]
 mod tests;

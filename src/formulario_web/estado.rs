@@ -42,4 +42,8 @@ pub(crate) enum EstadoDoProcesso {
     Sobrestamento,
     /// Atribuição de um processo a usuário da unidade, ou sua remoção.
     AtribuicaoNaUnidade,
+    /// Texto e prioridade da anotação registrada na unidade do processo.
+    AnotacaoNaUnidade,
+    /// Vínculo entre processos, incluindo sua remoção.
+    RelacionamentosDoProcesso,
 }

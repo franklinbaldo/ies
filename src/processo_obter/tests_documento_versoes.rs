@@ -307,6 +307,47 @@ fn foto_independe_da_edicao_e_recusa_link_assinado() {
     assert_eq!(erro.subcodigo(), "conteudo_com_link_assinado");
 }
 
+// BDD-88-01: a opcao local de cache nao deve tornar inacessivel uma
+// versao N que o SEI ja serviu. URL assinada no corpo nunca vai ao cache.
+#[test]
+fn bdd_88_01_conteudo_assinado_nao_impede_leitura_com_cache_ativo() {
+    let com_link = conteudo_v(
+        DOC,
+        "<p>Texto da versao 1.</p><a href=\"controlador.php?acao=x&amp;infra_hash=assinado\">detalhe</a>",
+        1,
+    );
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(lista(&[2, 1])));
+    respostas.push(ok(com_link));
+    let mut pedido = versao(1);
+    pedido.cache = true;
+    let (resultado, pedidos) = rodar(respostas, pedido);
+    assert_eq!(pedidos.len(), 6);
+    let documento = resultado.expect("cache opcional nao pode impedir leitura de versao N");
+    assert!(documento.texto.contains("Texto da versao 1."));
+    assert_eq!(n(&documento.versoes), (Some(1), Ok(2)));
+    assert!(documento.versoes.cache_html.is_none());
+    assert!(documento.versoes.foto.is_none());
+
+    let com_link = conteudo_v(
+        DOC,
+        "<p>Texto atual.</p><a href=\"controlador.php?acao=x&amp;infra_hash=assinado\">detalhe</a>",
+        2,
+    );
+    let mut respostas = ate_a_arvore(arvore_com_barra(Some('N'), true));
+    respostas.push(ok(com_link));
+    let pedido = PedidoDeVersoes {
+        cache: true,
+        ..PedidoDeVersoes::default()
+    };
+    let (resultado, pedidos) = rodar(respostas, pedido);
+    assert_eq!(pedidos.len(), 5);
+    let documento = resultado.expect("cache opcional nao pode impedir leitura atual");
+    assert!(documento.texto.contains("Texto atual."));
+    assert_eq!(n(&documento.versoes), (Some(2), Ok(2)));
+    assert!(documento.versoes.cache_html.is_none());
+}
+
 #[test]
 fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_vem_do_rodape() {
     // Barra repetida (recusa se lida) não muda a leitura sem pedido.

@@ -148,3 +148,241 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
     ));
     assert_eq!(pedidos, esperado);
 }
+
+#[test]
+fn bdd_confirmar_checkbox_verifica_anotacao_apos_tramitar() {
+    // Dado checkbox oferecido e anotação presente na origem,
+    // quando executo ies processo enviar --remover-anotacoes --confirmar,
+    // então há um POST de envio e duas leituras independentes da anotação.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Texto anterior", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            ok(anotacao("", ID)),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let feito = resultado.expect("o envio e a remoção foram relidos");
+    assert!(feito.alterado);
+    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.anotacao_depois, Some(false));
+    assert_eq!(feito.requisicoes, 9);
+    let mut esperados = pedidos_da_abertura();
+    esperados.push(get(&url_da_tela()));
+    esperados.push(get(&absoluta(&link_anotacao())));
+    esperados.push(post(
+        &absoluta(&autocompletar()),
+        &corpo_da_consulta(Versao::V40),
+    ));
+    let corpo = corpo_do_envio(Versao::V40, false).replacen(
+        "txtPrazo=",
+        "chkSinRemoverAnotacoes=on&txtPrazo=",
+        1,
+    );
+    esperados.push(post(&absoluta(&action_de_enviar()), &corpo));
+    esperados.push(get(&url_arvore()));
+    esperados.push(get(&absoluta(&link_anotacao())));
+    assert_eq!(pedidos, esperados);
+}
+
+#[test]
+fn bdd_anotacao_ainda_presente_apos_envio_e_resultado_parcial() {
+    // Dado que o SEI tramitou, mas manteve a anotação,
+    // quando confirmo a remoção pelo checkbox,
+    // então a operação não declara sucesso nem repete o envio.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V41, ID)),
+            ok(anotacao("Antes", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            ok(anotacao("Ainda presente", ID)),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let erro = resultado.unwrap_err();
+    assert!(matches!(
+        erro,
+        super::ErroEnviar::AnotacoesNaoRemovidasAposEnvio
+    ));
+    assert_eq!(erro.codigo(), "escrita_diferente_da_solicitada");
+    assert_eq!(pedidos.len(), 9);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_de_enviar()))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn bdd_releitura_da_anotacao_falha_apos_envio_sem_retry() {
+    // Dado que a árvore comprova a tramitação, mas a anotação não pode ser relida,
+    // quando confirmo, então devolvo efeito incerto (saída 3), sem novo POST.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Antes", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            Err(crate::transporte::FalhaTransporte::Rede),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let erro = resultado.unwrap_err();
+    assert!(matches!(
+        erro,
+        super::ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
+    ));
+    assert_eq!(erro.saida(), 3);
+    assert_eq!(pedidos.len(), 9);
+    assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_de_enviar()))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
+    // Dado envio comprovado por releitura, mas anotação indisponível depois,
+    // quando executo ies processo enviar com --remover-anotacoes --confirmar,
+    // então recebo saída 3 com o destino comprovado, sem segundo envio.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Antes", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            Err(crate::transporte::FalhaTransporte::Rede),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("a anotação não pôde ser relida");
+    assert_eq!(erro.saida(), 3);
+    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
+        .expect("erro tipado serializável");
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["depois"], serde_json::json!([DESTINO]));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_de_enviar()))
+            .count(),
+        1,
+        "a escrita não pode ser repetida"
+    );
+}
+
+#[test]
+fn bdd_fallback_ainda_nao_grava_antes_do_post_proprio() {
+    // Dado formulário de anotação mas sem checkbox no envio,
+    // quando confirmo, então não há POST até o fallback estar pronto.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let tela =
+        tela_de_envio(Versao::V41, ID).replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![ok(tela), ok(anotacao("Antes", ID))],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(super::ErroEnviar::RemocaoDeAnotacoesSemVerificacao)
+    ));
+    assert_eq!(pedidos.len(), 5);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}

@@ -434,6 +434,7 @@ fn rodar_tudo(
         propriedades,
         marcadores,
         unidade_exigida: false,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);

@@ -13,6 +13,7 @@ pub(crate) struct ReciboUpload {
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(crate) enum FalhaUpload {
+    PreparacaoMultipart(super::multipart::FalhaMultipart),
     Recusado {
         motivo: String,
     },

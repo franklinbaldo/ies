@@ -1,0 +1,9 @@
+[package]
+name = "iesei"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Entidades e observacoes tipadas compartilhadas entre IES e anti-IES"
+
+[dependencies]
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }

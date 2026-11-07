@@ -271,3 +271,27 @@ fn exibir_todos_hidden_nao_autoriza_filtro() {
         assert_eq!(filtro_de_todos(&tela), Ok(false));
     }
 }
+
+#[test]
+fn tipo_interno_nao_e_ambiguo_por_link_externo_homonimo() {
+    // Regressao tecnica do BDD-246-03: a CLI so oferece tipos internos.
+    // Uma entrada externa com o mesmo rotulo nao e segunda opcao nativa.
+    let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_gerar&id_procedimento=4864&infra_hash={}",
+        "a".repeat(64)
+    );
+    let html = format!(
+        r#"<table id="tblSeries"><tr><td>
+        <a href="{href}">Despacho</a>
+        <a href="controlador.php?acao=documento_receber">Despacho</a>
+        </td></tr></table>"#
+    );
+    assert_eq!(tipos_oferecidos(&html).unwrap(), ["Despacho"]);
+    assert_eq!(
+        escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),
+        Ok(EscolhaDoDocumento::Link(format!(
+            "https://sei.exemplo.gov.br/sei/{href}"
+        )))
+    );
+}

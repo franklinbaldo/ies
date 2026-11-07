@@ -8,7 +8,7 @@ description = "CLI Rust para interacao com o SEI, guiada por contratos de domini
 [dependencies]
 base64 = "0.23"
 clap = { version = "4.5", features = ["derive"] }
-ies-core = { path = "crates/ies-core" }
+iesei = { path = "crates/iesei" }
 ies-derive = { path = "crates/ies-derive" }
 native-tls = "0.2.18"
 rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
@@ -21,9 +21,10 @@ tl = "0.7.8"
 # produção não liga `zip` nem `sha1`. `base64` segue em [dependencies] porque
 # o proxy monta `Proxy-Authorization: Basic` em produção.
 [dev-dependencies]
+anti-ies = { path = "crates/anti-ies" }
 sha1 = "0.11"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [workspace]
-members = ["xtask", "crates/ies-core", "crates/ies-derive", "crates/anti-ies"]
+members = ["xtask", "crates/iesei", "crates/ies-derive", "crates/anti-ies"]
 resolver = "3"

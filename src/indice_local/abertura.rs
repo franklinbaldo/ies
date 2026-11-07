@@ -99,6 +99,8 @@ const MIGRACOES: &[&str] = &[
     ) STRICT;
     CREATE INDEX unidade_sigla
         ON unidade(instalacao, unidade_ativa, sigla);",
+    // 3 → 4: projeção tipada do Controle; sem dados de URL/cookie.
+    iesei::sqlite::MIGRACAO_CONTROLE,
 ];
 
 pub(super) fn versao_do_esquema() -> i64 {

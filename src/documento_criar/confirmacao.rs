@@ -28,7 +28,7 @@ impl FotoDaCriacao {
 /// O 302 não é seguido, mas só serve de indício se seu destino
 /// continuar no controlador HTTPS da própria instalação. Um Location
 /// externo/inválido pode coincidir com criação concorrente na árvore.
-fn redirecionamento_do_mesmo_controlador(
+pub(crate) fn redirecionamento_do_mesmo_controlador(
     localizacao: &str,
     url_do_envio: &str,
     id_novo: &str,
@@ -67,8 +67,10 @@ fn redirecionamento_do_mesmo_controlador(
         let mut ids = consulta
             .split('&')
             .filter_map(|campo| campo.strip_prefix("id_documento="));
-        acoes.next() == Some("documento_visualizar")
-            && acoes.next().is_none()
+        matches!(
+            acoes.next(),
+            Some("documento_visualizar" | "arvore_visualizar")
+        ) && acoes.next().is_none()
             && ids.next() == Some(id_novo)
             && ids.next().is_none()
     })

@@ -4,7 +4,7 @@
 # ==============================================================================
 # Alternativa ao cron do sistema: roda em background (loop infinito),
 # calculando o tempo até o próximo minuto de agenda (:05, :10, :22, :34, :40, :46, :52, :58)
-# e disparando o respectivo agente com flock e logs.
+# e disparando o respectivo agente em paralelo com trava por avatar e logs.
 #
 # Uso:
 #   ./scripts/daemon_agentes.sh [--simples | --completo]
@@ -52,6 +52,7 @@ while true; do
   echo "⏳ Próximo disparo em ${SEGUNDOS_ESPERA}s (às $(date -d "+${SEGUNDOS_ESPERA} seconds" '+%H:%M:%S'))..."
   sleep "${SEGUNDOS_ESPERA}"
 
-  # Executar rotina com auto-seleção pelo minuto atual
-  "${EXECUTOR}" auto || true
+  # Não bloquear a grade inteira enquanto um agente executa.
+  # O executor possui flock por avatar para evitar duas rodadas do mesmo agente.
+  "${EXECUTOR}" auto &
 done

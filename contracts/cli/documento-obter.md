@@ -14,7 +14,9 @@ source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 visível. A leitura Web de documentos internos (texto e metadados, pela
 pesquisa rápida, a árvore e o link assinado do conteúdo) está no
 [contrato da leitura Web](documento-obter-web.md) (Refs #60, fatia 1);
-`--com-propriedades` e `--ocultar-inacessiveis` continuam stub.
+`--com-propriedades` lê o cadastro publicado na barra do documento e
+`--ocultar-inacessiveis` omite somente conteúdo não publicado, conforme
+o [contrato Web](documento-obter-web.md).
 Versões, `--saida` e HTML privado estão descritos abaixo.
 
 ## Entradas
@@ -51,8 +53,9 @@ Caracteres não ASCII/dígitos misturados continuam retornando
 que tipa sessão, ausência, inacessibilidade e cancelamento, lê o
 documento externo e aceita `--processo`, `--versao`, `--saida` e
 `--ocultar-inacessiveis` (somente ausência observada de `.src` é
-omitida no lote, com requisições contabilizadas). `--com-propriedades`
-ainda retorna `nao_implementado` e código 1.
+omitida no lote, com requisições contabilizadas). `--com-propriedades` acrescenta um GET somente quando a barra publica
+link de cadastro e registra a ação consultada em `fonte`; sem link,
+retorna propriedades nulas com motivo, sem GET extra.
 
 [documento.obter](../evidencias/documento-obter.md) e
 [formulários e payloads](../../docs/como-o-sei-funciona/formularios.md)

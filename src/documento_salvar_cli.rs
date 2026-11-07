@@ -96,6 +96,10 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                     dados.bytes_base,
                     dados.bytes_editada,
                 );
+                println!(
+                    "Diferenças locais (não comprovam alteração remota):\n{}",
+                    dados.diff_humano
+                );
             }
             Some(ExitCode::SUCCESS)
         }

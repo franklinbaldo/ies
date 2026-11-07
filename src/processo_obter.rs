@@ -15,6 +15,7 @@ mod acervo_documento;
 mod acervo_versoes;
 mod acoes;
 mod andamentos;
+pub(crate) mod consulta_parcial;
 mod controle;
 mod documento;
 mod documento_indice;
@@ -24,6 +25,9 @@ pub(crate) mod login;
 mod marcadores;
 mod pastas;
 mod propriedades;
+
+#[cfg(test)]
+mod tests_consulta_parcial;
 
 #[cfg(test)]
 mod tests_andamentos;
@@ -76,9 +80,11 @@ use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+#[cfg(test)]
+pub(crate) use documento::obter_documento_com_versoes;
 pub(crate) use documento::{
     DocumentoNaArvoreAberto, DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo,
-    PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_versoes,
+    PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_propriedades,
 };
 #[cfg(test)]
 pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
@@ -131,6 +137,13 @@ pub(crate) struct SessaoDoProcesso<'a> {
 
 /// O NUP pedido, a `--unidade` (conferida na primeira tela que a publica)
 /// e o que ler do histórico.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LeituraDasPastas {
+    Estrita,
+    Informativa,
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) nup: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
@@ -142,6 +155,8 @@ pub(crate) struct PedidoDoProcesso<'a> {
     /// Pula o link guardado da árvore (passo 1), que não publica a unidade:
     /// quem escreve precisa da unidade da sessão (`processo concluir`).
     pub(crate) unidade_exigida: bool,
+    /// Consulta informativa tolera somente lacunas de documentos comprovadas.
+    pub(crate) leitura_das_pastas: LeituraDasPastas,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou

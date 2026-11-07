@@ -1,13 +1,7 @@
 name: Desempenho offline IES
 
 on:
-  pull_request:
-    paths:
-      - "scripts/perf_audit.py"
-      - "src/transporte.rs"
-      - "src/transporte/web_mock_tests.rs"
-      - "docs/performance/web-mock-budget.md"
-      - ".github/workflows/perf-audit.yml"
+  # Benchmark exploratório: nunca bloquear/atrasar cada alteração.
   workflow_dispatch:
 
 permissions:
