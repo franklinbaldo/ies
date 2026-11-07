@@ -120,9 +120,20 @@ def preservar_diagnostico_inconclusivo(relatorio: dict, resposta: dict) -> None:
         relatorio["possiveis_residuos"] = possiveis
 
 
+def interessados_conferem(resposta: dict, solicitados: tuple[str, ...]) -> bool:
+    """A ordem de apresentação não integra a identidade, mas a multiplicidade sim."""
+    if not solicitados:
+        return True
+    observados = resposta.get("interessados")
+    return (isinstance(observados, list)
+            and all(isinstance(nome, str) for nome in observados)
+            and sorted(observados) == sorted(solicitados))
+
+
 def ensaiar(
     *, ies: str, registro: Path, tipo: str, especificacao: str,
     nivel: str, hipotese: str | None, origem: str,
+    interessados: tuple[str, ...] = (),
     executar=chamar_ies, pausa=time.sleep,
 ) -> tuple[int, dict]:
     """Retorna (código, relatório saneado). Jamais repete o POST criador."""
@@ -136,6 +147,8 @@ def ensaiar(
             "--especificacao", especificacao, "--nivel", nivel]
     if hipotese:
         base += ["--hipotese-legal", hipotese]
+    for interessado in interessados:
+        base += ["--interessado", interessado]
     try:
         codigo, previa = executar(ies, base)
     except (OSError, subprocess.TimeoutExpired, ValueError):
@@ -146,6 +159,7 @@ def ensaiar(
             or not isinstance(previa.get("unidade"), str)
             or not previa["unidade"].strip()
             or previa.get("confirmado") is not False
+            or not interessados_conferem(previa, interessados)
             or type(previa.get("requisicoes")) is not int
             or previa["requisicoes"] <= 0):
         return 1, {"estado": "PREVIA_FAIL",
@@ -209,7 +223,8 @@ def ensaiar(
             if (criado.get("tipo") != tipo
                     or criado.get("especificacao") != especificacao
                     or criado.get("nivel") != nivel
-                    or criado.get("unidade") != previa["unidade"]):
+                    or criado.get("unidade") != previa["unidade"]
+                    or not interessados_conferem(criado, interessados)):
                 relatorio["estado"] = "CONFIRMACAO_DIVERGENTE"
                 gravar()
                 return 3, relatorio
@@ -233,6 +248,7 @@ def main() -> int:
     parser.add_argument("--especificacao", required=True)
     parser.add_argument("--nivel", choices=["publico", "restrito"], default="publico")
     parser.add_argument("--hipotese-legal")
+    parser.add_argument("--interessado", action="append", default=[])
     args = parser.parse_args()
     try:
         permitidas = origens_de_treinamento(
@@ -243,6 +259,7 @@ def main() -> int:
             ies=args.ies, registro=args.registro, tipo=args.tipo,
             especificacao=args.especificacao, nivel=args.nivel,
             hipotese=args.hipotese_legal, origem=origem,
+            interessados=tuple(args.interessado),
         )
     except (OSError, ValueError, KeyError):
         codigo, relatorio = 2, {"estado": "BLOQUEADO", "motivo": "origem_ou_credenciais_invalidas"}
