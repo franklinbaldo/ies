@@ -35,8 +35,8 @@ class EnsaioUmaVez(unittest.TestCase):
 
     def respostas_validas(self):
         return [
-            (0, {"tipo": "Ensaio", "especificacao": "Teste sintético", "nivel": "publico", "confirmado": False, "requisicoes": 3}),
-            (0, {"confirmado": True, "nup": NUP, "requisicoes": 7}),
+            (0, {"tipo": "Ensaio", "especificacao": "Teste sintético", "nivel": "publico", "unidade": "TREINO", "confirmado": False, "requisicoes": 3}),
+            (0, {"tipo": "Ensaio", "especificacao": "Teste sintético", "nivel": "publico", "unidade": "TREINO", "confirmado": True, "nup": NUP, "requisicoes": 7}),
             (0, {"numero": NUP, "id_procedimento": "10", "requisicoes": 2}),
         ]
 
@@ -66,6 +66,40 @@ class EnsaioUmaVez(unittest.TestCase):
         self.assertEqual(codigo, 1)
         self.assertEqual(len(self.chamadas), 1)
         self.assertFalse(self.registro.exists())
+
+    def test_previa_sem_unidade_observada_recusa_sem_post(self):
+        respostas = self.respostas_validas()
+        respostas[0][1].pop("unidade")
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertEqual(len(self.chamadas), 1)
+        self.assertFalse(self.registro.exists())
+
+    def test_confirmacao_de_outro_tipo_nao_prova_o_post(self):
+        respostas = self.respostas_validas()
+        respostas[1][1]["tipo"] = "Outro tipo"
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "CONFIRMACAO_DIVERGENTE"))
+        self.assertEqual(relatorio["nup"], NUP)
+        self.assertEqual(len(self.chamadas), 3)  # releitura independente preservada
+        self.assertEqual(self.chamadas[-1], ["processo", NUP])
+        self.assertEqual(json.loads(self.registro.read_text())["estado"], "CONFIRMACAO_DIVERGENTE")
+
+    def test_confirmacao_sem_especificacao_nao_prova_o_post(self):
+        respostas = self.respostas_validas()
+        respostas[1][1].pop("especificacao")
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "CONFIRMACAO_DIVERGENTE"))
+        self.assertEqual(relatorio["nup"], NUP)
+        self.assertEqual(len(self.chamadas), 3)
+
+    def test_confirmacao_em_outra_unidade_nao_prova_o_post(self):
+        respostas = self.respostas_validas()
+        respostas[1][1]["unidade"] = "OUTRA_UNIDADE"
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "CONFIRMACAO_DIVERGENTE"))
+        self.assertEqual(relatorio["nup"], NUP)
+        self.assertEqual(len(self.chamadas), 3)
 
     def test_segunda_execucao_recusa_antes_da_rede(self):
         self.assertEqual(self.rodar(self.respostas_validas())[0], 0)
