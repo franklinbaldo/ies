@@ -143,6 +143,13 @@ jobs:
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_ciclo::cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli -- --ignored --nocapture --test-threads=1
 
+      - name: Segunda vertical — retornos mensais UnB por SQLite e HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_retornos::cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor -- --ignored --nocapture --test-threads=1
+
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas
     # respostas gravadas: nunca requisita a instalação do SEI.

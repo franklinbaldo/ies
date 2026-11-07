@@ -75,3 +75,14 @@ essa prova adicional permanece na #355.
    persistência, sem carregar o cliente com dependências de servidor.
 
 Acompanhamento: [issue #350](https://github.com/franklinbaldo/ies/issues/350).
+
+## Segunda vertical: retornos mensais da unidade
+
+A cassette pública `unidade-listar-retornos-unb` contém duas páginas
+mensais conferidas. O leitor de produção do IES extrai os retornos, a
+projeção SQL v2 armazena o mês e os registros tipados, e o anti-IES serve
+`GET controlador.php?acao=retorno_programado_listar&data_inicial=...&data_final=...`
+com HTML reconstruído, não copiado. O teste usa duas requisições HTTP reais
+e compara o resultado do leitor de retornos com o JSON original do acervo.
+Mês não observado é 503, não lista vazia. A execução do comando completo
+`ies unidade retornos --mes ...` com sessão segura ainda é NOT_RUN.
