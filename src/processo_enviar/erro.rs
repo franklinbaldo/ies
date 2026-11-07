@@ -85,6 +85,10 @@ pub(crate) enum ErroEnviar {
     RemocaoDeAnotacoesSemVerificacao,
     /// O envio foi confirmado pela árvore, mas a anotação ainda existe.
     AnotacoesNaoRemovidasAposEnvio,
+    /// A tentativa de limpar foi relida, mas a anotação segue preenchida: não tramitar.
+    AnotacaoNaoLimpaAntesDeEnviar,
+    /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
+    EfeitoIncertoNaLimpezaDaAnotacao,
     /// O envio foi confirmado; a releitura da anotação falhou.
     EfeitoIncertoNaRemocaoDeAnotacoes,
     #[causa(interna)]
@@ -136,8 +140,11 @@ impl ErroEnviar {
         match self {
             Self::EnvioNaoAplicado { .. } => "escrita_nao_aplicada",
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
-            | Self::AnotacoesNaoRemovidasAposEnvio => "escrita_diferente_da_solicitada",
-            Self::EfeitoIncertoNoEnvio { .. } | Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
+            | Self::AnotacoesNaoRemovidasAposEnvio
+            | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
+            Self::EfeitoIncertoNoEnvio { .. }
+            | Self::EfeitoIncertoNaRemocaoDeAnotacoes
+            | Self::EfeitoIncertoNaLimpezaDaAnotacao => {
                 "efeito_incerto"
             }
             _ => "fonte_invalida",
@@ -147,7 +154,9 @@ impl ErroEnviar {
     /// 3 só para efeito incerto; as demais recusas saem com 1.
     pub(crate) fn saida(&self) -> u8 {
         match self {
-            Self::EfeitoIncertoNoEnvio { .. } | Self::EfeitoIncertoNaRemocaoDeAnotacoes => 3,
+            Self::EfeitoIncertoNoEnvio { .. }
+            | Self::EfeitoIncertoNaRemocaoDeAnotacoes
+            | Self::EfeitoIncertoNaLimpezaDaAnotacao => 3,
             _ => 1,
         }
     }
@@ -212,6 +221,12 @@ impl ErroEnviar {
             }
             Self::AnotacoesNaoRemovidasAposEnvio => {
                 "o processo foi enviado, mas a anotação continua presente na origem"
+            }
+            Self::AnotacaoNaoLimpaAntesDeEnviar => {
+                "a anotação continua preenchida; o processo não foi enviado"
+            }
+            Self::EfeitoIncertoNaLimpezaDaAnotacao => {
+                "não foi possível comprovar a limpeza da anotação; o processo não foi enviado; não repita a gravação"
             }
             Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
                 "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
