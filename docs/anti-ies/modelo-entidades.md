@@ -44,3 +44,21 @@ versionado e evolutivo; o segundo conserva suas migrações próprias.
 Ao acrescentar entidades ou tabelas, evoluir tipos e SQL junto com
 o parser e a resposta do anti-IES na mesma PR de ciclo fechado.
 Ver o [contrato do ciclo de cassettes](ciclo-cassettes.md).
+
+
+## Primeira migração do banco efêmero para Controle R
+
+O esquema declarado \`crates/iesei/migrations/0001_controle_resumido.sql\`
+é independente do índice operacional \`ies.sqlite3\`: tabelas
+\`controle_resumido\` (unidade, totais e faixas conhecidos) e
+\`controle_linha\` (processos observados, categoria e posição).
+\`PRAGMA user_version=1\`; um novo ensaio recria o banco.
+O IES extrai o snapshot pelo parser de produção da cassette conferida,
+sem gravar URLs ou cookies. O anti-IES só consulta por origem e cenário
+e serve Controle R quando os dados são suficientes.
+
+O replay UnB verifica de forma offline
+\`cassette → leitura IES → SQLite → HTTP anti-IES → leitura IES\`.
+A integração do **processo CLI completo** por sessão HTTPS segue
+pendente em #355. Não confundir leitor de produção exercitado no
+replay com E2E de CLI concluído.
