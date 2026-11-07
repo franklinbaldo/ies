@@ -228,6 +228,10 @@ jobs:
 
       - name: Replay with real readers and verified cassette members
         run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
+      - name: Inspecionar Controle D real no acervo GO verificado
+        env:
+          ANTI_IES_PROBE_INSTALACAO: go
+        run: cargo +1.99.1 test --locked --bin ies localizar_controle_d_unb_no_acervo -- --ignored --nocapture --test-threads=1
 
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.

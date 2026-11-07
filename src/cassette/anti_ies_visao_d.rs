@@ -6,12 +6,17 @@ use std::path::{Path, PathBuf};
 #[test]
 #[ignore = "wip #354: localizar resposta D real no ZIP público UnB do acervo"]
 fn localizar_controle_d_unb_no_acervo() {
-    let pasta = Path::new(env!("CARGO_MANIFEST_DIR")).join("cassettes/unb");
+    let instalacao = std::env::var("ANTI_IES_PROBE_INSTALACAO")
+        .unwrap_or_else(|_| "unb".to_owned());
+    let nome_zip = format!("todos-sei-cassettes-{instalacao}.zip");
+    let pasta = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("cassettes")
+        .join(&instalacao);
     let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
         || PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
         PathBuf::from,
     );
-    let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-unb.zip")).unwrap();
+    let zip = ZipDoAcervo::ler(&cache.join(&nome_zip)).unwrap();
     let mut cards = 0usize;
     let mut paginas = 0usize;
     let mut detalhadas = 0usize;
@@ -22,7 +27,7 @@ fn localizar_controle_d_unb_no_acervo() {
         }
         let texto = std::fs::read_to_string(&card).unwrap();
         if !texto.contains("procedimento_controlar")
-            || archive_filename(&card).ok().as_deref() != Some("todos-sei-cassettes-unb.zip")
+            || archive_filename(&card).ok().as_deref() != Some(nome_zip.as_str())
         {
             continue;
         }
@@ -50,7 +55,7 @@ fn localizar_controle_d_unb_no_acervo() {
             }
         }
     }
-    println!("RESUMO_UNB cards={cards} paginas_controle={paginas} paginas_D={detalhadas}");
+    println!("RESUMO_{instalacao} cards={cards} paginas_controle={paginas} paginas_D={detalhadas}");
     assert!(
         cards > 0 && paginas > 0,
         "acervo UnB precisa ter GET Controle"
