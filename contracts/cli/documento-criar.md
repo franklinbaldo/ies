@@ -89,6 +89,12 @@ sucesso demonstrado sai 0; efeito incerto após o POST sai 3.
 
 ## Saída projetada
 
+A prévia e a confirmação exibem `descricao` e `nivel` quando informados
+na operação: no JSON, os campos são `string` ou `null`; na apresentação
+humana, aparecem como "Descrição" e "Nível" quando presentes. A prévia
+permite conferir esses dados **antes** de enviar o único POST criador;
+não altera o formulário nem acrescenta requisições.
+
 Prévia: `{"nup":"…","tipo":"Despacho","confirmado":false,
 "alterado":false,"requisicoes":N}`.
 Após escrita comprovada: `{"nup":"…","tipo":"Despacho",

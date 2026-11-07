@@ -75,25 +75,32 @@ fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
+fn resultado_json(resultado: &ResultadoCriacao) -> serde_json::Value {
+    let numero_sei = match &resultado.estado {
+        EstadoCriacao::Previa => None,
+        EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
+    };
+    json!({
+        "nup": resultado.nup,
+        "tipo": resultado.tipo,
+        "descricao": resultado.descricao,
+        "nivel": resultado.nivel,
+        "unidade": resultado.unidade,
+        "origem": "web",
+        "confirmado": numero_sei.is_some(),
+        "alterado": numero_sei.is_some(),
+        "numero_sei": numero_sei,
+        "requisicoes": resultado.requisicoes
+    })
+}
+
 fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode {
     let numero_sei = match &resultado.estado {
         EstadoCriacao::Previa => None,
         EstadoCriacao::Criado { numero_sei } => Some(numero_sei.as_str()),
     };
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "nup": resultado.nup,
-                "tipo": resultado.tipo,
-                "unidade": resultado.unidade,
-                "origem": "web",
-                "confirmado": numero_sei.is_some(),
-                "alterado": numero_sei.is_some(),
-                "numero_sei": numero_sei,
-                "requisicoes": resultado.requisicoes
-            })
-        );
+        println!("{}", resultado_json(resultado));
     } else {
         if let Some(numero_sei) = numero_sei {
             println!(
@@ -106,6 +113,12 @@ fn publicar_resultado(json_mode: bool, resultado: &ResultadoCriacao) -> ExitCode
                 resultado.tipo, resultado.nup, resultado.unidade
             );
             println!("Nenhum documento foi criado.");
+        }
+        if let Some(descricao) = &resultado.descricao {
+            println!("Descrição: {descricao}");
+        }
+        if let Some(nivel) = &resultado.nivel {
+            println!("Nível: {nivel}");
         }
         println!("Requisições: {}", resultado.requisicoes);
     }
@@ -181,6 +194,28 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dado_previa_quando_json_entao_expoe_descricao_nivel_e_nenhuma_escrita() {
+        // Dado pedido de criacao com descricao/nivel conferidos no cadastro;
+        // Quando publico a previa; Entao o usuario ve o que sera gravado.
+        let resultado = ResultadoCriacao {
+            nup: "00001.000001/2026-01".to_owned(),
+            tipo: "Despacho".to_owned(),
+            unidade: "UNIDADE TESTE".to_owned(),
+            descricao: Some("Ensaio de despacho".to_owned()),
+            nivel: Some("publico".to_owned()),
+            requisicoes: 5,
+            estado: EstadoCriacao::Previa,
+        };
+        let saida = resultado_json(&resultado);
+        assert_eq!(saida["descricao"], "Ensaio de despacho");
+        assert_eq!(saida["nivel"], "publico");
+        assert_eq!(saida["confirmado"], false);
+        assert_eq!(saida["alterado"], false);
+        assert!(saida["numero_sei"].is_null());
+        assert_eq!(saida["requisicoes"], 5);
+    }
 
     #[test]
     fn efeito_incerto_preserva_status_200_da_validacao_infra() {
