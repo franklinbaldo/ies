@@ -257,7 +257,8 @@ struct ResultadoEnvio<'a> {
     falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
     id_procedimento: &'a str,
     manter_aberto: bool,
-    remover_anotacoes: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    remover_anotacoes: Option<bool>,
     nup: &'a str,
     origem: &'static str,
     reconciliado_por_leitura: bool,
@@ -274,7 +275,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         confirmado: feito.confirmado,
         alterado: feito.alterado,
         manter_aberto: feito.manter_aberto,
-        remover_anotacoes: feito.remover_anotacoes,
+        remover_anotacoes: feito.remover_anotacoes.then_some(true),
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -362,11 +363,10 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             "Manter aberto na unidade atual: {}",
             if feito.manter_aberto { "sim" } else { "não" }
         ),
-        format!(
-            "Remover anotações no envio: {}",
-            if feito.remover_anotacoes { "sim" } else { "não" }
-        ),
     ];
+    if feito.remover_anotacoes {
+        linhas.push("Remover anotações no envio: sim".to_owned());
+    }
     match (feito.confirmado, &feito.depois) {
         (false, _) => {
             linhas.push(format!(
