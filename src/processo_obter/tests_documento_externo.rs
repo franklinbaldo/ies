@@ -225,6 +225,72 @@ fn dado_externo_sem_src_com_anexo_no_cadastro_quando_obtenho_entao_baixo_origina
 }
 
 #[test]
+fn externo_sem_src_com_saida_preserva_original_e_recusa_copia_divergente() {
+    // Apoio técnico ao BDD-60-03: --saida DIR grava bytes do anexo cadastrado.
+    use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
+    let dir = std::env::temp_dir().join(format!(
+        "ies-externo-cadastro-saida-{}", std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let respostas = || {
+        let arvore_sem_src =
+            arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, DOC)])
+                .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
+        let barra = barra(ID, ID_DOC, None)
+            .replace("acao=documento_alterar", "acao=documento_alterar_recebido");
+        let mut respostas = ate_a_arvore();
+        respostas[3] = ok(com_barra(&arvore_sem_src, 1, &barra));
+        respostas.push(ok(format!(
+            r#"<script>objTabelaAnexos.adicionarAcoes('901','<a href="{}">Baixar</a>');</script>
+            <form id="frmDocumentoCadastro">
+            <input id="hdnIdDocumento" value="21">
+            <input id="hdnIdProcedimento" value="10">
+            <label id="lblSerieTitulo"></label>
+            <select id="selSerie"><option selected>Anexo</option></select>
+            <input id="txtDescricao" value="">
+            <input id="txtNomeArvore" value="Externo">
+            <textarea id="txaObservacoes"></textarea>
+            <input name="rdoNivelAcesso" value="0" checked>
+            <input id="hdnAnexos" value="901±Minuta.pdf±data±12">
+            </form>"#,
+            src_anexo()
+        )));
+        respostas
+    };
+    let pedido = PedidoDoAnexo {
+        cache_host: None,
+        limite: LimiteDoAnexo::default(),
+        saida: Some(&dir),
+    };
+    let amb = ambiente();
+    let (lido, envio) = rodar_com(&amb, respostas(), pdf(), pedido);
+    let doc = lido.unwrap();
+    assert_eq!(doc.requisicoes, 6);
+    assert_eq!(envio.roteiro.pedidos.len(), 6);
+    let arquivo = doc.anexo.unwrap().arquivo.unwrap();
+    assert_eq!(arquivo.nome(), "0000101.pdf");
+    arquivo.concluir().unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("0000101.pdf")).unwrap(),
+        b"%PDF-1.7 abc"
+    );
+
+    // Cópia divergente não pode ser silenciosamente substituída.
+    std::fs::write(dir.join("0000101.pdf"), b"edicao local").unwrap();
+    let amb = ambiente();
+    let (recusa, _) = rodar_com(&amb, respostas(), pdf(), pedido);
+    assert_eq!(
+        recusa.unwrap_err(),
+        ErroDocumentoObter::Anexo(ErroAnexo::ArquivoJaExiste)
+    );
+    assert_eq!(
+        std::fs::read(dir.join("0000101.pdf")).unwrap(),
+        b"edicao local"
+    );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn html_recebido_publica_o_texto_visivel() {
     let amb = ambiente();
     let html = b"<html><head><title>SEI/ORIGEM - 0403231 - Despacho</title></head>\
