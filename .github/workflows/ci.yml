@@ -228,3 +228,44 @@ jobs:
         env:
           IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-processo-criar
         run: scripts/replay processo_criar_fluxo::acervo::replay_de_processo_criar_no_acervo
+
+  replay-ciencia:
+    # Gate permanente da #271: ZIPs públicos conferidos, nenhum endpoint SEI.
+    name: replay ciência (14 cards, offline)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Cache dos ZIPs públicos de ciência
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ runner.temp }}/ies-acervo-ciencia
+          key: ies-ciencia-v1-${{ hashFiles('cassettes/**/processo-ciente-*.md', 'cassettes/**/documento-ciente-*.md') }}
+
+      - name: Verificar contrato de obtenção dos ZIPs sem rede
+        run: python3 -m unittest discover -s scripts/tests -p 'test_baixar_acervo_ciencia.py' -v
+
+      - name: Obter ZIPs públicos e conferir SHA-1
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-ciencia
+        run: python3 scripts/baixar_acervo_ciencia.py
+
+      - name: Executar replay dedicado nos leitores Rust
+        shell: bash
+        env:
+          IES_ACERVO_CACHE: ${{ runner.temp }}/ies-acervo-ciencia
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored |
+            grep -F 'ciencia::acervo::replay_da_ciencia_no_acervo: test'
+          cargo +1.99.1 test --locked --bin ies ciencia::acervo::replay_da_ciencia_no_acervo -- --ignored --exact --nocapture --test-threads=1
