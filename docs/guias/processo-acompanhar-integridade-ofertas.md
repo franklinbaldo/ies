@@ -125,3 +125,34 @@ correção e produziram [RED 42312529474](https://github.com/franklinbaldo/ies/a
 **2 falhas funcionais novas, 1.828 testes aprovados, 23 ignorados anteriores**.
 O controle com script clássico e corpo exato continua válido; a
 retirada pública confirmada permanece bloqueada antes da rede.
+
+## Sobrescrita computada e limites da prova estática (06/11/2026, 🐢)
+
+**Contraexemplo sintético da revisão 🦅:** um segundo script clássico
+executa `window['acao' + 'Excluir'] = null`. O HTML não contém a
+substring contígua `acaoExcluir` nesse script; uma busca por nome
+literal deixaria a prévia afirmar incorretamente que o link de retirada
+invoca a função observada.
+
+**Decisão:** aceitar como prova somente a **única** declaração global
+clássica inline na página, na forma previamente observada. Scripts
+adicionais que podem executar JavaScript (inclusive módulo ou arquivo
+externo) tornam a oferta não comprovada, sem tentar interpretar código
+arbitrário. Script de dados com `type=application/json` é inerte
+e não interfere na prova. O custo intencional é a possível **recusa
+conservadora** numa página com scripts executáveis adicionais legítimos;
+uma captura real e decisão específica serão necessárias para ampliar
+a forma aceita, sem alegar garantia estática sobre JavaScript dinâmico.
+
+**TDD:** testes puros e de prévia foram publicados em `761a461` antes
+da implementação, com [RED no CI 42324830181](https://github.com/franklinbaldo/ies/actions/runs/42324830181):
+**2 falhas funcionais novas / 1.832 testes aprovados / 23 ignorados
+anteriores**. A correção `ad4c018` mantém o destino assinado, a
+verificação do formulário e os orçamentos de **4 GET / 0 POST**
+sintéticos; não executa JS, não usa regex e não muda a CLI.
+O GREEN deve ser conferido no CI do **head final**.
+
+**Live:** NOT_RUN — 0 GET, 0 POST, nenhuma escrita e nenhum resíduo.
+Os efeitos incertos anteriores (UnB 850 / UFRJ 142) não foram repetidos.
+A retirada pública `--deixar --confirmar` continua recusada **antes
+de sessão ou rede**, até validar o fluxo real em treinamento.
