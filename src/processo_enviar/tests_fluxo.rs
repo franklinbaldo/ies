@@ -183,3 +183,59 @@ fn destino_ja_aberto_e_recusa_sem_escrita() {
     );
     assert_eq!(feitos, pedidos_da_previa(Versao::V40));
 }
+
+#[test]
+fn bdd_previa_remover_anotacoes_exige_checkbox_e_nao_escreve() {
+    // Dado checkbox oferecido pela tela; quando peço a opção,
+    // então a prévia apresenta a escolha com a mesma consulta de destino.
+    for versao in [Versao::V40, Versao::V41] {
+        let amb = ambiente();
+        let (resultado, pedidos) = rodar_com(
+            &amb,
+            previa_respostas(versao, &[UNIDADE], um_destino()),
+            |sessao, nup, indice, rede| {
+                let pedido = super::PedidoDoEnvio {
+                    nup,
+                    unidade: None,
+                    para: DESTINO,
+                    manter_aberto: false,
+                    remover_anotacoes: true,
+                    confirmar: false,
+                };
+                super::enviar_processo(sessao, &pedido, indice, rede)
+            },
+        );
+        assert!(resultado.unwrap().remover_anotacoes);
+        assert_eq!(pedidos, pedidos_da_previa(versao));
+    }
+}
+
+#[test]
+fn bdd_sem_checkbox_recusa_antes_da_consulta_autocomplete() {
+    // Dado uma tela sem a opção, quando solicito remoção,
+    // então não há sequer o POST de consulta, muito menos escrita.
+    let tela = tela_de_envio(Versao::V41, ID).replace(
+        "name=\\"chkSinRemoverAnotacoes\\"",
+        "name=\\"\\"",
+    );
+    let amb = ambiente();
+    let (resultado, feitos) = rodar_com(
+        &amb,
+        com(abertura(arvore(&[UNIDADE], &enviar())), vec![ok(tela)]),
+        |sessao, nup, indice, rede| {
+            let pedido = super::PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: false,
+            };
+            super::enviar_processo(sessao, &pedido, indice, rede)
+        },
+    );
+    assert_eq!(resultado, Err(R::RemocaoDeAnotacoesNaoOferecida));
+    let mut esperado = pedidos_da_abertura();
+    esperado.push(get(&url_da_tela()));
+    assert_eq!(feitos, esperado);
+}
