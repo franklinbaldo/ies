@@ -136,6 +136,9 @@ jobs:
       - name: Replay obrigatório do processo atribuir (#264, offline)
         run: cargo +1.99.1 test --locked --bin ies processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo -- --ignored --exact --nocapture --test-threads=1
 
+      - name: Inspecionar formato D observado no ZIP público UnB
+        run: cargo +1.99.1 test --locked --bin ies localizar_controle_d_unb_no_acervo -- --ignored --nocapture --test-threads=1
+
       - name: Cassette UnB -> SQLite efêmero -> anti-IES -> leitor da CLI
         shell: bash
         run: |
