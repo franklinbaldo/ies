@@ -489,15 +489,13 @@ fn publicar(
         }
         for (i, d) in obtidos.iter().enumerate() {
             println!("{}", cabecalho(d));
-            match &d.propriedades {
-                PropriedadesDocumento::NaoPedidas => {}
-                PropriedadesDocumento::NaoPublicadas => println!("Cadastro não publicado."),
-                PropriedadesDocumento::Lidas(p) => println!(
-                    "Cadastro: {} — {} ({})",
-                    p.tipo, p.descricao, p.nome_na_arvore
-                ),
-            }
-            if let Some(linha) = documento_versao_cli::linha_humana(d) {
+            for linha in [
+                crate::propriedades_documento::linha_humana(&d.propriedades),
+                documento_versao_cli::linha_humana(d),
+            ]
+            .into_iter()
+            .flatten()
+            {
                 println!("{linha}");
             }
             let g = gravado(i);
