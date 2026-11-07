@@ -149,10 +149,9 @@ fn ler_atual<V: EnvioDoProcesso>(
 ) -> Result<(String, String, VersoesDoDocumento), E> {
     let (tipo, texto, html) = ler_pagina(rede, conteudo.as_str(), no.numero)?;
     let servida = versao_do_rodape(&html);
-    if cache && html.contains("infra_hash") {
-        return Err(E::ConteudoComLinkAssinado);
-    }
-    let cache_html = cache.then(|| html.clone());
+    // Um link assinado no corpo impede persistencia em cache, nao a
+    // leitura da versao. A foto explicita continua recusada em fotografar.
+    let cache_html = (cache && !html.contains("infra_hash")).then(|| html.clone());
     let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     let mut versoes = VersoesDoDocumento {
         lida: servida,
@@ -206,10 +205,9 @@ fn ler_versao<V: EnvioDoProcesso>(
     )
     .map_err(|_| E::Versoes(ErroVersao::LinkInseguro))?;
     let (tipo, texto, html) = ler_pagina(rede, &url, no.numero)?;
-    if cache && html.contains("infra_hash") {
-        return Err(E::ConteudoComLinkAssinado);
-    }
-    let cache_html = cache.then(|| html.clone());
+    // Um link assinado no corpo impede persistencia em cache, nao a
+    // leitura da versao. A foto explicita continua recusada em fotografar.
+    let cache_html = (cache && !html.contains("infra_hash")).then(|| html.clone());
     let crc_rodape = crate::rodape_do_documento::crc_do_rodape(&html);
     if versao_do_rodape(&html).is_some_and(|servida| servida != n) {
         return Err(E::VersaoServidaDiferenteDaPedida);
