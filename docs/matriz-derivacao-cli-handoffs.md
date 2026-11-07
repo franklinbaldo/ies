@@ -9,6 +9,10 @@ description: Notas de handoff das fatias parciais de processo, separadas da matr
 Complementa a [matriz principal](matriz-derivacao-cli.md). Cada seção
 registra o estado de uma fatia de handoff, sem promover NOT_RUN a PASS.
 
+## Handoff #332 — incluir PDF externo (PR Draft #352)
+
+`ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO [--confirmar]` está em **PENDENTE PR / PARCIAL LOCAL**: inspeciona apenas o arquivo, publica SHA-256 e tamanho, sem sessão, HTTP ou alegar prévia remota. `--confirmar` recusa antes da rede. Ainda faltam observar cadastro, limites e tipos servidos, upload temporário multipart, cadastro definitivo (duas etapas potencialmente mutadoras), releitura independente e ensaio em treinamento. [Contrato](../contracts/cli/documento-incluir-externo.md) · [decisão](decisoes/documento-incluir-externo.md).
+
 ## Pendente: comentários do processo (#257)
 
 `ies processo comentarios NUP` e `ies processo comentar NUP --texto T [--confirmar]` estão em **PENDENTE PR**, sem despacho no `main`. A PR Draft #268 oferece leitor estrutural offline SEI 4.x/5.x e conferência por id/texto; faltam fluxo Web, teste de orçamento de requisições, replay e validação live. [Contrato](../contracts/cli/processo-comentarios.md).
