@@ -186,6 +186,36 @@ const diagnostico = "atualizarArvore('controlador.php?acao=procedimento_visualiz
     );
 }
 
+/// RED #271: um template inerte ao lado de um script válido não deve
+/// invalidar a atividade publicada no script ativo.
+#[test]
+fn script_ativo_com_template_inerte_preserva_aceite() {
+    let inerte = "<template><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42458#ID-42458');</script></template>";
+    let html = aceite_processo("42457").replacen("</html>", &format!("{inerte}</html>"), 1);
+    assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
+}
+
+/// RED #271: noscript não executa seu conteúdo com JS habilitado,
+/// mas também não invalida o script ativo fora do contêiner.
+#[test]
+fn script_ativo_com_noscript_inerte_preserva_aceite() {
+    let inerte = "<noscript><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42458#ID-42458');</script></noscript>";
+    let html = aceite_processo("42457").replacen("</html>", &format!("{inerte}</html>"), 1);
+    assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
+}
+
+/// RED #271: texto que parece marcação dentro de um literal JavaScript
+/// não cria um contêiner HTML inerte nem cancela a prova válida.
+#[test]
+fn literal_javascript_com_texto_de_template_nao_cancela_aceite() {
+    let html = aceite_processo("42457").replacen(
+        "</script>",
+        "const texto = '<template><script>'; </script>",
+        1,
+    );
+    assert_eq!(atividade_do_aceite(&html, processo()), Ok("42457".into()));
+}
+
 // RED #271: um script aninhado em template é inerte.
 #[test]
 fn script_aninhado_em_template_nao_publica_atividade_da_ciencia() {
