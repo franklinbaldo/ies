@@ -34,8 +34,11 @@ pub(super) fn completar<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     html: &str,
-    aberta: ArvoreAberta,
+    mut aberta: ArvoreAberta,
 ) -> Result<ArvoreAberta, E> {
+    if !aberta.arvore.documentos_incluidos {
+        return Ok(aberta);
+    }
     let procurado_visivel = contexto.documento_procurado.is_some_and(|numero| {
         aberta
             .arvore
@@ -47,15 +50,36 @@ pub(super) fn completar<V: EnvioDoProcesso>(
         return Ok(aberta);
     }
     let id = aberta.arvore.processo.id.clone();
-    let endereco = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)?
-        .ok_or(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir))?;
+    let Some(endereco) = ler_acao_de_abrir_pastas(&contexto.instalacao, html, &id)? else {
+        if contexto.permitir_leitura_parcial {
+            aberta.arvore.documentos_incluidos = false;
+            aberta.arvore.documentos.clear();
+            aberta.arvore.pastas.clear();
+            aberta.arvore.aviso_leitura_parcial =
+                Some(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
+            return Ok(aberta);
+        }
+        return Err(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir));
+    };
     let html = match rede.get(endereco.as_str())? {
         Lida::Html { html, .. } => html,
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
         Lida::Login => return Err(E::SessaoEncerrada),
         Lida::Falha(falha) => return Err(E::Transporte(falha)),
     };
-    let completa = aberta_inteira(contexto, &html, &id)?;
+    let completa = match aberta_inteira(contexto, &html, &id) {
+        Ok(c) => c,
+        Err(erro) => {
+            if contexto.permitir_leitura_parcial && erro.admite_leitura_parcial() {
+                aberta.arvore.documentos_incluidos = false;
+                aberta.arvore.documentos.clear();
+                aberta.arvore.pastas.clear();
+                aberta.arvore.aviso_leitura_parcial = Some(erro);
+                return Ok(aberta);
+            }
+            return Err(E::Arvore(erro));
+        }
+    };
     contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
     Ok(completa)
 }

@@ -34,6 +34,8 @@ pub(super) fn aberto(unidade: Option<&str>) -> ProcessoAberto {
             ],
             pastas: Vec::new(),
             pastas_nao_carregadas: false,
+            documentos_incluidos: true,
+            aviso_leitura_parcial: None,
             anexados: Vec::new(),
             documentos_movidos: Vec::new(),
             anexado_a: None,

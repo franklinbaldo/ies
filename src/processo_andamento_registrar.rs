@@ -235,6 +235,7 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         propriedades: false,
         marcadores: false,
         unidade_exigida: true,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &pedido, indice, &mut rede).map_err(Erro::Abertura)?;
