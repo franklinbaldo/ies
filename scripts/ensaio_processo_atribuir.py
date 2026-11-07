@@ -182,6 +182,9 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
         # Não repetir POST nem tentar recuperar a persistência por novo write.
         relatorio["estado"] = "EFEITO_INCERTO"
         relatorio["motivo"] = "registro_indisponivel_apos_post"
+        if relatorio["residuo"] == "sem_atribuicao":
+            # PASS só é durável depois do fsync; não publicar resíduo limpo.
+            relatorio["residuo"] = "possivel_remocao"
         return 3, relatorio
     finally:
         os.close(fd)
