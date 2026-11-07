@@ -51,6 +51,10 @@ class ReleaseUvxTest(unittest.TestCase):
         resultado = self.validar("v0.1.0", lock="0.0.9")
         self.assertNotEqual(resultado.returncode, 0)
 
+    def test_rejeita_tag_major_1_mesmo_com_manifestos_coerentes(self):
+        resultado = self.validar("v1.0.0", cargo="1.0.0", python="1.0.0", lock="1.0.0")
+        self.assertNotEqual(resultado.returncode, 0)
+
     def test_rejeita_tag_versao_diferente(self):
         resultado = self.validar("v0.2.0")
         self.assertNotEqual(resultado.returncode, 0)
