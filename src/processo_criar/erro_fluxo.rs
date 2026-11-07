@@ -169,6 +169,7 @@ impl ErroCriar {
             Self::Transporte { http, .. } => http.as_ref(),
             Self::VerificacaoAposPost(erro) => erro.status_http(),
             Self::Hipotese(erro) => erro.status_http(),
+            Self::Interessado(erro) => erro.status_http(),
             Self::PosEscrita {
                 causa_post,
                 posterior,

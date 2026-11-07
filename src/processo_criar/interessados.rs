@@ -20,7 +20,7 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroInteressado {
     #[causa(nome = "interessado_autocompletar_nao_declarado")]
     AutocompletarNaoDeclarado,
@@ -32,11 +32,18 @@ pub(crate) enum ErroInteressado {
     Ambiguo,
     #[causa(transparente)]
     Html(ErroHtml),
+    /// Falha observada no transporte do AJAX consultivo, antes da escrita.
+    #[causa(interna)]
+    Transporte(crate::transporte::FalhaTransporte),
 }
 
 impl ErroInteressado {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        crate::erro_publico::folha(self)
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        crate::erro_publico::Causa::status_http(self)
     }
 }
 
@@ -173,11 +180,13 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         )
         .map_err(|_| E::DerivacaoRecusada)?;
         *requisicoes += 1;
-        let resposta = envio
-            .post(consulta, cookie)
-            .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
-        if resposta.resposta.status_code != 200
-            || !matches!(
+        let resposta = envio.post(consulta, cookie).map_err(E::Transporte)?;
+        if resposta.resposta.status_code != 200 {
+            return Err(E::Transporte(crate::transporte::recusar_status(
+                resposta.resposta,
+            )));
+        }
+        if !matches!(
                 resposta
                     .resposta
                     .mime
@@ -192,7 +201,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         }
         let mime = resposta.resposta.mime.clone();
         let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
-            .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+            .map_err(E::Transporte)?;
         let xml = decode_http_body(&bytes, &mime)
             .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
