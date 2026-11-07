@@ -116,7 +116,10 @@ fn publicar_resultado(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
         } else {
             "Prévia da atribuição"
         };
-        println!("{situacao}: processo {}, unidade {}.", feito.nup, feito.unidade);
+        println!(
+            "{situacao}: processo {}, unidade {}.",
+            feito.nup, feito.unidade
+        );
         match (&feito.usuario_pedido, feito.confirmado) {
             (Some(login), true) => println!("Atribuído a {login}; efeito conferido por releitura."),
             (Some(login), false) => println!("Atribuir a {login}; opção verificada na tela."),
