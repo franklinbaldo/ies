@@ -224,7 +224,7 @@ fn inicio_declaracao_global(codigo: &str) -> Option<usize> {
         if nivel == 0 && bytes[i..].starts_with(assinatura) {
             // Declaração em posição de comando global, e não expressão
             // "const x = function acaoExcluir(...)" ou trecho em string.
-            if matches!(anterior, None | Some(b';' | b'}')) {
+            if anterior.is_none() {
                 return Some(i + assinatura.len());
             }
             return None;
@@ -311,7 +311,10 @@ fn conferir_script(
             .and_then(tl::Node::as_tag)
             .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
         let codigo = tag.inner_text(parser);
-        if codigo.contains("function acaoExcluir(") {
+        // Considere também scripts que reatribuem a função sem
+        // repetir sua assinatura: outro <script> ativo pode mudar
+        // o que o onclick invoca.
+        if codigo.contains("acaoExcluir") {
             // O DOM pode expor <script> dentro de <template>, mas o
             // navegador não executa esse conteúdo inerte.
             if super::controle_inerte(dom, tag, false, "html_de_acompanhamento_invalido")? {
