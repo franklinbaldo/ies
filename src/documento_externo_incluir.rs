@@ -2,6 +2,8 @@
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
 // Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
+#[allow(dead_code)] // #332: plano de hdnAnexos será ligado ao cadastro depois da prévia Web.
+pub(crate) mod anexo;
 #[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
 pub(crate) mod multipart;
