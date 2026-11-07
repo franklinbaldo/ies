@@ -81,3 +81,11 @@ O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/do
 A próxima fatia deve observar cada campo e action servidos; conferir os tipos e limites; usar `formulario_web`, origem e identidade; executar um único upload e um único cadastro, **sem retry**; distinguir `anexo confirmado`, `anexo não observado`, `documento criado` e `efeito incerto` com variantes tipadas, preferindo saída 3 a sucesso não provado. O caso [Todos #1246](https://github.com/franklinbaldo/todos/issues/1246) relata anexo somente visível na tela de alteração, não na árvore; **não** autoriza inferir ausência nem repetir POST.
 
 **Evidência:** os testes sintéticos do núcleo estão em `src/documento_externo_incluir.rs`; live em treinamento: **NOT_RUN**. `--confirmar` permanece fechado.
+
+## Plano da linha de anexo pela tela servida — fatia #391
+
+O núcleo Rust \`documento_externo_incluir::anexo::ler_plano\` lê declarações literais de **script inline** do cadastro observado: \`new infraUpload('frmAnexos', URL)\` (SEI 4) ou com terceiro argumento booleano (SEI 5), e a ordem de \`objTabelaAnexos.adicionar([...])\`. Elementos em \`template\`, scripts externos, chamadas ausentes, repetidas e campos não reconhecidos não autorizam a derivação. Nenhum JavaScript é executado e não se constrói URL de upload. O destino **relativo publicado** fica privado no plano e só poderá ser consumido por transporte depois da validação de origem/sessão/processo.
+
+Dado um \`ReciboUpload\` aceito pelo interpretador já existente, o plano monta a **linha única** para \`hdnAnexos\` com a ordem servida, literais da tela e o tamanho apresentado pela função observada \`infraFormatarTamanhoBytes\` (arredondamento de duas casas). O separador \`±\` não pode atravessar um valor de recibo nem alterar o número de colunas. Esse campo é apenas a representação para um futuro cadastro; não constitui prova de documento criado.
+
+**BDD offline:** UnB SEI 4, PEN3 SEI 5 (terceiro argumento booleano), reordenação de colunas, coluna desconhecida, múltiplos uploads, \`template\` e recibo com separador. **A implementação continua WIP:** o núcleo não está conectado à CLI, não transmite os dois POSTs e não habilita \`--confirmar\`. Ainda faltam prévia Web com tipo/limites, cadastro definitivo, releitura independente e LIVE em treinamento. Testes sintéticos não são evidência live.
