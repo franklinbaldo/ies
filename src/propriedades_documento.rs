@@ -1,5 +1,5 @@
-//! Cadastro somente leitura a partir de documento_alterar publicado na barra
-//! (Todos tests/paginas_reais/documento_alterar.html, SEI 4.0.9; Refs #60).
+//! Cadastro somente leitura a partir de `documento_alterar` publicado na barra
+//! (Todos `tests/paginas_reais/documento_alterar.html`, SEI 4.0.9; Refs #60).
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
@@ -172,6 +172,25 @@ pub(crate) fn ler_formulario(
         observacoes: texto(campo(form, parser, "txaObservacoes")?, parser)?,
         nivel_de_acesso: nivel(form, parser)?,
     })
+}
+
+pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
+    match props {
+        PropriedadesDocumento::NaoPedidas => None,
+        PropriedadesDocumento::NaoPublicadas => Some("Cadastro não publicado.".to_owned()),
+        PropriedadesDocumento::Lidas(p) => {
+            let nivel = match &p.nivel_de_acesso {
+                Some(Nivel::Publico) => "público",
+                Some(Nivel::Restrito) => "restrito",
+                Some(Nivel::Sigiloso) => "sigiloso",
+                None => "não informado",
+            };
+            Some(format!(
+                "Cadastro: tipo {}; descrição {}; nome na árvore {}; observações {}; acesso {}.",
+                p.tipo, p.descricao, p.nome_na_arvore, p.observacoes, nivel
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
