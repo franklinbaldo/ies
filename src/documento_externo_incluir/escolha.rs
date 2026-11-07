@@ -1,25 +1,96 @@
-//! A opção Externo da lista e o tipo no cadastro ainda não recarregado (#332).
-//! O formato vem das telas do Todos/UnB SEI 4 e PEN3 SEI 5.
+//! Escolha do documento externo na lista e do tipo no cadastro inicial (#332).
+//! Os links e opções provêm das telas do Todos (UnB SEI 4/PEN3 SEI 5).
+use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
+use crate::formulario_web::decodificar_atributo;
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum EscolhaExterna {
     Url(String),
     Formulario,
 }
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroEscolhaExterna {
     NaoOferecido,
     Ambiguo,
     ForaDaForma,
 }
-pub(crate) fn escolher_externo(_html: &str) -> Result<EscolhaExterna, ErroEscolhaExterna> {
-    Err(ErroEscolhaExterna::ForaDaForma)
+
+/// Não executa JS: SEI 4 publica link para documento_receber;
+/// SEI 4.1/5 publicam escolher(-1) na lista.
+pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolhaExterna> {
+    use ErroEscolhaExterna as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ForaDaForma)?;
+    let mut escolhas = Vec::new();
+    for no in dom.query_selector("a").into_iter().flatten() {
+        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ForaDaForma)?;
+        let texto = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+        if decodificar_atributo(&texto).ok_or(E::ForaDaForma)? != "Externo" {
+            continue;
+        }
+        let href = valor_do_atributo(tag, "href").map_err(|_| E::ForaDaForma)?
+            .ok_or(E::ForaDaForma)?;
+        let href = decodificar_atributo(&href).ok_or(E::ForaDaForma)?;
+        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ForaDaForma)?;
+        if href.starts_with("controlador.php?") 
+            && href.split('?').nth(1).is_some_and(|q| q.split('&').any(|p| p == "acao=documento_receber"))
+            && onclick.as_deref().is_none_or(str::is_empty) 
+        {
+            escolhas.push(EscolhaExterna::Url(href));
+        } else if (href == "#" || href == "javascript:void(0);")
+            && onclick.as_deref().is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)")
+        {
+            let formularios = nos_com_id(&dom, "frmDocumentoEscolherTipo").map_err(|_| E::ForaDaForma)?;
+            let [no] = formularios.as_slice() else { return Err(E::ForaDaForma); };
+            let form = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ForaDaForma)?;
+            if !form.name().as_utf8_str().eq_ignore_ascii_case("form") {
+                return Err(E::ForaDaForma);
+            }
+            escolhas.push(EscolhaExterna::Formulario);
+        } else {
+            return Err(E::ForaDaForma);
+        }
+    }
+    match escolhas.len() {
+        0 => Err(E::NaoOferecido),
+        1 => Ok(escolhas.pop().expect("comprimento conferido")),
+        _ => Err(E::Ambiguo),
+    }
 }
-pub(crate) fn identificar_tipo(
-    _html: &str,
-    _tipo: &str,
-) -> Result<String, ErroEscolhaExterna> {
-    Err(ErroEscolhaExterna::ForaDaForma)
+
+/// Na tela inicial o tipo ainda não está marcado: extrair somente o valor
+/// da opção oferecida. A confirmação da seleção ocorrerá na tela recarregada.
+pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEscolhaExterna> {
+    use ErroEscolhaExterna as E;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ForaDaForma)?;
+    let selects = nos_com_id(&dom, "selSerie").map_err(|_| E::ForaDaForma)?;
+    let [no] = selects.as_slice() else { return Err(E::ForaDaForma); };
+    let select = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(E::ForaDaForma)?;
+    if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
+        || atributo_presente(select, "disabled").map_err(|_| E::ForaDaForma)?
+        || valor_do_atributo(select, "name").map_err(|_| E::ForaDaForma)?.as_deref() != Some("selSerie")
+    {
+        return Err(E::ForaDaForma);
+    }
+    let mut ids = Vec::new();
+    for tag in select.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("option")
+            || atributo_presente(tag, "disabled").map_err(|_| E::ForaDaForma)? {
+            continue;
+        }
+        let texto = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+        if decodificar_atributo(&texto).ok_or(E::ForaDaForma)? != tipo { continue; }
+        let id = valor_do_atributo(tag, "value").map_err(|_| E::ForaDaForma)?.ok_or(E::ForaDaForma)?;
+        if id.is_empty() || id == "null" { return Err(E::ForaDaForma); }
+        ids.push(id);
+    }
+    match ids.as_slice() {
+        [] => Err(E::NaoOferecido),
+        [id] => Ok(id.to_string()),
+        _ => Err(E::Ambiguo),
+    }
 }
+
 #[cfg(test)]
 #[path = "tests_escolha.rs"]
 mod tests;
