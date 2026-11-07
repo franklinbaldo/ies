@@ -4,7 +4,7 @@ use crate::{configuracao, erro_fonte, relogin_cli, transporte};
 use serde_json::json;
 use std::process::ExitCode;
 
-fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
+pub(crate) fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
     // Visão resumida ou detalhada: a sessão fica na última visão usada.
     crate::controle_reconhecido::unidade_do_controle(html)
 }
