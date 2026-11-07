@@ -37,19 +37,26 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
         .join("cassettes/unb/unidade-processos-paginado-unb--e02dbcfde8c4.md");
     let cache = std::env::var_os("IES_ACERVO_CACHE")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"));
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies")
+        });
     let zip = ZipDoAcervo::ler(&cache.join("todos-sei-cassettes-unb.zip")).unwrap();
     let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
     let instalacao = crate::cassette::acervo::gravacao::instalacao(&captura.json)
         .expect("instalação da cassette conferida");
     let passos = captura.json["interactions"].as_array().unwrap();
-    let passo = passos.iter().find(|it| {
-        it["request"]["method"] == "GET"
-            && it["request"]["operation"] == "procedimento_controlar"
-            && it["response"]["status_code"] == 200
-    }).expect("GET Controle publicado pela cassette");
+    let passo = passos
+        .iter()
+        .find(|it| {
+            it["request"]["method"] == "GET"
+                && it["request"]["operation"] == "procedimento_controlar"
+                && it["response"]["status_code"] == 200
+        })
+        .expect("GET Controle publicado pela cassette");
     let original = html_da_resposta(passo).unwrap();
-    assert!(!crate::controle_reconhecido::publica_visao_detalhada(&original));
+    assert!(!crate::controle_reconhecido::publica_visao_detalhada(
+        &original
+    ));
     let esperado = crate::paginas::juntar(&[original.clone()], None).unwrap();
     let unidade = crate::unidade_atual_cli::unidade_validada(&original).unwrap();
     assert_eq!(esperado.unidade.as_deref(), Some(unidade.as_str()));
@@ -61,10 +68,7 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
             &esperado.caixa.recebidos,
             esperado.recebidos.faixa_observada(),
         ),
-        gerados: linhas_da_cassette(
-            &esperado.caixa.gerados,
-            esperado.gerados.faixa_observada(),
-        ),
+        gerados: linhas_da_cassette(&esperado.caixa.gerados, esperado.gerados.faixa_observada()),
     };
 
     let pasta = std::env::temp_dir().join(format!(
@@ -89,20 +93,22 @@ fn cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli() {
     let servidor = std::thread::spawn(move || {
         let banco = rusqlite::Connection::open_with_flags(
             &caminho,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-                | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
-        ).unwrap();
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
+        )
+        .unwrap();
         let (mut fluxo, _) = escuta.accept().unwrap();
         anti_ies::atender_http(
             &mut fluxo,
             Some((&banco, &instalacao, "unidade-processos-paginado-unb")),
-        ).unwrap();
+        )
+        .unwrap();
     });
     let mut cliente = TcpStream::connect(endereco).unwrap();
     write!(
         cliente,
         "GET /sei/controlador.php?acao=procedimento_controlar HTTP/1.1\r\nHost: localhost\r\n\r\n"
-    ).unwrap();
+    )
+    .unwrap();
     cliente.shutdown(std::net::Shutdown::Write).unwrap();
     let mut resposta = String::new();
     cliente.read_to_string(&mut resposta).unwrap();
