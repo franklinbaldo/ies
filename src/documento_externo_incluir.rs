@@ -24,6 +24,7 @@ pub(crate) enum FalhaPdf {
     Conteudo,
     AcimaDoLimite,
     Leitura,
+    AlteradoDuranteLeitura,
 }
 
 /// Não permite que a apresentação do nome/tipo seja reordenada no terminal.
@@ -47,6 +48,14 @@ pub(crate) fn contem_controle_de_apresentacao(valor: &str) -> bool {
 pub(crate) fn inspecionar_pdf(
     caminho: &Path,
     limite_observado: Option<u64>,
+) -> Result<PdfLocal, FalhaPdf> {
+    inspecionar_pdf_com_acao(caminho, limite_observado, || {})
+}
+
+fn inspecionar_pdf_com_acao(
+    caminho: &Path,
+    limite_observado: Option<u64>,
+    entre_metadata_e_leitura: impl FnOnce(),
 ) -> Result<PdfLocal, FalhaPdf> {
     // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
     for parte in caminho.ancestors().filter(|p| !p.as_os_str().is_empty()) {
@@ -102,6 +111,7 @@ pub(crate) fn inspecionar_pdf(
     if limite_observado.is_some_and(|limite| antes.len() > limite) {
         return Err(FalhaPdf::AcimaDoLimite);
     }
+    entre_metadata_e_leitura();
     let mut digest = Sha256::new();
     let mut inicio = [0_u8; 5];
     if arquivo.read_exact(&mut inicio).is_err() || inicio != *b"%PDF-" {
@@ -272,4 +282,20 @@ mod tests {
         );
         fs::remove_file(alias).unwrap();
     }
+    #[test]
+    fn escrita_concorrente_de_mesmo_tamanho_nao_pode_gerar_hash_de_foto_inconsistente() {
+        // A data foi fixada no passado: a mudança é detectável sem sleeps/flakiness.
+        let pasta = Pasta::nova();
+        let caminho = pasta.arquivo("concorrente.pdf", PDF);
+        let data_antiga = std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH);
+        std::fs::File::open(&caminho)
+            .unwrap()
+            .set_times(data_antiga)
+            .unwrap();
+        let resultado = inspecionar_pdf_com_acao(&caminho, None, || {
+            fs::write(&caminho, b"%PDF-1.4\\n2 0 obj\\n%%EOF\\n").unwrap();
+        });
+        assert_eq!(resultado, Err(FalhaPdf::AlteradoDuranteLeitura));
+    }
+
 }
