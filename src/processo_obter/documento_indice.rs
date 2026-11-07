@@ -50,9 +50,10 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
     let Some((arvore_aberta, unidade, resolvido_por)) = aberto else {
         return Ok(None);
     };
-    let no = localizar(&arvore_aberta.arvore.documentos, numero)?;
-    // O servidor vence: o que a árvore mostra substitui o palpite.
+    // A árvore contraditória invalida o palpite mesmo quando localizar
+    // recusa o número repetido. Nenhuma URL de conteúdo será consultada.
     processo.aprender_documentos(&arvore_aberta.arvore);
+    let no = localizar(&arvore_aberta.arvore.documentos, numero)?;
     let Some(no) = no else {
         indice.esquecer_documento(instalacao, numero);
         return Ok(None);
