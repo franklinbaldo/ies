@@ -214,9 +214,6 @@ fn replay_da_ciencia_no_acervo() {
     let cards = cards_da_ciencia(&raiz);
     let mut zips: HashMap<String, ZipDoAcervo> = HashMap::new();
     let mut registros = Vec::new();
-    // Diagnóstico estrutural exclusivamente offline: não imprime URLs,
-    // identificadores, cookies, corpo HTML ou valores de formulário.
-    let mut perfis = Vec::new();
     for card in &cards {
         let nome = archive_filename(card).expect("origem verificada");
         let zip = zips.entry(nome.clone()).or_insert_with(|| {
@@ -224,38 +221,6 @@ fn replay_da_ciencia_no_acervo() {
                 .unwrap_or_else(|erro| panic!("{nome}: {erro} (cache {})", pasta.display()))
         });
         let cassette = conferir_cassette_ate(card, zip, 120_000_000).expect("cassette conferida");
-        for resposta in gravacao::respostas(&cassette.json) {
-            if !matches!(
-                resposta.operacao,
-                "procedimento_ciencia" | "documento_ciencia"
-            ) {
-                continue;
-            }
-            let corpo = html_da_resposta(resposta.item).ok();
-            let (scripts, formularios, referencia_recarga, tamanho) = corpo.as_deref().map_or(
-                (0, 0, false, 0),
-                |html| {
-                    let dom = tl::parse(html, tl::ParserOptions::default()).ok();
-                    let scripts = dom.as_ref().map_or(0, |d| {
-                        d.query_selector("script").into_iter().flatten().count()
-                    });
-                    let formularios = dom.as_ref().map_or(0, |d| {
-                        d.query_selector("form").into_iter().flatten().count()
-                    });
-                    (scripts, formularios, html.contains("atualizarArvore"), html.len())
-                },
-            );
-            perfis.push(format!(
-                "| {} | {} | {} | {} | {} | {} | {} |",
-                cassette.instalacao,
-                resposta.operacao,
-                resposta.status,
-                tamanho,
-                scripts,
-                formularios,
-                if referencia_recarga { "sim" } else { "não" }
-            ));
-        }
         registros.extend(replay(&cassette.instalacao, &cassette.json));
     }
     assert_eq!(cards.len(), 14, "sete instalações, dois alvos");
@@ -283,18 +248,6 @@ fn replay_da_ciencia_no_acervo() {
         "Lido = resposta reconhecida, NÃO prova do efeito novo. \
         Repetição e identidade do usuário dependem de validação live. \
         302, HTML ausente e IDs não observados permanecem não aplicáveis.\n",
-    );
-    relatorio.push_str(
-        "\n## Perfil estrutural anônimo das respostas de ciência\n\n\
-        | Instalação | Operação | HTTP | Bytes de HTML | Scripts | Formulários | Referência textual à recarga |\n\
-        | --- | --- | ---: | ---: | ---: | ---: | --- |\n",
-    );
-    for perfil in &perfis {
-        relatorio.push_str(perfil);
-        relatorio.push('\n');
-    }
-    relatorio.push_str(
-        "\nA referência textual é apenas diagnóstico de forma, não prova de JS executado, atividade ou ciência.\n",
     );
     publicar(&relatorio);
 }
