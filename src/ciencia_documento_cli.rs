@@ -104,10 +104,15 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     ExitCode::from(erro.saida())
 }
 
-/// Aviso adicional para a apresentação humana; não muda o código de saída.
-fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<&'static str> {
-    (erro.saida() == 3)
-        .then_some("IES: efeito incerto; conferir no SEI antes de qualquer nova prévia")
+/// Orienta sobre a escrita incerta com a contagem realmente observada.
+/// A prévia é somente leitura: o que não pode ser repetido é a escrita.
+fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
+    match erro {
+        ErroCienciaDocumento::EfeitoIncerto { requisicoes, .. } => Some(format!(
+            "IES: {requisicoes} requisições; não repetir a escrita; conferir a Lista de Ciências no SEI antes de qualquer nova confirmação"
+        )),
+        _ => None,
+    }
 }
 
 pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
