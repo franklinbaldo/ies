@@ -39,14 +39,6 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
         Ok(sigla) => sigla,
         Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
     };
-    if *remover_anotacoes && *confirmar {
-        let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-        return Some(saida_erro::erro_fonte(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-        ));
-    }
     Some(enviar(
         cli,
         &nup,
@@ -262,6 +254,8 @@ struct ResultadoEnvio<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     anotacao_antes: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    anotacao_depois: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metodo_remocao: Option<crate::processo_enviar::MetodoRemocao>,
     nup: &'a str,
     origem: &'static str,
@@ -281,6 +275,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         manter_aberto: feito.manter_aberto,
         remover_anotacoes: feito.remover_anotacoes.then_some(true),
         anotacao_antes: feito.anotacao_antes,
+        anotacao_depois: feito.anotacao_depois,
         metodo_remocao: feito.metodo_remocao,
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
@@ -386,6 +381,9 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             None => "não observada",
         };
         linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
+        if let Some(false) = feito.anotacao_depois {
+            linhas.push("Anotação na origem, após o envio: removida (releitura)".to_owned());
+        }
     }
     match (feito.confirmado, &feito.depois) {
         (false, _) => {
