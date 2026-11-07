@@ -74,3 +74,52 @@ fn criar_sem_tipo_e_referencia_legada_sao_recusados_no_clap_ou_preflight() {
     ]);
     assert_eq!(entrada_opaca.status.code(), Some(1));
 }
+
+
+#[test]
+fn dado_confirmacao_sem_nivel_quando_nao_ha_sessao_entao_recusa_antes_de_ler_arquivos() {
+    // Dado NUP e tipo válidos, mas sem sessão nem nível;
+    // Quando confirmo a criação; Então recebo a causa verdadeira, não erro de arquivo.
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "criar",
+        "--processo",
+        "00001.000001/2026-01",
+        "--tipo",
+        "Despacho",
+        "--confirmar",
+    ]);
+    assert_eq!(saida.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(
+        json["subcodigo"],
+        "nivel_de_documento_nao_informado_para_escrita"
+    );
+    assert_eq!(json["retentavel"], false);
+}
+
+#[test]
+fn dado_nivel_restrito_quando_confirmo_entao_recusa_antes_da_sessao() {
+    // Dado nível que exige hipótese legal ainda não suportada;
+    // Quando confirmo; Então a recusa própria da operação precede sessão/rede.
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "criar",
+        "--processo",
+        "00001.000001/2026-01",
+        "--tipo",
+        "Despacho",
+        "--nivel",
+        "restrito",
+        "--confirmar",
+    ]);
+    assert_eq!(saida.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(
+        json["subcodigo"],
+        "nivel_de_documento_requer_hipotese_legal"
+    );
+    assert_eq!(json["retentavel"], false);
+}
