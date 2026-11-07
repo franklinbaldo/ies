@@ -238,9 +238,18 @@ O que falta implementar e em que ordem está na
   com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
   `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
   texto, tabela ou código para caber; não espere o gate falhar.
-- Ao trabalhar em paralelo com outros agentes, edite só os arquivos do
-  seu prefixo; os dos outros você lê. Se uma peça compartilhada precisar
-  mudar, faça a mudança mínima e explique na PR.
+- **Fatia vertical IES ↔ anti-IES:** a **mesma PR** pode alterar
+  `src/**`, `crates/iesei/**`, `crates/anti-ies/**` e seus testes,
+  inclusive criar tipos e evoluir o esquema SQLite, **quando necessária
+  para fechar uma capacidade da CLI contra cassettes verificadas**.
+  É exceção à divisão rígida por prefixos, não licença para editar
+  branch ou arquivos com dono ativo sem coordenação. Fluxo, shape
+  versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
+  BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
+  (autorização do proprietário); nos demais comandos, vale o 🐘.
+- Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
+  os dos outros você lê. Peça compartilhada exige mudança mínima na
+  sua PR e explicação, sem tocar em branch alheio.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
 - **Sem Rust no sandbox, o CI completo é o compilador sob demanda.**
   O [CI rápido](.github/workflows/ci-rapido.yml) roda apenas
