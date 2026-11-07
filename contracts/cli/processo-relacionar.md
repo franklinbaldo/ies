@@ -21,7 +21,10 @@ Abertura com a unidade da sessão exigida: a barra do nó PROCESSO fornece
 procedimento_relacionar como URL assinada. GET da tela de relacionamentos,
 um formulário frmProcedimentoListarRelacionamentos e uma tabela com summary
 Lista de Processos Relacionados. Só os links das linhas da tabela comprovam
-vínculos. Uma linha repetida ou uma tabela ausente/repetida é recusa.
+vínculos. Uma linha repetida ou tabela repetida é recusa. Na PEN1, a lista
+vazia pode vir sem tabela: nesse caso, apenas o formulário único com
+`txtProtocolo` e `hdnIdProtocolo` únicos permite a prévia; não prova
+qualquer vínculo existente.
 
 **Prévia de adicionar:** a consulta AJAX protocolo_RI1023 declarada na tela
 recebe idProcedimento com o destino informado. O XML deve publicar
@@ -100,8 +103,10 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
   `src/processo_relacionar/tests_escrita.rs`.
 - RED em CI da PR #390; GREEN exige CI no SHA que inclui adição.
   A adição e a remoção foram exercitadas com respostas sintéticas,
-  não na instalação. Live PEN1/UnB NOT_RUN (0 pedidos reais),
-  escrita real NOT_RUN, nenhum retry nem resíduo.
+  não na instalação. A **prévia PEN1 após a correção passou** em
+  07/11/2026, com `exit 0`, `requisicoes: 4`, `confirmado: false` e
+  `alterado: false` ([evidência #258](https://github.com/franklinbaldo/ies/issues/258#issuecomment-6712482131)).
+  UnB NOT_RUN; escrita real NOT_RUN, nenhum retry nem resíduo.
 
 ## Subcódigos tipados da fatia
 
