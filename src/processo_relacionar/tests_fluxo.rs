@@ -292,3 +292,27 @@ fn dado_tipo_servido_no_xml_quando_previa_entao_mostra_o_tipo_do_destino() {
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
 }
+
+
+/// BDD-258-01. No PEN1 em 07/11/2026 a tela de relacionamento foi
+/// servida com o formulário único, mas sem nenhuma tabela (duas prévias
+/// live distintas: #258). Isso não deve bloquear a prévia de adição.
+#[test]
+fn dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    let html = formulario_com_relacionados(&[]).replace(
+        "<table summary=\"Lista de Processos Relacionados\">\\n<tr><th>Processo</th></tr>\\n\\n</table>",
+        "",
+    );
+    assert!(!html.contains("<table"), "fixture deve representar a tela observada");
+    respostas.push(ok(html));
+    respostas.push(ok(format!(
+        "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{DESTINO}</complemento></complementos>"
+    )));
+    let (resultado, pedidos) = executar(respostas);
+    let previa = resultado.expect("a tela sem tabela não impede identificar destino");
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert!(!previa.sem_efeito());
+    assert_eq!(pedidos.len(), 5);
+    assert_eq!(pedidos[4].metodo, "POST"); // Consulta, não escrita.
+}
