@@ -9,11 +9,21 @@ const RECIBO: &str = "94e336aa#prova.pdf#application/pdf#15#11/10/2026 11:07:50#
 
 #[test]
 fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado() {
-    let plano = preparar_pdf("prova.pdf", PDF.len() as u64, "----ies332", CodificacaoDaTela::Utf8).unwrap();
+    let plano = preparar_pdf(
+        "prova.pdf",
+        PDF.len() as u64,
+        "----ies332",
+        CodificacaoDaTela::Utf8,
+    )
+    .unwrap();
     let mut tentativas = 0;
     let resultado = enviar_via(
-        &plano, PDF, "https://exemplo.gov.br/sei/controlador.php?acao=documento_upload_anexo",
-        "PHPSESSID=teste", "https://exemplo.gov.br", "https://exemplo.gov.br/sei/form",
+        &plano,
+        PDF,
+        "https://exemplo.gov.br/sei/controlador.php?acao=documento_upload_anexo",
+        "PHPSESSID=teste",
+        "https://exemplo.gov.br",
+        "https://exemplo.gov.br/sei/form",
         |pedido| {
             tentativas += 1;
             assert_eq!(pedido.tipo_conteudo, plano.tipo_conteudo());
@@ -33,7 +43,8 @@ fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado
                 corpo: Cursor::new(RECIBO.as_bytes().to_vec()),
             })
         },
-        "prova.pdf", PDF.len() as u64,
+        "prova.pdf",
+        PDF.len() as u64,
     );
     assert_eq!(tentativas, 1);
     assert_eq!(resultado.unwrap().nome_upload, "94e336aa");
@@ -41,17 +52,31 @@ fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado
 
 #[test]
 fn falha_de_rede_no_upload_temporario_eh_incerta_sem_reenvio() {
-    let plano = preparar_pdf("prova.pdf", PDF.len() as u64, "----ies332", CodificacaoDaTela::Utf8).unwrap();
+    let plano = preparar_pdf(
+        "prova.pdf",
+        PDF.len() as u64,
+        "----ies332",
+        CodificacaoDaTela::Utf8,
+    )
+    .unwrap();
     let mut tentativas = 0;
     let resultado = enviar_via(
-        &plano, PDF, "https://exemplo.gov.br/sei/controlador.php?acao=documento_upload_anexo",
-        "PHPSESSID=teste", "https://exemplo.gov.br", "https://exemplo.gov.br/sei/form",
+        &plano,
+        PDF,
+        "https://exemplo.gov.br/sei/controlador.php?acao=documento_upload_anexo",
+        "PHPSESSID=teste",
+        "https://exemplo.gov.br",
+        "https://exemplo.gov.br/sei/form",
         |_| -> Result<RespostaWeb<Cursor<Vec<u8>>>, FalhaTransporte> {
             tentativas += 1;
             Err(FalhaTransporte::Rede)
         },
-        "prova.pdf", PDF.len() as u64,
+        "prova.pdf",
+        PDF.len() as u64,
     );
     assert_eq!(tentativas, 1);
-    assert!(matches!(resultado, Err(FalhaUpload::EfeitoIncerto { status_http: None })));
+    assert!(matches!(
+        resultado,
+        Err(FalhaUpload::EfeitoIncerto { status_http: None })
+    ));
 }
