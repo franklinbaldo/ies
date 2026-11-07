@@ -2,6 +2,8 @@
 //! O limite da instalação só será aplicado depois de observado no cadastro.
 
 // Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
+#[allow(dead_code)] // #332: observação do cadastro será conectada à prévia Web.
+pub(crate) mod cadastro;
 #[allow(dead_code)] // #332: plano de hdnAnexos será ligado ao cadastro depois da prévia Web.
 pub(crate) mod anexo;
 #[allow(dead_code)]
