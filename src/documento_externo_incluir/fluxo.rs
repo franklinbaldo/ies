@@ -190,3 +190,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         limite_pdf_bytes: observado.limite_pdf_bytes,
     })
 }
+
+#[cfg(test)]
+#[path = "tests_fluxo.rs"]
+mod tests;
