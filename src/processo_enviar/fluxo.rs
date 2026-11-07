@@ -155,7 +155,10 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
 
 /// A barra só autoriza a escrita quando a situação lista a unidade da sessão.
 fn conferir_link_do_envio(
-    enviar: Result<Option<crate::arvore_processo::EnderecoDeEscrita>, crate::arvore_processo::ErroEnviarNaBarra>,
+    enviar: Result<
+        Option<crate::arvore_processo::EnderecoDeEscrita>,
+        crate::arvore_processo::ErroEnviarNaBarra,
+    >,
     aberto_em: &[String],
     unidade: &str,
 ) -> Result<crate::arvore_processo::EnderecoDeEscrita, C> {
