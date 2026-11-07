@@ -111,11 +111,11 @@ def ensaiar(
             pausa(60 if "tramita.processoeletronico.gov.br" in origem else 30)
             codigo, criado = executar(ies, base + ["--confirmar"])
             relatorio["requisicoes_confirmacao"] = contagem_observada(criado.get("requisicoes"))
-            # Com os mesmos argumentos, confirmar apenas soma o POST
-            # criador e as duas leituras verificadoras ao orçamento da prévia.
+            # Com os mesmos argumentos, confirmar soma 1 POST criador
+            # e 3 GET verificadores: tela, arvore e propriedades.
             orcamento_consistente = (
                 type(criado.get("requisicoes")) is int
-                and criado["requisicoes"] == previa["requisicoes"] + 3
+                and criado["requisicoes"] == previa["requisicoes"] + 4
             )
             nup = criado.get("nup")
             if (codigo != 0 or criado.get("confirmado") is not True
