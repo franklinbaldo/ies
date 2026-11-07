@@ -1,6 +1,6 @@
 //! Segunda vertical: duas páginas mensais reais de retorno da UnB, sem SEI.
-use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::cassette::acervo::gravacao;
+use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use iesei::banco_cassettes::iniciar;
 use iesei::retornos_cassettes::{Mes, Retorno, Situacao, guardar};
 use std::io::{Read, Write};
