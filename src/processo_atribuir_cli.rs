@@ -127,18 +127,18 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         EstadoDaAtribuicao::AlteracaoConfirmada => (true, true),
     };
     json!({
-                "nup": feito.nup,
-                "id_procedimento": feito.id_procedimento,
-                "unidade": feito.unidade,
-                "usuario_atual": feito.usuario_atual,
-                "usuario_pedido": feito.usuario_pedido,
-                "remover": feito.usuario_pedido.is_none(),
-                "valor_da_opcao": feito.valor_da_opcao,
-                "confirmado": confirmado,
-                "alterado": alterado,
-                "origem": "web",
-                "requisicoes": feito.requisicoes
-            })
+        "nup": feito.nup,
+        "id_procedimento": feito.id_procedimento,
+        "unidade": feito.unidade,
+        "usuario_atual": feito.usuario_atual,
+        "usuario_pedido": feito.usuario_pedido,
+        "remover": feito.usuario_pedido.is_none(),
+        "valor_da_opcao": feito.valor_da_opcao,
+        "confirmado": confirmado,
+        "alterado": alterado,
+        "origem": "web",
+        "requisicoes": feito.requisicoes
+    })
 }
 
 fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
