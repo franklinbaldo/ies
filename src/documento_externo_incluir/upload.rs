@@ -1,9 +1,12 @@
 //! #332 — transmissão multipart HTTPS de um PDF em fluxo, POST único.
 //! A operação recebe a URL exclusivamente do cadastro observado; a CLI
 //! ainda mantém --confirmar desabilitado até ensaio em TREINAMENTO.
-use super::{multipart::MultipartPdf, recibo::{FalhaUpload, ReciboUpload, interpretar_http}};
-use crate::transporte::{FalhaTransporte, RespostaWeb};
+use super::{
+    multipart::MultipartPdf,
+    recibo::{FalhaUpload, ReciboUpload, interpretar_http},
+};
 use crate::transporte::cliente_https::{self, EnvioEmFluxo};
+use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Read;
 
 /// Os cabeçalhos e o leitor pertencem à mesma tentativa de upload.
