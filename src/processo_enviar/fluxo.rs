@@ -42,6 +42,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoEnviado, C> {
+    if pedido.remover_anotacoes && pedido.confirmar {
+        return Err(C::RemocaoDeAnotacoesSemVerificacao);
+    }
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(C::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
@@ -68,6 +71,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
+    if pedido.remover_anotacoes && !tela.conferida.remover_anotacoes_oferecida {
+        return Err(C::RemocaoDeAnotacoesNaoOferecida);
+    }
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
@@ -79,6 +85,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         confirmado: pedido.confirmar,
         alterado: false,
         manter_aberto: pedido.manter_aberto,
+        remover_anotacoes: pedido.remover_anotacoes,
         destino,
         aberto_em,
         depois: None,
