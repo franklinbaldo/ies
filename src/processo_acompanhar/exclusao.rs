@@ -391,3 +391,7 @@ fn conferir_script(
 #[cfg(test)]
 #[path = "tests_exclusao.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests_exclusao_sobrescrita.rs"]
+mod tests_sobrescrita;
