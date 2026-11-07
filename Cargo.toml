@@ -25,5 +25,5 @@ sha1 = "0.11"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [workspace]
-members = ["xtask", "crates/ies-core", "crates/ies-derive"]
+members = ["xtask", "crates/ies-core", "crates/ies-derive", "crates/anti-ies"]
 resolver = "3"
