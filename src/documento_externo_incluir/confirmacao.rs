@@ -45,113 +45,84 @@ impl FalhaConfirmacao {
         !matches!(self, Self::FotoInicialIncompleta | Self::FotoInicialInconsistente)
     }
 }
-/// Cada callback mutador é FnOnce. A escrita pode deixar temporário quando
-/// a etapa final falha; nunca executar segunda tentativa automaticamente.
+/// Upload e cadastro são escritos no máximo uma vez cada. A releitura é
+/// independente mesmo quando o POST definitivo retorna falha ou HTML genérico.
+/// Essa função não habilita a confirmação na CLI; ainda falta prova live.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn confirmar_sequencia<T, U, C, L>(
-    _transporte: &mut T, _instalacao: &Instalacao, _tela: &TelaServida<'_>,
-    _unidade: &str, _cadastro: &CadastroExterno, _antes: &FotoProcesso,
-    _tipo: &str, _enviar_upload: U, _enviar_cadastro: C, _reler: L,
+    transporte: &mut T,
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    cadastro: &CadastroExterno,
+    antes: &FotoProcesso,
+    tipo: &str,
+    enviar_upload: U,
+    enviar_cadastro: C,
+    reler: L,
 ) -> Result<String, FalhaConfirmacao>
 where
     U: FnOnce(&mut T) -> Result<ReciboUpload, FalhaUpload>,
     C: FnOnce(&mut T, SubmissaoDerivada) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
     L: FnOnce(&mut T) -> Result<FotoProcesso, ErroProcessoObter>,
 {
-    // RED: os cenários falham até esta sequência ser implementada.
-    Err(FalhaConfirmacao::EfeitoIncerto)
+    use FalhaConfirmacao as E;
+    if antes.pastas_nao_carregadas {
+        return Err(E::FotoInicialIncompleta);
+    }
+    let mut ids = std::collections::HashSet::new();
+    if antes.id.is_empty()
+        || antes
+            .documentos
+            .iter()
+            .any(|doc| doc.id.is_empty() || !ids.insert(doc.id.as_str()))
+    {
+        return Err(E::FotoInicialInconsistente);
+    }
+
+    let recibo = enviar_upload(transporte).map_err(|erro| match erro {
+        FalhaUpload::Recusado { .. } => E::UploadRecusado(erro),
+        FalhaUpload::EfeitoIncerto { .. } => E::UploadIncerto(erro),
+    })?;
+    let submissao =
+        preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
+            .map_err(E::TemporarioSemCadastro)?;
+    // Mesmo após um erro de envio a releitura pode mostrar o efeito: nunca
+    // transformar uma falha de resposta em permissão para repetir o POST.
+    let envio = enviar_cadastro(transporte, submissao);
+    let leitura = reler(transporte);
+    let resposta = envio.map_err(E::CadastroIncerto)?;
+    let depois = leitura.map_err(E::ReleituraIncerta)?;
+
+    if depois.id != antes.id || depois.pastas_nao_carregadas {
+        return Err(E::EfeitoIncerto);
+    }
+    let numero = crate::documento_criar::conferir_criacao(
+        &antes.documentos,
+        &depois.documentos,
+        tipo,
+    )
+    .map_err(|_| E::EfeitoIncerto)?;
+    let novo = depois
+        .documentos
+        .iter()
+        .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
+        .ok_or(E::EfeitoIncerto)?;
+    let RespostaDoEnvio::Redirecionamento(redir) = resposta else {
+        return Err(E::EfeitoIncerto);
+    };
+    if !redir.localizacao().is_some_and(|location| {
+        crate::documento_criar::redirecionamento_do_mesmo_controlador(
+            location,
+            redir.url_do_envio(),
+            &novo.id,
+        )
+    }) {
+        return Err(E::EfeitoIncerto);
+    }
+    Ok(numero)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::arvore_processo::NaturezaDoDocumento;
-    use crate::documento_externo_incluir::cadastro::observar_cadastro;
-    use crate::formulario_web::{CodificacaoDaTela, Redirecionamento302};
-
-    const URL: &str = "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    fn html() -> String {
-        format!(r#"<form id="frmDocumentoCadastro" method="post" action="controlador.php?acao=documento_receber&amp;id_procedimento=10&amp;infra_hash={hash}">
-<select id="selSerie" name="selSerie"><option value="293" selected>Anexo</option></select>
-<input type="hidden" id="hdnIdSerie" name="hdnIdSerie" value="293">
-<input type="hidden" id="hdnFlagDocumentoCadastro" name="hdnFlagDocumentoCadastro" value="1">
-<input type="hidden" id="hdnAnexos" name="hdnAnexos" value="">
-<input type="text" name="txtDataElaboracao" value="">
-<input type="radio" name="rdoFormato" value="N" checked>
-<input type="radio" name="rdoNivelAcesso" value="0" checked>
-</form><form id="frmAnexos"><input type="file" name="filArquivo"></form>
-<script>var arrExt = [];
-arrExt[0] = {{nome : "pdf", tamanho : 200}};
-objTabelaAnexos.adicionar([arr['nome_upload'],arr['nome'],arr['data_hora'],arr['tamanho'],infraFormatarTamanhoBytes(arr['tamanho'])]);
-objUpload = new infraUpload('frmAnexos','controlador.php?acao=documento_upload_anexo&infra_hash=SINTETICO');</script>"#,
-            hash="a".repeat(64))
-    }
-    fn foto(novo: bool) -> FotoProcesso {
-        let documentos = if novo {vec![DocumentoNaArvore {
-            id:"42".into(),rotulo:"Anexo 123".into(),numero_sei:Some("123".into()),pasta:None,
-            natureza:NaturezaDoDocumento {icone:Some("documento_externo".into()),
-                cancelado:Some(false),motivo_do_cancelamento:None,dica:None}
-        }]} else {vec![]};
-        FotoProcesso {id:"10".into(),documentos,pastas_nao_carregadas:false}
-    }
-    fn recibo() -> ReciboUpload {
-        ReciboUpload { nome_upload:"temp-42".into(),nome:"prova.pdf".into(),
-            tipo:"application/pdf".into(),tamanho_bytes:68,
-            data_hora:"11/10/2026 11:07:50".into() }
-    }
-    fn contexto() -> (String, Instalacao) {
-        (html(), Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap())
-    }
-    #[test]
-    fn confirmado_so_apos_cadastro_e_releitura_unica() {
-        let (html,instalacao)=contexto();
-        let cadastro=observar_cadastro(&html,"Anexo",68).unwrap();
-        let tela=TelaServida{url:URL,html:&html,codificacao:CodificacaoDaTela::Iso88591};
-        let mut passos=Vec::new();
-        let resultado=confirmar_sequencia(
-            &mut passos,&instalacao,&tela,"ABC",&cadastro,&foto(false),"Anexo",
-            |p| {p.push("upload");Ok(recibo())},
-            |p,s| {
-                p.push("cadastro");
-                assert!(std::str::from_utf8(s.corpo()).unwrap().contains("hdnAnexos=temp-42"));
-                Ok(RespostaDoEnvio::Redirecionamento(Redirecionamento302::sintetico(
-                    Some("controlador.php?acao=arvore_visualizar&id_documento=42"),URL)))
-            },
-            |p| {p.push("reler");Ok(foto(true))},
-        );
-        assert_eq!(resultado.unwrap(),"123");
-        assert_eq!(passos,["upload","cadastro","reler"]);
-    }
-    #[test]
-    fn upload_recusado_nao_cadastra_nem_rele() {
-        let (html,instalacao)=contexto();
-        let cadastro=observar_cadastro(&html,"Anexo",68).unwrap();
-        let tela=TelaServida{url:URL,html:&html,codificacao:CodificacaoDaTela::Iso88591};
-        let mut passos=Vec::new();
-        let erro=confirmar_sequencia(
-            &mut passos,&instalacao,&tela,"ABC",&cadastro,&foto(false),"Anexo",
-            |p| {p.push("upload");Err(FalhaUpload::Recusado{motivo:"recusado".into()})},
-            |_,_|panic!("sem cadastro"), |_|panic!("sem releitura"),
-        ).unwrap_err();
-        assert!(matches!(erro,FalhaConfirmacao::UploadRecusado(_)));
-        assert_eq!(erro.codigo_saida(),1);
-        assert_eq!(passos,["upload"]);
-    }
-    #[test]
-    fn html_generico_e_arvore_nova_nao_provam_autoria() {
-        let (html,instalacao)=contexto();
-        let cadastro=observar_cadastro(&html,"Anexo",68).unwrap();
-        let tela=TelaServida{url:URL,html:&html,codificacao:CodificacaoDaTela::Iso88591};
-        let mut passos=Vec::new();
-        let erro=confirmar_sequencia(
-            &mut passos,&instalacao,&tela,"ABC",&cadastro,&foto(false),"Anexo",
-            |p| {p.push("upload");Ok(recibo())},
-            |p,_| {p.push("cadastro");Ok(RespostaDoEnvio::Html("<html>ok</html>".into()))},
-            |p| {p.push("reler");Ok(foto(true))},
-        ).unwrap_err();
-        assert!(matches!(erro,FalhaConfirmacao::EfeitoIncerto));
-        assert_eq!(erro.codigo_saida(),3);
-        assert!(erro.temporario_possivel());
-        assert_eq!(passos,["upload","cadastro","reler"]);
-    }
-}
+#[path = "tests_confirmacao.rs"]
+mod tests;
