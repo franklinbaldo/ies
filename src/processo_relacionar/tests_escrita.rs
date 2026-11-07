@@ -101,7 +101,6 @@ fn dado_post_403_quando_remover_entao_nao_declara_sucesso_causal() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina(true)));
     respostas.push(Ok((403, String::new(), None)));
-    respostas.push(ok(pagina(false))); // Seria concorrência, não prova do nosso POST.
     let (resultado, pedidos) = executar(respostas);
     assert!(resultado.is_err());
     assert_eq!(pedidos.len(), 5);
@@ -138,4 +137,128 @@ fn dado_302_aceito_mas_releitura_inalterada_entao_nao_confirma_remocao() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos[4].metodo, "POST");
     assert_eq!(pedidos[5].metodo, "GET");
+}
+
+fn pagina_adicionar(relacionado: bool) -> String {
+    let hash = "a".repeat(64);
+    let script = format!(
+        "<script>var objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={hash}');</script>"
+    );
+    pagina(relacionado)
+        .replace("</head>", &format!("{script}</head>"))
+        .replace(
+            "<table summary",
+            r#"<input type="text" id="txtProtocolo" name="txtProtocolo" value="" />
+<input type="text" id="txtIdentificacaoProtocolo" name="txtIdentificacaoProtocolo" value="" />
+<input type="hidden" id="hdnIdProtocolo" name="hdnIdProtocolo" value="" />
+<button type="submit" name="sbmAdicionar" id="sbmAdicionar" value="Adicionar">Adicionar</button>
+<table summary"#,
+        )
+}
+
+fn executar_adicao(
+    respostas: Vec<Resposta>,
+) -> (
+    Result<super::Previa, super::FalhaRelacionar>,
+    Vec<PedidoHttp>,
+) {
+    let amb = ambiente();
+    let destino = NumeroProcesso::novo(NUP_DESTINO).unwrap();
+    rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        prever(
+            sessao,
+            &Pedido {
+                nup,
+                com: &destino,
+                unidade: None,
+                remover: false,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    })
+}
+
+fn xml_destino() -> String {
+    format!(
+        r#"<complementos><complemento nome="IdProcedimento">22</complemento><complemento nome="ProtocoloProcedimentoFormatado">{NUP_DESTINO}</complemento><complemento nome="NomeTipoProcedimento">Processo Administrativo</complemento></complementos>"#
+    )
+}
+
+/// Dado destino identificado no XML e relação ausente, quando confirmo
+/// adicionar, então um POST mutador é seguido de GET que comprova o vínculo.
+#[test]
+fn dado_destino_quando_adicionar_confirmado_entao_post_unico_e_releitura() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina_adicionar(true)));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    let previa = resultado.expect("o vínculo precisa estar confirmado por nova leitura");
+    assert_eq!(previa.resultado, super::ResultadoRelacionar::Confirmado);
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(previa.requisicoes, 7);
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos[4].metodo, "POST"); // Consulta complementar, sem mutação.
+    assert_eq!(pedidos[5].metodo, "POST"); // Única escrita.
+    assert!(pedidos[5].url.contains("acao=procedimento_relacionar"));
+    assert_eq!(pedidos[6].metodo, "GET"); // Leitura independente.
+}
+
+/// Dado falha 403 do POST mutador, quando confirmo adicionar,
+/// então o IES preserva o efeito incerto sem fazer outra escrita ou releitura.
+#[test]
+fn dado_post_403_quando_adicionar_entao_efeito_incerto_sem_retry() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(Ok((403, String::new(), None)));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+    ));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos[5].metodo, "POST");
+}
+
+/// Dado resposta HTML genérica em vez do sinal de aceite, quando
+/// adiciono, então o IES não transforma coincidência posterior em sucesso.
+#[test]
+fn dado_post_200_generico_quando_adicionar_entao_nao_confirma() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(ok("<html><body>Resposta inconclusiva</body></html>".to_owned()));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+    ));
+    assert_eq!(pedidos.len(), 6);
+}
+
+/// Dado o aceite da adição sem vínculo na releitura independente,
+/// quando confirmo, então a saída é 3 e não há segundo POST.
+#[test]
+fn dado_302_aceito_mas_releitura_sem_vinculo_entao_efeito_incerto() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina_adicionar(false)));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+    ));
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos[5].metodo, "POST");
+    assert_eq!(pedidos[6].metodo, "GET");
 }
