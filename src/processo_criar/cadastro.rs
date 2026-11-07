@@ -351,8 +351,10 @@ mod tests {
             conferir_cadastro(&assunto_desabilitado, "12", "publico"),
             Err(ErroCadastro::AssuntoDesabilitado)
         );
-        let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE)
-            .replace("name='selHipoteseLegal'", "name='selHipoteseLegal' disabled");
+        let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE).replace(
+            "name='selHipoteseLegal'",
+            "name='selHipoteseLegal' disabled",
+        );
         assert_eq!(
             conferir_cadastro(&hipotese_desabilitada, "12", "restrito"),
             Err(ErroCadastro::HipoteseLegalDesabilitada)
