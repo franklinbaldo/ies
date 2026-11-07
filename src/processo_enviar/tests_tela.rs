@@ -235,7 +235,6 @@ fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
     }
 }
 
-
 #[test]
 fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
     // Dado o checkbox observado nas versões 4.0 e 4.1/5.0,
