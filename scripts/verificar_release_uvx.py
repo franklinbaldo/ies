@@ -15,8 +15,16 @@ def conferir_tag(tag: str, raiz: Path) -> str:
     with (raiz / "pyproject.toml").open("rb") as arquivo:
         projeto = tomllib.load(arquivo)
 
+    with (raiz / "Cargo.lock").open("rb") as arquivo:
+        lock = tomllib.load(arquivo)
+
     versao_rust = cargo["package"]["version"]
     versao_python = projeto["project"]["version"]
+    raiz_ies = [p["version"] for p in lock["package"] if p["name"] == "ies"]
+    if len(raiz_ies) != 1:
+        raise ValueError("Cargo.lock deve conter um pacote ies")
+    if raiz_ies[0] != versao_rust:
+        raise ValueError("Cargo.lock diverge da versao do IES")
     if projeto["project"]["name"] != "ies-sei":
         raise ValueError("nome de distribuicao Python diferente de ies-sei")
     if versao_rust != versao_python or tag != f"v{versao_rust}":
