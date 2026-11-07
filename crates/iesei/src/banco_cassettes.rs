@@ -34,6 +34,13 @@ impl From<rusqlite::Error> for Falha {
     }
 }
 
+/// Total e faixa publicados para uma categoria no esquema SQL.
+struct TabelaSql {
+    total: Option<i64>,
+    inicio: Option<i64>,
+    fim: Option<i64>,
+}
+
 /// Metadados SQL de uma observação R, sem tupla anônima de sete valores.
 struct Metadados {
     unidade: String,
@@ -57,9 +64,7 @@ fn numero_sql(numero: usize) -> Result<i64, Falha> {
     i64::try_from(numero).map_err(|_| Falha::DadoInvalido)
 }
 
-fn metadados(
-    tabela: &TabelaObservada<Linha>,
-) -> Result<(Option<i64>, Option<i64>, Option<i64>), Falha> {
+fn metadados(tabela: &TabelaObservada<Linha>) -> Result<TabelaSql, Falha> {
     if !tabela.pagina_verificavel() {
         return Err(Falha::ObservacaoInsuficiente);
     }
@@ -72,7 +77,7 @@ fn metadados(
         .faixa_observada
         .map(|f| numero_sql(f.fim()))
         .transpose()?;
-    Ok((total, inicio, fim))
+    Ok(TabelaSql { total, inicio, fim })
 }
 
 /// Guarda somente o Controle R cujo conteúdo o IES realmente leu.
@@ -121,12 +126,12 @@ pub fn guardar(
             origem,
             cenario,
             controle.unidade.as_str(),
-            rec.0,
-            rec.1,
-            rec.2,
-            ger.0,
-            ger.1,
-            ger.2
+            rec.total,
+            rec.inicio,
+            rec.fim,
+            ger.total,
+            ger.inicio,
+            ger.fim
         ],
     )?;
     transacao.execute(
