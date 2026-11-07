@@ -33,7 +33,7 @@ fn foto(novo: bool) -> FotoProcesso {
             numero_sei: Some("123".into()),
             pasta: None,
             natureza: NaturezaDoDocumento {
-                icone: Some("documento_externo".into()),
+                icone: Some("documento_pdf".into()),
                 cancelado: Some(false),
                 motivo_do_cancelamento: None,
                 dica: None,
@@ -202,8 +202,8 @@ fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
             &cadastro,
             &foto(false),
             "Anexo",
-            |_| Ok(recibo()),
-            |_, _| {
+            |()| Ok(recibo()),
+            |(), _| {
                 Ok(RespostaDoEnvio::Redirecionamento(
                     Redirecionamento302::sintetico(
                         Some("controlador.php?acao=arvore_visualizar&id_documento=42"),
@@ -211,7 +211,7 @@ fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
                     ),
                 ))
             },
-            |_| {
+            |()| {
                 let mut leitura = foto(true);
                 leitura.documentos[0].natureza.icone = icone.map(str::to_owned);
                 Ok(leitura)
