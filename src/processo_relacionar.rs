@@ -336,9 +336,10 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             link.as_str(),
             &html,
             &mime,
-            previa.id_destino.as_deref().ok_or(E::Estrutura(
-                "destino_a_relacionar_nao_identificado",
-            ))?,
+            previa
+                .id_destino
+                .as_deref()
+                .ok_or(E::Estrutura("destino_a_relacionar_nao_identificado"))?,
             &previa.destino,
             previa.tipo_destino.as_deref().unwrap_or(""),
             &mut rede,

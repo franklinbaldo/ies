@@ -27,7 +27,6 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-
 const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "procedimento_relacionar",
     formulario: "frmProcedimentoListarRelacionamentos",
@@ -158,7 +157,6 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     }
     Ok(())
 }
-
 
 /**
  * A tela PEN1 publica `sbmAdicionar`, `txtProtocolo`,

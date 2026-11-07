@@ -1,5 +1,5 @@
 //! BDD #258: remoção com um POST observado e releitura independente.
-//! Oráculo: Todos test_processo_relacionar_remover_010.py @323eb01,
+//! Oráculo: Todos `test_processo_relacionar_remover_010.py` @323eb01,
 //! cassette PEN1; somente respostas sintéticas, zero SEI real.
 use super::{Pedido, prever};
 use crate::processo::NumeroProcesso;
@@ -182,7 +182,7 @@ fn executar_adicao(
 
 fn xml_destino() -> String {
     format!(
-        r#"<complementos><complemento nome="IdProcedimento">22</complemento><complemento nome="ProtocoloProcedimentoFormatado">{NUP_DESTINO}</complemento><complemento nome="NomeTipoProcedimento">Processo Administrativo</complemento></complementos>"#
+        r#"<?xml version="1.0"?><complementos><complemento nome="IdProcedimento">22</complemento><complemento nome="ProtocoloProcedimentoFormatado">{NUP_DESTINO}</complemento><complemento nome="NomeTipoProcedimento">Processo Administrativo</complemento></complementos>"#
     )
 }
 
@@ -233,7 +233,9 @@ fn dado_post_200_generico_quando_adicionar_entao_nao_confirma() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina_adicionar(false)));
     respostas.push(ok(xml_destino()));
-    respostas.push(ok("<html><body>Resposta inconclusiva</body></html>".to_owned()));
+    respostas.push(ok(
+        "<html><body>Resposta inconclusiva</body></html>".to_owned()
+    ));
     let (resultado, pedidos) = executar_adicao(respostas);
     assert!(matches!(
         resultado,
