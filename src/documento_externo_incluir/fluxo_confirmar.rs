@@ -185,8 +185,8 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
 ) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
     // Validar antes de abrir sessão/rede. É o mesmo descritor que será
     // transmitido, não uma segunda abertura suscetível a substituição.
-    let arquivo = super::abrir_pdf_para_envio(caminho_pdf, pdf)
-        .map_err(ErroConfirmacaoExterna::Pdf)?;
+    let arquivo =
+        super::abrir_pdf_para_envio(caminho_pdf, pdf).map_err(ErroConfirmacaoExterna::Pdf)?;
     let cookie = sessao
         .cookie
         .valor()
