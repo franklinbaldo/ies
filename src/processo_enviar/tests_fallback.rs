@@ -10,6 +10,10 @@ fn link_anotacao() -> String {
     format!("controlador.php?acao=anotacao_registrar&acao_origem=arvore_visualizar&id_procedimento={ID}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH_ENVIAR}")
 }
 
+fn action_anotacao() -> String {
+    format!("controlador.php?acao=anotacao_registrar&acao_origem=anotacao_registrar&id_procedimento={ID}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH_ACTION_ENVIO}")
+}
+
 fn form_anotacao(texto: &str) -> String {
     format!(
         r#"<html><form id="frmAnotacaoCadastro" method="post" action="controlador.php?acao=anotacao_registrar&acao_origem=anotacao_registrar&id_procedimento={ID}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH_ACTION_ENVIO}">
@@ -70,10 +74,10 @@ fn bdd_333_03_limpa_anotacao_confere_e_so_depois_envia() {
     assert_eq!(feito.requisicoes, 10);
     let posts: Vec<_> = pedidos.iter().filter(|p| p.metodo == "POST").collect();
     assert_eq!(posts.len(), 3, "consulta de destino, limpeza e envio");
-    assert_eq!(posts[1].url, absoluta(&link_anotacao()));
-    assert!(posts[1].corpo.contains("txaDescricao="));
+    assert_eq!(posts[1].url, absoluta(&action_anotacao()));
+    assert!(posts[1].corpo.as_deref().unwrap_or_default().contains("txaDescricao="));
     assert_eq!(posts[2].url, absoluta(&action_de_enviar()));
-    assert!(!posts[2].corpo.contains("chkSinRemoverAnotacoes"));
+    assert!(!posts[2].corpo.as_deref().unwrap_or_default().contains("chkSinRemoverAnotacoes"));
 }
 
 #[test]
@@ -89,5 +93,5 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
     assert_eq!(feito.anotacao_antes, Some(false));
     assert_eq!(feito.anotacao_depois, Some(false));
     assert_eq!(feito.requisicoes, 8);
-    assert!(!pedidos.iter().any(|p| p.metodo == "POST" && p.url == absoluta(&link_anotacao())));
+    assert!(!pedidos.iter().any(|p| p.metodo == "POST" && p.url == absoluta(&action_anotacao())));
 }
