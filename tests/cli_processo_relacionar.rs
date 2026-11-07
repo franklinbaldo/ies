@@ -68,7 +68,6 @@ fn destino_obrigatorio_e_flag_desconhecida_saem_2() {
     }
 }
 
-
 /// Regressão técnica da trava WIP (AGENTS.md); não é um BDD novo.
 #[test]
 fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
@@ -76,8 +75,12 @@ fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let pasta = std::env::temp_dir().join(format!(
-        "ies-relacionar-{}-{}", std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        "ies-relacionar-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     fs::create_dir(&pasta).unwrap();
     let origem = pasta.join("origem");
@@ -85,10 +88,13 @@ fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
     let cookie = pasta.join("cookie");
     for (arquivo, texto) in [
         (&origem, "https://sei.invalid/sei".to_owned()),
-        (&url, format!(
-            "https://sei.invalid/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
-            "a".repeat(64)
-        )),
+        (
+            &url,
+            format!(
+                "https://sei.invalid/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+                "a".repeat(64)
+            ),
+        ),
         (&cookie, "PHPSESSID=SINTETICO".to_owned()),
     ] {
         fs::write(arquivo, texto).unwrap();
@@ -100,10 +106,17 @@ fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
     }
     for remover in [false, true] {
         let mut args = vec![
-            "processo", "relacionar", NUP, "--com", "00001.000002/2026-01",
-            "--confirmar", "--json",
+            "processo",
+            "relacionar",
+            NUP,
+            "--com",
+            "00001.000002/2026-01",
+            "--confirmar",
+            "--json",
         ];
-        if remover { args.push("--remover"); }
+        if remover {
+            args.push("--remover");
+        }
         let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
             .args(args)
             .env_remove("IES_CONFIG_FILE")
@@ -114,7 +127,10 @@ fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
             .output()
             .expect("IES deve iniciar");
         assert_eq!(saida.status.code(), Some(1));
-        assert_eq!(json(&saida)["subcodigo"], "confirmacao_de_relacionamento_nao_validada");
+        assert_eq!(
+            json(&saida)["subcodigo"],
+            "confirmacao_de_relacionamento_nao_validada"
+        );
     }
     fs::remove_dir_all(pasta).unwrap();
 }
