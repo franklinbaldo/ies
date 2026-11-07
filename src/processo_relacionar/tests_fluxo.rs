@@ -69,7 +69,7 @@ fn dado_relacionamento_ja_publicado_quando_previa_entao_sem_post_ajax() {
     respostas.push(ok(formulario_com_relacionados(&[("22", DESTINO)])));
     let (resultado, pedidos) = executar(respostas);
     let previa = resultado.expect("a relação já publicada basta para a prévia");
-    assert!(previa.sem_efeito);
+    assert!(previa.sem_efeito());
     assert_eq!(previa.destino, DESTINO);
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(previa.requisicoes, 4);
@@ -178,7 +178,7 @@ fn dado_numero_sem_pontuacao_quando_ja_relacionado_entao_sem_ajax() {
     let compacto: String = DESTINO.chars().filter(|c| c.is_alphanumeric()).collect();
     let (resultado, pedidos) = executar_com(respostas, &compacto, false);
     let previa = resultado.expect("mesmo protocolo não precisa de AJAX");
-    assert!(previa.sem_efeito);
+    assert!(previa.sem_efeito());
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(previa.destino, DESTINO);
     assert_eq!(pedidos.len(), 4);
@@ -194,7 +194,7 @@ fn dado_numero_sem_pontuacao_quando_remover_entao_encontra_linha() {
     let compacto: String = DESTINO.chars().filter(|c| c.is_alphanumeric()).collect();
     let (resultado, pedidos) = executar_com(respostas, &compacto, true);
     let previa = resultado.expect("vínculo com formato alternativo deve ser encontrado");
-    assert!(!previa.sem_efeito);
+    assert!(!previa.sem_efeito());
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(previa.destino, DESTINO);
     assert_eq!(pedidos.len(), 4);
@@ -248,7 +248,7 @@ fn dado_xml_do_complemento_quando_adicionar_entao_identifica_destino() {
     )));
     let (resultado, pedidos) = executar(respostas);
     let previa = resultado.expect("XML do autocomplete deve ser lido como XML");
-    assert!(!previa.sem_efeito);
+    assert!(!previa.sem_efeito());
     assert_eq!(previa.id_destino.as_deref(), Some("22"));
     assert_eq!(previa.destino, DESTINO);
     assert_eq!(previa.requisicoes, 5);
