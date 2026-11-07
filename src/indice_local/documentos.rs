@@ -46,8 +46,8 @@ impl IndiceLocal {
 
     /// Os documentos `(número SEI, id_documento)` de uma árvore conferida do
     /// processo `id_procedimento`, numa transação. Entrada inválida, e todo
-    /// número ou id que se repete na mesma árvore, é pulada; cada linha
-    /// gravada apaga antes a do mesmo número e a do mesmo documento.
+    /// número ou id que se repete na mesma árvore, invalida qualquer palpite
+    /// anterior; cada linha inequívoca substitui a associação antiga.
     pub(crate) fn registrar_documentos(
         &self,
         instalacao: &Instalacao,
@@ -71,11 +71,29 @@ impl IndiceLocal {
                     && unico(numero, id)
             })
             .collect();
-        if validos.is_empty() {
+        // Se a árvore contradiz o índice com números/IDs duplicados,
+        // não conservar um palpite antigo como se a observação fosse única.
+        let ambiguos: Vec<(&str, &str)> = documentos
+            .iter()
+            .copied()
+            .filter(|(numero, id)| {
+                conferir_numero_sei(numero).is_ok()
+                    && conferir_id_procedimento(id).is_ok()
+                    && !unico(numero, id)
+            })
+            .collect();
+        if validos.is_empty() && ambiguos.is_empty() {
             return Ok(());
         }
         let origem = instalacao.url_base();
         self.executar((), |banco, agora| {
+            for (numero, id) in &ambiguos {
+                banco.execute(
+                    "DELETE FROM documento WHERE origem = ?1 \
+                     AND (numero_sei = ?2 OR id_documento = ?3)",
+                    [origem.as_str(), numero, id],
+                )?;
+            }
             for (numero, id) in &validos {
                 banco.execute(
                     "DELETE FROM documento WHERE origem = ?1 \
