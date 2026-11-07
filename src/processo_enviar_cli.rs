@@ -48,7 +48,7 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
             cli.json,
             erro.subcodigo(),
             erro.mensagem(),
-            erro.status_http(),
+            None,
         ));
     }
     Some(enviar(
