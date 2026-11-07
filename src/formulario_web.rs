@@ -65,6 +65,8 @@ pub(crate) enum EstadoDoProcesso {
     ProcessoCriadoNaUnidade,
     /// Sobrestar ou remover o sobrestamento de um processo.
     Sobrestamento,
+    /// Atribuição de um processo a usuário da unidade, ou sua remoção.
+    AtribuicaoNaUnidade,
 }
 
 /// Avaliação obrigatória por operação, sem valor padrão.
