@@ -176,3 +176,11 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
         _ => Err("destino_da_consulta_ambiguo"),
     }
 }
+
+
+/// A URL mutadora ainda não é assumida apenas por estar no HTML.
+/// Próxima fatia: ler o acionador acaoRemover observado no script ativo.
+#[cfg(test)]
+pub(super) fn url_exclusao(_html: &str) -> Result<String, &'static str> {
+    Err("acao_excluir_relacionamento_nao_declarada")
+}
