@@ -214,3 +214,55 @@ fn limite_exato_e_cadastro_sem_maxlength_nao_inventam_recusa() {
         assert_eq!(requests.len(), 3);
     }
 }
+
+/* #245: a consulta AJAX de interessados é anterior ao POST criador.
+   A falha HTTP observada não pode virar "HTML não reconhecido". */
+#[test]
+fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
+    let amb = ambiente();
+    let interessados = ["Pessoa A".to_owned()];
+    let solicitado = PedidoCriar {
+        interessados: &interessados,
+        ..pedido(true)
+    };
+    let cadastro_com_interessado = format!(
+        "{}\nobjAutoCompletarInteressadoRI1225 = new infraAjaxAutoCompletar('hdnIdInteressadoProcedimento','txtInteressadoProcedimento','controlador_ajax.php?acao_ajax=contato_auto_completar_contexto_RI1225&infra_hash={}');",
+        cadastro().replace(
+            "</form>",
+            "<input type='hidden' name='hdnInteressadosProcedimento' value=''>\
+             <input type='text' name='txtInteressadoProcedimento' value=''>\
+             <select name='selInteressadosProcedimento'></select></form>"
+        ),
+        super::tests::HASH,
+    );
+    let respostas = vec![
+        ok(tela_controle()),
+        ok(lista(false)),
+        ok(cadastro_com_interessado),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            crate::transporte::StatusHttpRecusado::sem_mensagem(503),
+        )),
+    ];
+    let mut contador = 0;
+    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+        criar_com_contagem(
+            sessao.origem,
+            sessao.url_do_controle,
+            sessao.cookie,
+            &solicitado,
+            rede,
+            &mut contador,
+        )
+    });
+    let erro = resultado.expect_err("falha AJAX impede POST criador");
+    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
+    assert_eq!(erro.status_http().map(|http| http.status), Some(503));
+    assert_eq!(erro.saida(), 1);
+    assert_eq!(contador, 4);
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
+    assert!(requests[3].url.contains("acao_ajax=contato_auto_completar_contexto_RI1225"));
+    assert!(requests.iter().all(|r| {
+        r.metodo != "POST" || !r.url.contains("acao=procedimento_gerar")
+    }));
+}
