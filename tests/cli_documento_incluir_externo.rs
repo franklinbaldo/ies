@@ -119,7 +119,7 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         PROXIMO.fetch_add(1, Ordering::Relaxed)
     );
     let pdf = PdfTeste(std::env::temp_dir().join(nome));
-    fs::write(&pdf.0, b"%PDF-1.4\\n1 0 obj\\n%%EOF\\n").unwrap();
+    fs::write(&pdf.0, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
     let saida = executar(&[
         "--json",
         "documento",
