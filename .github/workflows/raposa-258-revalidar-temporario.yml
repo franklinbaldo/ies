@@ -1,0 +1,161 @@
+name: Raposa 258 revalidacao de previa em treinamento (temporario)
+on:
+  push:
+    branches:
+      - codex/258-raposa-relacionar-noop-20261107
+permissions:
+  contents: read
+  issues: write
+jobs:
+  previa:
+    if: contains(github.event.head_commit.message, '[live-258-revalidar]')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixo
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Compilar binario IES
+        run: cargo +1.99.1 build --locked --release --bin ies
+      - name: Login publico, lista e uma previa na PEN1
+        env:
+          OUT: ${{ runner.temp }}/raposa-258-resultado.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, tempfile, time
+          from datetime import datetime, timezone
+
+          out = pathlib.Path(os.environ["OUT"])
+          report = {"issue": 258, "instalacao": "pen1",
+                    "quando_utc": datetime.now(timezone.utc).isoformat(),
+                    "modo": "revalidacao_previa_pos_correcao", "escritas_de_relacionamento": 0,
+                    "tentativas_repetidas": 0, "etapas": []}
+          def gravar():
+              out.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+              out.chmod(0o600)
+          gravar()
+          try:
+              with tempfile.TemporaryDirectory(prefix="ies-raposa-258-") as d:
+                  d = pathlib.Path(d)
+                  linhas = pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+                  linha = next(l for l in linhas if l.startswith("| `pen1` |"))
+                  campos = [p.strip().strip("`") for p in linha.split("|")]
+                  origem, usuario, senha, orgao = campos[3:7]
+                  if origem != "https://sei.orgao1.tramita.processoeletronico.gov.br/sei":
+                      raise RuntimeError("origem_pen1_divergente")
+                  for nome, texto in [
+                      ("origem", origem + "\n"),
+                      ("credenciais", "usuario=" + usuario + "\nsenha=" + senha + "\norgao=" + orgao + "\n"),
+                      ("cookie", ""), ("url", "")
+                  ]:
+                      p = d / nome
+                      p.write_text(texto, encoding="utf-8")
+                      p.chmod(0o600)
+                  del senha
+                  env = os.environ.copy()
+                  env.pop("IES_CONFIG_FILE", None)
+                  env.update({
+                      "IES_ORIGEM_FILE": str(d/"origem"),
+                      "IES_CREDENCIAIS_FILE": str(d/"credenciais"),
+                      "IES_COOKIE_FILE": str(d/"cookie"),
+                      "IES_URL_CONTROLE_FILE": str(d/"url"),
+                      "IES_INDICE_FILE": str(d/"indice.sqlite3")
+                  })
+                  def comando(nome, args):
+                      try:
+                          r = subprocess.run(["./target/release/ies", "--json", *args],
+                                             env=env, capture_output=True, text=True,
+                                             timeout=360, check=False)
+                      except subprocess.TimeoutExpired:
+                          report["etapas"].append({"nome": nome, "estado": "TIMEOUT"})
+                          gravar()
+                          raise RuntimeError("tempo_esgotado_" + nome)
+                      try:
+                          obj = json.loads(r.stdout)
+                      except (ValueError, TypeError):
+                          obj = {}
+                      chaves = ("conexao", "requisicoes", "codigo", "subcodigo",
+                                "status_http", "sem_efeito", "confirmado", "alterado")
+                      reg = {"nome": nome, "exit_code": r.returncode,
+                             **{k: obj[k] for k in chaves if isinstance(obj, dict) and k in obj}}
+                      report["etapas"].append(reg)
+                      gravar()
+                      print("Etapa", nome, json.dumps(reg, ensure_ascii=False), flush=True)
+                      if r.returncode != 0:
+                          raise RuntimeError("falha_" + nome)
+                      return obj
+                  comando("login", ["login"])
+                  time.sleep(65)
+                  listas = comando("listar", ["unidade", "listar-processos"])
+                  registros = listas if isinstance(listas, list) else [listas]
+                  numeros = []
+                  for lista in registros:
+                      if isinstance(lista, dict):
+                          for item in lista.get("processos", []):
+                              nup = item.get("numero") if isinstance(item, dict) else None
+                              if isinstance(nup, str) and nup and nup not in numeros:
+                                  numeros.append(nup)
+                  report["processos_distintos_na_pagina"] = len(numeros)
+                  if len(numeros) < 2:
+                      raise RuntimeError("menos_de_dois_processos_na_pagina")
+                  # Excluir todos os processos envolvidos nas duas falhas anteriores.
+                  anteriores = {"10271000749202668", "043470/2026-13",
+                                "043387/2026-36", "08227.000048/2026-12"}
+                  novos = [n for n in numeros if n not in anteriores]
+                  if len(novos) < 2:
+                      raise RuntimeError("sem_dois_processos_novos_para_revalidacao")
+                  origem_nup, destino_nup = novos[:2]
+                  report["origem_nup"] = origem_nup
+                  report["destino_nup"] = destino_nup
+                  gravar()
+                  time.sleep(65)
+                  previa = comando("previa", ["processo", "relacionar", origem_nup,
+                                               "--com", destino_nup])
+                  if previa.get("confirmado") or previa.get("alterado"):
+                      raise RuntimeError("previa_declarou_escrita")
+                  report["resultado"] = "PASS_PREVIA_SEM_ESCRITA"
+          except Exception as erro:
+              report["resultado"] = "FAIL_OU_BLOQUEIO"
+              report["motivo"] = str(erro)
+          finally:
+              gravar()
+              print("Resultado:", report["resultado"], report.get("motivo", ""), flush=True)
+          if report["resultado"] != "PASS_PREVIA_SEM_ESCRITA":
+              raise SystemExit(1)
+          PY
+      - name: Registrar evidencia saneada na issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT: ${{ runner.temp }}/raposa-258-resultado.json
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.request
+          caminho = pathlib.Path(os.environ["OUT"])
+          if not caminho.exists():
+              raise SystemExit("Nenhuma etapa live executada; sem relatorio")
+          r = json.loads(caminho.read_text())
+          partes = ["🦊 Revalidação live BDD-258-01 no PEN1 após correção, sem escrita nem retry.",
+                    "Resultado: " + r.get("resultado", "NOT_RUN"),
+                    "Etapas (somente campos saneados):",
+                    "```json", json.dumps(r, ensure_ascii=False, indent=2), "```",
+                    "Nenhum --confirmar executado; zero escritas de relacionamento.",
+                    "Esta revalidação é somente da prévia BDD-258-01; BDD-258-02/03 continuam pendentes."]
+          dados = json.dumps({"body": "\n".join(partes)}).encode()
+          req = urllib.request.Request(
+              "https://api.github.com/repos/franklinbaldo/ies/issues/258/comments",
+              data=dados,
+              headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                       "Accept": "application/vnd.github+json",
+                       "X-GitHub-Api-Version": "2022-11-28",
+                       "Content-Type": "application/json"},
+              method="POST")
+          with urllib.request.urlopen(req, timeout=30) as resposta:
+              print("Comentario saneado registrado; HTTP", resposta.status)
+          PY
