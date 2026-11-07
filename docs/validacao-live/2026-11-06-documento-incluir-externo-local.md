@@ -37,6 +37,13 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 - **Live remoto:** NOT_RUN; nenhuma sessão, GET, POST, upload, escrita ou
   resíduo SEI. A confirmação continua recusada antes da rede.
 
+## RED → GREEN adicional — integridade da apresentação (07/11/2026)
+
+- **RED publicado antes da correção:** commit `c76ac72`, [run CI 42339576715](https://github.com/franklinbaldo/ies/actions/runs/42339576715). Suite Rust: **1.810 PASS, 1 FAIL novo, 23 ignored**. O teste unitário demonstrou que `char::is_control` aceitava um nome com U+202E e devolvia `PdfLocal`, em vez de `FalhaPdf::NomeInvalido`. O teste CLI para tipo com U+202E foi publicado no mesmo RED, mas o hook não o executou após a falha unitária.
+- **GREEN em código:** usar o mesmo predicado de apresentação para nomes de PDF e texto do tipo solicitado; rejeitar controles e marcadores bidirecionais Unicode (U+061C, U+200E/F, U+202A–E e U+2066–9). São **caracteres que reordenam texto na saída humana**, não um limite de charset alegado pelo SEI. Os erros existentes `Pdf(NomeInvalido)` e `Tipo(Controle)` permanecem tipados; sem novo subcódigo. `--confirmar` continua recusado antes da sessão/rede.
+- **CI intermediário:** [42339719537](https://github.com/franklinbaldo/ies/actions/runs/42339719537) verificou Rust/Clippy/OKF com PASS, mas falhou somente em Rustfmt de três trechos; correções de formatação foram commitadas antes do head final. **Consultar o CI do head atual** para atestar GREEN definitivo.
+- **Acervo adicional lido, sem rede SEI:** [cassette PEN3 de prévia](../../cassettes/pen3/documento-juntar-previa-pen3--ec754357a3c7.md) (SEI 5.0.4: 9 interações na captura, 5 GET + 4 POST), [testes UnB 4](https://github.com/franklinbaldo/todos/blob/main/tests/test_documento_juntar_010.py) e [SEI 5](https://github.com/franklinbaldo/todos/blob/main/tests/test_documento_juntar_sei5_010.py). A evidência de versões diferentes, recibo e duas mutações está detalhada no [cartão da operação](../../contracts/evidencias/documento-incluir-externo.md). Contagens dessas capturas **não** são requisições desta execução do IES.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
