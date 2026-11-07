@@ -1,10 +1,10 @@
 ---
 type: ImplementationDecision
-title: Prévia do relacionamento pelo formulário e complementar servidos
+title: Prévia e remoção única derivadas da tela do relacionamento
 operation: processo.relacionar
 implementation: partial
 status: adopted-for-scope
-scope: ies processo relacionar NUP --com NUP com prévia apenas
+scope: ies processo relacionar NUP --com NUP com prévia e remoção
 selected_strategy: web-barra-formulario-complementar-e-linhas
 alternatives: web-barra-formulario-complementar-e-linhas,rest,html-solto
 evidence_level: tela-todos-pen1-e-testes-sinteticos
@@ -24,10 +24,12 @@ pela consulta AJAX de leitura com formulário_web, rejeitar autocorrelação e
 repetições. Só uma linha da tabela é evidência de vínculo: não buscar
 números livres pelo HTML.
 
-Confirmação continua bloqueada antes da sessão: falta implementar e testar
-POST único e releitura independente para adição e remoção, com saída 3 se
-efeito incerto. Nenhum retry nem desligamento de gate é permitido. Esta
-evidência PEN1 não presume paridade nas outras instalações. Live NOT_RUN.
+A remoção confirmada deriva a action do handler `acaoRemover`, envia um
+POST único e só confirma a remoção diante de 302 válido e leitura independente
+sem a linha. Falha do POST e ausência posterior da linha não provam
+causalidade: saída 3 com status preservado, sem retry. A adição mutadora
+continua bloqueada. Esta evidência PEN1 não presume paridade nas demais
+instalações. Live NOT_RUN.
 
 ## Alternativas consideradas
 
@@ -45,9 +47,10 @@ da CLI.
 
 ## Decisão
 
-A fatia inicial implementa só prévia, com parser estrutural e consulta
-complementar única. Escrita, replay e validação de outras instalações
-ficam pendentes; --confirmar falha fechado antes de abrir sessão.
+A fatia mantém prévia estrutural e consulta complementar única e habilita
+apenas a remoção confirmada, validada sinteticamente por envio único e
+reconciliação de leitura. A adição permanece sem escrita. O replay completo
+e a validação live em duas instalações permanecem pendentes.
 
 ## Evidências verificáveis
 
@@ -62,6 +65,6 @@ ficam pendentes; --confirmar falha fechado antes de abrir sessão.
 O parser PEN1 não prova paridade nas demais instalações, nem o número
 exato de pedidos na primeira abertura de um processo sem índice. O GET
 da tela e a consulta POST (leitura) são distintos da futura escrita.
-Antes de liberar --confirmar: observar a resposta do SEI, implementar
-POST único derivado e testar verificação independente com saída 3
-para efeito incerto. Replay e live NOT_RUN; nenhum resíduo.
+A remoção confirmada tem POST único derivado e verificação independente
+em ensaios sintéticos; a adição mutadora ainda precisa de fluxo equivalente.
+Replay integral e live NOT_RUN; nenhuma requisição real ou resíduo.
