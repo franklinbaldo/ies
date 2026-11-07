@@ -378,7 +378,7 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             Some(crate::processo_enviar::MetodoRemocao::LimparAnotacao) => {
                 "Remover anotações: limpar formulário de anotação antes do envio".to_owned()
             }
-            None => "Remover anotações: método não observado".to_owned(),
+            None => "Remover anotações no envio: sim".to_owned(),
         });
         let observada = match feito.anotacao_antes {
             Some(true) => "sim",
