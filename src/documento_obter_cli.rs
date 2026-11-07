@@ -83,7 +83,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
         comando @ Documento {
             acao: None,
             html_privado: None,
-             com_propriedades: false,
+            com_propriedades: false,
             ..
         },
     ) = &cli.command
@@ -201,13 +201,11 @@ fn obter(
     match lido {
         Ok(((lidos, host), nota)) => publicar(
             cli.json,
-            lidos.documentos,
+            lidos,
             saida,
             nota.as_ref(),
             &host,
             versoes.cache,
-            lidos.omitidos,
-            lidos.requisicoes_omitidas,
         ),
         Err(FalhaDaLeitura::Relogin(erro)) => crate::sessao_login_cli::falhar(cli.json, &erro),
         Err(FalhaDaLeitura::Leitura { erro, nota }) => match erro {
@@ -401,14 +399,17 @@ fn registrar_cache(
 
 fn publicar(
     json_mode: bool,
-    mut obtidos: Vec<DocumentoObtido>,
+    lidos: lote::LoteLido,
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
     host: &str,
     cache_ativo: bool,
-    omitidos: usize,
-    requisicoes_omitidas: u32,
 ) -> ExitCode {
+    let lote::LoteLido {
+        documentos: mut obtidos,
+        omitidos,
+        requisicoes_omitidas,
+    } = lidos;
     let mut caches = Vec::new();
     for d in &obtidos {
         match registrar_cache(host, cache_ativo, d) {

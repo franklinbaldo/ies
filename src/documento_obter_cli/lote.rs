@@ -27,8 +27,7 @@ pub(super) fn ler_lote(
                 if ocultar_inacessiveis =>
             {
                 omitidos += 1;
-                requisicoes_omitidas =
-                    requisicoes_omitidas.saturating_add(u32::from(requisicoes));
+                requisicoes_omitidas = requisicoes_omitidas.saturating_add(u32::from(requisicoes));
             }
             Err(erro) => {
                 return Err(FalhaDoDocumento::Documento {
@@ -39,7 +38,11 @@ pub(super) fn ler_lote(
             }
         }
     }
-    Ok(LoteLido { documentos, omitidos, requisicoes_omitidas })
+    Ok(LoteLido {
+        documentos,
+        omitidos,
+        requisicoes_omitidas,
+    })
 }
 
 #[cfg(test)]
@@ -57,7 +60,8 @@ mod testes {
 
     fn documento(numero: &str) -> DocumentoObtido {
         let mut d = com_foto(
-            numero, 1,
+            numero,
+            1,
             "<html><head><title>SEI/X - 0000101 - Despacho</title></head><body>x</body></html>",
         );
         d.requisicoes = 2;
@@ -77,14 +81,23 @@ mod testes {
                 Ok(documento(n.as_str()))
             }
         });
-        let Ok(lido) = resultado else { panic!("o lote deveria continuar"); };
+        let Ok(lido) = resultado else {
+            panic!("o lote deveria continuar");
+        };
         assert_eq!(vistos, ["0000101", "0000102", "0000103"]);
         assert_eq!(
-            lido.documentos.iter().map(|d| d.numero.as_str()).collect::<Vec<_>>(),
+            lido.documentos
+                .iter()
+                .map(|d| d.numero.as_str())
+                .collect::<Vec<_>>(),
             ["0000101", "0000103"]
         );
         assert_eq!((lido.omitidos, lido.requisicoes_omitidas), (1, 4));
-        let requisicoes: u32 = lido.documentos.iter().map(|d| u32::from(d.requisicoes)).sum();
+        let requisicoes: u32 = lido
+            .documentos
+            .iter()
+            .map(|d| u32::from(d.requisicoes))
+            .sum();
         assert_eq!(requisicoes + lido.requisicoes_omitidas, 8);
     }
 
@@ -96,10 +109,14 @@ mod testes {
             Err(ErroDocumentoObter::ConteudoNaoPublicadoNaArvore { requisicoes: 4 })
         });
         assert_eq!(chamadas, 1);
-        assert!(matches!(resultado, Err(FalhaDoDocumento::Documento {
-            erro: ErroDocumentoObter::ConteudoNaoPublicadoNaArvore { requisicoes: 4 },
-            lidos: 0, ..
-        })));
+        assert!(matches!(
+            resultado,
+            Err(FalhaDoDocumento::Documento {
+                erro: ErroDocumentoObter::ConteudoNaoPublicadoNaArvore { requisicoes: 4 },
+                lidos: 0,
+                ..
+            })
+        ));
     }
 
     #[test]
