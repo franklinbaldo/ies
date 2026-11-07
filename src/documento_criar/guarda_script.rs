@@ -389,16 +389,29 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
         let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
             return false;
         };
-        if tipo
-            .as_deref()
-            .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
+        // application/javascript tambem executa. Um script module ou
+        // externo poderia substituir o callback sem que seu corpo fosse
+        // comprovado: nao autorizar a escrita nessa forma.
+        let tipo = tipo.as_deref().map(str::trim).unwrap_or("");
+        if tipo.eq_ignore_ascii_case("module") {
+            return false;
+        }
+        if !tipo.is_empty()
+            && ![
+                "text/javascript",
+                "application/javascript",
+                "text/ecmascript",
+                "application/ecmascript",
+            ]
+            .iter()
+            .any(|mime| tipo.eq_ignore_ascii_case(mime))
         {
+            // JSON, importmap e tipos de dados nao sao codigo executado.
             continue;
         }
         match crate::html_atributos::atributo_presente(script, "src") {
-            Ok(true) => continue,
+            Ok(true) | Err(_) => return false,
             Ok(false) => {}
-            Err(_) => return false,
         }
         // Usar a fonte original em vez de inner_text/inner_html do DOM:
         // a serializacao pode perder markup de literais JS. O inicio e
