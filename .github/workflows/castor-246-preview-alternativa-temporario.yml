@@ -1,0 +1,94 @@
+name: castor-preview-alternativa-246-temporario
+on:
+  push:
+    branches: [codex/246-castor-preview-treinamento-20261107]
+permissions:
+  contents: read
+jobs:
+  previa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compilar IES para o ensaio
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked --release --bin ies
+      - name: Preparar credenciais de treinamento em arquivos privados
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          linha = next(s for s in Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines() if s.startswith("| `unb` |"))
+          c = [x.strip().strip("`") for x in linha.split("|")[1:-1]]
+          origem, usuario, senha, orgao = c[2:6]
+          pasta = Path(os.environ["RUNNER_TEMP"]) / "castor-246-b"
+          pasta.mkdir(mode=0o700,exist_ok=True)
+          arquivos = {"IES_ORIGEM_FILE":("origem",origem+"\n"),"IES_CREDENCIAIS_FILE":("credenciais",f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),"IES_COOKIE_FILE":("cookie",""),"IES_URL_CONTROLE_FILE":("controle","")}
+          with open(os.environ["GITHUB_ENV"],"a") as env:
+              for chave,(nome,conteudo) in arquivos.items():
+                  path=pasta/nome
+                  fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
+                  with os.fdopen(fd,"w") as f:f.write(conteudo)
+                  print(f"{chave}={path}",file=env)
+              print("IES_SEM_INDICE=1",file=env)
+          PY
+      - name: Login e observar processos atuais da unidade em treinamento
+        shell: bash
+        run: |
+          set -uo pipefail
+          D="$RUNNER_TEMP/castor-246-b"
+          set +e
+          target/release/ies --json login > "$D/login.json" 2>/dev/null
+          rc=$?
+          set -e
+          python3 - "$D/login.json" "$rc" <<'PY'
+          import sys,json
+          try: d=json.load(open(sys.argv[1]))
+          except (ValueError,OSError): d={}
+          print(json.dumps({"etapa":"login","exit":int(sys.argv[2]),"conexao":d.get("conexao"),"subcodigo":d.get("subcodigo"),"requisicoes":d.get("requisicoes")}))
+          PY
+          test "$rc" -eq 0
+          sleep 35
+          set +e
+          target/release/ies --json unidade listar-processos > "$D/lista.json" 2>/dev/null
+          rc=$?
+          set -e
+          python3 - "$D/lista.json" "$rc" <<'PY'
+          import json,sys
+          from pathlib import Path
+          try: d=json.load(open(sys.argv[1]))
+          except (ValueError,OSError): d={}
+          listas=d if isinstance(d,list) else [d]
+          rows=[p for lista in listas if isinstance(lista,dict) for p in lista.get("processos",[]) if isinstance(p,dict)]
+          proibidos={"23106.001868/2026-91","23106.001592/2026-41"}
+          numeros=[str(p.get("numero") or p.get("nup") or "") for p in rows]
+          elegiveis=[n for n in numeros if n and n not in proibidos]
+          print(json.dumps({"etapa":"lista","exit":int(sys.argv[2]),"subcodigo":d.get("subcodigo") if isinstance(d,dict) else None,"total_linhas":len(rows),"candidatos":len(elegiveis)}))
+          if int(sys.argv[2])==0 and elegiveis:
+              pasta=Path(sys.argv[1]).parent
+              (pasta/"selecionado").write_text(elegiveis[0])
+          PY
+          test "$rc" -eq 0
+      - name: Previa unica em processo diferente sem gravar documento
+        shell: bash
+        run: |
+          set -uo pipefail
+          D="$RUNNER_TEMP/castor-246-b"
+          if ! test -s "$D/selecionado"; then echo "nenhum NUP selecionado; previa NOT_RUN"; exit 0; fi
+          sleep 35
+          NUP=$(cat "$D/selecionado")
+          set +e
+          target/release/ies --json documento criar --processo "$NUP" --tipo Despacho --nivel publico > "$D/previa.json" 2>/dev/null
+          rc=$?
+          set -e
+          python3 - "$D/previa.json" "$rc" <<'PY'
+          import json,sys
+          try: d=json.load(open(sys.argv[1]))
+          except (ValueError,OSError): d={}
+          print(json.dumps({"etapa":"previa","exit":int(sys.argv[2]),"codigo":d.get("codigo"),"subcodigo":d.get("subcodigo"),"requisicoes":d.get("requisicoes"),"tipo":d.get("tipo"),"nivel":d.get("nivel"),"confirmado":d.get("confirmado"),"alterado":d.get("alterado")}))
+          PY
+          test "$rc" -eq 0
