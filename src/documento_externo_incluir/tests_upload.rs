@@ -2,7 +2,7 @@
 use super::{multipart::preparar_pdf, recibo::FalhaUpload, upload::enviar_via};
 use crate::formulario_web::CodificacaoDaTela;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 
 const PDF: &[u8] = b"%PDF-1.4\n%%EOF\n";
 const RECIBO: &str = "94e336aa#prova.pdf#application/pdf#15#11/10/2026 11:07:50#";
