@@ -136,6 +136,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
                                     "sha256": pdf.sha256,
                                 },
                                 "limite_pdf_bytes": previa.limite_pdf_bytes,
+                                "campos_oferecidos": previa.campos_oferecidos,
                                 "cadastro_sei_observado": true,
                                 "previa_remota": true,
                                 "confirmado": false,
@@ -153,6 +154,14 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
                             processo.as_str(),
                             previa.unidade,
                             previa.limite_pdf_bytes,
+                        );
+                        println!(
+                            "Campos oferecidos no cadastro: {}",
+                            if previa.campos_oferecidos.is_empty() {
+                                "(nenhum)".to_owned()
+                            } else {
+                                previa.campos_oferecidos.join(", ")
+                            }
                         );
                         println!("Requisições: {}", contagem.feitas());
                     }
