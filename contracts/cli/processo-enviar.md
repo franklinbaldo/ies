@@ -38,9 +38,13 @@ da tela declara.
   mas a barra oferecer `anotacao_registrar` e o formulário do mesmo processo
   for legível, planeja limpar `txaDescricao` antes do envio; sem ambos os
   caminhos, recusa com `remocao_de_anotacoes_nao_oferecida`.
-  `--confirmar` com essa opção permanece **indisponível antes da sessão/rede**
-  até a leitura independente comprovar também a remoção das anotações.
-  A leitura de `aberto_em` comprova tramitação, não exclusão de anotações.
+  `--confirmar` com checkbox é admitido somente quando a tela de anotações
+  da mesma origem foi oferecida e lida, permitindo releitura independente.
+  A alternativa `limpar_anotacao` salva `txaDescricao=""` uma única vez
+  se houver anotação, exige releitura independente do texto vazio **antes**
+  de enviar, e só então tramita. Com texto já vazio, dispensa a gravação da
+  anotação. A leitura de `aberto_em` comprova tramitação, não exclusão
+  de anotações.
   A prévia consulta o formulário `anotacao_registrar` da própria origem,
   quando o link é publicado na barra, e expõe `anotacao_antes` como
   `true` (texto presente), `false` (campo vazio) ou campo omitido (link
@@ -109,11 +113,27 @@ da tela declara.
    Quando a anotação foi lida, `anotacao_antes: true/false` aparece na
    prévia; se o link não foi oferecido, o campo é omitido.
    Nenhum POST de escrita.
-8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
-   de formulário (`ENVIAR_PROCESSO`).
+8. **Com `--confirmar`**, o método `checkbox_no_envio` só prossegue
+   quando a origem oferece a tela `anotacao_registrar`, previamente lida.
+   Um único POST de envio com `chkSinRemoverAnotacoes=on`, sem retry,
+   é derivado pelo formulário (`ENVIAR_PROCESSO`). No método
+   `limpar_anotacao`, se `txaDescricao` possui texto e a mesma tela oferece
+   `sbmRegistrarAnotacao`, um POST de salvamento com descrição vazia
+   é derivado do formulário, seguido por GET independente da anotação.
+   Falha em comprovar o texto vazio interrompe antes do envio; não há
+   repetição da limpeza. Se o campo já estava vazio, não há POST de
+   salvamento. Após comprovar ausência, há **um único POST de envio**.
 9. **Verifica** por uma leitura nova (a de `ies processo NUP`, em geral
    1 GET pelo link da árvore guardado na abertura): o destino tem de estar
    em `aberto_em`; a unidade da sessão, só com `--manter-aberto`.
+   Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
+   vazio e a mesma identidade de processo. Presença de texto após o
+   envio é alteração parcial (saída 1); releitura indisponível ou
+   inconclusiva é efeito incerto (saída 3), sem retry. No fallback,
+   a limpeza e a releitura acontecem antes do envio: anotação ainda
+   preenchida recusa o envio (1); leitura inconclusiva da limpeza recusa
+   o envio com saída 3. O envio posterior continua sujeito à
+   reconciliação do destino já existente.
 
 ## Conferência da tela "Enviar Processo"
 
@@ -188,6 +208,11 @@ não é o esperado. Qualquer outra
 | Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `escrita_diferente_da_solicitada` / `situacao_da_origem_diferente_da_pedida_apos_envio` |
 | Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_no_envio` |
 
+Quando o fallback já comprovou a limpeza e a releitura da tramitação falha,
+continua sendo saída 3, mas a saída humana e o JSON preservam o fato
+`anotacao_depois: false` (ausência relida antes de tentar enviar). Isso
+**não** significa que a tramitação tenha sido comprovada.
+
 Falha antes do POST (abertura, barra, tela, consulta, destino, cookie,
 derivação) não é escrita: saída 1. Antes de repetir à mão, conferir com
 `ies processo NUP`.
@@ -228,7 +253,8 @@ Abertura = a de `processo concluir` (3 GET a frio pela linha do Controle,
 | Recusa pela situação ou pela barra | abertura |
 | Tela recusada | abertura + 1 GET |
 | Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + C POST (consultas); +1 GET se anotação publicada e a flag pedida |
-| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação |
+| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação; com remoção via checkbox, +2 GET da anotação (antes/depois) |
+| `--confirmar --remover-anotacoes` com fallback | mesma base, +1 GET da anotação antes; se há texto, +1 POST de limpeza e +1 GET de conferência **antes** do envio. Sem texto, nenhum POST de limpeza |
 
 C, as consultas da busca (passo 6):
 
@@ -243,8 +269,8 @@ testes conferem a sequência exata de cada caminho.
 
 ## Fora do escopo
 
-Vários destinos e grupos de envio (`hdnUnidades` com `¥`), **confirmação de
-remoção de anotações enquanto não observável na releitura**, "Enviar e-mail
+Vários destinos e grupos de envio (`hdnUnidades` com `¥`),
+"Enviar e-mail
 de notificação", retorno e reabertura
 programados, a lupa de unidades, enviar vários processos.
 

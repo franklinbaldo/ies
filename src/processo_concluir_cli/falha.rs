@@ -7,6 +7,8 @@ pub(crate) struct FalhaDaSituacao<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) aberto_em: Option<&'a [String]>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) anotacao_depois: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) candidatos: Option<&'a [String]>,
     codigo: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]

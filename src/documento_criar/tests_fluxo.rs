@@ -145,6 +145,29 @@ fn exibir_todos_deriva_um_unico_post_de_filtro_e_nao_de_criacao() {
 }
 
 #[test]
+fn cadastro_ignora_required_de_controles_inativos() {
+    // Teste tecnico auxiliar do BDD-246-01/02: campos nao acionaveis
+    // nao impedem a previa nem o cadastro publico observado.
+    for conteudo in [
+        "<fieldset disabled><input name=\"campoInativo\" required></fieldset>",
+        "<div hidden><input name=\"campoOculto\" required></div>",
+        "<template><input name=\"campoTemplate\" required></template>",
+    ] {
+        let html = cadastro()
+            .replace(
+                "<form ",
+                "<label id=\"lblSerieTitulo\">Despacho</label><form ",
+            )
+            .replace("</form>", &format!("{conteudo}</form>"));
+        assert_eq!(
+            conferir_cadastro(&html, "Despacho", None, Some("publico")),
+            Ok(()),
+            "controle inativo nao deve exigir entrada do usuario: {conteudo}"
+        );
+    }
+}
+
+#[test]
 fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
     let erro = ErroPreviaCriacao::NivelNaoInformado;
     assert_eq!(
