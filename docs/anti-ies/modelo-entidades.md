@@ -62,3 +62,13 @@ O replay UnB verifica de forma offline
 A integração do **processo CLI completo** por sessão HTTPS segue
 pendente em #355. Não confundir leitor de produção exercitado no
 replay com E2E de CLI concluído.
+
+## Shape v2 — retornos mensais observados
+
+A migração SQL `crates/iesei/migrations/0002_retornos_mensais.sql`
+acrescenta `retorno_mes` e `retorno_linha`, tipadas em
+`iesei::retornos_cassettes`. A situação é enum `Aguardando | Devolver`;
+período, datas e números são textos opacos observados; retorno efetivo e
+prazo restante usam `Option`. A versão 2 é reconstruída do acervo e não
+altera `ies.sqlite3`. Nenhum mês é inferido dos demais; a ausência de
+um mês e uma listagem comprovadamente vazia são estados distintos.

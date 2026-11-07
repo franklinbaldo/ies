@@ -3,7 +3,11 @@ use crate::instalacao::Instalacao;
 use crate::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use rusqlite::{Connection, OptionalExtension, params};
 
-pub const ESQUEMA: &str = include_str!("../migrations/0001_controle_resumido.sql");
+pub const ESQUEMA: &str = concat!(
+    include_str!("../migrations/0001_controle_resumido.sql"),
+    "\n",
+    include_str!("../migrations/0002_retornos_mensais.sql")
+);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Linha {
