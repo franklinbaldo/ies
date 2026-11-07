@@ -44,4 +44,6 @@ pub(crate) enum EstadoDoProcesso {
     AtribuicaoNaUnidade,
     /// Texto e prioridade da anotação registrada na unidade do processo.
     AnotacaoNaUnidade,
+    /// Vínculo entre processos, incluindo sua remoção.
+    RelacionamentosDoProcesso,
 }
