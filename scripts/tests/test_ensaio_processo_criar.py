@@ -258,5 +258,23 @@ class EnsaioUmaVez(unittest.TestCase):
         self.assertEqual(len(self.chamadas), 2)  # jamais tenta novamente nem relê como prova causal
 
 
+    def test_diagnostico_de_post_inconclusivo_nao_republica_url_assinada(self):
+        respostas = self.respostas_validas()
+        url = "https://example.invalid/?infra_hash=segredo"
+        respostas[1] = (3, {"codigo": "efeito_incerto",
+                            "subcodigo": url,
+                            "causa_post": "falha_de_rede\\n" + url,
+                            "candidatos_compatíveis": [url],
+                            "candidatos_compativeis": [NUP, url],
+                            "requisicoes": 8})
+        codigo, relatorio = self.rodar(respostas)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["possiveis_residuos"], [NUP])
+        self.assertNotIn("subcodigo_post", relatorio)
+        self.assertNotIn("causa_post", relatorio)
+        self.assertNotIn("infra_hash", self.registro.read_text())
+        self.assertEqual(len(self.chamadas), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
