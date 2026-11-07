@@ -79,7 +79,15 @@ A regra é a barra observada, nunca o texto "aberto somente na unidade" do
 A pasta fechada da primeira leitura não é conferida (os documentos dela
 não estão lá); uma pasta com `AGUARDE` **e** documentos é
 `pasta_carregada_pela_metade`. Nunca se publica lista parcial como
-completa: qualquer divergência encerra o comando.
+completa. Em `ies processo NUP` (consulta **informativa**), com NUP e id do
+processo comprovados, apenas lacunas na leitura dos documentos podem gerar
+**sucesso com aviso**, sem publicar documentos ou pastas: pasta carregada
+pela metade, ausência da ação de abrir pastas, pastas ainda não carregadas
+após a abertura, contagem divergente ou protocolo declarado ausente.
+A consulta **estrita** de comandos de escrita continua recusando essas
+lacunas. Divergência de identidade (NUP, id, pai de pasta), duplicidade,
+forma não observada ou qualquer outra inconsistência continua erro também
+na consulta informativa.
 
 ## Saída
 
@@ -103,6 +111,16 @@ toda por identidade, `verificacao_das_pastas_motivo:
 conferida. `pastas` sai `[]` sem pastas, e as três
 chaves somem com `--sem-documentos`.
 A ordem dos documentos é a da árvore servida.
+
+Na consulta informativa com leitura de documentos incompleta, a CLI retorna
+**código 0** com os metadados do processo que foram comprovados e, sem
+`--sem-documentos`, apresenta `documentos_incluidos: false`,
+`documentos: []`, `documentos_movidos: []`, `pastas: []`,
+`verificacao_das_pastas: null` e `aviso_leitura_parcial` com o motivo
+legível. A saída humana informa `Aviso: leitura parcial do processo: lista
+de documentos incompleta (...)`. A lista vazia **não** afirma ausência de
+documentos. Com `--sem-documentos`, permanecem omitidos os campos de
+listagem, como na consulta integral.
 
 ## Índice e orçamento
 
@@ -128,6 +146,11 @@ fechada; não medido pelo IES.
 limite do transporte é 8 MB e a leitura é linear, linha a linha.
 
 ## Falhas (saída 1)
+
+Os casos abaixo continuam erros na consulta estrita para escrita. Na
+consulta informativa `ies processo NUP`, somente as lacunas delimitadas
+na seção *Integridade* são convertidas em aviso; as demais continuam
+falhas de saída 1. A decisão não se aplica a outras operações.
 
 `pasta_fora_da_forma_observada`, `pasta_repetida_na_arvore`,
 `pasta_com_pai_diferente_do_processo`, `aguarde_fora_da_forma_observada`,
