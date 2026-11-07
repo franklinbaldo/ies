@@ -3,8 +3,8 @@
 use super::{FalhaRelacionar as E, tela};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, derivar_submissao_com_action, enviar_submissao_via,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
+    derivar_submissao_com_action, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -37,8 +37,7 @@ fn action_do_processo(url: &str, id: &str) -> bool {
         let Some((chave, valor)) = par.split_once('=') else {
             return false;
         };
-        if conferir_chave_de_consulta(chave).is_err()
-            || conferir_valor_de_consulta(valor).is_err()
+        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
         {
             return false;
         }
@@ -59,8 +58,7 @@ fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
         let Some((chave, valor)) = par.split_once('=') else {
             return false;
         };
-        if conferir_chave_de_consulta(chave).is_err()
-            || conferir_valor_de_consulta(valor).is_err()
+        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
         {
             return false;
         }
@@ -102,7 +100,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
         .split('?')
         .nth(1)
         .and_then(|query| {
-            query.split('&').find_map(|par| par.strip_prefix("id_procedimento="))
+            query
+                .split('&')
+                .find_map(|par| par.strip_prefix("id_procedimento="))
         })
         .ok_or(E::Estrutura("id_da_origem_na_action_ausente"))?;
     if !action_do_processo(&url_exclusao, id_origem) {
@@ -131,9 +131,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     })?;
     match resposta {
         RespostaDoEnvio::Redirecionamento(redir)
-            if redir.localizacao().is_some_and(|loc| {
-                aceite_da_remocao(loc, redir.url_do_envio(), id_origem)
-            }) => {}
+            if redir
+                .localizacao()
+                .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
         _ => return Err(E::EfeitoIncerto(None)),
     }
     let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;

@@ -1,15 +1,15 @@
 //! Relações entre processos: prévia, escrita única e conferência independente.
-mod tela;
 mod escrita;
+mod tela;
 #[cfg(test)]
 #[path = "processo_relacionar/tests.rs"]
 mod tests;
 #[cfg(test)]
-#[path = "processo_relacionar/tests_fluxo.rs"]
-mod tests_fluxo;
-#[cfg(test)]
 #[path = "processo_relacionar/tests_escrita.rs"]
 mod tests_escrita;
+#[cfg(test)]
+#[path = "processo_relacionar/tests_fluxo.rs"]
+mod tests_fluxo;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
 use crate::formulario_web::{
@@ -79,7 +79,11 @@ impl FalhaRelacionar {
     }
 
     pub(crate) const fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto(_)) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto(_)) {
+            3
+        } else {
+            1
+        }
     }
 
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
@@ -255,9 +259,10 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
         }
         if pedido.confirmar && !previa.sem_efeito() {
-            let id_destino = previa.id_destino.as_deref().ok_or(E::Estrutura(
-                "destino_a_remover_sem_identificador",
-            ))?;
+            let id_destino = previa
+                .id_destino
+                .as_deref()
+                .ok_or(E::Estrutura("destino_a_remover_sem_identificador"))?;
             escrita::remover(
                 sessao,
                 &instalacao,

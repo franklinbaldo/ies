@@ -21,7 +21,10 @@ pub(crate) use codificacao::decodificar_atributo;
 pub(crate) use erro::ErroSubmissaoFormulario;
 pub(crate) use guardada::derivar_submissao_guardada;
 pub(crate) use leitura::localizar_formulario;
-use leitura::{Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action, resolver_action_declarada};
+use leitura::{
+    Controle, UrlHttps, conferir_metodo_e_codificacao, ler_controles, resolver_action,
+    resolver_action_declarada,
+};
 pub(crate) use login::derivar_submissao_de_login;
 pub(crate) use redirecionamento::consulta_do_controlador;
 use std::fmt;

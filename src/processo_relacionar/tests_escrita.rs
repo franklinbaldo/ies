@@ -27,7 +27,7 @@ fn pagina(relacionado: bool) -> String {
         String::new()
     };
     format!(
-        r##"<html><head><script>
+        r#"<html><head><script>
 function acaoRemover(id){{
   if (confirm("Confirma exclusão do relacionamento?")){{
     document.getElementById('hdnInfraItemId').value=id;
@@ -40,11 +40,16 @@ function acaoRemover(id){{
 <input type="hidden" name="hdnInfraTipoPagina" value="2" />
 <input type="hidden" id="hdnInfraItemId" name="hdnInfraItemId" value="" />
 <table summary="Lista de Processos Relacionados"><tr><th>Processo</th></tr>{linha}</table>
-</form></body></html>"##
+</form></body></html>"#
     )
 }
 
-fn executar(respostas: Vec<Resposta>) -> (Result<super::Previa, super::FalhaRelacionar>, Vec<PedidoHttp>) {
+fn executar(
+    respostas: Vec<Resposta>,
+) -> (
+    Result<super::Previa, super::FalhaRelacionar>,
+    Vec<PedidoHttp>,
+) {
     let amb = ambiente();
     let destino = NumeroProcesso::novo(NUP_DESTINO).unwrap();
     rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
@@ -70,13 +75,22 @@ fn executar(respostas: Vec<Resposta>) -> (Result<super::Previa, super::FalhaRela
 fn dado_relacionamento_quando_remover_confirmado_entao_post_unico_e_releitura() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina(true)));
-    respostas.push(r302("controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H"));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
     respostas.push(ok(pagina(false)));
     let (resultado, pedidos) = executar(respostas);
-    assert!(resultado.is_ok(), "esperada remoção confirmada: {resultado:?}");
+    assert!(
+        resultado.is_ok(),
+        "esperada remoção confirmada: {resultado:?}"
+    );
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos[4].metodo, "POST");
-    assert!(pedidos[4].url.contains("acao=procedimento_excluir_relacionamento"));
+    assert!(
+        pedidos[4]
+            .url
+            .contains("acao=procedimento_excluir_relacionamento")
+    );
     assert_eq!(pedidos[5].metodo, "GET");
 }
 
@@ -100,7 +114,9 @@ fn dado_post_403_quando_remover_entao_nao_declara_sucesso_causal() {
 fn dado_post_200_generico_quando_remover_entao_efeito_incerto() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina(true)));
-    respostas.push(ok("<html><body>Resposta não conclusiva</body></html>".to_owned()));
+    respostas.push(ok(
+        "<html><body>Resposta não conclusiva</body></html>".to_owned()
+    ));
     let (resultado, pedidos) = executar(respostas);
     assert!(resultado.is_err());
     assert_eq!(pedidos.len(), 5);
@@ -113,7 +129,9 @@ fn dado_post_200_generico_quando_remover_entao_efeito_incerto() {
 fn dado_302_aceito_mas_releitura_inalterada_entao_nao_confirma_remocao() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina(true)));
-    respostas.push(r302("controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H"));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
     respostas.push(ok(pagina(true)));
     let (resultado, pedidos) = executar(respostas);
     assert!(resultado.is_err());
