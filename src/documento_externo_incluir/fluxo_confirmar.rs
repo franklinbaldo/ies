@@ -14,7 +14,6 @@ use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::leitura;
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, obter_processo};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
-use crate::visao_do_controle::EnvioDoControle as _;
 
 pub(crate) struct InclusaoComprovada {
     pub(crate) numero_sei: String,
@@ -59,7 +58,7 @@ impl ErroConfirmacaoExterna {
 }
 
 /// A URL provém exclusivamente do script servido e fica privada.
-/// Aceita a ausência observada de id_procedimento no endpoint de upload.
+/// Aceita a ausência observada de `id_procedimento` no endpoint de upload.
 fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
