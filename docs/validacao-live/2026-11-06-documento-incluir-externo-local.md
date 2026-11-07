@@ -1,10 +1,7 @@
 ---
-type: OperationEvidence
+type: SEIObservation
 title: Pré-inspeção local de PDF externo — issue 332
 description: Evidências test-first da inspeção offline sem sessão, upload, escrita ou ensaio de produção
-operation: documento.incluir-externo
-environment: offline
-result: not-run
 ---
 
 # #332 — inspeção local de PDF antes do envio
