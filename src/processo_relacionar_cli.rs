@@ -30,6 +30,11 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
     };
     Some(com_sessao(cli, |sessao, indice| {
+        // A escrita real só será habilitada após ensaio de treinamento.
+        // Esta trava não interfere na prévia nem nos testes offline do motor.
+        if *confirmar {
+            return falha(cli.json, &FalhaRelacionar::ConfirmacaoAindaNaoValidada);
+        }
         let pedido = Pedido {
             nup: &nup,
             com: &outro,
@@ -54,6 +59,8 @@ fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
     let incerto = erro.saida() == 3;
     let mensagem = if incerto {
         "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
+    } else if matches!(erro, FalhaRelacionar::ConfirmacaoAindaNaoValidada) {
+        "Confirmação indisponível até validação em treinamento; a prévia continua disponível."
     } else {
         "Operação recusada ou prévia indisponível"
     };
@@ -127,9 +134,9 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             previa.id_destino.as_deref().unwrap_or("não observado"),
             previa.requisicoes,
             if previa.remover {
-                "Para remover, use --confirmar"
+                "Remoção ainda não habilitada em treinamento"
             } else {
-                "Para adicionar, use --confirmar"
+                "Adição ainda não habilitada em treinamento"
             },
         );
     }
