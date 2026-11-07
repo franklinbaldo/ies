@@ -1,0 +1,157 @@
+name: TEMP #246 - um ensaio de documento em treinamento (remover)
+on:
+  push:
+    branches: [codex/246-documento-criar-releitura]
+permissions:
+  contents: read
+jobs:
+  unb:
+    if: github.run_attempt == 1 && github.event.head_commit.message == '🐙 test: ensaio live único #246 (NUP distinto, treinamento)'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout sem credenciais Git
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixado
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Compilar Release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Prévia, confirmação única condicional e releitura independente
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import tempfile
+          import time
+          from pathlib import Path
+
+          # NUP distinto da tentativa incerta 23106.001868/2026-91.
+          # Este processo constava aberto em duas unidades no acervo live 04/11.
+          ORIGEM = "https://sei.treinamento.unb.br/sei"
+          NUP = "23106.001850/2026-90"
+          TIPO = "Despacho"
+          DESCRICAO = "Ensaio IES 246 - Polvo - 2026-11-07 - unico"
+          EXE = "./target/release/ies"
+
+          def record(etapa, estado, **campos):
+              item = {"etapa": etapa, "estado": estado}
+              for chave, valor in campos.items():
+                  if chave in ("exit_code", "requisicoes") and type(valor) is int:
+                      item[chave] = valor
+                  if chave in ("confirmado", "alterado", "releitura") and type(valor) is bool:
+                      item[chave] = valor
+                  if chave == "subcodigo" and isinstance(valor, str) and len(valor) <= 100 and all(c.isalnum() or c == "_" for c in valor):
+                      item[chave] = valor
+                  if chave == "numero_sei" and isinstance(valor, str) and 4 <= len(valor) <= 12 and valor.isdigit():
+                      item[chave] = valor
+              print(json.dumps(item, ensure_ascii=False), flush=True)
+
+          doc = Path("docs/interfaces/credenciais-de-treinamento.md").read_text(encoding="utf-8")
+          marca = chr(96)
+          trecho = marca + "unb" + marca + ":\n\n" + marca * 3 + "text\n"
+          if trecho not in doc:
+              record("setup", "BLOQUEADO")
+              raise SystemExit(0)
+          credenciais = doc.split(trecho, 1)[1].split(marca * 3, 1)[0]
+          if "usuario=aluno1" not in credenciais or "orgao=UnB" not in credenciais:
+              record("setup", "BLOQUEADO")
+              raise SystemExit(0)
+
+          with tempfile.TemporaryDirectory(prefix="ies246-live-") as pasta:
+              root = Path(pasta)
+              root.chmod(0o700)
+              for nome, dados in (("origem", ORIGEM + "\n"), ("credenciais", credenciais), ("cookie", ""), ("controle", "")):
+                  arquivo = root / nome
+                  arquivo.write_text(dados, encoding="utf-8")
+                  arquivo.chmod(0o600)
+              env = os.environ.copy()
+              for variavel in ("IES_CONFIG_FILE", "IES_SEM_INDICE"):
+                  env.pop(variavel, None)
+              env.update({
+                  "IES_ORIGEM_FILE": str(root / "origem"),
+                  "IES_CREDENCIAIS_FILE": str(root / "credenciais"),
+                  "IES_COOKIE_FILE": str(root / "cookie"),
+                  "IES_URL_CONTROLE_FILE": str(root / "controle"),
+                  "IES_INDICE_FILE": str(root / "indice.sqlite3"),
+                  "RUST_LOG": "off"
+              })
+
+              def comando(etapa, args):
+                  try:
+                      execucao = subprocess.run([EXE, *args, "--json"], env=env,
+                          capture_output=True, text=True, timeout=240, check=False)
+                  except (subprocess.TimeoutExpired, OSError):
+                      record(etapa, "INCONCLUSIVO")
+                      return None
+                  try:
+                      payload = json.loads(execucao.stdout)
+                      if not isinstance(payload, dict):
+                          payload = {}
+                  except (ValueError, TypeError):
+                      payload = {}
+                  record(etapa, "PASS" if execucao.returncode == 0 else "FAIL",
+                      exit_code=execucao.returncode,
+                      requisicoes=payload.get("requisicoes"),
+                      subcodigo=payload.get("subcodigo"),
+                      numero_sei=payload.get("numero_sei"),
+                      confirmado=payload.get("confirmado"),
+                      alterado=payload.get("alterado"))
+                  return execucao.returncode, payload
+
+              def numeros(obj):
+                  if isinstance(obj, dict):
+                      return {s for v in obj.values() for s in numeros(v)}
+                  if isinstance(obj, list):
+                      return {s for v in obj for s in numeros(v)}
+                  if isinstance(obj, str) and obj.isdigit() and 6 <= len(obj) <= 12:
+                      return {obj}
+                  return set()
+
+              leitura_args = ["processo", NUP, "--sem-andamentos", "--sem-marcadores", "--sem-propriedades"]
+              login = comando("login", ["login"])
+              if login is None or login[0] != 0:
+                  raise SystemExit(0)
+              time.sleep(30)
+              antes = comando("arvore_antes", leitura_args)
+              if antes is None or antes[0] != 0 or not isinstance(antes[1].get("documentos"), list):
+                  record("gate_arvore_antes", "BLOQUEADO")
+                  raise SystemExit(0)
+              numeros_antes = numeros(antes[1]["documentos"])
+              time.sleep(30)
+              args = ["documento", "criar", "--processo", NUP, "--tipo", TIPO,
+                      "--descricao", DESCRICAO, "--nivel", "publico"]
+              previa = comando("previa", args)
+              if previa is None or previa[0] != 0:
+                  raise SystemExit(0)
+              foto = previa[1]
+              if not (foto.get("nup") == NUP and foto.get("tipo") == TIPO and
+                      isinstance(foto.get("unidade"), str) and bool(foto["unidade"]) and
+                      foto.get("confirmado") is False and foto.get("alterado") is False and
+                      isinstance(foto.get("requisicoes"), int) and foto["requisicoes"] > 0):
+                  record("gate_previa", "BLOQUEADO")
+                  raise SystemExit(0)
+              record("gate_previa", "PASS")
+              time.sleep(30)
+              # ÚNICA execução de escrita desta experiência, sem retry.
+              confirmacao = comando("confirmacao_unica", [*args, "--confirmar"])
+              time.sleep(30)
+              # Somente leitura independente, inclusive se o efeito do POST for incerto.
+              depois = comando("releitura_independente", leitura_args)
+              numero = confirmacao[1].get("numero_sei") if confirmacao else None
+              if (confirmacao is not None and confirmacao[0] == 0 and
+                      depois is not None and depois[0] == 0 and
+                      confirmacao[1].get("confirmado") is True and
+                      confirmacao[1].get("alterado") is True and
+                      isinstance(numero, str) and numero.isdigit() and
+                      numero not in numeros_antes and
+                      numero in numeros(depois[1].get("documentos", []))):
+                  record("prova_criacao", "PASS", numero_sei=numero, releitura=True)
+              else:
+                  record("prova_criacao", "INCONCLUSIVO", releitura=bool(depois is not None and depois[0] == 0))
+          PY
