@@ -17,6 +17,11 @@ saída do IES não pode ser usada como única fonte para construir a saída
 esperada do anti-IES. O anti-IES tampouco serve como substituto do SEI
 real ou como prova de equivalência entre instalações.
 
+**Dados:** o IES acessa o SEI autorizado, interpreta as respostas e
+alimenta o [SQLite companion](sqlite-companion.md) com fatos efetivamente
+observados. O anti-IES **somente lê essa projeção** para gerar respostas;
+não coleta dados no SEI. Desconhecido não significa ausente.
+
 Esta trilha complementa o [roadmap operacional #56](https://github.com/franklinbaldo/ies/issues/56),
 as [matrizes da CLI](../matriz-derivacao-cli.md) e o [contrato de unidade atual](../../contracts/cli/unidade-atual.md).
 Não introduz comandos públicos, não impõe uma segunda fila de capacidade
@@ -50,11 +55,12 @@ cassette comprova a forma D.
 | 0 — infraestrutura | [#350](https://github.com/franklinbaldo/ies/issues/350) / [PR #351](https://github.com/franklinbaldo/ies/pull/351) | Binário local anti-IES, health, HTTP 501 para ações sem contrato e testes; **PR Draft, CI verde, aguardando revisão/merge**. |
 | 0b — governança | [#356](https://github.com/franklinbaldo/ies/issues/356) / PR de planejamento | AGENTS.md, roadmap #56, matriz separada, sequência vinculada e CI OKF; não modifica produção. |
 | 1 — oráculo | [#353](https://github.com/franklinbaldo/ies/issues/353) / PR P1 | Cassettes conferidas, contrato R/D, testes positivos e negativos **independentes do servidor**, prova de equivalência definida. |
-| 2 — produtor | [#354](https://github.com/franklinbaldo/ies/issues/354) / PR P2 | GET do Controle na rota observada; HTML e MIME gerados a partir de estado tipado e ficção sintética. Estados não observados continuam recusados. |
-| 3 — cruzamento | [#355](https://github.com/franklinbaldo/ies/issues/355) / PR P3 | Teste real do caminho **IES → anti-IES** em loopback e comparação com oráculo independente. Só este passo pode marcar a capacidade **INTEGRADA**. |
+| 1.5 — companion | [#358](https://github.com/franklinbaldo/ies/issues/358) / PR P1.5 | **IES** registra no SQLite Controle/unidade/visão e listas observadas; consulta SQL testada, sem novos requests. |
+| 2 — produtor | [#354](https://github.com/franklinbaldo/ies/issues/354) / PR P2 | GET do Controle na rota observada; HTML e MIME gerados **a partir de uma projeção SQLite lida em modo read-only**. Estados não observados continuam recusados. |
+| 3 — cruzamento | [#355](https://github.com/franklinbaldo/ies/issues/355) / PR P3 | Teste real do circuito **IES → SQLite → anti-IES → IES** em loopback e comparação com oráculo independente. Só este passo pode marcar a capacidade **INTEGRADA**. |
 
 **Dependências:** P1 só inicia sobre main que contém bootstrap e
-governança. P2 começa após P1 integrada; P3 após P2 integrada. Cada
+governança. P1.5 vem após P1 integrada; P2 após P1.5, P3 após P2. Cada
 issue gera uma PR Draft independente, partindo da main atual, e os
 critérios do AGENTS.md de revisão/CI/merge por SHA prevalecem.
 **Liberação automática da fila:** a 🐘 integra a PR anterior e então
@@ -68,21 +74,22 @@ de outro agente nem fazer rebase/force-push.
 
 ## Critério verificável de INTEGRADA
 
-1. A resposta é **servida por HTTP** pelo processo anti-IES em loopback,
+1. O IES alimenta um SQLite temporário com uma observação validada e o anti-IES a consulta sem gravar novos fatos.
+2. A resposta é **servida por HTTP** pelo processo anti-IES em loopback,
    não apenas entregue como string a um parser unitário.
-2. O **caminho real da operação IES** interpreta essa resposta e publica
+3. O **caminho real da operação IES** interpreta essa resposta e publica
    o JSON definido no contrato, com unidade correta, origem observada e
    saída 0 (ou erro tipado para os negativos).
-3. Os casos R e D, quando fundamentados, mais login disfarçado, tabela
+4. Os casos R e D, quando fundamentados, mais login disfarçado, tabela
    ausente e unidade divergente são verificados com saídas esperadas
    derivadas do SEI/cassettes, **não** do renderizador anti-IES.
-4. A bancada conta **um GET, zero POST**, nenhuma requisição externa,
+5. A bancada conta **um GET, zero POST**, nenhuma requisição externa,
    nenhum retry, nenhuma escrita e nenhum resíduo em SEI.
-5. A bancada nunca relaxa TLS, validade de origem ou isolamento de
+6. A bancada nunca relaxa TLS, validade de origem ou isolamento de
    cookies do IES em produção. Um túnel TLS ou ponto de injeção
    **somente de teste**, sem nova flag pública, pode ser usado. O servidor
    HTTP de desenvolvimento permanece em 127.0.0.1.
-6. O CI do **head exato** passa com Rustfmt, Clippy, testes do workspace,
+7. O CI do **head exato** passa com Rustfmt, Clippy, testes do workspace,
    OKF e gates existentes. A issue registra RED → GREEN e quaisquer
    itens live **NOT_RUN** explicitamente.
 
