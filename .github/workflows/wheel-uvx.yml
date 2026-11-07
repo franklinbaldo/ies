@@ -1,7 +1,7 @@
 name: Wheel Rust para uvx
 
 on:
-  pull_request:
+  # Wheels multiplataforma somente sob demanda ou em release.
   workflow_dispatch:
   workflow_call:
 
