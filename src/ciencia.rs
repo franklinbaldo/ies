@@ -71,6 +71,10 @@ fn identificador(valor: &str) -> bool {
 /// script ou no corpo de `function inicializar()`. A profundidade do lexer
 /// sozinha não basta: um `if(false)` também tem profundidade 1.
 /// Só um comando independente dessas duas formas fornece prova.
+fn separador_vazio(byte: u8) -> bool {
+    byte.is_ascii_whitespace() || byte == b';'
+}
+
 fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: usize) -> bool {
     let bytes = script.as_bytes();
     let Some(nivel) = niveis.get(posicao).copied().flatten() else {
@@ -92,7 +96,7 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     if nivel == 0 {
         // Chamada direta só prova recarga quando é a primeira instrução
         // executável do script: um throw anterior pode torná-la inalcançável.
-        return (0..posicao).all(|i| niveis[i] != Some(0) || bytes[i].is_ascii_whitespace());
+        return (0..posicao).all(|i| niveis[i] != Some(0) || separador_vazio(bytes[i]));
     }
 
     // Profundidade 1 só é aceita no corpo direto da função de inicialização
@@ -115,7 +119,7 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // return, throw, condicionais ou qualquer outra instrução anterior
     // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
     assinatura == b"functioninicializar()"
-        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || bytes[i].is_ascii_whitespace())
+        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || separador_vazio(bytes[i]))
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
