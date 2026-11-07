@@ -49,7 +49,7 @@ impl FalhaConfirmacao {
     pub(crate) fn temporario_possivel(&self) -> bool {
         !matches!(
             self,
-            Self::FotoInicialIncompleta | Self::FotoInicialInconsistente
+            Self::FotoInicialIncompleta | Self::FotoInicialInconsistente | Self::UploadRecusado(_)
         )
     }
 }
@@ -89,7 +89,7 @@ where
     }
 
     let recibo = enviar_upload(transporte).map_err(|erro| match erro {
-        FalhaUpload::Recusado { .. } => E::UploadRecusado(erro),
+        FalhaUpload::Recusado { .. } | FalhaUpload::PreparacaoMultipart(_) => E::UploadRecusado(erro),
         FalhaUpload::EfeitoIncerto { .. } => E::UploadIncerto(erro),
     })?;
     let submissao = preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
