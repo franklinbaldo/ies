@@ -41,7 +41,6 @@ fn truncamento_e_pedaco_malformado_sao_falha_de_rede() {
     }
 }
 
-
 /// RED: após zero chunk, EOF não substitui a linha vazia que encerra trailers.
 /// Um proxy/servidor que trunca o trailer não comprovou fim íntegro do HTTP.
 #[test]
