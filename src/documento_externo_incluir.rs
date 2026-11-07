@@ -21,6 +21,12 @@ pub(crate) mod fluxo_confirmar;
 pub(crate) mod multipart;
 #[allow(dead_code)] // #332: será consumido pelo fluxo de upload após a prévia em treinamento.
 pub(crate) mod recibo;
+#[allow(dead_code)] // #332: transporte de upload à espera de ensaio autenticado em treinamento.
+pub(crate) mod upload;
+
+#[cfg(test)]
+#[path = "documento_externo_incluir/tests_upload.rs"]
+mod tests_upload;
 
 use sha2::{Digest, Sha256};
 use std::fs::{self, OpenOptions};
