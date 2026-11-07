@@ -4,7 +4,7 @@
 // Núcleo de protocolo separado: ainda sem transmissão ou cadastro remoto.
 #[allow(dead_code)]
 // #332: corpo multipart só será enviado após validar o formulário em treinamento.
-mod multipart;
+pub(crate) mod multipart;
 #[allow(dead_code)] // #332: será consumido pelo fluxo de upload após a prévia em treinamento.
 mod recibo;
 
