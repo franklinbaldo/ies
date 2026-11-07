@@ -3,6 +3,9 @@ mod tela;
 #[cfg(test)]
 #[path = "processo_relacionar/tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "processo_relacionar/tests_fluxo.rs"]
+mod tests_fluxo;
 
 use crate::arvore_processo::ErroRelacionarNaBarra;
 use crate::formulario_web::{
