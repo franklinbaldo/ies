@@ -163,6 +163,21 @@ mod tests {
     }
 
     #[test]
+    fn recibo_temporario_de_outro_mime_nao_autoriza_cadastro() {
+        // BDD-332-03: sem recibo comprovando PDF, não cadastrar documento.
+        for mime in ["text/html", "image/png", "application/octet-stream"] {
+            let diferente = RECIBO.replace("application/pdf", mime);
+            assert_eq!(
+                interpretar_resposta(200, &diferente, "prova.pdf", 68),
+                Err(FalhaUpload::EfeitoIncerto {
+                    status_http: Some(200)
+                }),
+                "{mime}"
+            );
+        }
+    }
+
+    #[test]
     fn divergencia_de_nome_ou_tamanho_bloqueia_cadastro() {
         for (nome, tamanho) in [("outro.pdf", 68), ("prova.pdf", 67)] {
             assert_eq!(
