@@ -487,10 +487,11 @@ fn falha_http_503_do_post_preserva_mensagem_saneada() {
 }
 
 #[test]
-fn redirecionamento_local_com_id_alheio_nao_confirma() {
+fn redirecionamento_invalido_ou_id_alheio_nao_confirma() {
     for destino in [
         "controlador.php?acao=documento_visualizar&id_documento=999",
         "controlador.php?acao=arvore_visualizar&id_documento=102",
+        "//sei/controlador.php?acao=documento_visualizar&id_documento=102",
     ] {
         let mut rede = RedeSintetica::default();
         let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
