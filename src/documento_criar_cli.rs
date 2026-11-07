@@ -277,9 +277,11 @@ mod tests {
         let saida = erro_incerto_json(&erro, 7);
         assert_eq!(saida["codigo"], "efeito_incerto");
         assert_eq!(saida["verificar_com"], "ies processo NUP");
-        assert!(saida["erro"]
-            .as_str()
-            .is_some_and(|mensagem| mensagem.contains("Confira o processo")));
+        assert!(
+            saida["erro"]
+                .as_str()
+                .is_some_and(|mensagem| mensagem.contains("Confira o processo"))
+        );
         assert_eq!(saida["retentavel"], false);
         assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
     }
