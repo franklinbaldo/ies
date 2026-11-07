@@ -164,9 +164,16 @@ fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> Str
             let sensivel = texto.len() > 512
                 || (texto.contains('=') || texto.contains('?'))
                 || baixo.contains("://")
-                || ["infra_hash", "cookie", "senha", "token", "authorization", "session"]
-                    .iter()
-                    .any(|s| baixo.contains(*s));
+                || [
+                    "infra_hash",
+                    "cookie",
+                    "senha",
+                    "token",
+                    "authorization",
+                    "session",
+                ]
+                .iter()
+                .any(|s| baixo.contains(*s));
             (!sensivel).then_some(texto.trim_end_matches('\r'))
         });
         let linha = format!(
@@ -327,8 +334,10 @@ mod testes {
 
     #[test]
     fn diferencas_humanas_nao_imprimem_url_assinada() {
-        let base = b"<p>antigo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=segredo\">link</a>";
-        let editada = b"<p>novo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=outro\">link</a>";
+        let base =
+            b"<p>antigo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=segredo\">link</a>";
+        let editada =
+            b"<p>novo</p>\n<a href=\"https://exemplo.invalid/?infra_hash=outro\">link</a>";
         let trecho = trecho_divergente(base, editada).unwrap();
         let diff = diff_humano(base, editada, trecho);
         assert!(diff.contains("-<p>antigo</p>"));
@@ -338,5 +347,4 @@ mod testes {
         assert!(!diff.contains("segredo"));
         assert!(!diff.contains("outro"));
     }
-
 }
