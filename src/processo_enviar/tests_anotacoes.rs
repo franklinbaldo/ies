@@ -289,7 +289,7 @@ fn bdd_releitura_da_anotacao_falha_apos_envio_sem_retry() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes
+        super::ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
     ));
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos.len(), 9);

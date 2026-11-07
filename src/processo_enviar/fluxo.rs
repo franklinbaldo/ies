@@ -145,7 +145,13 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         let link = link_anotacao
             .as_deref()
             .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
-        conferir_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento)?;
+        conferir_anotacao_depois(
+            &mut rede,
+            &cookie,
+            link,
+            &feito.id_procedimento,
+            feito.depois.as_deref(),
+        )?;
         feito.anotacao_depois = Some(false);
         feito.requisicoes = rede.feitas();
     }
@@ -267,7 +273,7 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         ));
     }
     // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
-    match conferir_anotacao_depois(rede, cookie, link, id) {
+    match conferir_anotacao_depois(rede, cookie, link, id, None) {
         Ok(()) => Ok(()),
         Err(C::AnotacoesNaoRemovidasAposEnvio) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
         Err(_) => Err(C::EfeitoIncertoNaLimpezaDaAnotacao),
@@ -281,6 +287,7 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
     cookie: &str,
     link: &str,
     id: &str,
+    depois: Option<&[String]>,
 ) -> Result<(), C> {
     let depois = obter_tela(rede, cookie, link)
         .ok()
@@ -288,7 +295,9 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
     match depois {
         Some(false) => Ok(()),
         Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
-        None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes),
+        None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
+            depois: depois.map(ToOwned::to_owned),
+        }),
     }
 }
 

@@ -90,7 +90,10 @@ pub(crate) enum ErroEnviar {
     /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
     EfeitoIncertoNaLimpezaDaAnotacao,
     /// O envio foi confirmado; a releitura da anotação falhou.
-    EfeitoIncertoNaRemocaoDeAnotacoes,
+    EfeitoIncertoNaRemocaoDeAnotacoes {
+        /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.
+        depois: Option<Vec<String>>,
+    },
     #[causa(interna)]
     LinkDasAnotacoes(ErroHtml),
     #[causa(interna)]
@@ -144,7 +147,7 @@ impl ErroEnviar {
             | Self::AnotacoesNaoRemovidasAposEnvio
             | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
             Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes
+            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
             | Self::EfeitoIncertoNaLimpezaDaAnotacao => "efeito_incerto",
             _ => "fonte_invalida",
         }
@@ -154,7 +157,7 @@ impl ErroEnviar {
     pub(crate) fn saida(&self) -> u8 {
         match self {
             Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes
+            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
             | Self::EfeitoIncertoNaLimpezaDaAnotacao => 3,
             _ => 1,
         }
@@ -227,7 +230,7 @@ impl ErroEnviar {
             Self::EfeitoIncertoNaLimpezaDaAnotacao => {
                 "não foi possível comprovar a limpeza da anotação; o processo não foi enviado; não repita a gravação"
             }
-            Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
+            Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. } => {
                 "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
             }
             Self::LinkDasAnotacoes(_) => {

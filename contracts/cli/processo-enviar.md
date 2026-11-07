@@ -129,7 +129,9 @@ da tela declara.
    Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
    vazio e a mesma identidade de processo. Presença de texto após o
    envio é alteração parcial (saída 1); releitura indisponível ou
-   inconclusiva é efeito incerto (saída 3), sem retry. No fallback,
+   inconclusiva é efeito incerto (saída 3), sem retry. Neste último caso,
+   `depois` preserva as unidades já comprovadas pela árvore: a
+   tramitação foi confirmada, mas a remoção da anotação não. No fallback,
    a limpeza e a releitura acontecem antes do envio: anotação ainda
    preenchida recusa o envio (1); leitura inconclusiva da limpeza recusa
    o envio com saída 3. O envio posterior continua sujeito à
