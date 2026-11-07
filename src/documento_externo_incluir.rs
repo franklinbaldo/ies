@@ -26,6 +26,22 @@ pub(crate) enum FalhaPdf {
     Leitura,
 }
 
+/// Não permite que a apresentação do nome/tipo seja reordenada no terminal.
+/// É validação de saída, não uma restrição de charset inferida do SEI.
+pub(crate) fn contem_controle_de_apresentacao(valor: &str) -> bool {
+    valor.chars().any(|c| {
+        c.is_control()
+            || matches!(
+                c,
+                '\u{061c}'
+                    | '\u{200e}'
+                    | '\u{200f}'
+                    | '\u{202a}'..='\u{202e}'
+                    | '\u{2066}'..='\u{2069}'
+            )
+    })
+}
+
 /// Inspeção local; não prova que a instalação oferece tipo, limite ou upload.
 /// Só aceita o caminho e a extensão fornecidos; não segue links simbólicos.
 pub(crate) fn inspecionar_pdf(
@@ -57,7 +73,7 @@ pub(crate) fn inspecionar_pdf(
         .ok_or(FalhaPdf::Extensao)?;
     // O SEI não aceita "&#" em nome de arquivo (oráculo Todos #775).
     // Controles também não podem atravessar a apresentação humana da CLI.
-    if nome.contains("&#") || nome.chars().any(char::is_control) {
+    if nome.contains("&#") || contem_controle_de_apresentacao(nome) {
         return Err(FalhaPdf::NomeInvalido);
     }
     if !caminho
