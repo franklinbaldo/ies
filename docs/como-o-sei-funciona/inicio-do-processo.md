@@ -68,6 +68,26 @@ transmite a descrição, os campos da tela e os hidden de listas.
 Na implementação IES não executar JS: derivar os valores e a ação
 a partir dos atributos e da estrutura HTML conhecida.
 
+## Limite publicado da especificação — observação adicional 06/11/2026
+
+A captura `tests/paginas_reais/procedimento_gerar.html` do Todos
+(`323eb01`, SEI 4.0.9) contém o `input` `txtDescricao` com
+`maxlength="100"` e a máscara servida `infraMascaraTexto(this,event,100)`.
+A captura `procedimento_gerar_go_5_0_3.html` também publica
+`maxlength="100"`, sem demonstrar regra universal para todas as
+instalações. A [issue Todos #1248](https://github.com/franklinbaldo/todos/issues/1248)
+relatou recusa explícita do SEI para especificação superior a 100
+caracteres; é **relato externo**, não ensaio live do IES, e não se
+acessou a instalação de produção mencionada.
+
+A validação do IES deve utilizar somente o `maxlength` numérico servido
+pelo formulário **da própria sessão**. Na ausência do atributo, não
+inventar limite; se o atributo é ilegível, falhar fechado. Para a
+restrição nativa de `input`, comprimento é contado em unidades UTF-16
+(como `String.length` da interface Web), não em bytes UTF-8. A prévia
+deve rejeitar um valor que exceda o limite observado sem enviar o POST
+criador, e a confirmação deve passar pela mesma guarda.
+
 ## Resposta, identidade e risco
 
 Na escrita, o oráculo observa redirecionamento para a árvore;
