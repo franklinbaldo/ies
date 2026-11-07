@@ -39,9 +39,8 @@ enum ProvaPendente {
 }
 
 fn conferir_lista(item: &Value, atividade: Option<ProvaPendente>) -> Resultado {
-    let html = match html_da_resposta(item) {
-        Ok(html) => html,
-        Err(_) => return Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
+    let Ok(html) = html_da_resposta(item) else {
+        return Resultado::NaoAplicavel("corpo_da_lista_nao_gravado");
     };
     let Some(prova) = atividade else {
         return Resultado::NaoAplicavel("aceite_sem_atividade_observada");
