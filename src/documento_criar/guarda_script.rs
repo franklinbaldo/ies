@@ -392,7 +392,7 @@ pub(super) fn cadastro_publica_script_de_criacao(html: &str) -> bool {
         // application/javascript tambem executa. Um script module ou
         // externo poderia substituir o callback sem que seu corpo fosse
         // comprovado: nao autorizar a escrita nessa forma.
-        let tipo = tipo.as_deref().map(str::trim).unwrap_or("");
+        let tipo = tipo.as_deref().map_or("", str::trim);
         if tipo.eq_ignore_ascii_case("module") {
             return false;
         }
