@@ -57,6 +57,16 @@ pub(crate) struct Destino {
     pub(crate) id_unidade: String,
 }
 
+/// Estratégia publicada pela instalação para remover a anotação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MetodoRemocao {
+    /// Checkbox da própria tela de envio.
+    CheckboxNoEnvio,
+    /// Salvar a tela de anotação com descrição vazia antes da tramitação.
+    LimparAnotacao,
+}
+
 /// Sucesso: prévia, ou enviado e conferido.
 #[expect(
     clippy::struct_excessive_bools,
@@ -76,6 +86,7 @@ pub(crate) struct ProcessoEnviado {
     /// Presença da anotação da unidade de origem, quando a tela a publicou.
     /// None significa não observada, nunca ausência.
     pub(crate) anotacao_antes: Option<bool>,
+    pub(crate) metodo_remocao: Option<MetodoRemocao>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
