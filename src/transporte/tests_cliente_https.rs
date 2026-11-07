@@ -410,10 +410,15 @@ fn dado_pdf_quando_envio_multipart_em_fluxo_entao_ha_um_post_com_tamanho_exato()
         "https://{SEI}/sei/controlador.php?acao=documento_upload_anexo&infra_hash={}",
         "c".repeat(64)
     );
-    let (porta, tarefa) = proxy_falso(
-        200,
-        b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_vec(),
+    let recibo_servido = format!(
+        "94e336aa#prova.pdf#application/pdf#{}#11/10/2026 11:07:50#",
+        pdf.len()
     );
+    let resposta = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=iso-8859-1\r\nContent-Length: {}\r\n\r\n{recibo_servido}",
+        recibo_servido.len()
+    );
+    let (porta, tarefa) = proxy_falso(200, resposta.into_bytes());
     let post = cliente_https::requisitar_em_fluxo_via(
         &destino,
         "PHPSESSID=SINTETICO",
@@ -428,7 +433,13 @@ fn dado_pdf_quando_envio_multipart_em_fluxo_entao_ha_um_post_com_tamanho_exato()
         sem_tls,
     )
     .unwrap();
-    assert_eq!(post.status, 200);
+    let recibo = crate::documento_externo_incluir::recibo::interpretar_http(
+        cliente_https::resposta_web(post),
+        "prova.pdf",
+        pdf.len() as u64,
+    )
+    .unwrap();
+    assert_eq!(recibo.nome_upload, "94e336aa");
     let (recebido, extras) = tarefa.join().unwrap();
     assert_eq!(extras, 0, "o upload não pode ser repetido");
     let recebido = recebido.unwrap();
