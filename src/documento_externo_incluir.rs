@@ -102,15 +102,13 @@ pub(crate) fn inspecionar_pdf(
     }
     digest.update(inicio);
     let mut total = inicio.len() as u64;
-    let mut bloco = [0_u8; 64 * 1024];
+    let mut bloco = [0_u8; 8 * 1024];
     loop {
         let lidos = arquivo.read(&mut bloco).map_err(|_| FalhaPdf::Leitura)?;
         if lidos == 0 {
             break;
         }
-        total = total
-            .checked_add(lidos as u64)
-            .ok_or(FalhaPdf::Leitura)?;
+        total = total.checked_add(lidos as u64).ok_or(FalhaPdf::Leitura)?;
         if limite_observado.is_some_and(|limite| total > limite) {
             return Err(FalhaPdf::AcimaDoLimite);
         }
