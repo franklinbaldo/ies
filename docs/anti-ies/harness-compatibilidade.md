@@ -65,6 +65,70 @@ O harness mantém casos positivos **e negativos** por forma conhecida.
 `PASS/FAIL/NOT_RUN` deve indicar fonte, instalação/versão, SHA,
 comandos e contagem observada de requests.
 
+## Testes por propriedades: `proptest`
+
+A biblioteca Rust [`proptest`](https://proptest-rs.github.io/proptest/)
+é o equivalente prático mais próximo do Hypothesis para esta bancada.
+Definir as invariantes primeiro, gerar **muitas variantes** depois.
+Seu `shrinking` reduz o contraexemplo de uma propriedade falha; **não**
+remove automaticamente linhas de código ou confirma compatibilidade
+com sistemas que nunca foram testados.
+
+Usar como **dev-dependency localizada nos testes**, não no runtime
+`iesei`, IES ou anti-IES. O CI usa `cargo test --locked` e a
+toolchain fixada; a PR de implementação da
+[#361](https://github.com/franklinbaldo/ies/issues/361)
+adicionará dependência e `Cargo.lock`. Evitar `quickcheck`,
+`bolero` e outra estrutura simultânea antes de existir lacuna medida.
+
+### Geradores pequenos e tipados
+
+- Variações de identidade, unidade e visões R/D;
+  `Desconhecido` vs. `PaginaObservada` vs. `ListaCompleta`;
+  ordenação de itens quando o SEI não a define.
+- Transformações estruturais de HTML **em testes**: ordem de
+  atributos, espaços, wrappers ou classes candidatas a cosméticas.
+  Cada transformação deve manter as pré-condições da variante
+  observada; não usar regex para HTML nem executar JS.
+- Mutações obrigatoriamente negativas: retirar uma tabela, duplicar
+  um id essencial, misturar unidades, substituir Controle por
+  login e omitir contexto/proveniência necessário.
+
+Duas famílias de propriedades devem ser verificadas em separado:
+
+**Preservação metamórfica:** se o contrato permite a mudança
+`T`, então `interpretar(T(html))` tem a mesma semântica e
+recusas de `interpretar(html)`. Essa hipótese **não** autoriza
+mudar o contrato com base no anti-IES; testar primeiro cassettes
+SEI reais imutáveis.
+
+**Sensibilidade negativa:** se `T` retira uma evidência
+obrigatória, o parser deve recusar com erro tipado e não produzir
+`PASS`. Isso impede que o anti-IES seja aceito só porque o IES
+ficou excessivamente permissivo.
+
+Também testar invariantes de `iesei`: identidade preservada no
+roundtrip SQLite, gravação idempotente e isolamento por contexto;
+lista incompleta não se converte em vazia/completa; valores opacos
+não são transformados silenciosamente.
+
+### Reproduzir e reduzir
+
+Usar uma pequena configuração inicial (por exemplo **64 a 128
+casos por propriedade**) com semente e duração registradas.
+No CI, toda falha deve ser reproduzível; guardar seed e **caso mínimo
+encolhido** em fixture sintética de regressão, sem incluir dados de
+sessão. Testes maiores (ex.: 2.048 casos) rodam sob demanda em
+rodadas offline separadas, não como custo compulsório de toda PR.
+Nunca substituir os cenários positivos e negativos conhecidos
+por geração aleatória.
+
+Cada caso registra: operação, contrato, versão/instalação de
+referência, transformação ou mutação aplicada, expectativa
+independente, saída tipada, resultado, requests e seed.
+A simplificação só pode ser declarada para a cobertura que
+esse registro efetivamente demonstra.
+
 ## Ablação progressiva: simplificar sem regredir
 
 Depois da primeira integração E2E [#355](https://github.com/franklinbaldo/ies/issues/355),
