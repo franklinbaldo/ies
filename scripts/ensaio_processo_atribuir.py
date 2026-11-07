@@ -78,11 +78,14 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
         fd = os.open(registro, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
         return 2, {"estado": "BLOQUEADO", "motivo": "registro_concorrente"}
+    except OSError:
+        return 2, {"estado": "BLOQUEADO", "motivo": "registro_indisponivel"}
     relatorio = {
         "estado": "CONFIRMACAO_INICIADA", "origem": origem, "nup": nup,
         "unidade": unidade, "usuario": usuario, "residuo": "possivel_atribuicao",
         "requisicoes": [quantidade(previa)],
     }
+    confirmacao_iniciada = False
 
     def gravar() -> None:
         os.ftruncate(fd, 0)
@@ -101,6 +104,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
     try:
         gravar()
         pausa(intervalo)
+        confirmacao_iniciada = True
         codigo, escrita = etapa(atribuir + ["--confirmar"])
         if (codigo != 0 or escrita.get("nup") != nup
                 or escrita.get("id_procedimento") != identificador
@@ -140,6 +144,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             gravar()
             return 3, relatorio
         relatorio["estado"] = "REMOCAO_INICIADA"
+        relatorio["residuo"] = "possivel_remocao"
         gravar()
         pausa(intervalo)
         codigo, remocao = etapa(remover + ["--confirmar"])
@@ -168,6 +173,16 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
         relatorio["residuo"] = "sem_atribuicao"
         gravar()
         return 0, relatorio
+    except OSError:
+        if not confirmacao_iniciada:
+            return 2, {"estado": "BLOQUEADO",
+                       "motivo": "registro_indisponivel_antes_do_post",
+                       "requisicoes": relatorio["requisicoes"]}
+        # O registro não pode mais ser atualizado; a trava O_EXCL permanece.
+        # Não repetir POST nem tentar recuperar a persistência por novo write.
+        relatorio["estado"] = "EFEITO_INCERTO"
+        relatorio["motivo"] = "registro_indisponivel_apos_post"
+        return 3, relatorio
     finally:
         os.close(fd)
 
@@ -187,6 +202,10 @@ def main() -> int:
             "docs/interfaces/credenciais-de-treinamento.md"
         )
         origem = origem_privada_permitida(permitidas)
+    except (OSError, ValueError, KeyError):
+        codigo, relatorio = 2, {"estado": "BLOQUEADO",
+                              "motivo": "origem_nao_verificada"}
+    else:
         if args.preflight:
             codigo, relatorio = 0, {"estado": "PREFLIGHT_PASS", "origem": origem}
         elif args.registro is None or args.nup is None or args.usuario is None:
@@ -196,9 +215,6 @@ def main() -> int:
                 ies=args.ies, registro=args.registro, nup=args.nup,
                 usuario=args.usuario, origem=origem,
             )
-    except (OSError, ValueError, KeyError):
-        codigo, relatorio = 2, {"estado": "BLOQUEADO",
-                              "motivo": "origem_nao_verificada"}
     print(json.dumps(relatorio, ensure_ascii=False))
     return codigo
 
