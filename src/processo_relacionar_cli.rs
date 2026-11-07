@@ -83,6 +83,7 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
                 "id_procedimento": previa.id_procedimento,
                 "destino": previa.destino,
                 "id_destino": previa.id_destino,
+                "tipo_destino": previa.tipo_destino,
                 "remover": previa.remover,
                 "confirmado": false,
                 "alterado": false,
@@ -97,8 +98,13 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             previa.requisicoes
         );
     } else {
+        let tipo = previa
+            .tipo_destino
+            .as_deref()
+            .map(|nome| format!(" (tipo: {nome})"))
+            .unwrap_or_default();
         println!(
-            "Prévia: {} processo {} com {} (id: {}). Requisições: {}. Escrita ainda bloqueada.",
+            "Prévia: {} processo {} com {}{} (id: {}). Requisições: {}. Escrita ainda bloqueada.",
             if previa.remover {
                 "desvincular"
             } else {
@@ -106,6 +112,7 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             },
             previa.nup,
             previa.destino,
+            tipo,
             previa.id_destino.as_deref().unwrap_or("não observado"),
             previa.requisicoes,
         );
