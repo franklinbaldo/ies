@@ -22,8 +22,8 @@ def incrementar(versao: str, tipo: str) -> str:
     if combinacao is None:
         raise ValueError("versao atual nao e MAJOR.MINOR.PATCH simples")
     major, minor, patch = map(int, combinacao.groups())
-    if tipo == "major":
-        return f"{major + 1}.0.0"
+    if major != 0:
+        raise ValueError("IES deve permanecer na serie 0.x.y")
     if tipo == "minor":
         return f"{major}.{minor + 1}.0"
     if tipo == "patch":
@@ -93,7 +93,7 @@ def preparar(raiz: Path, tipo: str) -> tuple[str, str, dict[Path, str]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Propor incremento SemVer de IES")
-    parser.add_argument("tipo", choices=("major", "minor", "patch"))
+    parser.add_argument("tipo", choices=("minor", "patch"))
     parser.add_argument("raiz", nargs="?", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--aplicar", action="store_true",
                         help="escrever os tres arquivos apos validar a proposta")
