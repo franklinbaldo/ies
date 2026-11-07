@@ -102,11 +102,7 @@ fn escapar(texto: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-fn tabela_html(
-    id: &str,
-    tabela: &TabelaObservada<Linha>,
-    destino: &mut String,
-) -> Option<()> {
+fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) -> Option<()> {
     if !tabela.pagina_verificavel() {
         return None;
     }
