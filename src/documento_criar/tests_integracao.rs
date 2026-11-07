@@ -181,7 +181,10 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
             a::ok(arvore_verificadora(1)),
         ],
     );
-    let criado = resultado.expect("302 do controlador e arvore com documento unico");
+    let criado = match resultado {
+        Ok(criado) => criado,
+        Err(erro) => panic!("aceite recusado: {}", erro.subcodigo()),
+    };
     assert!(matches!(
         &criado.estado,
         EstadoCriacao::Criado { numero_sei } if numero_sei == "0000102"
@@ -190,7 +193,10 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
     esperados.push(a::get(&a::url_arvore()));
-    assert_eq!(pedidos, esperados, "5 GET de previa, POST unico, GET de conferencia");
+    assert_eq!(
+        pedidos, esperados,
+        "5 GET de previa, POST unico, GET de conferencia"
+    );
 }
 
 #[test]
