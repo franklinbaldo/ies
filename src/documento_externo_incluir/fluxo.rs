@@ -1,18 +1,26 @@
 //! Prévia Web do documento externo PDF (#332): lê lista e cadastro recarregado.
 //! A única escrita de documento segue desabilitada até upload + cadastro + releitura.
-use super::{PdfLocal, cadastro::observar_cadastro, escolha::{EscolhaExterna, escolher_externo, identificar_tipo}};
+use super::{
+    PdfLocal,
+    cadastro::observar_cadastro,
+    escolha::{EscolhaExterna, escolher_externo, identificar_tipo},
+};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    derivar_submissao, enviar_submissao_via,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
+    enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas};
-use crate::processo_obter::{EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever};
+use crate::processo_concluir::escrita::{
+    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
+};
+use crate::processo_obter::{
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 use crate::visao_do_controle::EnvioDoControle as _;
 
@@ -104,7 +112,9 @@ fn da_tela(erro: FalhaDaTela) -> ErroPreviaExterna {
 }
 
 fn conferir_destino(
-    instalacao: &Instalacao, location: &str, id_procedimento: &str,
+    instalacao: &Instalacao,
+    location: &str,
+    id_procedimento: &str,
 ) -> Result<String, ErroPreviaExterna> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
@@ -128,32 +138,46 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
-        sessao, &leitura(nup, unidade_pedida, true), indice, &mut rede,
-    ).map_err(E::Abertura)?;
+        sessao,
+        &leitura(nup, unidade_pedida, true),
+        indice,
+        &mut rede,
+    )
+    .map_err(E::Abertura)?;
     let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
-    let abertas = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|_| E::ProcessoNaoAbertoNaUnidade)?;
+    let abertas =
+        siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| E::ProcessoNaoAbertoNaUnidade)?;
     if !abertas.contains(&unidade) {
         return Err(E::ProcessoNaoAbertoNaUnidade);
     }
-    let link = acoes.incluir.map_err(|_| E::LinkNaoConferido)?
+    let link = acoes
+        .incluir
+        .map_err(|_| E::LinkNaoConferido)?
         .ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
     let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;
     let id_procedimento = &aberto.arvore.processo.id;
     let destino = match escolher_externo(&lista).map_err(|_| E::EscolhaNaoConferida)? {
-        EscolhaExterna::Url(relativo) =>
-            conferir_destino(&instalacao, &relativo, id_procedimento)?,
+        EscolhaExterna::Url(relativo) => conferir_destino(&instalacao, &relativo, id_procedimento)?,
         EscolhaExterna::Formulario => {
             let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::CodificacaoNaoPublicada)?;
-            let servida = TelaServida { url: link.as_str(), html: &lista, codificacao };
+            let servida = TelaServida {
+                url: link.as_str(),
+                html: &lista,
+                codificacao,
+            };
             let submissao = derivar_submissao(
-                &ESCOLHER_EXTERNO, &instalacao, &servida, &unidade,
+                &ESCOLHER_EXTERNO,
+                &instalacao,
+                &servida,
+                &unidade,
                 &[("hdnIdSerie", "-1")],
-            ).map_err(E::Formulario)?;
+            )
+            .map_err(E::Formulario)?;
             let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
                 rede.post(post, cookie)
-            }).map_err(E::Formulario)?;
+            })
+            .map_err(E::Formulario)?;
             let RespostaDoEnvio::Redirecionamento(redirecionado) = resposta else {
                 return Err(E::EscolhaNaoConferida);
             };
@@ -164,18 +188,29 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
             )?
         }
     };
-    let (cadastro, mime_cadastro) =
-        obter_tela(&mut rede, &cookie, &destino).map_err(da_tela)?;
+    let (cadastro, mime_cadastro) = obter_tela(&mut rede, &cookie, &destino).map_err(da_tela)?;
     let id_tipo = identificar_tipo(&cadastro, tipo).map_err(|_| E::TipoNaoOferecido)?;
     let codificacao = codificacao_da_tela(&mime_cadastro).ok_or(E::CodificacaoNaoPublicada)?;
-    let servida = TelaServida { url: &destino, html: &cadastro, codificacao };
+    let servida = TelaServida {
+        url: &destino,
+        html: &cadastro,
+        codificacao,
+    };
     let submissao = derivar_submissao(
-        &RECARREGAR_TIPO, &instalacao, &servida, &unidade,
-        &[("selSerie", id_tipo.as_str()), ("hdnIdSerie", id_tipo.as_str())],
-    ).map_err(E::Formulario)?;
+        &RECARREGAR_TIPO,
+        &instalacao,
+        &servida,
+        &unidade,
+        &[
+            ("selSerie", id_tipo.as_str()),
+            ("hdnIdSerie", id_tipo.as_str()),
+        ],
+    )
+    .map_err(E::Formulario)?;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
         rede.post(post, cookie)
-    }).map_err(E::Formulario)?;
+    })
+    .map_err(E::Formulario)?;
     let RespostaDoEnvio::Html(recarregado) = resposta else {
         return Err(E::TipoNaoRecarregado);
     };
