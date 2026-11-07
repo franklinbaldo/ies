@@ -39,6 +39,7 @@ pub(crate) struct PedidoDoEnvio<'a> {
     /// A sigla de `--para`, já conferida pela CLI.
     pub(crate) para: &'a str,
     pub(crate) manter_aberto: bool,
+    pub(crate) remover_anotacoes: bool,
     pub(crate) confirmar: bool,
 }
 
@@ -64,6 +65,7 @@ pub(crate) struct ProcessoEnviado {
     /// O POST saiu e a leitura confirmou o destino (e a origem como pedido).
     pub(crate) alterado: bool,
     pub(crate) manter_aberto: bool,
+    pub(crate) remover_anotacoes: bool,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
