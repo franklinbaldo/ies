@@ -83,6 +83,7 @@ fn falhas_levam_as_listas() {
     assert_eq!(oferecidos["oferecidos"], json!(["OUTRA - Outra"]));
     let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
         aberto_em: vec!["TESTE".into()],
+        anotacao_depois: None,
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
         verificacao: Box::new(VerificacaoPorLeitura::LeituraFalhou(
             crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
@@ -288,6 +289,7 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
     );
     let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
         aberto_em: vec![],
+        anotacao_depois: None,
         falha_do_envio: None,
         verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
             crate::arvore_processo::MotivoAbertoEm::HtmlDaRaizNaoPublicado,
@@ -323,6 +325,7 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
         (
             ErroEnviar::EfeitoIncertoNoEnvio {
                 aberto_em: vec![],
+                anotacao_depois: None,
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },

@@ -381,6 +381,7 @@ fn conciliar(
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
         return Err(C::EfeitoIncertoNoEnvio {
             aberto_em: feito.aberto_em,
+            anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
         });

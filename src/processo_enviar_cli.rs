@@ -233,6 +233,13 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     {
         linhas.push(format!("IES: verificação: {motivo}"));
     }
+    if let E::EfeitoIncertoNoEnvio {
+        anotacao_depois: Some(false),
+        ..
+    } = erro
+    {
+        linhas.push("IES: anotacao_depois: removida (releitura antes da tramitação)".to_owned());
+    }
     linhas
 }
 
@@ -353,10 +360,12 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
         }
         ErroEnviar::EfeitoIncertoNoEnvio {
             aberto_em,
+            anotacao_depois,
             falha_do_envio,
             verificacao,
         } => {
             valor.aberto_em = Some(aberto_em);
+            valor.anotacao_depois = *anotacao_depois;
             valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }

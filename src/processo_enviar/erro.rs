@@ -125,6 +125,7 @@ pub(crate) enum ErroEnviar {
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
     EfeitoIncertoNoEnvio {
         aberto_em: Vec<String>,
+        anotacao_depois: Option<bool>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoPorLeitura>,
     },

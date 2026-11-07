@@ -208,6 +208,11 @@ não é o esperado. Qualquer outra
 | Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `escrita_diferente_da_solicitada` / `situacao_da_origem_diferente_da_pedida_apos_envio` |
 | Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_no_envio` |
 
+Quando o fallback já comprovou a limpeza e a releitura da tramitação falha,
+continua sendo saída 3, mas a saída humana e o JSON preservam o fato
+`anotacao_depois: false` (ausência relida antes de tentar enviar). Isso
+**não** significa que a tramitação tenha sido comprovada.
+
 Falha antes do POST (abertura, barra, tela, consulta, destino, cookie,
 derivação) não é escrita: saída 1. Antes de repetir à mão, conferir com
 `ies processo NUP`.
