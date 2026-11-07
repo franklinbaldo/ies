@@ -304,6 +304,55 @@ fn bdd_releitura_da_anotacao_falha_apos_envio_sem_retry() {
 }
 
 #[test]
+fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
+    // Dado envio comprovado por releitura, mas anotação indisponível depois,
+    // quando executo ies processo enviar com --remover-anotacoes --confirmar,
+    // então recebo saída 3 com o destino comprovado, sem segundo envio.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Antes", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            Err(crate::transporte::FalhaTransporte::Rede),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("a anotação não pôde ser relida");
+    assert_eq!(erro.saida(), 3);
+    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
+        .expect("erro tipado serializável");
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["depois"], serde_json::json!([DESTINO]));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_de_enviar()))
+            .count(),
+        1,
+        "a escrita não pode ser repetida"
+    );
+}
+
+#[test]
 fn bdd_fallback_ainda_nao_grava_antes_do_post_proprio() {
     // Dado formulário de anotação mas sem checkbox no envio,
     // quando confirmo, então não há POST até o fallback estar pronto.
