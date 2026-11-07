@@ -94,6 +94,47 @@ e necessario usar a URL cujo nome corresponda ao sistema e arquitetura.
 Para selecao automatica com um unico nome de pacote, precisa de um
 indice Python PEP 503 (PyPI ou indice proprio, por exemplo GitHub Pages).
 
+### Versionamento semantico (SemVer)
+
+O IES usa **MAJOR.MINOR.PATCH**: `patch` corrige sem alterar a CLI,
+`minor` acrescenta capacidade mantendo compatibilidade, e `major`
+introduz alteracao incompativel do contrato publico. Enquanto estiver em
+`0.x.y`, a CLI ainda esta em desenvolvimento; uma quebra planejada
+pode ser publicada como nova `minor`, se documentada e aprovada.
+
+Para **preparar** uma nova versao, sem publicar nada:
+
+```sh
+python3 -I scripts/versao_semver.py patch
+python3 -I scripts/versao_semver.py minor
+python3 -I scripts/versao_semver.py major
+```
+
+O comando faz **previsao por padrao**. Depois de conferir o tipo correto:
+
+```sh
+python3 -I scripts/versao_semver.py minor --aplicar
+git diff -- Cargo.toml pyproject.toml Cargo.lock
+```
+
+`--aplicar` atualiza de forma coordenada somente as declaracoes de
+versao do **executavel raiz `ies`** em `Cargo.toml`,
+`pyproject.toml` e `Cargo.lock`. As versoes das dependencias e dos
+crates internos sao preservadas. Se a versao inicial divergir entre
+os tres arquivos, a operacao recusa antes de gravar.
+
+O incremento deve entrar numa **PR revisada**, com os gates Rust e wheel
+verdes, antes de criar uma tag. O binario exibe a versao do Cargo pela
+flag `ies --version`; o nome da wheel e a tag refletem a mesma versao.
+O verificador da release tambem confere `Cargo.lock` para impedir
+publicacao de pacote inconsistente com `cargo --locked`.
+
+Por ora, a automacao de releases aceita somente versoes finais
+`vX.Y.Z`; pre-releases `-rc.1`, `-beta.1` exigem convencao explicita
+para a representacao de versao Python/PEP 440, e nao devem ser publicadas
+sem essa etapa. O incremento **nao faz commit, nao cria tag e nao publica**
+nada por conta propria.
+
 ### Protocolo de publicacao
 
 `.github/workflows/release-uvx.yml` roda somente quando uma tag
