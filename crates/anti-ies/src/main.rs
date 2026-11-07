@@ -72,7 +72,14 @@ mod tests {
     use std::io::{Read, Write};
     use std::net::TcpStream;
 
-    fn pedir(alvo: &str, com_fonte: bool) -> String {
+    #[derive(Clone, Copy)]
+    enum BancoDoTeste {
+        Nenhum,
+        Vazio,
+        Observado,
+    }
+
+    fn pedir(alvo: &str, tipo: BancoDoTeste) -> String {
         let escuta = TcpListener::bind(("127.0.0.1", 0)).expect("bind local");
         let endereco = escuta.local_addr().expect("endereco local");
         let servidor = std::thread::spawn(move || {
@@ -80,7 +87,7 @@ mod tests {
             let mut banco = Connection::open_in_memory().unwrap();
             iniciar(&banco).unwrap();
             let instalacao = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
-            if com_fonte {
+            if matches!(tipo, BancoDoTeste::Observado) {
                 guardar(
                     &mut banco,
                     "ensaio",
@@ -93,8 +100,9 @@ mod tests {
                 )
                 .unwrap();
             }
-            let fonte = com_fonte.then_some((&banco, &instalacao, "ensaio"));
-            atender_http(&mut fluxo, fonte).expect("responder");
+            let acesso = (!matches!(tipo, BancoDoTeste::Nenhum))
+                .then_some((&banco, &instalacao, "ensaio"));
+            atender_http(&mut fluxo, acesso).expect("responder");
         });
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
         write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").expect("enviar GET");
@@ -109,20 +117,20 @@ mod tests {
 
     #[test]
     fn saude_responde_no_protocolo_http_real() {
-        let resposta = pedir("/__anti_ies/health", false);
+        let resposta = pedir("/__anti_ies/health", BancoDoTeste::Nenhum);
         assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(resposta.contains(r#"{"status":"ok","servidor":"anti-ies"}"#));
     }
 
     #[test]
     fn controlador_nao_implementado_responde_501_no_fio() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_trabalhar", true);
+        let resposta = pedir("/sei/controlador.php?acao=procedimento_trabalhar", BancoDoTeste::Observado);
         assert!(resposta.starts_with("HTTP/1.1 501 Not Implemented\r\n"));
     }
 
     #[test]
     fn controle_r_servido_pelo_banco_no_http_real() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", true);
+        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", BancoDoTeste::Observado);
         assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(resposta.contains("<a id='lnkInfraUnidade'>TESTE</a>"));
         assert!(resposta.contains("<caption>0 registros:</caption>"));
@@ -131,7 +139,7 @@ mod tests {
 
     #[test]
     fn controle_sem_dados_nao_finge_lista_vazia() {
-        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", false);
+        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar", BancoDoTeste::Vazio);
         assert!(resposta.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
     }
 }
