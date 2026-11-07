@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 #[test]
 #[ignore = "wip #354: localizar resposta D real no ZIP público UnB do acervo"]
 fn localizar_controle_d_unb_no_acervo() {
-    let instalacao = std::env::var("ANTI_IES_PROBE_INSTALACAO")
-        .unwrap_or_else(|_| "unb".to_owned());
+    let instalacao =
+        std::env::var("ANTI_IES_PROBE_INSTALACAO").unwrap_or_else(|_| "unb".to_owned());
     let nome_zip = format!("todos-sei-cassettes-{instalacao}.zip");
     let pasta = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("cassettes")
