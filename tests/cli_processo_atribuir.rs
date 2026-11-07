@@ -1,5 +1,5 @@
-//! Fronteira da CLI de atribuição (#264), sem login ou rede reais.
-//! NUP inválido é recusado antes de ler a sessão; sessão ausente falha fechada.
+//! Trava de escrita de `ies processo atribuir` (#264).
+//! Não abre login nem acessa o SEI: só confere a recusa antes da sessão.
 use std::process::{Command, Output};
 
 const NUP: &str = "00001.000001/2026-01";
@@ -17,16 +17,19 @@ fn sem_sessao(args: &[&str]) -> Output {
 }
 
 #[test]
-fn confirmar_com_referencia_legada_recusa_antes_da_sessao() {
+fn confirmar_recusa_antes_da_sessao() {
     for operacao in [&["--usuario", "fulano"][..], &["--remover"][..]] {
-        let mut args = vec!["processo", "atribuir", "sei://legado"];
+        let mut args = vec!["processo", "atribuir", NUP];
         args.extend_from_slice(operacao);
         args.extend_from_slice(&["--confirmar", "--json"]);
         let saida = sem_sessao(&args);
-        assert_eq!(saida.status.code(), Some(2), "{args:?}");
+        assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor: serde_json::Value =
             serde_json::from_slice(&saida.stdout).expect("JSON na saída");
-        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert_eq!(
+            valor["subcodigo"],
+            "escrita_de_atribuicao_ainda_nao_verificada"
+        );
     }
 }
 
@@ -34,22 +37,4 @@ fn confirmar_com_referencia_legada_recusa_antes_da_sessao() {
 fn usuario_e_remover_juntos_sao_recusados_pelo_clap() {
     let saida = sem_sessao(&["processo", "atribuir", NUP, "--usuario", "x", "--remover"]);
     assert_eq!(saida.status.code(), Some(2));
-}
-
-#[test]
-fn confirmar_valido_sem_sessao_retorna_fonte_invalida_sem_rede() {
-    // A capacidade pública, quando habilitada, deve atravessar a validação
-    // de NUP e falhar na leitura da sessão ausente, sem tocar na rede.
-    let saida = sem_sessao(&[
-        "processo",
-        "atribuir",
-        NUP,
-        "--usuario",
-        "aluno2",
-        "--confirmar",
-        "--json",
-    ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON na saída");
-    assert_eq!(valor["codigo"], "fonte_invalida");
 }
