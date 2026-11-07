@@ -1,6 +1,6 @@
 //! RED/GREEN: prévia Web com orçamento exato, usando apenas respostas sintéticas.
 //! Caso derivado de `Todos tests/test_ciclo_atribuir_010.py` @323eb01.
-use super::fluxo::{ErroProcessoAtribuir as E, PedidoDaAtribuicao, executar_previa};
+use super::fluxo::{ErroProcessoAtribuir as E, EstadoDaAtribuicao, PedidoDaAtribuicao, executar_previa};
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
@@ -118,6 +118,34 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
     assert_eq!(publicado["requisicoes"], 3);
     assert_eq!(pedidos, pedidos_da_abertura());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
+}
+
+// RED #264: um único estado tipado deve comandar os dois campos JSON legados.
+#[test]
+fn estado_tipado_publica_json_legado_sem_combinacoes_ambiguas() {
+    let (previa, pedidos_previa_observados) =
+        rodar(Some("aluno2"), respostas_previa("aluno20"));
+    let previa = previa.unwrap();
+    assert_eq!(previa.estado, EstadoDaAtribuicao::Previa);
+    let json_previa = crate::processo_atribuir_cli::json_da_previa(&previa);
+    assert_eq!(json_previa["confirmado"], false);
+    assert_eq!(json_previa["alterado"], false);
+    assert_eq!(pedidos_previa_observados, pedidos_previa());
+
+    let mut respostas = respostas_previa("aluno20");
+    respostas.push(retorno_arvore_com_identidade_observado());
+    respostas.push(ok(arvore_atual("aluno2")));
+    let (confirmacao, pedidos_confirmacao_observados) =
+        rodar_confirmacao(Some("aluno2"), respostas);
+    let confirmacao = confirmacao.unwrap();
+    assert_eq!(confirmacao.estado, EstadoDaAtribuicao::AlteracaoConfirmada);
+    let json_confirmacao = crate::processo_atribuir_cli::json_da_previa(&confirmacao);
+    assert_eq!(json_confirmacao["confirmado"], true);
+    assert_eq!(json_confirmacao["alterado"], true);
+    assert_eq!(
+        pedidos_confirmacao_observados,
+        pedidos_confirmacao("100000035")
+    );
 }
 
 #[test]
