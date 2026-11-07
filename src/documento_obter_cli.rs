@@ -406,6 +406,16 @@ fn registrar_cache(
     }))
 }
 
+fn apresentar_metadados(d: &DocumentoObtido) {
+    println!("{}", cabecalho(d));
+    if let Some(linha) = crate::propriedades_documento::linha_humana(&d.propriedades) {
+        println!("{linha}");
+    }
+    if let Some(linha) = documento_versao_cli::linha_humana(d) {
+        println!("{linha}");
+    }
+}
+
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,
@@ -488,16 +498,7 @@ fn publicar(
             );
         }
         for (i, d) in obtidos.iter().enumerate() {
-            println!("{}", cabecalho(d));
-            for linha in [
-                crate::propriedades_documento::linha_humana(&d.propriedades),
-                documento_versao_cli::linha_humana(d),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                println!("{linha}");
-            }
+            apresentar_metadados(d);
             let g = gravado(i);
             if let Some(a) = &d.anexo {
                 println!("{}", anexo::linha_do_anexo(a, g.is_some()));
