@@ -1,5 +1,5 @@
 //! Ensaio com cassette original: IES interpreta, SQLite guarda,
- //! anti-IES serve pelo socket, o mesmo leitor da CLI compara.
+//! anti-IES serve pelo socket, o mesmo leitor da CLI compara.
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use iesei::banco_cassettes::{ControleResumido, Linha, guardar, iniciar};
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
