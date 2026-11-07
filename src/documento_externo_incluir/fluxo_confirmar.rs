@@ -55,6 +55,17 @@ impl ErroConfirmacaoExterna {
     pub(crate) fn temporario_possivel(&self) -> bool {
         matches!(self, Self::Sequencia(e) if e.temporario_possivel())
     }
+
+    pub(crate) fn cadastro_tentado(&self) -> bool {
+        matches!(
+            self,
+            Self::Sequencia(
+                FalhaConfirmacao::CadastroIncerto(_)
+                    | FalhaConfirmacao::ReleituraIncerta(_)
+                    | FalhaConfirmacao::EfeitoIncerto
+            )
+        )
+    }
 }
 
 /// A URL provém exclusivamente do script servido e fica privada.
@@ -156,8 +167,8 @@ where
 
 /// Ponte real da sequência #332: o mesmo POST multipart único do transporte,
 /// seguido de cadastro único e releitura pelo fluxo já ensaiado offline.
-/// Não é invocada pela CLI antes da validação em TREINAMENTO.
-#[allow(dead_code, clippy::too_many_arguments)]
+/// A publicação na main exige comprovação em TREINAMENTO antes de liberar a CLI.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
@@ -167,6 +178,7 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     arquivo: impl std::io::Read,
     indice: &IndiceLocal,
     envio: &mut V,
+    upload_tentado: &mut bool,
 ) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
     let cookie = sessao
         .cookie
@@ -199,6 +211,7 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
                 codificacao,
             )
             .map_err(FalhaUpload::PreparacaoMultipart)?;
+            *upload_tentado = true;
             super::upload::enviar_https(
                 &plano,
                 arquivo,
