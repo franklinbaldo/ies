@@ -141,7 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_ciclo::cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli: test'
-          cargo +1.99.1 test --locked --bin ies cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli -- --ignored --exact --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies cassette_unb_controle_r_fecha_ciclo_http_e_leitor_da_cli -- --ignored --nocapture --test-threads=1
 
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas
