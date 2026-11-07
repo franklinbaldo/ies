@@ -5,13 +5,6 @@ use iesei::observacao::{
     Proveniencia, TabelaObservada, UnidadeExibida,
 };
 
-fn intervalo(v: Option<(usize, usize)>) -> Option<Option<FaixaObservada>> {
-    match v {
-        Some((a, b)) => Some(Some(FaixaObservada::nova(a, b)?)),
-        None => Some(None),
-    }
-}
-
 fn tabela(
     t: &crate::dominio::Tabela<crate::dominio::Processo>,
     faixa: Option<(usize, usize)>,
@@ -21,8 +14,12 @@ fn tabela(
         .iter()
         .map(|p| ProcessoNaLista::novo(p.id.as_str(), &p.numero))
         .collect::<Option<Vec<_>>>()?;
+    let faixa = match faixa {
+        Some((inicio, fim)) => Some(FaixaObservada::nova(inicio, fim)?),
+        None => None,
+    };
     Some(Cobertura::Observada(
-        TabelaObservada::nova(t.total_declarado, intervalo(faixa)?, linhas).ok()?,
+        TabelaObservada::nova(t.total_declarado, faixa, linhas).ok()?,
     ))
 }
 
@@ -38,11 +35,11 @@ pub(super) fn da_tela(
             .iter()
             .map(|p| ProcessoNaLista::novo(p.id.as_str(), &p.numero))
             .collect::<Option<Vec<_>>>()?;
-        let tabela = TabelaObservada::nova(
-            Some(leitura.total_declarado),
-            intervalo(leitura.faixa_observada)?,
-            linhas,
-        )
+        let faixa = match leitura.faixa_observada {
+            Some((inicio, fim)) => Some(FaixaObservada::nova(inicio, fim)?),
+            None => None,
+        };
+        let tabela = TabelaObservada::nova(Some(leitura.total_declarado), faixa, linhas)
         .ok()?;
         (
             leitura.unidade,
