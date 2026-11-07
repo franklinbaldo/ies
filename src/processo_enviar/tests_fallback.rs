@@ -178,3 +178,31 @@ fn bdd_333_03_anotacao_continua_preenchida_nao_tramita() {
             .any(|p| { p.metodo == "POST" && p.url == absoluta(&action_de_enviar()) })
     );
 }
+
+#[test]
+fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
+    // Dado que a limpeza foi relida como vazia, mas a releitura do envio falhou;
+    // Quando a confirmação termina com efeito incerto na tramitação;
+    // Então a CLI informa que a anotação já está limpa, sem repetir os POSTs.
+    let (resultado, pedidos) = executar(respostas_envio(
+        "Antes",
+        vec![
+            r302(&volta_a_arvore_do_envio()),
+            ok(form_anotacao("")),
+            r302(&volta_a_arvore_do_envio()),
+            Err(crate::transporte::FalhaTransporte::Rede),
+        ],
+    ));
+    let erro = resultado.expect_err("o destino não foi comprovado");
+    assert_eq!(erro.saida(), 3);
+    let saida = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
+        .expect("erro tipado serializável");
+    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["anotacao_depois"], false, "limpeza confirmada não pode desaparecer da falha");
+    for link in [action_anotacao(), action_de_enviar()] {
+        assert_eq!(
+            pedidos.iter().filter(|p| p.metodo == "POST" && p.url == absoluta(&link)).count(),
+            1, "cada escrita é única"
+        );
+    }
+}
