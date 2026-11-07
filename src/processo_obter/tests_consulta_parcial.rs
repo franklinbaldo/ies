@@ -47,7 +47,7 @@ fn rodar_informativo(
         propriedades: false,
         marcadores: false,
         unidade_exigida: false,
-        permitir_leitura_parcial: true,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Informativa,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo_informativo(&sessao, &pedido, &amb.indice, &mut roteiro);
@@ -73,7 +73,7 @@ fn rodar_escrita(
         propriedades: false,
         marcadores: false,
         unidade_exigida: false,
-        permitir_leitura_parcial: false,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let mut roteiro = Roteiro::novo(respostas);
     let r = obter_processo(&sessao, &pedido, &amb.indice, &mut roteiro);

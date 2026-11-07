@@ -15,6 +15,6 @@ pub(crate) fn obter_processo_informativo<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<ProcessoAberto, ErroProcessoObter> {
     let mut pedido_informativo = *pedido;
-    pedido_informativo.permitir_leitura_parcial = true;
+    pedido_informativo.leitura_das_pastas = super::LeituraDasPastas::Informativa;
     obter_processo(sessao, &pedido_informativo, indice, envio)
 }

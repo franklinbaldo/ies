@@ -26,7 +26,7 @@ fn relogin_concorrente_nao_muda_o_cookie_das_requisicoes_seguintes() {
         propriedades: true,
         marcadores: true,
         unidade_exigida: false,
-        permitir_leitura_parcial: false,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let mut roteiro = Roteiro::novo(vec![
         ok(controle(&[(ID, crate::arvore_processo::tests::NUP)])),

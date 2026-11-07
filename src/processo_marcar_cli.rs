@@ -140,7 +140,7 @@ fn previa<E: EnvioDoProcesso>(
         marcadores: true,
         // Uma escrita depende da unidade publicada pela tela do processo.
         unidade_exigida: true,
-        permitir_leitura_parcial: false,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let aberto = match obter_processo(sessao, &pedido, indice, envio) {
         Ok(aberto) => aberto,

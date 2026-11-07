@@ -427,7 +427,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         propriedades: !comando.sem_propriedades,
         marcadores: !comando.sem_marcadores,
         unidade_exigida: false,
-        permitir_leitura_parcial: true,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Informativa,
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
     let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {

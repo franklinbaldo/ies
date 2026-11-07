@@ -137,6 +137,12 @@ pub(crate) struct SessaoDoProcesso<'a> {
 
 /// O NUP pedido, a `--unidade` (conferida na primeira tela que a publica)
 /// e o que ler do histórico.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LeituraDasPastas {
+    Estrita,
+    Informativa,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct PedidoDoProcesso<'a> {
     pub(crate) nup: &'a NumeroProcesso,
@@ -149,8 +155,8 @@ pub(crate) struct PedidoDoProcesso<'a> {
     /// Pula o link guardado da árvore (passo 1), que não publica a unidade:
     /// quem escreve precisa da unidade da sessão (`processo concluir`).
     pub(crate) unidade_exigida: bool,
-    /// Leitura informativa tolera pastas incompletas, sem usar documentos parciais.
-    pub(crate) permitir_leitura_parcial: bool,
+    /// Consulta informativa tolera somente lacunas de documentos comprovadas.
+    pub(crate) leitura_das_pastas: LeituraDasPastas,
 }
 
 /// `--sem-andamentos`, padrão (a visão que o GET servir) ou

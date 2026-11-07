@@ -110,6 +110,9 @@ impl Contexto<'_> {
     /// Cada `DOCUMENTO` da árvore conferida com número SEI: o índice aprende
     /// número ↔ (processo, documento), sem requisição (Refs #60, fatia 2).
     pub(super) fn aprender_documentos(&self, arvore: &ArvoreLida) {
+        if !arvore.documentos_incluidos {
+            return;
+        }
         let documentos: Vec<(&str, &str)> = arvore
             .documentos
             .iter()

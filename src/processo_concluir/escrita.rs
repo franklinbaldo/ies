@@ -39,7 +39,7 @@ pub(crate) fn leitura<'a>(
         propriedades: false,
         marcadores: false,
         unidade_exigida,
-        permitir_leitura_parcial: false,
+        leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     }
 }
 
