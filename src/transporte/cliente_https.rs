@@ -32,6 +32,16 @@ pub(crate) struct Envio<'a> {
     pub(crate) corpo: &'a [u8],
 }
 
+/// Corpo de POST multipart preparado sem copiar o arquivo inteiro.
+#[allow(dead_code)] // #332: será ligado ao comando após observar o formulário em treinamento.
+pub(crate) struct EnvioEmFluxo<'a, R: Read> {
+    pub(crate) tipo: &'a str,
+    pub(crate) origem: &'a str,
+    pub(crate) referer: &'a str,
+    pub(crate) tamanho: u64,
+    pub(crate) corpo: R,
+}
+
 /// Host e alvo (`/caminho?consulta`) de uma URL HTTPS sem porta.
 fn alvo(url: &str) -> Result<(&str, &str), FalhaTransporte> {
     let resto = url
@@ -128,6 +138,18 @@ pub(crate) fn requisitar_via<S: Read + Write>(
         .and_then(|()| fluxo.flush())
         .map_err(|_| FalhaTransporte::Rede)?;
     Resposta::ler(BufReader::new(fluxo))
+}
+
+/// RED #332: POST multipart de tamanho conhecido pelo mesmo cliente HTTPS.
+#[allow(dead_code)] // O fluxo remoto ainda não está acessível pela CLI.
+pub(crate) fn requisitar_em_fluxo_via<S: Read + Write, R: Read>(
+    _url: &str,
+    _cookie: &str,
+    _envio: EnvioEmFluxo<'_, R>,
+    _ambiente: impl Fn(&str) -> Option<String>,
+    _envolver: impl FnOnce(&str, TcpStream) -> Result<S, FalhaTransporte>,
+) -> Result<Resposta<BufReader<S>>, FalhaTransporte> {
+    Err(FalhaTransporte::Rede)
 }
 
 /// Pedidos reais tentados por este processo (todos os comandos e o
