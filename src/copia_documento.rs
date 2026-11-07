@@ -162,11 +162,11 @@ fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> Str
         let texto = std::str::from_utf8(linha).ok().and_then(|texto| {
             let baixo = texto.to_ascii_lowercase();
             let sensivel = texto.len() > 512
-                || texto.contains(['=', '?'])
+                || (texto.contains('=') || texto.contains('?'))
                 || baixo.contains("://")
                 || ["infra_hash", "cookie", "senha", "token", "authorization", "session"]
                     .iter()
-                    .any(|s| baixo.contains(s));
+                    .any(|s| baixo.contains(*s));
             (!sensivel).then_some(texto.trim_end_matches('\r'))
         });
         let linha = format!(
@@ -245,6 +245,7 @@ pub fn previa_local(
     if editada == base {
         return Err(ErroCopia::EdicaoIgualABase);
     }
+    let trecho = trecho_divergente(&base, &editada).expect("a edição difere da base");
     Ok(PreviaCopia {
         documento: numero.to_owned(),
         versao_base: n.numero(),
@@ -253,12 +254,8 @@ pub fn previa_local(
         bytes_editada: editada.len(),
         escrita_remota: false,
         base_verificada: false,
-        trecho_divergente: trecho_divergente(&base, &editada),
-        diff_humano: diff_humano(
-            &base,
-            &editada,
-            trecho_divergente(&base, &editada).expect("a edição difere da base"),
-        ),
+        trecho_divergente: Some(trecho),
+        diff_humano: diff_humano(&base, &editada, trecho),
     })
 }
 
