@@ -5,7 +5,7 @@ use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::{Cursor, Read};
 
 const PDF: &[u8] = b"%PDF-1.4\n%%EOF\n";
-const RECIBO: &str = "94e336aa#prova.pdf#application/pdf#14#11/10/2026 11:07:50#";
+const RECIBO: &str = "94e336aa#prova.pdf#application/pdf#15#11/10/2026 11:07:50#";
 
 #[test]
 fn upload_temporario_transmite_um_multipart_inteiro_e_aceita_so_recibo_observado() {
