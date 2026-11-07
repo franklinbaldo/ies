@@ -88,10 +88,7 @@ fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["causa"],
-        "CadastroNaoValidado"
-    );
+    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
 }
 
 #[test]
@@ -132,7 +129,10 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Pdf": "NomeInvalido"}));
+    assert_eq!(
+        json(&saida)["causa"],
+        serde_json::json!({"Pdf": "NomeInvalido"})
+    );
 }
 
 #[test]
