@@ -86,12 +86,7 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
         let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
-        let nativo =
-            href.split('?').nth(1).is_some_and(|consulta| {
-                consulta.split('&').any(|par| par == "acao=documento_gerar")
-            }) || (href == "#" || href == "javascript:void(0);")
-                && onclick.as_deref().and_then(id_da_escolha_literal).is_some();
-        if !nativo {
+        if !link_de_tipo_interno(&href, onclick.as_deref()) {
             continue;
         }
         let nome = tag
@@ -191,6 +186,27 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
     let chamada = onclick.trim().trim_end_matches(';').trim();
     let id = chamada.strip_prefix("escolher(")?.strip_suffix(')')?;
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
+}
+
+/// A opçao externa nao integra a lista de tipos de documento nativo.
+fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
+    href.strip_prefix("controlador.php?")
+        .is_some_and(|consulta| {
+            consulta
+                .split('&')
+                .any(|par| par == "acao=documento_receber")
+        })
+        || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
+}
+
+/// Reconhece tipos nativos sem tratar controles invalidos como externos.
+fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
+    !link_de_tipo_externo(href, onclick)
+        && (href
+            .strip_prefix("controlador.php?")
+            .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_gerar"))
+            || ((href == "#" || href == "javascript:void(0);")
+                && onclick.and_then(id_da_escolha_literal).is_some()))
 }
 
 /// Reconhece só o corpo literal observado da função, com duas instruções
@@ -310,17 +326,13 @@ pub(crate) fn escolha_do_tipo(
             continue;
         }
         let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ListaForaDaForma)?;
-        // A variante -1 é documento externo, não um tipo nativo.
-        if onclick
-            .as_deref()
-            .is_some_and(|s| s.trim().trim_end_matches(';') == "escolher(-1)")
-        {
-            continue;
-        }
         let href = valor_do_atributo(tag, "href")
             .map_err(|_| E::ListaForaDaForma)?
             .ok_or(E::LinkDoTipoNaoNavegavel)?;
         let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
+        if link_de_tipo_externo(&href, onclick.as_deref()) {
+            continue;
+        }
         links.push((href, onclick));
     }
     let (href, onclick) = match links.as_slice() {
