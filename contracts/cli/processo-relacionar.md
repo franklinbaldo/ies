@@ -81,7 +81,6 @@ senha ou argumento secreto. Exit 0 prévia, 1 recusa, 2 uso inválido.
 | `tela_de_relacionamentos_redirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
 | `relacionamento_consigo_mesmo` | O destino informado é o próprio processo |
 | `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
-
 | `destino_da_consulta_diverge_do_pedido` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
 | `resposta_da_consulta_nao_xml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
 
