@@ -201,7 +201,7 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "diretorio_texto_documento_ausente");
 }
 
 #[test]
