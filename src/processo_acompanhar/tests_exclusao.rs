@@ -7,7 +7,7 @@ fn instalacao() -> Instalacao {
     Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap()
 }
 
-fn lista_observada(id: &str) -> String {
+pub(super) fn lista_observada(id: &str) -> String {
     let gerenciar = format!(
         "controlador.php?acao=acompanhamento_gerenciar&id_procedimento=10&infra_hash={}",
         "a".repeat(64)
