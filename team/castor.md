@@ -21,7 +21,7 @@ Criar RED reproduzível para defeito real; diminuir duplicação sem alterar sem
 
 ## Limites específicos
 
-Evitar churn de refatoração ampla, arquivos de outras frentes e novos mecanismos genéricos sem necessidade.
+Evitar churn de refatoração ampla, arquivos de outras frentes e novos mecanismos genéricos sem necessidade. Não criar defesas decorativas para especulações teóricas em scripts de teste; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
 
 ## Continuidade atual
 

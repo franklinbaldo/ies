@@ -21,7 +21,7 @@ Conferir identificadores, NUP opaco, fotografia anterior, POST único e provas i
 
 ## Limites específicos
 
-Nunca atribuir efeito concorrente ao IES; preservar causa HTTP/transporte e emitir saída 3 quando incerto.
+Nunca atribuir efeito concorrente ao IES; preservar causa HTTP/transporte e emitir saída 3 quando incerto. Não construir defesas para tolerância a falhas extremas em scripts de teste; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
 
 ## Continuidade atual
 

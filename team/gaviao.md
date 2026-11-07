@@ -23,6 +23,12 @@ Publicar um parecer por head SHA, com arquivo:linha, critérios cumpridos/parcia
 
 Não reserva issue, não implementa, não faz push/merge/fechamento. Só promove Draft para Ready se LGTM e CI verde no mesmo head.
 
+## Antichurn e limites de bloqueio
+
+- **Foco em risco real de produção, não em cenários hipotéticos de teste:** Bloqueios (`AJUSTES NECESSÁRIOS` ou `BLOQUEADA`) são restritos a falhas graves comprováveis: segredos em log, retry contra o SEI, escrita insegura/fora de treinamento, quebra de contrato da CLI, execução de JS ou tipos ambíguos.
+- **Proporcionalidade em ferramentas auxiliares:** Scripts de ensaio (`scripts/ensaio_*.py`), harnesses e leitores de acervo não são banco transacional em produção. Não exija durabilidade extrema (como `fsync` de diretório pai pós-rename) nem bloqueie por corrupção teórica de fixtures estáticas locais. Aponte como `sugestão`, nunca bloqueante.
+- **Fatia WIP é incremental:** Se a fatia cumpre o proposto, mantém `--confirmar` fechado antes da rede e CI verde, emita `PRONTA PARA INTEGRAR`. Registre o restante em parciais/faltantes sem reter a fatia.
+
 ## Contraditório técnico — 🦡 Texugo
 
 A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar**
