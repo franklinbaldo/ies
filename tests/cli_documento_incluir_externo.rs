@@ -152,7 +152,10 @@ fn tipo_com_controle_direcional_nao_pode_enganar_a_saida_humana() {
         "An\u{202e}exo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Tipo": "Controle"}));
+    assert_eq!(
+        json(&saida)["causa"],
+        serde_json::json!({"Tipo": "Controle"})
+    );
 }
 
 #[test]
