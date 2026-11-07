@@ -66,7 +66,76 @@ uvx --from 'git+https://github.com/franklinbaldo/ies' ies --help
 Essa ultima forma instala a fonte Git, portanto necessita uma compilacao
 Rust no primeiro uso. **Nao** confundir com executar wheels pre-compilados.
 
-## Publicacao
+## GitHub Releases: instalar sem PyPI
+
+Os wheels validados no CI podem ser anexados como assets de uma
+GitHub Release. **O uvx aceita a URL HTTPS direta de um arquivo .whl**,
+sem compilar Rust e sem consultar o PyPI:
+
+```sh
+uvx --from 'URL_HTTPS_DO_WHEEL_DA_RELEASE' ies --help
+uv tool install --from 'URL_HTTPS_DO_WHEEL_DA_RELEASE' ies
+```
+
+O segundo comando instala o executavel permanentemente com o nome
+`ies`. A URL precisa apontar ao **arquivo .whl**, nao a pagina
+HTML da release e nem a um executavel `ies` avulso.
+
+Para um futuro asset Linux de versao 0.1.0, por exemplo, o endereco
+poderia ter esta forma (exemplo, **nao indica uma Release existente**):
+
+```text
+https://github.com/franklinbaldo/ies/releases/download/v0.1.0/ies_sei-0.1.0-py3-none-manylinux_2_34_x86_64.whl
+```
+
+Cada plataforma tem seu proprio wheel. O `uvx --from URL` **nao
+seleciona automaticamente entre arquivos diferentes de uma Release**;
+e necessario usar a URL cujo nome corresponda ao sistema e arquitetura.
+Para selecao automatica com um unico nome de pacote, precisa de um
+indice Python PEP 503 (PyPI ou indice proprio, por exemplo GitHub Pages).
+
+### Protocolo de publicacao
+
+`.github/workflows/release-uvx.yml` roda somente quando uma tag
+`vMAJOR.MINOR.PATCH` e enviada ao GitHub. Antes de criar a Release:
+
+1. Confere que a tag identifica um commit integrado a `main`.
+2. Confere igualdade da versao de `Cargo.toml`, `pyproject.toml` e tag.
+3. Roda todos os gates canonicos do `prek` sobre o commit da tag.
+4. Reutiliza o workflow de wheels para Linux, Windows e macOS; cada um
+   executa o CLI real com `uvx --from <wheel> ies --help`.
+5. So apos tres wheels aprovados, cria uma GitHub Release com os tres
+   arquivos `.whl` e um `SHA256SUMS`, com permissao de escrita limitada
+   ao job final.
+
+Para publicar, apos revisar e integrar a PR correspondente, a pessoa
+responsavel cria e envia **explicitamente** uma tag a partir da `main`.
+Por exemplo, quando as versoes no codigo forem `0.1.0`:
+
+```sh
+git switch main
+git pull --ff-only
+git tag -a v0.1.0 -m "IES v0.1.0"
+git push origin v0.1.0
+```
+
+**Esta PR nao cria tag nem publica Release automaticamente.** Nao
+versione os binarios no Git; eles ficam apenas no armazenamento de
+releases. Verifique os hashes antes de redistribuir os arquivos.
+
+## Opcao futura: indice Python
+
+Para permitir o comando mais curto, sem URL especifica da arquitetura,
+
+```sh
+uvx --from ies-sei ies --help
+```
+
+e necessario publicar `ies-sei` no PyPI ou informar ao `uvx` um
+indice alternativo (PEP 503) que liste os wheels da Release. Em ambos
+os casos o `uvx` escolhe o wheel compatível automaticamente.
+
+A publicacao no PyPI permanece uma etapa **independente e opcional**.
 
 Antes de uma release:
 
