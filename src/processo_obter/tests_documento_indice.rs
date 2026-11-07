@@ -478,3 +478,33 @@ fn pesquisa_com_documento_em_pasta_fechada_abre_as_pastas() {
         post(&absoluta(&action_rapida()), "txtPesquisaRapida=0021")
     );
 }
+
+#[test]
+fn bdd_60_05_numero_ambiguo_recusa_sem_contaminar_indice() {
+    // Dado um processo com dois nós DOCUMENTO para o mesmo número SEI,
+    // Quando executo ies documento DOC --processo NUP,
+    // Então a CLI recusa a ambiguidade sem guardar um dos IDs como verdadeiro.
+    let amb = ambiente();
+    guardar_arvore(&amb);
+    let dois_ids_para_doc = arvore(&[
+        no_processo(0, ID, NUP),
+        no_documento(1, ID_DOC, ID, DOC),
+        no_documento(2, "23", ID, DOC),
+        no_documento(3, ID_DOC2, ID, DOC2),
+    ]);
+    let (resultado, pedidos) =
+        rodar_doc(&amb, DOC, Some(NUP), vec![ok(dois_ids_para_doc)]);
+    assert_eq!(
+        resultado.unwrap_err().subcodigo(),
+        "numero_sei_repetido_na_arvore"
+    );
+    assert_eq!(pedidos, [get(&url_arvore(ID))], "nenhum GET de conteúdo");
+    assert!(
+        amb.indice.documento_por_numero(&instalacao(), DOC).is_none(),
+        "dois IDs observados não podem virar associação durável"
+    );
+    assert!(
+        amb.indice.documento_por_numero(&instalacao(), DOC2).is_some(),
+        "outro número inequívoco deve continuar disponível"
+    );
+}
