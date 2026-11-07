@@ -34,9 +34,11 @@ fn roundtrip_do_controle_preserva_identidades_e_cobertura() {
         .unwrap();
     assert_eq!(recarregada, observacao);
     assert!(recarregada.suficiente_para_servir());
-    assert!(consultar(&banco, "https://outro.exemplo", "perfil-sintetico")
-        .unwrap()
-        .is_none());
+    assert!(
+        consultar(&banco, "https://outro.exemplo", "perfil-sintetico")
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
