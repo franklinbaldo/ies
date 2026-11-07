@@ -59,6 +59,12 @@ pub(crate) fn inspecionar_pdf(
             return Err(FalhaPdf::LinkSimbolico);
         }
     }
+    if !fs::symlink_metadata(caminho)
+        .map_err(|_| FalhaPdf::Leitura)?
+        .is_file()
+    {
+        return Err(FalhaPdf::NaoRegular);
+    }
     let nome = caminho
         .file_name()
         .and_then(|n| n.to_str())
