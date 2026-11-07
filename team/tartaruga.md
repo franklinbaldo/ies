@@ -21,7 +21,7 @@ Testes adversariais para negativas, recusa antes da sessão/rede e isolamento de
 
 ## Limites específicos
 
-Não mexer no branch de outras frentes para auditoria: relatar problema verificável na issue e ao Gavião.
+Não mexer no branch de outras frentes para auditoria: relatar problema verificável na issue e ao Gavião. Não criar validações defensivas offline sem evidência na tela real; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
 
 ## Continuidade atual
 
