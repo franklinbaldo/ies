@@ -108,7 +108,6 @@ fn dado_tipo_desabilitado_quando_consulto_previa_entao_nao_e_oferecido() {
     ));
 }
 
-
 #[test]
 fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_valores() {
     // BDD-332-02: saída da prévia publica os campos ofertados pelo cadastro.
@@ -127,7 +126,18 @@ fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_
     let cadastro = observar_cadastro(&pagina, "Anexo", 68).unwrap();
     assert_eq!(
         cadastro.campos_oferecidos,
-        ["selSerie", "txtDataElaboracao", "selTipoConferencia", "rdoFormato", "rdoNivelAcesso"]
+        [
+            "selSerie",
+            "txtDataElaboracao",
+            "selTipoConferencia",
+            "rdoFormato",
+            "rdoNivelAcesso"
+        ]
     );
-    assert!(!cadastro.campos_oferecidos.iter().any(|campo| campo.contains("confidencial")));
+    assert!(
+        !cadastro
+            .campos_oferecidos
+            .iter()
+            .any(|campo| campo.contains("confidencial"))
+    );
 }
