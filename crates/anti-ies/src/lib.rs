@@ -96,6 +96,7 @@ fn eh_controlador_sei(alvo: &str) -> bool {
 use iesei::observacao::{
     Cobertura, FormaDoControle, ObservacaoDoControle, ProcessoNaLista, TabelaObservada,
 };
+use std::fmt::Write as _;
 
 fn escapar_html(texto: &str) -> String {
     texto
@@ -108,14 +109,15 @@ fn escapar_html(texto: &str) -> String {
 
 fn linhas_html(tabela: &TabelaObservada<ProcessoNaLista>, html: &mut String) {
     for processo in &tabela.linhas {
-        html.push_str(&format!(
+        let _ = write!(
+            html,
             "<tr id='P{}'><td>linha</td><td><a class='processoVisualizado' \
              href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento={}'>\
              {}</a></td><td>Ofício</td></tr>",
             processo.id,
             processo.id,
             escapar_html(&processo.numero)
-        ));
+        );
     }
 }
 
@@ -145,7 +147,7 @@ fn renderizar_controle(observado: &ObservacaoDoControle<ProcessoNaLista>) -> Opt
                 let Cobertura::Observada(tabela) = categoria else {
                     return None;
                 };
-                html.push_str(&format!("<table id='{id}'><caption>{}</caption>", legenda(tabela)));
+                let _ = write!(html, "<table id='{id}'><caption>{}</caption>", legenda(tabela));
                 linhas_html(tabela, &mut html);
                 html.push_str("</table>");
             }
@@ -159,11 +161,12 @@ fn renderizar_controle(observado: &ObservacaoDoControle<ProcessoNaLista>) -> Opt
                  <input id='hdnRecebidosHashCriterios' value='r'>\
                  <input id='hdnGeradosHashCriterios' value='g'>",
             );
-            html.push_str(&format!(
+            let _ = write!(
+                html,
                 "<table id='tblProcessosDetalhado'><caption>({})</caption>\
                  <tr><th></th><th>Processo</th><th>Tipo</th></tr>",
                 legenda(tabela)
-            ));
+            );
             linhas_html(tabela, &mut html);
             html.push_str("</table>");
         }
