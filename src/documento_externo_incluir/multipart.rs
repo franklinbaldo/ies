@@ -27,7 +27,7 @@ impl MultipartPdf {
     }
 
     /// Encadeia partes sem copiar o conteúdo inteiro do PDF para memória.
-    pub(crate) fn corpo<R: Read>(&self, arquivo: R) -> impl Read + '_ {
+    pub(crate) fn corpo<'a, R: Read + 'a>(&'a self, arquivo: R) -> impl Read + 'a {
         Cursor::new(self.cabecalho.as_slice())
             .chain(arquivo)
             .chain(Cursor::new(self.rodape.as_slice()))
@@ -74,7 +74,7 @@ mod tests {
         latin.corpo(PDF).read_to_end(&mut l).unwrap();
         utf8.corpo(PDF).read_to_end(&mut u).unwrap();
         assert!(l.windows(10).any(|v| v == b"fic\xe7\xe3o.pdf"));
-        assert!(u.windows(11).any(|v| v == "ficção.pdf".as_bytes()));
+        assert!(u.windows("ficção.pdf".len()).any(|v| v == "ficção.pdf".as_bytes()));
     }
 
     #[test]
