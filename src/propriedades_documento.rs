@@ -123,22 +123,11 @@ pub(crate) fn ler_link(
             Some("documento_consultar_recebido") => "documento_consultar_recebido",
             _ => continue,
         };
-        conferir_endereco_relativo_por(
-            instalacao,
-            &href,
-            fonte,
-            "id_procedimento",
-            processo,
-        )
-        .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
-        let url = conferir_endereco_relativo_por(
-            instalacao,
-            &href,
-            fonte,
-            "id_documento",
-            documento,
-        )
-        .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
+        conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
+            .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
+        let url =
+            conferir_endereco_relativo_por(instalacao, &href, fonte, "id_documento", documento)
+                .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
         if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
             return Err(ErroHtml::repetido("links_cadastro_documento_repetidos"));
         }
@@ -240,8 +229,8 @@ mod tests {
             no_processo(0, "10", NUP),
             no_documento(1, "21", "10", "0000101"),
         ]);
-        let barra = barra("10", "21", None)
-            .replace("acao=documento_alterar", "acao=documento_consultar");
+        let barra =
+            barra("10", "21", None).replace("acao=documento_alterar", "acao=documento_consultar");
         let html = com_barra(&html, 1, &barra);
         let link = ler_link(&instalacao(), &html, "21", "10")
             .unwrap()
@@ -257,8 +246,10 @@ mod tests {
             no_processo(0, "10", NUP),
             no_documento(1, "21", "10", "0000101"),
         ]);
-        let barra = barra("10", "21", None)
-            .replace("acao=documento_alterar", "acao=documento_consultar_recebido");
+        let barra = barra("10", "21", None).replace(
+            "acao=documento_alterar",
+            "acao=documento_consultar_recebido",
+        );
         let html = com_barra(&html, 1, &barra);
         let link = ler_link(&instalacao(), &html, "21", "10")
             .unwrap()
