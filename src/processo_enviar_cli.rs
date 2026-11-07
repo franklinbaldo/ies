@@ -39,12 +39,16 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
         Ok(sigla) => sigla,
         Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
     };
+    // A implementação já tem ensaios sintéticos, mas não passou pelo ciclo
+    // de escrita e releitura numa instalação de treinamento (#333).
+    // Bloquear a confirmação pública antes da sessão; manter a prévia livre.
     if *remover_anotacoes && *confirmar {
         let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-        return Some(saida_erro::erro_fonte(
+        return Some(saida_erro::erro_fonte_http(
             cli.json,
             erro.subcodigo(),
             erro.mensagem(),
+            None,
         ));
     }
     Some(enviar(
@@ -229,6 +233,13 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     {
         linhas.push(format!("IES: verificação: {motivo}"));
     }
+    if let E::EfeitoIncertoNoEnvio {
+        anotacao_depois: Some(false),
+        ..
+    } = erro
+    {
+        linhas.push("IES: anotacao_depois: removida (releitura antes da tramitação)".to_owned());
+    }
     linhas
 }
 
@@ -262,6 +273,8 @@ struct ResultadoEnvio<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     anotacao_antes: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    anotacao_depois: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metodo_remocao: Option<crate::processo_enviar::MetodoRemocao>,
     nup: &'a str,
     origem: &'static str,
@@ -281,6 +294,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         manter_aberto: feito.manter_aberto,
         remover_anotacoes: feito.remover_anotacoes.then_some(true),
         anotacao_antes: feito.anotacao_antes,
+        anotacao_depois: feito.anotacao_depois,
         metodo_remocao: feito.metodo_remocao,
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
@@ -346,10 +360,12 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
         }
         ErroEnviar::EfeitoIncertoNoEnvio {
             aberto_em,
+            anotacao_depois,
             falha_do_envio,
             verificacao,
         } => {
             valor.aberto_em = Some(aberto_em);
+            valor.anotacao_depois = *anotacao_depois;
             valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
@@ -386,6 +402,9 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             None => "não observada",
         };
         linhas.push(format!("Anotação na origem, antes do envio: {observada}"));
+        if let Some(false) = feito.anotacao_depois {
+            linhas.push("Anotação na origem, após o envio: removida (releitura)".to_owned());
+        }
     }
     match (feito.confirmado, &feito.depois) {
         (false, _) => {

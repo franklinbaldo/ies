@@ -167,14 +167,17 @@ tela de outro processo. Se o checkbox do envio estiver ausente, mas a
 anotação for editável pelo formulário oferecido, a prévia escolhe
 `metodo_remocao: limpar_anotacao` e planeja salvar `txaDescricao=""`
 antes da tramitação; sem ambos os controles a operação recusa antes da
-consulta AJAX. A alternativa é documentada pelo manual oficial do SEI,
-mas **ainda não executa POST mutador**: dois efeitos distintos exigiriam
-duas releituras, e uma falha entre eles deixaria alteração parcial.
-A lista de unidades em `aberto_em` **não** comprova
-remoção de anotações, portanto `--confirmar --remover-anotacoes` permanece
-fechado antes de qualquer sessão e requisição até haver leitura
-independente do efeito adicional. Esta decisão preserva a confirmação
-normal de `ies processo enviar` sem a nova opção.
+consulta AJAX. A alternativa segue o manual oficial do SEI: quando a tela oferece
+`sbmRegistrarAnotacao` e existe anotação, deriva um POST para salvar
+`txaDescricao=""` e faz GET independente para confirmar que ficou vazio.
+Somente após essa confirmação executa o POST único de envio e a
+releitura da árvore. Se a anotação já estava vazia, não grava a limpeza.
+Se o estado da limpeza é inconclusivo, interrompe com saída 3 sem enviar
+nem repetir o POST. Dois efeitos mutadores distintos podem deixar
+estado parcial se a tramitação seguinte falhar, o que deve aparecer
+honestamente no resultado; a validação live desse fallback ainda é
+**NOT_RUN**. A lista `aberto_em` não comprova anotação: são duas
+observações independentes. O envio básico sem remoção permanece inalterado.
 
 ## Evidências verificáveis
 
