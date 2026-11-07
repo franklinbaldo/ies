@@ -60,8 +60,8 @@ pub(crate) enum ErroAtribuir {
     Html(ErroHtml),
 }
 impl ErroAtribuir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        crate::erro_publico::folha(self)
     }
 }
 

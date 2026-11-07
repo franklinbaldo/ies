@@ -34,7 +34,6 @@ pub(crate) struct ProcessoAtribuido {
     pub(crate) valor_da_opcao: String,
     pub(crate) confirmado: bool,
     pub(crate) alterado: bool,
-    pub(crate) reconciliado_por: Option<ErroSubmissaoFormulario>,
     pub(crate) requisicoes: u8,
 }
 
@@ -78,7 +77,7 @@ pub(crate) enum ErroProcessoAtribuir {
 impl ErroProcessoAtribuir {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::Preparacao(erro) => erro.clone().subcodigo(),
+            Self::Preparacao(erro) => erro.subcodigo(),
             Self::Barra(erro) => (*erro).subcodigo(),
             _ => crate::erro_publico::folha(self),
         }
@@ -193,7 +192,6 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         valor_da_opcao: valor,
         confirmado: false,
         alterado: false,
-        reconciliado_por: None,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
@@ -259,7 +257,6 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     }
     feito.confirmado = true;
     feito.alterado = true;
-    feito.reconciliado_por = falha_do_envio;
     Ok(feito)
 }
 
