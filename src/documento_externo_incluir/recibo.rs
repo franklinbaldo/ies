@@ -75,14 +75,29 @@ pub(crate) fn interpretar_resposta(
     })
 }
 
-/// RED #332: interpretar resposta HTTP real de upload temporário em fluxo.
-#[allow(dead_code)] // Consumido pelo ensaio de transporte até o comando habilitar o cadastro.
+/// Interpreta o retorno do POST temporário, sem confundi-lo com o cadastro.
+#[allow(dead_code)] // #332: usado na bancada; a CLI ainda não transmite.
 pub(crate) fn interpretar_http<R: std::io::Read>(
-    _resposta: crate::transporte::RespostaWeb<R>,
-    _nome_esperado: &str,
-    _tamanho_esperado: u64,
+    resposta: crate::transporte::RespostaWeb<R>,
+    nome_esperado: &str,
+    tamanho_esperado: u64,
 ) -> Result<ReciboUpload, FalhaUpload> {
-    Err(FalhaUpload::EfeitoIncerto { status_http: None })
+    let status_http = u16::try_from(resposta.status_code).unwrap_or(0);
+    let incerto = || FalhaUpload::EfeitoIncerto {
+        status_http: Some(status_http),
+    };
+    if status_http != 200
+        || resposta
+            .content_length
+            .is_some_and(|tamanho| tamanho > 64 * 1024)
+    {
+        return Err(incerto());
+    }
+    let bytes = crate::transporte::ler_limitado(resposta.corpo, 64 * 1024)
+        .map_err(|_| incerto())?;
+    let corpo = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| incerto())?;
+    interpretar_resposta(status_http, &corpo, nome_esperado, tamanho_esperado)
 }
 
 #[cfg(test)]
