@@ -14,6 +14,7 @@ pub(super) struct Relacionamento {
 pub(super) struct DestinoConsultado {
     pub(super) id: String,
     pub(super) nup: String,
+    pub(super) tipo: Option<String>,
 }
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, &'static str> {
     valor_do_atributo(tag, nome)
@@ -150,6 +151,7 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
     }
     let mut id = Vec::new();
     let mut numero = Vec::new();
+    let mut tipos = Vec::new();
     for no in dom.query_selector("complemento").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
@@ -160,6 +162,7 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
         match atributo(tag, "nome")?.as_deref() {
             Some("IdProcedimento") => id.push(valor),
             Some("ProtocoloProcedimentoFormatado") => numero.push(valor),
+            Some("NomeTipoProcedimento") => tipos.push(valor),
             _ => (),
         }
     }
@@ -167,9 +170,16 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
         ([id], [nup])
             if !id.is_empty() && id.bytes().all(|c| c.is_ascii_digit()) && !nup.is_empty() =>
         {
+            let tipo = match tipos.as_slice() {
+                [] => None,
+                [nome] if nome.is_empty() => None,
+                [nome] => Some(nome.clone()),
+                _ => return Err("destino_da_consulta_ambiguo"),
+            };
             Ok(DestinoConsultado {
                 id: id.clone(),
                 nup: nup.clone(),
+                tipo,
             })
         }
         ([], _) | (_, []) => Err("destino_a_relacionar_nao_identificado"),
