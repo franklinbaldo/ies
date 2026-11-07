@@ -24,25 +24,60 @@ fn id_documento_da_resposta(item: &Value) -> Option<String> {
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| (*id).to_owned())
 }
 
-fn conferir_lista(item: &Value, atividade: Option<(String, String)>) -> Resultado {
-    match (
-        html_da_resposta(item),
-        atividade,
-        gravacao::id_procedimento(item),
-    ) {
-        (Ok(html), Some((processo, id)), Some(processo_da_lista))
-            if processo == processo_da_lista =>
-        {
-            match atividade_na_lista(&html, &id) {
-                Ok(true) => Resultado::Lido,
-                Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-                Err(erro) => Resultado::Recusado(erro.subcodigo()),
-            }
+/// Prova de replay tem identidade do ALVO, não apenas do processo.
+#[derive(Debug)]
+enum ProvaPendente {
+    Processo {
+        id_procedimento: String,
+        id_atividade: String,
+    },
+    Documento {
+        id_procedimento: String,
+        id_documento: String,
+        id_atividade: String,
+    },
+}
+
+fn conferir_lista(item: &Value, atividade: Option<ProvaPendente>) -> Resultado {
+    let html = match html_da_resposta(item) {
+        Ok(html) => html,
+        Err(_) => return Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
+    };
+    let Some(prova) = atividade else {
+        return Resultado::NaoAplicavel("aceite_sem_atividade_observada");
+    };
+    let Some(processo_da_lista) = gravacao::id_procedimento(item) else {
+        return Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado");
+    };
+    let (processo, id, documento) = match &prova {
+        ProvaPendente::Processo {
+            id_procedimento,
+            id_atividade,
+        } => (id_procedimento, id_atividade, None),
+        ProvaPendente::Documento {
+            id_procedimento,
+            id_documento,
+            id_atividade,
+        } => (id_procedimento, id_atividade, Some(id_documento)),
+    };
+    if *processo != processo_da_lista {
+        return Resultado::NaoAplicavel("lista_de_outro_processo");
+    }
+    match documento {
+        Some(documento) => match id_documento_da_resposta(item) {
+            Some(id) if id == *documento => {}
+            Some(_) => return Resultado::NaoAplicavel("lista_de_outro_documento"),
+            None => return Resultado::NaoAplicavel("id_documento_da_lista_nao_observado"),
+        },
+        None if !gravacao::parametro(item, "id_documento").is_empty() => {
+            return Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo");
         }
-        (Err(_), _, _) => Resultado::NaoAplicavel("corpo_da_lista_nao_gravado"),
-        (_, None, _) => Resultado::NaoAplicavel("aceite_sem_atividade_observada"),
-        (_, Some(_), None) => Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado"),
-        (_, Some(_), Some(_)) => Resultado::NaoAplicavel("lista_de_outro_processo"),
+        None => {}
+    }
+    match atividade_na_lista(&html, id) {
+        Ok(true) => Resultado::Lido,
+        Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
+        Err(erro) => Resultado::Recusado(erro.subcodigo()),
     }
 }
 
@@ -50,7 +85,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
     let mut registros = Vec::new();
     // A prova pendente pertence ao ultimo aceite, nunca a aceites anteriores.
     // A lista deve ainda pertencer ao mesmo processo do aceite.
-    let mut atividade: Option<(String, String)> = None;
+    let mut atividade: Option<ProvaPendente> = None;
     for resposta in gravacao::respostas(json) {
         if matches!(
             resposta.operacao,
@@ -99,7 +134,18 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 };
                 let resultado = match atividade_do_aceite(&html, alvo) {
                     Ok(id) => {
-                        atividade = Some((processo.to_owned(), id));
+                        atividade = Some(if resposta.operacao == "documento_ciencia" {
+                            ProvaPendente::Documento {
+                                id_procedimento: processo.to_owned(),
+                                id_documento: id_documento.expect("documento validado antes"),
+                                id_atividade: id,
+                            }
+                        } else {
+                            ProvaPendente::Processo {
+                                id_procedimento: processo.to_owned(),
+                                id_atividade: id,
+                            }
+                        });
                         Resultado::Lido
                     }
                     Err(erro) => Resultado::Recusado(erro.subcodigo()),
