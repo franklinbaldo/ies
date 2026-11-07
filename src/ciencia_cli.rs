@@ -83,7 +83,7 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     ExitCode::from(erro.saida())
 }
 
-fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
+pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     let codigo = if erro.saida() == 3 {
         "efeito_incerto"
     } else {
