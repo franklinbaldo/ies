@@ -169,7 +169,7 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
 ```json
 {"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
  "origem": "web", "confirmado": false, "alterado": false,
- "manter_aberto": false, "remover_anotacoes": false,
+ "manter_aberto": false,
  "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1", "id_unidade": "110000002"},
  "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
  "reconciliado_por_leitura": false, "requisicoes": 5}
