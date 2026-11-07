@@ -13,7 +13,15 @@ conteúdo de cada documento **interno** (editor do SEI) pelo número SEI.
 `--versao N`, `versao_atual` e a foto `DOC.vN.html` de `--saida`
 estão no [contrato de versões](documento-obter-versoes.md)
 (Refs #88, #207), sobre qualquer caminho que abriu a árvore.
-`--com-propriedades` continua no stub (`nao_implementado`, saída 1).
+Com `--com-propriedades`, a CLI segue apenas o link
+`documento_alterar` publicado na barra do documento. Confere os IDs
+de documento e processo, lê `frmDocumentoCadastro` com um GET
+adicional (sem POST) e publica `propriedades` com `fonte`,
+`tipo`, `descricao`, `nome_na_arvore`, `observacoes` e
+`nivel_de_acesso`. Sem link: `propriedades: null`,
+`propriedades_motivo: nao_publicadas_na_barra` e nenhum GET extra.
+Formulário ilegível ou identidade divergente são recusas tipadas.
+A ação `documento_consultar` exige observação específica do formulário.
 `--ocultar-inacessiveis` é atendido na leitura Web: em lote, omite apenas
 um documento cujo nó foi comprovado mas não publicou `.src`, sem suprimir
 cancelamento, falha da sessão ou erro de identidade. `--html-privado`
