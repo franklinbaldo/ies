@@ -64,10 +64,11 @@ const TEXTOS: [&str; 6] = [
     "txtPrazoReaberturaProgramada",
     "txtDiasReaberturaProgramada",
 ];
-const USUARIO: [&str; 9] = [
+const USUARIO: [&str; 10] = [
     ORGAO,
     TEXTO_DA_UNIDADE,
     MANTER_ABERTO,
+    REMOVER_ANOTACOES,
     TEXTOS[0],
     TEXTOS[1],
     TEXTOS[2],
@@ -315,6 +316,7 @@ pub(crate) fn campos_do_envio(
     tela: &TelaDeEnvio,
     destino: &Destino,
     manter_aberto: bool,
+    remover_anotacoes: bool,
 ) -> Vec<(&'static str, String)> {
     let mut campos = vec![
         (ORGAO, tela.orgao.clone()),
@@ -322,6 +324,9 @@ pub(crate) fn campos_do_envio(
     ];
     if manter_aberto {
         campos.push((MANTER_ABERTO, "on".to_owned()));
+    }
+    if remover_anotacoes {
+        campos.push((REMOVER_ANOTACOES, "on".to_owned()));
     }
     campos.extend(tela.textos.iter().map(|texto| (*texto, String::new())));
     campos.push((

@@ -95,7 +95,12 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(feito);
     }
-    let campos = campos_do_envio(&tela.conferida, &feito.destino, pedido.manter_aberto);
+    let campos = campos_do_envio(
+        &tela.conferida,
+        &feito.destino,
+        pedido.manter_aberto,
+        pedido.remover_anotacoes,
+    );
     let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let servida = TelaServida {
         url: &tela.url,
