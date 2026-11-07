@@ -109,7 +109,7 @@ impl ErroCienciaDocumento {
             Self::Tela(_) | Self::TelaRedirecionada => "a tela do documento não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
             Self::EfeitoIncerto { .. } => {
-                "a ciência pode ter sido registrada; confira no SEI antes de repetir"
+                "a ciência pode ter sido registrada; confira a Lista de Ciências do documento no SEI antes de nova confirmação"
             }
         }
     }
