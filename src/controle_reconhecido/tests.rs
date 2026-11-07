@@ -49,3 +49,73 @@ fn detalhada_sem_unidade_publicada_continua_recusada() {
 fn pagina_sem_controle_continua_recusada() {
     assert!(unidade_do_controle("<html><body><p>outra tela</p></body></html>").is_err());
 }
+
+#[test]
+fn metamorfismo_estrutural_do_controle_resumido_sem_mudar_unidade() {
+    // Variações determinísticas de atributos cosmeticos, não de contrato.
+    // Oráculo: a unidade segue sendo a exibida no Controle completo.
+    for mascara in 0..64_u8 {
+        let mut html = resumida();
+        if mascara & 1 != 0 {
+            html = html.replace("<html>", "<html lang='pt-BR'>");
+        }
+        if mascara & 2 != 0 {
+            html = html.replace(
+                "<a id='lnkInfraUnidade'>",
+                "<a class='titulo' id='lnkInfraUnidade'>",
+            );
+        }
+        if mascara & 4 != 0 {
+            html = html.replace(
+                "<table id='tblProcessosRecebidos'>",
+                "<table data-ensaio='1' id='tblProcessosRecebidos'>",
+            );
+        }
+        if mascara & 8 != 0 {
+            html = html.replace(
+                "<table id='tblProcessosGerados'>",
+                "<table id='tblProcessosGerados' data-ensaio='2'>",
+            );
+        }
+        if mascara & 16 != 0 {
+            html = html.replace("<body>", "<body data-ensaio='sintetico'>");
+        }
+        if mascara & 32 != 0 {
+            html = html.replace("</body>", "\n</body>");
+        }
+        assert_eq!(
+            unidade_do_controle(&html).unwrap(),
+            "PPI",
+            "mascara={mascara}"
+        );
+    }
+}
+
+#[test]
+fn ablar_componentes_obrigatorios_nunca_gera_sucesso() {
+    let html = resumida();
+    let sem_gerados = html.replace(
+        "<table id='tblProcessosGerados'>",
+        "<div id='tblProcessosGerados'>",
+    );
+    assert!(unidade_do_controle(&sem_gerados).is_err());
+
+    let sem_unidade = html.replace("<a id='lnkInfraUnidade'>PPI</a>", "");
+    assert!(unidade_do_controle(&sem_unidade).is_err());
+
+    let so_marcador = "<form id='frmLogin'><input name='txtUsuario'></form>\
+                      <a id='lnkInfraUnidade'>PPI</a>";
+    assert!(unidade_do_controle(so_marcador).is_err());
+}
+
+#[test]
+fn metamorfismo_da_visao_detalhada_nao_altera_unidade() {
+    for inicio in [1, 2, 101] {
+        let html = detalhada(inicio);
+        let cosmetico = html.replace(
+            "<a id='lnkInfraUnidade'>",
+            "<a data-ensaio='1' id='lnkInfraUnidade'>",
+        );
+        assert_eq!(unidade_do_controle(&cosmetico).unwrap(), "PPI");
+    }
+}
