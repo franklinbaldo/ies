@@ -172,7 +172,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     // Rejeitar antes de abrir o formulário evita um GET desnecessário,
     // inclusive nas confirmações injetáveis, sem mudar o estado remoto.
     let ja_aplicada = match pedido.usuario {
-        Some(login) => login == atual,
+        Some(login) => !login.is_empty() && login == atual,
         None => atual.is_empty(),
     };
     if ja_aplicada {
