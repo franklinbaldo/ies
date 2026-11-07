@@ -4,6 +4,27 @@ use super::ErroCriar;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
+/// Um id presente no documento não equivale a um campo ativo do cadastro:
+/// templates, campos fora do form e ancestrais inativos não são oferta.
+fn controle_oferecido(
+    dom: &tl::VDom<'_>,
+    formulario: &tl::HTMLTag<'_>,
+    controle: &tl::HTMLTag<'_>,
+) -> Result<bool, ErroCriar> {
+    let inicio = controle.boundaries(dom.parser()).0;
+    let (inicio_formulario, fim_formulario) = formulario.boundaries(dom.parser());
+    let inertes =
+        super::guarda_script::faixas_inertes(dom).ok_or(ErroCriar::CadastroForaDaForma)?;
+    let inativos = super::guarda_script::faixas_de_controles_inativos(dom)
+        .ok_or(ErroCriar::CadastroForaDaForma)?;
+    Ok(inicio > inicio_formulario
+        && inicio <= fim_formulario
+        && !super::guarda_script::dentro_de_template(inicio, &inertes)
+        && !inativos
+            .iter()
+            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio)))
+}
+
 /// Verifica a identidade do cadastro antes de qualquer POST de criação.
 pub(crate) fn conferir_cadastro(
     html: &str,
@@ -60,6 +81,7 @@ pub(crate) fn conferir_cadastro(
             .and_then(tl::Node::as_tag)
             .ok_or(E::DescricaoNaoOferecida)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
+            || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
                 .map_err(|_| E::CadastroForaDaForma)?
                 .as_deref()
@@ -86,6 +108,7 @@ pub(crate) fn conferir_cadastro(
             .and_then(tl::Node::as_tag)
             .ok_or(E::NivelNaoOferecido)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
+            || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
                 .map_err(|_| E::CadastroForaDaForma)?
                 .as_deref()
