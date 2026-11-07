@@ -68,6 +68,7 @@ fn indice_aquecido_nao_autoriza_envio_sem_situacao_remota() {
             unidade: None,
             para: DESTINO,
             manter_aberto: false,
+            remover_anotacoes: false,
             confirmar: true,
         };
         super::enviar_processo(sessao, &pedido, indice, envio)
