@@ -33,6 +33,8 @@ mod documento_cancelar;
 mod documento_cancelar_cli;
 mod documento_criar;
 mod documento_criar_cli;
+mod documento_externo_incluir;
+mod documento_externo_incluir_cli;
 mod documento_html_privado_cli;
 mod documento_obter_cli;
 mod documento_salvar_cli;
@@ -380,6 +382,7 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
         .or_else(|| documento_assinar_cli::tentar_assinar(cli))
         .or_else(|| documento_cancelar_cli::tentar_cancelar(cli))
         .or_else(|| documento_criar_cli::tentar_criar(cli))
+        .or_else(|| documento_externo_incluir_cli::tentar_incluir(cli))
         .or_else(|| processo_enviar_cli::tentar_enviar(cli))
         .or_else(|| processo_relacionar_cli::tentar_relacionar(cli))
 }
