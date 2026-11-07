@@ -84,9 +84,7 @@ fn formatar_tamanho(bytes: u64) -> String {
 }
 
 fn ler_url_upload(fonte: &str) -> Result<String, FalhaAnexo> {
-    let (argumentos, restante) = fonte
-        .split_once(')')
-        .ok_or(FalhaAnexo::FormaNaoObservada)?;
+    let (argumentos, restante) = fonte.split_once(')').ok_or(FalhaAnexo::FormaNaoObservada)?;
     if !restante.trim_start().starts_with(';') {
         return Err(FalhaAnexo::FormaNaoObservada);
     }
@@ -187,8 +185,8 @@ fn corpo_do_script(html: &str, inicio: usize) -> Option<&str> {
 /// Interpreta apenas declarações literais em script inline ativo da tela.
 /// Não executa JS, não inventa URL e não aceita colunas de template inerte.
 pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| FalhaAnexo::FormaNaoObservada)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaAnexo::FormaNaoObservada)?;
     let mut inertes = Vec::new();
     for no in dom.query_selector("template").into_iter().flatten() {
         let tag = no
@@ -199,6 +197,8 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
     }
     let mut uploads = Vec::new();
     let mut linhas = Vec::new();
+    #[cfg(test)]
+    eprintln!("anexo: templates={}, html_script={}", inertes.len(), html.matches("<script").count());
     for no in dom.query_selector("script").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
@@ -225,9 +225,14 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
             continue;
         }
         let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::FormaNaoObservada)?;
+        #[cfg(test)]
+        eprintln!("anexo: fonte_tem_upload={}, fonte_tem_colunas={}", fonte.contains("new infraUpload("), fonte.contains("objTabelaAnexos.adicionar(["));
         for (_, encontrado) in fonte.match_indices("new infraUpload(") {
             let restante = &encontrado["new infraUpload(".len()..];
-            uploads.push(ler_url_upload(restante)?);
+            let url = ler_url_upload(restante);
+            #[cfg(test)]
+            eprintln!("anexo: formato_upload={:?}", url.as_ref().err());
+            uploads.push(url?);
         }
         for (_, encontrado) in fonte.match_indices("objTabelaAnexos.adicionar([") {
             let restante = &encontrado["objTabelaAnexos.adicionar([".len()..];
@@ -237,6 +242,8 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
             linhas.push(ler_colunas(colunas)?);
         }
     }
+    #[cfg(test)]
+    eprintln!("anexo: uploads={}, linhas={}", uploads.len(), linhas.len());
     let [upload] = uploads.as_slice() else {
         return Err(FalhaAnexo::FormaNaoObservada);
     };
@@ -245,11 +252,14 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
     };
     Ok(PlanoAnexo {
         upload: upload.clone(),
-        colunas: colunas.iter().map(|coluna| match coluna {
-            Coluna::Campo(campo) => Coluna::Campo(*campo),
-            Coluna::TamanhoFormatado => Coluna::TamanhoFormatado,
-            Coluna::Literal(texto) => Coluna::Literal(texto.clone()),
-        }).collect(),
+        colunas: colunas
+            .iter()
+            .map(|coluna| match coluna {
+                Coluna::Campo(campo) => Coluna::Campo(*campo),
+                Coluna::TamanhoFormatado => Coluna::TamanhoFormatado,
+                Coluna::Literal(texto) => Coluna::Literal(texto.clone()),
+            })
+            .collect(),
     })
 }
 
@@ -299,7 +309,10 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
         // PEN3 SEI 5.0.4 publica new infraUpload(..., true).
         for terceiro in [", true", ", false"] {
             let plano = ler_plano(&tela(terceiro, COLUNAS)).expect("cadastro SEI 5");
-            assert_eq!(plano.linha_do_anexo(&recibo()).unwrap().split('±').count(), 7);
+            assert_eq!(
+                plano.linha_do_anexo(&recibo()).unwrap().split('±').count(),
+                7
+            );
         }
     }
 
@@ -315,19 +328,30 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
 
     #[test]
     fn dado_upload_ambíguo_ou_nao_observado_quando_leio_entao_recuso() {
-        for tela in [
+        for (indice, tela) in [
             tela(", objeto", COLUNAS),
             tela(", true, false", COLUNAS),
             tela("", COLUNAS).replace("new infraUpload", "outraCoisa"),
             format!("{}{}", tela("", COLUNAS), tela("", COLUNAS)),
-        ] {
-            assert!(matches!(ler_plano(&tela), Err(FalhaAnexo::FormaNaoObservada)));
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(
+                matches!(ler_plano(&tela), Err(FalhaAnexo::FormaNaoObservada)),
+                "indice {indice}"
+            );
         }
     }
 
     #[test]
     fn dado_coluna_nao_observada_ou_ambiguo_quando_leio_entao_recuso() {
-        for colunas in ["arr['campo_desconhecido']", "", "arr['nome'],funcao()", "arr['nome'"] {
+        for colunas in [
+            "arr['campo_desconhecido']",
+            "",
+            "arr['nome'],funcao()",
+            "arr['nome'",
+        ] {
             assert!(matches!(
                 ler_plano(&tela("", colunas)),
                 Err(FalhaAnexo::LinhaInvalida)
@@ -349,6 +373,9 @@ objTabelaAnexos = new infraTabelaDinamica('tblAnexos','hdnAnexos',false,false);
     #[test]
     fn dado_only_template_quando_leio_entao_nao_invento_upload() {
         let falso = format!("<template>{}</template>", tela("", COLUNAS));
-        assert!(matches!(ler_plano(&falso), Err(FalhaAnexo::FormaNaoObservada)));
+        assert!(matches!(
+            ler_plano(&falso),
+            Err(FalhaAnexo::FormaNaoObservada)
+        ));
     }
 }
