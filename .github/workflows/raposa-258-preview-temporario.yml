@@ -182,3 +182,25 @@ jobs:
           with urllib.request.urlopen(req, timeout=30) as resposta:
               print("Comentario saneado registrado; HTTP", resposta.status)
           PY
+
+  bdd:
+    if: contains(github.event.head_commit.message, '[bdd-258-red]') || contains(github.event.head_commit.message, '[bdd-258-green]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust fixo
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: BDD-258-01 isolado
+        run: cargo +1.99.1 test --locked --bin ies dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever -- --nocapture
+      - name: Configurar uv para os gates
+        if: contains(github.event.head_commit.message, '[bdd-258-green]')
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.13.5"
+          enable-cache: false
+      - name: Gates oficiais no GREEN
+        if: contains(github.event.head_commit.message, '[bdd-258-green]')
+        run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
