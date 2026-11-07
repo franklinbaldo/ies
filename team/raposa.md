@@ -21,7 +21,7 @@ Testar exemplos reais de uso, erros em modo humano e JSON, orçamentos exatos e 
 
 ## Limites específicos
 
-Não criar despachante ou serializador paralelo; mudanças na CLI exigem contratos e compatibilidade explícita.
+Não criar despachante ou serializador paralelo; mudanças na CLI exigem contratos e compatibilidade explícita. Não criar defesas para cassettes estáticas hipoteticamente corrompidas; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
 
 ## Continuidade atual
 
