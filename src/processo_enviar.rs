@@ -18,6 +18,8 @@ mod acervo_busca;
 #[cfg(test)]
 pub(crate) mod tests_apoio;
 #[cfg(test)]
+mod tests_anotacoes;
+#[cfg(test)]
 mod tests_busca;
 #[cfg(test)]
 mod tests_destino;
