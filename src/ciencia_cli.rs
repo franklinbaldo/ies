@@ -119,3 +119,33 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     }
     objeto
 }
+
+
+#[cfg(test)]
+mod testes_aviso {
+    use super::*;
+
+    /// RED #271: apos um GET potencialmente mutador, a orientacao publica
+    /// deve apontar a prova independente, sem sugerir nova escrita.
+    #[test]
+    fn efeito_incerto_indica_lista_antes_de_nova_confirmacao() {
+        let erro = ErroCienciaProcesso::EfeitoIncerto {
+            motivo: "aceite_sem_id_de_atividade_depois_da_escrita",
+            requisicoes: 6,
+            falha_do_aceite: None,
+        };
+        let mensagem = erro.mensagem();
+        assert!(mensagem.contains("Lista de Ciências"), "{mensagem}");
+        assert!(mensagem.contains("antes de nova confirmação"), "{mensagem}");
+        assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
+        assert_eq!(erro.requisicoes(), Some(6));
+        assert_eq!(erro.saida(), 3);
+    }
+
+    #[test]
+    fn falha_antes_da_escrita_nao_exibe_efeito_incerto() {
+        let erro = ErroCienciaProcesso::CienciaNaoOferecida;
+        assert_eq!(erro.requisicoes(), None);
+        assert_eq!(erro.saida(), 1);
+    }
+}
