@@ -188,12 +188,20 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 
-/// A lista e a escolha usam o mesmo criterio de tipo nativo oferecido.
-fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
+/// A opçao externa nao integra a lista de tipos de documento nativo.
+fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
     href.strip_prefix("controlador.php?")
-        .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_gerar"))
-        || ((href == "#" || href == "javascript:void(0);")
-            && onclick.and_then(id_da_escolha_literal).is_some())
+        .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_receber"))
+        || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
+}
+
+/// Reconhece tipos nativos sem tratar controles invalidos como externos.
+fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
+    !link_de_tipo_externo(href, onclick)
+        && (href.strip_prefix("controlador.php?").is_some_and(|consulta| {
+            consulta.split('&').any(|par| par == "acao=documento_gerar")
+        }) || ((href == "#" || href == "javascript:void(0);")
+            && onclick.and_then(id_da_escolha_literal).is_some()))
 }
 
 /// Reconhece só o corpo literal observado da função, com duas instruções
@@ -317,7 +325,7 @@ pub(crate) fn escolha_do_tipo(
             .map_err(|_| E::ListaForaDaForma)?
             .ok_or(E::LinkDoTipoNaoNavegavel)?;
         let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
-        if !link_de_tipo_interno(&href, onclick.as_deref()) {
+        if link_de_tipo_externo(&href, onclick.as_deref()) {
             continue;
         }
         links.push((href, onclick));
