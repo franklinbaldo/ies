@@ -17,10 +17,13 @@ saída do IES não pode ser usada como única fonte para construir a saída
 esperada do anti-IES. O anti-IES tampouco serve como substituto do SEI
 real ou como prova de equivalência entre instalações.
 
-**Dados:** o IES acessa o SEI autorizado, interpreta as respostas e
+**Dados e eficiência:** o IES acessa o SEI autorizado, interpreta as respostas e
 alimenta o [SQLite companion](sqlite-companion.md) com fatos efetivamente
 observados. O anti-IES **somente lê essa projeção** para gerar respostas;
 não coleta dados no SEI. Desconhecido não significa ausente.
+A [modelagem incremental](modelo-entidades.md) separa identidade,
+observação e estado simulado e exige baseline de ingestão/consulta/HTTP
+antes de ampliar a cobertura.
 
 Esta trilha complementa o [roadmap operacional #56](https://github.com/franklinbaldo/ies/issues/56),
 as [matrizes da CLI](../matriz-derivacao-cli.md) e o [contrato de unidade atual](../../contracts/cli/unidade-atual.md).
@@ -55,12 +58,14 @@ cassette comprova a forma D.
 | 0 — infraestrutura | [#350](https://github.com/franklinbaldo/ies/issues/350) / [PR #351](https://github.com/franklinbaldo/ies/pull/351) | Binário local anti-IES, health, HTTP 501 para ações sem contrato e testes; **PR Draft, CI verde, aguardando revisão/merge**. |
 | 0b — governança | [#356](https://github.com/franklinbaldo/ies/issues/356) / PR de planejamento | AGENTS.md, roadmap #56, matriz separada, sequência vinculada e CI OKF; não modifica produção. |
 | 1 — oráculo | [#353](https://github.com/franklinbaldo/ies/issues/353) / PR P1 | Cassettes conferidas, contrato R/D, testes positivos e negativos **independentes do servidor**, prova de equivalência definida. |
+| 1.2 — modelo e eficiência | [#360](https://github.com/franklinbaldo/ies/issues/360) / PR P1.2 | Tipos de entidade/observação e cobertura, projeção relacional mínima, índices por consulta e baseline reproduzível do SQLite/HTTP. |
 | 1.5 — companion | [#358](https://github.com/franklinbaldo/ies/issues/358) / PR P1.5 | **IES** registra no SQLite Controle/unidade/visão e listas observadas; consulta SQL testada, sem novos requests. |
 | 2 — produtor | [#354](https://github.com/franklinbaldo/ies/issues/354) / PR P2 | GET do Controle na rota observada; HTML e MIME gerados **a partir de uma projeção SQLite lida em modo read-only**. Estados não observados continuam recusados. |
 | 3 — cruzamento | [#355](https://github.com/franklinbaldo/ies/issues/355) / PR P3 | Teste real do circuito **IES → SQLite → anti-IES → IES** em loopback e comparação com oráculo independente. Só este passo pode marcar a capacidade **INTEGRADA**. |
 
 **Dependências:** P1 só inicia sobre main que contém bootstrap e
-governança. P1.5 vem após P1 integrada; P2 após P1.5, P3 após P2. Cada
+governança. P1.2 vem após P1; P1.5 depende do **modelo P1.2**,
+P2 após P1.5 e P3 após P2. Cada
 issue gera uma PR Draft independente, partindo da main atual, e os
 critérios do AGENTS.md de revisão/CI/merge por SHA prevalecem.
 **Liberação automática da fila:** a 🐘 integra a PR anterior e então
@@ -89,7 +94,10 @@ de outro agente nem fazer rebase/force-push.
    cookies do IES em produção. Um túnel TLS ou ponto de injeção
    **somente de teste**, sem nova flag pública, pode ser usado. O servidor
    HTTP de desenvolvimento permanece em 127.0.0.1.
-7. O CI do **head exato** passa com Rustfmt, Clippy, testes do workspace,
+7. Há benchmark offline de ingestão, SELECT e HTTP, com p50/p95,
+   pico de memória e contagem de queries, comparado à baseline da #360;
+   medições de velocidade não substituem testes de equivalência.
+8. O CI do **head exato** passa com Rustfmt, Clippy, testes do workspace,
    OKF e gates existentes. A issue registra RED → GREEN e quaisquer
    itens live **NOT_RUN** explicitamente.
 
