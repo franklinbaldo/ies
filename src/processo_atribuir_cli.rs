@@ -2,7 +2,8 @@
 //! sequência POST único e releitura estar coberta por teste de transporte.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
-    ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
+    ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
+    executar_previa,
 };
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso, json_base_da_falha};
 use crate::saida_erro;
@@ -119,11 +120,13 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
     ExitCode::from(erro.saida())
 }
 
-fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
+/// Traduz o estado único do domínio para os dois campos do contrato JSON legado.
+pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
+    let (confirmado, alterado) = match feito.estado {
+        EstadoDaAtribuicao::Previa => (false, false),
+        EstadoDaAtribuicao::AlteracaoConfirmada => (true, true),
+    };
+    json!({
                 "nup": feito.nup,
                 "id_procedimento": feito.id_procedimento,
                 "unidade": feito.unidade,
@@ -131,12 +134,16 @@ fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
                 "usuario_pedido": feito.usuario_pedido,
                 "remover": feito.usuario_pedido.is_none(),
                 "valor_da_opcao": feito.valor_da_opcao,
-                "confirmado": feito.confirmado,
-                "alterado": feito.alterado,
+                "confirmado": confirmado,
+                "alterado": alterado,
                 "origem": "web",
                 "requisicoes": feito.requisicoes
             })
-        );
+}
+
+fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
+    if json_mode {
+        println!("{}", json_da_previa(feito));
     } else {
         println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
         if let Some(login) = &feito.usuario_pedido {
