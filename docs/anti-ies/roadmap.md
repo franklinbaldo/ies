@@ -84,6 +84,14 @@ Se qualquer PR ficar WIP, registrar resultado e continuar a própria
 issue sem declarar o marco concluído. Não criar branch nova sobre branch
 de outro agente nem fazer rebase/force-push.
 
+O [harness diferencial](harness-compatibilidade.md) inclui
+testes baseados em propriedades com `proptest` **somente como
+dev-dependency**: gera variantes estruturais e casos negativos,
+encolhe falhas e registra contraexemplos reproduzíveis. Ablações de
+HTML/código são experiências deliberadas, não remoções automáticas.
+Uma rodada curta entra no CI existente; exploração extensa é
+offline e sob demanda, sem substituir as cassettes reais.
+
 O [harness diferencial](harness-compatibilidade.md) é condição
 da primeira integração; a P3 usa a infraestrutura da [#361](https://github.com/franklinbaldo/ies/issues/361).
 Após P3, a [#362](https://github.com/franklinbaldo/ies/issues/362)
