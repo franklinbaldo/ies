@@ -1,12 +1,12 @@
 //! Download de anexo externo publicado no cadastro do SEI (#60).
-//! Fonte: Todos tests/paginas_reais/documento_alterar_recebido.html.
+//! Fonte: Todos `tests/paginas_reais/documento_alterar_recebido.html`.
 use super::{campo, ler_formulario, valor};
 use crate::arvore_processo::EnderecoDoConteudo;
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 
-/// Somente um vínculo inequívoco entre o id_anexo listado e o href servido.
+/// Somente um vínculo inequívoco entre o `id_anexo` listado e o href servido.
 pub(crate) fn ler_anexo_publicado(
     instalacao: &Instalacao,
     html: &str,
