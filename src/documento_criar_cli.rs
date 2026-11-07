@@ -37,10 +37,8 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     }
     // O nivel de escrita ja e uma pre-condicao independente da sessao.
     // A CLI deve informar essa causa antes de abrir arquivos privados.
-    if *confirmar {
-        if let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
-            return Some(publicar_erro(cli.json, &erro, 0));
-        }
+    if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
+        return Some(publicar_erro(cli.json, &erro, 0));
     }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoCriacao {

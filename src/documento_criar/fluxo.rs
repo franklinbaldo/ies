@@ -191,9 +191,7 @@ fn erro_da_tela(falha: FalhaDaTela) -> ErroPreviaCriacao {
 
 /// Pre-condicao independente da sessao: a operacao ainda so resolve nivel publico.
 /// Uma unica regra atende tanto a fronteira CLI quanto o nucleo de escrita.
-pub(crate) fn validar_nivel_de_confirmacao(
-    nivel: Option<&str>,
-) -> Result<(), ErroPreviaCriacao> {
+pub(crate) fn validar_nivel_de_confirmacao(nivel: Option<&str>) -> Result<(), ErroPreviaCriacao> {
     match nivel {
         Some("publico") => Ok(()),
         None => Err(ErroPreviaCriacao::NivelNaoInformado),
