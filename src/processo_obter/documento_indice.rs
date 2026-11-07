@@ -180,3 +180,56 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
         Err(erro) => Err(erro),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
+    use crate::documento::NumeroDocumento;
+    use crate::erro_html::ErroHtml;
+    use crate::processo_obter::tests_apoio::*;
+    use crate::processo_obter::{
+        ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
+    };
+    use crate::transporte::sessao::CookieDaSessao;
+
+    #[test]
+    fn bdd_60_05_indice_ambiguo_nao_preserva_palpite_antigo() {
+        // Teste tecnico do BDD-60-05: leitura pelo indice com numeros duplicados.
+        let amb = ambiente();
+        let inst = instalacao();
+        amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+        amb.indice
+            .registrar_documentos(&inst, ID, &[("0000101", "99")])
+            .unwrap();
+        let geracao = geracao();
+        amb.indice
+            .registrar_link(&inst, chave(&geracao, "procedimento_visualizar", ID), &url_arvore(ID))
+            .unwrap();
+        let duplicado = arvore(&[
+            no_processo(0, ID, NUP),
+            no_documento(1, "21", ID, "0000101"),
+            no_documento(2, "23", ID, "0000101"),
+        ]);
+        let numero = NumeroDocumento::novo("0000101").unwrap();
+        let url = url_controle();
+        let sessao = SessaoDoProcesso {
+            url_do_controle: &url,
+            origem: ORIGEM,
+            cookie: &CookieDaSessao::ler(&amb.cookie),
+        };
+        let pedido = PedidoDoDocumento {
+            numero: &numero,
+            unidade: None,
+            processo: None,
+            anexo: PedidoDoAnexo::default(),
+        };
+        let mut rede = Roteiro::novo(vec![ok(duplicado)]);
+        let resultado = obter_documento(&sessao, &pedido, &amb.indice, &mut rede);
+        assert_eq!(
+            resultado.unwrap_err(),
+            ErroDocumentoObter::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
+        );
+        assert_eq!(rede.pedidos, [get(&url_arvore(ID))]);
+        assert!(amb.indice.documento_por_numero(&inst, "0000101").is_none());
+    }
+}
