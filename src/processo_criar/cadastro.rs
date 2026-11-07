@@ -11,6 +11,10 @@ pub(crate) enum ErroCadastro {
     NivelNaoOferecido,
     #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
+    #[causa(nome = "assunto_sugerido_desabilitado")]
+    AssuntoDesabilitado,
+    #[causa(nome = "hipotese_legal_desabilitada")]
+    HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
     #[causa(nome = "especificacao_acima_do_limite_do_cadastro")]
     EspecificacaoAcimaDoLimite {
@@ -198,10 +202,23 @@ fn conferir_listas(
         let destino = match nome.as_deref() {
             Some("selAssuntos") => {
                 selects_assunto += 1;
+                if atributo_presente(select, "disabled")
+                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                {
+                    return Err(E::AssuntoDesabilitado);
+                }
                 &mut assuntos
             }
             Some("selHipoteseLegal") => {
                 selects_hipotese += 1;
+                // No nível público, um seletor restrito desabilitado
+                // não impede a prévia nem exige hipótese legal.
+                if nivel == "restrito"
+                    && atributo_presente(select, "disabled")
+                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                {
+                    return Err(E::HipoteseLegalDesabilitada);
+                }
                 &mut hipotese
             }
             _ => continue,
@@ -330,15 +347,15 @@ mod tests {
         // Todos tests/paginas_reais/procedimento_gerar.html @323eb01.
         let assunto_desabilitado = tela(ASSUNTO, "", HIPOTESE)
             .replace("name='selAssuntos'", "name='selAssuntos' disabled");
-        assert!(
-            conferir_cadastro(&assunto_desabilitado, "12", "publico").is_err(),
-            "assunto do select desabilitado não pode autorizar o POST"
+        assert_eq!(
+            conferir_cadastro(&assunto_desabilitado, "12", "publico"),
+            Err(ErroCadastro::AssuntoDesabilitado)
         );
         let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE)
             .replace("name='selHipoteseLegal'", "name='selHipoteseLegal' disabled");
-        assert!(
-            conferir_cadastro(&hipotese_desabilitada, "12", "restrito").is_err(),
-            "hipótese legal do select desabilitado não pode autorizar o POST"
+        assert_eq!(
+            conferir_cadastro(&hipotese_desabilitada, "12", "restrito"),
+            Err(ErroCadastro::HipoteseLegalDesabilitada)
         );
         // Hipótese desabilitada é irrelevante quando o nível é público.
         assert!(conferir_cadastro(&hipotese_desabilitada, "12", "publico").is_ok());
