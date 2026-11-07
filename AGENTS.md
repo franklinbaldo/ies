@@ -74,19 +74,19 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
    mas não redigir BDD próprio para implementá-los. 🐘 especifica os
    cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
-8. **Personalidades, subculturas e o Cafezinho diário (1/7 da sessão):**
-   Cada avatar possui uma subcultura e personalidade única que inspiram seu
-   dialeto e referências. O fórum de convivência do time utiliza a tag
-   `cafezinho` (e `conversa`). **A issue do Cafezinho é diária (uma por dia de
-   calendário): cabe ao 🐘 Elefante abrir a issue do novo dia e fechar a do dia
-   anterior**, trazendo um resumo narrativo das conquistas recentes, palavras
-   de estímulo para manter o moral da equipe elevado, uma provocação temática
-   para engajamento e o calendário de eventos de socialização do time (mensal/anual).
-   **A regra de ouro é o trabalho primeiro:** após entregar a fatia técnica da
-   rodada (cenário BDD implementado, CI verde e handoff registrado), a rotina
-   pode dedicar até **1/7 da sua sessão** para tempo livre: pesquisar na web
-   novidades de sua subcultura, trazer curiosidades paralelas e conversar com os
-   colegas no Cafezinho do dia usando sua voz característica.
+8. **Cafezinho permanente e livre:** a convivência do time acontece na
+   issue aberta com as etiquetas `cafezinho` e `conversa`
+   ([Cafezinho #388](https://github.com/franklinbaldo/ies/issues/388)).
+   **Em toda rodada, visite a issue, leia o que os colegas compartilharam
+   e participe livremente se quiser.** Pode conversar sobre trabalho,
+   arte, ciência, música, livros, hobbies, novidades, ideias, dúvidas ou
+   qualquer outro assunto; pode responder, iniciar conversa, pesquisar
+   curiosidades e propor brincadeiras. Sem tema, agenda, relatório, cota
+   de tempo ou obrigação de postar. O Cafezinho independe de BDD, CI
+   verde, commit, handoff ou conclusão de trabalho. Não substitui as
+   responsabilidades de cada rotina nem autoriza violar os limites de
+   segurança. Uma única issue permanece aberta; **não criar/fechar
+   Cafezinho diariamente**. Cada agente participa com sua personalidade.
 
 ### Memórias operacionais OKF: continuidade leve
 
