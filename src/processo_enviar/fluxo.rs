@@ -73,16 +73,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     } else {
         None
     };
-    let anotacao_antes = if let Some(link) = link_anotacao.as_deref() {
-        let (html, _) = obter_tela(&mut rede, &cookie, link).map_err(|falha| match falha {
-            FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
-            FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
-            FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
-        })?;
-        Some(super::anotacoes::anotacao_presente(&html, &id).map_err(C::LeituraDasAnotacoes)?)
-    } else {
-        None
-    };
+    let anotacao_antes = ler_anotacao_antes(&mut rede, &cookie, link_anotacao.as_deref(), &id)?;
     let metodo_remocao = if pedido.remover_anotacoes {
         Some(if tela.conferida.remover_anotacoes_oferecida {
             MetodoRemocao::CheckboxNoEnvio
@@ -98,8 +89,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     // não enviar um checkbox inexistente nem gravar sem releitura.
     if pedido.confirmar
         && pedido.remover_anotacoes
-        && (metodo_remocao != Some(MetodoRemocao::CheckboxNoEnvio)
-            || link_anotacao.is_none())
+        && (metodo_remocao != Some(MetodoRemocao::CheckboxNoEnvio) || link_anotacao.is_none())
     {
         return Err(C::RemocaoDeAnotacoesSemVerificacao);
     }
@@ -150,19 +140,50 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         let link = link_anotacao
             .as_deref()
             .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
-        let depois = obter_tela(&mut rede, &cookie, link)
-            .ok()
-            .and_then(|(html, _)| {
-                super::anotacoes::anotacao_presente(&html, &feito.id_procedimento).ok()
-            });
-        match depois {
-            Some(false) => feito.anotacao_depois = Some(false),
-            Some(true) => return Err(C::AnotacoesNaoRemovidasAposEnvio),
-            None => return Err(C::EfeitoIncertoNaRemocaoDeAnotacoes),
-        }
+        conferir_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento)?;
+        feito.anotacao_depois = Some(false);
         feito.requisicoes = rede.feitas();
     }
     Ok(feito)
+}
+
+/// Prévia: o campo vazio só é ausência observada quando o formulário
+/// pertence ao mesmo processo. Falta de link continua não observada.
+fn ler_anotacao_antes<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: Option<&str>,
+    id: &str,
+) -> Result<Option<bool>, C> {
+    let Some(link) = link else {
+        return Ok(None);
+    };
+    let (html, _) = obter_tela(rede, cookie, link).map_err(|falha| match falha {
+        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
+        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+    })?;
+    Ok(Some(
+        super::anotacoes::anotacao_presente(&html, id).map_err(C::LeituraDasAnotacoes)?,
+    ))
+}
+
+/// A árvore já confirmou a tramitação; outro GET decide se a anotação
+/// realmente desapareceu, sem repetir POST diante de recusa ou incerteza.
+fn conferir_anotacao_depois<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: &str,
+    id: &str,
+) -> Result<(), C> {
+    let depois = obter_tela(rede, cookie, link)
+        .ok()
+        .and_then(|(html, _)| super::anotacoes::anotacao_presente(&html, id).ok());
+    match depois {
+        Some(false) => Ok(()),
+        Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
+        None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes),
+    }
 }
 
 /// GET da tela de envio (o link da barra), conferida sem rede.
