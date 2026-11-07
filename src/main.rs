@@ -110,6 +110,7 @@ mod processo_relacionar;
 mod processo_relacionar_cli;
 mod processo_sobrestar;
 mod processo_sobrestar_cli;
+mod propriedades_documento;
 mod propriedades_processo;
 mod relogin_cli;
 mod rodape_do_documento;
