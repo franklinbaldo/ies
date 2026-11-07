@@ -157,7 +157,7 @@ fn cadastro_ignora_required_de_controles_inativos() {
         assert_eq!(
             conferir_cadastro(&html, "Despacho", None, Some("publico")),
             Ok(()),
-            "controle inativo nao deve exigir entrada do usuario"
+            "controle inativo nao deve exigir entrada do usuario: {conteudo}"
         );
     }
 }
