@@ -17,9 +17,9 @@ fn sem_sessao(args: &[&str]) -> Output {
 }
 
 #[test]
-fn confirmar_com_nup_invalido_recusa_antes_da_sessao() {
+fn confirmar_com_referencia_legada_recusa_antes_da_sessao() {
     for operacao in [&["--usuario", "fulano"][..], &["--remover"][..]] {
-        let mut args = vec!["processo", "atribuir", "nup-invalido"];
+        let mut args = vec!["processo", "atribuir", "sei://legado"];
         args.extend_from_slice(operacao);
         args.extend_from_slice(&["--confirmar", "--json"]);
         let saida = sem_sessao(&args);
@@ -50,7 +50,6 @@ fn confirmar_valido_sem_sessao_retorna_fonte_invalida_sem_rede() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    let valor: serde_json::Value =
-        serde_json::from_slice(&saida.stdout).expect("JSON na saída");
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON na saída");
     assert_eq!(valor["codigo"], "fonte_invalida");
 }
