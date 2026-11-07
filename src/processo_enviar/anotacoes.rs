@@ -4,8 +4,44 @@
 use crate::erro_html::ErroHtml;
 
 pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
-    let _ = (html, id);
-    Err(ErroHtml::valor("anotacao_ainda_nao_lida"))
+    use crate::formulario_web::{decodificar_atributo, localizar_formulario};
+    use crate::html_atributos::valor_do_atributo;
+
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroHtml::html("tela_de_anotacoes_nao_interpretada"))?;
+    let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
+        .map_err(|_| ErroHtml::ausente("formulario_de_anotacoes_ausente"))?;
+    let parser = dom.parser();
+    let valor = |tag: &tl::HTMLTag<'_>, nome: &'static str| -> Result<Option<String>, ErroHtml> {
+        valor_do_atributo(tag, nome)
+            .map_err(|e| ErroHtml::atributo("tela_de_anotacoes_nao_interpretada", e))?
+            .map(|bruto| {
+                decodificar_atributo(&bruto)
+                    .ok_or(ErroHtml::html("tela_de_anotacoes_nao_interpretada"))
+            })
+            .transpose()
+    };
+    let mut ids = Vec::new();
+    let mut descricoes = Vec::new();
+    for tag in form.children().all(parser).iter().filter_map(tl::Node::as_tag) {
+        match tag.name().as_utf8_str().as_ref() {
+            "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
+                ids.push(valor(tag, "value")?);
+            }
+            "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
+                descricoes.push(crate::transporte::texto_de_recusa::decodificar_entidades(
+                    &tag.inner_text(parser),
+                ));
+            }
+            _ => {}
+        }
+    }
+    match (ids.as_slice(), descricoes.as_slice()) {
+        ([Some(publicado)], [texto]) if publicado == id => Ok(!texto.trim().is_empty()),
+        ([Some(_)], [_]) => Err(ErroHtml::valor("anotacao_de_outro_processo")),
+        ([], _) | (_, []) => Err(ErroHtml::ausente("anotacao_nao_publicada")),
+        _ => Err(ErroHtml::repetido("campos_de_anotacao_repetidos")),
+    }
 }
 
 #[cfg(test)]
