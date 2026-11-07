@@ -20,8 +20,8 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
             {
                 return Err("o banco operacional do IES não é uma cassette".into());
             }
-            let instalacao = Instalacao::interpretar(&origem)
-                .ok_or("origem de cassette inválida")?;
+            let instalacao =
+                Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
                 OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
@@ -97,8 +97,7 @@ mod tests {
             atender_http(&mut fluxo, fonte).expect("responder");
         });
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
-        write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n")
-            .expect("enviar GET");
+        write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").expect("enviar GET");
         cliente
             .shutdown(std::net::Shutdown::Write)
             .expect("encerrar escrita");
