@@ -144,8 +144,9 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
 ## Ciclo conjunto do IES e anti-IES
 
-O anti-IES é **servidor de teste separado** em `crates/anti-ies`, não um
-backend alternativo da CLI nem substituto do SEI real. Para cada capacidade
+O IES alimenta o SQLite com observações do SEI. O anti-IES lê a
+[projeção tipada](docs/anti-ies/sqlite-companion.md) e serve respostas;
+não consulta o SEI real nem altera o contrato da CLI. Para cada capacidade
 Web trabalhada no IES, anote na issue/PR a cobertura anti-IES:
 **não coberta / oráculo / servidor / integrada**, o cenário do SEI e o
 teste diferencial faltante. Registrar a lacuna **não bloqueia** uma PR
