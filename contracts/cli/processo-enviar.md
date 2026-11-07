@@ -38,9 +38,11 @@ da tela declara.
   mas a barra oferecer `anotacao_registrar` e o formulário do mesmo processo
   for legível, planeja limpar `txaDescricao` antes do envio; sem ambos os
   caminhos, recusa com `remocao_de_anotacoes_nao_oferecida`.
-  `--confirmar` com essa opção permanece **indisponível antes da sessão/rede**
-  até a leitura independente comprovar também a remoção das anotações.
-  A leitura de `aberto_em` comprova tramitação, não exclusão de anotações.
+  `--confirmar` com checkbox é admitido somente quando a tela de anotações
+  da mesma origem foi oferecida e lida, permitindo releitura independente.
+  A alternativa `limpar_anotacao` permanece indisponível para escrita até
+  o POST próprio e sua reconciliação serem implementados. A leitura de
+  `aberto_em` comprova tramitação, não exclusão de anotações.
   A prévia consulta o formulário `anotacao_registrar` da própria origem,
   quando o link é publicado na barra, e expõe `anotacao_antes` como
   `true` (texto presente), `false` (campo vazio) ou campo omitido (link
@@ -109,11 +111,18 @@ da tela declara.
    Quando a anotação foi lida, `anotacao_antes: true/false` aparece na
    prévia; se o link não foi oferecido, o campo é omitido.
    Nenhum POST de escrita.
-8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
-   de formulário (`ENVIAR_PROCESSO`).
+8. **Com `--confirmar`**, o método `checkbox_no_envio` só prossegue
+   quando a origem oferece a tela `anotacao_registrar`, previamente lida.
+   Um único POST de envio com `chkSinRemoverAnotacoes=on`, sem retry,
+   é derivado pelo formulário (`ENVIAR_PROCESSO`). A alternativa
+   `limpar_anotacao` continua recusada sem POST mutador.
 9. **Verifica** por uma leitura nova (a de `ies processo NUP`, em geral
    1 GET pelo link da árvore guardado na abertura): o destino tem de estar
    em `aberto_em`; a unidade da sessão, só com `--manter-aberto`.
+   Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
+   vazio e a mesma identidade de processo. Presença de texto após o
+   envio é alteração parcial (saída 1); releitura indisponível ou
+   inconclusiva é efeito incerto (saída 3), sem retry.
 
 ## Conferência da tela "Enviar Processo"
 
@@ -228,7 +237,7 @@ Abertura = a de `processo concluir` (3 GET a frio pela linha do Controle,
 | Recusa pela situação ou pela barra | abertura |
 | Tela recusada | abertura + 1 GET |
 | Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + C POST (consultas); +1 GET se anotação publicada e a flag pedida |
-| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação |
+| `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação; com remoção via checkbox, +2 GET da anotação (antes/depois) |
 
 C, as consultas da busca (passo 6):
 
