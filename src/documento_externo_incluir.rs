@@ -222,6 +222,17 @@ mod tests {
         assert_eq!(erro, FalhaPdf::NomeInvalido);
     }
 
+    #[test]
+    fn marcadores_direcionais_unicode_no_nome_nao_podem_enganar_a_previa_humana() {
+        // O cabeçalho de terminal não deve inverter caracteres ao apresentar um caminho.
+        // Teste sintético: sem requisição e sem depender do charset da instalação.
+        let pasta = Pasta::nova();
+        for nome in ["relatorio\u{202e}fdp.pdf", "relatorio\u{2067}A.pdf", "relatorio\u{200f}.pdf"] {
+            let path = pasta.arquivo(nome, PDF);
+            assert_eq!(inspecionar_pdf(&path, None), Err(FalhaPdf::NomeInvalido));
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn arquivo_e_ancestral_simbolicos_sao_recusados() {
