@@ -55,6 +55,10 @@ pub(crate) struct Destino {
 }
 
 /// Sucesso: prévia, ou enviado e conferido.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "estado do envio e duas opções independentes do formulário observado"
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoEnviado {
     pub(crate) nup: String,
