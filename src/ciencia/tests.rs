@@ -325,3 +325,51 @@ fn tabela_inteira_dentro_de_template_nao_confirma_ciencia() {
         "tabela inerte inteira não comprova a ciência"
     );
 }
+
+/// RED #271: com JS habilitado, <noscript> é conteúdo inerte.
+/// A presença da tabela nele não comprova que a Lista de Ciências
+/// publicada pelo SEI contém a atividade recém-criada.
+#[test]
+fn tabela_de_ciencias_sob_noscript_nao_e_prova() {
+    let html = lista("42457", "chkInfraItem")
+        .replacen(
+            "<table id='tblAndamentos'",
+            "<noscript><table id='tblAndamentos'",
+            1,
+        )
+        .replacen("</table>", "</table></noscript>", 1);
+    assert_eq!(
+        atividade_na_lista(&html, "42457"),
+        Err(E::ListaDeCienciasForaDaFormaObservada),
+        "tabela em noscript não prova escrita com JS habilitado"
+    );
+}
+
+/// RED #271: o campo indexado em noscript também não é uma linha
+/// utilizável da lista, mesmo se a tabela em si está ativa.
+#[test]
+fn checkbox_de_ciencia_em_noscript_nao_e_prova() {
+    let html = lista("42457", "chkInfraItem").replacen(
+        "<input type='checkbox' name='chkInfraItem' value='42457' />",
+        "<noscript><input type='checkbox' name='chkInfraItem' value='42457' /></noscript>",
+        1,
+    );
+    assert_eq!(
+        atividade_na_lista(&html, "42457"),
+        Err(E::ListaDeCienciasForaDaFormaObservada),
+        "checkbox em noscript não comprova ciência"
+    );
+}
+
+/// RED #271: <noscript> não executa seus scripts quando JS está ativo.
+/// A URL de uma ciência anterior presente só nesse trecho é inerte.
+#[test]
+fn script_dentro_de_noscript_nao_prova_aceite() {
+    let html = aceite_processo("42457")
+        .replacen("<script>", "<noscript><script>", 1)
+        .replacen("</script>", "</script></noscript>", 1);
+    assert_eq!(
+        atividade_do_aceite(&html, processo()),
+        Err(E::AceiteSemAtividade)
+    );
+}
