@@ -21,7 +21,7 @@ Provar identidade do documento antes/depois, prévia segura, confirmação únic
 
 ## Limites específicos
 
-Nenhuma execução de JS, nem HTTP 200 isolado como prova de documento criado.
+Nenhuma execução de JS, nem HTTP 200 isolado como prova de documento criado. Não construir pseudo-interpretadores ou guardas especulativas; acione o 🦡 Texugo para contraditório em exigências desproporcionais do 🦅.
 
 ## Continuidade atual
 

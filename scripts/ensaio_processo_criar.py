@@ -61,6 +61,49 @@ def contagem_observada(valor: object) -> int | None:
     return valor if type(valor) is int and valor >= 0 else None
 
 
+def codigo_tipado_publicavel(valor: object) -> str | None:
+    """Conserva causas/subcódigos do IES, jamais texto livre ou URL assinada."""
+    if (isinstance(valor, str) and 0 < len(valor) <= 96
+            and all(caractere in "abcdefghijklmnopqrstuvwxyz0123456789_"
+                    for caractere in valor)):
+        return valor
+    return None
+
+
+def nup_possivel_publicavel(valor: object) -> bool:
+    """Somente identificadores saneáveis entram no relatório de possível resíduo."""
+    return (isinstance(valor, str) and 4 <= len(valor) <= 72
+            and valor.isascii() and any(caractere.isdigit() for caractere in valor)
+            and all(caractere.isdigit() or caractere in "./-" for caractere in valor))
+
+
+def preservar_diagnostico_inconclusivo(relatorio: dict, resposta: dict) -> None:
+    """Registra os fatos do POST incerto, sem transformar candidato em autoria."""
+    for origem, destino in (("subcodigo", "subcodigo_post"),
+                            ("causa_post", "causa_post"),
+                            ("causa_releitura", "causa_releitura")):
+        codigo = codigo_tipado_publicavel(resposta.get(origem))
+        if codigo is not None:
+            relatorio[destino] = codigo
+
+    for campo in ("status_http", "status_http_releitura"):
+        status = resposta.get(campo)
+        if type(status) is int and 100 <= status <= 599:
+            relatorio[campo] = status
+
+    possiveis = []
+    campos = ("nup", "candidatos_observados_na_caixa",
+              "candidatos_compativeis", "coincidencias_parciais_conferidas")
+    for campo in campos:
+        valor = resposta.get(campo)
+        valores = valor if isinstance(valor, list) else [valor] if campo == "nup" else []
+        for nup in valores:
+            if nup_possivel_publicavel(nup) and nup not in possiveis:
+                possiveis.append(nup)
+    if possiveis:
+        relatorio["possiveis_residuos"] = possiveis
+
+
 def ensaiar(
     *, ies: str, registro: Path, tipo: str, especificacao: str,
     nivel: str, hipotese: str | None, origem: str,
@@ -124,6 +167,7 @@ def ensaiar(
                     or not isinstance(nup, str) or not nup.strip()
                     or any(c.isspace() for c in nup)):
                 relatorio["estado"] = "EFEITO_INCERTO"
+                preservar_diagnostico_inconclusivo(relatorio, criado)
                 gravar()
                 return 3, relatorio
             relatorio["nup"] = nup

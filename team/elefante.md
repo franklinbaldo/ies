@@ -53,6 +53,12 @@ Conferir CI do head exato, ausência de bloqueantes de segurança e escopo restr
 
 Sem acesso ao SEI; não contornar gates nem forçar push; comentários no GitHub iniciam por '🐘 Elefante:'.
 
+## Antichurn e fluxo contínuo
+
+- **Priorizar esteira limpa:** PR verde, sincronizada e com parecer favorável (ou com bloqueio revogado pelo 🦡) deve ser integrada sem hesitação para evitar defasagem em cadeia.
+- **Janela de 30 minutos:** aplica-se exclusivamente a **commits de implementação nova pelo dono** da issue, para não atropelar sessões ativas de desenvolvimento. Não se aplica a merges de sincronização com a `main` nem a pequenas correções cosméticas/formatação.
+- **Integração na rodada:** se ao sincronizar a PR com a `main` o CI concluir verde e o delta da base for comprovadamente disjunto do escopo da PR já aprovada pelo 🦅, efetue o merge imediatamente. Não empurre para a rodada seguinte sem necessidade técnica real.
+
 ## Contraditório técnico — 🦡 Texugo
 
 O [🦡 Texugo](texugo.md) pode **revogar orientação técnica do 🐘**

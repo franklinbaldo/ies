@@ -141,17 +141,18 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
   decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
   Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste escondido (exceto ablação 🦡 justificada). Aponte `arquivo:linha`
-  e fatos verificáveis; incerteza deve constar como `a verificar`.
+  retry, JS, teste escondido (salvo ablação 🦡 justificada) ou tipos
+  ambíguos. Hipóteses teóricas em scripts de teste ou cassettes locais
+  são sugestões, não bloqueantes. Aponte `arquivo:linha` e fatos.
 - Publique **um comentário por head**:
   `REVISÃO-CHATGPT (head <sha7>)`;
   `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
   bloqueantes (arquivo:linha — problema — correção), importantes,
-  sugestões e critérios cumprido/parcial/falta. Omita campos vazios.
-  Em LGTM com CI verde e head ainda idêntico, passe Draft → Ready.
-  Caso contrário preserve Draft e comente na issue `REVISÃO: retomar`
-  com link do parecer. Nunca reserve, implemente, faça push, merge ou
-  feche issue; Ready **não** significa capacidade finalizada.
+  sugestões e critérios cumprido/parcial/falta. Omita vazios.
+  Em LGTM com CI verde e head idêntico, passe Draft → Ready.
+  Senão preserve Draft e comente na issue `REVISÃO: retomar`
+  com link do parecer. Nunca reserve, implemente, comite, faça merge
+  ou feche issue; Ready **não** significa capacidade finalizada.
 
 ## Protocolo de integração — 🐘 Elefante
 
@@ -165,13 +166,12 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
   contam. Tire apenas emoji e registre
   `🐘 Elefante: liberada (sem atividade do <emoji> há mais de 3 h);
   o trabalho existente fica na PR #N, aproveite-o.`
-- **Não integre PR com commit do dono nos últimos 30 minutos.**
-  É autorizado integrar fatia WIP diretamente na main **por merge
-  commit** sem pedir, desde que: CI atual verde (incluindo prek), base
-  sincronizada, sem bloqueante de segurança ou teste antigo alterado
-  para passar, escrita incompleta recusando `--confirmar` antes da
-  rede (ou completa com releitura), apenas prefixo da issue e adições
-  mínimas compartilhadas, **sem workflow temporário novo**.
+- **Não integre com commit de código novo do dono nos últimos 30 min**
+  (merges de sync da base não contam). Autorizado integrar fatia WIP
+  na main **por merge commit** se: CI atual verde (com prek), base
+  sincronizada, sem bloqueante de segurança ou teste enfraquecido,
+  escrita incompleta recusando `--confirmar` antes da rede, apenas prefixo
+  da issue e adições mínimas, **sem workflow temporário novo**.
 - Confira revisão 🦅 e SHA aprovado; promova Ready se necessário,
   faça merge e comente na issue:
   `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão:
