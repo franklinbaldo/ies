@@ -15,6 +15,13 @@ pub(crate) enum PropriedadesDocumento {
     Lidas(PropriedadesLidas),
 }
 
+/// Destino e ação de cadastro que a própria barra do SEI publicou.
+/// Não derivar o cadastro por URL criada a partir do id.
+pub(crate) struct LinkDoCadastro {
+    pub(crate) url: String,
+    pub(crate) fonte: &'static str,
+}
+
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct PropriedadesLidas {
     pub(crate) fonte: &'static str,
@@ -88,7 +95,7 @@ pub(crate) fn ler_link(
     arvore: &str,
     documento: &str,
     processo: &str,
-) -> Result<Option<String>, ErroHtml> {
+) -> Result<Option<LinkDoCadastro>, ErroHtml> {
     let Some(barra) = barra_do_no(arvore, documento)
         .map_err(|_| ErroHtml::valor("barra_cadastro_documento_ilegivel"))?
     else {
@@ -107,13 +114,19 @@ pub(crate) fn ler_link(
         let acao = href
             .strip_prefix("controlador.php?")
             .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("acao=")));
-        if acao != Some("documento_alterar") {
-            continue;
-        }
+        // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
+        // externos publicam as variantes _recebido (cassette UFRJ #60).
+        let fonte = match acao {
+            Some("documento_alterar") => "documento_alterar",
+            Some("documento_consultar") => "documento_consultar",
+            Some("documento_alterar_recebido") => "documento_alterar_recebido",
+            Some("documento_consultar_recebido") => "documento_consultar_recebido",
+            _ => continue,
+        };
         conferir_endereco_relativo_por(
             instalacao,
             &href,
-            "documento_alterar",
+            fonte,
             "id_procedimento",
             processo,
         )
@@ -121,12 +134,12 @@ pub(crate) fn ler_link(
         let url = conferir_endereco_relativo_por(
             instalacao,
             &href,
-            "documento_alterar",
+            fonte,
             "id_documento",
             documento,
         )
         .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
-        if encontrado.replace(url).is_some() {
+        if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
             return Err(ErroHtml::repetido("links_cadastro_documento_repetidos"));
         }
     }
@@ -233,7 +246,7 @@ mod tests {
         let link = ler_link(&instalacao(), &html, "21", "10")
             .unwrap()
             .expect("consulta publicada na barra");
-        assert!(link.contains("acao=documento_consultar&"));
+        assert!(link.url.contains("acao=documento_consultar&"));
     }
 
     #[test]
@@ -250,7 +263,7 @@ mod tests {
         let link = ler_link(&instalacao(), &html, "21", "10")
             .unwrap()
             .expect("consulta do externo publicada na barra");
-        assert!(link.contains("acao=documento_consultar_recebido&"));
+        assert!(link.url.contains("acao=documento_consultar_recebido&"));
     }
 
     #[test]
@@ -267,7 +280,7 @@ mod tests {
         let link = ler_link(&instalacao(), &html, "21", "10")
             .unwrap()
             .expect("alteração do externo publicada na barra");
-        assert!(link.contains("acao=documento_alterar_recebido&"));
+        assert!(link.url.contains("acao=documento_alterar_recebido&"));
     }
 
     #[test]
