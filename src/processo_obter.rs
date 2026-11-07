@@ -80,9 +80,11 @@ use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 pub(crate) use abertura::{CAMPO as CAMPO_DA_PESQUISA_RAPIDA, PESQUISA_RAPIDA};
+#[cfg(test)]
+pub(crate) use documento::obter_documento_com_versoes;
 pub(crate) use documento::{
     DocumentoNaArvoreAberto, DocumentoObtido, ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo,
-    PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_versoes,
+    PedidoDoDocumento, abrir_documento_na_arvore, obter_documento_com_propriedades,
 };
 #[cfg(test)]
 pub(crate) use documento::{FotoDaVersao, SemVersaoAtual, VersoesDoDocumento, obter_documento};
@@ -147,8 +149,7 @@ pub(crate) struct PedidoDoProcesso<'a> {
     /// Pula o link guardado da árvore (passo 1), que não publica a unidade:
     /// quem escreve precisa da unidade da sessão (`processo concluir`).
     pub(crate) unidade_exigida: bool,
-    /// Se `true`, permite degradação segura para leitura parcial quando pastas
-    /// estiverem incompletas (Refs #342).
+    /// Leitura informativa tolera pastas incompletas, sem usar documentos parciais.
     pub(crate) permitir_leitura_parcial: bool,
 }
 

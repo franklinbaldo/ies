@@ -242,3 +242,169 @@ fn pesquisa_sem_302_e_tela_de_outro_documento() {
         "endereco_da_arvore_de_outro_documento"
     );
 }
+
+#[test]
+fn propriedades_consulta_apenas_o_cadastro_servido_sem_escrita() {
+    // Dado documento interno com barra documento_alterar e cadastro compatível
+    // com Todos tests/paginas_reais/documento_alterar.html @323eb01,
+    // Quando peço --com-propriedades, então faço um único GET adicional,
+    // confiro os IDs do formulário e não envio POST de cadastro.
+    use crate::arvore_processo::tests_barra_documento::{HASH_VERSOES, barra, com_barra};
+    use crate::propriedades_documento::{Nivel, PropriedadesDocumento};
+
+    let amb = ambiente();
+    let arvore = arvore_com(&src_visualizar(ID_DOC));
+    let arvore = com_barra(&arvore, 1, &barra(ID, ID_DOC, None));
+    let mut respostas = ate_a_arvore(arvore);
+    respostas.push(ok(conteudo(DOC)));
+    respostas.push(ok(r#"<form id="frmDocumentoCadastro" method="post">
+           <input id="hdnIdDocumento" value="21">
+           <input id="hdnIdProcedimento" value="10">
+           <label id="lblSerieTitulo">Despacho</label>
+           <input id="txtDescricao" value="Cadastro">
+           <input id="txtNomeArvore" value="Despacho de teste">
+           <textarea id="txaObservacoes">observações</textarea>
+           <input name="rdoNivelAcesso" value="0" checked>
+           </form>"#
+        .to_owned()));
+    let url = url_controle();
+    let sessao = SessaoDoProcesso {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
+    };
+    let numero = NumeroDocumento::novo(DOC).unwrap();
+    let pedido = PedidoDoDocumento {
+        numero: &numero,
+        unidade: None,
+        anexo: PedidoDoAnexo::default(),
+        processo: None,
+    };
+    let mut roteiro = Roteiro::novo(respostas);
+    let r = obter_documento_com_propriedades(
+        &sessao,
+        &pedido,
+        PedidoDeVersoes::default(),
+        &amb.indice,
+        &mut roteiro,
+        true,
+    );
+    assert_eq!(roteiro.respostas_restantes(), 0);
+    let lido = r.unwrap();
+    assert_eq!(lido.requisicoes, 6);
+    assert_eq!(roteiro.pedidos.len(), 6);
+    let link = format!(
+        "controlador.php?acao=documento_alterar&id_procedimento={ID}&id_documento={ID_DOC}&infra_hash={HASH_VERSOES}"
+    );
+    assert_eq!(roteiro.pedidos[5], get(&absoluta(&link)));
+    match lido.propriedades {
+        PropriedadesDocumento::Lidas(p) => {
+            assert_eq!(p.descricao, "Cadastro");
+            assert_eq!(p.tipo, "Despacho");
+            assert_eq!(p.nivel_de_acesso, Some(Nivel::Publico));
+        }
+        outra => panic!("cadastro publicado deveria ser lido: {outra:?}"),
+    }
+}
+
+#[test]
+fn propriedades_do_documento_fechado_consultam_formulario_publicado() {
+    // Dado UFRJ SEI 4.1: processo fechado oferece documento_consultar.
+    // Quando executo ies documento DOC --com-propriedades,
+    // Então leio o cadastro por um GET e identifico a fonte da consulta.
+    use crate::arvore_processo::tests_barra_documento::{HASH_VERSOES, barra, com_barra};
+    use crate::propriedades_documento::PropriedadesDocumento;
+
+    let amb = ambiente();
+    let barra =
+        barra(ID, ID_DOC, None).replace("acao=documento_alterar", "acao=documento_consultar");
+    let arvore = com_barra(&arvore_com(&src_visualizar(ID_DOC)), 1, &barra);
+    let mut respostas = ate_a_arvore(arvore);
+    respostas.push(ok(conteudo(DOC)));
+    respostas.push(ok(r#"<form id="frmDocumentoCadastro">
+            <input id="hdnIdDocumento" value="21">
+            <input id="hdnIdProcedimento" value="10">
+            <label id="lblSerieTitulo">Ofício</label>
+            <input id="txtDescricao" value="Consulta do fechado">
+            <input id="txtNomeArvore" value="Ofício 0011519">
+            <textarea id="txaObservacoes">Somente consulta</textarea>
+            <input name="rdoNivelAcesso" value="0" checked disabled>
+            </form>"#
+        .to_owned()));
+    let url = url_controle();
+    let sessao = SessaoDoProcesso {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
+    };
+    let numero = NumeroDocumento::novo(DOC).unwrap();
+    let pedido = PedidoDoDocumento {
+        numero: &numero,
+        unidade: None,
+        anexo: PedidoDoAnexo::default(),
+        processo: None,
+    };
+    let mut roteiro = Roteiro::novo(respostas);
+    let lido = obter_documento_com_propriedades(
+        &sessao,
+        &pedido,
+        PedidoDeVersoes::default(),
+        &amb.indice,
+        &mut roteiro,
+        true,
+    )
+    .unwrap();
+    let link = format!(
+        "controlador.php?acao=documento_consultar&id_procedimento={ID}&id_documento={ID_DOC}&infra_hash={HASH_VERSOES}"
+    );
+    assert_eq!(roteiro.pedidos.len(), 6);
+    assert_eq!(lido.requisicoes, 6);
+    assert_eq!(roteiro.pedidos[5], get(&absoluta(&link)));
+    assert_eq!(roteiro.respostas_restantes(), 0);
+    match lido.propriedades {
+        PropriedadesDocumento::Lidas(p) => {
+            assert_eq!(p.fonte, "documento_consultar");
+            assert_eq!(p.descricao, "Consulta do fechado");
+        }
+        outra => panic!("cadastro de consulta deveria ser lido: {outra:?}"),
+    }
+}
+
+#[test]
+fn propriedades_sem_link_publicado_nao_consultam_cadastro() {
+    // Dado um documento com conteúdo mas sem link documento_alterar na barra,
+    // Quando executo ies documento DOC --com-propriedades,
+    // Então os metadados ficam null e não há GET adicional ao cadastro.
+    use crate::propriedades_documento::PropriedadesDocumento;
+
+    let amb = ambiente();
+    let mut respostas = ate_a_arvore(arvore_com(&src_visualizar(ID_DOC)));
+    respostas.push(ok(conteudo(DOC)));
+    let url = url_controle();
+    let sessao = SessaoDoProcesso {
+        url_do_controle: &url,
+        origem: ORIGEM,
+        cookie: &CookieDaSessao::ler(&amb.cookie),
+    };
+    let numero = NumeroDocumento::novo(DOC).unwrap();
+    let pedido = PedidoDoDocumento {
+        numero: &numero,
+        unidade: None,
+        anexo: PedidoDoAnexo::default(),
+        processo: None,
+    };
+    let mut roteiro = Roteiro::novo(respostas);
+    let resultado = obter_documento_com_propriedades(
+        &sessao,
+        &pedido,
+        PedidoDeVersoes::default(),
+        &amb.indice,
+        &mut roteiro,
+        true,
+    )
+    .unwrap();
+    assert_eq!(resultado.propriedades, PropriedadesDocumento::NaoPublicadas);
+    assert_eq!(resultado.requisicoes, 5);
+    assert_eq!(roteiro.pedidos.len(), 5);
+    assert_eq!(roteiro.respostas_restantes(), 0);
+}

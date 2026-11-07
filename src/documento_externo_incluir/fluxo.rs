@@ -56,6 +56,7 @@ pub(crate) struct PreviaExterna {
     pub(crate) unidade: String,
     pub(crate) id_tipo: String,
     pub(crate) limite_pdf_bytes: u64,
+    pub(crate) campos_oferecidos: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -223,6 +224,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         unidade,
         id_tipo: observado.id_tipo,
         limite_pdf_bytes: observado.limite_pdf_bytes,
+        campos_oferecidos: observado.campos_oferecidos,
     })
 }
 

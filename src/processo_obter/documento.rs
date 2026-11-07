@@ -23,6 +23,7 @@ use crate::erro_html::ErroHtml;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
+use crate::propriedades_documento::PropriedadesDocumento;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[path = "documento_erro.rs"]
@@ -32,6 +33,8 @@ use erro::ErroDocumentoObter as E;
 
 #[path = "documento_anexo.rs"]
 mod anexo;
+#[path = "documento_cadastro.rs"]
+mod cadastro;
 pub(crate) use anexo::PedidoDoAnexo;
 
 #[path = "documento_versao.rs"]
@@ -45,6 +48,7 @@ pub(crate) use versao::{PedidoDeVersoes, VersoesDoDocumento};
 pub(super) struct LeituraDoNo<'a> {
     pub(super) anexo: PedidoDoAnexo<'a>,
     pub(super) versoes: PedidoDeVersoes,
+    pub(super) propriedades: bool,
 }
 
 /// O número SEI pedido, a `--unidade` (conferida na tela), o
@@ -80,6 +84,7 @@ pub(crate) struct DocumentoObtido {
     pub(crate) requisicoes: u8,
     /// Versão lida, atual e cópia de trabalho (Refs #88).
     pub(crate) versoes: VersoesDoDocumento,
+    pub(crate) propriedades: PropriedadesDocumento,
 }
 
 #[cfg(test)]
@@ -94,6 +99,7 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
 
 /// Como [`obter_documento`], com a versão N ou a cópia de trabalho
 /// (contracts/cli/documento-obter-versoes.md), por qualquer caminho.
+#[cfg(test)]
 pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoDocumento<'_>,
@@ -101,9 +107,22 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<DocumentoObtido, E> {
+    obter_documento_com_propriedades(sessao, pedido, versoes, indice, envio, false)
+}
+
+/// Leitura Web com GET adicional do cadastro observado, quando solicitado.
+pub(crate) fn obter_documento_com_propriedades<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &PedidoDoDocumento<'_>,
+    versoes: PedidoDeVersoes,
+    indice: &IndiceLocal,
+    envio: &mut V,
+    propriedades: bool,
+) -> Result<DocumentoObtido, E> {
     let leitura = LeituraDoNo {
         anexo: pedido.anexo,
         versoes,
+        propriedades,
     };
     abrir(sessao, pedido, leitura, indice, envio)
 }
@@ -356,6 +375,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         id_documento: &no.id,
         id_procedimento: &lido.processo.id,
     };
+    let mut cadastro_antecipado = None;
     let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)?
     {
         ConteudoNaArvore::Visualizar(e) => {
@@ -371,9 +391,39 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             return Err(E::DocumentoCancelado);
         }
         ConteudoNaArvore::Vazio => {
-            return Err(E::ConteudoNaoPublicadoNaArvore {
-                requisicoes: rede.requisicoes.total_u8(),
-            });
+            let cadastro = cadastro::ler(
+                instalacao,
+                rede,
+                lido.html,
+                &no.id,
+                &lido.processo.id,
+                pedido.propriedades,
+                true,
+            )?;
+            let Some(link) = cadastro.anexo.as_ref() else {
+                return Err(E::ConteudoNaoPublicadoNaArvore {
+                    requisicoes: rede.requisicoes.total_u8(),
+                });
+            };
+            let versoes = versao::do_externo(&conferido, pedido.versoes)?;
+            let (tipo, texto, anexo) = anexo::ler(rede, link, numero, pedido.anexo)?;
+            cadastro_antecipado = Some(cadastro);
+            (tipo, texto, anexo, versoes)
+        }
+    };
+    let propriedades = match cadastro_antecipado {
+        Some(cadastro) => cadastro.propriedades,
+        None => {
+            cadastro::ler(
+                instalacao,
+                rede,
+                lido.html,
+                &no.id,
+                &lido.processo.id,
+                pedido.propriedades,
+                false,
+            )?
+            .propriedades
         }
     };
     Ok(DocumentoObtido {
@@ -390,6 +440,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         anexo,
         requisicoes: rede.requisicoes.total_u8(),
         versoes,
+        propriedades,
     })
 }
 

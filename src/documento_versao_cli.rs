@@ -146,6 +146,7 @@ pub(crate) mod testes {
             anexo: None,
             requisicoes: 6,
             versoes,
+            propriedades: crate::propriedades_documento::PropriedadesDocumento::NaoPedidas,
         }
     }
 
