@@ -95,6 +95,17 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
         let (leitor, resultado) = match (resposta.operacao, resposta.metodo, resposta.status) {
             ("procedimento_ciencia" | "documento_ciencia", "GET", 200) => {
                 let leitor = "aceite da ciência";
+                // O rótulo da gravação não prova a ação executada: a URL
+                // realmente servida deve publicar uma única acao igual à
+                // operação. Uma tela preparatória não é GET de ciência.
+                if gravacao::parametro(resposta.item, "acao").as_slice() != [resposta.operacao] {
+                    registros.push(Registro {
+                        leitor,
+                        instalacao: instalacao.into(),
+                        resultado: Resultado::NaoAplicavel("acao_de_ciencia_nao_observada"),
+                    });
+                    continue;
+                }
                 let Some(html) = html_da_resposta(resposta.item).ok() else {
                     registros.push(Registro {
                         leitor,

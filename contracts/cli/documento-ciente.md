@@ -169,3 +169,14 @@ a ciência continua sem prova de escrita e exige conferência no SEI.
 A saída humana mantém a mensagem de recusa e acrescenta a **contagem de requisições observadas** no efeito incerto, orientando a conferir a Lista de Ciências antes de outra confirmação e a **não repetir a escrita**. Não proíbe nova prévia: ela é somente leitura. O JSON mantém o mesmo número de requisições e os campos anteriores.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
+ 
+## Mensagem JSON de efeito incerto (#271, 07/11/2026)
+
+O campo `erro` do JSON, assim como a apresentação humana, orienta
+consultar a **Lista de Ciências do documento** antes de uma **nova confirmação**
+quando o efeito for incerto. Não sugere repetir a escrita nem proíbe
+nova prévia exclusivamente de leitura. Conserva `codigo=efeito_incerto`,
+saída 3, `requisicoes` observadas, HTTP e causa original, sem GET extra.
+RED da regressão JSON:
+[CI 42367722667](https://github.com/franklinbaldo/ies/actions/runs/42367722667),
+**1 FAIL novo, 1.872 PASS, 24 ignored**, antes da correção.
