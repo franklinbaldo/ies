@@ -116,12 +116,18 @@ fn atender(fluxo: &mut TcpStream, fonte: Option<&Fonte>) -> io::Result<()> {
 mod tests {
     use super::*;
 
-    fn pedir(alvo: &str) -> String {
+    use iesei::instalacao::Instalacao;
+    use iesei::observacao::{
+        Cobertura, FormaDoControle, ObservacaoDoControle, ProcessoNaLista, Proveniencia,
+        TabelaObservada, UnidadeExibida,
+    };
+
+    fn pedir_com_fonte(alvo: &str, fonte: Option<Fonte>) -> String {
         let escuta = TcpListener::bind(("127.0.0.1", 0)).expect("bind local");
         let endereco = escuta.local_addr().expect("endereco local");
         let servidor = std::thread::spawn(move || {
             let (mut fluxo, _) = escuta.accept().expect("aceitar conexao");
-            atender(&mut fluxo, None).expect("responder");
+            atender(&mut fluxo, fonte.as_ref()).expect("responder");
         });
 
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
@@ -133,6 +139,60 @@ mod tests {
         cliente.read_to_string(&mut resposta).expect("ler resposta");
         servidor.join().expect("servidor terminou");
         resposta
+    }
+
+    fn pedir(alvo: &str) -> String {
+        pedir_com_fonte(alvo, None)
+    }
+
+    fn sqlite_de_observacao() -> Fonte {
+        let mut banco = Connection::open_in_memory().expect("sqlite em memoria");
+        banco
+            .execute_batch(sqlite::MIGRACAO_CONTROLE)
+            .expect("schema observado");
+        let observado = ObservacaoDoControle::<ProcessoNaLista> {
+            instalacao: Instalacao::interpretar("https://sei.exemplo/sei").unwrap(),
+            unidade: UnidadeExibida::nova("PPI").unwrap(),
+            forma: FormaDoControle::Resumida {
+                recebidos: Cobertura::Observada(
+                    TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+                ),
+                gerados: Cobertura::Observada(
+                    TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+                ),
+            },
+            proveniencia: Proveniencia::Cassette {
+                cartao: "observacao-sintetica".to_owned(),
+            },
+        };
+        let tx = banco.transaction().expect("transacao");
+        sqlite::registrar(&tx, "perfil-sintetico", &observado).expect("persistir");
+        tx.commit().expect("confirmar");
+        Fonte {
+            banco,
+            origem: "https://sei.exemplo/sei".to_owned(),
+            contexto: "perfil-sintetico".to_owned(),
+        }
+    }
+
+    #[test]
+    fn responde_controle_com_fatos_lidos_do_sqlite_em_http_real() {
+        let resposta = pedir_com_fonte(
+            "/sei/controlador.php?acao=procedimento_controlar",
+            Some(sqlite_de_observacao()),
+        );
+        assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(resposta.contains("Content-Type: text/html; charset=utf-8\r\n"));
+        assert!(resposta.contains("<a id='lnkInfraUnidade'>PPI</a>"));
+        assert!(resposta.contains("<table id='tblProcessosRecebidos'>"));
+        assert!(resposta.contains("<table id='tblProcessosGerados'>"));
+    }
+
+    #[test]
+    fn sem_fato_persistido_devolve_http_503() {
+        let resposta = pedir("/sei/controlador.php?acao=procedimento_controlar");
+        assert!(resposta.starts_with("HTTP/1.1 503 Service Unavailable\r\n"));
+        assert!(resposta.contains("observacao_insuficiente"));
     }
 
     #[test]
