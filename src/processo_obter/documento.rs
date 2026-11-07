@@ -397,8 +397,8 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             .map_err(E::Html)?
         {
             None => PropriedadesDocumento::NaoPublicadas,
-            Some(url) => {
-                let html = match rede.get(&url).map_err(E::Processo)? {
+            Some(link) => {
+                let html = match rede.get(&link.url).map_err(E::Processo)? {
                     Lida::Html { html, .. } => html,
                     Lida::Login => return Err(E::Processo(ErroProcessoObter::SessaoEncerrada)),
                     Lida::Redirecionamento(local) => {
@@ -408,10 +408,11 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
                         return Err(E::Processo(ErroProcessoObter::Transporte(falha)));
                     }
                 };
-                PropriedadesDocumento::Lidas(
+                let mut lidas =
                     propriedades_documento::ler_formulario(&html, &no.id, &lido.processo.id)
-                        .map_err(E::Html)?,
-                )
+                        .map_err(E::Html)?;
+                lidas.fonte = link.fonte;
+                PropriedadesDocumento::Lidas(lidas)
             }
         }
     } else {
