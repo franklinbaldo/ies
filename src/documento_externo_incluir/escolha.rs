@@ -21,38 +21,48 @@ pub(crate) enum ErroEscolhaExterna {
 pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolhaExterna> {
     use ErroEscolhaExterna as E;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ForaDaForma)?;
+    // Links em <template> não estão na interface ativa.
+    let mut inertes = Vec::new();
+    for no in dom.query_selector("template").into_iter().flatten() {
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(E::ForaDaForma)?;
+        inertes.push(tag.boundaries(dom.parser()));
+    }
     let mut escolhas = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
             .ok_or(E::ForaDaForma)?;
-        let texto = tag
-            .inner_text(dom.parser())
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        if decodificar_atributo(&texto).ok_or(E::ForaDaForma)? != "Externo" {
+        let inicio = tag.boundaries(dom.parser()).0;
+        if inertes
+            .iter()
+            .any(|&(primeiro, ultimo)| (primeiro..=ultimo).contains(&inicio))
+        {
             continue;
         }
-        let href = valor_do_atributo(tag, "href")
-            .map_err(|_| E::ForaDaForma)?
-            .ok_or(E::ForaDaForma)?;
+        let Some(href) = valor_do_atributo(tag, "href").map_err(|_| E::ForaDaForma)? else {
+            continue;
+        };
         let href = decodificar_atributo(&href).ok_or(E::ForaDaForma)?;
         let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ForaDaForma)?;
-        if href.starts_with("controlador.php?")
+        // A classificação vem da ação, nunca do texto da âncora.
+        let pelo_link = href.starts_with("controlador.php?")
             && href
                 .split('?')
                 .nth(1)
-                .is_some_and(|q| q.split('&').any(|p| p == "acao=documento_receber"))
-            && onclick.as_deref().is_none_or(str::is_empty)
-        {
+                .is_some_and(|q| q.split('&').any(|p| p == "acao=documento_receber"));
+        let pelo_script = onclick
+            .as_deref()
+            .is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)");
+        if !pelo_link && !pelo_script {
+            continue;
+        }
+        if pelo_link && onclick.as_deref().is_none_or(str::is_empty) {
             escolhas.push(EscolhaExterna::Url(href));
-        } else if (href == "#" || href == "javascript:void(0);")
-            && onclick
-                .as_deref()
-                .is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)")
-        {
+        } else if (href == "#" || href == "javascript:void(0);") && pelo_script {
             let formularios =
                 nos_com_id(&dom, "frmDocumentoEscolherTipo").map_err(|_| E::ForaDaForma)?;
             let [no] = formularios.as_slice() else {

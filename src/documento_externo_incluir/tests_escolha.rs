@@ -71,12 +71,20 @@ fn dado_acao_publicada_quando_rotulo_muda_entao_nao_classifica_por_texto() {
     // Quando escolho documento externo; Então a ação prevalece sobre o texto.
     let link = "controlador.php?acao=documento_receber&id_procedimento=50961&infra_hash=FICTICIO";
     let html = lista(&format!(r#"<a href="{link}">Documento recebido</a>"#));
-    assert_eq!(escolher_externo(&html), Ok(EscolhaExterna::Url(link.to_owned())));
+    assert_eq!(
+        escolher_externo(&html),
+        Ok(EscolhaExterna::Url(link.to_owned()))
+    );
 }
 
 #[test]
 fn dado_template_inerte_quando_publica_acao_entao_nao_aceita_link_falso() {
     // Dado link que só existe em template; Quando escolho; Então não navego.
-    let html = lista(r#"<template><a href="controlador.php?acao=documento_receber&id_procedimento=50961&infra_hash=FICTICIO">Externo</a></template>"#);
-    assert_eq!(escolher_externo(&html), Err(ErroEscolhaExterna::NaoOferecido));
+    let html = lista(
+        r#"<template><a href="controlador.php?acao=documento_receber&id_procedimento=50961&infra_hash=FICTICIO">Externo</a></template>"#,
+    );
+    assert_eq!(
+        escolher_externo(&html),
+        Err(ErroEscolhaExterna::NaoOferecido)
+    );
 }
