@@ -198,10 +198,11 @@ fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
 /// Reconhece tipos nativos sem tratar controles invalidos como externos.
 fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
     !link_de_tipo_externo(href, onclick)
-        && (href.strip_prefix("controlador.php?").is_some_and(|consulta| {
-            consulta.split('&').any(|par| par == "acao=documento_gerar")
-        }) || ((href == "#" || href == "javascript:void(0);")
-            && onclick.and_then(id_da_escolha_literal).is_some()))
+        && (href
+            .strip_prefix("controlador.php?")
+            .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_gerar"))
+            || ((href == "#" || href == "javascript:void(0);")
+                && onclick.and_then(id_da_escolha_literal).is_some()))
 }
 
 /// Reconhece só o corpo literal observado da função, com duas instruções
