@@ -158,12 +158,10 @@ fn remocao_sem_passos_ou_com_handler_duplicado_e_recusada() {
         .is_err()
     );
     assert!(
-        super::tela::url_exclusao(
-            &servido.replace(
-                "getElementById('frmProcedimentoListarRelacionamentos').submit();",
-                "void(0);",
-            )
-        )
+        super::tela::url_exclusao(&servido.replace(
+            "getElementById('frmProcedimentoListarRelacionamentos').submit();",
+            "void(0);",
+        ))
         .is_err()
     );
     let duplicada = servido.replace("</script>", "function acaoRemover(id){}\n</script>");
