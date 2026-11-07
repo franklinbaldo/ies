@@ -289,5 +289,4 @@ mod tests {
         assert_eq!(saida["retentavel"], false);
         assert_eq!(publicar_erro(false, &erro, 7), ExitCode::from(3));
     }
-
 }
