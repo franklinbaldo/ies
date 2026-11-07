@@ -1,5 +1,5 @@
-//! Prévia e confirmação Web de atribuição por login exato.
-//! O envio usa um único POST e confere o efeito com releitura independente.
+//! Prévia Web de atribuição por login exato; escrita bloqueada até a
+//! sequência POST único e releitura estar coberta por teste de transporte.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
@@ -26,20 +26,47 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         return None;
     };
     Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => com_sessao(cli, |sessao, indice| {
-            let pedido = PedidoDaAtribuicao {
-                nup: &nup,
-                unidade: cli.unidade.as_deref(),
-                usuario: if *remover { None } else { usuario.as_deref() },
-                confirmar: *confirmar,
-            };
-            match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                Ok(feito) => publicar_resultado(cli.json, &feito),
-                Err(erro) => publicar_falha(cli.json, &erro),
+        Ok(nup) => {
+            if *confirmar {
+                // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
+                falhar(
+                    cli.json,
+                    ErroProcessoAtribuir::EscritaAindaNaoVerificada.subcodigo(),
+                )
+            } else {
+                com_sessao(cli, |sessao, indice| {
+                    let pedido = PedidoDaAtribuicao {
+                        nup: &nup,
+                        unidade: cli.unidade.as_deref(),
+                        usuario: if *remover { None } else { usuario.as_deref() },
+                        confirmar: false,
+                    };
+                    match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
+                        Ok(feito) => publicar_previa(cli.json, &feito),
+                        Err(erro) => publicar_falha(cli.json, &erro),
+                    }
+                })
             }
-        }),
+        }
         Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
     })
+}
+
+/// A trava de escrita ainda é recusada sem sessão, preservando o contrato.
+fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "codigo": "atribuicao_recusada",
+                "subcodigo": subcodigo,
+                "retentavel": false
+            })
+        );
+    } else {
+        eprintln!("IES: atribuição recusada [{subcodigo}]");
+    }
+    ExitCode::from(1)
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
@@ -92,7 +119,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
     ExitCode::from(erro.saida())
 }
 
-fn publicar_resultado(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
+fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
     if json_mode {
         println!(
             "{}",
@@ -111,20 +138,11 @@ fn publicar_resultado(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
             })
         );
     } else {
-        let situacao = if feito.confirmado {
-            "Atribuição confirmada"
+        println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
+        if let Some(login) = &feito.usuario_pedido {
+            println!("Atribuir a {login}; opção verificada na tela.");
         } else {
-            "Prévia da atribuição"
-        };
-        println!(
-            "{situacao}: processo {}, unidade {}.",
-            feito.nup, feito.unidade
-        );
-        match (&feito.usuario_pedido, feito.confirmado) {
-            (Some(login), true) => println!("Atribuído a {login}; efeito conferido por releitura."),
-            (Some(login), false) => println!("Atribuir a {login}; opção verificada na tela."),
-            (None, true) => println!("Atribuição removida; efeito conferido por releitura."),
-            (None, false) => println!("Remover a atribuição observada."),
+            println!("Remover a atribuição observada.");
         }
         println!("Requisições: {}", feito.requisicoes);
     }
