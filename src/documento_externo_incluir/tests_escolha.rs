@@ -37,3 +37,9 @@ fn dado_dois_tipos_iguais_quando_peço_anexo_entao_recuso_ambiguidade() {
     let html = cadastro().replace("<option value=\"291\">Despacho</option>", "<option value=\"291\">Anexo</option>");
     assert_eq!(identificar_tipo(&html, "Anexo"), Err(ErroEscolhaExterna::Ambiguo));
 }
+
+#[test]
+fn dado_sinalizador_de_cadastro_quando_ja_grava_entao_nao_recarrega() {
+    let tela = cadastro().replace("value=\"1\" />", "value=\"2\" />");
+    assert_eq!(identificar_tipo(&tela, "Anexo"), Err(ErroEscolhaExterna::ForaDaForma));
+}
