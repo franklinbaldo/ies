@@ -24,7 +24,7 @@ pub(crate) struct PropriedadesLidas {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Nivel { Publico, Restrito, Sigiloso }
 
-fn atributo(tag: Tag<'_>, nome: &str) -> Result<Option<String>, ErroHtml> {
+fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
     let a = atributos(tag).map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
     a.valor(nome).map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?
         .map(|v| decodificar_atributo(v).ok_or(ErroHtml::valor("cadastro_documento_ilegivel")))
