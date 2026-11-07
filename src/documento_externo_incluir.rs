@@ -8,6 +8,8 @@ pub(crate) mod anexo;
 pub(crate) mod cadastro;
 #[allow(dead_code)] // #332: cadastro definitivo offline, sem integração de POST.
 pub(crate) mod cadastro_envio;
+#[allow(dead_code)] // #332: sequência sob ensaio, confirmação pública ainda fechada.
+pub(crate) mod confirmacao;
 #[allow(dead_code)] // #332: seleção externa será ligada à prévia Web.
 pub(crate) mod escolha;
 #[allow(dead_code)] // #332: prévia remota será chamada pela CLI.
