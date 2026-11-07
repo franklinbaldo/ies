@@ -199,3 +199,21 @@ as 14 listas não puderam provar atividade. Não reivindicar equivalência
 ao vivo nem compatibilidade funcional dessas respostas. Caracterizar
 os formatos das respostas antes de alterar o leitor. A prévia live e
 a confirmação única seguem pendentes.
+
+## Marcação inerte ao lado de script ativo (#271)
+
+O leitor identifica os scripts **ativos** pelo DOM: ignora somente os
+scripts descendentes de `<template>` e `<noscript>`, sem recusar todo o
+aceite quando existe outro script de recarga válido. A sequência textual
+`<template><script>` em um literal JavaScript também não cria um nó HTML
+inerte. A identidade da atividade continua exigindo alvo e URL observados;
+o único GET de escrita e a releitura independente permanecem inalterados.
+
+## Tipo MIME do script do aceite (#271)
+
+O leitor da resposta aceita a chamada literal apenas em script clássico:
+`type` ausente ou vazio, `text/javascript` ou `application/javascript`,
+com comparação MIME sem distinção de maiúsculas e minúsculas. O conteúdo
+continua inerte com `src`, tipo de dados ou parâmetro MIME no atributo
+(`text/javascript; charset=utf-8`); ele não pode provar a atividade.
+Identidade do alvo, GET mutador único e releitura não mudam.
