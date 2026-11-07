@@ -15,7 +15,7 @@ tipo OKF próprio.
 
 - `title`: nome público do agente, incluindo seu emoji/avatar.
 - `description`: resumo da ficha e de sua finalidade.
-- `avatar`: emoji identificador da rotina (🦊, 🦉, 🐢, 🐙, 🦫, 🦅 ou 🐘).
+- `avatar`: emoji identificador da rotina (🦊, 🦉, 🐢, 🐙, 🦫, 🦡, 🦅 ou 🐘).
 - `especialidade`: domínio de responsabilidade prioritária.
 - `frequencia`: horário/cadência da rotina, em forma legível.
 
