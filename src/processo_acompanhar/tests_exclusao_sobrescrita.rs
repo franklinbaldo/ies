@@ -1,7 +1,7 @@
 //! Regressões adversariais de JS não observado na oferta de exclusão.
-//! Cenários sintéticos derivados da tela UnB de treinamento (#254).
-use super::*;
+//! Cenários sintéticos derivados da tela `UnB` de treinamento (#254).
 use super::tests::lista_observada;
+use super::*;
 
 fn sobrescrita_anterior() -> String {
     lista_observada("831").replacen(
@@ -30,7 +30,12 @@ fn recusa_reatribuicao_antes_da_declaracao() {
 #[test]
 fn recusa_reatribuicao_em_script_classico_posterior() {
     assert_eq!(
-        conferir_oferta_exclusao(&instalacao_de_teste(), &sobrescrita_em_outro_script(), "10", "831"),
+        conferir_oferta_exclusao(
+            &instalacao_de_teste(),
+            &sobrescrita_em_outro_script(),
+            "10",
+            "831"
+        ),
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
     );
 }
