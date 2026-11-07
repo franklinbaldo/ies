@@ -2,7 +2,7 @@
 use super::{ProcessoEnviado, lista_humana};
 
 /// Saída humana do sucesso.
-pub(super) fn humano(feito: &ProcessoEnviado) -> String {
+pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
     let refs = |v: &[String]| lista_humana(&v.iter().map(String::as_str).collect::<Vec<_>>());
     let mut linhas = vec![
         format!("Processo {} na unidade {}", feito.nup, feito.unidade),
