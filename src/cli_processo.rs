@@ -85,6 +85,9 @@ pub(crate) enum ProcessoAcao {
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
+        /// Solicita remover as anotações na prévia; confirmação exige releitura.
+        #[arg(long)]
+        remover_anotacoes: bool,
         #[arg(long)]
         confirmar: bool,
     },
