@@ -122,7 +122,7 @@ pub(crate) fn inspecionar_pdf(
     Ok(PdfLocal {
         nome: nome.to_owned(),
         tamanho_bytes: total,
-        sha256: format!("{:x}", digest.finalize()),
+        sha256: crate::hex::hex_minusculo(&digest.finalize()),
     })
 }
 
