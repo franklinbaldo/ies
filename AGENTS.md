@@ -208,20 +208,26 @@ O que falta implementar e em que ordem está na
   seu prefixo; os dos outros você lê. Se uma peça compartilhada precisar
   mudar, faça a mudança mínima e explique na PR.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
-- **Sem Rust no sandbox, o CI é o compilador.** Faça push no branch da
-  PR e leia o resultado do [CI](.github/workflows/ci.yml):
-  - **RED:** faça push dos testes novos antes do código. O hook "Suíte
-    Rust" falha, e o log mostra quantos testes falharam. Esse é o RED
-    observado; registre o run e a contagem.
-  - **Binário:** o job "binário ies" publica o artifact
-    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`, 7 dias),
-    compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3). Baixe-o pelo
-    GitHub (API de artifacts do run ou `gh run download`), confira o
-    SHA-256 e rode no sandbox: comandos offline, replay e ensaio ao vivo
-    em treinamento.
+- **Sem Rust no sandbox, o CI completo é o compilador sob demanda.**
+  O [CI rápido](.github/workflows/ci-rapido.yml) roda apenas
+  pre-commit em atualizações de PR; o [CI completo](.github/workflows/ci.yml)
+  roda ao passar a PR de Draft para Ready for review (ou manualmente
+  para diagnóstico). Não executar 7 jobs e 3 wheels a cada commit;
+  consulte a [política de CI](docs/ci.md).
+  - **RED:** faça push dos testes novos antes do código. Acione a
+    suíte completa por transição Draft → Ready (volte a Draft se
+    necessário); o hook "Suíte Rust" mostra os testes falhos.
+    Registre o run e a contagem. Não declare RED sem executá-lo.
+  - **Binário:** o job "binário ies" do CI completo publica o artifact
+    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`,
+    7 dias), compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3).
+    Baixe-o pelo GitHub (API de artifacts do run ou
+    `gh run download`), confira SHA-256 e rode no sandbox:
+    comandos offline, replay e ensaio ao vivo em treinamento.
   - **Sandbox sem rede para o GitHub ou para o SEI:** rode o ensaio num
-    workflow temporário (`workflow_dispatch` ou `push` em `codex/**`) que
-    use esse binário, e remova o workflow antes de a PR sair de DRAFT.
+    workflow temporário (`workflow_dispatch` ou `push` em
+    `codex/**`) que use esse binário e remova-o antes de a PR
+    sair de DRAFT.
 - **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
   verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
   sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
@@ -233,8 +239,8 @@ O que falta implementar e em que ordem está na
   (`--confirmar` recusa antes da rede).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
-  (o [CI](.github/workflows/ci.yml) roda os mesmos gates; não crie outro
-  conjunto de checks).
+  (o [CI completo](.github/workflows/ci.yml) reproduz os mesmos gates
+  na preparação para merge; o CI rápido executa apenas pre-commit).
 
 ## OKF e okf-parser
 

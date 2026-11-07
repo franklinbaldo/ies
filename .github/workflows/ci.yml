@@ -1,9 +1,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # A suíte completa roda no momento de revisão, nunca em cada commit.
+  # Para revalidar depois de novas mudanças: Draft -> Ready for review.
   pull_request:
+    types: [ready_for_review]
   workflow_dispatch:
 
 permissions:
