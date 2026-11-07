@@ -27,7 +27,7 @@ registra sempre em nome do usuário da sessão; não inferir outros usuários.
 
 Uma recusa, 302, timeout, árvore ou lista ilegível após GET mutador implicam
 `efeito_incerto_na_ciencia_do_documento` e saída 3; jamais repetir escrita
-automaticamente. A prévia nunca consulta `documento_ciencia`. A causa tipada
+automaticamente. A prévia nunca consulta `documento_ciencia`. Na apresentação humana, identifica documento, rótulo e processo, acrescentando a unidade apenas quando observada na abertura; separa as frases com espaçamento normal e exibe `--confirmar` e a contagem de requisições. A saída JSON mantém a unidade opcional e não inventa dado ausente. A causa tipada
 do único GET mutador permanece em `falha_do_aceite` na saída JSON:
 transporte/status HTTP, validação da Infra (HTTP 200 com mensagem saneada),
 ou aceite sem atividade reconhecível. Recusas HTTP preservam
