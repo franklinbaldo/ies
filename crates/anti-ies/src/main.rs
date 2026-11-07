@@ -87,8 +87,7 @@ mod tests {
         });
 
         let mut cliente = TcpStream::connect(endereco).expect("conectar");
-        write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n")
-            .expect("enviar GET");
+        write!(cliente, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").expect("enviar GET");
         cliente
             .shutdown(std::net::Shutdown::Write)
             .expect("encerrar escrita");
