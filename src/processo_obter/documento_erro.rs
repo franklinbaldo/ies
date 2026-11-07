@@ -51,8 +51,6 @@ pub(crate) enum ErroDocumentoObter {
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
-    #[causa(interna)]
-    Propriedades(ErroHtml),
     #[causa(transparente)]
     Html(ErroHtml),
 }
@@ -97,7 +95,6 @@ impl ErroDocumentoObter {
             Self::ConteudoComLinkAssinado => {
                 "o conteúdo servido traz um link assinado e não é gravado"
             }
-            Self::Propriedades(erro) => erro.mensagem,
         }
     }
 
