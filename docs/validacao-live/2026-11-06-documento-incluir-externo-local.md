@@ -56,6 +56,12 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 - **GREEN:** implementado um interpretador tipado de seis campos `#`, sem regex, JS, GET ou POST. Recusa específica `ERRO#motivo`; ausência/ambiguidade de recibo ou HTTP inesperado permanecem efeito incerto sem repetir qualquer escrita. Conferir o gate do **head atual** antes de atestar sua aprovação.
 - **Escopo:** testes exclusivamente sintéticos, originados dos cenários UnB do Todos; nenhum upload, cadastro remoto ou releitura do IES foi executado. `--confirmar` segue recusado antes da sessão e da rede. Live: **NOT_RUN**, zero GET, zero POST, zero uploads, zero retries e zero resíduos.
 
+## RED → GREEN do corpo multipart PDF — continuação #380 (07/11/2026)
+
+- **RED compilável:** [CI 42373451642](https://github.com/franklinbaldo/ies/actions/runs/42373451642), SHA `c2d7ed1`: **1.951 testes PASS, 4 FAIL novos, 25 ignored**. Os quatro testes eram: corpo e tamanho exatos, charset da tela, recusa de nome não codificável e fronteira/overflow/escape do nome. O Clippy também sinalizou documentação sem crases no stub RED. O primeiro push de testes [42373341865](https://github.com/franklinbaldo/ies/actions/runs/42373341865) falhou ao compilar por lifetime do `Read`; não é contabilizado como RED de teste.
+- **GREEN proposto:** [commit `8e6b876`](https://github.com/franklinbaldo/ies/commit/8e6b87697be3930e4508d2cb88029114d06dff4a) constrói peças multipart conforme o caso Todos/UnB, compõe `Content-Length` e permite leitura encadeada sem carregar o PDF em memória. Verificar CI do SHA final, inclusive `prek`, antes de declarar todos os gates verdes.
+- **Live:** nenhum POST, nenhum GET, nenhum upload. A etapa só gerou bytes sintéticos offline; `--confirmar` não habilitado. A fonte do cenário é o teste do Todos, **não** ensaio do IES em treinamento.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
