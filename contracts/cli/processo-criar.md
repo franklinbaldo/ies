@@ -97,6 +97,8 @@ O usuário deve conferir a unidade antes de nova tentativa.
 | `especificacao_acima_do_limite_do_cadastro` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
 | `limite_da_especificacao_invalido_no_cadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
 | `assunto_sugerido_nao_unico` | Nenhum ou vários assuntos selecionáveis no cadastro |
+| `assunto_sugerido_desabilitado` | O `select` de assunto está desabilitado: a opção visível não comprova escolha habilitada; recusa antes do POST |
+| `hipotese_legal_desabilitada` | `select` da hipótese legal está desabilitado quando o nível solicitado é restrito; recusa antes do POST |
 | `nivel_de_acesso_nao_oferecido` | Rádio de acesso solicitado não está publicado |
 | `nivel_de_acesso_desabilitado` | Rádio publicado mas desabilitado |
 | `hipotese_legal_nao_identificada` | Hipótese legal única não publicada |
