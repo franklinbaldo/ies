@@ -103,7 +103,10 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     respostas.extend([
         ok(tela()),
-        ok("<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>".to_owned()),
+        ok(
+            "<html><textarea id='txaInfraValidacao'>Solicitacao recusada</textarea></html>"
+                .to_owned(),
+        ),
         ok(arvore_com_ciencias()),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
@@ -115,5 +118,11 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     assert_eq!(saida["requisicoes"], 6);
     assert_eq!(saida["retentavel"], false);
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(pedidos.iter().filter(|p| p.url == link_de_ciencia()).count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.url == link_de_ciencia())
+            .count(),
+        1
+    );
 }
