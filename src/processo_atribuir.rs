@@ -2,14 +2,36 @@
 // Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
 //! O select não informa a atribuição atual: a árvore do processo é a fonte.
 use crate::erro_html::ErroHtml;
-use crate::formulario_web::{decodificar_atributo, localizar_formulario};
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
+    decodificar_atributo, derivar_submissao, localizar_formulario,
+};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
+use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::texto_de_recusa::decodificar_entidades;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
 const ACAO: &str = "procedimento_atribuicao_cadastrar";
 const SELECAO: &str = "selAtribuicao";
 const SEM_ATRIBUICAO: &str = "null";
+
+/// O POST da atribuição é derivado da tela, não fabricado pelo comando.
+/// A própria operação só poderá enviá-lo depois de garantir a releitura.
+pub(crate) const ATRIBUIR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: ACAO,
+    formulario: FORMULARIO,
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
+    campos_ocultos_exigidos: &["hdnInfraTipoPagina", "hdnIdProtocolo"],
+    campos_ocultos_reescritos: &[],
+    campos_usuario: &[SELECAO],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::AtribuicaoNaUnidade,
+    },
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UsuarioDaAtribuicao {
@@ -23,7 +45,7 @@ pub(crate) struct TelaDaAtribuicao {
     pub(crate) usuarios: Vec<UsuarioDaAtribuicao>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuir {
     UsuarioNaoAtribuivel,
     #[causa(nome = "usuario_ambiguo_na_atribuicao")]
@@ -31,12 +53,15 @@ pub(crate) enum ErroAtribuir {
     #[causa(nome = "situacao_da_atribuicao_nao_observada")]
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
+    CharsetDaTelaNaoSuportado,
+    #[causa(transparente)]
+    Formulario(ErroSubmissaoFormulario),
     #[causa(transparente)]
     Html(ErroHtml),
 }
 impl ErroAtribuir {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
+    pub(crate) fn subcodigo(&self) -> &'static str {
+        crate::erro_publico::folha(self)
     }
 }
 
@@ -89,7 +114,7 @@ fn ler_opcoes(
     tag: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
 ) -> Result<(Vec<UsuarioDaAtribuicao>, usize), E> {
-    let mut usuarios = Vec::new();
+    let mut usuarios: Vec<UsuarioDaAtribuicao> = Vec::new();
     let mut item_nulo = 0;
     for filho in tag.children().all(parser) {
         let Some(opcao) = filho.as_tag() else {
@@ -126,6 +151,9 @@ fn ler_opcoes(
         if login.is_empty() || nome.is_empty() {
             return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
+        if usuarios.iter().any(|usuario| usuario.id == id_usuario) {
+            return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
+        }
         usuarios.push(UsuarioDaAtribuicao {
             id: id_usuario,
             login: login.to_owned(),
@@ -144,6 +172,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
         .map_err(|_| ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))?;
     if valor(form, "method")?.as_deref() != Some("post")
         || presente(form, "disabled")?
+        || presente(form, "hidden")?
         || !valor(form, "action")?
             .as_deref()
             .is_some_and(|action| acao_do_formulario(action, id))
@@ -178,6 +207,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
             }
             "button" => {
                 if presente(tag, "disabled")?
+                    || presente(tag, "hidden")?
                     || presente(tag, "formaction")?
                     || presente(tag, "formmethod")?
                     || presente(tag, "formenctype")?
@@ -202,6 +232,7 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                     || valor(tag, "name")?.as_deref() != Some(SELECAO)
                     || presente(tag, "multiple")?
                     || presente(tag, "disabled")?
+                    || presente(tag, "hidden")?
                 {
                     return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
                 }
@@ -209,6 +240,10 @@ pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
                 let (lidos, nulos) = ler_opcoes(tag, parser)?;
                 usuarios.extend(lidos);
                 item_nulo += nulos;
+            }
+            "fieldset" if presente(tag, "disabled")? => {
+                // Controles dentro do fieldset não estão acionáveis no DOM.
+                return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
             }
             "optgroup" | "textarea" => {
                 return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
@@ -250,6 +285,52 @@ pub(crate) fn planejar(
     Ok(usuario.id.clone())
 }
 
+/// A prévia já prova o payload do futuro POST sem enviar nada.
+/// A seleção é feita uma vez sobre a mesma tela e mesma identidade.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn preparar_submissao(
+    instalacao: &Instalacao,
+    url: &str,
+    html: &str,
+    mime: &str,
+    id: &str,
+    unidade: &str,
+    login: Option<&str>,
+    atual: Option<&str>,
+) -> Result<(String, SubmissaoDerivada), E> {
+    let tela = ler_tela(html, id)?;
+    let valor = planejar(&tela, login, atual)?;
+    let codificacao = codificacao_da_tela(mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+    let servida = TelaServida {
+        url,
+        html,
+        codificacao,
+    };
+    let submissao = derivar_submissao(
+        &ATRIBUIR_PROCESSO,
+        instalacao,
+        &servida,
+        unidade,
+        &[(SELECAO, valor.as_str())],
+    )
+    .map_err(E::Formulario)?;
+    Ok((valor, submissao))
+}
+
+mod fluxo;
+pub(crate) use fluxo::{
+    ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
+    executar_previa,
+};
+
 #[cfg(test)]
 #[path = "processo_atribuir/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "processo_atribuir/tests_fluxo.rs"]
+mod tests_fluxo;
+
+#[cfg(test)]
+#[path = "processo_atribuir/acervo.rs"]
+mod acervo;
