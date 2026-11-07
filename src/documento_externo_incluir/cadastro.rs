@@ -18,6 +18,7 @@ pub(crate) struct CadastroExterno {
     pub(crate) id_tipo: String,
     pub(crate) limite_pdf_bytes: u64,
     pub(crate) plano: PlanoAnexo,
+    pub(crate) campos_oferecidos: Vec<String>,
 }
 
 /// Um controle só vale se pertence ao formulário observado e não está desabilitado.
@@ -119,6 +120,56 @@ fn limite_pdf(html: &str, dom: &tl::VDom<'_>) -> Result<u64, FalhaCadastroExtern
     }
 }
 
+
+/// Controles de usuário realmente publicados dentro do cadastro ativo.
+/// Não expõe valores, campos ocultos nem controles desabilitados.
+fn campos_oferecidos(
+    dom: &tl::VDom<'_>,
+    formulario: &tl::HTMLTag<'_>,
+) -> Result<Vec<String>, FalhaCadastroExterno> {
+    let erro = FalhaCadastroExterno::FormaNaoObservada;
+    let (inicio_form, fim_form) = formulario.boundaries(dom.parser());
+    let mut encontrados = Vec::new();
+    for elemento in ["input", "select", "textarea"] {
+        for no in dom.query_selector(elemento).into_iter().flatten() {
+            let tag = no
+                .get(dom.parser())
+                .and_then(tl::Node::as_tag)
+                .ok_or(erro)?;
+            let (inicio, fim) = tag.boundaries(dom.parser());
+            if inicio <= inicio_form
+                || fim > fim_form
+                || atributo_presente(tag, "disabled").map_err(|_| erro)?
+            {
+                continue;
+            }
+            let Some(nome) = valor_do_atributo(tag, "name").map_err(|_| erro)? else {
+                continue;
+            };
+            if nome.is_empty() {
+                continue;
+            }
+            if elemento == "input"
+                && matches!(
+                    valor_do_atributo(tag, "type").map_err(|_| erro)?.as_deref(),
+                    Some("hidden" | "file" | "submit" | "button" | "reset" | "image")
+                )
+            {
+                continue;
+            }
+            encontrados.push((inicio, nome));
+        }
+    }
+    encontrados.sort_by_key(|(inicio, _)| *inicio);
+    let mut nomes = Vec::new();
+    for (_, nome) in encontrados {
+        if !nomes.contains(&nome) {
+            nomes.push(nome);
+        }
+    }
+    Ok(nomes)
+}
+
 /// Inspeciona o cadastro servido depois da escolha do tipo (sem escrita).
 /// A saída mantém o destino de upload somente em memória.
 pub(crate) fn observar_cadastro(
@@ -181,7 +232,7 @@ pub(crate) fn observar_cadastro(
             .collect::<Vec<_>>()
             .join(" ");
         let nome = crate::formulario_web::decodificar_atributo(&nome).ok_or(erro)?;
-        if nome != tipo {
+        if nome != tipo || atributo_presente(tag, "disabled").map_err(|_| erro)? {
             continue;
         }
         let id = valor_do_atributo(tag, "value")
@@ -208,10 +259,12 @@ pub(crate) fn observar_cadastro(
         return Err(FalhaCadastroExterno::PdfAcimaDoLimite);
     }
     let plano = super::anexo::ler_plano(html).map_err(FalhaCadastroExterno::PlanoAnexo)?;
+    let campos_oferecidos = campos_oferecidos(&dom, form)?;
     Ok(CadastroExterno {
         id_tipo: id_tipo.clone(),
         limite_pdf_bytes,
         plano,
+        campos_oferecidos,
     })
 }
 
