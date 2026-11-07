@@ -1,0 +1,74 @@
+name: castor-preview-documento-246-temporario
+on:
+  push:
+    branches: [codex/246-castor-preview-treinamento-20261107]
+permissions:
+  contents: read
+jobs:
+  previa-unb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compilar binario do branch
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked --release --bin ies
+      - name: Preparar sessao privada a partir das credenciais publicas
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          linha = next(s for s in Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines() if s.startswith("| `unb` |"))
+          campos = [c.strip().strip("`") for c in linha.split("|")[1:-1]]
+          origem, usuario, senha, orgao = campos[2:6]
+          pasta = Path(os.environ["RUNNER_TEMP"]) / "ies-castor-246"
+          pasta.mkdir(mode=0o700, exist_ok=True)
+          arquivos = {
+              "IES_ORIGEM_FILE": (pasta / "origem", origem + "\n"),
+              "IES_CREDENCIAIS_FILE": (pasta / "credenciais", f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),
+              "IES_COOKIE_FILE": (pasta / "cookie", ""),
+              "IES_URL_CONTROLE_FILE": (pasta / "controle", ""),
+          }
+          for chave, (arquivo, conteudo) in arquivos.items():
+              fd = os.open(arquivo, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+              with os.fdopen(fd, "w") as destino:
+                  destino.write(conteudo)
+              with open(os.environ["GITHUB_ENV"], "a") as variaveis:
+                  print(f"{chave}={arquivo}", file=variaveis)
+          with open(os.environ["GITHUB_ENV"], "a") as variaveis:
+              print("IES_SEM_INDICE=1", file=variaveis)
+          PY
+      - name: Login unico na UnB de treinamento
+        shell: bash
+        run: |
+          set -u
+          destino="$RUNNER_TEMP/ies-castor-246/login.json"
+          target/release/ies --json login > "$destino" 2>/dev/null
+          rc=$?
+          python3 - "$destino" "$rc" <<'PY'
+          import json,sys
+          try: dado=json.load(open(sys.argv[1]))
+          except (ValueError,OSError): dado={}
+          print(json.dumps({"etapa":"login","exit":int(sys.argv[2]),"conexao":dado.get("conexao"),"codigo":dado.get("codigo"),"subcodigo":dado.get("subcodigo"),"requisicoes":dado.get("requisicoes")}))
+          PY
+          test "$rc" -eq 0
+      - name: Previa unica sem confirmar em processo alternativo
+        shell: bash
+        run: |
+          set -u
+          sleep 35
+          destino="$RUNNER_TEMP/ies-castor-246/previa.json"
+          target/release/ies --json documento criar --processo 23106.001592/2026-41 --tipo Despacho --nivel publico > "$destino" 2>/dev/null
+          rc=$?
+          python3 - "$destino" "$rc" <<'PY'
+          import json,sys
+          try: dado=json.load(open(sys.argv[1]))
+          except (ValueError,OSError): dado={}
+          print(json.dumps({"etapa":"previa","exit":int(sys.argv[2]),"codigo":dado.get("codigo"),"subcodigo":dado.get("subcodigo"),"requisicoes":dado.get("requisicoes"),"tipo":dado.get("tipo"),"nivel":dado.get("nivel"),"confirmado":dado.get("confirmado"),"alterado":dado.get("alterado")}))
+          PY
+          test "$rc" -eq 0
