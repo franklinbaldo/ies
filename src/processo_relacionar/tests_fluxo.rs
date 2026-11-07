@@ -137,7 +137,98 @@ fn dado_ajax_divergente_quando_previa_entao_recusa_destino_errado() {
         "<?xml version=\"1.0\"?><complementos><complemento nome=\"IdProcedimento\">22</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">99999.000099/2026-01</complemento></complementos>".to_owned(),
     ));
     let (resultado, pedidos) = executar(respostas);
-    assert!(resultado.is_err(), "NUP do AJAX diverge do pedido");
+    assert!(matches!(resultado, Err(FalhaRelacionar::RelacionamentoConsigoMesmo)), "resultado do AJAX divergente: {resultado:?}");
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
+}
+
+
+// Fonte comportamental: Todos tests/test_processo_relacionar_remover_010.py
+// @323eb01, test_so_os_digitos_bastam; não reduzir protocolo alfanumérico a dígitos.
+fn executar_com(
+    respostas: Vec<Resposta>,
+    destino: &str,
+    remover: bool,
+) -> (Result<super::Previa, FalhaRelacionar>, Vec<PedidoHttp>) {
+    let amb = ambiente();
+    let com = NumeroProcesso::novo(destino).unwrap();
+    rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        prever(
+            sessao,
+            &Pedido {
+                nup,
+                com: &com,
+                unidade: None,
+                remover,
+                confirmar: false,
+            },
+            indice,
+            rede,
+        )
+    })
+}
+
+/// Dado um processo relacionado publicado com pontuação, quando peço
+/// adicionar usando só letras e números, então a prévia informa sem efeito.
+#[test]
+fn dado_numero_sem_pontuacao_quando_ja_relacionado_entao_sem_ajax() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[("22", DESTINO)])));
+    let compacto: String = DESTINO.chars().filter(|c| c.is_alphanumeric()).collect();
+    let (resultado, pedidos) = executar_com(respostas, &compacto, false);
+    let previa = resultado.expect("mesmo protocolo não precisa de AJAX");
+    assert!(previa.sem_efeito);
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(previa.destino, DESTINO);
+    assert_eq!(pedidos.len(), 4);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}
+
+/// Dado um vínculo publicado com pontuação, quando peço remover com número
+/// sem pontuação, então o mesmo vínculo é selecionado, sem POST.
+#[test]
+fn dado_numero_sem_pontuacao_quando_remover_entao_encontra_linha() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[("22", DESTINO)])));
+    let compacto: String = DESTINO.chars().filter(|c| c.is_alphanumeric()).collect();
+    let (resultado, pedidos) = executar_com(respostas, &compacto, true);
+    let previa = resultado.expect("vínculo com formato alternativo deve ser encontrado");
+    assert!(!previa.sem_efeito);
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(previa.destino, DESTINO);
+    assert_eq!(pedidos.len(), 4);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}
+
+/// Dado dois protocolos de mesma forma alfanumérica e nenhum texto exato,
+/// quando removo, então a CLI recusa selecionar arbitrariamente um dos dois.
+#[test]
+fn dado_duas_pontuacoes_equivalentes_quando_remover_entao_ambiguo() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[
+        ("22", "AB-C"),
+        ("23", "A-BC"),
+    ])));
+    let (resultado, pedidos) = executar_com(respostas, "ABC", true);
+    assert!(matches!(
+        resultado,
+        Err(FalhaRelacionar::Estrutura("relacionamentos_repetidos_na_tela"))
+    ));
+    assert_eq!(pedidos.len(), 4);
+    assert!(pedidos.iter().all(|p| p.metodo == "GET"));
+}
+
+/// Dado duas formas equivalentes e uma com texto exato, quando removo
+/// pela forma exata, então a linha textual vence a busca normalizada.
+#[test]
+fn dado_texto_exato_quando_remover_entao_prioriza_linha() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(formulario_com_relacionados(&[
+        ("22", "AB-C"),
+        ("23", "A-BC"),
+    ])));
+    let (resultado, pedidos) = executar_com(respostas, "AB-C", true);
+    let previa = resultado.expect("a linha exata evita ambiguidade da forma");
+    assert_eq!(previa.id_destino.as_deref(), Some("22"));
+    assert_eq!(pedidos.len(), 4);
 }
