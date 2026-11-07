@@ -56,10 +56,21 @@ O Todos exige que o cadastro reconhecido tenha
 `hdnAssuntos`. Sem assuntos fornecidos pelo usuário, o oráculo
 aceita exatamente um assunto sugerido; caso contrário, recusa.
 Um nível solicitado só pode ser enviado se o rádio correspondente
-estiver presente e habilitado. Restrito exige hipótese selecionável
+estiver presente e habilitado. Pela semântica HTML do formulário,
+`select disabled` não participa de seleção: opção de assunto visível
+num seletor desabilitado não é assunto oferecido; em nível restrito,
+idem para a hipótese legal. A guarda é negativa e foi testada com
+HTML sintético derivado da captura publicada, **sem alegar que essas
+instalações já apresentaram selects desabilitados**. Restrito exige hipótese selecionável
 na lista que o cadastro oferece (que pode depender de AJAX);
 **não presumir** que uma hipótese existe. Interessados fornecidos
 devem ser resolvidos univocamente pela busca da própria tela.
+No retorno AJAX de autocomplete, a lista publicada é `<itens>`,
+com os candidatos em elementos `<item>` internos. Itens que não
+pertencem à raiz observada não oferecem identidade selecionável.
+A regressão #245 injeta um `<item>` externo **sintético** para impedir
+a aceitação de identidade alheia; não atribui essa estrutura a uma
+instalação real.
 
 A amostra registra `btnSalvar` como botão de ação no navegador;
 o Todos observa que não integra o payload: o formulário é submetido

@@ -491,3 +491,7 @@ mod tests_concorrencia;
 #[cfg(test)]
 #[path = "tests_contagem.rs"]
 mod tests_contagem;
+
+#[cfg(test)]
+#[path = "tests_select_desabilitado.rs"]
+mod tests_select_desabilitado;
