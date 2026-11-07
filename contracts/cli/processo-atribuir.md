@@ -31,6 +31,10 @@ A recusa é `tela_da_atribuicao_fora_da_forma`, sem novo subcódigo.
 
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
 situação não observada e atribuição já aplicada são recusas tipadas.
+Quando a árvore já publica o mesmo login solicitado, ou atribuição vazia na
+remoção, a recusa `atribuicao_ja_aplicada` ocorre antes do GET do formulário:
+3 GET e 0 POST a frio, também na confirmação injetável. A recusa não presume
+situação ausente a partir de uma unidade não observada.
 Quando a situação não está observada na unidade da **tela autenticada**,
 a recusa conserva `situacao_da_atribuicao_nao_observada` e publica
 `unidade` (tela), `aberto_em` (siglas da árvore, `null` se não lidas),
