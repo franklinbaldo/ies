@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 description = "Servidor Rust experimental de compatibilidade observavel com SEI"
+
+[dependencies]
+iesei = { path = "../iesei" }
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
