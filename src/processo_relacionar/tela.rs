@@ -217,7 +217,7 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         let candidatos: Vec<_> = linhas
             .iter()
             .enumerate()
-            .filter_map(|(i, linha)| (*linha == FUNCAO).then_some(i))
+            .filter_map(|(i, linha)| linha.starts_with(FUNCAO).then_some(i))
             .collect();
         let [inicio] = candidatos.as_slice() else {
             if !candidatos.is_empty() {
@@ -225,6 +225,9 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
             }
             continue;
         };
+        if linhas[*inicio] != FUNCAO {
+            return Err(ERRO);
+        }
         // Uma declaração dentro de comentário de bloco não é executável.
         let prefixo = linhas[..*inicio].join("\n");
         let ultimo_abre = prefixo.rfind("/*");
