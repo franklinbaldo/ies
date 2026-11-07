@@ -2,3 +2,4 @@
 pub mod instalacao;
 pub mod observacao;
 pub mod sqlite;
+pub mod banco_cassettes;
