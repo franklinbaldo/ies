@@ -27,7 +27,7 @@ Leia **AGENTS.md e sua ficha**; o prompt agendado apenas identifica a rotina.
 | 🦡 | Texugo — antichurn e pragmatismo | [team/texugo.md](team/texugo.md) | :52 |
 | 🐘 | Elefante — integração, prioridades e fila | [team/elefante.md](team/elefante.md) | :05 |
 
-Preserve reservas; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
+Respeite trabalhos em curso; não edite branches alheios. 🦅, 🦡 e 🐘 não reservam issues.
 
 **Commits:** toda mensagem começa **no primeiro caractere**
 com o emoji da rotina (tabela): `🦊 fix: ...`, `🐙 WIP: ...`.
@@ -42,7 +42,7 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
-## Coordenação entre rotinas: BDD, revezamento e handoff estruturado
+## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
@@ -62,14 +62,22 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    ou testes já verdes e integrados na `main`. Alterações isoladas em scripts
    ou fixtures sem mudança no comando da CLI em `src/` contam como infra/manutenção,
    nunca como avanço de capacidade.
-4. **Formulário de Handoff Anti-Burlagem:** Toda PR e comentário na issue
-   devem preencher o formulário estruturado de fatos verificáveis:
-   - **Tipo da fatia:** `[ ] Capacidade da CLI (src/)` | `[ ] Apenas infra/teste`
-   - **Comando da CLI:** `ies <comando>` *(ou `Inalterado`)*
-   - **Cenário BDD (Antes vs Agora):** Dado / Quando / Então
-   - **Rede SEI:** `[ ] Bloqueado antes da rede` | `[ ] Live treinamento (reqs/resíduo)`
-   - **Evidência:** PR, head SHA e CI oficial verde
-   - **Próximo passo na CLI:** próximo cenário comportamental a atacar
+4. **Entrega por capacidade, handoff mínimo:** Progresso é concluir
+   **cenários BDD observáveis** da issue, não produzir uma PR por hora.
+   Continue do ponto pendente e avance tanto quanto for seguro; não pare
+   por ter feito push ou obtido CI verde. Teste, fixture, script,
+   refatoração e documentação só são avanço funcional quando mudam o
+   comportamento observável; faça o suporte necessário, sem fatias
+   artificiais nem retrabalho para preencher relatório.
+   Uma vez por mudança material, registre **em um só lugar** (issue ou PR,
+   vinculando a outra), apenas:
+   - `FEITO:` cenário atendido ou trabalho interno (sem fingir entrega).
+   - `CLI:` comando e comportamento, ou `inalterada`.
+   - `CONTINUAR:` próximo cenário pendente ou impedimento concreto.
+   SHA, diff e CI já estão no GitHub; não os transcreva. Não repita
+   verificações válidas para o mesmo head só para relatar atividade;
+   novo head exige novo CI. Evidência live só se executada, em
+   `docs/validacao-live/`; `NOT_RUN` não equivale a PASS.
 5. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
    em ablação explícita**, com CI válido. Teste pendente usa
@@ -108,71 +116,10 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 - Não contorne os limites, gates ou escopos quando houver bloqueio:
   tente alternativa segura, registre o impedimento e continue WIP.
 
-## Protocolo de revisão — 🦅 Gavião
+## Revisão e integração
 
-- Liste PRs abertas da fila `handoff-chatgpt` e de integração;
-  ordene por prioridade decrescente e número da issue crescente,
-  deixando as sem prioridade identificável por último. Ignore PRs cujo
-  head SHA7 já recebeu `REVISÃO-CHATGPT (head <sha7>)`.
-- Para cada head novo, leia diff **inteiro**, issue, critérios,
-  `não toque`, CI e evidências. Examine: correção/bordas/races,
-  escopo/churn, política Web, mínimo de requests/nenhum retry,
-  erros tipados e `null` observado, escrita com prévia e releitura,
-  segurança de cookies, origem, `infra_hash`, URLs e arquivos privados,
-  RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
-  decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
-  Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste escondido (salvo ablação 🦡 justificada) ou tipos
-  ambíguos. Hipóteses teóricas em scripts de teste ou cassettes locais
-  são sugestões, não bloqueantes. Aponte `arquivo:linha` e fatos.
-- Publique **um comentário por head**:
-  `REVISÃO-CHATGPT (head <sha7>)`;
-  `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
-  bloqueantes (arquivo:linha — problema — correção), importantes,
-  sugestões e critérios cumprido/parcial/falta. Omita vazios.
-  Em LGTM com CI verde e head idêntico, passe Draft → Ready.
-  Senão preserve Draft e comente na issue `REVISÃO: retomar`
-  com link do parecer. Nunca reserve, implemente, comite, faça merge
-  ou feche issue; Ready **não** significa capacidade finalizada.
-
-## Protocolo de integração — 🐘 Elefante
-
-- **Todo comentário no GitHub começa por `🐘 Elefante:`.** Não acesse
-  SEI. CI oficial é `.github/workflows/ci.yml`: `prek` e todos
-  os outros jobs devem estar verdes para o **head exato**. Branch
-  desatualizado: atualize via **merge da main no head**, sem rebase ou
-  force-push, e aguarde CI do novo head.
-- Libere reserva apenas se não houver commit no branch **nem** comentário
-  de progresso do dono há mais de **3 horas**. Comentários 🐘/🦅 não
-  contam. Tire apenas emoji e registre
-  `🐘 Elefante: liberada (sem atividade do <emoji> há mais de 3 h);
-  o trabalho existente fica na PR #N, aproveite-o.`
-- **Não integre com commit de código novo do dono nos últimos 30 min**
-  (merges de sync da base não contam). Autorizado integrar fatia WIP
-  na main **por merge commit** se: CI atual verde (com prek), base
-  sincronizada, sem bloqueante de segurança ou teste enfraquecido,
-  escrita incompleta recusando `--confirmar` antes da rede, apenas prefixo
-  da issue e adições mínimas, **sem workflow temporário novo**.
-- Confira revisão 🦅 e SHA aprovado; promova Ready se necessário,
-  faça merge e comente na issue:
-  `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão:
-  PR NOVA a partir da main, começando pelos wip #N` e pendências.
-  Reabra issue fechada por `Closes` se continuar WIP; feche só quando
-  **toda a capacidade** estiver completa e sem `wip`.
-- Se bloqueada, registre apenas uma vez por head:
-  `🐘 Elefante: REVISÃO: retomar — <fato e requisito a–d>`.
-  Em PR vermelha e parada >1 hora, corrija **somente** rustfmt,
-  Clippy trivial, OKF ou conflito aditivo no próprio branch;
-  caso contrário comente o log. Não implemente capacidade paralela.
-- Mantenha **pelo menos 5 issues livres sem PR**. Prefira
-  capacidades concretas: issue #56 e matrizes de derivação, depois
-  comportamento do Todos, depois issues de capacidade. Issues novas
-  seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
-  `Como trabalhar`) e incluem ensaio live para escrita.
-- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
-  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
-  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
-  prioridades expressas do proprietário. Sem mudança, **silêncio**.
+Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
+[🐘 Elefante](team/elefante.md).
 
 ## Método: observar → contratar → RED → GREEN → validar
 
