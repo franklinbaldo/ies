@@ -135,13 +135,11 @@ impl ErroEnviar {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::EnvioNaoAplicado { .. } => "escrita_nao_aplicada",
-            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
-                "escrita_diferente_da_solicitada"
-            }
+            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
+            | Self::AnotacoesNaoRemovidasAposEnvio => "escrita_diferente_da_solicitada",
             Self::EfeitoIncertoNoEnvio { .. } | Self::EfeitoIncertoNaRemocaoDeAnotacoes => {
                 "efeito_incerto"
             }
-            Self::AnotacoesNaoRemovidasAposEnvio => "escrita_diferente_da_solicitada",
             _ => "fonte_invalida",
         }
     }
