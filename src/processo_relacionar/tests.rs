@@ -99,3 +99,70 @@ fn o_numero_de_controle_nao_e_reconhecido_como_id_de_processo() {
     let html = tela().replace("id_procedimento=22", "id_procedimento=22X");
     assert!(matches!(ler_linhas(&html).unwrap().as_slice(), []));
 }
+
+
+fn tela_com_remocao_servida() -> String {
+    // Estrutura literal do acaoRemover da página PEN1 em Todos @323eb01.
+    let hash = "a".repeat(64);
+    format!(
+        r#"<html><head><script>
+function acaoRemover(id){{
+  if (confirm("Confirma exclusão do relacionamento?")){{
+    document.getElementById('hdnInfraItemId').value=id;
+    document.getElementById('frmProcedimentoListarRelacionamentos').action='controlador.php?acao=procedimento_excluir_relacionamento&acao_origem=procedimento_relacionar&arvore=1&id_procedimento=50693&infra_hash={hash}';
+    document.getElementById('frmProcedimentoListarRelacionamentos').submit();
+  }}
+}}
+</script></head></html>"#
+    )
+}
+
+/// Dado o handler ativo observado, quando preparo a remoção,
+/// então uso exclusivamente o destino de seu .action, não texto solto.
+#[test]
+fn extrai_action_da_funcao_de_remocao() {
+    let url = super::tela::url_exclusao(&tela_com_remocao_servida()).unwrap();
+    assert_eq!(
+        url,
+        format!(
+            "controlador.php?acao=procedimento_excluir_relacionamento&acao_origem=procedimento_relacionar&arvore=1&id_procedimento=50693&infra_hash={}",
+            "a".repeat(64)
+        )
+    );
+}
+
+/// Dado JS sem acaoRemover ativo, quando há action mencionada fora dele,
+/// então a CLI não promove o literal a permissão de remoção.
+#[test]
+fn action_solto_comentado_ou_em_template_nao_autoriza_remocao() {
+    let servido = tela_com_remocao_servida();
+    let apenas_outra_funcao = servido.replace("function acaoRemover(id)", "function outra(id)");
+    assert!(super::tela::url_exclusao(&apenas_outra_funcao).is_err());
+
+    let em_template = format!("<html><head><template>{servido}</template></head></html>");
+    assert!(super::tela::url_exclusao(&em_template).is_err());
+
+    let em_comentario = servido.replace(
+        "function acaoRemover(id){",
+        "/*\nfunction acaoRemover(id){",
+    );
+    assert!(super::tela::url_exclusao(&em_comentario).is_err());
+}
+
+/// Dado que falta o campo ou o submit do handler, ou há função duplicada,
+/// quando preparo a escrita, então a origem não está demonstrada.
+#[test]
+fn remocao_sem_passos_ou_com_handler_duplicado_e_recusada() {
+    let servido = tela_com_remocao_servida();
+    assert!(super::tela::url_exclusao(
+        &servido.replace("getElementById('hdnInfraItemId').value=id;", "void(0);")
+    ).is_err());
+    assert!(super::tela::url_exclusao(
+        &servido.replace(
+            "getElementById('frmProcedimentoListarRelacionamentos').submit();",
+            "void(0);",
+        )
+    ).is_err());
+    let duplicada = servido.replace("</script>", "function acaoRemover(id){}\n</script>");
+    assert!(super::tela::url_exclusao(&duplicada).is_err());
+}
