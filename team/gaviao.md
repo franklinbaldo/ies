@@ -42,6 +42,33 @@ não ambíguos**: enums de estados, erros com causa e dados de domínio
 sem strings/JSON genéricos indevidos. Não restaure veto sem fato novo;
 respeite CI e limites do proprietário.
 
+## Protocolo de revisão — 🦅 Gavião
+
+- Liste PRs abertas da fila `handoff-chatgpt` e de integração;
+  ordene por prioridade decrescente e número da issue crescente,
+  deixando as sem prioridade identificável por último. Ignore PRs cujo
+  head SHA7 já recebeu `REVISÃO-CHATGPT (head <sha7>)`.
+- Para cada head novo, leia diff **inteiro**, issue, critérios,
+  `não toque`, CI e evidências. Examine: correção/bordas/races,
+  escopo/churn, política Web, mínimo de requests/nenhum retry,
+  erros tipados e `null` observado, escrita com prévia e releitura,
+  segurança de cookies, origem, `infra_hash`, URLs e arquivos privados,
+  RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
+  decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
+  Bloqueantes: segredos, escrita insegura ou fora de treinamento,
+  retry, JS, teste escondido (salvo ablação 🦡 justificada) ou tipos
+  ambíguos. Hipóteses teóricas em scripts de teste ou cassettes locais
+  são sugestões, não bloqueantes. Aponte `arquivo:linha` e fatos.
+- Publique **um comentário por head**:
+  `REVISÃO-CHATGPT (head <sha7>)`;
+  `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
+  bloqueantes (arquivo:linha — problema — correção), importantes,
+  sugestões e critérios cumprido/parcial/falta. Omita vazios.
+  Em LGTM com CI verde e head idêntico, passe Draft → Ready.
+  Senão preserve Draft e comente na issue `REVISÃO: retomar`
+  com link do parecer. Nunca reserve, implemente, comite, faça merge
+  ou feche issue; Ready **não** significa capacidade finalizada.
+
 ## Continuidade atual
 
 Sem issue reservada.
