@@ -411,12 +411,14 @@ fn observacao_da_unidade_so_nasce_de_controle_verificado() {
     assert_eq!(unidade.visao, iesei::observacao::VisaoDoControle::Resumida);
 
     let outra_geracao = hash('f');
-    assert!(iesei::sqlite::consultar_unidade(&banco, &instalacao(), &outra_geracao)
-        .unwrap()
-        .is_none());
-    let linhas: i64 = banco.query_row(
-        "SELECT count(*) FROM controle_unidade", [], |r| r.get(0)
-    ).unwrap();
+    assert!(
+        iesei::sqlite::consultar_unidade(&banco, &instalacao(), &outra_geracao)
+            .unwrap()
+            .is_none()
+    );
+    let linhas: i64 = banco
+        .query_row("SELECT count(*) FROM controle_unidade", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(linhas, 1);
 }
 
@@ -427,7 +429,9 @@ fn tela_sem_tabelas_nao_persiste_identidade_da_unidade() {
     // Forçar a criação do banco via operação já suportada.
     indice.registrar_entrada_por_id(&instalacao(), true);
     let banco = rusqlite::Connection::open(pasta.0.join("ies.sqlite3")).unwrap();
-    assert!(iesei::sqlite::consultar_unidade(&banco, &instalacao(), &geracao())
-        .unwrap()
-        .is_none());
+    assert!(
+        iesei::sqlite::consultar_unidade(&banco, &instalacao(), &geracao())
+            .unwrap()
+            .is_none()
+    );
 }

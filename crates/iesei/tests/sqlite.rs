@@ -11,16 +11,36 @@ fn guarda_fato_unico_e_isola_geracoes_e_instalacoes() {
     let outra = Instalacao::interpretar("https://outro.exemplo/sei").unwrap();
     let nome = UnidadeExibida::nova("TESTE").unwrap();
 
-    assert!(consultar_unidade(&banco, &origem, "geracao-a").unwrap().is_none());
+    assert!(
+        consultar_unidade(&banco, &origem, "geracao-a")
+            .unwrap()
+            .is_none()
+    );
     {
         let tx = banco.transaction().unwrap();
-        registrar_unidade(&tx, &origem, "geracao-a", &nome, VisaoDoControle::Resumida, 1.0)
-            .unwrap();
-        registrar_unidade(&tx, &origem, "geracao-a", &nome, VisaoDoControle::Detalhada, 2.0)
-            .unwrap();
+        registrar_unidade(
+            &tx,
+            &origem,
+            "geracao-a",
+            &nome,
+            VisaoDoControle::Resumida,
+            1.0,
+        )
+        .unwrap();
+        registrar_unidade(
+            &tx,
+            &origem,
+            "geracao-a",
+            &nome,
+            VisaoDoControle::Detalhada,
+            2.0,
+        )
+        .unwrap();
         tx.commit().unwrap();
     }
-    let guardada = consultar_unidade(&banco, &origem, "geracao-a").unwrap().unwrap();
+    let guardada = consultar_unidade(&banco, &origem, "geracao-a")
+        .unwrap()
+        .unwrap();
     assert_eq!(guardada.unidade.as_str(), "TESTE");
     assert_eq!(guardada.visao, VisaoDoControle::Detalhada);
     assert_eq!(guardada.observada_em, 2.0);
@@ -28,6 +48,14 @@ fn guarda_fato_unico_e_isola_geracoes_e_instalacoes() {
         .query_row("SELECT count(*) FROM controle_unidade", [], |r| r.get(0))
         .unwrap();
     assert_eq!(linhas, 1);
-    assert!(consultar_unidade(&banco, &origem, "geracao-b").unwrap().is_none());
-    assert!(consultar_unidade(&banco, &outra, "geracao-a").unwrap().is_none());
+    assert!(
+        consultar_unidade(&banco, &origem, "geracao-b")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        consultar_unidade(&banco, &outra, "geracao-a")
+            .unwrap()
+            .is_none()
+    );
 }

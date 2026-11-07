@@ -58,7 +58,13 @@ pub fn registrar_unidade(
          DO UPDATE SET unidade_exibida = excluded.unidade_exibida,
                        visao = excluded.visao,
                        observada_em = excluded.observada_em",
-        params![instalacao.url_base(), contexto, unidade.as_str(), vista, agora],
+        params![
+            instalacao.url_base(),
+            contexto,
+            unidade.as_str(),
+            vista,
+            agora
+        ],
     )?;
     Ok(())
 }
