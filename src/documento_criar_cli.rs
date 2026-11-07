@@ -214,12 +214,12 @@ mod tests {
         use crate::processo_obter::ErroProcessoObter;
         use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-        let erro = ErroPreviaCriacao::EfeitoIncertoNaReleitura(
-            ErroProcessoObter::Transporte(FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+        let erro = ErroPreviaCriacao::EfeitoIncertoNaReleitura(ErroProcessoObter::Transporte(
+            FalhaTransporte::AcessoNegado(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("leitura recusada".to_owned()),
-            })),
-        );
+            }),
+        ));
         let saida = erro_incerto_json(&erro, 7);
         assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
         assert_eq!(saida["status_http"], 403);
