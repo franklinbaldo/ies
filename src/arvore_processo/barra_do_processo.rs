@@ -62,8 +62,8 @@ pub(crate) fn ler_link_das_anotacoes(
     html: &str,
     id: &str,
 ) -> Result<Option<String>, ErroHtml> {
-    let hrefs = hrefs_da_barra(html)
-        .map_err(|_| ErroHtml::html("barra_de_anotacoes_nao_interpretada"))?;
+    let hrefs =
+        hrefs_da_barra(html).map_err(|_| ErroHtml::html("barra_de_anotacoes_nao_interpretada"))?;
     let candidatos: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some("anotacao_registrar"))

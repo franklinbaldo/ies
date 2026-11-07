@@ -77,12 +77,16 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let anotacao_antes = if pedido.remover_anotacoes {
         match acoes.anotacoes.map_err(C::LinkDasAnotacoes)? {
             Some(link) => {
-                let (html, _) = obter_tela(&mut rede, &cookie, &link).map_err(|falha| match falha {
-                    FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
-                    FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
-                    FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
-                })?;
-                Some(super::anotacoes::anotacao_presente(&html, &id).map_err(C::LeituraDasAnotacoes)?)
+                let (html, _) =
+                    obter_tela(&mut rede, &cookie, &link).map_err(|falha| match falha {
+                        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
+                        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+                        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+                    })?;
+                Some(
+                    super::anotacoes::anotacao_presente(&html, &id)
+                        .map_err(C::LeituraDasAnotacoes)?,
+                )
             }
             None => None,
         }

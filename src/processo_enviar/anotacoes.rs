@@ -1,6 +1,6 @@
 //! Leitura da anotação de origem, sem efetuar alterações.
 //! Forma observada no SEI 4.0.9 de treinamento (Todos,
-//! tests/paginas_reais/processo_anotacao_registrar.html).
+//! `tests/paginas_reais/processo_anotacao_registrar.html`).
 use crate::erro_html::ErroHtml;
 
 pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
@@ -23,7 +23,12 @@ pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> 
     };
     let mut ids = Vec::new();
     let mut descricoes = Vec::new();
-    for tag in form.children().all(parser).iter().filter_map(tl::Node::as_tag) {
+    for tag in form
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+    {
         match tag.name().as_utf8_str().as_ref() {
             "input" if valor(tag, "name")?.as_deref() == Some("hdnIdProtocolo") => {
                 ids.push(valor(tag, "value")?);
@@ -71,8 +76,14 @@ mod tests {
     fn bdd_anotacao_vazia_e_estado_observado_sem_anotacao() {
         // Dado formulário da UnB com textarea vazia,
         // quando releio, então há ausência observada de anotação.
-        assert_eq!(anotacao_presente(&formulario("50693", ""), "50693"), Ok(false));
-        assert_eq!(anotacao_presente(&formulario("50693", " \n  "), "50693"), Ok(false));
+        assert_eq!(
+            anotacao_presente(&formulario("50693", ""), "50693"),
+            Ok(false)
+        );
+        assert_eq!(
+            anotacao_presente(&formulario("50693", " \n  "), "50693"),
+            Ok(false)
+        );
     }
 
     #[test]

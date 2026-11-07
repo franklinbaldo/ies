@@ -20,11 +20,21 @@ fn anotacao(texto: &str, id: &str) -> String {
     )
 }
 
-fn previa_com_anotacao(texto: &str, id: &str) -> (Result<super::ProcessoEnviado, super::ErroEnviar>, Vec<Pedido>) {
+fn previa_com_anotacao(
+    texto: &str,
+    id: &str,
+) -> (
+    Result<super::ProcessoEnviado, super::ErroEnviar>,
+    Vec<Pedido>,
+) {
     let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
     let respostas = com(
         abertura(arvore(&[UNIDADE], &acoes)),
-        vec![ok(tela_de_envio(Versao::V40, ID)), ok(anotacao(texto, id)), ok(um_destino())],
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao(texto, id)),
+            ok(um_destino()),
+        ],
     );
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
@@ -52,7 +62,10 @@ fn bdd_previa_remocao_observa_anotacao_sem_escrever() {
     let mut esperado = pedidos_da_abertura();
     esperado.push(get(&url_da_tela()));
     esperado.push(get(&absoluta(&link_anotacao())));
-    esperado.push(post(&absoluta(&autocompletar()), &corpo_da_consulta(Versao::V40)));
+    esperado.push(post(
+        &absoluta(&autocompletar()),
+        &corpo_da_consulta(Versao::V40),
+    ));
     assert_eq!(pedidos, esperado);
 }
 
@@ -64,12 +77,21 @@ fn bdd_anotacao_de_outro_processo_recusa_antes_de_consultar_destino() {
     let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
     let respostas = com(
         abertura(arvore(&[UNIDADE], &acoes)),
-        vec![ok(tela_de_envio(Versao::V40, ID)), ok(anotacao("Outra anotação", "999"))],
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Outra anotação", "999")),
+        ],
     );
     let amb = ambiente();
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
-        let pedido = PedidoDoEnvio { nup, unidade: None, para: DESTINO,
-            manter_aberto: false, remover_anotacoes: true, confirmar: false };
+        let pedido = PedidoDoEnvio {
+            nup,
+            unidade: None,
+            para: DESTINO,
+            manter_aberto: false,
+            remover_anotacoes: true,
+            confirmar: false,
+        };
         enviar_processo(sessao, &pedido, indice, rede)
     });
     assert!(resultado.is_err());

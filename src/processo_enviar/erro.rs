@@ -150,7 +150,9 @@ impl ErroEnviar {
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) | Self::TelaDasAnotacoes(falha) => falha.status_http().cloned(),
+            Self::TelaDaEscrita(falha) | Self::TelaDasAnotacoes(falha) => {
+                falha.status_http().cloned()
+            }
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Consulta(falha) => falha.status_http(),
             Self::Formulario(erro) => erro.status_http().cloned(),

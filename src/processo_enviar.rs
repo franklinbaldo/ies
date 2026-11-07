@@ -4,8 +4,8 @@
 //! e a consulta do autocomplete que ela declara, e escolhe o destino que o
 //! SEI publica. Prévia sem POST de escrita; com `--confirmar`, um POST e
 //! uma leitura nova da árvore para verificar. Nunca repete a escrita.
-mod destino;
 mod anotacoes;
+mod destino;
 mod erro;
 mod fluxo;
 mod tela;
@@ -15,9 +15,9 @@ mod acervo;
 #[cfg(test)]
 mod acervo_busca;
 #[cfg(test)]
-pub(crate) mod tests_apoio;
-#[cfg(test)]
 mod tests_anotacoes;
+#[cfg(test)]
+pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_busca;
 #[cfg(test)]
