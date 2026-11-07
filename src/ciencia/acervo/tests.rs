@@ -208,3 +208,57 @@ fn lista_sem_atividade_do_aceite_nao_e_sucesso() {
     assert_eq!(registros.len(), 1);
     assert_ne!(registros[0].resultado, Resultado::Lido);
 }
+
+#[test]
+fn lista_de_outro_documento_nao_comprova_aceite_documental() {
+    // RED #271: o replay não pode perder a identidade do documento aceito.
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let aceite = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=21&documento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='42'></td></tr></table></html>";
+    let json = json!({"interactions": [
+        resposta_html(
+            "documento_ciencia",
+            &format!("{base}?acao=documento_ciencia&id_procedimento=10&id_documento=21"),
+            aceite
+        ),
+        resposta_html(
+            "protocolo_ciencia_listar",
+            &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10&id_documento=22"),
+            lista
+        )
+    ]});
+    let registros = replay("unb", &json);
+    assert_eq!(registros.len(), 2);
+    assert_eq!(registros[0].resultado, Resultado::Lido);
+    assert_eq!(
+        registros[1].resultado,
+        Resultado::NaoAplicavel("lista_de_outro_documento")
+    );
+}
+
+#[test]
+fn lista_documental_nao_comprova_aceite_de_processo() {
+    // RED #271: uma lista CD de documento não comprova ciência do processo.
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let aceite = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&procedimento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='42'></td></tr></table></html>";
+    let json = json!({"interactions": [
+        resposta_html(
+            "procedimento_ciencia",
+            &format!("{base}?acao=procedimento_ciencia&id_procedimento=10"),
+            aceite
+        ),
+        resposta_html(
+            "protocolo_ciencia_listar",
+            &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10&id_documento=21"),
+            lista
+        )
+    ]});
+    let registros = replay("unb", &json);
+    assert_eq!(registros.len(), 2);
+    assert_eq!(registros[0].resultado, Resultado::Lido);
+    assert_eq!(
+        registros[1].resultado,
+        Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo")
+    );
+}
