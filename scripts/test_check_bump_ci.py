@@ -45,7 +45,7 @@ class CheckBumpCiTest(unittest.TestCase):
         self.git("commit", "-qm", "base")
         self.gravar(atual)
         self.git("add", ".")
-        self.git("commit", "-qm", "candidate")
+        self.git("commit", "--allow-empty", "-qm", "candidate")
 
     def verificar(self, evento=None, ref=None):
         env = os.environ.copy()
