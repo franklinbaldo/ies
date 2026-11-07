@@ -1,6 +1,7 @@
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{
-    Cobertura, FormaDoControle, ObservacaoDoControle, Proveniencia, ProcessoNaLista, TabelaObservada, UnidadeExibida,
+    Cobertura, FormaDoControle, ObservacaoDoControle, ProcessoNaLista, Proveniencia,
+    TabelaObservada, UnidadeExibida,
 };
 use iesei::sqlite::{MIGRACAO_CONTROLE, consultar, registrar};
 use rusqlite::Connection;
@@ -28,13 +29,9 @@ fn roundtrip_do_controle_preserva_identidades_e_cobertura() {
     registrar(&transacao, "perfil-sintetico", &observacao).unwrap();
     transacao.commit().unwrap();
 
-    let recarregada = consultar(
-        &banco,
-        "https://sei.exemplo/sei",
-        "perfil-sintetico",
-    )
-    .unwrap()
-    .unwrap();
+    let recarregada = consultar(&banco, "https://sei.exemplo/sei", "perfil-sintetico")
+        .unwrap()
+        .unwrap();
     assert_eq!(recarregada, observacao);
     assert!(recarregada.suficiente_para_servir());
     assert!(consultar(&banco, "https://outro.exemplo", "perfil-sintetico")
@@ -77,13 +74,9 @@ fn ausencia_de_lista_nao_e_convertida_em_zero() {
     let transacao = banco.transaction().unwrap();
     registrar(&transacao, "perfil-sintetico", &observacao).unwrap();
     transacao.commit().unwrap();
-    let lida = consultar(
-        &banco,
-        "https://sei.exemplo/sei",
-        "perfil-sintetico",
-    )
-    .unwrap()
-    .unwrap();
+    let lida = consultar(&banco, "https://sei.exemplo/sei", "perfil-sintetico")
+        .unwrap()
+        .unwrap();
     assert!(!lida.suficiente_para_servir());
     assert_eq!(lida, observacao);
 }

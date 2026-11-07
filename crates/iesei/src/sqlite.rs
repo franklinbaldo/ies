@@ -67,8 +67,14 @@ fn gravar_tabela(
             contexto,
             categoria,
             tabela.total_declarado.map(numero).transpose()?,
-            tabela.faixa_observada.map(|f| numero(f.inicio())).transpose()?,
-            tabela.faixa_observada.map(|f| numero(f.fim())).transpose()?,
+            tabela
+                .faixa_observada
+                .map(|f| numero(f.inicio()))
+                .transpose()?,
+            tabela
+                .faixa_observada
+                .map(|f| numero(f.fim()))
+                .transpose()?,
         ],
     )?;
     let mut stmt = tx.prepare(
@@ -77,7 +83,12 @@ fn gravar_tabela(
     )?;
     for (i, linha) in tabela.linhas.iter().enumerate() {
         stmt.execute(params![
-            origem, contexto, categoria, numero(i)?, linha.id, linha.numero
+            origem,
+            contexto,
+            categoria,
+            numero(i)?,
+            linha.id,
+            linha.numero
         ])?;
     }
     Ok(())
@@ -102,10 +113,9 @@ pub fn registrar(
         return Ok(());
     }
     let (visao, fontes) = match &observacao.forma {
-        FormaDoControle::Resumida { recebidos, gerados } => (
-            "R",
-            vec![("R", recebidos), ("G", gerados)],
-        ),
+        FormaDoControle::Resumida { recebidos, gerados } => {
+            ("R", vec![("R", recebidos), ("G", gerados)])
+        }
         FormaDoControle::Detalhada { processos } => ("D", vec![("D", processos)]),
     };
     let (tipo, fonte) = match &observacao.proveniencia {
@@ -118,7 +128,14 @@ pub fn registrar(
          ON CONFLICT(origem,contexto) DO UPDATE SET
          unidade=excluded.unidade,visao=excluded.visao,
          fonte_tipo=excluded.fonte_tipo,fonte=excluded.fonte",
-        params![origem, contexto, observacao.unidade.as_str(), visao, tipo, fonte],
+        params![
+            origem,
+            contexto,
+            observacao.unidade.as_str(),
+            visao,
+            tipo,
+            fonte
+        ],
     )?;
     tx.execute(
         "DELETE FROM controle_linha WHERE origem=?1 AND contexto=?2",
@@ -153,8 +170,7 @@ fn ler_tabela(
     };
     let faixa = match (inicio, fim) {
         (Some(i), Some(f)) => Some(
-            FaixaObservada::nova(indice(i)?, indice(f)?)
-                .ok_or(rusqlite::Error::InvalidQuery)?,
+            FaixaObservada::nova(indice(i)?, indice(f)?).ok_or(rusqlite::Error::InvalidQuery)?,
         ),
         (None, None) => None,
         _ => return Err(rusqlite::Error::InvalidQuery),
@@ -180,7 +196,7 @@ fn ler_tabela(
 ///
 /// # Errors
 ///
-/// Propaga erro SQLite ou indica registro incoerente com InvalidQuery.
+/// Propaga erro SQLite ou indica registro incoerente com `InvalidQuery`.
 pub fn consultar(
     con: &Connection,
     origem: &str,

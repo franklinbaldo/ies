@@ -159,13 +159,12 @@ pub struct ProcessoNaLista {
 impl ProcessoNaLista {
     #[must_use]
     pub fn novo(id: &str, numero: &str) -> Option<Self> {
-        (!id.is_empty()
-            && id.bytes().all(|b| b.is_ascii_digit())
-            && !numero.is_empty())
-        .then(|| Self {
-            id: id.to_owned(),
-            numero: numero.to_owned(),
-        })
+        (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()) && !numero.is_empty()).then(
+            || Self {
+                id: id.to_owned(),
+                numero: numero.to_owned(),
+            },
+        )
     }
 }
 
