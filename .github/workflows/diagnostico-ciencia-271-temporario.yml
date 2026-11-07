@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import base64, json, zipfile, os
+          import base64, json, zipfile, os, re
           from collections import Counter
           from html.parser import HTMLParser
           from pathlib import Path
@@ -87,7 +87,11 @@ jobs:
                           "prefix_return":"return " in prefix,
                           "prefix_throw":"throw " in prefix,
                           "prefix_has_semicolon":";" in prefix,
-                          "script_before_call_bytes":len(prefix)
+                          "script_before_call_bytes":len(prefix),
+                "skeleton": [
+                    tok if tok in ("function","inicializar","if","return","throw","try","catch","while","for","var","let","const","atualizarArvore") else ("X" if tok[0].isalpha() or tok[0] in "_$" else tok)
+                    for tok in re.findall(r"[A-Za-z_$][A-Za-z0-9_$]*|[(){};=]", prefix[max(0,len(prefix)-400):])
+                ][-70:]
                       })
                   summaries.append({
                       "site":card.parent.name,
