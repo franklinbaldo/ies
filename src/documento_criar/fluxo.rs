@@ -189,6 +189,16 @@ fn erro_da_tela(falha: FalhaDaTela) -> ErroPreviaCriacao {
     }
 }
 
+/// Pre-condicao independente da sessao: a operacao ainda so resolve nivel publico.
+/// Uma unica regra atende tanto a fronteira CLI quanto o nucleo de escrita.
+pub(crate) fn validar_nivel_de_confirmacao(nivel: Option<&str>) -> Result<(), ErroPreviaCriacao> {
+    match nivel {
+        Some("publico") => Ok(()),
+        None => Err(ErroPreviaCriacao::NivelNaoInformado),
+        _ => Err(ErroPreviaCriacao::NivelRestritoSemHipotese),
+    }
+}
+
 /// Abertura do processo, seleção e cadastro; na confirmação, um único POST
 /// seguido de leitura fresca. A prévia nunca envia POST criador.
 #[allow(clippy::too_many_lines)] // Fluxo sequencial com uma única fronteira de escrita.
@@ -204,11 +214,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
     // efeito de recebimento e não serve a uma escrita que será recusada.
     if confirmar {
-        match pedido.nivel {
-            Some("publico") => {}
-            None => return Err(E::NivelNaoInformado),
-            _ => return Err(E::NivelRestritoSemHipotese),
-        }
+        validar_nivel_de_confirmacao(pedido.nivel)?;
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
