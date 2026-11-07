@@ -62,6 +62,13 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 - **GREEN proposto:** [commit `8e6b876`](https://github.com/franklinbaldo/ies/commit/8e6b87697be3930e4508d2cb88029114d06dff4a) constrói peças multipart conforme o caso Todos/UnB, compõe `Content-Length` e permite leitura encadeada sem carregar o PDF em memória. Verificar CI do SHA final, inclusive `prek`, antes de declarar todos os gates verdes.
 - **Live:** nenhum POST, nenhum GET, nenhum upload. A etapa só gerou bytes sintéticos offline; `--confirmar` não habilitado. A fonte do cenário é o teste do Todos, **não** ensaio do IES em treinamento.
 
+## Transporte multipart e recibo HTTP — bancada sintética (07/11/2026)
+
+- **Dado:** PDF sintético e URL `.invalid` representando o upload temporário da UnB SEI 4. **Quando:** o cliente HTTPS único transmite o multipart pelo proxy falso de testes, com TLS substituído por conexão local. **Então:** são conferidos `filArquivo`, bytes exatos, `Content-Type`, `Content-Length`, um POST sem retry e interpretação do recibo temporário da resposta HTTP. Esse recibo **não** significa inclusão definitiva do documento.
+- **Test-first:** houve implementação de stubs RED em commits `3777526` e `c8e3d35` seguida de testes da fronteira Web e recibo; os runs RED [42378193926](https://github.com/franklinbaldo/ies/actions/runs/42378193926) e [42378603800](https://github.com/franklinbaldo/ies/actions/runs/42378603800) foram **cancelados por pushes seguintes**. Não há contagem de FAIL observada nesses runs, portanto não declarar RED comprovado nesta nova fatia. O RED multipart offline anterior teve 4 FAIL comprovadas em [42373451642](https://github.com/franklinbaldo/ies/actions/runs/42373451642).
+- **GREEN parcial observado:** [CI 42378278609](https://github.com/franklinbaldo/ies/actions/runs/42378278609) passou suíte Rust, Clippy, OKF e limite de arquivo, mas falhou no Rustfmt (formatação do transporte e teste); correções foram commitadas depois. **Somente CI do SHA final confirma GREEN integral.**
+- **Ensaio real do IES no SEI:** **NOT_RUN**; 0 GET, 0 POST, 0 uploads, 0 retries, 0 resíduos. Nenhuma conexão com treinamento ou produção. `ies documento incluir-externo --confirmar` segue fechado antes da sessão/rede. Próximos passos: derivar do formulário servido em treinamento o destino e campos, conectar prévia da CLI, depois upload → cadastro → releitura independente.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
