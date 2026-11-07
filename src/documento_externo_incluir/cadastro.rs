@@ -1,7 +1,7 @@
 //! Cadastro externo recarregado por tipo — observação estrutural (#332).
 //! Não envia upload nem cadastra documentos.
-
 use super::anexo::{FalhaAnexo, PlanoAnexo};
+use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FalhaCadastroExterno {
@@ -20,13 +20,131 @@ pub(crate) struct CadastroExterno {
     pub(crate) plano: PlanoAnexo,
 }
 
-/// Inspeciona o cadastro servido *depois* da escolha do tipo (sem escrita).
+/// Um controle só vale se pertence ao formulário observado e não está desabilitado.
+fn valor_input(
+    dom: &tl::VDom<'_>,
+    formulario: &tl::HTMLTag<'_>,
+    id: &str,
+) -> Result<String, FalhaCadastroExterno> {
+    let erro = FalhaCadastroExterno::FormaNaoObservada;
+    let nos = nos_com_id(dom, id).map_err(|_| erro)?;
+    let [no] = nos.as_slice() else { return Err(erro) };
+    let tag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(erro)?;
+    let (ini, fim) = formulario.boundaries(dom.parser());
+    let (start, end) = tag.boundaries(dom.parser());
+    if start <= ini || end > fim
+        || !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
+        || atributo_presente(tag, "disabled").map_err(|_| erro)?
+        || valor_do_atributo(tag, "name").map_err(|_| erro)?.as_deref() != Some(id)
+        || valor_do_atributo(tag, "type").map_err(|_| erro)?.as_deref() != Some("hidden")
+    {
+        return Err(erro);
+    }
+    Ok(valor_do_atributo(tag, "value").map_err(|_| erro)?.unwrap_or_default())
+}
+
+/// Lê a declaração literal da extensão PDF no script do upload da tela.
+/// Nenhum código JavaScript é executado.
+fn limite_pdf(html: &str, dom: &tl::VDom<'_>) -> Result<u64, FalhaCadastroExterno> {
+    let erro = FalhaCadastroExterno::FormaNaoObservada;
+    let mut limites = Vec::new();
+    let mut declarou_lista = false;
+    for no in dom.query_selector("script").into_iter().flatten() {
+        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(erro)?;
+        if atributo_presente(tag, "src").map_err(|_| erro)? {
+            continue;
+        }
+        let inicio = tag.boundaries(dom.parser()).0;
+        let restante = html.get(inicio..).ok_or(erro)?;
+        let inicio_corpo = restante.find('>').ok_or(erro)? + 1;
+        let fim_corpo = inicio_corpo + restante.get(inicio_corpo..).ok_or(erro)?.find("</script>").ok_or(erro)?;
+        let fonte = restante.get(inicio_corpo..fim_corpo).ok_or(erro)?;
+        if fonte.contains("var arrExt = [];") {
+            declarou_lista = true;
+        }
+        for linha in fonte.lines().map(str::trim).filter(|linha| linha.starts_with("arrExt[") && linha.contains("= {")) {
+            let (_, objeto) = linha.split_once("= {").ok_or(erro)?;
+            let (objeto, fim) = objeto.split_once("};").ok_or(erro)?;
+            if !fim.trim().is_empty() { return Err(erro); }
+            let mut atributos = objeto.split(',').map(str::trim);
+            let nome = atributos.next().ok_or(erro)?;
+            let tamanho = atributos.next().ok_or(erro)?;
+            if atributos.next().is_some() { return Err(erro); }
+            let (chave, valor) = nome.split_once(':').ok_or(erro)?;
+            if chave.trim() != "nome" { return Err(erro); }
+            let extensao = valor.trim().trim_matches('"');
+            let (chave, valor) = tamanho.split_once(':').ok_or(erro)?;
+            if chave.trim() != "tamanho" { return Err(erro); }
+            let tamanho_mb = valor.trim().parse::<u64>().map_err(|_| erro)?;
+            if extensao == "pdf" {
+                limites.push(tamanho_mb.checked_mul(1024 * 1024).ok_or(erro)?);
+            }
+        }
+    }
+    if !declarou_lista { return Err(erro); }
+    match limites.as_slice() {
+        [unico] => Ok(*unico),
+        [] => Err(FalhaCadastroExterno::PdfNaoOferecido),
+        _ => Err(erro),
+    }
+}
+
+/// Inspeciona o cadastro servido depois da escolha do tipo (sem escrita).
+/// A saída mantém o destino de upload somente em memória.
 pub(crate) fn observar_cadastro(
-    _html: &str,
-    _tipo: &str,
-    _tamanho_pdf: u64,
+    html: &str,
+    tipo: &str,
+    tamanho_pdf: u64,
 ) -> Result<CadastroExterno, FalhaCadastroExterno> {
-    Err(FalhaCadastroExterno::FormaNaoObservada)
+    let erro = FalhaCadastroExterno::FormaNaoObservada;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| erro)?;
+    let formularios = nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| erro)?;
+    let [no] = formularios.as_slice() else { return Err(erro) };
+    let form = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(erro)?;
+    if !form.name().as_utf8_str().eq_ignore_ascii_case("form")
+        || valor_do_atributo(form, "method").map_err(|_| erro)?.as_deref() != Some("post")
+    { return Err(erro); }
+    let selects = nos_com_id(&dom, "selSerie").map_err(|_| erro)?;
+    let [no] = selects.as_slice() else { return Err(erro) };
+    let select = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(erro)?;
+    let (ini, fim) = form.boundaries(dom.parser());
+    let (start, end) = select.boundaries(dom.parser());
+    if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
+        || start <= ini || end > fim
+        || atributo_presente(select, "disabled").map_err(|_| erro)?
+        || valor_do_atributo(select, "name").map_err(|_| erro)?.as_deref() != Some("selSerie")
+    { return Err(erro); }
+    let mut candidatos = Vec::new();
+    for tag in select.children().all(dom.parser()).iter().filter_map(tl::Node::as_tag) {
+        if !tag.name().as_utf8_str().eq_ignore_ascii_case("option") { continue; }
+        let nome = tag.inner_text(dom.parser()).split_whitespace().collect::<Vec<_>>().join(" ");
+        let nome = crate::formulario_web::decodificar_atributo(&nome).ok_or(erro)?;
+        if nome != tipo { continue; }
+        let id = valor_do_atributo(tag, "value").map_err(|_| erro)?.ok_or(erro)?;
+        let selecionado = atributo_presente(tag, "selected").map_err(|_| erro)?;
+        candidatos.push((id, selecionado));
+    }
+    let (id_tipo, selecionado) = match candidatos.as_slice() {
+        [] => return Err(FalhaCadastroExterno::TipoNaoOferecido),
+        [tipo] => tipo,
+        _ => return Err(FalhaCadastroExterno::TipoAmbiguo),
+    };
+    if id_tipo == "null" || id_tipo.is_empty() { return Err(erro); }
+    if valor_input(&dom, form, "hdnIdSerie")? != *id_tipo || !selecionado {
+        return Err(FalhaCadastroExterno::TipoNaoRecarregado);
+    }
+    valor_input(&dom, form, "hdnAnexos")?;
+    valor_input(&dom, form, "hdnFlagDocumentoCadastro")?;
+    let limite_pdf_bytes = limite_pdf(html, &dom)?;
+    if tamanho_pdf > limite_pdf_bytes {
+        return Err(FalhaCadastroExterno::PdfAcimaDoLimite);
+    }
+    let plano = super::anexo::ler_plano(html).map_err(FalhaCadastroExterno::PlanoAnexo)?;
+    Ok(CadastroExterno {
+        id_tipo: id_tipo.clone(),
+        limite_pdf_bytes,
+        plano,
+    })
 }
 
 #[cfg(test)]
