@@ -5,6 +5,7 @@ description: "Ficha da rotina Polvo do time IES"
 avatar: "🐙"
 especialidade: "Documentos e editor do SEI"
 frequencia: "horária, minuto :46"
+memorias_fixadas: []
 ---
 
 # 🐙 Polvo

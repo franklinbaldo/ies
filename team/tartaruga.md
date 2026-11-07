@@ -5,6 +5,7 @@ description: "Ficha da rotina Tartaruga do time IES"
 avatar: "🐢"
 especialidade: "Fronteiras Web e navegação"
 frequencia: "horária, minuto :34"
+memorias_fixadas: []
 ---
 
 # 🐢 Tartaruga
