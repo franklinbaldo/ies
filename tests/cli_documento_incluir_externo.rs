@@ -89,8 +89,8 @@ fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
     ]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(
-        json(&saida)["subcodigo"],
-        "cadastro_externo_ainda_nao_validado"
+        json(&saida)["causa"],
+        "CadastroNaoValidado"
     );
 }
 
@@ -108,7 +108,7 @@ fn arquivo_local_ausente_e_recusado_sem_sessao() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "arquivo_pdf_ausente");
+    assert_eq!(json(&saida)["causa"], serde_json::json!({"Pdf": "Ausente"}));
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "nome_arquivo_pdf_invalido");
+    assert_eq!(json(&saida)["causa"], serde_json::json!({"Pdf": "NomeInvalido"}));
 }
 
 #[test]
@@ -149,5 +149,19 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
         " ",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "tipo_externo_invalido");
+    assert_eq!(json(&saida)["causa"], serde_json::json!({"Tipo": "Vazio"}));
+    assert!(json(&saida).get("subcodigo").is_none());
+}
+
+#[test]
+fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
+    let pdf = PdfTeste::novo();
+    let saida = executar(&[
+        "--json", "documento", "incluir-externo", "--processo", " ",
+        "--arquivo", pdf.caminho(), "--tipo", "Anexo",
+    ]);
+    assert_eq!(saida.status.code(), Some(2));
+    let valor = json(&saida);
+    assert_eq!(valor["causa"], serde_json::json!({"Processo": "Vazio"}));
+    assert!(valor.get("subcodigo").is_none());
 }
