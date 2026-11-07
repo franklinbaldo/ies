@@ -98,8 +98,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 // O rótulo da gravação não prova a ação executada: a URL
                 // realmente servida deve publicar uma única acao igual à
                 // operação. Uma tela preparatória não é GET de ciência.
-                let acoes = gravacao::parametro(resposta.item, "acao");
-                if acoes.as_slice() != [resposta.operacao] {
+                if gravacao::parametro(resposta.item, "acao").as_slice() != [resposta.operacao] {
                     registros.push(Registro {
                         leitor,
                         instalacao: instalacao.into(),
