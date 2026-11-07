@@ -310,34 +310,32 @@ fn conferir_script(
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
-        let codigo = tag.inner_text(parser);
-        // Considere também scripts que reatribuem a função sem
-        // repetir sua assinatura: outro <script> ativo pode mudar
-        // o que o onclick invoca.
-        if codigo.contains("acaoExcluir") {
-            // O DOM pode expor <script> dentro de <template>, mas o
-            // navegador não executa esse conteúdo inerte.
-            if super::controle_inerte(dom, tag, false, "html_de_acompanhamento_invalido")? {
-                return Err(sem_oferta);
-            }
-            // Texto em <script type="application/json">, escopo module ou
-            // <script src> não publica a função global que o onclick chama.
-            // Nunca tomar código inerte como prova de oferta de escrita.
-            let tipo = campo(tag, "type")?;
-            let tipo_classico = tipo.as_deref().is_none_or(|valor| {
-                let valor = valor.trim();
-                valor.eq_ignore_ascii_case("text/javascript")
-                    || valor.eq_ignore_ascii_case("application/javascript")
-                    || valor.is_empty()
-            });
-            if !tipo_classico
-                || atributo_presente(tag, "src")
-                    .map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
-            {
-                return Err(sem_oferta);
-            }
-            scripts.push(codigo.to_string());
+        // Qualquer script executável adicional pode modificar a função
+        // global por nome calculado, sem conter o literal "acaoExcluir".
+        // Como não executamos nem interpretamos JS, aceitar somente a
+        // única declaração clássica inline observada. Script de dados é
+        // inerte; módulos e scripts externos não dão essa prova.
+        let tipo = campo(tag, "type")?;
+        let tipo_classico = tipo.as_deref().is_none_or(|valor| {
+            let valor = valor.trim();
+            valor.eq_ignore_ascii_case("text/javascript")
+                || valor.eq_ignore_ascii_case("application/javascript")
+                || valor.is_empty()
+        });
+        let tipo_modulo = tipo
+            .as_deref()
+            .is_some_and(|valor| valor.trim().eq_ignore_ascii_case("module"));
+        if !tipo_classico && !tipo_modulo {
+            continue;
         }
+        if tipo_modulo
+            || atributo_presente(tag, "src")
+                .map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
+            || super::controle_inerte(dom, tag, false, "html_de_acompanhamento_invalido")?
+        {
+            return Err(sem_oferta);
+        }
+        scripts.push(tag.inner_text(parser).to_string());
     }
     let codigo = match scripts.as_slice() {
         [codigo] if codigo.matches("function acaoExcluir(").count() == 1 => codigo,
