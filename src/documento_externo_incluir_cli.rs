@@ -32,7 +32,7 @@ fn validar_tipo(tipo: &str) -> Result<(), FalhaTipoExterno> {
     Ok(())
 }
 
-fn recusa(json_mode: bool, causa: FalhaInclusaoExterna, mensagem: &str, status: u8) -> ExitCode {
+fn recusa(json_mode: bool, causa: &FalhaInclusaoExterna, mensagem: &str, status: u8) -> ExitCode {
     if json_mode {
         println!(
             "{}",
@@ -67,7 +67,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
         Err(falha) => {
             return Some(recusa(
                 cli.json,
-                FalhaInclusaoExterna::Processo(falha),
+                &FalhaInclusaoExterna::Processo(falha),
                 "número do processo não aceito",
                 2,
             ));
@@ -76,7 +76,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     if let Err(falha) = validar_tipo(tipo) {
         return Some(recusa(
             cli.json,
-            FalhaInclusaoExterna::Tipo(falha),
+            &FalhaInclusaoExterna::Tipo(falha),
             "tipo externo vazio ou com caractere de controle",
             2,
         ));
@@ -86,7 +86,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
         Err(falha) => {
             return Some(recusa(
                 cli.json,
-                FalhaInclusaoExterna::Pdf(falha),
+                &FalhaInclusaoExterna::Pdf(falha),
                 "arquivo PDF local não passou na inspeção",
                 2,
             ));
@@ -95,7 +95,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     if *confirmar {
         return Some(recusa(
             cli.json,
-            FalhaInclusaoExterna::CadastroNaoValidado,
+            &FalhaInclusaoExterna::CadastroNaoValidado,
             "confirmação fechada antes da sessão e da rede: faltam formulário, upload e releitura observados",
             1,
         ));
