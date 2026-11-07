@@ -4,16 +4,13 @@ use super::*;
 use crate::processo_concluir::tests_apoio::{ambiente, ok, rodar_com};
 
 /// Regressão derivada da estrutura de formulário no acervo Todos
-/// tests/paginas_reais/procedimento_gerar.html @323eb01.
+/// `tests/paginas_reais/procedimento_gerar.html` @323eb01.
 /// Atributo `disabled` no próprio select impede selecionar sua opção,
 /// mesmo quando o HTML ainda contém uma option de nome e ID válidos.
 #[test]
 fn select_desabilitado_recusa_confirmacao_antes_do_post_criador() {
     let amb = ambiente();
-    for (nivel, campo) in [
-        ("publico", "selAssuntos"),
-        ("restrito", "selHipoteseLegal"),
-    ] {
+    for (nivel, campo) in [("publico", "selAssuntos"), ("restrito", "selHipoteseLegal")] {
         let mut solicitado = pedido(true);
         solicitado.nivel = nivel;
         let cadastro_desabilitado = cadastro().replace(
@@ -49,4 +46,3 @@ fn select_desabilitado_recusa_confirmacao_antes_do_post_criador() {
         assert!(requests.iter().all(|req| req.metodo == "GET"));
     }
 }
-
