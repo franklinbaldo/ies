@@ -7,6 +7,7 @@ use crate::processo_concluir::tests_apoio::{
     ID, Pedido as PedidoHttp, Resposta, UNIDADE, abertura, ambiente, arvore, ok, rodar_com,
 };
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
+use std::fmt::Write as _;
 
 const DESTINO: &str = "12345.000002/2026-01";
 
@@ -19,7 +20,6 @@ fn acao_da_arvore() -> String {
 
 fn formulario_com_relacionados(numeros: &[(&str, &str)]) -> String {
     let hash = "a".repeat(64);
-    use std::fmt::Write as _;
     let mut linhas = String::new();
     for (id, nup) in numeros {
         let _ = write!(
