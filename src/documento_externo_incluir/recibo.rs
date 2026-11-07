@@ -59,7 +59,7 @@ pub(crate) fn interpretar_resposta(
     if !fim.is_empty()
         || nome_upload.is_empty()
         || nome.is_empty()
-        || tipo.is_empty()
+        || !tipo.eq_ignore_ascii_case("application/pdf")
         || data_hora.is_empty()
         || tamanho_bytes == 0
         || tamanho_bytes != tamanho_esperado
