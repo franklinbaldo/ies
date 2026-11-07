@@ -82,3 +82,32 @@ fn sem_para_e_opcao_desconhecida_sao_erro_do_clap() {
         assert_eq!(saida.stdout, b"");
     }
 }
+
+#[test]
+fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
+    // Dado um processo e a opção observada chkSinRemoverAnotacoes;
+    // Quando peço prévia, a gramática aceita a flag (sem sessão, não há GET);
+    // Então o erro é de fonte, e não argumento desconhecido.
+    let base = [
+        "processo",
+        "enviar",
+        NUP,
+        "--para",
+        "TESTE",
+        "--remover-anotacoes",
+        "--json",
+    ];
+    let previa = sem_sessao(&base);
+    assert_eq!(previa.status.code(), Some(1));
+    assert_eq!(json(&previa)["codigo"], "fonte_invalida");
+    // Quando confirmo sem prova de releitura das anotações,
+    // Então a recusa tipada antecede qualquer acesso à sessão ou SEI.
+    let mut confirmar = base.to_vec();
+    confirmar.push("--confirmar");
+    let saida = sem_sessao(&confirmar);
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "remocao_de_anotacoes_sem_verificacao"
+    );
+}

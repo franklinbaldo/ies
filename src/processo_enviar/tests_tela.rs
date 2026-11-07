@@ -60,7 +60,7 @@ fn post_derivado_pelo_primitivo_na_ordem_do_documento() {
         for manter in [false, true] {
             let html = tela_de_envio(versao, ID);
             let tela = conferir_tela_de_envio(&html, ID).unwrap();
-            let campos = campos_do_envio(&tela, &destino(), manter);
+            let campos = campos_do_envio(&tela, &destino(), manter, false);
             let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
             let url = url_da_tela();
             let servida = TelaServida {
@@ -216,4 +216,50 @@ fn redirecionamento_do_envio_observado() {
         assert!(!esperado(Some(&outro)), "{outro}");
     }
     assert!(!esperado(None));
+}
+
+#[test]
+fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
+    // Dado um controle habilitado nas famílias 4.0 e 4.1/5.0.
+    for versao in [Versao::V40, Versao::V41] {
+        let html = tela_de_envio(versao, ID);
+        let tela = conferir_tela_de_envio(&html, ID).unwrap();
+        assert!(tela.remover_anotacoes_oferecida);
+        // A ausência de name significa que não há controle enviável.
+        let sem_opcao = html.replace(r#"name="chkSinRemoverAnotacoes""#, r#"name="""#);
+        assert!(
+            !conferir_tela_de_envio(&sem_opcao, ID)
+                .unwrap()
+                .remover_anotacoes_oferecida
+        );
+    }
+}
+
+#[test]
+fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
+    // Dado o checkbox observado nas versões 4.0 e 4.1/5.0,
+    // quando preparo o POST do pedido explícito de remoção,
+    // então apenas a opção solicitada é marcada no corpo, na ordem da tela.
+    for versao in [Versao::V40, Versao::V41] {
+        for manter_aberto in [false, true] {
+            let html = tela_de_envio(versao, ID);
+            let tela = conferir_tela_de_envio(&html, ID).unwrap();
+            let campos = campos_do_envio(&tela, &destino(), manter_aberto, true);
+            let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
+            let url = url_da_tela();
+            let servida = TelaServida {
+                url: &url,
+                html: &html,
+                codificacao: CodificacaoDaTela::Iso88591,
+            };
+            let envio =
+                derivar_submissao(&ENVIAR_PROCESSO, &instalacao(), &servida, "", &pares).unwrap();
+            let esperado = corpo_do_envio(versao, manter_aberto).replacen(
+                "txtPrazo",
+                "chkSinRemoverAnotacoes=on&txtPrazo",
+                1,
+            );
+            assert_eq!(String::from_utf8(envio.corpo().to_vec()).unwrap(), esperado);
+        }
+    }
 }

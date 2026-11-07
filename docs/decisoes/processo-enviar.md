@@ -149,6 +149,33 @@ na pasta do POST (`consulta_do_controlador`, compartilhado com
 `processo concluir`); outro host, porta ou pasta é
 `redirecionamento_nao_reconhecido`.
 
+## Extensão parcial #333: remoção de anotações
+
+O formulário Web observado em 4.0, 4.1 e 5.0 publica o checkbox
+`chkSinRemoverAnotacoes` desmarcado; seu nome e disponibilidade na tela
+são verificáveis estruturalmente, sem executar JavaScript. A opção
+`--remover-anotacoes` agora pode ser solicitada na **prévia** e aparece
+explicitamente no plano, sem alterar o envio básico. Na origem, quando
+a barra publica o link assinado de `anotacao_registrar` para o processo,
+o leitor faz um GET adicional do `frmAnotacaoCadastro` e confere
+`hdnIdProtocolo` e `txaDescricao`. A prévia distingue anotação com texto,
+campo vazio e ausência de observação (sem link), nunca converte falta de
+link em prova de remoção. A estrutura foi observada no HTML público da
+UnB 4.0.9, `Todos/tests/paginas_reais/processo_anotacao_registrar.html`.
+O cenário BDD verifica GET independente antes do autocomplete e recusa
+tela de outro processo. Se o checkbox do envio estiver ausente, mas a
+anotação for editável pelo formulário oferecido, a prévia escolhe
+`metodo_remocao: limpar_anotacao` e planeja salvar `txaDescricao=""`
+antes da tramitação; sem ambos os controles a operação recusa antes da
+consulta AJAX. A alternativa é documentada pelo manual oficial do SEI,
+mas **ainda não executa POST mutador**: dois efeitos distintos exigiriam
+duas releituras, e uma falha entre eles deixaria alteração parcial.
+A lista de unidades em `aberto_em` **não** comprova
+remoção de anotações, portanto `--confirmar --remover-anotacoes` permanece
+fechado antes de qualquer sessão e requisição até haver leitura
+independente do efeito adicional. Esta decisão preserva a confirmação
+normal de `ies processo enviar` sem a nova opção.
+
 ## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/processo-enviar.md) e

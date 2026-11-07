@@ -250,6 +250,7 @@ pub(crate) fn rodar_envio(
             unidade: None,
             para,
             manter_aberto,
+            remover_anotacoes: false,
             confirmar,
         };
         enviar_processo(sessao, &pedido, indice, roteiro)
@@ -265,6 +266,9 @@ pub(crate) fn previa(aberto_em: &[&str], manter_aberto: bool) -> ProcessoEnviado
         confirmado: false,
         alterado: false,
         manter_aberto,
+        remover_anotacoes: false,
+        anotacao_antes: None,
+        metodo_remocao: None,
         destino: destino(),
         aberto_em: siglas(aberto_em),
         depois: None,

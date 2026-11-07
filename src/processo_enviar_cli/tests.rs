@@ -14,6 +14,9 @@ fn previa() -> ProcessoEnviado {
         confirmado: false,
         alterado: false,
         manter_aberto: false,
+        remover_anotacoes: false,
+        anotacao_antes: None,
+        metodo_remocao: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
@@ -188,6 +191,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     unidade: None,
                     para: DESTINO,
                     manter_aberto: false,
+                    remover_anotacoes: false,
                     confirmar,
                 };
                 let erro = enviar_processo(sessao, &pedido, indice, roteiro).unwrap_err();
@@ -336,4 +340,13 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
 
 fn json_de_falha(erro: &ErroEnviar) -> serde_json::Value {
     serde_json::to_value(super::json_de_falha(erro)).unwrap()
+}
+
+#[test]
+fn bdd_previa_publica_opcao_somente_se_solicitada() {
+    let mut feito = previa();
+    assert!(json_de_sucesso(&feito).get("remover_anotacoes").is_none());
+    feito.remover_anotacoes = true;
+    assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
+    assert!(humano(&feito).contains("Remover anotações no envio: sim"));
 }
