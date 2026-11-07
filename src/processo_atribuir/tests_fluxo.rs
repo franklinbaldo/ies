@@ -90,7 +90,7 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
     assert_eq!(feito.usuario_pedido.as_deref(), Some("aluno2"));
     assert_eq!(feito.valor_da_opcao, "100000035");
     assert_eq!(feito.requisicoes, 4);
-    assert!(!feito.confirmado && !feito.alterado);
+    assert_eq!(feito.estado, EstadoDaAtribuicao::Previa);
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
@@ -261,7 +261,7 @@ fn confirmar_atribuicao_faz_um_post_e_verifica_por_arvore_nova() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.estado, EstadoDaAtribuicao::AlteracaoConfirmada);
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -275,7 +275,7 @@ fn confirmar_remocao_posta_null_e_verifica_ausencia_de_atribuicao() {
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(feito.estado, EstadoDaAtribuicao::AlteracaoConfirmada);
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_confirmacao("null"));
 }
