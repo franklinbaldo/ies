@@ -149,6 +149,20 @@ na pasta do POST (`consulta_do_controlador`, compartilhado com
 `processo concluir`); outro host, porta ou pasta é
 `redirecionamento_nao_reconhecido`.
 
+## Extensão parcial #333: remoção de anotações
+
+O formulário Web observado em 4.0, 4.1 e 5.0 publica o checkbox
+`chkSinRemoverAnotacoes` desmarcado; seu nome e disponibilidade na tela
+são verificáveis estruturalmente, sem executar JavaScript. A opção
+`--remover-anotacoes` agora pode ser solicitada na **prévia** e aparece
+explicitamente no plano, sem alterar o envio básico ou acrescentar
+requisições. Se a tela não a oferecer, a operação recusa antes da
+consulta AJAX. A lista de unidades em `aberto_em` **não** comprova
+remoção de anotações, portanto `--confirmar --remover-anotacoes` permanece
+fechado antes de qualquer sessão e requisição até haver leitura
+independente do efeito adicional. Esta decisão preserva a confirmação
+normal de `ies processo enviar` sem a nova opção.
+
 ## Evidências verificáveis
 
 - [Contrato](../../contracts/cli/processo-enviar.md) e
