@@ -2,12 +2,12 @@
 type: CommandContract
 title: Enviar o processo a uma unidade de destino
 operation: processo.enviar
-command: ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]
+command: ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]` (Refs #173)
+# `ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]` (Refs #173, #333)
 
 Envia (tramita) o processo da **unidade da sessão** a **uma** unidade de
 destino, uma vez e por pedido explícito, pelo link "Enviar Processo" que a
@@ -33,6 +33,18 @@ da tela declara.
   2 (`mais_de_um_destino_nao_suportado`). Antes de qualquer arquivo.
 - `--manter-aberto`: marca "Manter processo aberto na unidade atual"
   (`chkSinManterAberto=on`). Sem ele, a caixa vai como servida (desmarcada).
+- `--remover-anotacoes`: na **prévia**, escolhe o checkbox real
+  `chkSinRemoverAnotacoes`, quando habilitado na tela de envio. Se ausente,
+  mas a barra oferecer `anotacao_registrar` e o formulário do mesmo processo
+  for legível, planeja limpar `txaDescricao` antes do envio; sem ambos os
+  caminhos, recusa com `remocao_de_anotacoes_nao_oferecida`.
+  `--confirmar` com essa opção permanece **indisponível antes da sessão/rede**
+  até a leitura independente comprovar também a remoção das anotações.
+  A leitura de `aberto_em` comprova tramitação, não exclusão de anotações.
+  A prévia consulta o formulário `anotacao_registrar` da própria origem,
+  quando o link é publicado na barra, e expõe `anotacao_antes` como
+  `true` (texto presente), `false` (campo vazio) ou campo omitido (link
+  não observado); essa primeira leitura **não prova a remoção posterior**.
 - `--unidade SIGLA` (global): conferida na tela do processo.
 - `--confirmar`: envia. Sem ele, só prévia.
 
@@ -58,6 +70,12 @@ da tela declara.
    grava nada (observado: o histórico depois de duas telas e duas
    consultas só tem a criação e o "Processo remetido"). A tela é conferida
    (abaixo); fora da forma, 1 sem POST.
+4a. Com `--remover-anotacoes`, se a barra publicar o link assinado
+   `anotacao_registrar` do mesmo processo, faz **um GET de leitura** do
+   `frmAnotacaoCadastro`, confere o `hdnIdProtocolo` contra o processo
+   aberto e lê a presença do texto de `txaDescricao`. Link não publicado
+   não equivale a anotação ausente. Tela de outro processo, campos
+   ambíguos ou GET recusado interrompem a prévia antes do autocomplete.
 5. **Consulta do autocomplete** (`unidade_auto_completar_envio_processo`,
    POST ao `controlador_ajax.php`, URL do `infraAjaxAutoCompletar` da
    tela): o corpo do `prepararExecucao` servido, `palavras_pesquisa=TERMO`,
@@ -85,7 +103,12 @@ da tela declara.
    3, como antes. Destino já em `aberto_em`: 1,
    `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
-   e o plano. Nenhum POST de escrita.
+   e o plano. Com `--remover-anotacoes`, publica `remover_anotacoes: true`
+   e `metodo_remocao: "checkbox_no_envio" | "limpar_anotacao"`, conforme
+   os controles observados. Sem a flag, não altera a saída legada.
+   Quando a anotação foi lida, `anotacao_antes: true/false` aparece na
+   prévia; se o link não foi oferecido, o campo é omitido.
+   Nenhum POST de escrita.
 8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
    de formulário (`ENVIAR_PROCESSO`).
 9. **Verifica** por uma leitura nova (a de `ies processo NUP`, em geral
@@ -117,13 +140,34 @@ programados).
 | Sem a linha `objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','…');` única | `autocompletar_de_unidade_nao_declarado` |
 | `prepararExecucao` fora das duas formas observadas, ou repetido | `consulta_do_autocompletar_fora_da_forma_observada` |
 
-O POST leva, na ordem do documento: os ocultos como servidos, salvo
+O POST **sem `--remover-anotacoes`** leva, na ordem do documento: os ocultos como servidos, salvo
 `hdnUnidades` = `ID±DESCRIÇÃO` do item escolhido (a forma do
 `infraLupaSelect`); `sbmEnviar`; `selOrgao` = o órgão efetivo;
 `txtUnidade=`; `chkSinManterAberto=on` só com `--manter-aberto`; cada texto
 servido, vazio. Nenhuma opção de `selProcedimentos`/`selUnidades`, nenhuma
 outra caixa nem rádio. O `action` é o servido (conferido pelo primitivo);
 a janela não publica `lnkInfraUnidade` (`NaTelaDeOrigemDoLink`).
+
+## Leitura independente da anotação na origem (#333)
+
+Só na prévia com `--remover-anotacoes`, se a barra servir um link
+`anotacao_registrar` para o mesmo `id_procedimento`, o IES consulta a tela
+`frmAnotacaoCadastro` sem escrever. O campo oculto `hdnIdProtocolo`
+identifica o processo; `txaDescricao` com texto não vazio indica anotação
+presente na unidade de origem. A tela só permite comprovar o **antes**.
+A prévia publica `anotacao_antes` sem converter ausência de observação em
+ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete.
+
+| Forma não observada | Subcódigo |
+| --- | --- |
+| Barra ilegível | `barra_de_anotacoes_nao_interpretada` |
+| Endereço de anotação inválido | `endereco_de_anotacoes_nao_reconhecido` |
+| Links de anotação repetidos | `links_de_anotacoes_repetidos` |
+| HTML de anotação ilegível | `tela_de_anotacoes_nao_interpretada` |
+| Formulário ausente | `formulario_de_anotacoes_ausente` |
+| Campo não publicado | `anotacao_nao_publicada` |
+| Identidade divergente | `anotacao_de_outro_processo` |
+| Campos repetidos | `campos_de_anotacao_repetidos` |
 
 ## Resposta e efeito incerto
 
@@ -183,7 +227,7 @@ Abertura = a de `processo concluir` (3 GET a frio pela linha do Controle,
 | Uso inválido | 0 |
 | Recusa pela situação ou pela barra | abertura |
 | Tela recusada | abertura + 1 GET |
-| Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + C POST (consultas) |
+| Prévia, ou recusa da consulta ou do destino | abertura + 1 GET + C POST (consultas); +1 GET se anotação publicada e a flag pedida |
 | `--confirmar` (qualquer resultado da verificação) | abertura + 1 GET + C POST + 1 POST + verificação |
 
 C, as consultas da busca (passo 6):
@@ -194,13 +238,14 @@ C, as consultas da busca (passo 6):
 | com `/`, sem órgão do prefixo | 1 (a consulta 3 decide) ou 2 (mais a 4) |
 | com `/` e órgão do prefixo | 1 a 4, a primeira com a sigla exata (ou vários) encerra |
 
-A frio e sem `/`: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
+A frio e sem `/`, sem leitura extra: prévia 4 GET + 1 POST; `--confirmar` 5 GET + 2 POST. Os
 testes conferem a sequência exata de cada caminho.
 
 ## Fora do escopo
 
-Vários destinos e grupos de envio (`hdnUnidades` com `¥`), "Remover
-anotação", "Enviar e-mail de notificação", retorno e reabertura
+Vários destinos e grupos de envio (`hdnUnidades` com `¥`), **confirmação de
+remoção de anotações enquanto não observável na releitura**, "Enviar e-mail
+de notificação", retorno e reabertura
 programados, a lupa de unidades, enviar vários processos.
 
 ## Evidência

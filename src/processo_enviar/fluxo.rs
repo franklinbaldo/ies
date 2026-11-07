@@ -9,7 +9,7 @@ use super::tela::{
     AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
     campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
 };
-use super::{Destino, PedidoDoEnvio, ProcessoEnviado};
+use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
     CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
     derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
@@ -42,6 +42,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoEnviado, C> {
+    if pedido.remover_anotacoes && pedido.confirmar {
+        return Err(C::RemocaoDeAnotacoesSemVerificacao);
+    }
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(C::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
@@ -68,6 +71,36 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let cookie = ler_cookie(sessao)
         .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
+    let anotacao_antes = if pedido.remover_anotacoes {
+        match acoes.anotacoes.map_err(C::LinkDasAnotacoes)? {
+            Some(link) => {
+                let (html, _) =
+                    obter_tela(&mut rede, &cookie, &link).map_err(|falha| match falha {
+                        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
+                        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+                        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+                    })?;
+                Some(
+                    super::anotacoes::anotacao_presente(&html, &id)
+                        .map_err(C::LeituraDasAnotacoes)?,
+                )
+            }
+            None => None,
+        }
+    } else {
+        None
+    };
+    let metodo_remocao = if pedido.remover_anotacoes {
+        Some(if tela.conferida.remover_anotacoes_oferecida {
+            MetodoRemocao::CheckboxNoEnvio
+        } else if anotacao_antes.is_some() {
+            MetodoRemocao::LimparAnotacao
+        } else {
+            return Err(C::RemocaoDeAnotacoesNaoOferecida);
+        })
+    } else {
+        None
+    };
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
@@ -79,6 +112,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         confirmado: pedido.confirmar,
         alterado: false,
         manter_aberto: pedido.manter_aberto,
+        remover_anotacoes: pedido.remover_anotacoes,
+        anotacao_antes,
+        metodo_remocao,
         destino,
         aberto_em,
         depois: None,
@@ -88,7 +124,12 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(feito);
     }
-    let campos = campos_do_envio(&tela.conferida, &feito.destino, pedido.manter_aberto);
+    let campos = campos_do_envio(
+        &tela.conferida,
+        &feito.destino,
+        pedido.manter_aberto,
+        pedido.remover_anotacoes,
+    );
     let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
     let servida = TelaServida {
         url: &tela.url,
