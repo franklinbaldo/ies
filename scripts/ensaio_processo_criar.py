@@ -84,6 +84,8 @@ def ensaiar(
     if (codigo != 0 or previa.get("tipo") != tipo
             or previa.get("nivel") != nivel
             or previa.get("especificacao") != especificacao
+            or not isinstance(previa.get("unidade"), str)
+            or not previa["unidade"].strip()
             or previa.get("confirmado") is not False
             or type(previa.get("requisicoes")) is not int
             or previa["requisicoes"] <= 0):
@@ -139,6 +141,16 @@ def ensaiar(
                 return 3, relatorio
             if not orcamento_consistente:
                 relatorio["estado"] = "ORCAMENTO_DIVERGENTE"
+                gravar()
+                return 3, relatorio
+            # A leitura por NUP identifica o processo, mas o ensaio também
+            # precisa conferir a mesma operação entre prévia e confirmação.
+            # Depois do POST divergente, preservar NUP e releitura; jamais retry.
+            if (criado.get("tipo") != tipo
+                    or criado.get("especificacao") != especificacao
+                    or criado.get("nivel") != nivel
+                    or criado.get("unidade") != previa["unidade"]):
+                relatorio["estado"] = "CONFIRMACAO_DIVERGENTE"
                 gravar()
                 return 3, relatorio
             relatorio["estado"] = "PASS"
