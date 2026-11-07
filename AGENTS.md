@@ -46,39 +46,34 @@ risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
 
-1. **Emoji identifica o trabalho atual:** A fila usa etiqueta `handoff-chatgpt`
-   e título `<prioridade 0–100> <emoji, se em trabalho> <título>`. O emoji serve
-   para identificar visualmente quem está trabalhando na rodada atual
-   (com PR aberta vinculada).
-2. **Fila aberta e dinâmica:** A próxima issue é sempre de quem vier e pegar.
-   Ao iniciar a rodada, a rotina escolhe a issue livre de maior prioridade no topo da
-   fila, implementa o próximo cenário BDD e abre a PR. Concluída a fatia, a issue
-   fica disponível para a próxima etapa por qualquer colega.
-3. **BDD — Foco no Comportamento da CLI:** O avanço é medido por
-   **cenários comportamentais observáveis** do comando (`Dado / Quando
-   executo ies ... / Então`). O BDD orienta o trabalho daqui para frente,
-   preservando integralmente o código e os testes que já estão aprovados na `main`.
-4. **Entrega por capacidade, handoff simples:** Progresso é concluir
-   cenários BDD observáveis da issue. Registre em um só lugar (issue ou PR):
-   - `FEITO:` cenário comportamental atendido ou trabalho interno realizado.
-   - `CLI:` comando exercitado e comportamento resultante.
-   - `CONTINUAR:` próximo cenário a implementar na esteira.
-5. **Divisão colaborativa de papéis:** Implementadores abrem PRs focadas e
-   preenchem o handoff; o 🐘 Elefante e o 🦡 Texugo integram o código aprovado.
-   Mantemos os testes íntegros e `--confirmar` seguro até que o fluxo em
-   treinamento esteja validado.
-6. **Capacidades primeiro, segurança e hardening no pós-capacidades:**
-   Preocupações com segurança só devem começar quando todas as capacidades
-   estiverem implementadas; só aí começaremos o hardening de segurança. Até lá,
-   a implementação inicial deve ser a mais simples e direta possível, sem
-   defesas antecipadas nem proteções preventivas. O objetivo de toda a equipe
-   é fazer os comandos funcionarem no SEI de forma objetiva.
-7. **Abertura de issues e ordenação de prioridades:**
-   Qualquer agente pode abrir issues no repositório ao identificar uma nova
-   capacidade necessária, cenário BDD a cobrir ou lacuna real. A atribuição
-   e organização das prioridades na fila (`0–100`) é realizada pelo
-   🐘 Elefante e pelo 🦡 Texugo (conforme as diretrizes do proprietário),
-   mantendo o backlog ordenado e desimpedido para todo o time.
+1. **Fila aberta:** `handoff-chatgpt` usa título
+   `<prioridade 0–100> <emoji, se em trabalho> <título>`; emoji marca
+   trabalho ativo, nunca reserva antecipada.
+2. **Fonte e ordem:** [contrato CLI](contracts/cli.md) → [roadmap #56](https://github.com/franklinbaldo/ies/issues/56)
+   e [matrizes](docs/matriz-derivacao-cli.md) → próximo item pendente →
+   **cenários BDD escritos previamente pelo 🐘 na issue** → implementação.
+   Sem BDD pronto, a issue não pode ser assumida para implementação.
+3. **BDD só da CLI:** cenários numerados `Dado` (contexto do usuário),
+   `Quando executo ies ...` (comando/flags contratados), `Então`
+   (saída humana/JSON, exit code, arquivo ou efeito observável via CLI).
+   Valem sucesso, falha e prévia. **Proibido BDD interno:** HTTP, DOM,
+   parser, função Rust, requests, fixtures, estruturas ou arquitetura.
+   Testes técnicos continuam permitidos, mas não viram novos cenários.
+4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** pegar a issue livre mais prioritária
+   com cenário BDD **pendente e pronto**, implementá-lo sem criar,
+   reescrever ou ampliar cenários/flags. Se faltou especificação, pedir
+   ao 🐘 na issue e escolher outra pronta. Handoff: `FEITO:` ID/cenário
+   atendido; `CLI:` comando e resultado; `CONTINUAR:` próximo ID já
+   previsto. Após a integração, a issue volta à fila se houver BDD pendente.
+5. **Revisão e integração:** 🦅 avalia a PR contra o BDD prévio;
+   🐘/🦡 integram com gates verdes. Preservar testes existentes e
+   `--confirmar` seguro até a validação em treinamento.
+6. **Capacidades primeiro:** implementar o caminho mais simples para
+   o comportamento contratado, sem hardening especulativo, sem romper
+   limites invioláveis nem gates.
+7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
+   mas não redigir BDD próprio para implementá-los. 🐘 especifica os
+   cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
 8. **Personalidades, subculturas e o Cafezinho diário (1/7 da sessão):**
    Cada avatar possui uma subcultura e personalidade única que inspiram seu
    dialeto e referências. O fórum de convivência do time utiliza a tag
@@ -129,8 +124,9 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
    e [decisão por operação](docs/decisoes/unidade-listar-processos.md)
    (alternativas, evidência, trade-offs, revisão; o gate `check_design`
    confere a ligação, não o mérito).
-3. **RED.** Testes com fixtures **sintéticas** que reproduzem a estrutura
-   observada, executados falhando antes do código. Registre a contagem.
+3. **RED.** Execute antes do código o BDD já definido na issue,
+   com fixtures sintéticas quando preciso; registre a falha.
+   Testes internos auxiliares não são cenários BDD.
 4. **GREEN.** Implementação mínima, refatoração e gates.
 5. **Validar ao vivo.** Em treinamento, com orçamento de requests
    declarado; registre PASS/FAIL/NOT_RUN no
