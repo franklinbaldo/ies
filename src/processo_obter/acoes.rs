@@ -1,14 +1,17 @@
 //! As ações de estado que `abrir_para_escrever` lê na barra da árvore.
 use crate::arvore_processo::{
-    ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar, ErroAcompanharNaBarra,
-    ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroAtribuirNaBarra, ErroConcluirNaBarra,
-    ErroEnviarNaBarra, ErroRelacionarNaBarra, ReabrirNaBarra,
+    ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento, ErroAcaoSobrestar,
+    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroAtribuirNaBarra,
+    ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroRelacionarNaBarra,
+    ReabrirNaBarra,
 };
 use crate::erro_html::ErroHtml;
 
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
 /// só pesa no comando que a usa.
 pub(crate) struct AcoesDeEstado {
+    /// Link da inclusão de documentos internos; falha só pesa no comando #246.
+    pub(crate) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
     /// contracts/cli/processo-prazo.md
     pub(crate) prazo: Result<Option<String>, crate::arvore_processo::ErroLinkPrazo>,
     /// contracts/cli/processo-concluir.md

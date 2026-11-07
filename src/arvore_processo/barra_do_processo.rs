@@ -254,3 +254,60 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
     }
     Ok(texto)
 }
+
+/// URL assinada da escolha de tipos de documento, nunca exposta por Debug.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct EnderecoDoIncluirDocumento(String);
+impl EnderecoDoIncluirDocumento {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl std::fmt::Debug for EnderecoDoIncluirDocumento {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("EnderecoDoIncluirDocumento(<redigido>)")
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum ErroLinkIncluirDocumento {
+    #[causa(nome = "barra_do_incluir_documento_fora_da_forma")]
+    BarraForaDaForma,
+    #[causa(nome = "barra_do_incluir_documento_repetida")]
+    BarraRepetida,
+    #[causa(nome = "links_de_incluir_documento_repetidos")]
+    LinkRepetido,
+    #[causa(nome = "endereco_de_incluir_documento_nao_reconhecido")]
+    EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_de_incluir_documento_de_outro_processo")]
+    EnderecoDeOutroProcesso,
+}
+
+/// Extrai exclusivamente o link publicado na barra do nó PROCESSO.
+/// Nunca constrói URLs assinadas nem executa JavaScript.
+pub(crate) fn ler_link_de_incluir_documento(
+    instalacao: &Instalacao,
+    html: &str,
+    id: &str,
+) -> Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento> {
+    use ErroLinkIncluirDocumento as E;
+    let hrefs = hrefs_da_barra(html).map_err(|erro| match erro {
+        FalhaDaBarra::Fora => E::BarraForaDaForma,
+        FalhaDaBarra::Repetidas => E::BarraRepetida,
+    })?;
+    let mut links = hrefs
+        .iter()
+        .filter(|href| acao_do_href(href) == Some("documento_escolher_tipo"));
+    let Some(href) = links.next() else {
+        return Ok(None);
+    };
+    if links.next().is_some() {
+        return Err(E::LinkRepetido);
+    }
+    conferir_endereco_relativo(instalacao, href, "documento_escolher_tipo", id)
+        .map(|url| Some(EnderecoDoIncluirDocumento(url)))
+        .map_err(|erro| match erro {
+            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+        })
+}

@@ -102,6 +102,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         requisicoes: rede.requisicoes.total_u8(),
     };
     let acoes = AcoesDeEstado {
+        incluir: arvore_lida.incluir,
         prazo: arvore_lida.prazo,
         concluir: arvore_lida.concluir,
         reabrir: arvore_lida.reabrir,

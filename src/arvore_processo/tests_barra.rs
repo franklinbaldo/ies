@@ -139,3 +139,60 @@ fn barra_fora_da_forma_ou_repetida_e_recusa() {
     );
     assert_eq!(ler(&repetida), Err(E::BarrasDoProcessoRepetidasNaArvore));
 }
+
+#[test]
+fn incluir_documento_so_usa_link_assinado_na_barra_do_processo() {
+    use super::ler_link_de_incluir_documento;
+    let href = format!(
+        "controlador.php?acao=documento_escolher_tipo&id_procedimento=10&infra_hash={}",
+        "e".repeat(64)
+    );
+    // O helper barra() já inclui uma ação de documento_escolher_tipo.
+    // Para testar uma única URL escolhida, construir a barra sem essa ação-padrão.
+    let lido = ler_link_de_incluir_documento(
+        &instalacao(),
+        &com_barra(&base(), 0, &acao_da_barra(&href)),
+        "10",
+    )
+    .unwrap()
+    .unwrap();
+    assert!(
+        ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[]), "10")
+            .unwrap()
+            .is_some()
+    );
+    assert_eq!(lido.as_str(), format!("{ORIGEM}/{href}"));
+    assert!(!format!("{lido:?}").contains(&"e".repeat(64)));
+    assert!(
+        ler_link_de_incluir_documento(&instalacao(), &base(), "10")
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn incluir_documento_recusa_links_repetidos_e_outro_processo() {
+    use super::{ErroLinkIncluirDocumento as E, ler_link_de_incluir_documento};
+    let href = format!(
+        "controlador.php?acao=documento_escolher_tipo&id_procedimento=11&infra_hash={}",
+        "e".repeat(64)
+    );
+    assert_eq!(
+        ler_link_de_incluir_documento(
+            &instalacao(),
+            &com_barra(&base(), 0, &acao_da_barra(&href)),
+            "10",
+        ),
+        Err(E::EnderecoDeOutroProcesso)
+    );
+    let certo = href.replace("id_procedimento=11", "id_procedimento=10");
+    assert_eq!(
+        ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[acao_da_barra(&certo)]), "10",),
+        Err(E::LinkRepetido)
+    );
+    let outro_no = com_barra(&base(), 1, &acao_da_barra(&certo));
+    assert_eq!(
+        ler_link_de_incluir_documento(&instalacao(), &outro_no, "10"),
+        Ok(None)
+    );
+}
