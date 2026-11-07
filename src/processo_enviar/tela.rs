@@ -195,9 +195,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             | ("input" | "button", "submit", BOTAO_ENVIAR) => {}
             ("select", _, n) if SELECOES.contains(&n) => selecao = Some(nome.clone()),
             ("input", "checkbox" | "radio", n) if CAIXAS.contains(&n) || RADIOS.contains(&n) => {
-                if n == REMOVER_ANOTACOES && tipo == "checkbox" {
-                    remover_anotacoes_oferecida = true;
-                }
+                remover_anotacoes_oferecida |= n == REMOVER_ANOTACOES && tipo == "checkbox";
                 preenchida |= marcado;
             }
             ("input", "text", n) if TEXTOS.contains(&n) => {
