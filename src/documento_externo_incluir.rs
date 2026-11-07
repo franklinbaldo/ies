@@ -20,6 +20,7 @@ pub(crate) enum FalhaPdf {
     LinkSimbolico,
     Vazio,
     Extensao,
+    NomeInvalido,
     Conteudo,
     AcimaDoLimite,
     Leitura,
@@ -33,6 +34,7 @@ impl FalhaPdf {
             Self::LinkSimbolico => "arquivo_pdf_link_simbolico",
             Self::Vazio => "arquivo_pdf_vazio",
             Self::Extensao => "extensao_pdf_invalida",
+            Self::NomeInvalido => "nome_arquivo_pdf_invalido",
             Self::Conteudo => "conteudo_nao_eh_pdf",
             Self::AcimaDoLimite => "arquivo_pdf_acima_do_limite",
             Self::Leitura => "leitura_do_arquivo_pdf_falhou",
@@ -69,6 +71,11 @@ pub(crate) fn inspecionar_pdf(
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or(FalhaPdf::Extensao)?;
+    // O SEI não aceita "&#" em nome de arquivo (oráculo Todos #775).
+    // Controles também não podem atravessar a apresentação humana da CLI.
+    if nome.contains("&#") || nome.chars().any(char::is_control) {
+        return Err(FalhaPdf::NomeInvalido);
+    }
     if !caminho
         .extension()
         .and_then(|e| e.to_str())
