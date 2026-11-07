@@ -7,7 +7,7 @@ effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]` (Refs #173)
+# `ies processo enviar NUP --para SIGLA [--manter-aberto] [--remover-anotacoes] [--confirmar]` (Refs #173, #333)
 
 Envia (tramita) o processo da **unidade da sessão** a **uma** unidade de
 destino, uma vez e por pedido explícito, pelo link "Enviar Processo" que a
@@ -91,7 +91,7 @@ da tela declara.
    3, como antes. Destino já em `aberto_em`: 1,
    `processo_ja_aberto_no_destino` (a leitura não distinguiria o efeito).
 7. **Sem `--confirmar`**: publica `destino`, `aberto_em`, `depois_esperado`
-   e o plano. `--remover-anotacoes` aparece explicitamente na prévia, somente
+   e o plano. `remover_anotacoes: true` aparece explicitamente na prévia, somente
    quando o checkbox está na tela; sem a opção, a prévia o deixa desmarcado.
    Nenhum POST de escrita.
 8. **Com `--confirmar`**, um POST e nenhum retry, derivado pelo primitivo
@@ -125,7 +125,7 @@ programados).
 | Sem a linha `objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','…');` única | `autocompletar_de_unidade_nao_declarado` |
 | `prepararExecucao` fora das duas formas observadas, ou repetido | `consulta_do_autocompletar_fora_da_forma_observada` |
 
-O POST leva, na ordem do documento: os ocultos como servidos, salvo
+O POST **sem `--remover-anotacoes`** leva, na ordem do documento: os ocultos como servidos, salvo
 `hdnUnidades` = `ID±DESCRIÇÃO` do item escolhido (a forma do
 `infraLupaSelect`); `sbmEnviar`; `selOrgao` = o órgão efetivo;
 `txtUnidade=`; `chkSinManterAberto=on` só com `--manter-aberto`; cada texto
@@ -169,7 +169,7 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
 ```json
 {"nup": "00001.000001/2026-01", "id_procedimento": "10", "unidade": "TESTE",
  "origem": "web", "confirmado": false, "alterado": false,
- "manter_aberto": false,
+ "manter_aberto": false, "remover_anotacoes": false,
  "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1", "id_unidade": "110000002"},
  "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
  "reconciliado_por_leitura": false, "requisicoes": 5}
