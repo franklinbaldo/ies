@@ -48,7 +48,10 @@ fn duas_operacoes_refletem_uma_mesma_base_reconstruivel() {
     let retorno = retorno_programado("GET", endereco_retornos, &banco, &origem, cenario);
     assert_eq!(retorno.estado, Estado::Ok);
     assert!(retorno.corpo.contains("NUP-1"));
-    assert_eq!(controlar("GET", endereco_controle, &banco, &origem, cenario), primeira);
+    assert_eq!(
+        controlar("GET", endereco_controle, &banco, &origem, cenario),
+        primeira
+    );
 
     // Alterações sintéticas na fonte derivada tornam-se visíveis sem editar
     // os geradores HTML. Isto não simula nem comprova um POST real do SEI.
@@ -61,7 +64,8 @@ fn duas_operacoes_refletem_uma_mesma_base_reconstruivel() {
             visualizado: true,
             sigiloso: false,
         }],
-    ).unwrap();
+    )
+    .unwrap();
     guardar_controle(&mut banco, cenario, &controle).unwrap();
     let atualizado = controlar("GET", endereco_controle, &banco, &origem, cenario);
     assert_eq!(atualizado.estado, Estado::Ok);
