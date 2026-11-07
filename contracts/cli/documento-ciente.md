@@ -166,6 +166,6 @@ com HTTP **200**. A saída `--json` publica `codigo: efeito_incerto`,
 `status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
 observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
-A saída humana mantém a mensagem de recusa e o aviso de efeito incerto.
+A saída humana mantém a mensagem de recusa e acrescenta a **contagem de requisições observadas** no efeito incerto, orientando a conferir a Lista de Ciências antes de outra confirmação e a **não repetir a escrita**. Não proíbe nova prévia: ela é somente leitura. O JSON mantém o mesmo número de requisições e os campos anteriores.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
