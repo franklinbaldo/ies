@@ -268,6 +268,7 @@ pub(crate) fn previa(aberto_em: &[&str], manter_aberto: bool) -> ProcessoEnviado
         manter_aberto,
         remover_anotacoes: false,
         anotacao_antes: None,
+        metodo_remocao: None,
         destino: destino(),
         aberto_em: siglas(aberto_em),
         depois: None,
