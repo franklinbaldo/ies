@@ -96,9 +96,10 @@ indice Python PEP 503 (PyPI ou indice proprio, por exemplo GitHub Pages).
 
 ### Versionamento semantico (SemVer)
 
-O IES usa **MAJOR.MINOR.PATCH**: `patch` corrige sem alterar a CLI,
-`minor` acrescenta capacidade mantendo compatibilidade, e `major`
-introduz alteracao incompativel do contrato publico. Enquanto estiver em
+O IES mantem o formato SemVer **0.MINOR.PATCH**: `patch` corrige sem
+alterar a interface; `minor` acrescenta capacidade ou altera o contrato
+publico, inclusive com quebra de compatibilidade. `major` e proibido
+por enquanto, evitando uma promocao acidental para 1.0.0. Enquanto estiver em
 `0.x.y`, a CLI ainda esta em desenvolvimento; uma quebra planejada
 pode ser publicada como nova `minor`, se documentada e aprovada.
 
@@ -107,7 +108,6 @@ Para **preparar** uma nova versao, sem publicar nada:
 ```sh
 python3 -I scripts/versao_semver.py patch
 python3 -I scripts/versao_semver.py minor
-python3 -I scripts/versao_semver.py major
 ```
 
 O comando faz **previsao por padrao**. Depois de conferir o tipo correto:
@@ -122,6 +122,26 @@ versao do **executavel raiz `ies`** em `Cargo.toml`,
 `pyproject.toml` e `Cargo.lock`. As versoes das dependencias e dos
 crates internos sao preservadas. Se a versao inicial divergir entre
 os tres arquivos, a operacao recusa antes de gravar.
+
+### Check de bump no CI
+
+O hook canônico `semver-bump` do `prek` roda em todo CI de PR e
+push na `main`. Ele falha se:
+
+- qualquer um dos manifestos `Cargo.toml`, `pyproject.toml` e
+  `Cargo.lock` nao tiver a mesma versao do executavel;
+- a versao nao for `0.MINOR.PATCH` simples (sem `-rc` ou `1.0.0`);
+- um PR ou push na `main` diminuir a versao em relacao ao primeiro
+  pai do commit que o GitHub Actions esta validando.
+
+O hook **nao exige bump em todas as PRs**: o IES integra muitas fatias
+de trabalho em paralelo, e cada mudanca isolada nao precisa gerar
+outra release. Quando um bump for solicitado, a versao deve subir,
+nunca recuar. O workflow de release por tag exige igualdade exata
+entre tag e manifestos; uma publicacao nao e feita num commit comum.
+
+O comando `uvx --from ...` na Release usa o numero da versao
+conferida pelo gate.
 
 O incremento deve entrar numa **PR revisada**, com os gates Rust e wheel
 verdes, antes de criar uma tag. O binario exibe a versao do Cargo pela
