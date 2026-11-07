@@ -195,3 +195,44 @@ fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
     assert_eq!(valor["causa"], serde_json::json!({"Processo": "Vazio"}));
     assert!(valor.get("subcodigo").is_none());
 }
+
+#[test]
+fn dado_pedido_de_previa_web_quando_sem_sessao_entao_nao_finge_inspecao_local() {
+    // BDD #332: prévia Web deve consultar o SEI (aqui sessão propositalmente ausente).
+    let pdf = PdfTeste::novo();
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        "23106.000001/2026-11",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "Anexo",
+        "--consultar-sei",
+    ]);
+    assert_eq!(saida.status.code(), Some(1), "{:?}", saida.stderr);
+    let valor = json(&saida);
+    assert_ne!(valor["escopo"], "inspecao_local");
+}
+
+#[test]
+fn dado_confirmar_com_previa_web_quando_cadastro_incompleto_entao_recusa_antes_da_sessao() {
+    let pdf = PdfTeste::novo();
+    let saida = executar(&[
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        "23106.000001/2026-11",
+        "--arquivo",
+        pdf.caminho(),
+        "--tipo",
+        "Anexo",
+        "--consultar-sei",
+        "--confirmar",
+    ]);
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
+}
