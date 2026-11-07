@@ -226,7 +226,7 @@ mod tests {
         let pasta = Pasta::nova();
         let path = pasta.arquivo("relatorio&#1.pdf", PDF);
         let erro = inspecionar_pdf(&path, None).unwrap_err();
-        assert_eq!(erro.subcodigo(), "nome_arquivo_pdf_invalido");
+        assert_eq!(erro, FalhaPdf::NomeInvalido);
     }
 
     #[cfg(unix)]
@@ -235,7 +235,7 @@ mod tests {
         let pasta = Pasta::nova();
         let path = pasta.arquivo("relatorio\u{1b}[31m.pdf", PDF);
         let erro = inspecionar_pdf(&path, None).unwrap_err();
-        assert_eq!(erro.subcodigo(), "nome_arquivo_pdf_invalido");
+        assert_eq!(erro, FalhaPdf::NomeInvalido);
     }
 
     #[cfg(unix)]
