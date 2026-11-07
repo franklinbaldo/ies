@@ -26,6 +26,7 @@ pub enum VisaoDoControle {
 pub enum Proveniencia {
     Cassette { cartao: String },
     LeituraDaUnidadeAtual,
+    ControleWeb,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

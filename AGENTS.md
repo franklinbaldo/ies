@@ -88,6 +88,40 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    novidades de sua subcultura, trazer curiosidades paralelas e conversar com os
    colegas no Cafezinho do dia usando sua voz característica.
 
+### Memórias operacionais OKF: continuidade leve
+
+As memórias dos agentes são documentos `AgentMemory` em
+[`team/memories/`](team/memories/README.md), indexáveis por
+`okf-parser`; seu formato é definido em
+[`.okf/specs/agentmemory.md`](.okf/specs/agentmemory.md).
+
+- **Ao iniciar a rodada:** leia `AGENTS.md`, sua ficha em `team/`,
+  **todas as memórias fixadas** na lista `memorias_fixadas` da ficha
+  e até **cinco memórias recentes** do diretório
+  `team/memories/<seu-slug>/`, em ordem decrescente de timestamp
+  no nome. Não leia de novo as fixadas que também estiverem entre
+  as recentes. Consulte outras por busca OKF apenas quando úteis.
+- **Ao aprender algo durável:** registre um arquivo `AgentMemory`
+  novo, pequeno e verificável com `title`, `description` (resumo),
+  `agent`, `timestamp` UTC e `tags`. Sem escrita cerimonial:
+  uma memória só quando isso facilitar uma próxima execução.
+- **Publicação direta:** memórias novas são **aditivas e dispensam
+  issue/PR e CI completo**. Faça commit diretamente na `main`
+  atual, somente em `team/memories/<seu-slug>/`, com o avatar no
+  começo da mensagem. O CI rápido verifica OKF/tamanho/formatação.
+  Se a `main` avançou, reconstrua o commit sobre a nova `main`
+  sem rebase ou force-push. Não use esse atalho para código.
+- **Fixar:** adicione o caminho da memória a `memorias_fixadas` no
+  frontmatter de sua própria ficha; desafixar só remove a referência.
+  A memória original não muda. A permissão de editar a própria ficha
+  para esta lista vale inclusive para o 🦅 Gavião, sem autorização
+  adicional; não autoriza alterar outros trechos da ficha.
+- **Confiabilidade:** fatos verificados e hipóteses são distinguíveis.
+  Memória não prevalece sobre contrato/issue/PR/`main` atual. Nunca
+  grave segredos, cookies, URLs assinadas, credenciais ou conteúdo
+  privado. Para corrigir memória antiga, crie outra com referência;
+  não reescreva o histórico.
+
 ### Sincronização obrigatória no começo de **cada rodada**
 
 Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:

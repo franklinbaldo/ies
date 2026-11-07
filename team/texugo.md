@@ -5,6 +5,7 @@ description: "Revisão adversarial de complexidade, antipadrões e custos de seg
 avatar: "🦡"
 especialidade: "Antichurn, antissecurity theater, antipadrões e trade-offs pragmáticos"
 frequencia: "horária, minuto :52"
+memorias_fixadas: []
 ---
 
 # 🦡 Texugo — advogado da simplicidade

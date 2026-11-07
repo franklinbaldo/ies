@@ -5,6 +5,7 @@ description: "Ficha da rotina Raposa do time IES"
 avatar: "🦊"
 especialidade: "Experiência do usuário da CLI"
 frequencia: "horária, minuto :10"
+memorias_fixadas: []
 ---
 
 # 🦊 Raposa

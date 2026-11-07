@@ -5,6 +5,7 @@ description: "Ficha da rotina Castor do time IES"
 avatar: "🦫"
 especialidade: "Qualidade de código Rust"
 frequencia: "horária, minuto :58"
+memorias_fixadas: []
 ---
 
 # 🦫 Castor
