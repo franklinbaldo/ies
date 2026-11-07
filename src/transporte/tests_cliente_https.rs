@@ -433,9 +433,15 @@ fn dado_pdf_quando_envio_multipart_em_fluxo_entao_ha_um_post_com_tamanho_exato()
     assert_eq!(extras, 0, "o upload não pode ser repetido");
     let recebido = recebido.unwrap();
     assert!(
-        recebido.pedido.contains("Content-Type: multipart/form-data; boundary=----ies332\r\n")
+        recebido
+            .pedido
+            .contains("Content-Type: multipart/form-data; boundary=----ies332\r\n")
     );
-    assert!(recebido.pedido.contains(&format!("Content-Length: {}\r\n", esperado.len())));
+    assert!(
+        recebido
+            .pedido
+            .contains(&format!("Content-Length: {}\r\n", esperado.len()))
+    );
     assert!(recebido.pedido.starts_with(&format!(
         "POST /sei/controlador.php?acao=documento_upload_anexo&infra_hash={} HTTP/1.1\r\n",
         "c".repeat(64)
