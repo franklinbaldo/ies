@@ -11,6 +11,11 @@ pública é o [contrato da CLI](contracts/cli.md). O
 [Todos](https://github.com/franklinbaldo/todos) é **oráculo de
 comportamento**, não arquitetura a portar.
 
+O workspace também abriga o **anti-IES**, servidor Rust de compatibilidade
+incremental ([plano conjunto](docs/anti-ies/roadmap.md)). Os contratos
+observados vêm do SEI de treinamento/cassettes, não de concordância entre
+cliente e simulador.
+
 ## Equipe de agentes e avatares
 
 O emoji é o avatar da rotina. Cada ficha em `team/` usa OKF `TeamMember`.
@@ -129,69 +134,37 @@ Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
 ## Protocolo de revisão — 🦅 Gavião
 
-- Liste PRs abertas da fila `handoff-chatgpt` e de integração;
-  ordene por prioridade decrescente e número da issue crescente,
-  deixando as sem prioridade identificável por último. Ignore PRs cujo
-  head SHA7 já recebeu `REVISÃO-CHATGPT (head <sha7>)`.
-- Para cada head novo, leia diff **inteiro**, issue, critérios,
-  `não toque`, CI e evidências. Examine: correção/bordas/races,
-  escopo/churn, política Web, mínimo de requests/nenhum retry,
-  erros tipados e `null` observado, escrita com prévia e releitura,
-  segurança de cookies, origem, `infra_hash`, URLs e arquivos privados,
-  RED, testes sintéticos, fixtures, orçamento, replays, live, OKF,
-  decisões, matriz, 20 KB, compatibilidade Windows e simplicidade.
-  Bloqueantes: segredos, escrita insegura ou fora de treinamento,
-  retry, JS, teste escondido (exceto ablação 🦡 justificada). Aponte `arquivo:linha`
-  e fatos verificáveis; incerteza deve constar como `a verificar`.
-- Publique **um comentário por head**:
-  `REVISÃO-CHATGPT (head <sha7>)`;
-  `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
-  bloqueantes (arquivo:linha — problema — correção), importantes,
-  sugestões e critérios cumprido/parcial/falta. Omita campos vazios.
-  Em LGTM com CI verde e head ainda idêntico, passe Draft → Ready.
-  Caso contrário preserve Draft e comente na issue `REVISÃO: retomar`
-  com link do parecer. Nunca reserve, implemente, faça push, merge ou
-  feche issue; Ready **não** significa capacidade finalizada.
+**Fonte normativa integral:** [protocolos de revisão e integração](docs/politicas/protocolos-revisao-integracao.md).
+🦅 deve ler essa política antes de revisar cada head, além de AGENTS.md e sua ficha.
 
 ## Protocolo de integração — 🐘 Elefante
 
-- **Todo comentário no GitHub começa por `🐘 Elefante:`.** Não acesse
-  SEI. CI oficial é `.github/workflows/ci.yml`: `prek` e todos
-  os outros jobs devem estar verdes para o **head exato**. Branch
-  desatualizado: atualize via **merge da main no head**, sem rebase ou
-  force-push, e aguarde CI do novo head.
-- Libere reserva apenas se não houver commit no branch **nem** comentário
-  de progresso do dono há mais de **3 horas**. Comentários 🐘/🦅 não
-  contam. Tire apenas emoji e registre
-  `🐘 Elefante: liberada (sem atividade do <emoji> há mais de 3 h);
-  o trabalho existente fica na PR #N, aproveite-o.`
-- **Não integre PR com commit do dono nos últimos 30 minutos.**
-  É autorizado integrar fatia WIP diretamente na main **por merge
-  commit** sem pedir, desde que: CI atual verde (incluindo prek), base
-  sincronizada, sem bloqueante de segurança ou teste antigo alterado
-  para passar, escrita incompleta recusando `--confirmar` antes da
-  rede (ou completa com releitura), apenas prefixo da issue e adições
-  mínimas compartilhadas, **sem workflow temporário novo**.
-- Confira revisão 🦅 e SHA aprovado; promova Ready se necessário,
-  faça merge e comente na issue:
-  `🐘 Elefante: fatia integrada na main (<sha7>); próxima sessão:
-  PR NOVA a partir da main, começando pelos wip #N` e pendências.
-  Reabra issue fechada por `Closes` se continuar WIP; feche só quando
-  **toda a capacidade** estiver completa e sem `wip`.
-- Se bloqueada, registre apenas uma vez por head:
-  `🐘 Elefante: REVISÃO: retomar — <fato e requisito a–d>`.
-  Em PR vermelha e parada >1 hora, corrija **somente** rustfmt,
-  Clippy trivial, OKF ou conflito aditivo no próprio branch;
-  caso contrário comente o log. Não implemente capacidade paralela.
-- Mantenha **pelo menos 5 issues livres sem PR**. Prefira
-  capacidades concretas: issue #56 e matrizes de derivação, depois
-  comportamento do Todos, depois issues de capacidade. Issues novas
-  seguem modelo #269 (Capacidade, Oráculo, Critérios, Seu prefixo,
-  `Como trabalhar`) e incluem ensaio live para escrita.
-- Prioridades: 🐘 administra; 🦡 pode reduzir com justificativa.
-  **90–100** uso diário/bugs; **70–89** desbloqueadores; **40–69**
-  demais; **abaixo de 40** só por pedido ou decisão 🦡. Preserve
-  prioridades expressas do proprietário. Sem mudança, **silêncio**.
+**Fonte normativa integral:** [protocolos de revisão e integração](docs/politicas/protocolos-revisao-integracao.md).
+🐘 deve ler essa política antes de integrar, atualizar a fila ou fechar issues.
+
+## Ciclo conjunto do IES e anti-IES
+
+O anti-IES é **servidor de teste separado** em `crates/anti-ies`, não um
+backend alternativo da CLI nem substituto do SEI real. Para cada capacidade
+Web trabalhada no IES, anote na issue/PR a cobertura anti-IES:
+**não coberta / oráculo / servidor / integrada**, o cenário do SEI e o
+teste diferencial faltante. Registrar a lacuna **não bloqueia** uma PR
+prioritária do IES. Preserve a reserva da rotina e abra ou referencie uma
+issue de emulação independente para a fatia seguinte.
+
+Uma capacidade só pode ser chamada **integrada** depois de resposta
+servida pelo anti-IES, interpretada pelo caminho **real** do IES e
+conferida por oráculo SEI/cassette **independente**, inclusive recusas,
+GET/POST e efeitos observáveis. Sucesso sintético produzido e esperado
+pelo mesmo código não prova equivalência. O anti-IES devolve recusa
+explícita para operações sem evidência, sem simular sucesso.
+
+O IES de produção mantém HTTPS, origem autorizada, cookies privados e
+ausência de retry; qualquer transporte local alternativo é apenas de
+teste. Sem acesso a produção; testes live seguem autorização apenas de
+treinamento. A ordem e o gate da primeira operação estão no
+[roadmap conjunto](docs/anti-ies/roadmap.md) e na
+[matriz anti-IES](docs/anti-ies/cobertura.md).
 
 ## Método: observar → contratar → RED → GREEN → validar
 
@@ -271,44 +244,9 @@ O que falta implementar e em que ordem está na
 
 ## Mecânica do repositório
 
-- Nenhum arquivo texto passa de 20.000 bytes (exceto `.lock`). Quando
-  uma mudança deixar um arquivo acima de ~16.000 bytes, **divida-o na
-  mesma PR**, por responsabilidade: o original fica com o núcleo e uma
-  seção de links para as partes, e cada parte vira um arquivo próprio
-  com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
-  `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
-  texto, tabela ou código para caber; não espere o gate falhar.
-- Ao trabalhar em paralelo com outros agentes, edite só os arquivos do
-  seu prefixo; os dos outros você lê. Se uma peça compartilhada precisar
-  mudar, faça a mudança mínima e explique na PR.
-- `xtask` só tem verificadores de infraestrutura, sem dependências.
-- **Sem Rust no sandbox, o CI é o compilador.** Faça push no branch da
-  PR e leia o resultado do [CI](.github/workflows/ci.yml):
-  - **RED:** faça push dos testes novos antes do código. O hook "Suíte
-    Rust" falha, e o log mostra quantos testes falharam. Esse é o RED
-    observado; registre o run e a contagem.
-  - **Binário:** o job "binário ies" publica o artifact
-    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`, 7 dias),
-    compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3). Baixe-o pelo
-    GitHub (API de artifacts do run ou `gh run download`), confira o
-    SHA-256 e rode no sandbox: comandos offline, replay e ensaio ao vivo
-    em treinamento.
-  - **Sandbox sem rede para o GitHub ou para o SEI:** rode o ensaio num
-    workflow temporário (`workflow_dispatch` ou `push` em `codex/**`) que
-    use esse binário, e remova o workflow antes de a PR sair de DRAFT.
-- **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
-  verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
-  sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
-  ainda não passam levam `#[ignore = "wip #<issue>: <o que falta>"]`; a
-  sessão seguinte começa tirando os da sua issue. O hook `wip-ignores`
-  recusa `#[ignore]` sem motivo, `wip` sem issue e teste que já passava
-  na base marcado como pendente. Rustfmt, Clippy, OKF e os demais gates
-  não têm pendência: passam sempre. Escrita incompleta fica fechada
-  (`--confirmar` recusa antes da rede).
-- Antes de qualquer PR:
-  `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
-  (o [CI](.github/workflows/ci.yml) roda os mesmos gates; não crie outro
-  conjunto de checks).
+**Fonte normativa integral:** [mecânica e CI](docs/engenharia/mecanica-do-repositorio.md).
+Toda rotina implementadora deve ler esse documento antes de editar, testar
+ou publicar PR; a extração não altera gates, tamanho, WIP ou limites.
 
 ## OKF e okf-parser
 

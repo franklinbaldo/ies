@@ -38,6 +38,18 @@ O pacote **ainda não foi publicado no PyPI**. Veja o
 [guia de instalação via uvx](docs/instalacao-uvx.md) para testar wheels
 do CI ou compilar a fonte Git; `ies` isolado no PyPI é outro projeto.
 
+## anti-IES: servidor Rust em evolução conjunta
+
+O mesmo workspace inclui um servidor experimental **anti-IES** (em
+`crates/anti-ies`, [bootstrap PR #351](https://github.com/franklinbaldo/ies/pull/351)).
+Ele serve para testes de integração do IES por operação, **não** para
+substituir o SEI. A primeira meta é tornar `ies unidade atual` compatível
+em bancada local, com oráculo independente e teste real de cliente.
+
+Veja o [roadmap das PRs](docs/anti-ies/roadmap.md) e a
+[matriz de cobertura](docs/anti-ies/cobertura.md). Capacidades não
+implementadas pelo servidor devem falhar explicitamente.
+
 ## Documentação do SEI
 
 O [catálogo OKF de cassettes](docs/cassettes.md) registra 495 revisões

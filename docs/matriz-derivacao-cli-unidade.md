@@ -84,3 +84,12 @@ recusa tipada de sessão (#200), sem repetir a escrita e sem relogin
 nas prévias. O [ensaio PEN4](validacao-live/2026-11-05-relogin.md)
 registra a recuperação e a mudança de geração; expiração natural
 segue `NOT_RUN`. Nenhum `PASS` de CI supre essa lacuna.
+
+## anti-IES — acompanhamento separado da CLI
+
+A cobertura do servidor Rust não altera os estados desta matriz:
+`unidade.atual` é a primeira operação de integração planejada na
+[trilha IES ↔ anti-IES](anti-ies/roadmap.md), com
+[matriz de cobertura própria](anti-ies/cobertura.md).
+O servidor inicial ainda responde HTTP 501 para ações do SEI; só uma
+prova de leitura **do IES contra o servidor** pode marcar INTEGRADA.
