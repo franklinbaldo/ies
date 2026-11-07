@@ -12,7 +12,8 @@ fn distingue_lista_nao_observada_de_lista_vazia_observada() {
 
 #[test]
 fn nao_inventa_controle_resumido_quando_falta_uma_tabela() {
-    let instalacao = iesei::instalacao::Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    let instalacao =
+        iesei::instalacao::Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
     let observado = ObservacaoDoControle {
         instalacao,
         unidade: UnidadeExibida::nova("PPI").unwrap(),
