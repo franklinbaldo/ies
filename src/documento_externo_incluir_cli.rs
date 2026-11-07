@@ -27,14 +27,16 @@ fn recusa(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
 
 pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     let Domain::Documento(Documento {
-        acao: Some(DocumentoAcao::IncluirExterno {
-            processo,
-            arquivo,
-            tipo,
-            confirmar,
-        }),
+        acao:
+            Some(DocumentoAcao::IncluirExterno {
+                processo,
+                arquivo,
+                tipo,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     let processo = match NumeroProcesso::novo(processo) {
@@ -93,7 +95,11 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     } else {
         println!(
             "IES: arquivo local {} ({} bytes, SHA-256 {}) inspecionado para {}. Tipo solicitado: {}. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.",
-            pdf.nome, pdf.tamanho_bytes, pdf.sha256, processo.as_str(), tipo
+            pdf.nome,
+            pdf.tamanho_bytes,
+            pdf.sha256,
+            processo.as_str(),
+            tipo
         );
     }
     Some(ExitCode::SUCCESS)
