@@ -33,14 +33,15 @@ fn replay_de_aceite_e_lista_usa_leitores_de_ambos_alvos() {
         ),
     ];
     for (operacao, url, aceite) in casos {
+        let url_lista = if operacao == "documento_ciencia" {
+            format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10&id_documento=21")
+        } else {
+            format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10")
+        };
         let json = json!({
             "interactions": [
                 resposta_html(operacao, &url, aceite),
-                resposta_html(
-                    "protocolo_ciencia_listar",
-                    &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10"),
-                    lista
-                )
+                resposta_html("protocolo_ciencia_listar", &url_lista, lista)
             ]
         });
         let registros = replay("unb", &json);
@@ -260,5 +261,31 @@ fn lista_documental_nao_comprova_aceite_de_processo() {
     assert_eq!(
         registros[1].resultado,
         Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo")
+    );
+}
+
+#[test]
+fn lista_documental_sem_id_nao_prova_aceite_documental() {
+    let base = "https://sei.treinamento.unb.br/sei/controlador.php";
+    let aceite = "<html><script>atualizarArvore('controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=21&documento_visualizar_ciencias=1&id_atividade=42#ID-42');</script></html>";
+    let lista = "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem1' value='42'></td></tr></table></html>";
+    let json = json!({"interactions": [
+        resposta_html(
+            "documento_ciencia",
+            &format!("{base}?acao=documento_ciencia&id_procedimento=10&id_documento=21"),
+            aceite
+        ),
+        resposta_html(
+            "protocolo_ciencia_listar",
+            &format!("{base}?acao=protocolo_ciencia_listar&id_procedimento=10"),
+            lista
+        )
+    ]});
+    let registros = replay("unb", &json);
+    assert_eq!(registros.len(), 2);
+    assert_eq!(registros[0].resultado, Resultado::Lido);
+    assert_eq!(
+        registros[1].resultado,
+        Resultado::NaoAplicavel("id_documento_da_lista_nao_observado")
     );
 }
