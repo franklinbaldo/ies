@@ -50,6 +50,12 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 - **GREEN proposto:** comparar metadados do **mesmo descritor** depois de ler até EOF (tamanho, modificação e ctime no Unix) e recusar mudança detectada por variante Rust tipada. Mesmo conteúdo estável após a inspeção não é garantido para futuro upload; trocar um ancestral por symlink ainda requer proteção específica. CI e wheel precisam ser verificados no SHA de GREEN.
 - **Execução remota:** NOT_RUN; **0 GET, 0 POST, 0 upload, 0 resíduos**; teste apenas sintético e local.
 
+## PR #380 — núcleo de recibo temporário sem rede (07/11/2026)
+
+- **RED test-first:** [CI 42369511617](https://github.com/franklinbaldo/ies/actions/runs/42369511617), SHA `42e8088`, **1.872 PASS, 2 FAIL novos, 24 ignored**. Falharam exatamente o aceite do recibo temporário UnB e a recusa explícita `ERRO#motivo`; outras negativas já passaram no stub fechado.
+- **GREEN:** implementado um interpretador tipado de seis campos `#`, sem regex, JS, GET ou POST. Recusa específica `ERRO#motivo`; ausência/ambiguidade de recibo ou HTTP inesperado permanecem efeito incerto sem repetir qualquer escrita. Conferir o gate do **head atual** antes de atestar sua aprovação.
+- **Escopo:** testes exclusivamente sintéticos, originados dos cenários UnB do Todos; nenhum upload, cadastro remoto ou releitura do IES foi executado. `--confirmar` segue recusado antes da sessão e da rede. Live: **NOT_RUN**, zero GET, zero POST, zero uploads, zero retries e zero resíduos.
+
 ## Ensaio ao vivo desta fatia
 
 | Etapa | Resultado | Requisições reais | Resíduo |
