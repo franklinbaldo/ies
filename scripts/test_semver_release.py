@@ -69,10 +69,10 @@ class IncrementoSemVerTest(unittest.TestCase):
         self.assertEqual(resultado.returncode, 0, resultado.stderr)
         self.assertEqual(self.versoes(), ["0.2.0"] * 3)
 
-    def test_major_reinicia_minor_e_patch(self):
+    def test_major_rejeitado_e_manifestos_intocados(self):
         resultado = self.executar("major", "--aplicar")
-        self.assertEqual(resultado.returncode, 0, resultado.stderr)
-        self.assertEqual(self.versoes(), ["1.0.0"] * 3)
+        self.assertNotEqual(resultado.returncode, 0)
+        self.assertEqual(self.versoes(), ["0.1.0"] * 3)
 
     def test_recusa_versao_desincronizada_sem_tocar_em_nada(self):
         arquivo = self.raiz / "pyproject.toml"
