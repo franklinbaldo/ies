@@ -1,10 +1,11 @@
-//! BDD derivado de Todos tests/test_documento_juntar_010.py (UnB SEI 4)
-//! e tests/test_documento_juntar_sei5_010.py (PEN3 SEI 5).
+//! BDD derivado de Todos `tests/test_documento_juntar_010.py` (`UnB` SEI 4)
+//! e `tests/test_documento_juntar_sei5_010.py` (PEN3 SEI 5).
 //! Fixtures sintéticas: nenhum cookie, URL assinada verdadeira ou rede.
 use super::*;
 
 fn cadastro(terceiro: &str, selecionado: &str, extensoes: &str) -> String {
-    format!(r#"<html><body>
+    format!(
+        r#"<html><body>
 <form id="frmDocumentoCadastro" method="post" action="controlador.php?acao=documento_receber&id_procedimento=50961">
   <select id="selSerie" name="selSerie">
     <option value="null"> </option>
@@ -20,22 +21,34 @@ fn cadastro(terceiro: &str, selecionado: &str, extensoes: &str) -> String {
   {extensoes}
   objTabelaAnexos.adicionar([arr['nome_upload'],arr['nome'],arr['data_hora'],arr['tamanho'],infraFormatarTamanhoBytes(arr['tamanho'])]);
   objUpload = new infraUpload('frmAnexos','controlador.php?acao=documento_upload_anexo&infra_hash=FICTICIO'{terceiro});
-</script></body></html>"#)
+</script></body></html>"#
+    )
 }
 
 const PDF: &str = r#"arrExt[0] = {nome : "pdf", tamanho : 200};"#;
 
 #[test]
 fn dado_cadastro_unb_recarregado_quando_inspeciono_entao_encontro_tipo_limite_e_upload() {
-    let result = observar_cadastro(&cadastro("", "selected=\"selected\"", PDF), "Anexo", 68).unwrap();
+    let result =
+        observar_cadastro(&cadastro("", "selected=\"selected\"", PDF), "Anexo", 68).unwrap();
     assert_eq!(result.id_tipo, "293");
     assert_eq!(result.limite_pdf_bytes, 200 * 1024 * 1024);
-    assert!(result.plano.url_upload().contains("acao=documento_upload_anexo"));
+    assert!(
+        result
+            .plano
+            .url_upload()
+            .contains("acao=documento_upload_anexo")
+    );
 }
 
 #[test]
 fn dado_cadastro_sei5_com_terceiro_argumento_quando_leio_entao_mantem_o_plano() {
-    let result = observar_cadastro(&cadastro(", true", "selected=\"selected\"", PDF), "Anexo", 68).unwrap();
+    let result = observar_cadastro(
+        &cadastro(", true", "selected=\"selected\"", PDF),
+        "Anexo",
+        68,
+    )
+    .unwrap();
     assert_eq!(result.id_tipo, "293");
 }
 
@@ -50,7 +63,11 @@ fn dado_tipo_nao_escolhido_quando_preparo_upload_entao_exijo_recarga_do_cadastro
 #[test]
 fn dado_pdf_maior_que_limite_observado_quando_inspeciono_entao_recuso_antes_do_upload() {
     assert!(matches!(
-        observar_cadastro(&cadastro("", "selected=\"selected\"", PDF), "Anexo", 200 * 1024 * 1024 + 1),
+        observar_cadastro(
+            &cadastro("", "selected=\"selected\"", PDF),
+            "Anexo",
+            200 * 1024 * 1024 + 1
+        ),
         Err(FalhaCadastroExterno::PdfAcimaDoLimite)
     ));
 }
@@ -62,7 +79,10 @@ fn dado_tipo_ausente_ou_duplicado_quando_inspeciono_entao_nao_invento_id() {
         observar_cadastro(&normal, "Parecer", 68),
         Err(FalhaCadastroExterno::TipoNaoOferecido)
     ));
-    let duplicado = normal.replace("<option value=\"291\">Despacho</option>", "<option value=\"291\">Anexo</option>");
+    let duplicado = normal.replace(
+        "<option value=\"291\">Despacho</option>",
+        "<option value=\"291\">Anexo</option>",
+    );
     assert!(matches!(
         observar_cadastro(&duplicado, "Anexo", 68),
         Err(FalhaCadastroExterno::TipoAmbiguo)
