@@ -9,8 +9,10 @@ implementation: partial
 
 # Relacionar processos (#258)
 
-**Prévia, adição e remoção confirmadas estão implementadas em bancada sintética.**
-`--confirmar` confere a tela e o estado existente antes de gravar.
+**Prévia disponível; escrita implementada apenas no motor de testes sintéticos.**
+Na CLI, `--confirmar` para adição e remoção ainda é recusado após a leitura
+local da sessão e **antes de qualquer requisição**, até ensaio autorizado
+em treinamento. A prévia sem `--confirmar` permanece disponível.
 Uma relação já existente é `sem_efeito` sem escrita. O aceite do POST
 mutador deve ser explícito e a leitura independente precisa comprovar
 o estado pretendido; caso contrário, saída 3, sem repetição.
@@ -52,7 +54,7 @@ relacionamento.
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
 Orçamento: abertura + 1 GET da tela, sem POST.
 
-**Adição confirmada:** o IES submete o formulário observado via botão
+**Adição (fluxo interno WIP, bloqueado na CLI):** o IES submete o formulário observado via botão
 `sbmAdicionar`, com `txtProtocolo`, `txtIdentificacaoProtocolo` e
 `hdnIdProtocolo` obtidos do XML de consulta. Um único POST mutador
 é seguido de uma GET independente, que deve localizar exatamente o id
@@ -64,7 +66,7 @@ resulta em `efeito_incerto`, saída 3. Orçamento sintético a frio:
 O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
 sem alegação de validação ao vivo nas demais instalações.
 
-**Remoção confirmada:** um único POST com `hdnInfraItemId` do vínculo
+**Remoção (fluxo interno WIP, bloqueado na CLI):** um único POST com `hdnInfraItemId` do vínculo
 identificado, action `procedimento_excluir_relacionamento` extraída do
 `acaoRemover(id)` ativo e conferida pelo primitivo de formulário. O POST
 precisa devolver 302 sem seguir o redirecionamento, para a própria tela
@@ -117,6 +119,7 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 | `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
 | `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
 | `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
+| `confirmacao_de_relacionamento_nao_validada` | `--confirmar` recusado na CLI antes da rede até ensaio de treinamento; prévia segue disponível |
 | `efeito_incerto` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 3 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
