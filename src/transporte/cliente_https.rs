@@ -135,8 +135,8 @@ fn requisitar_com_leitor_via<S: Read + Write, R: Read>(
         .write_all(pedido.as_bytes())
         .map_err(|_| FalhaTransporte::Rede)?;
     let tamanho = cabecalhos.map_or(0, |(_, _, _, tamanho)| tamanho);
-    let enviados = std::io::copy(&mut corpo.take(tamanho), &mut fluxo)
-        .map_err(|_| FalhaTransporte::Rede)?;
+    let enviados =
+        std::io::copy(&mut corpo.take(tamanho), &mut fluxo).map_err(|_| FalhaTransporte::Rede)?;
     if enviados != tamanho {
         return Err(FalhaTransporte::Rede);
     }
@@ -156,15 +156,7 @@ pub(crate) fn requisitar_via<S: Read + Write>(
 ) -> Result<Resposta<BufReader<S>>, FalhaTransporte> {
     let cabecalhos = envio.map(|e| (e.tipo, e.origem.as_str(), e.referer, e.corpo.len() as u64));
     let bytes = envio.map_or(&[][..], |e| e.corpo);
-    requisitar_com_leitor_via(
-        metodo,
-        url,
-        cookie,
-        cabecalhos,
-        bytes,
-        ambiente,
-        envolver,
-    )
+    requisitar_com_leitor_via(metodo, url, cookie, cabecalhos, bytes, ambiente, envolver)
 }
 
 /// POST multipart de tamanho conhecido, transmitido diretamente do leitor.
