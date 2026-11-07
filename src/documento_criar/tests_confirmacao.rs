@@ -211,10 +211,10 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
         escrever_ok,
         |rede| {
             rede.chamadas.push("GET arvore");
-            Err(())
+            Err(ErroProcessoObter::Transporte(FalhaTransporte::Rede))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncertoNaReleitura(ErroProcessoObter::Transporte(FalhaTransporte::Rede)))));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
