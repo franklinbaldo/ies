@@ -223,3 +223,25 @@ e acontece antes do envio daquele formulário. Testes adversariais
 sintéticos cobrem os três conteúdos inertes em ambos os caminhos e
 controles positivos com código ativo. Não extrapolar para outras
 versões/instalações sem observação.
+
+
+## Controles de seleção ocultos (06/11/2026)
+
+Na lista de tipos, um link `<a hidden>` ou um link dentro de
+ancestral `hidden` não constitui oferta da interface: não entra em
+`tipos_oferecidos` e não pode ser selecionado por `escolha_do_tipo`.
+O mesmo vale para o acionador `ancExibirSeries`: somente uma cópia
+oculta devolve ausência de filtro, sem POST. Uma cópia visível segue
+utilizável sem ambiguidade artificial. A guarda lê atributos com
+`html_atributos` e intervalos do DOM; não executa JS. A regra
+`fieldset disabled` é mantida apenas para os controles do formulário,
+não aplicada indistintamente aos links.
+
+Regressões adversariais sintéticas, sem atribuir `hidden` às telas
+reais: `tipos_em_controles_hidden_nao_sao_oferecidos` e
+`exibir_todos_hidden_nao_autoriza_filtro`. RED antes da mudança:
+[CI 42322725329](https://github.com/franklinbaldo/ies/actions/runs/42322725329),
+**2 falhas novas / 1.848 aprovados / 23 ignorados preexistentes**.
+A confirmação ao vivo e a atribuição causal de documento criado
+continuam pendentes exclusivamente em treinamento.
+
