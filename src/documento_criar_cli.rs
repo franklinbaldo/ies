@@ -116,11 +116,14 @@ fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::V
     });
     if let Some(causa) = erro.causa_envio() {
         saida["causa_envio"] = json!(causa.subcodigo());
-        if let Some(http) = causa.status_http() {
-            saida["status_http"] = json!(http.status);
-            if let Some(mensagem) = &http.mensagem_do_servidor {
-                saida["mensagem_do_servidor"] = json!(mensagem);
-            }
+    }
+    if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
+        saida["causa_releitura"] = json!(causa.subcodigo());
+    }
+    if let Some(http) = erro.status_http() {
+        saida["status_http"] = json!(http.status);
+        if let Some(mensagem) = &http.mensagem_do_servidor {
+            saida["mensagem_do_servidor"] = json!(mensagem);
         }
     }
     saida
@@ -129,7 +132,9 @@ fn erro_incerto_json(erro: &ErroPreviaCriacao, requisicoes: u8) -> serde_json::V
 fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> ExitCode {
     if matches!(
         erro,
-        ErroPreviaCriacao::EfeitoIncerto | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
+        ErroPreviaCriacao::EfeitoIncerto
+            | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
+            | ErroPreviaCriacao::EfeitoIncertoNaReleitura(_)
     ) {
         if json_mode {
             println!("{}", erro_incerto_json(erro, requisicoes));
@@ -142,6 +147,16 @@ fn publicar_erro(json_mode: bool, erro: &ErroPreviaCriacao, requisicoes: u8) -> 
                     saida_erro::linha_humana(
                         causa.subcodigo(),
                         "falha observada no envio do documento",
+                        causa.status_http(),
+                    )
+                );
+            }
+            if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
+                eprintln!(
+                    "{}",
+                    saida_erro::linha_humana(
+                        causa.subcodigo(),
+                        "falha observada na releitura após envio",
                         causa.status_http(),
                     )
                 );
