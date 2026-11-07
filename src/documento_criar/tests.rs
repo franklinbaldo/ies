@@ -230,20 +230,35 @@ fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
 
     let dentro_de_template = format!("{abertura}{publico}<template>{descricao}</template></form>");
     assert_eq!(
-        conferir_cadastro(&dentro_de_template, "Despacho", Some("Prova"), Some("publico")),
+        conferir_cadastro(
+            &dentro_de_template,
+            "Despacho",
+            Some("Prova"),
+            Some("publico")
+        ),
         Err(ErroCriar::DescricaoNaoOferecida)
     );
 
     let fora_do_formulario = format!("{descricao}{abertura}{publico}</form>");
     assert_eq!(
-        conferir_cadastro(&fora_do_formulario, "Despacho", Some("Prova"), Some("publico")),
+        conferir_cadastro(
+            &fora_do_formulario,
+            "Despacho",
+            Some("Prova"),
+            Some("publico")
+        ),
         Err(ErroCriar::DescricaoNaoOferecida)
     );
 
     let radio_desabilitado =
         format!("{abertura}<fieldset disabled>{publico}</fieldset>{descricao}</form>");
     assert_eq!(
-        conferir_cadastro(&radio_desabilitado, "Despacho", Some("Prova"), Some("publico")),
+        conferir_cadastro(
+            &radio_desabilitado,
+            "Despacho",
+            Some("Prova"),
+            Some("publico")
+        ),
         Err(ErroCriar::NivelNaoOferecido)
     );
 }
