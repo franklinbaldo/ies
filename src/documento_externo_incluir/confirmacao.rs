@@ -1,11 +1,14 @@
 //! #332 — upload temporário, cadastro definitivo e releitura independente.
 //! Testes técnicos auxiliares aos cenários BDD-332-03 e BDD-332-04.
 use super::{
-    cadastro::CadastroExterno, cadastro_envio::{FalhaCadastroEnvio, preparar_cadastro_definitivo},
+    cadastro::CadastroExterno,
+    cadastro_envio::{FalhaCadastroEnvio, preparar_cadastro_definitivo},
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
-use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida};
+use crate::formulario_web::{
+    ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
+};
 use crate::instalacao::Instalacao;
 use crate::processo_obter::ErroProcessoObter;
 
@@ -37,12 +40,17 @@ pub(crate) enum FalhaConfirmacao {
 impl FalhaConfirmacao {
     pub(crate) fn codigo_saida(&self) -> u8 {
         match self {
-            Self::FotoInicialIncompleta | Self::FotoInicialInconsistente | Self::UploadRecusado(_) => 1,
+            Self::FotoInicialIncompleta
+            | Self::FotoInicialInconsistente
+            | Self::UploadRecusado(_) => 1,
             _ => 3,
         }
     }
     pub(crate) fn temporario_possivel(&self) -> bool {
-        !matches!(self, Self::FotoInicialIncompleta | Self::FotoInicialInconsistente)
+        !matches!(
+            self,
+            Self::FotoInicialIncompleta | Self::FotoInicialInconsistente
+        )
     }
 }
 /// Upload e cadastro são escritos no máximo uma vez cada. A releitura é
@@ -84,9 +92,8 @@ where
         FalhaUpload::Recusado { .. } => E::UploadRecusado(erro),
         FalhaUpload::EfeitoIncerto { .. } => E::UploadIncerto(erro),
     })?;
-    let submissao =
-        preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
-            .map_err(E::TemporarioSemCadastro)?;
+    let submissao = preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
+        .map_err(E::TemporarioSemCadastro)?;
     // Mesmo após um erro de envio a releitura pode mostrar o efeito: nunca
     // transformar uma falha de resposta em permissão para repetir o POST.
     let envio = enviar_cadastro(transporte, submissao);
@@ -97,12 +104,9 @@ where
     if depois.id != antes.id || depois.pastas_nao_carregadas {
         return Err(E::EfeitoIncerto);
     }
-    let numero = crate::documento_criar::conferir_criacao(
-        &antes.documentos,
-        &depois.documentos,
-        tipo,
-    )
-    .map_err(|_| E::EfeitoIncerto)?;
+    let numero =
+        crate::documento_criar::conferir_criacao(&antes.documentos, &depois.documentos, tipo)
+            .map_err(|_| E::EfeitoIncerto)?;
     let novo = depois
         .documentos
         .iter()
