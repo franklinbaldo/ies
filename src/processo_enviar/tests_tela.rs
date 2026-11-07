@@ -217,3 +217,23 @@ fn redirecionamento_do_envio_observado() {
     }
     assert!(!esperado(None));
 }
+
+#[test]
+fn bdd_checkbox_de_remocao_e_oferta_observada_da_tela() {
+    // Dado um controle habilitado nas famílias 4.0 e 4.1/5.0.
+    for versao in [Versao::V40, Versao::V41] {
+        let html = tela_de_envio(versao, ID);
+        let tela = conferir_tela_de_envio(&html, ID).unwrap();
+        assert!(tela.remover_anotacoes_oferecida);
+        // A ausência de name significa que não há controle enviável.
+        let sem_opcao = html.replace(
+            "name=\\"chkSinRemoverAnotacoes\\"",
+            "name=\\"\\"",
+        );
+        assert!(
+            !conferir_tela_de_envio(&sem_opcao, ID)
+                .unwrap()
+                .remover_anotacoes_oferecida
+        );
+    }
+}
