@@ -165,7 +165,6 @@ fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
     std::fs::remove_dir_all(pasta).unwrap();
 }
 
-
 #[test]
 fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
     // BDD-89-01 preexistente na issue #89: comparar a foto local vN e a
@@ -191,7 +190,13 @@ fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
     assert!(humano.contains("+<p>novo</p>"), "{humano}");
     assert!(humano.contains("base não verificada"), "{humano}");
     assert!(!pasta.join("ies.sqlite3").exists());
-    assert_eq!(std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(), base);
-    assert_eq!(std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(), editada);
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
+        base
+    );
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(),
+        editada
+    );
     std::fs::remove_dir_all(pasta).unwrap();
 }
