@@ -148,3 +148,19 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
     ));
     assert_eq!(pedidos, esperado);
 }
+
+#[test]
+fn bdd_projecao_anotacao_depois_reflete_remocao_conferida() {
+    // Dado um envio com remoção de anotações e verificação pós-envio,
+    // quando a releitura comprova a anotação removida,
+    // então a saída JSON e humana expõem o estado conferido.
+    let mut feito = previa(&[UNIDADE], true);
+    feito.remover_anotacoes = true;
+    feito.anotacao_antes = Some(true);
+    feito.anotacao_depois = Some(false);
+    let json = crate::processo_enviar_cli::json_de_sucesso(&feito);
+    assert_eq!(json["anotacao_depois"], false);
+    let texto = crate::processo_enviar_cli::humano(&feito);
+    assert!(texto.contains("Anotação na origem, após envio: removida"));
+}
+

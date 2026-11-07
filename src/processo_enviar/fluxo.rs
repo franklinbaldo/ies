@@ -18,7 +18,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas, verificar,
+    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::{
@@ -115,6 +115,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         remover_anotacoes: pedido.remover_anotacoes,
         anotacao_antes,
         metodo_remocao,
+        anotacao_depois: None,
         destino,
         aberto_em,
         depois: None,
@@ -138,7 +139,27 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     };
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
-    let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
+    let verificacao = match abrir_para_escrever(sessao, &leitura(false), indice, &mut rede) {
+        Ok((lido, acoes_depois)) => {
+            if feito.remover_anotacoes && feito.manter_aberto {
+                if let Ok(Some(link_anotacao)) = acoes_depois.anotacoes {
+                    if let Ok((html_depois, _)) = obter_tela(&mut rede, &cookie, &link_anotacao) {
+                        if let Ok(presente) = super::anotacoes::anotacao_presente(
+                            &html_depois,
+                            &lido.arvore.processo.id,
+                        ) {
+                            feito.anotacao_depois = Some(presente);
+                        }
+                    }
+                }
+            }
+            match siglas_abertas(&lido.arvore.aberto_em) {
+                Ok(siglas) => VerificacaoPorLeitura::Lida(siglas),
+                Err(motivo) => VerificacaoPorLeitura::SituacaoNaoLida(motivo),
+            }
+        }
+        Err(erro) => VerificacaoPorLeitura::LeituraFalhou(erro),
+    };
     feito.requisicoes = rede.feitas();
     conciliar(feito, falha, verificacao)
 }

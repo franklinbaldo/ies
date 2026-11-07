@@ -87,6 +87,8 @@ pub(crate) struct ProcessoEnviado {
     /// None significa não observada, nunca ausência.
     pub(crate) anotacao_antes: Option<bool>,
     pub(crate) metodo_remocao: Option<MetodoRemocao>,
+    /// Presença da anotação da unidade de origem após o envio (releitura independente).
+    pub(crate) anotacao_depois: Option<bool>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
