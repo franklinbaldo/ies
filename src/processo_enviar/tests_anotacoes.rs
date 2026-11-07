@@ -148,3 +148,58 @@ fn bdd_sem_checkbox_mas_com_anotacao_planeja_edicao_na_previa() {
     ));
     assert_eq!(pedidos, esperado);
 }
+
+#[test]
+fn bdd_confirmar_checkbox_verifica_anotacao_apos_tramitar() {
+    // Dado checkbox oferecido e anotação presente na origem,
+    // quando executo ies processo enviar --remover-anotacoes --confirmar,
+    // então há um POST de envio e duas leituras independentes da anotação.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Texto anterior", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            ok(arvore(&[DESTINO], &[])),
+            ok(anotacao("", ID)),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let feito = resultado.expect("o envio e a remoção foram relidos");
+    assert!(feito.alterado);
+    assert_eq!(feito.anotacao_antes, Some(true));
+    assert_eq!(feito.requisicoes, 9);
+    let mut esperados = pedidos_da_abertura();
+    esperados.push(get(&url_da_tela()));
+    esperados.push(get(&absoluta(&link_anotacao())));
+    esperados.push(post(
+        &absoluta(&autocompletar()),
+        &corpo_da_consulta(Versao::V40),
+    ));
+    let corpo = corpo_do_envio(Versao::V40, false).replacen(
+        "txtPrazo=",
+        "chkSinRemoverAnotacoes=on&txtPrazo=",
+        1,
+    );
+    esperados.push(post(&absoluta(&action_de_enviar()), &corpo));
+    esperados.push(get(&url_arvore()));
+    esperados.push(get(&absoluta(&link_anotacao())));
+    assert_eq!(pedidos, esperados);
+}
