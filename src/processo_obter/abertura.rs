@@ -4,10 +4,10 @@
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{
-    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, ErroAcaoSobrestar,
-    ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
-    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroRelacionarNaBarra,
-    MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
+    AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento,
+    ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
+    ErroAtribuirNaBarra, ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento,
+    ErroRelacionarNaBarra, MotivoAbertoEm, ReabrirNaBarra, TelaDoProcesso, ler_acompanhar_da_barra,
     ler_andamento_da_barra, ler_anexar_da_barra, ler_arvore, ler_atribuir_da_barra,
     ler_concluir_da_barra, ler_destinos_dos_movidos, ler_enviar_da_barra,
     ler_link_das_propriedades, ler_link_dos_marcadores, ler_reabrir_da_barra,
@@ -155,6 +155,8 @@ pub(super) struct ArvoreAberta {
     /// cada documento sai dela.
     pub(super) html: String,
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
+    /// Link de inclusão na barra, observado somente para documento criar.
+    pub(super) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
     /// O link das propriedades na barra (a falha só pesa se forem pedidas).
     pub(super) propriedades: Result<Option<EnderecoDasPropriedades>, ErroPropriedades>,
     /// O link dos marcadores na barra (a falha só pesa se forem pedidos).
@@ -208,6 +210,7 @@ pub(super) fn ler_arvore_da_pagina(
     }
     ler_destinos_dos_movidos(instalacao, html, &mut arvore)?;
     let historico = ler_link_do_historico(instalacao, html, id);
+    let incluir = crate::arvore_processo::ler_link_de_incluir_documento(instalacao, html, id);
     let propriedades = ler_link_das_propriedades(instalacao, html, id);
     let marcadores = ler_link_dos_marcadores(instalacao, html, id);
     let prazo = crate::arvore_processo::ler_link_do_prazo(instalacao, html, id);
@@ -227,6 +230,7 @@ pub(super) fn ler_arvore_da_pagina(
         arvore,
         html: html.to_owned(),
         historico,
+        incluir,
         propriedades,
         marcadores,
         prazo,

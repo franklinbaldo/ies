@@ -28,46 +28,8 @@ use std::fmt;
 use std::io::Read;
 use unidade::conferir_unidade;
 
-/// Estado de sessão que uma operação pode alterar, mesmo quando consulta.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EstadoDeSessao {
-    PaginaOuFiltroLembrado,
-    UnidadeAtual,
-    PreferenciaDeVisualizacao,
-    /// O login cria a sessão autenticada (cookies) no servidor.
-    SessaoAutenticada,
-}
-
-/// Preferência persistente do usuário, que sobrevive à sessão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum PreferenciaDoUsuario {
-    /// Colunas da visão detalhada (Nível de detalhe).
-    ColunasDaVisaoDetalhada,
-}
-
-/// Estado do processo no SEI que uma escrita altera.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EstadoDoProcesso {
-    /// O andamento aberto na unidade da sessão (concluir fecha).
-    AndamentoAbertoNaUnidade,
-    /// A assinatura do usuário no documento (não se desfaz).
-    AssinaturaDoDocumento,
-    /// Cancelar documento altera o estado permanentemente.
-    CancelamentoDoDocumento,
-    /// As unidades com o processo aberto (enviar abre no destino e, sem
-    /// "manter aberto", fecha na da sessão).
-    UnidadesComOProcessoAberto,
-    /// Registro de uma linha nova no histórico do processo.
-    AndamentoNoHistorico,
-    /// Inclusão ou remoção de Acompanhamento Especial na unidade.
-    AcompanhamentoEspecial,
-    /// Cadastro de novo processo na unidade ativa, com identidade conferida.
-    ProcessoCriadoNaUnidade,
-    /// Sobrestar ou remover o sobrestamento de um processo.
-    Sobrestamento,
-    /// Atribuição de um processo a usuário da unidade, ou sua remoção.
-    AtribuicaoNaUnidade,
-}
+mod estado;
+pub(crate) use estado::{EstadoDeSessao, EstadoDoProcesso, PreferenciaDoUsuario};
 
 /// Avaliação obrigatória por operação, sem valor padrão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
