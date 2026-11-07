@@ -27,7 +27,7 @@ registra sempre em nome do usuário da sessão; não inferir outros usuários.
 
 Uma recusa, 302, timeout, árvore ou lista ilegível após GET mutador implicam
 `efeito_incerto_na_ciencia_do_documento` e saída 3; jamais repetir escrita
-automaticamente. A prévia nunca consulta `documento_ciencia`. A causa tipada
+automaticamente. A prévia nunca consulta `documento_ciencia`. Na apresentação humana, identifica documento, rótulo e processo, acrescentando a unidade apenas quando observada na abertura; separa as frases com espaçamento normal e exibe `--confirmar` e a contagem de requisições. A saída JSON mantém a unidade opcional e não inventa dado ausente. A causa tipada
 do único GET mutador permanece em `falha_do_aceite` na saída JSON:
 transporte/status HTTP, validação da Infra (HTTP 200 com mensagem saneada),
 ou aceite sem atividade reconhecível. Recusas HTTP preservam
@@ -158,3 +158,14 @@ com comparação MIME sem distinção de maiúsculas e minúsculas. O conteúdo
 continua inerte com `src`, tipo de dados ou parâmetro MIME no atributo
 (`text/javascript; charset=utf-8`); ele não pode provar a atividade.
 Identidade do alvo, GET mutador único e releitura não mudam.
+
+## Recusa Infra HTTP 200 na apresentação (#271)
+
+Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
+com HTTP **200**. A saída `--json` publica `codigo: efeito_incerto`,
+`status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
+observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
+a ciência continua sem prova de escrita e exige conferência no SEI.
+A saída humana mantém a mensagem de recusa e o aviso de efeito incerto.
+Testes públicos de apresentação preservam a contagem sintética de
+**6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
