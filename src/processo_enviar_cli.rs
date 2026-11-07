@@ -23,6 +23,7 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
                 numero,
                 para,
                 manter_aberto,
+                remover_anotacoes,
                 confirmar,
             }),
         ..
@@ -38,7 +39,22 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
         Ok(sigla) => sigla,
         Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
     };
-    Some(enviar(cli, &nup, sigla, *manter_aberto, *confirmar))
+    if *remover_anotacoes && *confirmar {
+        let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
+        return Some(saida_erro::erro_fonte(
+            cli.json,
+            erro.subcodigo(),
+            erro.mensagem(),
+        ));
+    }
+    Some(enviar(
+        cli,
+        &nup,
+        sigla,
+        *manter_aberto,
+        *remover_anotacoes,
+        *confirmar,
+    ))
 }
 
 /// A única sigla de `--para`, aparada; vazia, com controle ou longa é uso
@@ -76,6 +92,7 @@ fn enviar(
     nup: &NumeroProcesso,
     para: &str,
     manter_aberto: bool,
+    remover_anotacoes: bool,
     confirmar: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
@@ -84,6 +101,7 @@ fn enviar(
             unidade: cli.unidade.as_deref(),
             para,
             manter_aberto,
+            remover_anotacoes,
             confirmar,
         };
         match enviar_processo(sessao, &pedido, indice, &mut EnvioHttps) {
@@ -239,6 +257,7 @@ struct ResultadoEnvio<'a> {
     falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
     id_procedimento: &'a str,
     manter_aberto: bool,
+    remover_anotacoes: bool,
     nup: &'a str,
     origem: &'static str,
     reconciliado_por_leitura: bool,
@@ -255,6 +274,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         confirmado: feito.confirmado,
         alterado: feito.alterado,
         manter_aberto: feito.manter_aberto,
+        remover_anotacoes: feito.remover_anotacoes,
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -341,6 +361,10 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
         format!(
             "Manter aberto na unidade atual: {}",
             if feito.manter_aberto { "sim" } else { "não" }
+        ),
+        format!(
+            "Remover anotações no envio: {}",
+            if feito.remover_anotacoes { "sim" } else { "não" }
         ),
     ];
     match (feito.confirmado, &feito.depois) {
