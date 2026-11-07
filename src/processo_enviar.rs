@@ -86,6 +86,8 @@ pub(crate) struct ProcessoEnviado {
     /// Presença da anotação da unidade de origem, quando a tela a publicou.
     /// None significa não observada, nunca ausência.
     pub(crate) anotacao_antes: Option<bool>,
+    /// Estado comprovado por um GET independente após a tramitação.
+    pub(crate) anotacao_depois: Option<bool>,
     pub(crate) metodo_remocao: Option<MetodoRemocao>,
     pub(crate) destino: Destino,
     /// Siglas de `aberto_em` antes.
