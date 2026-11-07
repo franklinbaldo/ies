@@ -60,6 +60,14 @@ como únicos, limite `IES_LIMITE_ANEXO_BYTES` (padrão 64 MiB; texto até
 recusado. Um cabeçalho com bytes fora de UTF-8 passa a ser lido como
 ISO-8859-1 no transporte, em vez de falha de rede.
 
+Na forma observada pelo Todos no cadastro de externos, o `.src` da árvore
+pode não publicar o anexo, apesar de o formulário listar `hdnAnexos` e
+`objTabelaAnexos.adicionarAcoes` publicar o download assinado. Nesta
+situação, a mesma estratégia de usar URL servida aplica-se ao cadastro:
+um GET adicional para o formulário e o GET binário do link vinculado ao
+`id_anexo` explícito, sem construir URL ou enviar POST.
+Esse fallback ainda não foi validado ao vivo (**NOT_RUN**).
+
 ## Evidências verificáveis
 
 - Testes: `src/anexo_documento/tests.rs`,

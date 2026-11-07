@@ -7,6 +7,9 @@ use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
 use crate::instalacao::Instalacao;
 use serde::Serialize;
 type Tag<'p> = &'p tl::HTMLTag<'p>;
+#[path = "propriedades_documento/anexo.rs"]
+mod anexo;
+pub(crate) use anexo::ler_anexo_publicado;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum PropriedadesDocumento {
@@ -168,12 +171,16 @@ pub(crate) fn ler_formulario(
         // efetivamente escolhido está no option selecionado de selSerie.
         let select = campo(form, parser, "selSerie")?;
         let mut selecionados = Vec::new();
-        for no in select.query_selector(parser, "option").into_iter().flatten() {
+        for no in select
+            .query_selector(parser, "option")
+            .into_iter()
+            .flatten()
+        {
             let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let a = atributos(tag)
-                .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+            let a =
+                atributos(tag).map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
             if a.presente("selected") {
                 selecionados.push(texto(tag, parser)?);
             }

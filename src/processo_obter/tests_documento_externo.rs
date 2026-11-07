@@ -192,11 +192,8 @@ fn dado_externo_sem_src_com_anexo_no_cadastro_quando_obtenho_entao_baixo_origina
     // publicados, obtenho o PDF e conto seis requisicoes, sem POST extra.
     use crate::arvore_processo::tests_barra_documento::{barra, com_barra};
     let amb = ambiente();
-    let arvore_sem_src = arvore(&[
-        no_processo(0, ID, NUP),
-        no_documento(1, ID_DOC, ID, DOC),
-    ])
-    .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
+    let arvore_sem_src = arvore(&[no_processo(0, ID, NUP), no_documento(1, ID_DOC, ID, DOC)])
+        .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
     let barra = barra(ID, ID_DOC, None)
         .replace("acao=documento_alterar", "acao=documento_alterar_recebido");
     let arvore = com_barra(&arvore_sem_src, 1, &barra);

@@ -33,6 +33,8 @@ use erro::ErroDocumentoObter as E;
 
 #[path = "documento_anexo.rs"]
 mod anexo;
+#[path = "documento_cadastro.rs"]
+mod cadastro;
 pub(crate) use anexo::PedidoDoAnexo;
 
 #[path = "documento_versao.rs"]
@@ -372,6 +374,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
         id_documento: &no.id,
         id_procedimento: &lido.processo.id,
     };
+    let mut cadastro_antecipado = None;
     let (tipo, texto, anexo, versoes) = match ler_conteudo_na_arvore(instalacao, lido.html, &no.id)?
     {
         ConteudoNaArvore::Visualizar(e) => {
@@ -387,36 +390,28 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             return Err(E::DocumentoCancelado);
         }
         ConteudoNaArvore::Vazio => {
-            return Err(E::ConteudoNaoPublicadoNaArvore {
-                requisicoes: rede.requisicoes.total_u8(),
-            });
+            let cadastro = cadastro::ler(
+                instalacao, rede, lido.html, &no.id, &lido.processo.id,
+                pedido.propriedades, true,
+            )?;
+            let Some(link) = cadastro.anexo.as_ref() else {
+                return Err(E::ConteudoNaoPublicadoNaArvore {
+                    requisicoes: rede.requisicoes.total_u8(),
+                });
+            };
+            let versoes = versao::do_externo(&conferido, pedido.versoes)?;
+            let (tipo, texto, anexo) = anexo::ler(rede, link, numero, pedido.anexo)?;
+            cadastro_antecipado = Some(cadastro);
+            (tipo, texto, anexo, versoes)
         }
     };
-    let propriedades = if pedido.propriedades {
-        match propriedades_documento::ler_link(instalacao, lido.html, &no.id, &lido.processo.id)
-            .map_err(E::Html)?
-        {
-            None => PropriedadesDocumento::NaoPublicadas,
-            Some(link) => {
-                let html = match rede.get(&link.url).map_err(E::Processo)? {
-                    Lida::Html { html, .. } => html,
-                    Lida::Login => return Err(E::Processo(ErroProcessoObter::SessaoEncerrada)),
-                    Lida::Redirecionamento(local) => {
-                        return Err(E::Processo(fora_de_palpite(local.as_deref())));
-                    }
-                    Lida::Falha(falha) => {
-                        return Err(E::Processo(ErroProcessoObter::Transporte(falha)));
-                    }
-                };
-                let mut lidas =
-                    propriedades_documento::ler_formulario(&html, &no.id, &lido.processo.id)
-                        .map_err(E::Html)?;
-                lidas.fonte = link.fonte;
-                PropriedadesDocumento::Lidas(lidas)
-            }
-        }
-    } else {
-        PropriedadesDocumento::NaoPedidas
+    let propriedades = match cadastro_antecipado {
+        Some(cadastro) => cadastro.propriedades,
+        None => cadastro::ler(
+            instalacao, rede, lido.html, &no.id, &lido.processo.id,
+            pedido.propriedades, false,
+        )?
+        .propriedades,
     };
     Ok(DocumentoObtido {
         numero: numero.to_owned(),

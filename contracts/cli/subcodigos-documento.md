@@ -121,5 +121,9 @@ Somente leitura do link assinado e do cadastro publicado; não há POST.
 | `nivel_cadastro_documento_ilegivel` | Opções de nível ilegíveis. |
 | `nivel_cadastro_documento_inesperado` | Marcação de nível não reconhecida. |
 | `texto_cadastro_documento_ilegivel` | Texto não decodificável. |
-| `tipo_cadastro_documento_vazio` | Tipo não publicado no rótulo do cadastro. |
+| `tipo_cadastro_documento_vazio` | Tipo não publicado no rótulo nem nas opções selecionadas do cadastro. |
+| `tipo_cadastro_documento_repetido` | Mais de uma opção de tipo selecionada no cadastro externo. |
+| `anexo_do_cadastro_divergente` | Link de anexo não vinculado à lista oculta do cadastro. |
+| `link_anexo_cadastro_invalido` | Download publicado no cadastro sem ação/id/assinatura válidos. |
+| `links_anexo_cadastro_repetidos` | Cadastro publica múltiplos links de anexo sem escolha inequívoca. |
 | `valor_cadastro_documento_ausente` | Campo sem valor esperado. |

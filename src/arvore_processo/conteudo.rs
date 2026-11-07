@@ -22,6 +22,16 @@ impl EnderecoDoConteudo {
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Endereço assinado oferecido no cadastro, nunca construído pelo IES.
+    pub(crate) fn do_cadastro(inst: &Instalacao, href: &str, id: &str) -> Result<Self, ErroHtml> {
+        if acao_unica(href) != Some(DOWNLOAD) || id_anexo_unico(href) != Some(id) {
+            return Err(ErroHtml::valor("link_anexo_cadastro_invalido"));
+        }
+        conferir_endereco_relativo_por(inst, href, DOWNLOAD, "id_anexo", id)
+            .map(Self)
+            .map_err(|_| ErroHtml::valor("link_anexo_cadastro_invalido"))
+    }
 }
 
 impl std::fmt::Debug for EnderecoDoConteudo {
