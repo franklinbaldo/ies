@@ -23,6 +23,19 @@ Publicar um parecer por head SHA, com arquivo:linha, critérios cumpridos/parcia
 
 Não reserva issue, não implementa, não faz push/merge/fechamento. Só promove Draft para Ready se LGTM e CI verde no mesmo head.
 
+## Contraditório técnico — 🦡 Texugo
+
+A decisão motivada do [🦡 Texugo](texugo.md) pode **revogar**
+orientações e bloqueios deste parecer, inclusive aceitar menos segurança
+por praticidade. O Texugo também pode **desbloquear a PR e fazer merge** no SHA validado,
+mesmo contra seu parecer, sem seu LGTM, conforme a ficha própria.
+O 🦡 pode fazer ablação de código, reduzir defesas e excluir testes
+com perda explícita de cobertura e CI válido. Não trate isso como
+bloqueio automático. Porém, exija com rigor **tipos precisos e
+não ambíguos**: enums de estados, erros com causa e dados de domínio
+sem strings/JSON genéricos indevidos. Não restaure veto sem fato novo;
+respeite CI e limites do proprietário.
+
 ## Continuidade atual
 
 Sem issue reservada.
