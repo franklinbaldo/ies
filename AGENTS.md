@@ -70,42 +70,31 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    Desistência insuperável: remova só seu emoji e registre tentativas e
    bloqueio na issue. Não substitua dono porque a prioridade mudou.
 6. Em cada execução, entregue **fatia significativa**, RED antes da
-   implementação, commits e push, e comentário na issue contendo:
-   realizado, restante, CI/SHA, RED e contagens, live
-   PASS/FAIL/NOT_RUN, requisições, resíduos, travas e próximos passos.
-   Mantenha WIP e reserva até completar os critérios integrais; não
-   alegue PASS de execução não realizada.
+   implementação, commits e push. O comentário na issue/PR deve focar
+   em **informações úteis e relevantes**, sem liturgia ou negativas
+   óbvias ("li AGENTS, não fiz merge, não fechei issue"):
+   - **Avanço real:** o que a CLI faz/recusa agora no SEI (declare se foi apenas infra/teste interno).
+   - **Rede e escrita:** `--confirmar` fechado ou resultado live (requisições e resíduo em treinamento).
+   - **Evidência:** PR, head SHA e CI oficial verde (contagens de testes).
+   - **Próximo passo:** ação objetiva seguinte para fechar a issue.
+   Mantenha WIP e reserva até concluir; nunca alegue PASS sem ensaio real.
 7. **Implementadores não fazem merge ou fechamento de issues.**
    Não desligue testes para esconder regressões; **🦡 pode remover testes
-   em ablação explícita justificada**, com CI válido. Teste novo pendente pode ter
-   `#[ignore = "wip #N: motivo específico"]` com o gate correspondente.
-   Escrita incompleta deve manter `--confirmar` fechado **antes de
-   abrir sessão ou rede**.
+   em ablação explícita**, com CI válido. Teste pendente usa
+   `#[ignore = "wip #N: motivo específico"]`. Escrita incompleta mantém
+   `--confirmar` fechado antes da rede.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
-Antes de modificar código, executar testes RED ou iniciar ensaios, **toda
-rotina implementadora** deve sincronizar **sua branch de trabalho** com
-a `main` mais recente. Faça isso a cada execução, mesmo que a branch tenha
-sido atualizada na sessão anterior:
+Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
 
-1. Leia `AGENTS.md` e sua ficha, identifique a issue e a PR próprias e
-   consulte os SHAs atuais de `main` e do head da PR.
-2. **Sem PR/branch ainda:** crie uma branch nova **a partir da `main`
-   atual**, não de uma base salva em sessão anterior.
-3. **Com PR aberta:** compare o head com `main`; se estiver atrás,
-   incorpore **`main` → sua branch** pelo botão/API de atualizar a PR
-   (merge) ou por `git fetch origin && git merge --no-ff origin/main`.
-   Resolva conflitos preservando o trabalho já integrado e o de sua
-   issue. **Nunca use rebase, reset destrutivo ou force-push.**
-4. Confira novamente os SHAs e registre o merge na PR/issue. Rode os
-   gates e testes no novo head; CI verde **do SHA antigo** não valida
-   o SHA pós-merge. Se o CI falhar, trate a causa antes de solicitar
-   integração. A revisão do 🦅 também deve corresponder ao head atual.
-5. Se não houver acesso à atualização segura, ou se um conflito não
-   puder ser resolvido com evidência suficiente, **não sobrescreva
-   alterações de outra rotina**. Registre o impedimento e faça apenas
-   investigação independente até conseguir sincronizar.
+1. Identifique issue e PR próprias e consulte SHAs da `main` e do head.
+2. **Sem PR:** branch nova a partir da `main` atual.
+3. **Com PR:** se atrás, incorpore `main → branch` por merge verdadeiro.
+   Resolva conflitos preservando código integrado. **Nunca use rebase ou force-push.**
+4. Confira SHAs e registre na PR. CI verde do SHA antigo não valida o novo.
+5. Sem atualização segura ou com conflito não resolvido, não sobrescreva
+   código alheio; registre o impedimento e investigue.
 
 Vale também para WIP. 🦅 verifica sincronização; 🐘 segue seu protocolo.
 
