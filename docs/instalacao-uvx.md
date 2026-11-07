@@ -74,7 +74,7 @@ sem compilar Rust e sem consultar o PyPI:
 
 ```sh
 uvx --from 'URL_HTTPS_DO_WHEEL_DA_RELEASE' ies --help
-uv tool install --from 'URL_HTTPS_DO_WHEEL_DA_RELEASE' ies
+uv tool install 'URL_HTTPS_DO_WHEEL_DA_RELEASE'
 ```
 
 O segundo comando instala o executavel permanentemente com o nome
