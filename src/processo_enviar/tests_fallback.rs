@@ -149,9 +149,11 @@ fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
             .count(),
         1
     );
-    assert!(!pedidos.iter().any(|p| {
-        p.metodo == "POST" && p.url == absoluta(&action_de_enviar())
-    }));
+    assert!(
+        !pedidos
+            .iter()
+            .any(|p| { p.metodo == "POST" && p.url == absoluta(&action_de_enviar()) })
+    );
 }
 
 #[test]
@@ -170,7 +172,9 @@ fn bdd_333_03_anotacao_continua_preenchida_nao_tramita() {
         resultado,
         Err(super::ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar)
     ));
-    assert!(!pedidos.iter().any(|p| {
-        p.metodo == "POST" && p.url == absoluta(&action_de_enviar())
-    }));
+    assert!(
+        !pedidos
+            .iter()
+            .any(|p| { p.metodo == "POST" && p.url == absoluta(&action_de_enviar()) })
+    );
 }
