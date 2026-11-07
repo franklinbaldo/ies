@@ -19,10 +19,31 @@ fn sobrescrita_em_outro_script() -> String {
     )
 }
 
+fn sobrescrita_computada_em_outro_script() -> String {
+    lista_observada("831").replacen(
+        "</script>",
+        "</script><script>window['acao' + 'Excluir'] = null;</script>",
+        1,
+    )
+}
+
 #[test]
 fn recusa_reatribuicao_antes_da_declaracao() {
     assert_eq!(
         conferir_oferta_exclusao(&instalacao_de_teste(), &sobrescrita_anterior(), "10", "831"),
+        Err(ErroAcompanhar::ExclusaoNaoOferecida)
+    );
+}
+
+#[test]
+fn recusa_reatribuicao_computada_em_script_classico_posterior() {
+    assert_eq!(
+        conferir_oferta_exclusao(
+            &instalacao_de_teste(),
+            &sobrescrita_computada_em_outro_script(),
+            "10",
+            "831"
+        ),
         Err(ErroAcompanhar::ExclusaoNaoOferecida)
     );
 }
@@ -56,7 +77,11 @@ fn previa_recusa_ambas_sobrescritas_sem_post() {
         "controlador.php?acao=acompanhamento_gerenciar&id_procedimento=10&infra_hash={}",
         "a".repeat(64)
     );
-    for html in [sobrescrita_anterior(), sobrescrita_em_outro_script()] {
+    for html in [
+        sobrescrita_anterior(),
+        sobrescrita_em_outro_script(),
+        sobrescrita_computada_em_outro_script(),
+    ] {
         let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_barra(&gerenciar)]));
         respostas.push(ok(html));
         let amb = ambiente();
