@@ -171,3 +171,16 @@ fn bdd_342_integracao_informativa_vs_escrita() {
         ErroProcessoObter::Arvore(ErroArvore::PastaCarregadaPelaMetade)
     );
 }
+
+#[test]
+fn bdd_342_02_pasta_com_pai_divergente_nao_pode_ser_tratada_como_lista_incompleta() {
+    let html = pasta_incompleta_pela_metade().replace(
+        "\"PASTA1\",\"10\",\"javascript:abrirFecharPasta",
+        "\"PASTA1\",\"99\",\"javascript:abrirFecharPasta",
+    );
+    assert!(html.contains("\"PASTA1\",\"99\""));
+    assert_eq!(
+        ler_arvore_parcial(&html, NUP, ID),
+        Err(ErroArvore::PastaComPaiDiferenteDoProcesso)
+    );
+}
