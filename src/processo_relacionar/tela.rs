@@ -187,16 +187,15 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
     }
 }
 
-
 /// Deriva a action do handler literal acaoRemover, nunca de texto solto.
 /// Não interpreta JavaScript. A submissão ainda precisa ser validada
 /// pela fronteira de formulários e nenhuma escrita é habilitada aqui.
+#[cfg(test)]
 pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
     const ERRO: &str = "acao_excluir_relacionamento_nao_declarada";
     const FUNCAO: &str = "function acaoRemover(id){";
     const ID: &str = "document.getElementById('hdnInfraItemId').value=id;";
-    const ACTION: &str =
-        "document.getElementById('frmProcedimentoListarRelacionamentos').action='";
+    const ACTION: &str = "document.getElementById('frmProcedimentoListarRelacionamentos').action='";
     const ENVIAR: &str =
         "document.getElementById('frmProcedimentoListarRelacionamentos').submit();";
 
@@ -263,7 +262,10 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         if !(i < a && a < s) {
             continue;
         }
-        let Some(url) = corpo[a].strip_prefix(ACTION).and_then(|l| l.strip_suffix("';")) else {
+        let Some(url) = corpo[a]
+            .strip_prefix(ACTION)
+            .and_then(|l| l.strip_suffix("';"))
+        else {
             continue;
         };
         if url.starts_with("controlador.php?acao=procedimento_excluir_relacionamento&") {
