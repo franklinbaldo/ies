@@ -315,7 +315,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "clap",
- "ies-core",
+ "iesei",
  "ies-derive",
  "native-tls",
  "rusqlite",
@@ -328,7 +328,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ies-core"
+name = "iesei"
 version = "0.1.0"
 
 [[package]]
