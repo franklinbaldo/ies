@@ -32,7 +32,7 @@ fn id_processo(alvo: &str) -> Option<&str> {
 }
 
 fn inicio_da_inclusao(id: &str) -> Resposta {
-    let assinatura = "0".repeat(64);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     html(format!(
         "<html><body><a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>Incluir Documento Externo</a></body></html>"
     ))
@@ -40,7 +40,7 @@ fn inicio_da_inclusao(id: &str) -> Resposta {
 
 fn cadastro(id: &str, tipos: &[TipoExterno], selecionado: Option<&str>) -> Resposta {
     // Hash descartável e fixo: só existe no ambiente simulado local.
-    let assinatura = "0".repeat(64);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     let mut pagina = format!(
         "<html><body><form id='frmDocumentoCadastro' method='post'          action='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>         <select id='selSerie' name='selSerie'><option value='null'>Selecione</option>"
     );
@@ -139,7 +139,7 @@ pub(crate) fn complementar_escolha(
         return inicio_da_inclusao(id);
     }
     if resposta.estado == Estado::Ok {
-        let assinatura = "0".repeat(64);
+        let assinatura = crate::protocolo_sintetico::INFRA_HASH;
         let link = format!(
             "<a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>Incluir Documento Externo</a>"
         );

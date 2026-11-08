@@ -58,7 +58,7 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
          Confirmo possível perda de assinaturas</label>\
          <button type='submit'>Salvar edição</button></form></body></html>",
         escapar(&documento.numero),
-        "e".repeat(64),
+        crate::protocolo_sintetico::INFRA_HASH,
         ultima.versao
     ))
 }
@@ -137,7 +137,7 @@ fn formulario_editor_4(
          <label><input type='checkbox' name='confirmar_assinaturas' value='1'>Confirmar perda de assinaturas (anti-IES)</label>\
          </form><iframe id='ifrEditorSalvar' name='ifrEditorSalvar'></iframe>\
          <output id='assinaturasAtuais'>{}</output></body></html>",
-        "e".repeat(64),
+        crate::protocolo_sintetico::INFRA_HASH,
         escapar(&ultima.html_corpo),
         ultima.versao,
         oferta.assinaturas

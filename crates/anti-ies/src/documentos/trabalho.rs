@@ -24,7 +24,7 @@ pub(super) fn pagina_do_processo(
     let incluir = match modelo::conferir_abertura(banco, origem, cenario, id) {
         Ok(()) => format!(
             "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
-            "e".repeat(64)
+            crate::protocolo_sintetico::INFRA_HASH
         ),
         Err(Falha::ProcessoNaoAbertoNaUnidade) => String::new(),
         Err(falha) => return erros_de_modelo(&falha),
@@ -35,7 +35,7 @@ pub(super) fn pagina_do_processo(
          <span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
          {incluir}<ul id='documentos'>",
         escapar(&processo.unidade),
-        "e".repeat(64),
+        crate::protocolo_sintetico::INFRA_HASH,
         escapar(&processo.nup),
         escapar(&processo.unidade),
     );

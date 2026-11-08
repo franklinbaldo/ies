@@ -63,3 +63,81 @@ fn bdd_273_02_cli_um_cancelamento_com_releitura_e_sem_retry() {
     assert_eq!(feito["requisicoes"], 10);
     assert!(feito.get("falha_do_envio").is_none());
 }
+
+/// A confirmação da CLI altera o mesmo SQLite usado pelas rotas do anti-IES.
+/// Prova técnica complementar ao BDD-273-02: a árvore posterior deixa de
+/// oferecer cancelar, e uma nova tentativa não substitui o motivo original.
+#[test]
+fn bdd_273_02_estado_cancelado_persiste_entre_cli_arvore_e_formulario() {
+    use iesei::cancelamento_documento::{self, Situacao};
+
+    let pasta = Pasta::nova();
+    let motivo = "Cancelamento ficticio original";
+    let saida = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            "cancelar",
+            DOC,
+            "--motivo",
+            motivo,
+            "--confirmar",
+        ],
+        10,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "a escrita inicial não foi confirmada: {}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(json(&saida)["alterado"], true);
+
+    // Esta leitura do SQLite não passa pelo renderizador HTML nem pelo
+    // parser da CLI: é uma expectativa independente do efeito persistido.
+    let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
+    let origem = Instalacao::interpretar(ORIGEM).unwrap();
+    let estado = || cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap();
+    assert_eq!(
+        estado(),
+        Some(Situacao::Cancelado {
+            motivo: motivo.into()
+        })
+    );
+
+    let arvore = anti_ies::documento_arvore::responder(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7",
+        &banco,
+        &origem,
+        CENARIO,
+    );
+    assert_eq!(arvore.estado, anti_ies::Estado::Ok);
+    assert!(arvore.corpo.contains("documento_cancelado.svg"));
+    assert!(arvore.corpo.contains(motivo));
+    assert!(!arvore.corpo.contains("Cancelar Documento"));
+
+    let alvo = "/sei/controlador.php?acao=documento_cancelar&id_procedimento=7&id_documento=42";
+    let formulario =
+        anti_ies::documento_cancelar::responder("GET", alvo, "", &banco, &origem, CENARIO);
+    assert_eq!(formulario.estado, anti_ies::Estado::MetodoNaoPermitido);
+
+    // Mesmo um POST sintético direto não cancela duas vezes nem troca o
+    // motivo, porque o servidor consulta o estado persistido primeiro.
+    let repeticao = anti_ies::documento_cancelar::responder(
+        "POST",
+        alvo,
+        "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=Outro",
+        &banco,
+        &origem,
+        CENARIO,
+    );
+    assert_eq!(repeticao.estado, anti_ies::Estado::MetodoNaoPermitido);
+    assert_eq!(
+        estado(),
+        Some(Situacao::Cancelado {
+            motivo: motivo.into()
+        })
+    );
+}

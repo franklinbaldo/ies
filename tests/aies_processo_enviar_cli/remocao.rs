@@ -62,8 +62,13 @@ fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
 fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, false);
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        false,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::Normal,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -102,8 +107,13 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
 fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true, false);
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        true,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::Normal,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -130,8 +140,13 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
     // tramita no SQLite, mas mantém a anotação: efeitos independentes.
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, true);
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        false,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::IgnorarNoPost,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(1),
@@ -235,5 +250,95 @@ fn bdd_333_05_recusa_da_remocao_nao_bloqueia_envio_basico_posterior() {
     assert!(
         !pedidos.iter().any(|p| p == "POST anotacao_registrar"),
         "a anotacao nao foi observada: {pedidos:?}"
+    );
+}
+
+#[test]
+fn bdd_333_03_previa_fallback_e_confirmacao_releem_anotacao_no_mesmo_sqlite() {
+    // Hipótese revisável: o SEI não oferece checkbox na tela de envio,
+    // mas oferece o formulário de anotação da própria unidade.
+    let mut previa = args(false);
+    previa.push("--remover-anotacoes");
+    let mut confirmacao = args(true);
+    confirmacao.push("--remover-anotacoes");
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&previa, &confirmacao],
+        false,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::TelaSemCheckbox,
+    );
+
+    for (indice, saida) in saidas.iter().enumerate() {
+        assert_eq!(
+            saida.status.code(),
+            Some(0),
+            "passo {indice}: stdout={} stderr={} pedidos={pedidos:?}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
+        );
+    }
+    let plano = json(&saidas[0]);
+    assert_eq!(plano["confirmado"], false);
+    assert_eq!(plano["alterado"], false);
+    assert_eq!(plano["remover_anotacoes"], true);
+    assert_eq!(plano["anotacao_antes"], true);
+    assert_eq!(plano["metodo_remocao"], "limpar_anotacao");
+    assert_eq!(plano["aberto_em"], serde_json::json!(["ORIGEM"]));
+
+    let resultado = json(&saidas[1]);
+    assert_eq!(resultado["confirmado"], true);
+    assert_eq!(resultado["alterado"], true);
+    assert_eq!(resultado["metodo_remocao"], "limpar_anotacao");
+    assert_eq!(resultado["anotacao_antes"], true);
+    assert_eq!(resultado["anotacao_depois"], false);
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"])
+    );
+    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+
+    let anotacao_post = pedidos
+        .iter()
+        .position(|p| p == "POST anotacao_registrar")
+        .unwrap();
+    let envio_post = pedidos
+        .iter()
+        .position(|p| p == "POST procedimento_enviar")
+        .unwrap();
+    assert!(
+        pedidos[..anotacao_post]
+            .iter()
+            .filter(|p| *p == "GET procedimento_enviar")
+            .count()
+            >= 2,
+        "a prévia não deve gravar: {pedidos:?}"
+    );
+    assert!(
+        pedidos[anotacao_post + 1..envio_post]
+            .iter()
+            .any(|p| p == "GET anotacao_registrar"),
+        "a limpeza exige releitura antes de tramitar: {pedidos:?}"
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST anotacao_registrar")
+            .count(),
+        1
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1
+    );
+    assert!(
+        pedidos[envio_post + 1..]
+            .iter()
+            .any(|p| p == "GET procedimento_visualizar"),
+        "a tramitação exige leitura posterior: {pedidos:?}"
     );
 }

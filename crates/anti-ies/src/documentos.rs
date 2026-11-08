@@ -106,7 +106,7 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     .expect("formatação String");
     let link = format!(
         "<a href=\"controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}\">Incluir Documento</a>",
-        "e".repeat(64)
+        crate::protocolo_sintetico::INFRA_HASH
     );
     let unidade_html = escapar(&processo.unidade);
     let situacao = format!(
@@ -162,7 +162,7 @@ fn pagina_da_lista(
     // A primeira tela simula a lista recente; o POST "Exibir todos" devolve
     // a lista completa sem criar documento nem modificar o SQLite.
     let tem_filtro = tipos.len() > 1;
-    let hash = "e".repeat(64); // Somente navegação sintética do simulador.
+    let hash = crate::protocolo_sintetico::INFRA_HASH; // Somente navegação sintética do simulador.
     let mut html = format!(
         "<html><head><script>function escolher(id) {{\
          document.getElementById('hdnIdSerie').value=id;\
@@ -217,7 +217,7 @@ fn cadastro(
     let Some(tipo) = tipos.iter().find(|t| t.id == id_serie) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
-    let hash = "e".repeat(64); // Somente para a navegação no simulador.
+    let hash = crate::protocolo_sintetico::INFRA_HASH; // Somente para a navegação no simulador.
     Resposta::html(format!(
         "<html><head><script>function confirmarDados() {{ submeter(); }}\
          function submeter() {{ document.getElementById('hdnFlagDocumentoCadastro').value='2';\
@@ -309,7 +309,7 @@ pub(crate) fn atender(
             }
             Resposta::redirecionar(format!(
                 "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}&infra_hash={}",
-                "e".repeat(64)
+                crate::protocolo_sintetico::INFRA_HASH
             ))
         }
         ("documento_gerar", "GET") => {

@@ -195,12 +195,9 @@ fn omitir_checkbox_do_envio(pedido: Vec<u8>) -> Vec<u8> {
 }
 
 /// Executa o único desvio sintético controlado antes de entregar ao anti-IES.
-fn pedido_com_ensaio(
-    canal: &mut impl Read,
-    omitir_remocao_no_post: bool,
-) -> (Vec<u8>, String, String) {
+fn pedido_com_ensaio(canal: &mut impl Read, ensaio: EnsaioRemocao) -> (Vec<u8>, String, String) {
     let (bytes, metodo, acao) = pedido(canal);
-    if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
+    if ensaio == EnsaioRemocao::IgnorarNoPost && metodo == "POST" && acao == "procedimento_enviar" {
         return (omitir_checkbox_do_envio(bytes), metodo, acao);
     }
     (bytes, metodo, acao)
@@ -324,7 +321,13 @@ fn executar(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
-    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false, false)
+    executar_com_ensaio_local(
+        comandos,
+        falhar_releitura,
+        anotacao,
+        false,
+        EnsaioRemocao::Normal,
+    )
 }
 
 fn executar_com_ensaio_local(
@@ -332,14 +335,14 @@ fn executar_com_ensaio_local(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
     ensaio_local: bool,
-    omitir_remocao_no_post: bool,
+    ensaio: EnsaioRemocao,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     executar_com_troca_de_unidade(
         comandos,
         falhar_releitura,
         anotacao,
         ensaio_local,
-        omitir_remocao_no_post,
+        ensaio,
         None,
     )
 }
@@ -351,7 +354,7 @@ fn executar_com_troca_de_unidade(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
     ensaio_local: bool,
-    omitir_remocao_no_post: bool,
+    ensaio: EnsaioRemocao,
     trocar_apos_primeiro: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
@@ -407,7 +410,7 @@ fn executar_com_troca_de_unidade(
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
-            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, omitir_remocao_no_post);
+            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, ensaio);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
             let mut resposta = if bloquear {
@@ -420,6 +423,7 @@ fn executar_com_troca_de_unidade(
                 backend.read_to_end(&mut resposta).unwrap();
                 resposta
             };
+            resposta = ensaio::ajustar_resposta(resposta, ensaio, &metodo, &acao);
             if metodo == "POST" && acao == "procedimento_enviar" {
                 enviado = true;
             }
@@ -551,6 +555,10 @@ fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
         "a mutação ocorreu apesar de não haver prova independente"
     );
 }
+
+#[path = "aies_processo_enviar_cli/ensaio.rs"]
+mod ensaio;
+use ensaio::EnsaioRemocao;
 
 #[path = "aies_processo_enviar_cli/remocao.rs"]
 mod remocao;

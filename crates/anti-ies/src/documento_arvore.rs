@@ -81,6 +81,29 @@ fn trabalhar(d: &DocumentoSimulado) -> String {
     )
 }
 
+/// Diferencia `id_documento` ausente de identidade explícita repetida ou vazia.
+/// A árvore exclusivamente documental e a árvore mista aplicam a mesma regra.
+pub(crate) fn identidade_documental(
+    alvo: &str,
+    permitir_selecao_vazia: bool,
+) -> Result<Option<&str>, Estado> {
+    let Some((_, consulta)) = alvo.split_once('?') else {
+        return Ok(None);
+    };
+    let mut valores = consulta
+        .split('&')
+        .filter_map(|campo| campo.split_once('='))
+        .filter(|(nome, _)| *nome == "id_documento")
+        .map(|(_, valor)| valor);
+    let primeiro = valores.next();
+    if valores.next().is_some() || (primeiro == Some("") && !permitir_selecao_vazia) {
+        return Err(Estado::RequisicaoInvalida);
+    }
+    // A árvore mista aceita id_documento= como ausência de seleção,
+    // forma já consumida no BDD-332-03. Nunca aceita duas ocorrências.
+    Ok(primeiro.filter(|valor| !valor.is_empty()))
+}
+
 /// Sem snapshot, retorna 503 em vez de simular documento vazio.
 /// Não fabrica links assinados reais: hashes são fixos e locais ao simulador.
 #[must_use]
@@ -104,19 +127,10 @@ pub fn responder(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    // Se id_documento foi informado mas não é único, recusar: nunca
-    // selecionar id_protocolo como fallback para uma identidade ambígua.
-    let menciona_documento = alvo.split_once('?').is_some_and(|(_, consulta)| {
-        consulta.split('&').any(|campo| {
-            campo
-                .split_once('=')
-                .is_some_and(|(nome, _)| nome == "id_documento")
-        })
-    });
-    let documento = super::parametro_unico(alvo, "id_documento");
-    if menciona_documento && documento.is_none() {
-        return Resposta::nova(Estado::RequisicaoInvalida);
-    }
+    let documento = match identidade_documental(alvo, false) {
+        Ok(documento) => documento,
+        Err(estado) => return Resposta::nova(estado),
+    };
     let id = documento.or_else(|| super::parametro_unico(alvo, "id_protocolo"));
     let Some(id) = id.filter(|s| s.bytes().all(|b| b.is_ascii_digit())) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
@@ -172,6 +186,9 @@ pub(crate) fn nos_do_processo(
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
+        let situacao =
+            crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
+                .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -179,6 +196,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero,
             &documento.tipo,
             true,
+            &situacao,
         ));
         indice += 1;
         vistos.push(id);
@@ -195,6 +213,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero_sei,
             &documento.tipo,
             false,
+            &Situacao::Disponivel,
         ));
         indice += 1;
     }
@@ -208,13 +227,22 @@ fn no_de_documento(
     numero: &str,
     tipo: &str,
     versoes: bool,
+    situacao: &Situacao,
 ) -> String {
+    let (icone, dica) = match situacao {
+        Situacao::Disponivel => ("documento_interno", "Documento interno".to_owned()),
+        Situacao::Cancelado { motivo } => (
+            "documento_cancelado",
+            format!("Documento Cancelado: {motivo}"),
+        ),
+    };
+    let dica = js(&dica);
     let id = js(id);
     let processo = js(processo);
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
     let mut no = format!(
-        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","Documento interno","svg/documento_interno.svg","svg/documento_interno.svg","svg/documento_interno.svg",true,false,null,null,"noVisitado","{numero}");
+        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 "#
     );
     if versoes {
@@ -233,4 +261,73 @@ Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}
     }
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
     no
+}
+
+#[cfg(test)]
+mod testes_cancelamento_arvore_mista {
+    use super::*;
+    use iesei::banco_cassettes::iniciar;
+    use iesei::cancelamento_documento::{Aplicacao, aplicar};
+    use iesei::documento_versoes::Revisao;
+    use std::num::NonZeroU32;
+
+    /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
+    /// cancelamento persistido, sem perder os outros documentos.
+    #[test]
+    fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+        let cenario = "bdd-273";
+        for (id, numero) in [("42", "0011519"), ("43", "0011520")] {
+            versoes::guardar(
+                &mut banco,
+                cenario,
+                &DocumentoSimulado {
+                    instalacao: origem.clone(),
+                    id_documento: id.into(),
+                    id_procedimento: "10".into(),
+                    numero_processo: "00001.000001/2026-01".into(),
+                    numero: numero.into(),
+                    tipo: "Despacho".into(),
+                    revisoes: vec![Revisao {
+                        versao: NonZeroU32::new(1).unwrap(),
+                        usuario: "Teste".into(),
+                        unidade: "ORIGEM".into(),
+                        modificacao: "08/11/2026".into(),
+                        html_corpo: "<p>Original</p>".into(),
+                    }],
+                },
+            )
+            .unwrap();
+        }
+        let antes = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(antes.matches("documento_cancelado.svg").count(), 0);
+        assert_eq!(
+            aplicar(
+                &banco,
+                &origem,
+                cenario,
+                "42",
+                "10",
+                "Motivo do cancelamento"
+            )
+            .unwrap(),
+            Aplicacao::Aplicada
+        );
+        let depois = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(depois.matches("documento_cancelado.svg").count(), 3);
+        assert_eq!(depois.matches("documento_interno.svg").count(), 3);
+        assert!(depois.contains("Motivo do cancelamento"));
+        assert!(depois.contains("0011519"));
+        assert!(depois.contains("0011520"));
+        let individual = responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
+            &banco,
+            &origem,
+            cenario,
+        );
+        assert!(individual.corpo.contains("documento_cancelado.svg"));
+    }
 }
