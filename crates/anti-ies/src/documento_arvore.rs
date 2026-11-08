@@ -81,6 +81,29 @@ fn trabalhar(d: &DocumentoSimulado) -> String {
     )
 }
 
+/// Diferencia `id_documento` ausente de identidade explícita repetida ou vazia.
+/// A árvore exclusivamente documental e a árvore mista aplicam a mesma regra.
+pub(crate) fn identidade_documental(
+    alvo: &str,
+    permitir_selecao_vazia: bool,
+) -> Result<Option<&str>, Estado> {
+    let Some((_, consulta)) = alvo.split_once('?') else {
+        return Ok(None);
+    };
+    let mut valores = consulta
+        .split('&')
+        .filter_map(|campo| campo.split_once('='))
+        .filter(|(nome, _)| *nome == "id_documento")
+        .map(|(_, valor)| valor);
+    let primeiro = valores.next();
+    if valores.next().is_some() || (primeiro == Some("") && !permitir_selecao_vazia) {
+        return Err(Estado::RequisicaoInvalida);
+    }
+    // A árvore mista aceita id_documento= como ausência de seleção,
+    // forma já consumida no BDD-332-03. Nunca aceita duas ocorrências.
+    Ok(primeiro.filter(|valor| !valor.is_empty()))
+}
+
 /// Sem snapshot, retorna 503 em vez de simular documento vazio.
 /// Não fabrica links assinados reais: hashes são fixos e locais ao simulador.
 #[must_use]
@@ -104,8 +127,11 @@ pub fn responder(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let id = super::parametro_unico(alvo, "id_documento")
-        .or_else(|| super::parametro_unico(alvo, "id_protocolo"));
+    let documento = match identidade_documental(alvo, false) {
+        Ok(documento) => documento,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    let id = documento.or_else(|| super::parametro_unico(alvo, "id_protocolo"));
     let Some(id) = id.filter(|s| s.bytes().all(|b| b.is_ascii_digit())) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
