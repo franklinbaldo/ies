@@ -239,7 +239,7 @@ O que falta implementar e em que ordem está na
   com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
   `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
   texto, tabela ou código para caber; não espere o gate falhar.
-- **Fatia vertical IES ↔ anti-IES:** a **mesma PR** pode alterar
+- **Dupla implementação IES ↔ anti-IES:** a **mesma PR** pode alterar
   `src/**`, `crates/iesei/**`, `crates/anti-ies/**` e seus testes,
   inclusive criar tipos e evoluir o esquema SQLite, **sem exigir
   cassette prévia: implementar e testar a capacidade já é progresso**.
@@ -255,6 +255,7 @@ O que falta implementar e em que ordem está na
   Criar hipótese revisável, fixture sintética e testes como evidência
   de funcionamento. 🦅 não veta por ausência de cassette; 🦡 evita
   espera/churn; 🐘 distribui a fila. Respeitar WIP alheio e BDD da CLI.
+  **Três provas distintas:** paridade, cassettes, live (guia abaixo).
   PASS sintético não significa compatibilidade SEI validada; corrigir
   hipóteses quando surgirem capturas. Remover mocks só após equivalência.
   **Engenharia reversa por evidências:** usar a skill oficial REA
