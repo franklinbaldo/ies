@@ -383,20 +383,17 @@ pub fn atender_http(
                     }
                     Some(
                         "documento_escolher_tipo"
-                            | "documento_gerar"
-                            | "arvore_visualizar"
-                            | "procedimento_visualizar"
-                    ) if documentos::eh_rota_documentos(&pedido.alvo) =>
-                    {
-                        documentos::atender(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            &pedido.corpo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
+                        | "documento_gerar"
+                        | "arvore_visualizar"
+                        | "procedimento_visualizar",
+                    ) if documentos::eh_rota_documentos(&pedido.alvo) => documentos::atender(
+                        &pedido.metodo,
+                        &pedido.alvo,
+                        &pedido.corpo,
+                        banco,
+                        instalacao,
+                        cenario,
+                    ),
                     Some("procedimento_trabalhar")
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
