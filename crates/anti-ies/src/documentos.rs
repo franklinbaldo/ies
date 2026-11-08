@@ -201,12 +201,13 @@ fn pagina_da_lista(
          <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>"
     );
     if tem_filtro {
-        html.push_str(
-            "<input type='hidden' id='hdnFiltroSerie' name='hdnFiltroSerie' value='U'>",
-        );
+        html.push_str("<input type='hidden' id='hdnFiltroSerie' name='hdnFiltroSerie' value='U'>");
     }
     html.push_str("</form><table id='tblSeries'>");
-    for tipo in tipos.iter().take(if mostrar_todos { tipos.len() } else { 1 }) {
+    for tipo in tipos
+        .iter()
+        .take(if mostrar_todos { tipos.len() } else { 1 })
+    {
         write!(
             html,
             "<tr><td><a href='#' onclick='escolher({})'>{}</a></td></tr>",
