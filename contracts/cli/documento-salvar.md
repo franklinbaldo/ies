@@ -52,8 +52,11 @@ A prévia não abre o editor nem executa escrita. **Na saída humana**, mostra
 um recorte local com linhas da foto prefixadas por `-` e linhas da edição
 por `+`, limitado a 1.800 caracteres por lado. É o envelope contínuo
 entre prefixo e sufixo iguais, não um diff mínimo: linhas inalteradas
-internas podem aparecer nos dois lados. Linhas não UTF-8, muito longas
-ou com atributos/referências potencialmente sensíveis são omitidas.
+internas podem aparecer nos dois lados. Linhas não UTF-8 ou muito longas são omitidas, assim como
+referências/URLs e atributos que carreguem valores ou sessão
+(`href`, `src`, `action`, `value`, etc.). Atributos comuns de
+apresentação (`class`, `style`, `id`) e texto com `=` ou `?`
+continuam legíveis: não ocultar uma edição inteira de HTML comum.
 O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `previa` com `documento`, `versao_base`,
 `versao_editada`, `bytes_base`, `bytes_editada`, `escrita_remota: false`,

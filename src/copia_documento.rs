@@ -161,16 +161,29 @@ fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> Str
     {
         let texto = std::str::from_utf8(linha).ok().and_then(|texto| {
             let baixo = texto.to_ascii_lowercase();
+            // Atributos comuns (class/style/id) e pontuação do texto
+            // não são credenciais. Omitir referências e campos capazes
+            // de carregar estado/segredos, inclusive URLs relativas.
             let sensivel = texto.len() > 512
-                || (texto.contains('=') || texto.contains('?'))
-                || baixo.contains("://")
                 || [
+                    "://",
                     "infra_hash",
                     "cookie",
                     "senha",
                     "token",
                     "authorization",
                     "session",
+                    "href=",
+                    "src=",
+                    "action=",
+                    "value=",
+                    "data-",
+                    "nonce=",
+                    "password",
+                    "secret",
+                    "csrf",
+                    "onload=",
+                    "onclick=",
                 ]
                 .iter()
                 .any(|s| baixo.contains(*s));
@@ -346,5 +359,14 @@ mod testes {
         assert!(!diff.contains("infra_hash"));
         assert!(!diff.contains("segredo"));
         assert!(!diff.contains("outro"));
+    }
+
+    #[test]
+    fn previa_omite_referencia_relativa_e_valores_de_formulario() {
+        let linhas = b"<a href=\"/controlador.php?acao=abrir\">link</a>\n<input value=\"segredo-sem-nome\" />";
+        let mostradas = linhas_da_previa(linhas, 0, 2, '+');
+        assert_eq!(mostradas.matches("[linha omitida:").count(), 2);
+        assert!(!mostradas.contains("controlador.php"));
+        assert!(!mostradas.contains("segredo-sem-nome"));
     }
 }

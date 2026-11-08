@@ -208,3 +208,49 @@ fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
     );
     std::fs::remove_dir_all(pasta).unwrap();
 }
+
+#[test]
+fn previa_89_01_exibe_html_com_atributos_comuns_sem_divulgar_link_assinado() {
+    // Regressão técnica do BDD-89-01: em HTML normal, a maioria das tags
+    // possui class/style; a prévia não pode omitir todas as diferenças.
+    let pasta = pasta_vazia("atributos");
+    let base = "<p class=\"texto\" style=\"font-weight:bold\">Antes = 1?</p>\n<a href=\"https://sei.test/?infra_hash=segredo\">link</a>";
+    let editada = "<p class=\"texto\" style=\"font-weight:bold\">Depois = 2?</p>\n<a href=\"https://sei.test/?infra_hash=outro\">link</a>";
+    versao_local(&pasta, 2, base);
+    versao_local(&pasta, 3, editada);
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta)
+        .env("IES_CONFIG_FILE", pasta.join("nao-existe.json"))
+        .env_remove("IES_URL_CONTROLE_FILE")
+        .env_remove("IES_COOKIE_FILE")
+        .env_remove("IES_ORIGEM_FILE")
+        .env("IES_INDICE_FILE", pasta.join("ies.sqlite3"))
+        .args(["documento", "salvar", "0011519", "--versao", "2"])
+        .output()
+        .unwrap();
+    let humano = String::from_utf8(saida.stdout).unwrap();
+    assert_eq!(saida.status.code(), Some(0), "{humano}");
+    assert!(
+        humano.contains("-<p class=\"texto\" style=\"font-weight:bold\">Antes = 1?</p>"),
+        "{humano}"
+    );
+    assert!(
+        humano.contains("+<p class=\"texto\" style=\"font-weight:bold\">Depois = 2?</p>"),
+        "{humano}"
+    );
+    assert!(humano.contains("[linha omitida:"), "{humano}");
+    assert!(!humano.contains("infra_hash"), "{humano}");
+    assert!(!humano.contains("segredo"), "{humano}");
+    assert!(!humano.contains("outro"), "{humano}");
+    assert!(humano.contains("base não verificada"), "{humano}");
+    assert!(!pasta.join("ies.sqlite3").exists());
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
+        base
+    );
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(),
+        editada
+    );
+    std::fs::remove_dir_all(pasta).unwrap();
+}
