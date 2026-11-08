@@ -11,7 +11,7 @@ use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::num::NonZeroU32;
 
-fn resposta_de_falha(falha: Falha) -> Resposta {
+fn resposta_de_falha(falha: &Falha) -> Resposta {
     let estado = match falha {
         Falha::NaoObservado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
         Falha::NaoOferecido => Estado::MetodoNaoPermitido,
@@ -27,14 +27,13 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
     let oferta = match consultar_oferta(banco, origem, cenario, id) {
         Ok(Some(oferta)) => oferta,
         Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
-        Err(falha) => return resposta_de_falha(falha),
+        Err(falha) => return resposta_de_falha(&falha),
     };
     if !oferta.editavel {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let documento = match ler(banco, origem, cenario, id) {
-        Ok(Some(documento)) => documento,
-        _ => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(documento)) = ler(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
         return Resposta::nova(Estado::DadosInsuficientes);
@@ -101,7 +100,7 @@ fn salvar(
             "controlador.php?acao=documento_visualizar&id_documento={id}&versao={}",
             publicada.versao_nova
         )),
-        Err(falha) => resposta_de_falha(falha),
+        Err(falha) => resposta_de_falha(&falha),
     }
 }
 
