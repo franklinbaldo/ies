@@ -221,7 +221,7 @@ pub fn receber_conteudo(
     Ok(temporario)
 }
 
-/// Consulta o original pelo id_anexo publicado na árvore de documentos.
+/// Consulta o original pelo `id_anexo` publicado na árvore de documentos.
 /// # Errors
 /// Preserva erros SQLite e recusa identidade inválida.
 pub fn conteudo_do_anexo(
