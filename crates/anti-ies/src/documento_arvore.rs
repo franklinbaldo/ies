@@ -6,11 +6,7 @@ use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
 fn html(corpo: String) -> Resposta {
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo,
-    }
+    Resposta::html(corpo)
 }
 
 fn js(s: &str) -> String {
