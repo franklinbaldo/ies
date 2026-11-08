@@ -358,7 +358,9 @@ fn arvore_do_processo(
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let barra = literal_js(&super::processo_barra::acoes_do_processo(
-        processo, unidade_atual, relacionados,
+        processo,
+        unidade_atual,
+        relacionados,
     ));
     Ok(format!(
         r#"<html><head><script>

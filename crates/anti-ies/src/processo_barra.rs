@@ -5,7 +5,9 @@ use std::fmt::Write as _;
 
 /// Renderiza apenas ações oferecidas pelo estado conhecido da origem.
 pub(crate) fn acoes_do_processo(
-    processo: &ProcessoSimulado, unidade_atual: &str, relacionamentos_observados: bool,
+    processo: &ProcessoSimulado,
+    unidade_atual: &str,
+    relacionamentos_observados: bool,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;

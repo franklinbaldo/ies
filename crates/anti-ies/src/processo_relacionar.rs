@@ -7,13 +7,23 @@ use rusqlite::Connection;
 use std::fmt::Write as _;
 
 pub(crate) fn responder(
-    metodo: &str, alvo: &str, banco: &Connection, origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo) { return Resposta::nova(Estado::NaoEncontrado); }
-    if metodo != "GET" { return Resposta::nova(Estado::MetodoNaoPermitido); }
+    if !eh_controlador_sei(alvo) {
+        return Resposta::nova(Estado::NaoEncontrado);
+    }
+    if metodo != "GET" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
         .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-    else { return Resposta::nova(Estado::RequisicaoInvalida); };
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
     let Ok(Some(vinculos)) = relacionamentos::listar(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
@@ -60,21 +70,41 @@ fn decodificar(texto: &str) -> Option<String> {
     String::from_utf8(saida).ok()
 }
 pub(crate) fn consulta(
-    metodo: &str, alvo: &str, corpo: &str, banco: &Connection, origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
-    if !alvo.split_once('?').map_or(alvo, |(c, _)| c).ends_with("/controlador_ajax.php") {
+    if !alvo
+        .split_once('?')
+        .map_or(alvo, |(c, _)| c)
+        .ends_with("/controlador_ajax.php")
+    {
         return Resposta::nova(Estado::NaoEncontrado);
     }
-    if metodo != "POST" { return Resposta::nova(Estado::MetodoNaoPermitido); }
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
     let Ok(true) = relacionamentos::existe_contexto(banco, origem, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let mut valores = corpo.split('&').filter_map(|p| p.split_once('='))
-        .filter(|(chave, _)| *chave == "idProcedimento").map(|(_, valor)| valor);
-    let Some(pedido) = valores.next().and_then(decodificar).filter(|v| !v.is_empty()) else {
+    let mut valores = corpo
+        .split('&')
+        .filter_map(|p| p.split_once('='))
+        .filter(|(chave, _)| *chave == "idProcedimento")
+        .map(|(_, valor)| valor);
+    let Some(pedido) = valores
+        .next()
+        .and_then(decodificar)
+        .filter(|v| !v.is_empty())
+    else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if valores.next().is_some() { return Resposta::nova(Estado::RequisicaoInvalida); }
+    if valores.next().is_some() {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
     let destino = match relacionamentos::identificar(banco, origem, cenario, &pedido) {
         Ok(destino) => destino,
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
@@ -82,7 +112,8 @@ pub(crate) fn consulta(
     let corpo = if let Some(destino) = destino {
         format!(
             "<complementos><complemento nome=\"IdProcedimento\">{}</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{}</complemento></complementos>",
-            escapar(&destino.id), escapar(&destino.numero),
+            escapar(&destino.id),
+            escapar(&destino.numero),
         )
     } else {
         "<erros><erro>Destino não observado</erro></erros>".to_owned()

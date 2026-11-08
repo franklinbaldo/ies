@@ -15,7 +15,10 @@ fn bdd_258_01_previa_relacionamentos_observados_nao_fabrica_vinculos() {
     iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
     let cenario = "bdd-258-01";
-    for (id, numero) in [("10", "00001.000001/2026-01"), ("22", "00001.000002/2026-01")] {
+    for (id, numero) in [
+        ("10", "00001.000001/2026-01"),
+        ("22", "00001.000002/2026-01"),
+    ] {
         processos::guardar(
             &mut banco,
             &origem,
@@ -50,5 +53,8 @@ fn bdd_258_01_previa_relacionamentos_observados_nao_fabrica_vinculos() {
     assert!(resposta.contains("frmProcedimentoListarRelacionamentos"));
     assert!(resposta.contains("txtProtocolo"));
     assert!(resposta.contains("hdnIdProtocolo"));
-    assert!(!resposta.contains(">00001.000002/2026-01</a>"), "prévia não inventa vínculo");
+    assert!(
+        !resposta.contains(">00001.000002/2026-01</a>"),
+        "prévia não inventa vínculo"
+    );
 }
