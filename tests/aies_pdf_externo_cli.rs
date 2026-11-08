@@ -217,7 +217,11 @@ fn executar(incerteza: bool, somente_previa: bool) -> (Vec<Output>, Vec<String>,
         "--arquivo",
     ];
     let pdf_str = pdf.to_str().unwrap();
-    let modo = if somente_previa { "--consultar-sei" } else { "--confirmar" };
+    let modo = if somente_previa {
+        "--consultar-sei"
+    } else {
+        "--confirmar"
+    };
     let incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
     let consultar = [
         "--json",
@@ -368,15 +372,24 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
     assert_eq!(previa["escrita_remota"], false);
     assert_eq!(saidas[1].status.code(), Some(0));
     assert_eq!(total, 0, "a prévia não deve registrar documento");
-    assert!(!json(&saidas[1])["documentos"].to_string().contains("050000001"));
+    assert!(
+        !json(&saidas[1])["documentos"]
+            .to_string()
+            .contains("050000001")
+    );
     assert_eq!(
-        eventos.iter().filter(|evento| *evento == "POST documento_receber 200").count(),
+        eventos
+            .iter()
+            .filter(|evento| *evento == "POST documento_receber 200")
+            .count(),
         1,
         "a recarga do tipo é navegação, não cadastro: {eventos:?}"
     );
     assert!(
-        !eventos.iter().any(|evento| evento.starts_with("POST documento_upload_anexo")
-            || evento == "POST documento_receber 302"),
+        !eventos
+            .iter()
+            .any(|evento| evento.starts_with("POST documento_upload_anexo")
+                || evento == "POST documento_receber 302"),
         "prévia nunca envia o PDF nem cadastra documento: {eventos:?}"
     );
 }
