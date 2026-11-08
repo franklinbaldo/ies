@@ -1,11 +1,12 @@
 //! Histórico e visualização de versões gerados pelo mesmo estado SQLite.
 use crate::{Estado, Resposta, despachar};
+use iesei::acesso_versao::{self, AcessoVersao};
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, ler};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write;
 
-fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
+pub(crate) fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
     let Some((_, query)) = alvo.split_once('?') else {
         return Ok(None);
     };
@@ -15,7 +16,9 @@ fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
             return Err(Estado::RequisicaoInvalida);
         };
         if chave == nome {
-            if v.is_empty() || valor.is_some_and(|anterior| anterior != v) {
+            // O SEI publica duas vezes id_documento no link da versão.
+            // Aceitar somente a repetição idêntica; qualquer ambiguidade recusa.
+            if v.is_empty() || (valor.is_some() && (nome != "id_documento" || valor != Some(v))) {
                 return Err(Estado::RequisicaoInvalida);
             }
             valor = Some(v);
@@ -50,7 +53,7 @@ fn historico(documento: &DocumentoSimulado) -> String {
         let processo = escapar(&documento.id_procedimento);
         write!(
             corpo,
-            "<tr><td></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>             <td><a href='controlador.php?acao=documento_visualizar&versao={}&id_documento={id}&id_procedimento={processo}&infra_hash={token_teste}'>Visualizar</a></td></tr>",
+            "<tr><td></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>             <td><a href='controlador.php?acao=documento_visualizar&versao={}&id_documento={id}&arvore=1&id_procedimento={processo}&id_documento={id}&infra_hash={token_teste}'>Visualizar</a></td></tr>",
             r.versao, escapar(&r.usuario), escapar(&r.unidade),
             escapar(&r.modificacao), r.versao
         ).expect("formatação String");
@@ -61,7 +64,7 @@ fn historico(documento: &DocumentoSimulado) -> String {
 
 fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao) -> String {
     format!(
-        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body>{}<div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
+        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body><main id='corpoEditavel'>{}</main><div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
         escapar(&documento.numero),
         escapar(&documento.tipo),
         revisao.html_corpo,
@@ -134,5 +137,32 @@ pub fn responder(
     let Some(revisao) = documento.revisoes.iter().find(|r| r.versao.get() == versao) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
+    match acesso_versao::consultar(banco, instalacao, cenario, id, revisao.versao) {
+        Ok(AcessoVersao::Recusado) => return Resposta::nova(Estado::AcessoNegado),
+        Ok(AcessoVersao::Acessivel) => {}
+        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    }
     resposta_html(visualizar(&documento, revisao))
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+
+    #[test]
+    fn id_documento_repetido_igual_na_lista_e_aceito_sem_abrir_ambiguidades() {
+        let alvo = "/sei/controlador.php?acao=documento_visualizar&versao=1&id_documento=42&id_procedimento=7&id_documento=42";
+        assert_eq!(parametro(alvo, "id_documento"), Ok(Some("42")));
+        assert_eq!(
+            parametro(
+                "/sei/controlador.php?id_documento=42&id_documento=43",
+                "id_documento"
+            ),
+            Err(Estado::RequisicaoInvalida)
+        );
+        assert_eq!(
+            parametro("/sei/controlador.php?versao=1&versao=1", "versao"),
+            Err(Estado::RequisicaoInvalida)
+        );
+    }
 }

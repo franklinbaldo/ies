@@ -95,9 +95,13 @@ pub fn responder(
     let Ok(Some(documento)) = ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    if super::parametro_unico(alvo, "id_procedimento")
-        .is_some_and(|id| id != documento.id_procedimento)
-    {
+    // Ausência de processo é permitida no link observado; repetição,
+    // inclusive de dois valores iguais, nunca seleciona documento.
+    let processo = match super::documento_versoes::parametro(alvo, "id_procedimento") {
+        Ok(processo) => processo,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    if processo.is_some_and(|id| id != documento.id_procedimento) {
         return Resposta::nova(Estado::NaoEncontrado);
     }
     match acao {

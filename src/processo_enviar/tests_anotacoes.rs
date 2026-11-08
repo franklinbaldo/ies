@@ -389,3 +389,59 @@ fn bdd_fallback_ainda_nao_grava_antes_do_post_proprio() {
     assert_eq!(pedidos.len(), 5);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
 }
+
+#[test]
+fn bdd_333_04_arvore_incerta_mas_anotacao_removida_preserva_a_prova() {
+    // Dado um único POST com checkbox e anotação removida pelo simulador,
+    // quando a releitura da árvore falha e a da anotação tem sucesso,
+    // então a saída 3 distingue a remoção observada da tramitação incerta.
+    let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
+    let respostas = com(
+        abertura(arvore(&[UNIDADE], &acoes)),
+        vec![
+            ok(tela_de_envio(Versao::V40, ID)),
+            ok(anotacao("Antes", ID)),
+            ok(um_destino()),
+            r302(&volta_a_arvore_do_envio()),
+            Err(crate::transporte::FalhaTransporte::Rede),
+            ok(anotacao("", ID)),
+        ],
+    );
+    let amb = ambiente();
+    let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        enviar_processo(
+            sessao,
+            &PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: true,
+                remover_anotacoes: true,
+                confirmar: true,
+            },
+            indice,
+            rede,
+        )
+    });
+    let erro = resultado.expect_err("árvore incerta não autoriza sucesso");
+    assert_eq!(erro.saida(), 3);
+    assert!(matches!(
+        erro,
+        super::ErroEnviar::EfeitoIncertoNoEnvio {
+            anotacao_depois: Some(false),
+            ..
+        }
+    ));
+    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro)).unwrap();
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["anotacao_depois"], false);
+    assert_eq!(pedidos.len(), 9);
+    assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.metodo == "POST" && p.url == absoluta(&action_de_enviar()))
+            .count(),
+        1
+    );
+}

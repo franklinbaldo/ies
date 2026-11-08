@@ -2,8 +2,11 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::acesso_sessao;
+use iesei::acesso_versao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
+use iesei::editor_documento::{Oferta, registrar_oferta};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
@@ -147,10 +150,20 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(com_documento: bool) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
+fn estado(
+    caminho: &Path,
+    com_documento: bool,
+    assinaturas: u32,
+    versao_restrita: bool,
+) -> (Connection, Instalacao) {
+    let novo = !caminho.exists();
+    let mut banco = Connection::open(caminho).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    if !novo {
+        return (banco, instalacao);
+    }
+    fs::set_permissions(caminho, fs::Permissions::from_mode(0o600)).unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
     banco_cassettes::guardar(
         &mut banco,
         CENARIO,
@@ -192,6 +205,27 @@ fn estado(com_documento: bool) -> (Connection, Instalacao) {
             },
         )
         .unwrap();
+        registrar_oferta(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            Oferta {
+                editavel: true,
+                assinaturas,
+            },
+        )
+        .unwrap();
+    }
+    if versao_restrita {
+        acesso_versao::restringir(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            NonZeroU32::new(1).unwrap(),
+        )
+        .unwrap();
     }
     (banco, instalacao)
 }
@@ -206,6 +240,73 @@ fn executar_com_estado(
     requisicoes: usize,
     com_documento: bool,
 ) -> Output {
+    executar_com_assinaturas(pasta, args, requisicoes, com_documento, 0)
+}
+
+fn executar_com_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    assinaturas: u32,
+) -> Output {
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        false,
+        false,
+        assinaturas,
+    )
+}
+
+fn executar_com_restricao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+) -> Output {
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        false,
+        0,
+    )
+}
+
+fn executar_com_sessao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+) -> Output {
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        sessao_bloqueada,
+        0,
+    )
+}
+
+fn executar_com_sessao_e_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+    assinaturas: u32,
+) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -219,8 +320,12 @@ fn executar_com_estado(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
+    let banco = pasta.0.join("anti-ies.sqlite3");
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_documento);
+        let (db, instalacao) = estado(&banco, com_documento, assinaturas, versao_restrita);
+        if sessao_bloqueada {
+            acesso_sessao::bloquear(&db, &instalacao, CENARIO).unwrap();
+        }
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -246,6 +351,7 @@ fn executar_com_estado(
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta.0)
         .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
@@ -339,54 +445,11 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
     );
 }
 
-#[test]
-fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
-    let pasta = Pasta::nova();
-    // O documento tem apenas versões 1 e 3. A CLI deve recusar a
-    // versão 2 como não observada, sem declarar que nunca existiu.
-    // Controle, pesquisa, tela, árvore e histórico: cinco pedidos.
-    let saida = executar(
-        &pasta,
-        &["--json", "documento", DOC, "--versao", "2", "--sem-cache"],
-        5,
-    );
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["documento"], DOC);
-    assert_eq!(valor["subcodigo"], "versao_nao_observada");
-    assert!(!pasta.0.join("0011519.v2.html").exists());
-}
+#[path = "aies_documento_cli/testes_editor.rs"]
+mod testes_editor;
 
-/// BDD-88-03: uma sessão funcional não concede acesso a um DOC ausente
-/// do estado compartilhado; a recusa vem da pesquisa HTTP do simulador.
-#[test]
-fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
-    let pasta = Pasta::nova();
-    let destino = pasta.0.join("saida");
-    fs::create_dir(&destino).unwrap();
-    let args = [
-        "--json",
-        "documento",
-        DOC,
-        "--versao",
-        "1",
-        "--saida",
-        destino.to_str().unwrap(),
-        "--sem-cache",
-    ];
-    // Controle conhecido, busca sem snapshot de DOC: um GET e um POST
-    // local de leitura. O simulador recusa com 503, sem inventar ausência.
-    let saida = executar_com_estado(&pasta, &args, 2, false);
-    assert_ne!(
-        saida.status.code(),
-        Some(0),
-        "documento ausente virou sucesso"
-    );
-    let valor = json(&saida);
-    assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
-    assert!(
-        valor["documentos"].is_null(),
-        "publicou documento não observado: {valor}"
-    );
-    assert!(!destino.join("0011519.v1.html").exists());
-}
+#[path = "aies_documento_cli/negativos.rs"]
+mod negativos;
+
+#[path = "aies_documento_cli/positivos.rs"]
+mod positivos;

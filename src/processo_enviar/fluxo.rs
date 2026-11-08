@@ -137,18 +137,45 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
-    let mut feito = conciliar(feito, falha, verificacao)?;
-    if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
-        // O segundo GET não segue o 302 do envio. É uma nova consulta do
-        // formulário da própria origem, com a identidade conferida de novo.
-        let link = link_anotacao
-            .as_deref()
-            .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
-        let situacao = feito.depois.as_deref();
-        conferir_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento, situacao)?;
-        feito.anotacao_depois = Some(false);
-    }
+    let mut feito = conciliar_efeitos(
+        &mut rede,
+        &cookie,
+        link_anotacao.as_deref(),
+        feito,
+        falha,
+        verificacao,
+    )?;
     feito.requisicoes = rede.feitas();
+    Ok(feito)
+}
+
+/// Concilia duas provas independentes. Mesmo quando a árvore falha, o GET
+/// da anotação pode comprovar sua remoção sem repetir a escrita.
+fn conciliar_efeitos<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link_anotacao: Option<&str>,
+    mut feito: ProcessoEnviado,
+    falha: Option<FalhaDoEnvio>,
+    verificacao: VerificacaoPorLeitura,
+) -> Result<ProcessoEnviado, C> {
+    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+        let link = link_anotacao.ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
+        feito.anotacao_depois =
+            observar_anotacao_depois(rede, cookie, link, &feito.id_procedimento);
+    }
+    let feito = conciliar(feito, falha, verificacao)?;
+    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+        match feito.anotacao_depois {
+            Some(false) => {}
+            Some(true) => return Err(C::AnotacoesNaoRemovidasAposEnvio),
+            None => {
+                return Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
+                    depois: feito.depois,
+                });
+            }
+        }
+    }
     Ok(feito)
 }
 
@@ -284,16 +311,26 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
     id: &str,
     unidades_apos_envio: Option<&[String]>,
 ) -> Result<(), C> {
-    let depois = obter_tela(rede, cookie, link)
-        .ok()
-        .and_then(|(html, _)| super::anotacoes::anotacao_presente(&html, id).ok());
-    match depois {
+    match observar_anotacao_depois(rede, cookie, link, id) {
         Some(false) => Ok(()),
         Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
         None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
     }
+}
+
+/// A remoção é um efeito distinto da tramitação: observar separadamente
+/// permite registrar o que ocorreu mesmo se a árvore ficou indisponível.
+fn observar_anotacao_depois<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: &str,
+    id: &str,
+) -> Option<bool> {
+    obter_tela(rede, cookie, link)
+        .ok()
+        .and_then(|(html, _)| super::anotacoes::anotacao_presente(&html, id).ok())
 }
 
 /// GET da tela de envio (o link da barra), conferida sem rede.
