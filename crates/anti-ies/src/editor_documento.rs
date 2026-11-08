@@ -1,7 +1,10 @@
 //! Editor de documentos sintéticos sobre o mesmo estado do histórico (#89).
 //! Hipótese de HTML/formulário para integração IES ↔ anti-IES; não é
 //! evidência de formato real do editor SEI 4/5.
-use crate::{Estado, Resposta, despachar, documentos::campo_formulario_unico, eh_controlador_sei, escapar, parametro_unico};
+use crate::{
+    Estado, Resposta, despachar, documentos::campo_formulario_unico, eh_controlador_sei, escapar,
+    parametro_unico,
+};
 use iesei::documento_versoes::ler;
 use iesei::editor_documento::{Edicao, Falha, consultar_oferta, publicar};
 use iesei::instalacao::Instalacao;
