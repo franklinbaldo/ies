@@ -350,13 +350,9 @@ fn trabalho_por_protocolo(
             instalacao,
             cenario,
         ),
-        Ok(None) => documento_arvore::responder(
-            &pedido.metodo,
-            &pedido.alvo,
-            banco,
-            instalacao,
-            cenario,
-        ),
+        Ok(None) => {
+            documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+        }
         Err(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }

@@ -1,9 +1,9 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{ControleResumido, guardar, iniciar};
-use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
+use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
 use std::time::Duration;
