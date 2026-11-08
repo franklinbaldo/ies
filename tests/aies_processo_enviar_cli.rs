@@ -29,7 +29,10 @@ const NUP: &str = "00001.000001/2026-01";
 struct Pasta(PathBuf);
 impl Pasta {
     fn nova() -> Self {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let pasta = std::env::temp_dir().join(format!("aies-envio-{}-{nanos}", std::process::id()));
         fs::create_dir(&pasta).unwrap();
         Self(pasta)
@@ -52,16 +55,50 @@ fn identidade(pasta: &Path) -> (PathBuf, Identity) {
     let cert = pasta.join("cert.pem");
     let key = pasta.join("key.pem");
     let p12 = pasta.join("identidade.p12");
-    assert!(Command::new("openssl").args([
-        "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "1",
-        "-subj", "/CN=sei.test", "-addext", "subjectAltName=DNS:sei.test", "-keyout"
-    ]).arg(&key).arg("-out").arg(&cert)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap().success());
-    assert!(Command::new("openssl").args([
-        "pkcs12", "-export", "-passout", "pass:teste", "-inkey"
-    ]).arg(&key).arg("-in").arg(&cert).arg("-out").arg(&p12)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap().success());
-    (cert, Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap())
+    assert!(
+        Command::new("openssl")
+            .args([
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-sha256",
+                "-days",
+                "1",
+                "-subj",
+                "/CN=sei.test",
+                "-addext",
+                "subjectAltName=DNS:sei.test",
+                "-keyout"
+            ])
+            .arg(&key)
+            .arg("-out")
+            .arg(&cert)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("openssl")
+            .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey"])
+            .arg(&key)
+            .arg("-in")
+            .arg(&cert)
+            .arg("-out")
+            .arg(&p12)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    (
+        cert,
+        Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap(),
+    )
 }
 
 fn aceitar(listener: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -102,15 +139,24 @@ fn pedido(fonte: &mut impl Read) -> (Vec<u8>, String, String) {
     let mut partes = primeira.split_whitespace();
     let metodo = partes.next().unwrap().to_owned();
     let alvo = partes.next().unwrap();
-    let acao = alvo.split_once('?')
-        .and_then(|(_, q)| q.split('&').find_map(|item| {
-            item.strip_prefix("acao=").or_else(|| item.strip_prefix("acao_ajax="))
-        }))
-        .unwrap_or("sem_acao").to_owned();
-    let tamanho = cabecalho.lines().find_map(|linha| {
-        let (nome, valor) = linha.split_once(':')?;
-        nome.eq_ignore_ascii_case("content-length").then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let acao = alvo
+        .split_once('?')
+        .and_then(|(_, q)| {
+            q.split('&').find_map(|item| {
+                item.strip_prefix("acao=")
+                    .or_else(|| item.strip_prefix("acao_ajax="))
+            })
+        })
+        .unwrap_or("sem_acao")
+        .to_owned();
+    let tamanho = cabecalho
+        .lines()
+        .find_map(|linha| {
+            let (nome, valor) = linha.split_once(':')?;
+            nome.eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000);
     let mut corpo = vec![0; tamanho];
     fonte.read_exact(&mut corpo).unwrap();
@@ -122,42 +168,65 @@ fn preparar_banco() -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(&mut banco, CENARIO, &ControleResumido {
-        instalacao: origem.clone(),
-        unidade: UnidadeExibida::nova("ORIGEM").unwrap(),
-        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-    }).unwrap();
-    documentos_simulados::registrar_processo(&banco, &origem, CENARIO, &Processo {
-        id: "10".into(), nup: NUP.into(), unidade: "ORIGEM".into()
-    }).unwrap();
-    processos::guardar(&mut banco, &origem, CENARIO, &ProcessoSimulado {
-        id: "10".into(),
-        numero: NUP.into(),
-        unidade_origem: "ORIGEM".into(),
-        aberto_em: vec!["ORIGEM".into()],
-        anotacao_origem: Some("Nota da origem".into()),
-        destinos: vec![Destino {
-            id: "2".into(),
-            sigla: "DESTINO".into(),
-            descricao: "DESTINO - Unidade de teste".into(),
-        }],
-    }).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("ORIGEM").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    documentos_simulados::registrar_processo(
+        &banco,
+        &origem,
+        CENARIO,
+        &Processo {
+            id: "10".into(),
+            nup: NUP.into(),
+            unidade: "ORIGEM".into(),
+        },
+    )
+    .unwrap();
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: NUP.into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Nota da origem".into()),
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de teste".into(),
+            }],
+        },
+    )
+    .unwrap();
     (banco, origem)
 }
 
 /// Trilha tem apenas método e ação; nunca URL completa, corpo ou cookie.
-fn executar(comandos: &[&[&str]], falhar_releitura: bool)
-    -> (Vec<Output>, Vec<String>, ProcessoSimulado)
-{
+fn executar(
+    comandos: &[&[&str]],
+    falhar_releitura: bool,
+) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
-    let controle = pasta.privado("url", &format!(
-        "{ORIGEM}/controlador.php?acao=procedimento_controlar&{nome_hash}={}",
-        "a".repeat(64)
-    ));
+    let controle = pasta.privado(
+        "url",
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{nome_hash}={}",
+            "a".repeat(64)
+        ),
+    );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -166,12 +235,16 @@ fn executar(comandos: &[&[&str]], falhar_releitura: bool)
     let parar_sim = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
         let (banco, instalacao) = preparar_banco();
-        let antes = processos::ler(&banco, &instalacao, CENARIO, "10").unwrap().unwrap();
+        let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
+            .unwrap()
+            .unwrap();
         assert_eq!(antes.aberto_em, ["ORIGEM"]);
         while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        processos::ler(&banco, &instalacao, CENARIO, "10").unwrap().unwrap()
+        processos::ler(&banco, &instalacao, CENARIO, "10")
+            .unwrap()
+            .unwrap()
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
@@ -184,7 +257,8 @@ fn executar(comandos: &[&[&str]], falhar_releitura: bool)
         let mut enviado = false;
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, metodo, acao) = pedido(&mut canal);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
@@ -208,24 +282,28 @@ fn executar(comandos: &[&[&str]], falhar_releitura: bool)
             resposta.clear();
         }
     });
-    let saidas = comandos.iter().map(|args| {
-        Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(*args)
-            .env("IES_URL_CONTROLE_FILE", &controle)
-            .env("IES_COOKIE_FILE", &cookie)
-            .env("IES_ORIGEM_FILE", &origem)
-            .env("SSL_CERT_FILE", &cert)
-            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-            .env("HOME", &pasta.0)
-            .env_remove("HTTPS_PROXY")
-            .env_remove("all_proxy")
-            .env_remove("ALL_PROXY")
-            .env_remove("NO_PROXY")
-            .env_remove("no_proxy")
-            .env_remove("IES_CONFIG_FILE")
-            .env_remove("IES_CREDENCIAIS_FILE")
-            .output().expect("binário da CLI")
-    }).collect();
+    let saidas = comandos
+        .iter()
+        .map(|args| {
+            Command::new(env!("CARGO_BIN_EXE_ies"))
+                .args(*args)
+                .env("IES_URL_CONTROLE_FILE", &controle)
+                .env("IES_COOKIE_FILE", &cookie)
+                .env("IES_ORIGEM_FILE", &origem)
+                .env("SSL_CERT_FILE", &cert)
+                .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+                .env("HOME", &pasta.0)
+                .env_remove("HTTPS_PROXY")
+                .env_remove("all_proxy")
+                .env_remove("ALL_PROXY")
+                .env_remove("NO_PROXY")
+                .env_remove("no_proxy")
+                .env_remove("IES_CONFIG_FILE")
+                .env_remove("IES_CREDENCIAIS_FILE")
+                .output()
+                .expect("binário da CLI")
+        })
+        .collect();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let finalizado = simulador.join().unwrap();
@@ -235,7 +313,13 @@ fn executar(comandos: &[&[&str]], falhar_releitura: bool)
 
 fn args(confirmar: bool) -> Vec<&'static str> {
     let mut comando = vec![
-        "--json", "processo", "enviar", NUP, "--para", "DESTINO", "--manter-aberto"
+        "--json",
+        "processo",
+        "enviar",
+        NUP,
+        "--para",
+        "DESTINO",
+        "--manter-aberto",
     ];
     if confirmar {
         comando.push("--confirmar");
@@ -245,10 +329,12 @@ fn args(confirmar: bool) -> Vec<&'static str> {
 
 fn json(saida: &Output) -> Value {
     serde_json::from_slice(&saida.stdout).unwrap_or_else(|erro| {
-        panic!("JSON inválido {erro}; exit {:?}; stdout {}; stderr {}",
+        panic!(
+            "JSON inválido {erro}; exit {:?}; stdout {}; stderr {}",
             saida.status.code(),
             String::from_utf8_lossy(&saida.stdout),
-            String::from_utf8_lossy(&saida.stderr))
+            String::from_utf8_lossy(&saida.stderr)
+        )
     })
 }
 
@@ -257,37 +343,66 @@ fn bdd_333_01_02_previa_nao_muta_e_confirmacao_unica_atualiza_sqlite() {
     let previa = args(false);
     let confirmacao = args(true);
     let (saidas, pedidos, depois) = executar(&[&previa, &confirmacao], false);
-    assert_eq!(saidas[0].status.code(), Some(0),
-        "prévia {} pedidos {pedidos:?}", String::from_utf8_lossy(&saidas[0].stdout));
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "prévia {} pedidos {pedidos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout)
+    );
     let p = json(&saidas[0]);
     assert_eq!(p["confirmado"], false);
     assert_eq!(p["alterado"], false);
     assert_eq!(p["aberto_em"], serde_json::json!(["ORIGEM"]));
-    assert_eq!(saidas[1].status.code(), Some(0),
+    assert_eq!(
+        saidas[1].status.code(),
+        Some(0),
         "confirmação stdout {} stderr {} pedidos {pedidos:?}",
         String::from_utf8_lossy(&saidas[1].stdout),
-        String::from_utf8_lossy(&saidas[1].stderr));
+        String::from_utf8_lossy(&saidas[1].stderr)
+    );
     let c = json(&saidas[1]);
     assert_eq!(c["confirmado"], true);
     assert_eq!(c["alterado"], true);
     assert_eq!(c["depois"], serde_json::json!(["ORIGEM", "DESTINO"]));
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
-    assert_eq!(pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(), 1);
-    assert!(pedidos.iter().rposition(|p| p == "GET procedimento_visualizar")
-        > pedidos.iter().position(|p| p == "POST procedimento_enviar"),
-        "a confirmação depende de uma leitura posterior ao POST: {pedidos:?}");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1
+    );
+    assert!(
+        pedidos
+            .iter()
+            .rposition(|p| p == "GET procedimento_visualizar")
+            > pedidos.iter().position(|p| p == "POST procedimento_enviar"),
+        "a confirmação depende de uma leitura posterior ao POST: {pedidos:?}"
+    );
 }
 
 #[test]
 fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
     let confirmacao = args(true);
     let (saidas, pedidos, depois) = executar(&[&confirmacao], true);
-    assert_eq!(saidas[0].status.code(), Some(3),
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(3),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr));
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     assert_eq!(json(&saidas[0])["codigo"], "efeito_incerto");
-    assert_eq!(pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(), 1);
-    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"],
-        "a mutação ocorreu apesar de não haver prova independente");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1
+    );
+    assert_eq!(
+        depois.aberto_em,
+        ["ORIGEM", "DESTINO"],
+        "a mutação ocorreu apesar de não haver prova independente"
+    );
 }
