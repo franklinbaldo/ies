@@ -423,12 +423,7 @@ fn executar_com_troca_de_unidade(
                 backend.read_to_end(&mut resposta).unwrap();
                 resposta
             };
-            if ensaio == EnsaioRemocao::TelaSemCheckbox
-                && metodo == "GET"
-                && acao == "procedimento_enviar"
-            {
-                resposta = ocultar_checkbox_na_resposta(resposta);
-            }
+            resposta = ensaio::ajustar_resposta(resposta, ensaio, &metodo, &acao);
             if metodo == "POST" && acao == "procedimento_enviar" {
                 enviado = true;
             }
@@ -563,7 +558,7 @@ fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
 
 #[path = "aies_processo_enviar_cli/ensaio.rs"]
 mod ensaio;
-use ensaio::{EnsaioRemocao, ocultar_checkbox_na_resposta};
+use ensaio::EnsaioRemocao;
 
 #[path = "aies_processo_enviar_cli/remocao.rs"]
 mod remocao;
