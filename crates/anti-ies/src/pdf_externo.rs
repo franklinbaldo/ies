@@ -294,8 +294,8 @@ pub(crate) fn baixar(
     if metodo != "GET" {
         return erro(Estado::MetodoNaoPermitido);
     }
-    let Some(id_anexo) = parametro_unico(alvo, "id_anexo")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    let Some(id_anexo) =
+        parametro_unico(alvo, "id_anexo").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
     else {
         return erro(Estado::RequisicaoInvalida);
     };
