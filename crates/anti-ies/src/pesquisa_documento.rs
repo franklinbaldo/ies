@@ -32,9 +32,7 @@ pub fn responder(
     let Some(numero) = numeros.next() else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if numeros.next().is_some()
-        || numero.is_empty()
-        || !numero.bytes().all(|b| b.is_ascii_digit())
+    if numeros.next().is_some() || numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit())
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
