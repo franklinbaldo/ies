@@ -171,26 +171,42 @@ fn escapar_js(texto: &str) -> String {
         .replace('\r', "\\r")
 }
 
-fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
+fn pagina_da_lista(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    mostrar_todos: bool,
+) -> Resposta {
     let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    // POST de navegacao escolhe a serie, mas nao cadastra documento.
-    let hash = "e".repeat(64); // Identificador local sintético, não assinatura de sessão.
+    // A primeira tela simula a lista recente; o POST "Exibir todos" devolve
+    // a lista completa sem criar documento nem modificar o SQLite.
+    let tem_filtro = tipos.len() > 1;
+    let hash = "e".repeat(64); // Somente navegação sintética do simulador.
     let mut html = format!(
         "<html><head><script>function escolher(id) {{\
          document.getElementById('hdnIdSerie').value=id;\
          document.getElementById('frmDocumentoEscolherTipo').submit();\
+         }}function exibirSeries(tipo) {{\
+         document.getElementById('hdnFiltroSerie').value=tipo;\
+         document.getElementById('frmDocumentoEscolherTipo').submit();\
          }}</script></head><body>\
          <form id='frmDocumentoEscolherTipo' method='post' \
          action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={hash}'>\
-         <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>\
-         </form><table id='tblSeries'>"
+         <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>"
     );
-    for tipo in tipos {
+    if tem_filtro {
+        html.push_str(
+            "<input type='hidden' id='hdnFiltroSerie' name='hdnFiltroSerie' value='U'>",
+        );
+    }
+    html.push_str("</form><table id='tblSeries'>");
+    for tipo in tipos.iter().take(if mostrar_todos { tipos.len() } else { 1 }) {
         write!(
             html,
             "<tr><td><a href='#' onclick='escolher({})'>{}</a></td></tr>",
@@ -199,7 +215,13 @@ fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &
         )
         .expect("formatação String");
     }
-    html.push_str("</table></body></html>");
+    html.push_str("</table>");
+    if tem_filtro && !mostrar_todos {
+        html.push_str(
+            "<a id='ancExibirSeries' href='#' onclick=\"exibirSeries('T')\">Exibir todos</a>",
+        );
+    }
+    html.push_str("</body></html>");
     Resposta::html(html)
 }
 
@@ -270,8 +292,30 @@ pub(crate) fn atender(
             pagina_do_processo(banco, origem, cenario, id)
         }
         ("procedimento_visualizar", "GET") => pagina_da_arvore(banco, origem, cenario, id),
-        ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id),
+        ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id, false),
         ("documento_escolher_tipo", "POST") => {
+            // Um filtro T pede a lista inteira; a escolha de série continua
+            // sendo uma operação de navegação diferente da criação.
+            let filtro_presente = corpo
+                .split('&')
+                .filter_map(|campo| campo.split_once('='))
+                .any(|(nome, _)| nome == "hdnFiltroSerie");
+            let filtro = campo_formulario_unico(corpo, "hdnFiltroSerie");
+            if filtro_presente && filtro.is_none() {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            match filtro.as_deref() {
+                Some("T") => {
+                    if campo_formulario_unico(corpo, "hdnIdSerie")
+                        .is_some_and(|serie| !serie.is_empty())
+                    {
+                        return Resposta::nova(Estado::RequisicaoInvalida);
+                    }
+                    return pagina_da_lista(banco, origem, cenario, id, true);
+                }
+                None | Some("U") => {}
+                _ => return Resposta::nova(Estado::RequisicaoInvalida),
+            }
             let Some(serie) = campo_formulario_unico(corpo, "hdnIdSerie") else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             };
