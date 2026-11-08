@@ -108,7 +108,6 @@ fn processar_navegacao_nao_muta_estado_e_outro_cenario_nao_vaza_dados() {
     assert!(desconhecido.is_none());
 }
 
-
 /// O cadastro de documentos e as transições leem a mesma identidade canônica.
 #[test]
 fn identidade_do_processo_compartilhada_entre_documentos_e_tramitacao() {

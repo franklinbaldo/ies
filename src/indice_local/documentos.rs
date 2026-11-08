@@ -62,26 +62,15 @@ impl IndiceLocal {
                 .count()
                 == 1
         };
-        let validos: Vec<(&str, &str)> = documentos
+        // Filtra entradas válidas uma única vez e preserva a ordem das
+        // associações observadas. Duplicatas continuam invalidando palpites.
+        let (validos, ambiguos): (Vec<_>, Vec<_>) = documentos
             .iter()
             .copied()
             .filter(|(numero, id)| {
-                conferir_numero_sei(numero).is_ok()
-                    && conferir_id_procedimento(id).is_ok()
-                    && unico(numero, id)
+                conferir_numero_sei(numero).is_ok() && conferir_id_procedimento(id).is_ok()
             })
-            .collect();
-        // Se a árvore contradiz o índice com números/IDs duplicados,
-        // não conservar um palpite antigo como se a observação fosse única.
-        let ambiguos: Vec<(&str, &str)> = documentos
-            .iter()
-            .copied()
-            .filter(|(numero, id)| {
-                conferir_numero_sei(numero).is_ok()
-                    && conferir_id_procedimento(id).is_ok()
-                    && !unico(numero, id)
-            })
-            .collect();
+            .partition(|(numero, id)| unico(numero, id));
         if validos.is_empty() && ambiguos.is_empty() {
             return Ok(());
         }
