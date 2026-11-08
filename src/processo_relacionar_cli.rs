@@ -1,7 +1,9 @@
 //! CLI de relacionamento: prévia, remoção confirmada e efeito incerto.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
-use crate::processo_relacionar::{FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, prever};
+use crate::processo_relacionar::{
+    FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, mesmo_protocolo, prever,
+};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -29,6 +31,11 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         Ok(n) => n,
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
     };
+    // A identidade é conhecida pela própria entrada da CLI: não abrir
+    // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
+    if mesmo_protocolo(nup.as_str(), outro.as_str()) {
+        return Some(falha(cli.json, &FalhaRelacionar::RelacionamentoConsigoMesmo));
+    }
     Some(com_sessao(cli, |sessao, indice| {
         // A escrita real só será habilitada após ensaio de treinamento.
         // Esta trava não interfere na prévia nem nos testes offline do motor.
