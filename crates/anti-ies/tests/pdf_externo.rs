@@ -92,6 +92,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         b"",
     );
     assert!(lista.contains("acao=documento_receber"));
+    assert!(lista.contains(&format!("infra_hash={}", "4".repeat(64))));
     let cadastro = pedir(
         endereco,
         "GET",
@@ -99,6 +100,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         b"",
     );
     assert!(cadastro.contains("id='selSerie'"));
+    assert!(cadastro.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert!(cadastro.contains("value='293'"));
     let recarregado = pedir(
         endereco,
@@ -108,6 +110,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
     );
     assert!(recarregado.contains("selected='selected'"));
     assert!(recarregado.contains("documento_upload_anexo"));
+    assert!(recarregado.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert!(recarregado.contains("var arrExt = []"));
 
     let multipart = b"--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"prova.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nconteudo\r\n--B--\r\n";
