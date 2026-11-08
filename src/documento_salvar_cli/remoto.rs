@@ -184,6 +184,16 @@ fn carregar_par(
     Ok((n, base, editada))
 }
 
+/// A estrutura da foto local distingue os trechos editáveis da moldura SEI.
+fn corpos_da_edicao<'a>(base: &'a str, editada: &'a str) -> Result<(&'a str, &'a str), Falha> {
+    let base = corpo_sintetico(base).ok_or(Falha::EditorIndisponivel)?;
+    let editada = corpo_sintetico(editada).ok_or(Falha::EditorIndisponivel)?;
+    if base == editada {
+        return Err(Falha::BaseAlterada);
+    }
+    Ok((base, editada))
+}
+
 fn executar(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
@@ -223,23 +233,13 @@ fn executar(
     if lido.versoes.atual.as_ref().map(|v| v.numero()) != Ok(n.numero()) {
         return Resultado::Recusado(Falha::VersaoAlterada);
     }
-    if lido
-        .versoes
-        .foto
-        .as_ref()
-        .is_none_or(|foto| foto.html != local_base)
-    {
+    if lido.versoes.foto.as_ref().map(|foto| foto.html.as_str()) != Some(local_base.as_str()) {
         return Resultado::Recusado(Falha::BaseAlterada);
     }
-    let (Some(base), Some(editada)) = (
-        corpo_sintetico(&local_base),
-        corpo_sintetico(&local_editada),
-    ) else {
-        return Resultado::Recusado(Falha::EditorIndisponivel);
+    let (base, editada) = match corpos_da_edicao(&local_base, &local_editada) {
+        Ok(par) => par,
+        Err(falha) => return Resultado::Recusado(falha),
     };
-    if base == editada {
-        return Resultado::Recusado(Falha::BaseAlterada);
-    }
     let url = format!(
         "{}/controlador.php?acao=documento_editar&id_documento={}",
         sessao.origem, lido.id_documento
