@@ -380,9 +380,10 @@ fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> Str
         "<html><head><title>SEI - Processo</title></head><body>\
          <a id='lnkInfraUnidade'>{}</a>\
          <iframe id='ifrArvore' name='ifrArvore' \
-         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}'></iframe>\
+         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
          <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
          {incluir}</body></html>",
+        "e".repeat(64),
         html(unidade_atual)
     )
 }
