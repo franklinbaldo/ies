@@ -39,10 +39,11 @@ fn no_documento(
 ) -> String {
     let rotulo = js(&format!("{tipo} {numero}"));
     let numero = js(numero);
+    let assinatura = "d".repeat(64);
     format!(
         r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{id_processo}","about:blank","ifrVisualizacao","{rotulo}","{rotulo}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 Nos[{indice}].acoes = '';
-Nos[{indice}].src = '';
+Nos[{indice}].src = 'controlador.php?acao=documento_download_anexo&acao_origem=procedimento_visualizar&id_anexo={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={assinatura}';
 Nos[{indice}].html = '';
 "#
     )
