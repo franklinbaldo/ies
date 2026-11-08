@@ -37,7 +37,8 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                     gerados: TabelaObservada::nova(Some(0), None, vec![])
                         .map_err(|_| "controle simulado inválido")?,
                 },
-            )?;
+            )
+            .map_err(|_| "falha ao guardar controle simulado")?;
             registrar_processo(
                 &banco,
                 &instalacao,
