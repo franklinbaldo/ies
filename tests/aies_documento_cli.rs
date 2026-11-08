@@ -327,3 +327,21 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
         "<html><body>Edição local</body></html>"
     );
 }
+
+#[test]
+fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
+    let pasta = Pasta::nova();
+    // O documento tem apenas versões 1 e 3. A CLI deve recusar a
+    // versão 2 como não observada, sem declarar que nunca existiu.
+    // Controle, pesquisa, tela, árvore e histórico: cinco pedidos.
+    let saida = executar(
+        &pasta,
+        &["--json", "documento", DOC, "--versao", "2", "--sem-cache"],
+        5,
+    );
+    assert_eq!(saida.status.code(), Some(1));
+    let valor = json(&saida);
+    assert_eq!(valor["documento"], DOC);
+    assert_eq!(valor["subcodigo"], "versao_nao_observada");
+    assert!(!pasta.0.join("0011519.v2.html").exists());
+}
