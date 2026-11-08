@@ -40,11 +40,14 @@ const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// O corpo é uma região explícita da resposta de teste, não um parser de SEI.
+fn partes_da_foto(html: &str) -> Option<(&str, &str, &str)> {
+    let (inicio, resto) = html.split_once("<main id='corpoEditavel'>")?;
+    let (corpo, fim) = resto.split_once("</main>")?;
+    Some((inicio, corpo, fim))
+}
+
 fn corpo_sintetico(html: &str) -> Option<&str> {
-    html.split_once("<main id='corpoEditavel'>")?
-        .1
-        .split_once("</main>")
-        .map(|(corpo, _)| corpo)
+    partes_da_foto(html).map(|(_, corpo, _)| corpo)
 }
 
 enum Falha {
@@ -54,6 +57,7 @@ enum Falha {
     BaseAlterada,
     EditorIndisponivel,
     Formulario,
+    RegiaoNaoEditavelAlterada,
 }
 
 impl Falha {
@@ -65,6 +69,7 @@ impl Falha {
             Self::BaseAlterada => "a base local não corresponde ao HTML remoto da versão",
             Self::EditorIndisponivel => "a instalação sintética não ofereceu editor verificável",
             Self::Formulario => "o formulário publicado não corresponde ao editor simulado",
+            Self::RegiaoNaoEditavelAlterada => "a edição alterou uma região não editável da foto local",
         }
     }
 }
@@ -186,12 +191,17 @@ fn carregar_par(
 
 /// A estrutura da foto local distingue os trechos editáveis da moldura SEI.
 fn corpos_da_edicao<'a>(base: &'a str, editada: &'a str) -> Result<(&'a str, &'a str), Falha> {
-    let base = corpo_sintetico(base).ok_or(Falha::EditorIndisponivel)?;
-    let editada = corpo_sintetico(editada).ok_or(Falha::EditorIndisponivel)?;
-    if base == editada {
+    let (inicio_base, corpo_base, fim_base) =
+        partes_da_foto(base).ok_or(Falha::EditorIndisponivel)?;
+    let (inicio_edicao, corpo_editado, fim_edicao) =
+        partes_da_foto(editada).ok_or(Falha::EditorIndisponivel)?;
+    if inicio_base != inicio_edicao || fim_base != fim_edicao {
+        return Err(Falha::RegiaoNaoEditavelAlterada);
+    }
+    if corpo_base == corpo_editado {
         return Err(Falha::BaseAlterada);
     }
-    Ok((base, editada))
+    Ok((corpo_base, corpo_editado))
 }
 
 fn executar(
