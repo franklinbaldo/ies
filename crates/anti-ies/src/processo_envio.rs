@@ -91,6 +91,7 @@ fn resposta_html(corpo: String) -> Resposta {
         tipo_conteudo: "text/html; charset=utf-8",
         corpo,
         localizacao: None,
+        corpo_binario: None,
     }
 }
 
@@ -102,6 +103,7 @@ fn redirecionado(acao: &str, id: &str) -> Resposta {
         localizacao: Some(format!(
             "controlador.php?acao=arvore_visualizar&acao_origem={acao}&id_procedimento={id}"
         )),
+        corpo_binario: None,
     }
 }
 
@@ -268,6 +270,7 @@ pub fn autocompletar(
         tipo_conteudo: "application/xml; charset=utf-8",
         corpo: xml,
         localizacao: None,
+        corpo_binario: None,
     }
 }
 
