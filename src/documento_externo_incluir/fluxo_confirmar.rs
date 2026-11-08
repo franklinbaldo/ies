@@ -25,13 +25,14 @@ pub(crate) enum ErroConfirmacaoExterna {
     Previa(ErroPreviaExterna),
     Pdf(FalhaPdf),
     EnderecoDeUploadNaoObservado,
+    CampoCadastroNaoOferecido(&'static str),
     Sequencia(FalhaConfirmacao),
 }
 impl ErroConfirmacaoExterna {
     pub(crate) fn codigo_saida(&self) -> u8 {
         match self {
             Self::Pdf(_) => 2,
-            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado => 1,
+            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado | Self::CampoCadastroNaoOferecido(_) => 1,
             Self::Sequencia(e) => e.codigo_saida(),
         }
     }
@@ -39,7 +40,7 @@ impl ErroConfirmacaoExterna {
     pub(crate) fn etapa(&self) -> &'static str {
         match self {
             Self::Pdf(_) => "arquivo_local",
-            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado => "previa",
+            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado | Self::CampoCadastroNaoOferecido(_) => "previa",
             Self::Sequencia(
                 FalhaConfirmacao::FotoInicialIncompleta
                 | FalhaConfirmacao::FotoInicialInconsistente,
@@ -127,8 +128,70 @@ where
         &PdfLocal,
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
+    executar_confirmacao_via_impl(
+        sessao, nup, unidade_pedida, tipo, pdf, indice, envio, upload, false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn executar_confirmacao_via_prevalidada<V, U>(
+    sessao: &SessaoDoProcesso<'_>,
+    nup: &NumeroProcesso,
+    unidade_pedida: Option<&str>,
+    tipo: &str,
+    pdf: &PdfLocal,
+    indice: &IndiceLocal,
+    envio: &mut V,
+    upload: U,
+) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+where
+    V: EnvioDoProcesso,
+    U: FnOnce(
+        &mut V,
+        &str,
+        &str,
+        CodificacaoDaTela,
+        &PdfLocal,
+    ) -> Result<ReciboUpload, FalhaUpload>,
+{
+    executar_confirmacao_via_impl(
+        sessao, nup, unidade_pedida, tipo, pdf, indice, envio, upload, true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn executar_confirmacao_via_impl<V, U>(
+    sessao: &SessaoDoProcesso<'_>,
+    nup: &NumeroProcesso,
+    unidade_pedida: Option<&str>,
+    tipo: &str,
+    pdf: &PdfLocal,
+    indice: &IndiceLocal,
+    envio: &mut V,
+    upload: U,
+    prevalidar: bool,
+) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+where
+    V: EnvioDoProcesso,
+    U: FnOnce(
+        &mut V,
+        &str,
+        &str,
+        CodificacaoDaTela,
+        &PdfLocal,
+    ) -> Result<ReciboUpload, FalhaUpload>,
+{
     let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
         .map_err(ErroConfirmacaoExterna::Previa)?;
+    // O recibo do upload nao deve ser criado se o cadastro ja mostrou
+    // faltar um dos campos que a submissao definitiva exigira.
+    if prevalidar {
+        for campo in ["txtDataElaboracao", "rdoFormato", "rdoNivelAcesso"] {
+            if !preparado.previa.campos_oferecidos.iter().any(|nome| nome == campo) {
+                return Err(ErroConfirmacaoExterna::CampoCadastroNaoOferecido(campo));
+            }
+        }
+    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado)?;
     let destino = conferir_upload(&instalacao, preparado.cadastro.plano.url_upload())?;
@@ -198,7 +261,7 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
         .take(3)
         .collect::<Vec<_>>()
         .join("/");
-    executar_confirmacao_via(
+    executar_confirmacao_via_prevalidada(
         sessao,
         nup,
         unidade_pedida,
