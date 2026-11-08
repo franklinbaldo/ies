@@ -142,7 +142,6 @@ fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_
     );
 }
 
-
 #[test]
 fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
     use crate::documento_externo_incluir::escolha::{
@@ -200,6 +199,14 @@ fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
     let previa = observar_cadastro(&recarregado, "Anexo", 68).unwrap();
     assert_eq!(previa.id_tipo, "293");
     assert_eq!(previa.limite_pdf_bytes, 200 * 1024 * 1024);
-    assert!(previa.campos_oferecidos.contains(&"txtDataElaboracao".to_owned()));
-    assert!(previa.campos_oferecidos.contains(&"rdoNivelAcesso".to_owned()));
+    assert!(
+        previa
+            .campos_oferecidos
+            .contains(&"txtDataElaboracao".to_owned())
+    );
+    assert!(
+        previa
+            .campos_oferecidos
+            .contains(&"rdoNivelAcesso".to_owned())
+    );
 }
