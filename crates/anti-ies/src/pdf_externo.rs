@@ -102,7 +102,7 @@ fn documento_na_arvore(
         write!(
             pagina,
             "<li class='documento_pdf' data-id='{}' data-numero-sei='{}'>{} {} ({})</li>",
-            doc.id,
+            doc.id_publico(),
             escapar(&doc.numero_sei),
             escapar(&doc.tipo),
             escapar(&doc.numero_sei),
@@ -174,7 +174,7 @@ pub(crate) fn complementar_arvore(
         write!(
             itens,
             "<li class='documento_pdf' data-id='{}' data-numero-sei='{}'>{} {} ({})</li>",
-            doc.id,
+            doc.id_publico(),
             escapar(&doc.numero_sei),
             escapar(&doc.tipo),
             escapar(&doc.numero_sei),
