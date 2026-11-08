@@ -214,7 +214,7 @@ fn menu_com_retornos(
         return html;
     };
     if observados.is_empty() {
-        return Ok(html);
+        return html;
     }
     let link = format!("<a href='{}'>Retorno Programado</a>", link_calendario());
     html.replacen("</body>", &format!("{link}</body>"), 1)
