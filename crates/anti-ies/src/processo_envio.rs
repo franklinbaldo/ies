@@ -271,7 +271,6 @@ fn decodificar_formulario(texto: &str) -> Option<String> {
     String::from_utf8(saida).ok()
 }
 
-
 /// Projeta abertura de unidades na forma do nó raiz interpretada pelo IES.
 /// Hipótese local revisável, com estado derivado exclusivamente do SQLite.
 fn situacao_da_raiz(processo: &ProcessoSimulado) -> String {
