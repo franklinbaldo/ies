@@ -407,10 +407,7 @@ pub fn atender_http(
                         )
                     }
                     Some("procedimento_visualizar")
-                        if eh_controlador_sei(&pedido.alvo)
-                            && parametro_unico(&pedido.alvo, "id_procedimento").is_some()
-                            && parametro_unico(&pedido.alvo, "id_documento").is_none()
-                            && parametro_unico(&pedido.alvo, "id_protocolo").is_none() =>
+                        if documentos::eh_arvore_do_processo(&pedido.alvo) =>
                     {
                         documentos::atender(
                             &pedido.metodo,
