@@ -179,7 +179,7 @@ fn resposta_sem_prova_de_autoria(resposta: &[u8]) -> Vec<u8> {
     alterado
 }
 
-fn preparar_banco() -> (Connection, Instalacao) {
+fn preparar_banco(duplicar_tipo: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
@@ -230,6 +230,19 @@ fn preparar_banco() -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+    if duplicar_tipo {
+        documentos::registrar_tipo(
+            &banco,
+            &origem,
+            CENARIO,
+            "10",
+            &Tipo {
+                id: "292".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+    }
     documentos::criar(&banco, &origem, CENARIO, "10", "291", "Anterior").unwrap();
     (banco, origem)
 }
@@ -247,6 +260,14 @@ fn nomes_dos_campos_do_post(metodo: &str, acao: &str, bytes: &[u8]) -> Vec<Strin
 }
 
 fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<String>, usize) {
+    executar_com_cena(comandos, resposta_incerta, false)
+}
+
+fn executar_com_cena(
+    comandos: &[&[&str]],
+    resposta_incerta: bool,
+    duplicar_tipo: bool,
+) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identity) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -266,7 +287,7 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
     let parar = Arc::new(AtomicBool::new(false));
     let parar_sim = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (banco, instalacao) = preparar_banco();
+        let (banco, instalacao) = preparar_banco(duplicar_tipo);
         while let Some(mut cliente) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -484,3 +505,6 @@ fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
         1
     );
 }
+
+#[path = "aies_documento_criar_cli/recusas.rs"]
+mod recusas;
