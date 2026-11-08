@@ -161,3 +161,36 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
         "a recusa exige releitura independente: {pedidos:?}"
     );
 }
+
+#[test]
+fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
+    // O destino consultado nao consta do mesmo SQLite que sustenta o
+    // formulario; a recusa da CLI real nao pode alterar o processo.
+    let mut previa = args(false);
+    previa[5] = "INEXISTENTE";
+    previa.push("--remover-anotacoes");
+    let (saidas, pedidos, depois) = executar(&[&previa], false, Some("Nota da origem"));
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(1),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
+        String::from_utf8_lossy(&saidas[0].stderr),
+    );
+    let falha = json(&saidas[0]);
+    assert_eq!(falha["subcodigo"], "destino_nao_oferecido_pelo_sei");
+    assert_eq!(depois.aberto_em, ["ORIGEM"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "POST unidade_auto_completar_envio_processo"),
+        "a escolha deve vir do autocomplete do servidor: {pedidos:?}",
+    );
+    assert!(
+        !pedidos
+            .iter()
+            .any(|p| p == "POST procedimento_enviar" || p == "POST anotacao_registrar"),
+        "destino invalido nao pode produzir escrita: {pedidos:?}",
+    );
+}

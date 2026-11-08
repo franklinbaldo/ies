@@ -45,6 +45,29 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str, corpo: &[u8]) -> String
     resposta
 }
 
+// Fluxo HTTP de leitura e recusas independente do BDD da inclusão.
+fn conferir_download(endereco: SocketAddr, base: &str) {
+    // HTTP local do arquivo cadastrado; recusas não alteram o documento.
+    let download = format!("{base}documento_download_anexo&id_anexo=1");
+    let original = pedir(endereco, "GET", &download, b"");
+    assert!(original.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(original.contains("Content-Type: application/pdf\r\n"));
+    assert!(original.ends_with("%PDF-1.7\nconteudo"));
+    let metodo = pedir(endereco, "POST", &download, b"");
+    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"));
+    let duplicado = pedir(endereco, "GET", &format!("{download}&id_anexo=1"), b"");
+    assert!(duplicado.starts_with("HTTP/1.1 400 Bad Request\r\n"));
+    let ausente = pedir(
+        endereco,
+        "GET",
+        &format!("{base}documento_download_anexo&id_anexo=999"),
+        b"",
+    );
+    assert!(ausente.starts_with("HTTP/1.1 404 Not Found\r\n"));
+    let novamente = pedir(endereco, "GET", &download, b"");
+    assert!(novamente.ends_with("%PDF-1.7\nconteudo"));
+}
+
 #[test]
 fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -137,25 +160,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
     assert!(depois.contains("data-id='8000000000001'"));
     assert!(depois.contains("prova.pdf"));
     assert!(depois.contains("050000001"));
-    // HTTP local do arquivo cadastrado; recusas não alteram o documento.
-    let download = format!("{base}documento_download_anexo&id_anexo=1");
-    let original = pedir(endereco, "GET", &download, b"");
-    assert!(original.starts_with("HTTP/1.1 200 OK\r\n"));
-    assert!(original.contains("Content-Type: application/pdf\r\n"));
-    assert!(original.ends_with("%PDF-1.7\nconteudo"));
-    let metodo = pedir(endereco, "POST", &download, b"");
-    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"));
-    let duplicado = pedir(endereco, "GET", &format!("{download}&id_anexo=1"), b"");
-    assert!(duplicado.starts_with("HTTP/1.1 400 Bad Request\r\n"));
-    let ausente = pedir(
-        endereco,
-        "GET",
-        &format!("{base}documento_download_anexo&id_anexo=999"),
-        b"",
-    );
-    assert!(ausente.starts_with("HTTP/1.1 404 Not Found\r\n"));
-    let novamente = pedir(endereco, "GET", &download, b"");
-    assert!(novamente.ends_with("%PDF-1.7\nconteudo"));
+    conferir_download(endereco, base);
     let documentos = servidor.join().unwrap();
     assert_eq!(documentos.len(), 1);
     assert_eq!(documentos[0].numero_sei, "050000001");
