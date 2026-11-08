@@ -379,6 +379,32 @@ mod tests {
         fs::remove_dir_all(raiz).unwrap();
     }
 
+    // Apoio técnico ao BDD-60-03: a foto PDF editável do usuário não
+    // pode compartilhar inode com o cache privado de conteúdo observado.
+    #[test]
+    fn bdd_60_03_copia_pdf_editada_nao_adultera_cache_privado() {
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-cache-pdf-independente-{}-{}",
+            std::process::id(),
+            std::thread::current().name().unwrap_or("teste")
+        ));
+        let pdf = b"%PDF-1.7 original";
+        let origem = gravar_em(&raiz, "sei.exemplo", "0007", None, "pdf", pdf).unwrap();
+        let saida = raiz.join("saida");
+        fs::create_dir(&saida).unwrap();
+        let destino = saida.join("0007.pdf");
+        let hash = sha256(pdf);
+        assert_eq!(copiar_para_saida(&origem, &destino, &hash), Ok(true));
+        fs::write(&destino, b"%PDF-1.7 edicao local").unwrap();
+        assert_eq!(fs::read(&origem).unwrap(), pdf, "cache não pode ser editado pela foto");
+        assert_eq!(
+            copiar_para_saida(&origem, &destino, &hash),
+            Err(FalhaCache::ArquivoDivergente),
+            "a edição local não pode ser sobrescrita"
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
     #[test]
     fn conteudo_assinado_nao_e_persistido() {
         let home = std::env::temp_dir().join(format!("ies-cache-seguranca-{}", std::process::id()));
