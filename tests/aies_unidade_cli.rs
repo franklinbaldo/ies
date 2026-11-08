@@ -10,6 +10,7 @@ use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
 use std::fs;
+use std::os::unix::fs::PermissionsExt as _;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
@@ -35,7 +36,6 @@ impl Pasta {
     fn privado(&self, nome: &str, texto: &str) -> PathBuf {
         let arquivo = self.0.join(nome);
         fs::write(&arquivo, texto).unwrap();
-        use std::os::unix::fs::PermissionsExt as _;
         fs::set_permissions(&arquivo, fs::Permissions::from_mode(0o600)).unwrap();
         arquivo
     }
