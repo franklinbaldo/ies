@@ -273,9 +273,11 @@ pub fn controlar(
 
 /// Pedido local de tamanho limitado; corpo em bytes porque PDF é binário.
 /// Não registra requisições, URLs nem cabeçalhos de sessão.
+type PedidoLocal = (String, String, Vec<u8>);
+
 fn ler_pedido(
     fluxo: &mut TcpStream,
-) -> io::Result<Option<Result<(String, String, Vec<u8>), Estado>>> {
+) -> io::Result<Option<Result<PedidoLocal, Estado>>> {
     let mut leitor = BufReader::new(fluxo);
     let mut linha = String::new();
     if leitor.read_line(&mut linha)? == 0 {
@@ -350,12 +352,11 @@ pub fn atender_http(
         Err(estado) => Resposta::nova(estado),
         Ok((metodo, alvo, corpo)) => {
             if let Some((banco, instalacao, cenario)) = fonte {
-                if eh_controlador_sei(&alvo) {
-                    if let Some(resposta) =
+                if eh_controlador_sei(&alvo)
+                    && let Some(resposta) =
                         pdf_externo::atender(&metodo, &alvo, &corpo, banco, instalacao, cenario)
-                    {
-                        return responder_http(fluxo, &resposta);
-                    }
+                {
+                    return responder_http(fluxo, &resposta);
                 }
                 if parametro_unico(&alvo, "acao") == Some("retorno_programado_listar") {
                     retorno_programado(&metodo, &alvo, banco, instalacao, cenario)
