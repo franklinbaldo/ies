@@ -10,9 +10,10 @@ use rusqlite::Connection;
 fn leitor_ies_respeita_oferta_dinamica_apos_tramitacao_simulada() {
     let mut banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
-    let origem = iesei::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-    let instalacao = crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei")
-        .unwrap();
+    let origem =
+        iesei::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
     guardar(
         &mut banco,
         &origem,
