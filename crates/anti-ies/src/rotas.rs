@@ -126,7 +126,10 @@ pub(crate) fn responder(
                 Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
             }
         }
-        Some("documento_editar") if eh_controlador_sei(alvo) => {
+        Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
+            editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("editor_salvar") => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("documento_versao_listar" | "documento_visualizar") if eh_controlador_sei(alvo) => {
