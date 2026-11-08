@@ -198,7 +198,12 @@ pub fn conferir_abertura(
                   WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3),
            EXISTS(SELECT 1 FROM processo_abertura
                   WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
-        params![origem.url_base(), cenario, id_procedimento, processo.unidade],
+        params![
+            origem.url_base(),
+            cenario,
+            id_procedimento,
+            processo.unidade
+        ],
         |linha| Ok((linha.get(0)?, linha.get(1)?)),
     )?;
     if tem_tramitacao && !aberto {
