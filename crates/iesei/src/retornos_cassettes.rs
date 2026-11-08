@@ -51,8 +51,7 @@ fn data_mensal(valor: &str) -> Option<(u8, u8, u16)> {
     let dia = partes.next()?.parse().ok()?;
     let mes = partes.next()?.parse().ok()?;
     let ano = partes.next()?.parse().ok()?;
-    (partes.next().is_none() && ano > 0 && (1..=12).contains(&mes))
-        .then_some((dia, mes, ano))
+    (partes.next().is_none() && ano > 0 && (1..=12).contains(&mes)).then_some((dia, mes, ano))
 }
 
 fn ultimo_dia(ano: u16, mes: u8) -> u8 {
