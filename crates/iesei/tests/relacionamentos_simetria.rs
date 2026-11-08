@@ -38,7 +38,22 @@ fn registrar_relacao_inversa_nao_cria_segundo_vinculo() {
             |linha| linha.get(0),
         )
         .unwrap();
-    assert_eq!(registros, 1, "um único vínculo bilateral, não duas arestas direcionais");
-    assert_eq!(listar(&banco, &origem, cenario, "10").unwrap().unwrap().len(), 1);
-    assert_eq!(listar(&banco, &origem, cenario, "22").unwrap().unwrap().len(), 1);
+    assert_eq!(
+        registros, 1,
+        "um único vínculo bilateral, não duas arestas direcionais"
+    );
+    assert_eq!(
+        listar(&banco, &origem, cenario, "10")
+            .unwrap()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        listar(&banco, &origem, cenario, "22")
+            .unwrap()
+            .unwrap()
+            .len(),
+        1
+    );
 }
