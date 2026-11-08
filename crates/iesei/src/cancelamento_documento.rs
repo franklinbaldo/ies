@@ -70,7 +70,13 @@ pub fn aplicar(
          FROM documento_simulado
          WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND id_procedimento=?4
          ON CONFLICT(origem, cenario, id_documento) DO NOTHING",
-        params![origem.url_base(), cenario, id_documento, id_procedimento, motivo],
+        params![
+            origem.url_base(),
+            cenario,
+            id_documento,
+            id_procedimento,
+            motivo
+        ],
     )?;
     if inseridos == 1 {
         return Ok(Aplicacao::Aplicada);
@@ -94,22 +100,51 @@ mod tests {
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-        guardar(&mut banco, "cenario-a", &DocumentoSimulado {
-            instalacao: origem.clone(),
-            id_documento: "42".into(), id_procedimento: "7".into(),
-            numero_processo: "00001.000001/2026-01".into(), numero: "0011519".into(),
-            tipo: "Despacho".into(), revisoes: vec![Revisao {
-                versao: NonZeroU32::new(1).unwrap(), usuario: "Ana".into(),
-                unidade: "TESTE".into(), modificacao: "01/11/2026".into(),
-                html_corpo: "<p>texto</p>".into(),
-            }],
-        }).unwrap();
-        assert_eq!(consultar(&banco, &origem, "cenario-a", "42", "7").unwrap(), Some(Situacao::Disponivel));
-        assert_eq!(aplicar(&banco, &origem, "cenario-a", "42", "7", "Motivo A").unwrap(), Aplicacao::Aplicada);
-        assert_eq!(aplicar(&banco, &origem, "cenario-a", "42", "7", "Motivo B").unwrap(), Aplicacao::JaCancelado);
-        assert_eq!(consultar(&banco, &origem, "cenario-a", "42", "7").unwrap(),
-            Some(Situacao::Cancelado { motivo: "Motivo A".into() }));
-        assert_eq!(consultar(&banco, &origem, "cenario-b", "42", "7").unwrap(), None);
-        assert_eq!(consultar(&banco, &origem, "cenario-a", "42", "8").unwrap(), None);
+        guardar(
+            &mut banco,
+            "cenario-a",
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: "42".into(),
+                id_procedimento: "7".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: "0011519".into(),
+                tipo: "Despacho".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "Ana".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "01/11/2026".into(),
+                    html_corpo: "<p>texto</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            consultar(&banco, &origem, "cenario-a", "42", "7").unwrap(),
+            Some(Situacao::Disponivel)
+        );
+        assert_eq!(
+            aplicar(&banco, &origem, "cenario-a", "42", "7", "Motivo A").unwrap(),
+            Aplicacao::Aplicada
+        );
+        assert_eq!(
+            aplicar(&banco, &origem, "cenario-a", "42", "7", "Motivo B").unwrap(),
+            Aplicacao::JaCancelado
+        );
+        assert_eq!(
+            consultar(&banco, &origem, "cenario-a", "42", "7").unwrap(),
+            Some(Situacao::Cancelado {
+                motivo: "Motivo A".into()
+            })
+        );
+        assert_eq!(
+            consultar(&banco, &origem, "cenario-b", "42", "7").unwrap(),
+            None
+        );
+        assert_eq!(
+            consultar(&banco, &origem, "cenario-a", "42", "8").unwrap(),
+            None
+        );
     }
 }
