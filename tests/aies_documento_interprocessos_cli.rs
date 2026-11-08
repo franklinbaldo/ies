@@ -432,14 +432,21 @@ fn pesquisa_rapida_de_documento_confere_id_antes_de_servir_conteudo() {
     assert_eq!(docs.len(), 1, "{valor}");
     assert_eq!(docs[0]["numero"], DOC_A);
     assert_eq!(docs[0]["processo"]["nup"], NUP_A);
-    assert!(docs[0]["texto"].as_str().unwrap().contains("primeiro processo"));
+    assert!(
+        docs[0]["texto"]
+            .as_str()
+            .unwrap()
+            .contains("primeiro processo")
+    );
     assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
     assert!(
         trilha.iter().any(|p| p == "POST protocolo_pesquisa_rapida"),
         "exercitar pesquisa por número, não o cache: {trilha:?}"
     );
     assert!(
-        trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "somente navegação de leitura: {trilha:?}"
     );
 }
