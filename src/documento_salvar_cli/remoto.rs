@@ -6,10 +6,11 @@ use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
-    CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario,
-    EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
-    TelaServida, derivar_submissao, enviar_submissao_via,
+    CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
+    enviar_submissao_via,
 };
+use crate::instalacao::Instalacao;
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
     PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
@@ -18,7 +19,6 @@ use crate::processo_obter::{
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use crate::{Cli, erro_fonte};
-use crate::instalacao::Instalacao;
 use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
@@ -69,9 +69,11 @@ impl Falha {
     }
 }
 
-fn ler_par(pasta: &Path, numero: &NumeroDocumento, n: VersaoDocumento)
-    -> Result<(String, String), Falha>
-{
+fn ler_par(
+    pasta: &Path,
+    numero: &NumeroDocumento,
+    n: VersaoDocumento,
+) -> Result<(String, String), Falha> {
     copia_documento::pasta_segura(pasta).map_err(Falha::Local)?;
     let seguinte = VersaoDocumento::nova(n.numero() + 1).map_err(|_| Falha::VersaoAlterada)?;
     let ler = |v, ausente| {
@@ -125,9 +127,16 @@ fn executar(
         anexo: PedidoDoAnexo::default(),
     };
     let lido = match obter_documento_com_propriedades(
-        sessao, &pedido, PedidoDeVersoes {
-            versao: Some(n), foto: true, cache: false
-        }, indice, &mut envio, false,
+        sessao,
+        &pedido,
+        PedidoDeVersoes {
+            versao: Some(n),
+            foto: true,
+            cache: false,
+        },
+        indice,
+        &mut envio,
+        false,
     ) {
         Ok(lido) => lido,
         Err(_) => return Resultado::Recusado(Falha::Leitura),
@@ -135,12 +144,18 @@ fn executar(
     if lido.versoes.atual.as_ref().map(|v| v.numero()) != Ok(n.numero()) {
         return Resultado::Recusado(Falha::VersaoAlterada);
     }
-    if lido.versoes.foto.as_ref().is_none_or(|foto| foto.html != local_base) {
+    if lido
+        .versoes
+        .foto
+        .as_ref()
+        .is_none_or(|foto| foto.html != local_base)
+    {
         return Resultado::Recusado(Falha::BaseAlterada);
     }
-    let (Some(base), Some(editada)) =
-        (corpo_sintetico(&local_base), corpo_sintetico(&local_editada))
-    else {
+    let (Some(base), Some(editada)) = (
+        corpo_sintetico(&local_base),
+        corpo_sintetico(&local_editada),
+    ) else {
         return Resultado::Recusado(Falha::EditorIndisponivel);
     };
     if base == editada {
@@ -162,11 +177,19 @@ fn executar(
         return Resultado::Recusado(Falha::Formulario);
     }
     let envio_unico = derivar_submissao(
-        &EDITAR, &instalacao,
-        &TelaServida { url: &url, html: &editor, codificacao: CodificacaoDaTela::Utf8 },
+        &EDITAR,
+        &instalacao,
+        &TelaServida {
+            url: &url,
+            html: &editor,
+            codificacao: CodificacaoDaTela::Utf8,
+        },
         cli.unidade.as_deref().unwrap_or(""),
-        &[("html_base", base), ("html_editado", editada),
-          ("confirmar_assinaturas", "1")],
+        &[
+            ("html_base", base),
+            ("html_editado", editada),
+            ("confirmar_assinaturas", "1"),
+        ],
     );
     let Ok(envio_unico) = envio_unico else {
         return Resultado::Recusado(Falha::Formulario);
@@ -178,7 +201,9 @@ fn executar(
         "{}/controlador.php?acao=documento_visualizar&id_documento={}&versao={versao_nova}",
         sessao.origem, lido.id_documento
     );
-    let releitura = envio.get(&url_verificacao, cookie).and_then(decodificar_resposta);
+    let releitura = envio
+        .get(&url_verificacao, cookie)
+        .and_then(decodificar_resposta);
     let Ok(html) = releitura else {
         return Resultado::Incerto;
     };
@@ -194,51 +219,58 @@ fn executar(
         .is_some_and(|v| v.numero() == versao_nova);
     let identidade_igual = crate::documento_web::identidade_do_titulo(&html)
         .is_ok_and(|i| i.numero == numero.as_str());
-    if respondeu && versao_igual && identidade_igual
-        && corpo_sintetico(&html) == Some(editada)
-    {
+    if respondeu && versao_igual && identidade_igual && corpo_sintetico(&html) == Some(editada) {
         Resultado::Confirmado(versao_nova)
     } else {
         Resultado::Incerto
     }
 }
 
-pub(super) fn confirmar(
-    cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia,
-) -> ExitCode {
-    com_sessao(cli, |sessao, indice| match executar(cli, sessao, indice, numero, previa) {
-        Resultado::Confirmado(versao) => {
-            if cli.json {
-                println!("{}", json!({
-                    "documento": numero.as_str(),
-                    "confirmado": true,
-                    "versao_criada": versao,
-                    "releitura_confirmada": true
-                }));
-            } else {
-                println!("IES: documento {} salvo na versão {versao}, conferida por releitura.", numero.as_str());
+pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia) -> ExitCode {
+    com_sessao(cli, |sessao, indice| {
+        match executar(cli, sessao, indice, numero, previa) {
+            Resultado::Confirmado(versao) => {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "documento": numero.as_str(),
+                            "confirmado": true,
+                            "versao_criada": versao,
+                            "releitura_confirmada": true
+                        })
+                    );
+                } else {
+                    println!(
+                        "IES: documento {} salvo na versão {versao}, conferida por releitura.",
+                        numero.as_str()
+                    );
+                }
+                ExitCode::SUCCESS
             }
-            ExitCode::SUCCESS
-        }
-        Resultado::Recusado(falha) => {
-            let _ = match &falha {
-                Falha::Local(causa) => Some(causa),
-                _ => None,
-            };
-            erro_fonte(cli.json, "escrita_remota_nao_validada", falha.mensagem())
-        }
-        Resultado::Incerto => {
-            if cli.json {
-                println!("{}", json!({
-                    "codigo": "efeito_incerto",
-                    "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
-                    "confirmado": false,
-                    "retentavel": false
-                }));
-            } else {
-                eprintln!("IES: edição não comprovada; não repita --confirmar sem releitura.");
+            Resultado::Recusado(falha) => {
+                let _ = match &falha {
+                    Falha::Local(causa) => Some(causa),
+                    _ => None,
+                };
+                erro_fonte(cli.json, "escrita_remota_nao_validada", falha.mensagem())
             }
-            ExitCode::from(3)
+            Resultado::Incerto => {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "codigo": "efeito_incerto",
+                            "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
+                            "confirmado": false,
+                            "retentavel": false
+                        })
+                    );
+                } else {
+                    eprintln!("IES: edição não comprovada; não repita --confirmar sem releitura.");
+                }
+                ExitCode::from(3)
+            }
         }
     })
 }
