@@ -37,8 +37,10 @@ fn inicio_da_inclusao(id: &str) -> Resposta {
 }
 
 fn cadastro(id: &str, tipos: &[TipoExterno], selecionado: Option<&str>) -> Resposta {
+    // Hash descartável e fixo: só existe no ambiente simulado local.
+    let assinatura = "0".repeat(64);
     let mut pagina = format!(
-        "<html><body><form id='frmDocumentoCadastro' method='post'          action='controlador.php?acao=documento_receber&amp;id_procedimento={id}'>         <select id='selSerie' name='selSerie'><option value='null'>Selecione</option>"
+        "<html><body><form id='frmDocumentoCadastro' method='post'          action='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>         <select id='selSerie' name='selSerie'><option value='null'>Selecione</option>"
     );
     for tipo in tipos {
         let atributo = if selecionado == Some(tipo.id.as_str()) {
@@ -65,8 +67,6 @@ fn cadastro(id: &str, tipos: &[TipoExterno], selecionado: Option<&str>) -> Respo
         .iter()
         .find(|t| Some(t.id.as_str()) == Some(selecionado))
     {
-        // A assinatura inteiramente zerada é sintética; não é infra_hash real.
-        let assinatura = "0".repeat(64);
         let tamanho_mb = tipo.limite_bytes / (1024 * 1024);
         write!(
             pagina,
