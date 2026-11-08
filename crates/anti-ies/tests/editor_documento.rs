@@ -163,3 +163,60 @@ fn oferta_nao_observada_nao_inventa_permissao() {
         Estado::MetodoNaoPermitido
     );
 }
+
+/// BDD-89-02: HTTP local persiste e relê uma edição maior que o limite
+/// anterior de 8 KiB, no mesmo SQLite (não é prova de SEI real).
+#[test]
+fn bdd_89_02_editor_http_grava_html_maior_que_oito_kib_e_rele() {
+    use anti_ies::atender_http;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    fn pedir(endereco: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
+        let mut fluxo = TcpStream::connect(endereco).unwrap();
+        write!(
+            fluxo,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
+            corpo.len()
+        )
+        .unwrap();
+        fluxo.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        fluxo.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let banco = preparar(0);
+    let servidor = std::thread::spawn(move || {
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem(), "ensaio"))).unwrap();
+        }
+        ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap()
+    });
+    let texto = "texto".repeat(2400);
+    let edicao = format!("<p>{texto}</p>");
+    let corpo = format!(
+        "versao_base=2&html_base=%3Cp%3Eantes%3C%2Fp%3E&html_editado=%3Cp%3E{texto}%3C%2Fp%3E"
+    );
+    assert!(corpo.len() > 8192);
+    let formulario = pedir(endereco, "GET", alvo(), "");
+    assert!(formulario.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(formulario.contains("frmDocumentoEditar"));
+    let publicada = pedir(endereco, "POST", alvo(), &corpo);
+    assert!(publicada.starts_with("HTTP/1.1 302 Found\r\n"), "{publicada}");
+    let lida = pedir(
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=3",
+        "",
+    );
+    assert!(lida.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(lida.contains(&edicao));
+    let documento = servidor.join().unwrap();
+    assert_eq!(documento.revisoes.len(), 2);
+    assert_eq!(documento.revisoes[0].html_corpo, "<p>antes</p>");
+    assert_eq!(documento.revisoes[1].html_corpo, edicao);
+}
