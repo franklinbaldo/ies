@@ -1,4 +1,4 @@
--- 0005: trilhas de processos, unidades abertas e destinos oferecidos no anti-IES.
+-- 0006: trilhas de processos, unidades abertas e destinos oferecidos no anti-IES.
 -- Dados sintéticos por instalação/cenário, sem credenciais nem índice operacional.
 CREATE TABLE processo_simulado (
     origem TEXT NOT NULL,
@@ -32,4 +32,4 @@ CREATE TABLE processo_destino (
     FOREIGN KEY (origem, cenario, id_procedimento)
         REFERENCES processo_simulado(origem, cenario, id_procedimento)
 ) STRICT;
-PRAGMA user_version = 5;
+PRAGMA user_version = 6;

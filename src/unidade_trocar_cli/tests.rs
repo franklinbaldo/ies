@@ -36,6 +36,44 @@ fn pasta() -> std::path::PathBuf {
     pasta
 }
 
+#[test]
+fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
+    let dir = pasta();
+    let arquivos = ArquivosDeAcesso {
+        url_controle: dir.join("url"),
+        cookie: dir.join("cookie"),
+        origem: dir.join("origem"),
+    };
+    let indice = IndiceLocal::em(dir.join(NOME_DO_ARQUIVO));
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let novo = ControleLido {
+        url: url_limpa(ID_B),
+        html: controle("PR-B", ID_B),
+        mime: "text/html; charset=iso-8859-1".into(),
+    };
+
+    let cookie_ausente = CookieDaSessao::ler(&dir.join("cookie-inexistente"));
+    assert!(matches!(
+        aplicar_troca(&arquivos, &indice, &instalacao, &cookie_ausente, &novo),
+        Err(FalhaAplicarTroca::Cookie(
+            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+        ))
+    ));
+
+    std::fs::create_dir(&arquivos.url_controle).unwrap();
+    assert!(matches!(
+        aplicar_troca(
+            &arquivos,
+            &indice,
+            &instalacao,
+            &CookieDaSessao::sintetico(COOKIE),
+            &novo
+        ),
+        Err(FalhaAplicarTroca::Gravacao(_))
+    ));
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 fn link_de_trabalho(id_unidade: &str) -> String {
     format!(
         "{ORIGEM}/controlador.php?acao=procedimento_trabalhar&id_procedimento=7&infra_sistema=100000100&infra_unidade_atual={id_unidade}&infra_hash={}",
