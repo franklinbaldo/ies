@@ -75,9 +75,19 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
 
     // Antes da correção, a duplicação fazia o leitor ignorar id_documento
     // e escolher silenciosamente o id_protocolo de outro documento.
-    let ambiguo = pedir(endereco, "GET", "id_documento=42&id_documento=42&id_protocolo=43");
-    assert!(ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"), "{ambiguo}");
-    assert!(!ambiguo.contains("0011520"), "não entregar documento alternativo");
+    let ambiguo = pedir(
+        endereco,
+        "GET",
+        "id_documento=42&id_documento=42&id_protocolo=43",
+    );
+    assert!(
+        ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{ambiguo}"
+    );
+    assert!(
+        !ambiguo.contains("0011520"),
+        "não entregar documento alternativo"
+    );
 
     let primeiro = pedir(endereco, "GET", "id_documento=42");
     assert!(primeiro.starts_with("HTTP/1.1 200 OK\r\n"), "{primeiro}");
@@ -86,9 +96,15 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
 
     let segundo = pedir(endereco, "GET", "id_documento=43");
     assert!(segundo.starts_with("HTTP/1.1 200 OK\r\n"), "{segundo}");
-    assert!(segundo.contains("0011520"), "outro documento segue acessível");
+    assert!(
+        segundo.contains("0011520"),
+        "outro documento segue acessível"
+    );
 
     let metodo = pedir(endereco, "POST", "id_documento=42");
-    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{metodo}");
+    assert!(
+        metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+        "{metodo}"
+    );
     atendimento.join().unwrap();
 }
