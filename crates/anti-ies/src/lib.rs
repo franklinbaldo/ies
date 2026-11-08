@@ -319,7 +319,13 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
             }
         }
     }
-    if !terminado || tamanho.unwrap_or(0) > 8192 || (metodo == "POST" && tamanho.is_none()) {
+    // O editor transporta HTML até 8 MiB; form-urlencoded pode triplicar
+    // os bytes por escapes %. O limite HTTP deve acomodar essa codificação.
+    const LIMITE_CORPO_FORMULARIO: usize = 24 * 1024 * 1024;
+    if !terminado
+        || tamanho.unwrap_or(0) > LIMITE_CORPO_FORMULARIO
+        || (metodo == "POST" && tamanho.is_none())
+    {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     }
     let mut corpo = vec![0; tamanho.unwrap_or(0)];
