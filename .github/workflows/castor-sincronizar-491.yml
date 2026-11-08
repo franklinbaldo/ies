@@ -28,6 +28,19 @@ jobs:
             echo "::error::Conflitos; nenhuma resolução automática ou push realizado"
             git status --short
             git diff --name-only --diff-filter=U
+            python3 - <<'PY'
+          import subprocess
+          paths = subprocess.check_output(['git', 'diff', '--name-only', '--diff-filter=U'], text=True).splitlines()
+          for p in paths:
+              print('===== CONFLITOS:', p, '=====')
+              lines = open(p).read().splitlines()
+              markers = [i for i, line in enumerate(lines) if line.startswith(('<<<<<<<', '=======', '>>>>>>>'))]
+              idx = set()
+              for i in markers:
+                  idx.update(range(max(0,i-6), min(len(lines),i+7)))
+              for i in sorted(idx):
+                  print(f'{i+1:4d} | {lines[i]}')
+          PY
             exit 1
           fi
           git push origin HEAD:codex/castor-258-relacionar-aies-bdd01
