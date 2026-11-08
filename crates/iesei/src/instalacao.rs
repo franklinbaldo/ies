@@ -194,18 +194,11 @@ mod tests {
         assert!(b.autoriza_controlador("SEI.EXEMPLO", "dois/sei/controlador.php"));
         assert!(!b.autoriza_controlador("outro.exemplo", "dois/sei/controlador.php"));
         assert!(b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador_ajax.php"));
-        assert!(b.autoriza_editor_processar(
-            "sei.exemplo",
-            "dois/sei/editor/editor_processar.php"
-        ));
-        assert!(!b.autoriza_editor_processar(
-            "sei.exemplo",
-            "um/sei/editor/editor_processar.php"
-        ));
-        assert!(!b.autoriza_editor_processar(
-            "outro.exemplo",
-            "dois/sei/editor/editor_processar.php"
-        ));
+        assert!(b.autoriza_editor_processar("sei.exemplo", "dois/sei/editor/editor_processar.php"));
+        assert!(!b.autoriza_editor_processar("sei.exemplo", "um/sei/editor/editor_processar.php"));
+        assert!(
+            !b.autoriza_editor_processar("outro.exemplo", "dois/sei/editor/editor_processar.php")
+        );
         assert!(!b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador.php"));
         assert!(!b.autoriza_controlador("sei.exemplo", "dois/sei/controlador_ajax.php"));
         assert!(a.to_string().contains("4.1.5"));
