@@ -374,12 +374,19 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         destino.to_str().unwrap(),
         "--sem-cache",
     ];
-    // Controle conhecido, pesquisa rápida sem resultado: um GET e um POST
-    // local de leitura. Não há escrita modificadora nem acesso ao SEI.
+    // Controle conhecido, busca sem snapshot de DOC: um GET e um POST
+    // local de leitura. O simulador recusa com 503, sem inventar ausência.
     let saida = executar_com_estado(&pasta, &args, 2, false);
-    assert_ne!(saida.status.code(), Some(0), "documento ausente virou sucesso");
+    assert_ne!(
+        saida.status.code(),
+        Some(0),
+        "documento ausente virou sucesso"
+    );
     let valor = json(&saida);
     assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
-    assert!(valor["documentos"].is_null(), "publicou documento não observado: {valor}");
+    assert!(
+        valor["documentos"].is_null(),
+        "publicou documento não observado: {valor}"
+    );
     assert!(!destino.join("0011519.v1.html").exists());
 }
