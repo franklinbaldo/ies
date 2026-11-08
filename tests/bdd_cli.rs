@@ -26,7 +26,10 @@ fn executar_ajuda(world: &mut CliWorld) {
 }
 
 fn saida(world: &CliWorld) -> &Output {
-    world.saida.as_ref().expect("o comando deve ter sido executado")
+    world
+        .saida
+        .as_ref()
+        .expect("o comando deve ter sido executado")
 }
 
 #[then("o código de saída deve ser 0")]
@@ -37,12 +40,14 @@ fn codigo_zero(world: &mut CliWorld) {
 #[then("a saída deve apresentar o comando processo")]
 fn ajuda_apresenta_processo(world: &mut CliWorld) {
     let stdout = String::from_utf8_lossy(&saida(world).stdout);
-    assert!(stdout.contains("processo"), "ajuda sem comando processo: {stdout}");
+    assert!(
+        stdout.contains("processo"),
+        "ajuda sem comando processo: {stdout}"
+    );
 }
 
 fn main() {
     futures::executor::block_on(
-        CliWorld::cucumber()
-            .run_and_exit("tests/features/cli_ajuda.feature"),
+        CliWorld::cucumber().run_and_exit("tests/features/cli_ajuda.feature"),
     );
 }
