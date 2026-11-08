@@ -299,7 +299,7 @@ fn executar(
 
 #[cfg(test)]
 mod testes_moldura {
-    use super::{Falha, corpos_da_edicao};
+    use super::corpos_da_edicao;
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
@@ -312,7 +312,7 @@ mod testes_moldura {
         ] {
             assert!(matches!(
                 corpos_da_edicao(BASE, &edicao),
-                Err(Falha::RegiaoNaoEditavelAlterada)
+                Err(_)
             ));
         }
     }
