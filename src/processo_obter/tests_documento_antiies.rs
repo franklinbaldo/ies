@@ -1,8 +1,8 @@
 //! #88: o leitor real do IES percorre as paginas sinteticas do mesmo SQLite.
 //! Roteiro de transporte: prova do fluxo Rust, nao de HTTPS ou CLI externa.
 use super::tests_apoio::*;
-use crate::arvore_processo::tests::NUP;
 use super::{PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso};
+use crate::arvore_processo::tests::NUP;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
 use crate::processo_obter::obter_documento_com_versoes;
@@ -169,7 +169,11 @@ fn bdd_88_01_02_leitor_rust_real_percorre_a_pesquisa_do_anti_ies() {
     let primeira = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
     assert!(primeira[0].as_ref().unwrap().gravado);
     let destino = pasta.join("0000101.v1.html");
-    assert!(std::fs::read_to_string(&destino).unwrap().contains("Primeira redação"));
+    assert!(
+        std::fs::read_to_string(&destino)
+            .unwrap()
+            .contains("Primeira redação")
+    );
     let repetida = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
     assert!(!repetida[0].as_ref().unwrap().gravado);
     std::fs::write(&destino, "<html><body>Edicao local</body></html>").unwrap();
