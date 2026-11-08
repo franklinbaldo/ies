@@ -2,6 +2,7 @@
 //! Somente loopback; sem consultas externas ou credenciais verdadeiras.
 use crate::{Estado, Resposta, despachar, eh_controlador_sei, parametro_unico};
 use iesei::documento_versoes::ids_por_numero;
+use iesei::documentos_simulados::ids_por_nup;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
@@ -24,28 +25,32 @@ pub fn responder(
     if metodo != "POST" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let mut numeros = corpo
-        .split('&')
-        .filter_map(|campo| campo.split_once('='))
-        .filter(|(nome, _)| *nome == "txtPesquisaRapida")
-        .map(|(_, valor)| valor);
-    let Some(numero) = numeros.next() else {
+    let Some(numero) = super::documentos::campo_formulario_unico(corpo, "txtPesquisaRapida")
+        .filter(|numero| !numero.is_empty())
+    else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if numeros.next().is_some() || numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit())
-    {
-        return Resposta::nova(Estado::RequisicaoInvalida);
-    }
-    match ids_por_numero(banco, instalacao, cenario, numero) {
-        Ok(ids) => match ids.as_slice() {
-            // A ausência no SQLite parcial não comprova inexistência no SEI.
-            [] => Resposta::nova(Estado::DadosInsuficientes),
-            [id] => Resposta::redirecionar(format!(
-                "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
-                "c".repeat(64)
-            )),
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
-        },
-        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    // A pesquisa rápida da CLI recebe NUP pontuado ou número SEI.
+    // Primeiro os processos registrados; documentos históricos continuam
+    // sendo consultáveis pelo número decimal sem colisão de escopos.
+    let ids = match ids_por_nup(banco, instalacao, cenario, &numero) {
+        Ok(ids) if !ids.is_empty() => ids,
+        Ok(_) if numero.bytes().all(|b| b.is_ascii_digit()) => {
+            match ids_por_numero(banco, instalacao, cenario, &numero) {
+                Ok(ids) => ids,
+                Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+            }
+        }
+        Ok(_) => Vec::new(),
+        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    };
+    match ids.as_slice() {
+        // SQLite parcial não prova a inexistência do NUP/documento.
+        [] => Resposta::nova(Estado::DadosInsuficientes),
+        [id] => Resposta::redirecionar(format!(
+            "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+            "c".repeat(64)
+        )),
+        _ => Resposta::nova(Estado::RequisicaoInvalida),
     }
 }

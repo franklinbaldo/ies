@@ -1,8 +1,9 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
-use iesei::banco_cassettes::iniciar;
+use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle, iniciar};
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
+use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::processos::{Destino, ProcessoSimulado, guardar};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
@@ -22,6 +23,21 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
             let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
                 .ok_or("origem sintética inválida")?;
             let cenario = "bdd-246".to_owned();
+            // Controle R sintético permite pesquisar o NUP antes de criar.
+            guardar_controle(
+                &mut banco,
+                &cenario,
+                &ControleResumido {
+                    instalacao: instalacao.clone(),
+                    unidade: UnidadeExibida::nova("UNIDADE TESTE")
+                        .ok_or("unidade sintética inválida")?,
+                    recebidos: TabelaObservada::nova(Some(0), None, vec![])
+                        .map_err(|_| "controle simulado inválido")?,
+                    gerados: TabelaObservada::nova(Some(0), None, vec![])
+                        .map_err(|_| "controle simulado inválido")?,
+                },
+            )
+            .map_err(|_| "falha ao guardar controle simulado")?;
             registrar_processo(
                 &banco,
                 &instalacao,
