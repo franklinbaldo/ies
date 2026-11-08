@@ -15,3 +15,10 @@ jobs:
       - name: "Read-only network check of documented training hosts"
         shell: bash
         run: bash scripts/diagnostico_sei_treinamento.sh
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: Build current IES release
+        run: cargo +1.99.1 build --release --locked --bin ies
+      - name: Live read-only smoke test of public training SEI
+        shell: bash
+        run: bash scripts/ensaio_live_leitura_treinamento.sh
