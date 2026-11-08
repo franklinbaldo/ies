@@ -194,3 +194,72 @@ fn barra_da_origem_fechada_nao_oferece_novo_envio_ou_anotacao_nao_observada() {
             .is_none()
     );
 }
+
+
+#[test]
+fn leitor_real_da_caixa_reflete_tramitacao_no_controle_r_sintetico() {
+    use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = OrigemSimulada::interpretar("https://simulado.invalid/sei").unwrap();
+    let cenario = "bdd-333-controle-ies";
+    let controle = |unidade: &str| ControleResumido {
+        instalacao: origem.clone(),
+        unidade: UnidadeExibida::nova(unidade).unwrap(),
+        recebidos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+        gerados: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+    };
+    guardar_controle(&mut banco, cenario, &controle("ORIGEM")).unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        cenario,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: None,
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+
+    let consultar = |banco: &Connection| {
+        let resposta = anti_ies::controlar(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_controlar",
+            banco,
+            &origem,
+            cenario,
+        );
+        assert_eq!(resposta.estado, anti_ies::Estado::Ok);
+        crate::caixa::parse_html(&resposta.corpo).unwrap()
+    };
+    let antes = consultar(&banco);
+    assert_eq!(antes.recebidos.processos.len(), 1);
+    assert_eq!(antes.recebidos.processos[0].numero, "00001.000001/2026-01");
+
+    // POST mutador único; o próximo GET tem de refletir o estado persistido.
+    let post = anti_ies::processo_envio::responder(
+        "POST",
+        "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
+        &banco,
+        &origem,
+        cenario,
+    );
+    assert_eq!(post.estado, anti_ies::Estado::Redirecionamento);
+    assert!(consultar(&banco).recebidos.processos.is_empty());
+
+    guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
+    let destino = consultar(&banco);
+    assert_eq!(destino.recebidos.processos.len(), 1);
+    assert_eq!(destino.recebidos.processos[0].numero, "00001.000001/2026-01");
+}
