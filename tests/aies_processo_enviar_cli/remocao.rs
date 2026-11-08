@@ -62,14 +62,13 @@ fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
 fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(
-            &[&confirmacao],
-            false,
-            Some("Nota da origem"),
-            true,
-            EnsaioRemocao::Normal,
-        );
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        false,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::Normal,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -108,14 +107,13 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
 fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(
-            &[&confirmacao],
-            true,
-            Some("Nota da origem"),
-            true,
-            EnsaioRemocao::Normal,
-        );
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        true,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::Normal,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -142,14 +140,13 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
     // tramita no SQLite, mas mantém a anotação: efeitos independentes.
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
-    let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(
-            &[&confirmacao],
-            false,
-            Some("Nota da origem"),
-            true,
-            EnsaioRemocao::IgnorarNoPost,
-        );
+    let (saidas, pedidos, depois) = executar_com_ensaio_local(
+        &[&confirmacao],
+        false,
+        Some("Nota da origem"),
+        true,
+        EnsaioRemocao::IgnorarNoPost,
+    );
     assert_eq!(
         saidas[0].status.code(),
         Some(1),
@@ -295,17 +292,27 @@ fn bdd_333_03_previa_fallback_e_confirmacao_releem_anotacao_no_mesmo_sqlite() {
     assert_eq!(resultado["metodo_remocao"], "limpar_anotacao");
     assert_eq!(resultado["anotacao_antes"], true);
     assert_eq!(resultado["anotacao_depois"], false);
-    assert_eq!(resultado["depois"], serde_json::json!(["ORIGEM", "DESTINO"]));
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"])
+    );
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
 
-    let anotacao_post = pedidos.iter().position(|p| p == "POST anotacao_registrar").unwrap();
-    let envio_post = pedidos.iter().position(|p| p == "POST procedimento_enviar").unwrap();
+    let anotacao_post = pedidos
+        .iter()
+        .position(|p| p == "POST anotacao_registrar")
+        .unwrap();
+    let envio_post = pedidos
+        .iter()
+        .position(|p| p == "POST procedimento_enviar")
+        .unwrap();
     assert!(
         pedidos[..anotacao_post]
             .iter()
             .filter(|p| *p == "GET procedimento_enviar")
-            .count() >= 2,
+            .count()
+            >= 2,
         "a prévia não deve gravar: {pedidos:?}"
     );
     assert!(
@@ -315,11 +322,17 @@ fn bdd_333_03_previa_fallback_e_confirmacao_releem_anotacao_no_mesmo_sqlite() {
         "a limpeza exige releitura antes de tramitar: {pedidos:?}"
     );
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST anotacao_registrar").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST anotacao_registrar")
+            .count(),
         1
     );
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
         1
     );
     assert!(
