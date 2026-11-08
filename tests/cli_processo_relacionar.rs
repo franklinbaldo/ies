@@ -3,6 +3,7 @@
 use std::process::{Command, Output};
 
 const NUP: &str = "00001.000001/2026-01";
+const OUTRO: &str = "00001.000002/2026-01";
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
@@ -30,10 +31,34 @@ fn entrada_vazia_sai_2_antes_da_sessao() {
 }
 #[test]
 fn sem_configuracao_previa_recusa_sem_rede() {
-    let saida = sem_sessao(&["processo", "relacionar", NUP, "--com", NUP, "--json"]);
+    let saida = sem_sessao(&["processo", "relacionar", NUP, "--com", OUTRO, "--json"]);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
 }
+/// BDD-258-05: autorrelacionamento é inválido por identidade, sem sessão
+/// e sem rede; confirmar ou remover não podem adiar essa recusa.
+#[test]
+fn bdd_258_05_autorrelacionamento_recusado_antes_da_sessao() {
+    for remover in [false, true] {
+        for confirmar in [false, true] {
+            let mut args = vec![
+                "processo", "relacionar", NUP, "--com", NUP, "--json",
+            ];
+            if remover {
+                args.push("--remover");
+            }
+            if confirmar {
+                args.push("--confirmar");
+            }
+            let saida = sem_sessao(&args);
+            assert_eq!(saida.status.code(), Some(1), "stderr={:?}", saida.stderr);
+            let valor = json(&saida);
+            assert_eq!(valor["subcodigo"], "relacionamento_consigo_mesmo");
+            assert_eq!(valor["retentavel"], false);
+        }
+    }
+}
+
 #[test]
 fn confirmar_e_remover_confirmar_sem_sessao_recusam_sem_escrita() {
     for remover in [false, true] {
@@ -42,7 +67,7 @@ fn confirmar_e_remover_confirmar_sem_sessao_recusam_sem_escrita() {
             "relacionar",
             NUP,
             "--com",
-            NUP,
+            OUTRO,
             "--confirmar",
             "--json",
         ];
