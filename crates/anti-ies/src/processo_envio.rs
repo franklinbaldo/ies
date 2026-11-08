@@ -176,7 +176,7 @@ pub fn responder(
     }
     if metodo == "GET" {
         return match acao {
-            "procedimento_enviar" => resposta_html(pagina_de_envio(&processo)),
+            "procedimento_enviar" => resposta_html(pagina_de_envio(&processo, &unidade_atual)),
             "anotacao_registrar" => pagina_anotacao(&processo)
                 .map_or_else(|| Resposta::nova(Estado::DadosInsuficientes), resposta_html),
             _ => unreachable!(),
