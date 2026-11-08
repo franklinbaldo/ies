@@ -54,33 +54,30 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     )
     .unwrap()
     .corpo;
-    let envio_publicado = crate::arvore_processo::ler_enviar_da_barra(
-        &instalacao, &arvore_antes, id,
-    )
-    .unwrap()
-    .expect("o anti-IES deve publicar Enviar na barra");
-    assert!(envio_publicado.as_str().contains("acao=procedimento_enviar"));
-    let anotacao_publicada = crate::arvore_processo::ler_link_das_anotacoes(
-        &instalacao, &arvore_antes, id,
-    )
-    .unwrap()
-    .expect("anotação simulada deve oferecer consulta/edição");
+    let envio_publicado =
+        crate::arvore_processo::ler_enviar_da_barra(&instalacao, &arvore_antes, id)
+            .unwrap()
+            .expect("o anti-IES deve publicar Enviar na barra");
+    assert!(
+        envio_publicado
+            .as_str()
+            .contains("acao=procedimento_enviar")
+    );
+    let anotacao_publicada =
+        crate::arvore_processo::ler_link_das_anotacoes(&instalacao, &arvore_antes, id)
+            .unwrap()
+            .expect("anotação simulada deve oferecer consulta/edição");
     assert!(anotacao_publicada.contains("acao=anotacao_registrar"));
     let alvo = format!(
         "/sei/{}",
         envio_publicado.as_str().split_once("/sei/").unwrap().1
     );
-    let caminho_anotacao = format!(
-        "/sei/{}",
-        anotacao_publicada.split_once("/sei/").unwrap().1
-    );
-    let anotacao_antes = anti_ies::processo_envio::responder(
-        "GET", &caminho_anotacao, "", &banco, &origem, cenario,
-    );
+    let caminho_anotacao = format!("/sei/{}", anotacao_publicada.split_once("/sei/").unwrap().1);
+    let anotacao_antes =
+        anti_ies::processo_envio::responder("GET", &caminho_anotacao, "", &banco, &origem, cenario);
     assert!(super::anotacoes::anotacao_presente(&anotacao_antes.corpo, id).unwrap());
-    let formulario = anti_ies::processo_envio::responder(
-        "GET", &alvo, "", &banco, &origem, cenario,
-    );
+    let formulario =
+        anti_ies::processo_envio::responder("GET", &alvo, "", &banco, &origem, cenario);
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
     let tela = conferir_tela_de_envio(&formulario.corpo, id).unwrap();
     assert!(tela.remover_anotacoes_oferecida);
@@ -126,9 +123,8 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let depois = ler(&banco, &origem, cenario, id).unwrap().unwrap();
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
-    let anotacao_depois = anti_ies::processo_envio::responder(
-        "GET", &caminho_anotacao, "", &banco, &origem, cenario,
-    );
+    let anotacao_depois =
+        anti_ies::processo_envio::responder("GET", &caminho_anotacao, "", &banco, &origem, cenario);
     assert!(!super::anotacoes::anotacao_presente(&anotacao_depois.corpo, id).unwrap());
     let html_arvore = anti_ies::processo_envio::navegacao(
         "GET",
