@@ -161,16 +161,29 @@ fn linhas_da_previa(bytes: &[u8], inicio: usize, fim: usize, sinal: char) -> Str
     {
         let texto = std::str::from_utf8(linha).ok().and_then(|texto| {
             let baixo = texto.to_ascii_lowercase();
+            // Atributos comuns (class/style/id) e pontuação do texto
+            // não são credenciais. Omitir referências e campos capazes
+            // de carregar estado/segredos, inclusive URLs relativas.
             let sensivel = texto.len() > 512
-                || (texto.contains('=') || texto.contains('?'))
-                || baixo.contains("://")
                 || [
+                    "://",
                     "infra_hash",
                     "cookie",
                     "senha",
                     "token",
                     "authorization",
                     "session",
+                    "href=",
+                    "src=",
+                    "action=",
+                    "value=",
+                    "data-",
+                    "nonce=",
+                    "password",
+                    "secret",
+                    "csrf",
+                    "onload=",
+                    "onclick=",
                 ]
                 .iter()
                 .any(|s| baixo.contains(*s));
