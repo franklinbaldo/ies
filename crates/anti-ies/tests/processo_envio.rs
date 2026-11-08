@@ -325,3 +325,44 @@ fn origem_mantida_aberta_pode_limpar_anotacao_apos_envio() {
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
 }
+
+
+#[test]
+fn estado_sqlite_recusa_limpar_anotacao_depois_de_fechar_origem() {
+    // BDD-333-04: a observacao posterior ao envio nao e autorizacao
+    // para gravar novamente na unidade de origem fechada.
+    let banco = preparar();
+    let envio = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(envio.estado, Estado::Redirecionamento);
+    let antes = ler(&banco, &origem(), "cenario-a", "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(antes.aberto_em, ["DESTINO"]);
+    assert_eq!(antes.anotacao_origem.as_deref(), Some("Anotação temporária"));
+
+    // Mesmo o metodo de dominio precisa preservar a transicao, nao
+    // apenas o handler HTTP que ja impede este POST.
+    let resultado = iesei::processos::limpar_anotacao(
+        &banco,
+        &origem(),
+        "cenario-a",
+        "10",
+    );
+    assert!(matches!(
+        resultado,
+        Err(iesei::processos::Falha::OrigemNaoAberta)
+    ));
+    assert_eq!(
+        ler(&banco, &origem(), "cenario-a", "10")
+            .unwrap()
+            .unwrap(),
+        antes
+    );
+}
