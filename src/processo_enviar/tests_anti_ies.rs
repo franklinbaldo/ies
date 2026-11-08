@@ -443,7 +443,10 @@ fn leitor_ies_rele_unidade_da_tela_pesquisada_apos_envio() {
     );
     assert_eq!(envio.estado, anti_ies::Estado::Redirecionamento);
     assert_eq!(
-        ler(&banco, &origem, cenario, "10").unwrap().unwrap().aberto_em,
+        ler(&banco, &origem, cenario, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
         ["ORIGEM", "DESTINO"]
     );
     guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
