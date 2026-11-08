@@ -258,20 +258,18 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(
-            documentos(&banco, &origem, "bdd-246", "10")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            documentos(&banco, &origem, "bdd-246", "10").unwrap(),
+            Vec::<Documento>::new()
         );
         let criado = criar(&banco, &origem, "bdd-246", "10", "291", "Teste").unwrap();
         assert_eq!(
             documentos(&banco, &origem, "bdd-246", "10").unwrap(),
             vec![criado]
         );
-        assert!(
-            documentos(&banco, &origem, "outro", "10")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            documentos(&banco, &origem, "outro", "10").unwrap(),
+            Vec::<Documento>::new()
         );
         assert!(
             ler_processo(&banco, &origem, "outro", "10")
