@@ -322,3 +322,53 @@ fn editor_preserva_secao_inalterada_em_documento_multissecao() {
     assert_eq!(pagina.estado, Estado::Ok);
     assert!(pagina.corpo.contains(editado));
 }
+
+
+#[test]
+fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
+    // Fonte estrutural: docs/como-o-sei-funciona/editor-do-documento.md
+    // (Todos tests/paginas_reais/editor_montar.html, UnB 4.0.9).
+    // Não é replay do membro JSON da cassette.
+    let banco = preparar(0);
+    let montagem = responder(
+        "GET",
+        "/sei/controlador.php?acao=editor_montar&id_documento=42",
+        "",
+        &banco,
+        &origem(),
+        "ensaio",
+    );
+    assert_eq!(montagem.estado, Estado::Ok);
+    assert!(montagem.corpo.contains("id='frmEditor'"));
+    assert!(montagem.corpo.contains("target='ifrEditorSalvar'"));
+    assert!(montagem.corpo.contains("acao=editor_salvar"));
+    assert!(montagem.corpo.contains("name='txaEditor_1'"));
+    assert!(montagem.corpo.contains("name='hdnVersao' value='2'"));
+    assert!(montagem.corpo.contains("name='hdnIgnorarNovaVersao' value='N'"));
+    let rota = "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42";
+    let edicao = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=%3Cp%3Edepois%3C%2Fp%3E";
+    let publicada = responder("POST", rota, edicao, &banco, &origem(), "ensaio");
+    assert_eq!(publicada.estado, Estado::Ok);
+    assert_eq!(publicada.corpo, "OK 3");
+    let documento = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+    assert_eq!(documento.revisoes.len(), 2);
+    assert_eq!(documento.revisoes[0].html_corpo, "<p>antes</p>");
+    assert_eq!(documento.revisoes[1].html_corpo, "<p>depois</p>");
+    // Repetir POST de versão ultrapassada não volta a publicar.
+    assert_eq!(
+        responder("POST", rota, edicao, &banco, &origem(), "ensaio").estado,
+        Estado::RequisicaoInvalida
+    );
+    assert_eq!(
+        responder(
+            "POST",
+            rota,
+            "hdnVersao=3&hdnIgnorarNovaVersao=S&txaEditor_1=alterado",
+            &banco,
+            &origem(),
+            "ensaio"
+        )
+        .estado,
+        Estado::RequisicaoInvalida
+    );
+}
