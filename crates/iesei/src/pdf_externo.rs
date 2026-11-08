@@ -43,6 +43,7 @@ pub enum Falha {
     Sqlite(rusqlite::Error),
     EntradaInvalida,
     ProcessoAusente,
+    ProcessoNaoAbertoNaUnidade,
     TipoAusente,
     UploadAusente,
     LimiteExcedido,
@@ -91,6 +92,7 @@ pub fn semear(
         documentos::Falha::Sqlite(e) => Falha::Sqlite(e),
         documentos::Falha::EntradaInvalida => Falha::EntradaInvalida,
         documentos::Falha::ProcessoIndisponivel => Falha::ProcessoAusente,
+        documentos::Falha::ProcessoNaoAbertoNaUnidade => Falha::ProcessoNaoAbertoNaUnidade,
         documentos::Falha::TipoIndisponivel => Falha::TipoAusente,
     })?;
     banco.execute(

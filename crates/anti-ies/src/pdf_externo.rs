@@ -18,7 +18,8 @@ fn falha(causa: &Falha) -> Resposta {
     match causa {
         Falha::Sqlite(_) => erro(Estado::DadosInsuficientes),
         Falha::ProcessoAusente => erro(Estado::NaoEncontrado),
-        Falha::TipoAusente
+        Falha::ProcessoNaoAbertoNaUnidade
+        | Falha::TipoAusente
         | Falha::UploadAusente
         | Falha::LimiteExcedido
         | Falha::EntradaInvalida => erro(Estado::RequisicaoInvalida),

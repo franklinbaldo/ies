@@ -43,7 +43,7 @@ pub(crate) fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> 
 fn erros_de_modelo(falha: &Falha) -> Resposta {
     match falha {
         Falha::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
-        Falha::TipoIndisponivel | Falha::EntradaInvalida => {
+        Falha::TipoIndisponivel | Falha::EntradaInvalida | Falha::ProcessoNaoAbertoNaUnidade => {
             Resposta::nova(Estado::RequisicaoInvalida)
         }
         Falha::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
@@ -178,9 +178,9 @@ fn pagina_da_lista(
     id: &str,
     mostrar_todos: bool,
 ) -> Resposta {
-    let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
-        return Resposta::nova(Estado::NaoEncontrado);
-    };
+    if let Err(falha) = modelo::conferir_abertura(banco, origem, cenario, id) {
+        return erros_de_modelo(&falha);
+    }
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
@@ -233,9 +233,9 @@ fn cadastro(
     id: &str,
     id_serie: &str,
 ) -> Resposta {
-    let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
-        return Resposta::nova(Estado::NaoEncontrado);
-    };
+    if let Err(falha) = modelo::conferir_abertura(banco, origem, cenario, id) {
+        return erros_de_modelo(&falha);
+    }
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
