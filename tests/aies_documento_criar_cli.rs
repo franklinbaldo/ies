@@ -280,18 +280,34 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
             let (bytes, primeira) = pedido(&mut canal);
             let metodo = primeira.split_whitespace().next().unwrap();
             let rota = primeira.split_whitespace().nth(1).unwrap();
+            // Nunca registrar a URL: ela pode incluir credenciais de sessão.
             let acao = rota
-                .split('&')
-                .find_map(|p| p.strip_prefix("acao="))
-                .or_else(|| rota.split('?').nth(1).and_then(|p| p.strip_prefix("acao=")))
+                .split_once('?')
+                .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")))
                 .unwrap_or("desconhecida");
-            registro.lock().unwrap().push(format!("{metodo} {acao}"));
             let mut backend = TcpStream::connect(destino).unwrap();
             backend.write_all(&bytes).unwrap();
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            if resposta_incerta && metodo == "POST" && acao == "documento_gerar" {
+            let status = resposta
+                .split(|b| *b == b'\r')
+                .next()
+                .and_then(|linha| std::str::from_utf8(linha).ok())
+                .and_then(|linha| linha.split_whitespace().nth(1))
+                .unwrap_or("?");
+            // Só nomes dos campos do POST criador, jamais valores.
+            let nomes = if metodo == "POST" && acao == "documento_gerar" {
+                let inicio = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+                std::str::from_utf8(&bytes[inicio..]).unwrap_or("")
+                    .split('&')
+                    .filter_map(|campo| campo.split_once('=').map(|(nome, _)| nome))
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            registro.lock().unwrap().push(format!("{metodo} {acao}: {status} {nomes:?}"));
+            if resposta_incerta && metodo == "POST" && acao == "documento_gerar" && status == "302" {
                 resposta = resposta_sem_prova_de_autoria(resposta);
             }
             canal.write_all(&resposta).unwrap();
@@ -375,7 +391,7 @@ fn bdd_246_01_cli_previa_sem_post_criador() {
     assert_eq!(
         trilha
             .iter()
-            .filter(|p| *p == "POST documento_gerar")
+            .filter(|p| p.starts_with("POST documento_gerar:"))
             .count(),
         0
     );
@@ -388,7 +404,8 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
-        "{}; {trilha:?}",
+        "stdout={} stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let resultado = json(&saidas[0]);
@@ -398,15 +415,15 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     assert_eq!(
         trilha
             .iter()
-            .filter(|p| *p == "POST documento_gerar")
+            .filter(|p| p.starts_with("POST documento_gerar:"))
             .count(),
         1
     );
     assert!(
         trilha
             .iter()
-            .rposition(|p| p == "GET procedimento_visualizar")
-            > trilha.iter().position(|p| p == "POST documento_gerar"),
+            .rposition(|p| p.starts_with("GET procedimento_visualizar:"))
+            > trilha.iter().position(|p| p.starts_with("POST documento_gerar:")),
         "releitura deve acontecer depois do único POST: {trilha:?}"
     );
 }
@@ -418,7 +435,8 @@ fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
-        "{}; {trilha:?}",
+        "stdout={} stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let resultado = json(&saidas[0]);
@@ -428,7 +446,7 @@ fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     assert_eq!(
         trilha
             .iter()
-            .filter(|p| *p == "POST documento_gerar")
+            .filter(|p| p.starts_with("POST documento_gerar:"))
             .count(),
         1
     );
