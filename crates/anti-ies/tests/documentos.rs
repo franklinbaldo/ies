@@ -54,9 +54,10 @@ fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
     let escolhido = consultar(endereco, "POST", selecao, "hdnIdSerie=291");
     assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
-    assert!(escolhido.contains(
-        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
-    ));
+    assert!(escolhido.contains(&format!(
+        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291&infra_hash={}\r\n",
+        "e".repeat(64)
+    )));
     let ausente = consultar(endereco, "POST", selecao, "hdnIdSerie=999");
     assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
     let repetido = consultar(endereco, "POST", selecao, "hdnIdSerie=291&hdnIdSerie=291");
