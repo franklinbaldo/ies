@@ -368,7 +368,6 @@ fn leitor_ies_descobre_nova_tramitacao_depois_de_trocar_a_unidade_ativa() {
     );
 }
 
-
 /// BDD-333-01/02: a tela servida ao navegar por id_protocolo precisa ser
 /// interpretável pelo leitor de produção do IES, inclusive após o envio.
 #[test]
