@@ -1,8 +1,8 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
-    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar, documento_versoes, documentos,
-    editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
-    processo_envio, retorno_programado,
+    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
+    documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
+    pdf_externo, pesquisa_documento, processo_envio, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
