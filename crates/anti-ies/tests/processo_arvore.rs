@@ -292,7 +292,7 @@ fn selecao_documental_repetida_na_arvore_de_tramitacao_recusa_sem_apagar_estado(
         "",
     );
     assert!(
-        trabalhar.starts_with("HTTP/1.1 400 Bad Request\\r\\n"),
+        trabalhar.starts_with("HTTP/1.1 400 Bad Request\r\n"),
         "{trabalhar}"
     );
 
