@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   somente-leitura:
-    if: github.event.head_commit.message == '🦊 test: prévia única PEN1 #246'
+    if: "github.event.head_commit.message == '🦊 test: prévia única PEN1 #246'"
     runs-on: ubuntu-22.04
     timeout-minutes: 35
     steps:
