@@ -40,6 +40,16 @@ fn conferir_arvore(endereco: std::net::SocketAddr, documento_novo: bool) {
     assert_eq!(resposta.contains("Despacho 1000002"), documento_novo);
 }
 
+fn conferir_cadastro(endereco: std::net::SocketAddr, cadastro: &str) {
+    let form = consultar(endereco, "GET", cadastro, "");
+    assert!(form.starts_with("HTTP/1.1 200 OK"));
+    assert!(form.contains("frmDocumentoCadastro"));
+    // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
+    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='1'"));
+    assert!(form.contains("id='btnSalvar' name='btnSalvar'"));
+    assert!(form.contains("onclick='confirmarDados()'"));
+}
+
 fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
     let escolhido = consultar(endereco, "POST", selecao, "hdnIdSerie=291");
@@ -113,13 +123,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(lista.contains("onclick='escolher(291)'"));
     verificar_navegacao_da_serie(endereco, &selecao);
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
-    let form = consultar(endereco, "GET", &cadastro, "");
-    assert!(form.starts_with("HTTP/1.1 200 OK"));
-    assert!(form.contains("frmDocumentoCadastro"));
-    // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
-    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='1'"));
-    assert!(form.contains("id='btnSalvar' name='btnSalvar'"));
-    assert!(form.contains("onclick='confirmarDados()'"));
+    conferir_cadastro(endereco, &cadastro);
     let invalido = consultar(
         endereco,
         "POST",
