@@ -1,6 +1,6 @@
 //! Fronteira tipada IES ↔ anti-IES: a lista vem de uma resposta HTTP real.
 //! Teste técnico da seleção BDD-246-01/03, não um teste da CLI completa.
-use super::{ErroCriar, conferir_tipo, tipos_oferecidos};
+use super::{ErroCriar, EscolhaDoDocumento, conferir_tipo, escolha_do_tipo, tipos_oferecidos};
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
@@ -55,6 +55,12 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     let (_, html) = resposta.split_once("\r\n\r\n").unwrap();
     let tipos = tipos_oferecidos(html).unwrap();
     assert_eq!(tipos, ["Despacho"]);
+    let instalacao = crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei")
+        .unwrap();
+    assert_eq!(
+        escolha_do_tipo(&instalacao, html, "10", "Despacho"),
+        Ok(EscolhaDoDocumento::Formulario("291".into())),
+    );
     assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
     assert_eq!(
         conferir_tipo("Parecer", &tipos),
