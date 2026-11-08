@@ -33,6 +33,71 @@ O teste de parser isolado não comprova o passo 4: documentar `PARCIAL`,
 não `E2E PASS`. Um caso completo por operação vale mais do que
 centenas de fixtures geradas pelo próprio servidor.
 
+## Desenvolvimento duplo e três provas independentes
+
+**Regra para cada BDD de comportamento SEI da CLI:** IES e anti-IES
+evoluem na **mesma fatia/PR**. O IES executa o comando real; o anti-IES
+oferece o comportamento correspondente com estado SQLite efêmero e tipos
+`iesei`. A mesma operação deve alterar/consultar a mesma identidade e
+produzir efeitos coerentes em comandos posteriores. Reaproveitar partes
+já adequadas, sem copiar implementação, duplicar modelos ou mudar arquivos
+sem necessidade. Correções puramente locais podem reutilizar o simulador
+existente, mas devem exercitar a compatibilidade que afetarem.
+
+Cada capacidade mantém **três resultados distintos**, sempre associados
+ao BDD da CLI, ao SHA e à evidência efetivamente executada:
+
+1. **IES ↔ anti-IES — compatibilidade sintética.** Executar a **CLI
+   real** contra o servidor anti-IES (HTTP/TLS em loopback), com o mesmo
+   SQLite compartilhado durante a sequência. Verificar saída, arquivos,
+   estados antes/depois, recusas e causalidade por expectativa independente
+   do renderizador: prévia sem mutação, uma confirmação quando aplicável,
+   releitura independente e nenhum retry. Testar também uma operação
+   seguinte que dependa do estado alterado. Parser isolado não é PASS aqui.
+2. **IES e anti-IES ↔ cassettes — duas confrontações independentes.**
+   Verificar integridade e proveniência da cassette; rodar **o leitor
+   real do IES** nas respostas originais e confrontar **o anti-IES**
+   com o mesmo cenário observado. A saída simulada deve corresponder aos
+   estados, operações oferecidas, status, campos, recusas e efeitos
+   registrados, não apenas satisfazer o próprio parser do IES.
+   Comparar sem exigir igualdade byte a byte de tokens, hashes de sessão,
+   identificadores transitórios ou HTML irrelevante. Para escritas,
+   confrontar também a resposta e a transição de estado/releitura.
+   Uma cassette de uma instalação não valida todas as versões do SEI.
+3. **IES e anti-IES ↔ SEI de treinamento — validação externa.**
+   Executar o mesmo BDD **somente em instalação autorizada**, com
+   versão/unidade identificadas; comparar o resultado real com o
+   contrato e com a hipótese do anti-IES. Leitura/GET pode ter efeito.
+   Escrita exige prévia → `--confirmar` uma vez → releitura
+   independente, com orçamento e resíduo; nunca produção, credenciais
+   em log ou repetição de efeito incerto. Divergência real gera correção
+   da fatia IES/anti-IES e regressão de cassette quando aplicável.
+
+**A concordância entre os dois programas não prova os níveis 2 ou 3.**
+Também não basta IES ler uma cassette: a simulação deve ser confrontada
+**separadamente** com a fonte. Não atribuir um PASS antigo à implementação
+nova sem cobrir seu comportamento e SHA/versão correspondentes.
+
+**Cadência:** começar imediatamente pelo nível 1, sem cassette, REA ou
+acesso externo. Criar fixture mínima e teste que gere evidência. Havendo
+cassette aplicável, confrontá-la na própria fatia e corrigir divergência
+observada; se ausente/inacessível, nível 2 fica `NOT_RUN` com motivo,
+**sem impedir código, PR ou integração de fatia sintética verde**.
+O nível 3 acontece quando houver ambiente autorizado e acessível;
+`NOT_RUN` não é fracasso sintético, nem PASS real. Não criar novo gate,
+pipeline ou modo CLI só para mostrar esses estados.
+
+**Registro mínimo na PR/issue**, sem relatório cerimonial: `BDD` +
+`IES↔anti-IES: PASS/FAIL/NOT_RUN (teste/CI)` +
+`ambos↔cassette: PASS/FAIL/NOT_RUN (card/hash/replay)` +
+`treinamento: PASS/FAIL/NOT_RUN (instalação/relatório)`.
+`PASS` exige execução real daquela comparação, `FAIL` exige
+contraexemplo verificável; `NOT_RUN` diz por quê. **Integrar fatia
+sintética verde** respeitando os gates oficiais; não declarar
+compatibilidade externa concluída antes dos níveis 2 e 3.
+A próxima rodada corrige o primeiro contraexemplo, não reinicia a
+capacidade nem aguarda uma prova inexistente.
+
 ## Esquema (shape) declarado e versionado
 
 Novas cassettes podem exigir entidades, tabelas, colunas, chaves,
