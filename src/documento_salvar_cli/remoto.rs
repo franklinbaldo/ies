@@ -96,6 +96,35 @@ enum Resultado {
     Confirmado(u32),
 }
 
+/// A confirmação requer uma releitura independente da nova versão,
+/// além da resposta ao único POST. Sem essa prova, o efeito é incerto.
+fn verificar_publicacao(
+    envio: &mut EnvioHttps,
+    origem: &str,
+    cookie: &str,
+    id_documento: &str,
+    numero: &NumeroDocumento,
+    versao_nova: u32,
+    editada: &str,
+    respondeu: bool,
+) -> Resultado {
+    let url = format!(
+        "{origem}/controlador.php?acao=documento_visualizar&id_documento={id_documento}&versao={versao_nova}"
+    );
+    let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
+        return Resultado::Incerto;
+    };
+    let versao_igual = crate::rodape_do_documento::versao_do_rodape(&html)
+        .is_some_and(|v| v.numero() == versao_nova);
+    let identidade_igual = crate::documento_web::identidade_do_titulo(&html)
+        .is_ok_and(|i| i.numero == numero.as_str());
+    if respondeu && versao_igual && identidade_igual && corpo_sintetico(&html) == Some(editada) {
+        Resultado::Confirmado(versao_nova)
+    } else {
+        Resultado::Incerto
+    }
+}
+
 fn executar(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
@@ -191,34 +220,24 @@ fn executar(
     };
     // Daqui em diante até uma falha de conexão pode ter produzido efeito.
     let post = enviar_submissao_via(envio_unico, sessao.cookie, |s, c| envio.post(s, c));
-    let versao_nova = previa.versao_editada;
-    let url_verificacao = format!(
-        "{}/controlador.php?acao=documento_visualizar&id_documento={}&versao={versao_nova}",
-        sessao.origem, lido.id_documento
-    );
-    let releitura = envio
-        .get(&url_verificacao, cookie)
-        .and_then(decodificar_resposta);
-    let Ok(html) = releitura else {
-        return Resultado::Incerto;
-    };
     let respondeu = matches!(
         post,
         Ok(RespostaDoEnvio::Redirecionamento(ref r))
             if r.localizacao().is_some_and(|destino|
                 destino.contains("acao=documento_visualizar")
                 && destino.contains(&format!("id_documento={}", lido.id_documento))
-                && destino.contains(&format!("versao={versao_nova}")))
+                && destino.contains(&format!("versao={}", previa.versao_editada)))
     );
-    let versao_igual = crate::rodape_do_documento::versao_do_rodape(&html)
-        .is_some_and(|v| v.numero() == versao_nova);
-    let identidade_igual = crate::documento_web::identidade_do_titulo(&html)
-        .is_ok_and(|i| i.numero == numero.as_str());
-    if respondeu && versao_igual && identidade_igual && corpo_sintetico(&html) == Some(editada) {
-        Resultado::Confirmado(versao_nova)
-    } else {
-        Resultado::Incerto
-    }
+    verificar_publicacao(
+        &mut envio,
+        sessao.origem,
+        cookie,
+        &lido.id_documento,
+        numero,
+        previa.versao_editada,
+        editada,
+        respondeu,
+    )
 }
 
 pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia) -> ExitCode {

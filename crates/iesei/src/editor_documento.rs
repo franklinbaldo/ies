@@ -128,7 +128,6 @@ pub fn publicar(
 ) -> Result<Publicacao, Falha> {
     if edicao.html_editado.trim().is_empty()
         || edicao.html_editado == edicao.html_base
-        || edicao.html_editado.contains("infra_hash")
     {
         return Err(Falha::DadoInvalido);
     }

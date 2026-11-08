@@ -223,3 +223,15 @@ fn bdd_89_02_editor_http_grava_html_maior_que_oito_kib_e_rele() {
     assert_eq!(documento.revisoes[0].html_corpo, "<p>antes</p>");
     assert_eq!(documento.revisoes[1].html_corpo, edicao);
 }
+
+/// Conteúdo literal pode mencionar o nome de um parâmetro sem ser credencial.
+#[test]
+fn corpo_legitimo_com_nome_de_parametro_e_editavel() {
+    let banco = preparar(0);
+    let form = "versao_base=2&html_base=%3Cp%3Eantes%3C%2Fp%3E&html_editado=%3Cp%3Einfra_hash%3C%2Fp%3E&confirmar_assinaturas=0";
+    let resposta = responder("POST", alvo(), form, &banco, &origem(), "ensaio");
+    assert_eq!(resposta.estado, Estado::Redirecionamento);
+    let documento = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+    assert_eq!(documento.revisoes.len(), 2);
+    assert_eq!(documento.revisoes[1].html_corpo, "<p>infra_hash</p>");
+}
