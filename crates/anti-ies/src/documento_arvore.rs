@@ -13,8 +13,8 @@ fn html(corpo: String) -> Resposta {
 }
 
 fn js(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('"', "\\\"")
+    s.replace('\\', "\\")
+        .replace('"', "\"")
         .replace('\'', "\\'")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
@@ -33,7 +33,7 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
         Situacao::Disponivel => (
             "documento_interno",
             "Documento interno".to_owned(),
-            format!("<a href=\\\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}\\\">Cancelar Documento</a>", "a".repeat(64)),
+            format!("<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>", "a".repeat(64)),
         ),
         Situacao::Cancelado { motivo } => (
             "documento_cancelado",
