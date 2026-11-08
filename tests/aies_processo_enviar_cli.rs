@@ -217,6 +217,15 @@ fn executar(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
+    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false)
+}
+
+fn executar_com_ensaio_local(
+    comandos: &[&[&str]],
+    falhar_releitura: bool,
+    anotacao: Option<&'static str>,
+    ensaio_local: bool,
+) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -286,8 +295,13 @@ fn executar(
     let saidas = comandos
         .iter()
         .map(|args| {
-            Command::new(env!("CARGO_BIN_EXE_ies"))
-                .args(*args)
+            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+            if ensaio_local {
+                comando.env("IES_ANTI_IES_TESTE", "1");
+            } else {
+                comando.env_remove("IES_ANTI_IES_TESTE");
+            }
+            comando.args(*args)
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
                 .env("IES_ORIGEM_FILE", &origem)
