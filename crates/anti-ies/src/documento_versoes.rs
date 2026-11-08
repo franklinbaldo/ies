@@ -1,5 +1,6 @@
 //! Histórico e visualização de versões gerados pelo mesmo estado SQLite.
 use crate::{Estado, Resposta, despachar};
+use iesei::acesso_versao::{self, AcessoVersao};
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, ler};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -61,7 +62,7 @@ fn historico(documento: &DocumentoSimulado) -> String {
 
 fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao) -> String {
     format!(
-        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body>{}<div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
+        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body><main id='corpoEditavel'>{}</main><div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
         escapar(&documento.numero),
         escapar(&documento.tipo),
         revisao.html_corpo,
@@ -134,5 +135,10 @@ pub fn responder(
     let Some(revisao) = documento.revisoes.iter().find(|r| r.versao.get() == versao) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
+    match acesso_versao::consultar(banco, instalacao, cenario, id, revisao.versao) {
+        Ok(AcessoVersao::Recusado) => return Resposta::nova(Estado::AcessoNegado),
+        Ok(AcessoVersao::Acessivel) => {}
+        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    }
     resposta_html(visualizar(&documento, revisao))
 }

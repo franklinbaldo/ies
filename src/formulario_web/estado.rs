@@ -27,6 +27,8 @@ pub(crate) enum EstadoDoProcesso {
     AssinaturaDoDocumento,
     /// Inclusão de documento interno, provada por releitura da árvore.
     DocumentoCriadoNoProcesso,
+    /// O conteúdo de um documento foi editado e publicado em nova versão.
+    DocumentoEditado,
     /// Cancelar documento altera o estado permanentemente.
     CancelamentoDoDocumento,
     /// As unidades com o processo aberto (enviar abre no destino e, sem

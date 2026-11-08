@@ -1,9 +1,10 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_versoes, documentos,
-    eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento, processo_envio,
-    retorno_programado,
+    editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
+    processo_envio, retorno_programado,
 };
+use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
@@ -56,6 +57,14 @@ pub(crate) fn responder(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
+    // A recusa de sessão sintética vale inclusive antes de um upload.
+    if eh_controlador_sei(alvo) {
+        match acesso_sessao::consultar(banco, instalacao, cenario) {
+            Ok(AcessoSessao::Recusado) => return Resposta::nova(crate::Estado::AcessoNegado),
+            Ok(AcessoSessao::Permitido) => {}
+            Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
+        }
+    }
     if matches!(
         parametro_unico(alvo, "acao"),
         Some("documento_receber" | "documento_upload_anexo")
@@ -137,6 +146,12 @@ pub(crate) fn responder(
                     }
                 },
             )
+        }
+        Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
+            editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("editor_salvar") => {
+            editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("documento_versao_listar" | "documento_visualizar") if eh_controlador_sei(alvo) => {
             documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)

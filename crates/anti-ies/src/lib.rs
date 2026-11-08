@@ -5,6 +5,7 @@ mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
@@ -25,6 +26,7 @@ pub enum Estado {
     Redirecionamento,
     RequisicaoInvalida,
     MetodoNaoPermitido,
+    AcessoNegado,
     NaoEncontrado,
     NaoImplementado,
     DadosInsuficientes,
@@ -38,6 +40,7 @@ impl Estado {
             Self::Redirecionamento => 302,
             Self::RequisicaoInvalida => 400,
             Self::MetodoNaoPermitido => 405,
+            Self::AcessoNegado => 403,
             Self::NaoEncontrado => 404,
             Self::NaoImplementado => 501,
             Self::DadosInsuficientes => 503,
@@ -51,6 +54,7 @@ impl Estado {
             Self::Redirecionamento => "Found",
             Self::RequisicaoInvalida => "Bad Request",
             Self::MetodoNaoPermitido => "Method Not Allowed",
+            Self::AcessoNegado => "Forbidden",
             Self::NaoEncontrado => "Not Found",
             Self::NaoImplementado => "Not Implemented",
             Self::DadosInsuficientes => "Service Unavailable",
@@ -75,6 +79,7 @@ impl Resposta {
             Estado::Redirecionamento => "",
             Estado::RequisicaoInvalida => r#"{"erro":"requisicao_invalida"}"#,
             Estado::MetodoNaoPermitido => r#"{"erro":"metodo_nao_permitido"}"#,
+            Estado::AcessoNegado => r#"{"erro":"acesso_recusado"}"#,
             Estado::NaoEncontrado => r#"{"erro":"rota_nao_encontrada"}"#,
             Estado::NaoImplementado => r#"{"erro":"operacao_sei_nao_implementada"}"#,
             Estado::DadosInsuficientes => r#"{"erro":"observacao_insuficiente"}"#,
@@ -325,10 +330,10 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
             }
         }
     }
-    let limite = if parametro_unico(&alvo, "acao") == Some("documento_upload_anexo") {
-        256 * 1024 * 1024
-    } else {
-        8192
+    let limite = match parametro_unico(&alvo, "acao") {
+        Some("documento_upload_anexo") => 256 * 1024 * 1024,
+        Some("documento_editar" | "editor_salvar") => 24 * 1024 * 1024,
+        _ => 8192,
     };
     if !terminado || tamanho.unwrap_or(0) > limite || (metodo == "POST" && tamanho.is_none()) {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
