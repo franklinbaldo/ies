@@ -195,10 +195,7 @@ fn omitir_checkbox_do_envio(pedido: Vec<u8>) -> Vec<u8> {
 }
 
 /// Executa o único desvio sintético controlado antes de entregar ao anti-IES.
-fn pedido_com_ensaio(
-    canal: &mut impl Read,
-    ensaio: EnsaioRemocao,
-) -> (Vec<u8>, String, String) {
+fn pedido_com_ensaio(canal: &mut impl Read, ensaio: EnsaioRemocao) -> (Vec<u8>, String, String) {
     let (bytes, metodo, acao) = pedido(canal);
     if ensaio == EnsaioRemocao::IgnorarNoPost && metodo == "POST" && acao == "procedimento_enviar" {
         return (omitir_checkbox_do_envio(bytes), metodo, acao);
@@ -324,7 +321,13 @@ fn executar(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
-    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false, EnsaioRemocao::Normal)
+    executar_com_ensaio_local(
+        comandos,
+        falhar_releitura,
+        anotacao,
+        false,
+        EnsaioRemocao::Normal,
+    )
 }
 
 fn executar_com_ensaio_local(
