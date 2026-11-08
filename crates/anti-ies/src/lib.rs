@@ -13,7 +13,7 @@ pub mod processo_envio;
 mod rotas;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
-use iesei::retornos_cassettes::{Mes, Situacao, ler as ler_retornos};
+use iesei::retornos_cassettes::{Mes, PeriodoMensal, Situacao, ler as ler_retornos};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -193,6 +193,55 @@ fn html_de_retornos(mes: &Mes) -> String {
     html
 }
 
+/// O menu e o calendário são projeções do banco efêmero, jamais páginas congeladas.
+/// A assinatura literal é exclusiva do simulador: nenhuma sessão do SEI é armazenada.
+fn link_calendario() -> String {
+    format!(
+        "controlador.php?acao=retorno_programado_listar&amp;infra_hash={}",
+        "b".repeat(64)
+    )
+}
+
+fn menu_com_retornos(
+    html: String,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> String {
+    // O Controle válido continua legível mesmo se um mês sintético
+    // desconhecido (ex.: "01"/"31") não oferecer calendário navegável.
+    let Ok(observados) = iesei::retornos_cassettes::periodos(banco, instalacao, cenario) else {
+        return html;
+    };
+    if observados.is_empty() {
+        return html;
+    }
+    let link = format!("<a href='{}'>Retorno Programado</a>", link_calendario());
+    html.replacen("</body>", &format!("{link}</body>"), 1)
+}
+
+fn calendario_html(atual: &PeriodoMensal, observados: &[PeriodoMensal]) -> String {
+    let base = link_calendario();
+    let mut html = format!(
+        "<html><body><a href='{base}&amp;data_inicial={}&amp;data_final={}'>Ver todo o mes</a>",
+        atual.data_inicial, atual.data_final
+    );
+    let posicao = i32::from(atual.ano) * 12 + i32::from(atual.mes);
+    for periodo in observados {
+        let outra = i32::from(periodo.ano) * 12 + i32::from(periodo.mes);
+        if (outra - posicao).abs() == 1 {
+            write!(
+                html,
+                "<a href='{base}&amp;data_atual={}'>Mes vizinho</a>",
+                periodo.data_inicial
+            )
+            .expect("String");
+        }
+    }
+    html.push_str("</body></html>");
+    html
+}
+
 /// Valor único de parâmetro observado na URL; repetição não seleciona mês.
 pub(crate) fn parametro_unico<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
@@ -224,16 +273,35 @@ pub fn retorno_programado(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let (Some(inicio), Some(fim)) = (
+    match (
         parametro_unico(alvo, "data_inicial"),
         parametro_unico(alvo, "data_final"),
-    ) else {
-        return Resposta::nova(Estado::RequisicaoInvalida);
-    };
-    let Ok(Some(mes)) = ler_retornos(banco, instalacao, cenario, inicio, fim) else {
-        return Resposta::nova(Estado::DadosInsuficientes);
-    };
-    Resposta::html(html_de_retornos(&mes))
+    ) {
+        (Some(inicio), Some(fim)) => {
+            let Ok(Some(mes)) = ler_retornos(banco, instalacao, cenario, inicio, fim) else {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            };
+            Resposta::html(html_de_retornos(&mes))
+        }
+        (None, None) => {
+            let Ok(observados) = iesei::retornos_cassettes::periodos(banco, instalacao, cenario)
+            else {
+                return Resposta::nova(Estado::DadosInsuficientes);
+            };
+            let atual = if let Some(data) = parametro_unico(alvo, "data_atual") {
+                observados
+                    .iter()
+                    .find(|periodo| periodo.data_inicial == data)
+            } else {
+                observados.first()
+            };
+            atual.map_or_else(
+                || Resposta::nova(Estado::DadosInsuficientes),
+                |periodo| Resposta::html(calendario_html(periodo, &observados)),
+            )
+        }
+        _ => Resposta::nova(Estado::RequisicaoInvalida),
+    }
 }
 
 /// Atende somente um GET de Controle R observado no banco efêmero.
@@ -257,10 +325,12 @@ pub fn controlar(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     if let Some(observacao) = detalhe {
-        return controle_detalhado::html(&observacao).map_or_else(
-            || Resposta::nova(Estado::DadosInsuficientes),
-            Resposta::html,
-        );
+        return controle_detalhado::html(&observacao)
+            .map(|html| menu_com_retornos(html, banco, instalacao, cenario))
+            .map_or_else(
+                || Resposta::nova(Estado::DadosInsuficientes),
+                Resposta::html,
+            );
     }
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
@@ -272,7 +342,7 @@ pub fn controlar(
     let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    Resposta::html(corpo)
+    Resposta::html(menu_com_retornos(corpo, banco, instalacao, cenario))
 }
 
 /// Pedido HTTP local. Não preservar URL, headers nem corpo além do atendimento.
