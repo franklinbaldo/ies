@@ -299,15 +299,20 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
             // Só nomes dos campos do POST criador, jamais valores.
             let nomes = if metodo == "POST" && acao == "documento_gerar" {
                 let inicio = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-                std::str::from_utf8(&bytes[inicio..]).unwrap_or("")
+                std::str::from_utf8(&bytes[inicio..])
+                    .unwrap_or("")
                     .split('&')
                     .filter_map(|campo| campo.split_once('=').map(|(nome, _)| nome))
                     .collect::<Vec<_>>()
             } else {
                 Vec::new()
             };
-            registro.lock().unwrap().push(format!("{metodo} {acao}: {status} {nomes:?}"));
-            if resposta_incerta && metodo == "POST" && acao == "documento_gerar" && status == "302" {
+            registro
+                .lock()
+                .unwrap()
+                .push(format!("{metodo} {acao}: {status} {nomes:?}"));
+            if resposta_incerta && metodo == "POST" && acao == "documento_gerar" && status == "302"
+            {
                 resposta = resposta_sem_prova_de_autoria(resposta);
             }
             canal.write_all(&resposta).unwrap();
@@ -423,7 +428,9 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
         trilha
             .iter()
             .rposition(|p| p.starts_with("GET procedimento_visualizar:"))
-            > trilha.iter().position(|p| p.starts_with("POST documento_gerar:")),
+            > trilha
+                .iter()
+                .position(|p| p.starts_with("POST documento_gerar:")),
         "releitura deve acontecer depois do único POST: {trilha:?}"
     );
 }
