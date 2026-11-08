@@ -273,12 +273,19 @@ fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
         1
     );
     assert!(
-        !eventos.iter().any(|e| e.as_str() == "POST protocolo_RI1023"),
+        !eventos
+            .iter()
+            .any(|e| e.as_str() == "POST protocolo_RI1023"),
         "vínculo publicado na tabela dispensa consulta complementar: {eventos:?}"
     );
     assert!(
-        eventos.iter().all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"),
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"),
         "a prévia não submete vínculo: {eventos:?}"
     );
-    assert_eq!(relacionados, 1, "a prévia preserva a única relação existente");
+    assert_eq!(
+        relacionados, 1,
+        "a prévia preserva a única relação existente"
+    );
 }
