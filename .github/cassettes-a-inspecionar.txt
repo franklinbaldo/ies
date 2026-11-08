@@ -1,2 +1,0 @@
-cassettes/go/documento-mover-cancelar-go--a152c0306b45.md
-cassettes/ufrj/documento-mover-cancelar-ufrj--de1301eb5634.md
