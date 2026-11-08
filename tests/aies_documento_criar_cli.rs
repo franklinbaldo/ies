@@ -1,5 +1,4 @@
-//! BDD-246-01/02/04: CLI real contra anti-IES com TLS exclusivamente em loopback.
-//! Hipótese funcional sintética: NÃO demonstra compatibilidade com um SEI real.
+//! BDD-246-01/02/04: CLI real com anti-IES e TLS só em loopback.
 #![cfg(unix)]
 
 use anti_ies::atender_http;
@@ -101,7 +100,7 @@ fn identidade(pasta: &Path) -> (PathBuf, Identity) {
     )
 }
 
-/// Aceita até o subprocesso terminar, sem esperar um número mágico de GETs.
+/// Aceita até o fim da execução.
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
         match escuta.accept() {
@@ -156,8 +155,7 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, primeira)
 }
 
-/// O POST foi realmente aplicado pelo anti-IES, mas a resposta perde
-/// a prova de autoria: o IES não deve atribuir a si um documento concorrente.
+/// Remove da resposta sintética a prova de autoria da gravação.
 fn resposta_sem_prova_de_autoria(resposta: &[u8]) -> Vec<u8> {
     let fim = resposta
         .windows(4)
