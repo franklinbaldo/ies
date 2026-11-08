@@ -18,8 +18,8 @@ fn erro(estado: Estado) -> Resposta {
     Resposta::nova(estado)
 }
 
-fn falha(erro: &Falha) -> Resposta {
-    match erro {
+fn falha(causa: &Falha) -> Resposta {
+    match causa {
         Falha::Sqlite(_) => erro(Estado::DadosInsuficientes),
         Falha::ProcessoAusente => erro(Estado::NaoEncontrado),
         Falha::TipoAusente
