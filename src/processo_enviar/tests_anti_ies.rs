@@ -255,7 +255,7 @@ fn leitor_real_da_caixa_reflete_tramitacao_no_controle_r_sintetico() {
         cenario,
     );
     assert_eq!(post.estado, anti_ies::Estado::Redirecionamento);
-    assert!(consultar(&banco).recebidos.processos.is_empty());
+    assert_eq!(consultar(&banco).recebidos.processos, Vec::new());
 
     guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
     let destino = consultar(&banco);
