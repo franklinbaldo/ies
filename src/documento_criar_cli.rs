@@ -168,6 +168,21 @@ fn mensagem_da_recusa(erro: &ErroPreviaCriacao) -> &'static str {
         ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade => {
             "processo não está aberto na unidade da sessão"
         }
+        ErroPreviaCriacao::NivelNaoInformado => {
+            "informe --nivel publico para confirmar a criação"
+        }
+        ErroPreviaCriacao::NivelRestritoSemHipotese => {
+            "nível não público exige hipótese legal não disponível nesta operação"
+        }
+        ErroPreviaCriacao::SubmissaoNaoComprovada => {
+            "o SEI não apresentou uma forma reconhecida de concluir a criação"
+        }
+        ErroPreviaCriacao::ArvoreIncompleta => {
+            "árvore do processo contém pastas não carregadas; criação não pode ser comprovada"
+        }
+        ErroPreviaCriacao::FotoInicialInconsistente => {
+            "árvore inicial não permite distinguir os documentos com segurança"
+        }
         _ => "criação do documento não pôde ser conferida",
     }
 }
@@ -376,7 +391,7 @@ mod tests {
     fn recusa_de_cadastro_ou_arvore_informa_o_impedimento_observado() {
         assert_eq!(
             mensagem_da_recusa(&ErroPreviaCriacao::SubmissaoNaoComprovada),
-            "cadastro do SEI não ofereceu a ação Salvar de forma reconhecida"
+            "o SEI não apresentou uma forma reconhecida de concluir a criação"
         );
         assert_eq!(
             mensagem_da_recusa(&ErroPreviaCriacao::ArvoreIncompleta),
