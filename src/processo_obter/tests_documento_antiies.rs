@@ -140,8 +140,9 @@ fn bdd_88_01_02_leitor_rust_real_percorre_a_pesquisa_do_anti_ies() {
         cache: false,
     };
     let mut roteiro = Roteiro::novo(respostas);
-    let resultado = obter_documento_com_versoes(&sessao, &pedido, versoes, &amb.indice, &mut roteiro)
-        .expect("o IES precisa ler a versao 1 simulada, sem substituir pela atual");
+    let resultado =
+        obter_documento_com_versoes(&sessao, &pedido, versoes, &amb.indice, &mut roteiro)
+            .expect("o IES precisa ler a versao 1 simulada, sem substituir pela atual");
     assert_eq!(resultado.numero, DOC);
     assert_eq!(resultado.requisicoes, 6);
     assert!(resultado.texto.contains("Primeira redação"));
