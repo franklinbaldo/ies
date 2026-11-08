@@ -83,6 +83,8 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let form = consultar(endereco, "GET", &cadastro, "");
     assert!(form.starts_with("HTTP/1.1 200 OK"));
     assert!(form.contains("frmDocumentoCadastro"));
+    // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
+    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='2'"));
     let invalido = consultar(
         endereco,
         "POST",
