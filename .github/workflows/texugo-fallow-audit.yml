@@ -1,0 +1,28 @@
+name: Texugo fallow audit (temporary)
+on:
+  push:
+    branches:
+      - codex/texugo-fallow-audit
+permissions:
+  contents: read
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-fallow for one-off audit
+        run: cargo install cargo-fallow --locked
+      - name: Inspect only; no fix and no SEI access
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo fallow check --only deps,files,visibility,dupes 2>&1 | tee fallow.log
+      - name: Save diagnostics (including findings)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-fallow-report
+          path: fallow.log
+          if-no-files-found: ignore
