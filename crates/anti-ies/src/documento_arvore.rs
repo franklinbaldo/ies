@@ -5,6 +5,7 @@ use iesei::documento_versoes::{self as versoes, DocumentoSimulado, ler};
 use iesei::documentos_simulados;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 fn html(corpo: String) -> Resposta {
     Resposta::html(corpo)
@@ -173,16 +174,17 @@ fn no_de_documento(
     if versoes {
         let hash = "e".repeat(64);
         let hash_corpo = "f".repeat(64);
-        no.push_str(&format!(
+        write!(
+            no,
             r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>';
 Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}';
 "#
-        ));
+        )
+        .expect("formatação de String");
     } else {
-        no.push_str(&format!(
-            "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n"
-        ));
+        write!(no, "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n")
+            .expect("formatação de String");
     }
-    no.push_str(&format!("Nos[{indice}].html = '';\n"));
+    write!(no, "Nos[{indice}].html = '';\n").expect("formatação de String");
     no
 }
