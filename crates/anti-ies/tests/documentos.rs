@@ -100,6 +100,9 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let cadastro = format!("{BASE}?acao=documento_gerar&id_procedimento=10&id_serie=291");
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
+    assert!(render1.contains("id='ifrArvore'"));
+    assert!(render1.contains("acao=procedimento_visualizar"));
+    assert!(render1.contains("lnkInfraUnidade"));
     assert!(render1.contains("Despacho 1000001"));
     conferir_arvore(endereco, false);
     assert!(!render1.contains("Despacho 1000002"));
