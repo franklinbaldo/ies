@@ -328,7 +328,7 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
     }
     let limite = match parametro_unico(&alvo, "acao") {
         Some("documento_upload_anexo") => 256 * 1024 * 1024,
-        Some("documento_editar") => 24 * 1024 * 1024,
+        Some("documento_editar" | "editor_salvar") => 24 * 1024 * 1024,
         _ => 8192,
     };
     if !terminado || tamanho.unwrap_or(0) > limite || (metodo == "POST" && tamanho.is_none()) {
