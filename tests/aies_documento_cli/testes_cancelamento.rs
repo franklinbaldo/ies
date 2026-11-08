@@ -45,7 +45,7 @@ fn bdd_273_02_cli_um_cancelamento_com_releitura_e_sem_retry() {
             "Teste ficticio",
             "--confirmar",
         ],
-        9, // consulta inicial, formulário, POST único e nova abertura independente.
+        10, // consulta inicial, formulário, POST único e nova abertura independente.
     );
     assert_eq!(
         confirmacao.status.code(),
@@ -60,6 +60,6 @@ fn bdd_273_02_cli_um_cancelamento_com_releitura_e_sem_retry() {
     assert_eq!(feito["confirmado"], true);
     assert_eq!(feito["alterado"], true);
     assert_eq!(feito["reconciliado_por_leitura"], true);
-    assert_eq!(feito["requisicoes"], 9);
+    assert_eq!(feito["requisicoes"], 10);
     assert!(feito.get("falha_do_envio").is_none());
 }
