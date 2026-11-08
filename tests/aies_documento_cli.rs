@@ -28,7 +28,9 @@ impl Pasta {
     fn nova() -> Self {
         let instante = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let caminho = std::env::temp_dir().join(format!(
-            "aies-documento-{}-{}", std::process::id(), instante.as_nanos()
+            "aies-documento-{}-{}",
+            std::process::id(),
+            instante.as_nanos()
         ));
         fs::create_dir(&caminho).unwrap();
         Self(caminho)
@@ -52,19 +54,44 @@ fn certificado(pasta: &Path) -> (PathBuf, Identity) {
     let p12 = pasta.join("identidade.p12");
     let estado = Command::new("openssl")
         .args([
-            "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256",
-            "-days", "1", "-subj", "/CN=sei.test", "-addext",
-            "subjectAltName=DNS:sei.test", "-keyout",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-sha256",
+            "-days",
+            "1",
+            "-subj",
+            "/CN=sei.test",
+            "-addext",
+            "subjectAltName=DNS:sei.test",
+            "-keyout",
         ])
-        .arg(&key).arg("-out").arg(&cert)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+        .arg(&key)
+        .arg("-out")
+        .arg(&cert)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
     assert!(estado.success(), "certificado efêmero não criado");
     let estado = Command::new("openssl")
         .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey"])
-        .arg(&key).arg("-in").arg(&cert).arg("-out").arg(&p12)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+        .arg(&key)
+        .arg("-in")
+        .arg(&cert)
+        .arg("-out")
+        .arg(&p12)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
     assert!(estado.success(), "identidade TLS efêmera não criada");
-    (cert, Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap())
+    (
+        cert,
+        Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap(),
+    )
 }
 
 fn aceitar(listener: &TcpListener) -> TcpStream {
@@ -79,7 +106,10 @@ fn aceitar(listener: &TcpListener) -> TcpStream {
                 return tcp;
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(desde.elapsed() < Duration::from_secs(10), "pedido não chegou");
+                assert!(
+                    desde.elapsed() < Duration::from_secs(10),
+                    "pedido não chegou"
+                );
                 thread::sleep(Duration::from_millis(25));
             }
             Err(e) => panic!("accept: {e}"),
@@ -122,16 +152,19 @@ fn estado() -> (Connection, Instalacao) {
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     banco_cassettes::guardar(
-        &mut banco, CENARIO,
+        &mut banco,
+        CENARIO,
         &ControleResumido {
             instalacao: instalacao.clone(),
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
         },
-    ).unwrap();
+    )
+    .unwrap();
     documento_versoes::guardar(
-        &mut banco, CENARIO,
+        &mut banco,
+        CENARIO,
         &DocumentoSimulado {
             instalacao: instalacao.clone(),
             id_documento: "42".into(),
@@ -156,7 +189,8 @@ fn estado() -> (Connection, Instalacao) {
                 },
             ],
         },
-    ).unwrap();
+    )
+    .unwrap();
     (banco, instalacao)
 }
 
@@ -188,7 +222,8 @@ fn executar(pasta: &Pasta, args: &[&str], requisicoes: usize) -> Output {
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&proxy);
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).expect("TLS de teste");
             let mut destino = TcpStream::connect(endereco).unwrap();
             encaminhar(&mut canal, &mut destino);
@@ -217,14 +252,17 @@ fn executar(pasta: &Pasta, args: &[&str], requisicoes: usize) -> Output {
         .output()
         .expect("binário ies");
     tunel.join().expect("proxy sem requisições restantes");
-    simulador.join().expect("anti-IES sem requisições restantes");
+    simulador
+        .join()
+        .expect("anti-IES sem requisições restantes");
     saida
 }
 fn json(saida: &Output) -> Value {
     serde_json::from_slice(&saida.stdout).unwrap_or_else(|erro| {
         panic!(
             "JSON inválido: {erro}; exit={:?}; stderr={}",
-            saida.status.code(), String::from_utf8_lossy(&saida.stderr)
+            saida.status.code(),
+            String::from_utf8_lossy(&saida.stderr)
         )
     })
 }
@@ -235,12 +273,23 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
     let destino = pasta.0.join("saida");
     fs::create_dir(&destino).unwrap();
     let dir = destino.to_str().unwrap();
-    let args = ["--json", "documento", DOC, "--versao", "1", "--saida", dir, "--sem-cache"];
+    let args = [
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        dir,
+        "--sem-cache",
+    ];
     // Pesquisa, tela, árvore, histórico e versão: seis pedidos.
     let primeira = executar(&pasta, &args, 6);
     assert_eq!(
-        primeira.status.code(), Some(0),
-        "CLI falhou: {}", String::from_utf8_lossy(&primeira.stderr)
+        primeira.status.code(),
+        Some(0),
+        "CLI falhou: {}",
+        String::from_utf8_lossy(&primeira.stderr)
     );
     let v = json(&primeira);
     assert_eq!(v["documentos"][0]["numero"], DOC);
@@ -255,7 +304,12 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
     assert!(!original.contains("Terceira redação"));
 
     let segunda = executar(&pasta, &args, 6);
-    assert_eq!(segunda.status.code(), Some(0), "{}", String::from_utf8_lossy(&segunda.stderr));
+    assert_eq!(
+        segunda.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&segunda.stderr)
+    );
     assert_eq!(json(&segunda)["documentos"][0]["arquivo"]["gravado"], false);
     assert_eq!(fs::read_to_string(&foto).unwrap(), original);
 
@@ -268,5 +322,8 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
         .unwrap();
     assert_eq!(terceira.status.code(), Some(1));
     assert_eq!(json(&terceira)["subcodigo"], "foto_local_divergente");
-    assert_eq!(fs::read_to_string(&foto).unwrap(), "<html><body>Edição local</body></html>");
+    assert_eq!(
+        fs::read_to_string(&foto).unwrap(),
+        "<html><body>Edição local</body></html>"
+    );
 }
