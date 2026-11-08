@@ -107,3 +107,31 @@ fn processar_navegacao_nao_muta_estado_e_outro_cenario_nao_vaza_dados() {
     let desconhecido = anti_ies::processo_envio::navegacao("GET", rota, &db, &origem(), "outro");
     assert!(desconhecido.is_none());
 }
+
+
+/// O cadastro de documentos e as transições leem a mesma identidade canônica.
+#[test]
+fn identidade_do_processo_compartilhada_entre_documentos_e_tramitacao() {
+    use iesei::documentos_simulados::{Processo, ler_processo, registrar_processo};
+    let db = banco();
+    let base = ler_processo(&db, &origem(), "bdd-333", "10")
+        .unwrap()
+        .expect("cadastro único ao guardar a trilha de envio");
+    assert_eq!(base.nup, "00001.000001/2026-01");
+    assert_eq!(base.unidade, "ORIGEM");
+
+    registrar_processo(
+        &db,
+        &origem(),
+        "bdd-333",
+        &Processo {
+            id: "10".into(),
+            nup: "00001.000002/2026-01".into(),
+            unidade: "ORIGEM".into(),
+        },
+    )
+    .unwrap();
+    let processo = ler(&db, &origem(), "bdd-333", "10").unwrap().unwrap();
+    assert_eq!(processo.numero, "00001.000002/2026-01");
+    assert_eq!(processo.aberto_em, ["ORIGEM"]);
+}

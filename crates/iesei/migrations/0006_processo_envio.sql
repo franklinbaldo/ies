@@ -4,10 +4,10 @@ CREATE TABLE processo_simulado (
     origem TEXT NOT NULL,
     cenario TEXT NOT NULL,
     id_procedimento TEXT NOT NULL,
-    numero TEXT NOT NULL,
-    unidade_origem TEXT NOT NULL,
     anotacao_origem TEXT,
-    PRIMARY KEY (origem, cenario, id_procedimento)
+    PRIMARY KEY (origem, cenario, id_procedimento),
+    FOREIGN KEY (origem, cenario, id_procedimento)
+        REFERENCES sim_processo(origem, cenario, id_procedimento)
 ) STRICT;
 CREATE TABLE processo_abertura (
     origem TEXT NOT NULL,

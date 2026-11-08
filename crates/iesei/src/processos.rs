@@ -93,21 +93,29 @@ pub fn guardar(
     }
     let origem = instalacao.url_base();
     let tx = banco.transaction()?;
+    // Identidade canônica de toda a simulação: documentos e tramitação
+    // consultam o mesmo NUP e a mesma unidade, nunca cópias divergentes.
     tx.execute(
-        "INSERT INTO processo_simulado
-         (origem, cenario, id_procedimento, numero, unidade_origem, anotacao_origem)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO sim_processo
+         (origem, cenario, id_procedimento, nup, unidade)
+         VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(origem, cenario, id_procedimento) DO UPDATE SET
-         numero=excluded.numero, unidade_origem=excluded.unidade_origem,
-         anotacao_origem=excluded.anotacao_origem",
+         nup=excluded.nup, unidade=excluded.unidade",
         params![
             origem,
             cenario,
             processo.id,
             processo.numero,
-            processo.unidade_origem,
-            processo.anotacao_origem
+            processo.unidade_origem
         ],
+    )?;
+    tx.execute(
+        "INSERT INTO processo_simulado
+         (origem, cenario, id_procedimento, anotacao_origem)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(origem, cenario, id_procedimento) DO UPDATE SET
+         anotacao_origem=excluded.anotacao_origem",
+        params![origem, cenario, processo.id, processo.anotacao_origem],
     )?;
     tx.execute(
         "DELETE FROM processo_abertura
@@ -160,8 +168,11 @@ pub fn ler(
     let origem = instalacao.url_base();
     let cabecalho: Option<(String, String, Option<String>)> = banco
         .query_row(
-            "SELECT numero, unidade_origem, anotacao_origem FROM processo_simulado
-             WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
+            "SELECT base.nup, base.unidade, envio.anotacao_origem
+             FROM processo_simulado envio JOIN sim_processo base
+             ON base.origem=envio.origem AND base.cenario=envio.cenario
+             AND base.id_procedimento=envio.id_procedimento
+             WHERE envio.origem=?1 AND envio.cenario=?2 AND envio.id_procedimento=?3",
             params![origem, cenario, id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
