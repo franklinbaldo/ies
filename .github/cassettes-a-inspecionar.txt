@@ -1,2 +1,0 @@
-cassettes/go/pesquisa-paginas-go--c4018448aa04.md
-cassettes/unb/pesquisa-paginas-unb--b6147abfa4ab.md
