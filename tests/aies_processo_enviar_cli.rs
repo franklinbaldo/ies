@@ -242,15 +242,80 @@ fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
             unidade_origem: "ORIGEM".into(),
             aberto_em: vec!["ORIGEM".into()],
             anotacao_origem: anotacao.map(str::to_owned),
-            destinos: vec![Destino {
-                id: "2".into(),
-                sigla: "DESTINO".into(),
-                descricao: "DESTINO - Unidade de teste".into(),
-            }],
+            destinos: vec![
+                Destino {
+                    id: "2".into(),
+                    sigla: "DESTINO".into(),
+                    descricao: "DESTINO - Unidade de teste".into(),
+                },
+                Destino {
+                    id: "3".into(),
+                    sigla: "ARQUIVO".into(),
+                    descricao: "ARQUIVO - Unidade de teste".into(),
+                },
+            ],
         },
     )
     .unwrap();
     (banco, origem)
+}
+
+/// Arquivos efêmeros e proxy da bancada CLI, sem produção.
+struct BancadaCli<'a> {
+    pasta: &'a Pasta,
+    controle: &'a Path,
+    cookie: &'a Path,
+    origem: &'a Path,
+    cert: &'a Path,
+    porta: u16,
+    ensaio_local: bool,
+}
+
+impl BancadaCli<'_> {
+    fn executar(&self, args: &[&str]) -> Output {
+        let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+        if self.ensaio_local {
+            comando.env("IES_ANTI_IES_TESTE", "1");
+        } else {
+            comando.env_remove("IES_ANTI_IES_TESTE");
+        }
+        comando
+            .args(args)
+            .env("IES_URL_CONTROLE_FILE", self.controle)
+            .env("IES_COOKIE_FILE", self.cookie)
+            .env("IES_ORIGEM_FILE", self.origem)
+            .env("SSL_CERT_FILE", self.cert)
+            .env("https_proxy", format!("http://127.0.0.1:{}", self.porta))
+            .env("HOME", &self.pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .expect("binário da CLI")
+    }
+}
+
+/// A troca é disparada antes da segunda CLI, mantendo o mesmo SQLite.
+fn selecionar_unidade_destino(banco: &mut Connection, instalacao: &Instalacao, unidade: &str) {
+    let intermediario = processos::ler(banco, instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(intermediario.aberto_em, ["DESTINO"]);
+    banco_cassettes::guardar(
+        banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: instalacao.clone(),
+            unidade: UnidadeExibida::nova(unidade).unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
 }
 
 /// Trilha tem apenas método e ação; nunca URL completa, corpo ou cookie.
@@ -269,6 +334,26 @@ fn executar_com_ensaio_local(
     ensaio_local: bool,
     omitir_remocao_no_post: bool,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
+    executar_com_troca_de_unidade(
+        comandos,
+        falhar_releitura,
+        anotacao,
+        ensaio_local,
+        omitir_remocao_no_post,
+        None,
+    )
+}
+
+/// No ensaio de duas CLI, troca a unidade ativa entre os subprocessos,
+/// preservando o mesmo banco SQLite e sem alterar o fluxo de cada comando.
+fn executar_com_troca_de_unidade(
+    comandos: &[&[&str]],
+    falhar_releitura: bool,
+    anotacao: Option<&'static str>,
+    ensaio_local: bool,
+    omitir_remocao_no_post: bool,
+    trocar_apos_primeiro: Option<&'static str>,
+) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -286,13 +371,22 @@ fn executar_com_ensaio_local(
     let destino = escuta.local_addr().unwrap();
     let parar = Arc::new(AtomicBool::new(false));
     let parar_sim = Arc::clone(&parar);
+    let trocar = Arc::new(AtomicBool::new(false));
+    let trocar_sim = Arc::clone(&trocar);
     let simulador = thread::spawn(move || {
-        let (banco, instalacao) = preparar_banco(anotacao);
+        let (mut banco, instalacao) = preparar_banco(anotacao);
         let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
         assert_eq!(antes.aberto_em, ["ORIGEM"]);
         while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
+            if trocar_sim.swap(false, Ordering::SeqCst) {
+                selecionar_unidade_destino(
+                    &mut banco,
+                    &instalacao,
+                    trocar_apos_primeiro.expect("segunda unidade especificada"),
+                );
+            }
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
         processos::ler(&banco, &instalacao, CENARIO, "10")
@@ -335,32 +429,23 @@ fn executar_com_ensaio_local(
             resposta.clear();
         }
     });
+    let cli = BancadaCli {
+        pasta: &pasta,
+        controle: &controle,
+        cookie: &cookie,
+        origem: &origem,
+        cert: &cert,
+        porta,
+        ensaio_local,
+    };
     let saidas = comandos
         .iter()
-        .map(|args| {
-            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
-            if ensaio_local {
-                comando.env("IES_ANTI_IES_TESTE", "1");
-            } else {
-                comando.env_remove("IES_ANTI_IES_TESTE");
+        .enumerate()
+        .map(|(indice, args)| {
+            if trocar_apos_primeiro.is_some() && indice == 1 {
+                trocar.store(true, Ordering::SeqCst);
             }
-            comando
-                .args(*args)
-                .env("IES_URL_CONTROLE_FILE", &controle)
-                .env("IES_COOKIE_FILE", &cookie)
-                .env("IES_ORIGEM_FILE", &origem)
-                .env("SSL_CERT_FILE", &cert)
-                .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-                .env("HOME", &pasta.0)
-                .env_remove("HTTPS_PROXY")
-                .env_remove("all_proxy")
-                .env_remove("ALL_PROXY")
-                .env_remove("NO_PROXY")
-                .env_remove("no_proxy")
-                .env_remove("IES_CONFIG_FILE")
-                .env_remove("IES_CREDENCIAIS_FILE")
-                .output()
-                .expect("binário da CLI")
+            cli.executar(args)
         })
         .collect();
     parar.store(true, Ordering::SeqCst);
@@ -469,3 +554,6 @@ fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
 
 #[path = "aies_processo_enviar_cli/remocao.rs"]
 mod remocao;
+
+#[path = "aies_processo_enviar_cli/duas_unidades.rs"]
+mod duas_unidades;
