@@ -1,11 +1,13 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
+mod controle_detalhado;
+mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
 pub mod pdf_externo;
-use iesei::banco_cassettes::{ControleResumido, Linha, ler};
+pub mod pesquisa_documento;
+use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
-use iesei::observacao::TabelaObservada;
 use iesei::retornos_cassettes::{Mes, Situacao, ler as ler_retornos};
 use rusqlite::Connection;
 use std::fmt::Write as _;
@@ -133,47 +135,6 @@ pub(crate) fn escapar(texto: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) -> Option<()> {
-    if !tabela.pagina_verificavel() {
-        return None;
-    }
-    // O parser do Controle precisa de um total publicado. Ausência não é zero.
-    let total = tabela.total_declarado?;
-    let mut legenda = format!("{total} registros");
-    if let Some(faixa) = tabela.faixa_observada {
-        write!(legenda, " - {} a {}", faixa.inicio(), faixa.fim()).ok()?;
-    }
-    write!(destino, "<table id='{id}'><caption>{legenda}:</caption>").ok()?;
-    for linha in &tabela.linhas {
-        let classe = match (linha.visualizado, linha.sigiloso) {
-            (true, false) => "processoVisualizado",
-            (false, false) => "processoNaoVisualizado",
-            (true, true) => "processoVisualizadoSigiloso",
-            (false, true) => "processoNaoVisualizadoSigiloso",
-        };
-        write!(
-            destino,
-            "<tr id='P{}'><td><a class='{classe}'>{}</a></td></tr>",
-            escapar(&linha.id),
-            escapar(&linha.numero)
-        )
-        .ok()?;
-    }
-    destino.push_str("</table>");
-    Some(())
-}
-
-fn controle_html(controle: &ControleResumido) -> Option<String> {
-    let mut html = format!(
-        "<html><body><a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
-        escapar(controle.unidade.as_str())
-    );
-    tabela_html("tblProcessosRecebidos", &controle.recebidos, &mut html)?;
-    tabela_html("tblProcessosGerados", &controle.gerados, &mut html)?;
-    html.push_str("</body></html>");
-    Some(html)
-}
-
 /// Renderiza dados já observados. Ausência de linhas só significa vazio
 /// quando a cassette declarou o mês e o leitor do IES o aceitou.
 fn html_de_retornos(mes: &Mes) -> String {
@@ -283,10 +244,19 @@ pub fn controlar(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
+    let Ok(detalhe) = iesei::detalhada_cassettes::ler(banco, instalacao, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    if let Some(observacao) = detalhe {
+        return controle_detalhado::html(&observacao).map_or_else(
+            || Resposta::nova(Estado::DadosInsuficientes),
+            Resposta::html,
+        );
+    }
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Some(corpo) = controle_html(&snapshot) else {
+    let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     Resposta::html(corpo)
@@ -387,6 +357,14 @@ fn atender_com_fonte(
     match parametro_unico(&pedido.alvo, "acao") {
         Some("retorno_programado_listar") => {
             retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+        }
+        Some("protocolo_pesquisa_rapida") if eh_controlador_sei(&pedido.alvo) => {
+            match std::str::from_utf8(&pedido.corpo) {
+                Ok(corpo) => pesquisa_documento::responder(
+                    &pedido.metodo, &pedido.alvo, corpo, banco, instalacao, cenario,
+                ),
+                Err(_) => Resposta::nova(Estado::RequisicaoInvalida),
+            }
         }
         Some("documento_receber" | "documento_upload_anexo")
             if eh_controlador_sei(&pedido.alvo) =>
