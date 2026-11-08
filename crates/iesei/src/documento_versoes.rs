@@ -185,3 +185,30 @@ pub fn ler(
         revisoes,
     }))
 }
+
+/// Pesquisa pelo numero SEI no mesmo estado das revisoes, sem inferir
+/// versoes ou escolher silenciosamente entre documentos ambiguos.
+///
+/// # Errors
+/// Preserva a falha de SQLite.
+pub fn ids_por_numero(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    numero: &str,
+) -> Result<Vec<String>, Falha> {
+    let mut consulta = banco.prepare(
+        "SELECT id_documento FROM documento_simulado
+         WHERE origem=?1 AND cenario=?2 AND numero=?3
+         ORDER BY id_documento",
+    )?;
+    let linhas = consulta.query_map(
+        params![instalacao.url_base(), cenario, numero],
+        |linha| linha.get::<_, String>(0),
+    )?;
+    let mut encontrados = Vec::new();
+    for linha in linhas {
+        encontrados.push(linha?);
+    }
+    Ok(encontrados)
+}
