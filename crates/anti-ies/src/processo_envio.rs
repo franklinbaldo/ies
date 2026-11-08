@@ -280,7 +280,10 @@ fn situacao_da_raiz(processo: &ProcessoSimulado) -> String {
     };
     match processo.aberto_em.as_slice() {
         [] => "Processo não possui andamentos abertos.<br />".to_owned(),
-        [unidade] => format!("Processo aberto somente na unidade {}.<br />", ancora(unidade)),
+        [unidade] => format!(
+            "Processo aberto somente na unidade {}.<br />",
+            ancora(unidade)
+        ),
         unidades => {
             let mut texto = String::from("Processo aberto nas unidades:<br />");
             for unidade in unidades {
@@ -346,8 +349,7 @@ pub fn navegacao(
     if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
         return None;
     }
-    let id = unico(alvo, "id_procedimento")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
+    let id = unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
     let processo = match ler(banco, instalacao, cenario, id) {
         Ok(Some(processo)) => processo,
         Ok(None) => return None,

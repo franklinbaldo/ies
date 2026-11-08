@@ -33,26 +33,22 @@ pub(crate) fn responder(
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_trabalhar")
-            if eh_controlador_sei(alvo)
-                && parametro_unico(alvo, "id_procedimento").is_some() =>
+            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_procedimento").is_some() =>
         {
             processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(
                 || documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
             )
         }
-        Some("procedimento_visualizar") if eh_controlador_sei(alvo) => {
-            processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(
-                || documento_arvore::responder(metodo, alvo, banco, instalacao, cenario),
-            )
-        }
+        Some("procedimento_visualizar") if eh_controlador_sei(alvo) => processo_envio::navegacao(
+            metodo, alvo, banco, instalacao, cenario,
+        )
+        .unwrap_or_else(|| documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)),
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
             documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
         }
-        Some("documento_versao_listar" | "documento_visualizar")
-            if eh_controlador_sei(alvo) =>
-        {
+        Some("documento_versao_listar" | "documento_visualizar") if eh_controlador_sei(alvo) => {
             documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
         }
         _ => controlar(metodo, alvo, banco, instalacao, cenario),
