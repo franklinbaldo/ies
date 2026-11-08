@@ -186,6 +186,14 @@ pub(crate) fn nos_do_processo(
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
+        let situacao = crate::documento_cancelar::estado(
+            banco,
+            instalacao,
+            cenario,
+            &id,
+            processo,
+        )?
+        .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -193,6 +201,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero,
             &documento.tipo,
             true,
+            &situacao,
         ));
         indice += 1;
         vistos.push(id);
@@ -209,6 +218,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero_sei,
             &documento.tipo,
             false,
+            &Situacao::Disponivel,
         ));
         indice += 1;
     }
@@ -222,13 +232,22 @@ fn no_de_documento(
     numero: &str,
     tipo: &str,
     versoes: bool,
+    situacao: &Situacao,
 ) -> String {
+    let (icone, dica) = match situacao {
+        Situacao::Disponivel => ("documento_interno", "Documento interno".to_owned()),
+        Situacao::Cancelado { motivo } => (
+            "documento_cancelado",
+            format!("Documento Cancelado: {motivo}"),
+        ),
+    };
+    let dica = js(&dica);
     let id = js(id);
     let processo = js(processo);
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
     let mut no = format!(
-        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","Documento interno","svg/documento_interno.svg","svg/documento_interno.svg","svg/documento_interno.svg",true,false,null,null,"noVisitado","{numero}");
+        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 "#
     );
     if versoes {
