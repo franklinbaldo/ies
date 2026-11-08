@@ -36,9 +36,7 @@ pub(super) fn ajustar_resposta(
     metodo: &str,
     acao: &str,
 ) -> Vec<u8> {
-    if ensaio == EnsaioRemocao::TelaSemCheckbox
-        && metodo == "GET"
-        && acao == "procedimento_enviar"
+    if ensaio == EnsaioRemocao::TelaSemCheckbox && metodo == "GET" && acao == "procedimento_enviar"
     {
         ocultar_checkbox_na_resposta(resposta)
     } else {
