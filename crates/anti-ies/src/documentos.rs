@@ -42,6 +42,7 @@ fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
 
 fn erros_de_modelo(falha: &Falha) -> Resposta {
     match falha {
+        Falha::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
         Falha::TipoIndisponivel | Falha::EntradaInvalida => {
             Resposta::nova(Estado::RequisicaoInvalida)
         }
@@ -111,6 +112,9 @@ fn cadastro(
     id: &str,
     id_serie: &str,
 ) -> Resposta {
+    let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::NaoEncontrado);
+    };
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
@@ -122,7 +126,7 @@ fn cadastro(
          <form id='frmDocumentoCadastro' method='post' \
          action='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={id_serie}'>\
          <input type='hidden' name='hdnIdSerie' value='{id_serie}'>\
-         <input type='hidden' name='hdnFlagDocumentoCadastro' value='1'>\
+         <input type='hidden' name='hdnFlagDocumentoCadastro' value='2'>\
          <input type='radio' id='optPublico' name='rdoNivelAcesso' value='0'>\
          <input type='text' id='txtDescricao' name='txtDescricao'>\
          <button type='submit'>Salvar</button></form></body></html>",
