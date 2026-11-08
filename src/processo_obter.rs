@@ -52,6 +52,8 @@ mod tests_documento_indice;
 #[cfg(test)]
 mod tests_documento_versoes;
 #[cfg(test)]
+mod tests_documento_antiies;
+#[cfg(test)]
 mod tests_fluxo;
 
 #[cfg(test)]
