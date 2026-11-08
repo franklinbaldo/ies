@@ -287,7 +287,7 @@ pub fn limpar_anotacao(
     Ok(())
 }
 
- 
+
 /// Lista os destinos oferecidos no cenário, compartilhados entre processos.
 ///
 /// Um cenário inexistente não equivale a lista vazia. Uma lista vazia,

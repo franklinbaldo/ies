@@ -188,7 +188,7 @@ pub fn responder(
     }
 }
 
- 
+
 /// Responde ao autocomplete publicado na tela de envio a partir do SQLite.
 ///
 /// O pedido consulta a instalação/cenário, não depende de um HTML fixo nem

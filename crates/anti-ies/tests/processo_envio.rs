@@ -206,10 +206,28 @@ fn bdd_333_05_autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
     );
     assert_eq!(ausente.estado, Estado::Ok);
     assert!(ausente.corpo.contains("<itens></itens>"));
+    let desconhecido = anti_ies::processo_envio::autocompletar(
+        "POST",
+        alvo,
+        "palavras_pesquisa=DESTINO&id_orgao=",
+        &banco,
+        &origem(),
+        "outro-cenario",
+    );
+    assert_eq!(desconhecido.estado, Estado::DadosInsuficientes);
+    let malformado = anti_ies::processo_envio::autocompletar(
+        "POST",
+        alvo,
+        "palavras_pesquisa=%XX&id_orgao=",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(malformado.estado, Estado::RequisicaoInvalida);
     assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
 }
 
- 
+
 #[test]
 fn autocomplete_http_real_le_estado_compartilhado_sem_alteracao() {
     use anti_ies::atender_http;
