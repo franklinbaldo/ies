@@ -17,7 +17,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     match (caminho, origem, cenario) {
         (None, None, None) => {
             // Cenário sintético de demonstração. Nunca abre SEI nem arquivo operacional.
-            let banco = Connection::open_in_memory()?;
+            let mut banco = Connection::open_in_memory()?;
             iniciar(&banco)?;
             let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
                 .ok_or("origem sintética inválida")?;
