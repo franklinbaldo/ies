@@ -146,29 +146,58 @@ fn campo(corpo: &str, chave: &str) -> Option<String> {
 }
 
 fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
-    // Hipótese mínima do filArquivo: uma parte multipart com PDF.
-    // Não guarda conteúdo no banco; somente nome e comprimento.
-    let separador = corpo.windows(4).position(|p| p == b"\r\n\r\n")?;
-    let cabecalho = std::str::from_utf8(&corpo[..separador]).ok()?;
-    if !cabecalho.contains("name=\"filArquivo\"") {
+    // O formulario pode enviar outros campos antes do arquivo. So um
+    // filArquivo e permitido, e somente seu conteudo conta para o tamanho.
+    let fim_primeira = corpo.windows(2).position(|p| p == b"\r\n")?;
+    let delimitador = corpo.get(..fim_primeira)?;
+    if !delimitador.starts_with(b"--") || delimitador.len() < 3 {
         return None;
     }
-    let nome = cabecalho.split("filename=\"").nth(1)?.split('"').next()?;
-    if nome.is_empty()
-        || nome.contains(['\r', '\n'])
-        || !std::path::Path::new(nome)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
-    {
-        return None;
+    let terminador = [b"\r\n".as_slice(), delimitador].concat();
+    let mut inicio = fim_primeira + 2;
+    let mut arquivo = None;
+    loop {
+        let fim_cabecalho = inicio
+            + corpo.get(inicio..)?.windows(4).position(|p| p == b"\r\n\r\n")?;
+        let cabecalho = std::str::from_utf8(corpo.get(inicio..fim_cabecalho)?).ok()?;
+        let inicio_dados = fim_cabecalho + 4;
+        let fim_dados = inicio_dados
+            + corpo.get(inicio_dados..)?.windows(terminador.len())
+                .position(|p| p == terminador.as_slice())?;
+        if cabecalho.contains("name=\"filArquivo\"") {
+            if arquivo.is_some() {
+                return None;
+            }
+            let nome = cabecalho.split("filename=\"").nth(1)?.split('"').next()?;
+            if nome.is_empty()
+                || nome.contains(['\r', '\n'])
+                || !std::path::Path::new(nome)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+            {
+                return None;
+            }
+            let pdf = corpo.get(inicio_dados..fim_dados)?;
+            if !pdf.starts_with(b"%PDF-") {
+                return None;
+            }
+            arquivo = Some((nome.to_owned(), u64::try_from(pdf.len()).ok()?));
+        }
+        let depois = fim_dados + terminador.len();
+        let marcador = corpo.get(depois..depois + 2)?;
+        if marcador == b"--" {
+            let restante = corpo.get(depois + 2..)?;
+            return if restante.is_empty() || restante == b"\r\n" {
+                arquivo
+            } else {
+                None
+            };
+        }
+        if marcador != b"\r\n" {
+            return None;
+        }
+        inicio = depois + 2;
     }
-    let restante = &corpo[separador + 4..];
-    let fim = restante.windows(4).rposition(|p| p == b"\r\n--")?;
-    let pdf = &restante[..fim];
-    if !pdf.starts_with(b"%PDF-") {
-        return None;
-    }
-    Some((nome.to_owned(), u64::try_from(pdf.len()).ok()?))
 }
 
 /// Atende o conjunto de rotas externas. `None` delega a outras capacidades.
