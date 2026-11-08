@@ -136,6 +136,10 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
     assert!(!arvore_destino.contains("Anotações"));
     let formulario = requisitar(endereco, "GET", ENVIO, "");
     assert!(formulario.contains("frmAtividadeListar"));
+    assert!(
+        !formulario.contains("chkSinRemoverAnotacoes"),
+        "a anotacao da ORIGEM fechada nao pode ser oferecida para remocao em DESTINO"
+    );
 
     let segundo = requisitar(
         endereco,
