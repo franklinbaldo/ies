@@ -63,9 +63,13 @@ fn pagina_do_processo(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let mut html = format!(
-        "<html><body><span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
+        "<html><body><a id='lnkInfraUnidade' href='#'>{}</a>\
+         <iframe id='ifrArvore' name='ifrArvore' src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
+         <span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
          <a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={}'>Incluir Documento</a>\
          <ul id='documentos'>",
+        escapar(&processo.unidade),
+        "e".repeat(64),
         escapar(&processo.nup),
         escapar(&processo.unidade),
         id,
