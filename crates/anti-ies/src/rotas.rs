@@ -3,6 +3,7 @@ use crate::{
     Resposta, controlar, documento_arvore, documento_versoes, documentos, eh_controlador_sei,
     parametro_unico, pesquisa_documento, processo_envio, retorno_programado,
 };
+use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
@@ -15,6 +16,15 @@ pub(crate) fn responder(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
+    // A sessão inacessível recusa a primeira tela do Controle e todas
+    // as operações Web, independentemente dos snapshots que existam.
+    if eh_controlador_sei(alvo) {
+        match acesso_sessao::consultar(banco, instalacao, cenario) {
+            Ok(AcessoSessao::Recusado) => return Resposta::nova(crate::Estado::AcessoNegado),
+            Ok(AcessoSessao::Permitido) => {}
+            Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
+        }
+    }
     match parametro_unico(alvo, "acao") {
         Some("procedimento_enviar" | "anotacao_registrar") if eh_controlador_sei(alvo) => {
             processo_envio::responder(metodo, alvo, corpo, banco, instalacao, cenario)

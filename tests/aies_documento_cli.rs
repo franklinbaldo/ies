@@ -228,7 +228,14 @@ fn executar_com_restricao(
     com_documento: bool,
     versao_restrita: bool,
 ) -> Output {
-    executar_com_sessao(pasta, args, requisicoes, com_documento, versao_restrita, false)
+    executar_com_sessao(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        false,
+    )
 }
 
 fn executar_com_sessao(
