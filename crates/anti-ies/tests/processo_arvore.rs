@@ -227,3 +227,69 @@ fn envio_preserva_documentos_internos_e_versoes_na_arvore() {
     assert_eq!(processo.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(processo.anotacao_origem.as_deref(), Some(""));
 }
+
+#[test]
+fn selecao_documental_repetida_na_arvore_de_tramitacao_recusa_sem_apagar_estado() {
+    use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar as guardar_versao};
+    use std::num::NonZeroU32;
+
+    let mut db = banco();
+    guardar_versao(
+        &mut db,
+        "bdd-333",
+        &DocumentoSimulado {
+            instalacao: origem(),
+            id_documento: "42".into(),
+            id_procedimento: "10".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0011519".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "TESTE".into(),
+                unidade: "ORIGEM".into(),
+                modificacao: "08/11/2026".into(),
+                html_corpo: "<p>Conteúdo do documento legítimo</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let antes = ler(&db, &origem(), "bdd-333", "10").unwrap();
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        for _ in 0..5 {
+            let (mut fluxo, cliente) = escuta.accept().unwrap();
+            assert!(cliente.ip().is_loopback());
+            atender_http(&mut fluxo, Some((&db, &origem(), "bdd-333"))).unwrap();
+        }
+        ler(&db, &origem(), "bdd-333", "10").unwrap()
+    });
+    let raiz = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10";
+    let valido = pedir(endereco, "GET", raiz, "");
+    assert!(valido.starts_with("HTTP/1.1 200 OK\r\n"), "{valido}");
+    assert!(valido.contains("0011519"), "documento presente no SQLite");
+
+    // Sem PDF no processo, a rota de tramitacao nao deve ignorar a
+    // duplicacao e servir a arvore como se nenhuma selecao existisse.
+    let ambiguo = pedir(
+        endereco,
+        "GET",
+        &format!("{raiz}&id_documento=42&id_documento=42"),
+        "",
+    );
+    assert!(ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"), "{ambiguo}");
+    assert!(!ambiguo.contains("0011519"), "recusa nao publica documento");
+
+    let vazio = pedir(endereco, "GET", &format!("{raiz}&id_documento="), "");
+    assert!(vazio.starts_with("HTTP/1.1 200 OK\r\n"), "{vazio}");
+    assert!(vazio.contains("0011519"), "selecao vazia unica abre a arvore");
+
+    let post = pedir(endereco, "POST", raiz, "");
+    assert!(post.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{post}");
+
+    let depois = pedir(endereco, "GET", raiz, "");
+    assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"), "{depois}");
+    assert!(depois.contains("0011519"));
+    assert_eq!(servidor.join().unwrap(), antes, "leitura e recusa sao imutaveis");
+}
