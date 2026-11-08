@@ -32,8 +32,9 @@ fn id_processo(alvo: &str) -> Option<&str> {
 }
 
 fn inicio_da_inclusao(id: &str) -> Resposta {
+    let assinatura = "0".repeat(64);
     html(format!(
-        "<html><body><a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}'>Incluir Documento Externo</a></body></html>"
+        "<html><body><a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>Incluir Documento Externo</a></body></html>"
     ))
 }
 
@@ -138,8 +139,9 @@ pub(crate) fn complementar_escolha(
         return inicio_da_inclusao(id);
     }
     if resposta.estado == Estado::Ok {
+        let assinatura = "0".repeat(64);
         let link = format!(
-            "<a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}'>Incluir Documento Externo</a>"
+            "<a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}&amp;infra_hash={assinatura}'>Incluir Documento Externo</a>"
         );
         if let Some(fim) = resposta.corpo.rfind("</body>") {
             resposta.corpo.insert_str(fim, &link);
