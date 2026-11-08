@@ -64,7 +64,12 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let caminho_ajax = format!("/sei/{}", consulta.url().split_once("/sei/").unwrap().1);
     let corpo_ajax = String::from_utf8(consulta.corpo().to_vec()).unwrap();
     let resposta_ajax = anti_ies::processo_envio::autocompletar(
-        "POST", &caminho_ajax, &corpo_ajax, &banco, &origem, cenario,
+        "POST",
+        &caminho_ajax,
+        &corpo_ajax,
+        &banco,
+        &origem,
+        cenario,
     );
     let itens = itens_do_autocompletar(&resposta_ajax.corpo).unwrap();
     let escolhido = escolher_destino("DESTINO", &itens).unwrap();
