@@ -21,6 +21,8 @@ tl = "0.7.8"
 # produção não liga `zip` nem `sha1`. `base64` segue em [dependencies] porque
 # o proxy monta `Proxy-Authorization: Basic` em produção.
 [dev-dependencies]
+cucumber = "0.23"
+futures = "0.3"
 anti-ies = { path = "crates/anti-ies" }
 sha1 = "0.11"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
@@ -28,3 +30,7 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 [workspace]
 members = ["xtask", "crates/iesei", "crates/ies-derive", "crates/anti-ies"]
 resolver = "3"
+
+[[test]]
+name = "bdd_cli"
+harness = false
