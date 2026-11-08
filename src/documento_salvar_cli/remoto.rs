@@ -107,13 +107,11 @@ fn executar(
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
         _ => return Resultado::Recusado(Falha::EditorIndisponivel),
     };
-    let n = match VersaoDocumento::nova(previa.versao_base) {
-        Ok(n) => n,
-        Err(_) => return Resultado::Recusado(Falha::VersaoAlterada),
+    let Ok(n) = VersaoDocumento::nova(previa.versao_base) else {
+        return Resultado::Recusado(Falha::VersaoAlterada);
     };
-    let pasta = match std::env::current_dir() {
-        Ok(p) => p,
-        Err(_) => return Resultado::Recusado(Falha::Leitura),
+    let Ok(pasta) = std::env::current_dir() else {
+        return Resultado::Recusado(Falha::Leitura);
     };
     let (local_base, local_editada) = match ler_par(&pasta, numero, n) {
         Ok(par) => par,
@@ -126,7 +124,7 @@ fn executar(
         processo: None,
         anexo: PedidoDoAnexo::default(),
     };
-    let lido = match obter_documento_com_propriedades(
+    let Ok(lido) = obter_documento_com_propriedades(
         sessao,
         &pedido,
         PedidoDeVersoes {
@@ -137,9 +135,8 @@ fn executar(
         indice,
         &mut envio,
         false,
-    ) {
-        Ok(lido) => lido,
-        Err(_) => return Resultado::Recusado(Falha::Leitura),
+    ) else {
+        return Resultado::Recusado(Falha::Leitura);
     };
     if lido.versoes.atual.as_ref().map(|v| v.numero()) != Ok(n.numero()) {
         return Resultado::Recusado(Falha::VersaoAlterada);
@@ -165,13 +162,11 @@ fn executar(
         "{}/controlador.php?acao=documento_editar&id_documento={}",
         sessao.origem, lido.id_documento
     );
-    let cookie = match sessao.cookie.valor() {
-        Ok(c) => c,
-        Err(_) => return Resultado::Recusado(Falha::Leitura),
+    let Ok(cookie) = sessao.cookie.valor() else {
+        return Resultado::Recusado(Falha::Leitura);
     };
-    let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
-        Ok(editor) => editor,
-        Err(_) => return Resultado::Recusado(Falha::EditorIndisponivel),
+    let Ok(editor) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
+        return Resultado::Recusado(Falha::EditorIndisponivel);
     };
     if !editor.contains(&format!("name='versao_base' value='{}'", n.numero())) {
         return Resultado::Recusado(Falha::Formulario);
