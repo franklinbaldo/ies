@@ -126,12 +126,11 @@ pub fn responder(
     if !super::eh_controlador_sei(alvo) {
         return despachar(metodo, alvo);
     }
-    let Some(acao @ ("procedimento_enviar" | "anotacao_registrar")) = unico(alvo, "acao")
-    else {
+    let Some(acao @ ("procedimento_enviar" | "anotacao_registrar")) = unico(alvo, "acao") else {
         return despachar(metodo, alvo);
     };
-    let Some(id) = unico(alvo, "id_procedimento")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    let Some(id) =
+        unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

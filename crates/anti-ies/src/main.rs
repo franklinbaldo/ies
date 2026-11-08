@@ -100,8 +100,11 @@ mod tests {
                 )
                 .unwrap();
             }
-            let acesso =
-                (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((&mut banco, &instalacao, "ensaio"));
+            let acesso = (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((
+                &mut banco,
+                &instalacao,
+                "ensaio",
+            ));
             atender_http(&mut fluxo, acesso).expect("responder");
         });
         let mut cliente = TcpStream::connect(endereco).expect("conectar");

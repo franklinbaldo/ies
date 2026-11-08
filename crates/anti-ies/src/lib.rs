@@ -392,9 +392,11 @@ pub fn atender_http(
     let resposta = match pedido {
         PedidoHttp::Vazio => return Ok(()),
         PedidoHttp::Invalido => Resposta::nova(Estado::RequisicaoInvalida),
-        PedidoHttp::Valido { metodo, alvo, corpo } => {
-            responder_pedido(&metodo, &alvo, &corpo, fonte)
-        }
+        PedidoHttp::Valido {
+            metodo,
+            alvo,
+            corpo,
+        } => responder_pedido(&metodo, &alvo, &corpo, fonte),
     };
     let localizacao = resposta
         .localizacao
