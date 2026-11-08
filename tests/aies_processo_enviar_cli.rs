@@ -194,6 +194,18 @@ fn omitir_checkbox_do_envio(pedido: Vec<u8>) -> Vec<u8> {
     format!("{cabecalho}\r\n\r\n{corpo}").into_bytes()
 }
 
+/// Executa o único desvio sintético controlado antes de entregar ao anti-IES.
+fn pedido_com_ensaio(
+    canal: &mut impl Read,
+    omitir_remocao_no_post: bool,
+) -> (Vec<u8>, String, String) {
+    let (bytes, metodo, acao) = pedido(canal);
+    if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
+        return (omitir_checkbox_do_envio(bytes), metodo, acao);
+    }
+    (bytes, metodo, acao)
+}
+
 fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -301,13 +313,7 @@ fn executar_com_ensaio_local(
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
-            let (bytes, metodo, acao) = pedido(&mut canal);
-            let bytes =
-                if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
-                    omitir_checkbox_do_envio(bytes)
-                } else {
-                    bytes
-                };
+            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, omitir_remocao_no_post);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
             let mut resposta = if bloquear {
