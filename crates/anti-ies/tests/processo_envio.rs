@@ -227,7 +227,6 @@ fn bdd_333_05_autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
     assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
 }
 
-
 #[test]
 fn autocomplete_http_real_le_estado_compartilhado_sem_alteracao() {
     use anti_ies::atender_http;
