@@ -301,7 +301,8 @@ fn executar_com_ensaio_local(
             } else {
                 comando.env_remove("IES_ANTI_IES_TESTE");
             }
-            comando.args(*args)
+            comando
+                .args(*args)
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
                 .env("IES_ORIGEM_FILE", &origem)

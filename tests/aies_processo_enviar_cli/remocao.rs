@@ -63,7 +63,8 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     let (saidas, pedidos, depois) =
         executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true);
     assert_eq!(
-        saidas[0].status.code(), Some(0),
+        saidas[0].status.code(),
+        Some(0),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
@@ -73,12 +74,19 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     assert_eq!(resultado["confirmado"], true);
     assert_eq!(resultado["anotacao_antes"], true);
     assert_eq!(resultado["anotacao_depois"], false);
-    assert_eq!(resultado["depois"], serde_json::json!(["ORIGEM", "DESTINO"]));
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"])
+    );
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(),
-        1, "o processo só pode ser enviado uma vez"
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1,
+        "o processo só pode ser enviado uma vez"
     );
     assert!(!pedidos.iter().any(|p| p == "POST anotacao_registrar"));
     assert!(
@@ -95,15 +103,20 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     let (saidas, pedidos, depois) =
         executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true);
     assert_eq!(
-        saidas[0].status.code(), Some(3),
+        saidas[0].status.code(),
+        Some(3),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     assert_eq!(json(&saidas[0])["codigo"], "efeito_incerto");
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(),
-        1, "a resposta incerta não autoriza repetir escrita"
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1,
+        "a resposta incerta não autoriza repetir escrita"
     );
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
