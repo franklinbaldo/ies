@@ -259,11 +259,12 @@ O que falta implementar e em que ordem está na
   Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
   REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
   por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
-  **Engenharia reversa por evidências:** usar a skill oficial REA
-  quando houver captura HAR, artefato ou runtime autorizado; o
-  [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
-  observação, hipótese e mutação demonstrada. REA não substitui
-  leitura de código Rust nem é novo gate obrigatório do CI.
+  **REA / emulação seletiva:** efeitos no SQLite; HTML, URLs,
+  formulários e tokens são projeções sintéticas. Dispensar mecanismos
+  internos não observáveis; separar fatos, hipóteses e desconhecidos.
+  REA em HAR/artefato/runtime autorizado; não substitui Rust nem
+  cria gate ([guia](docs/anti-ies/rea-engenharia-reversa.md),
+  #495–#497).
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
