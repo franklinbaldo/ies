@@ -1,8 +1,7 @@
 name: "Temporary training SEI connectivity check"
 on:
-  push:
-    branches:
-      - codex/elefante-live-matrix-20261108
+  pull_request:
+    types: [ready_for_review]
 permissions:
   contents: read
 jobs:
