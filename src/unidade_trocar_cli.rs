@@ -144,6 +144,13 @@ fn uso_invalido(json_mode: bool) -> ExitCode {
     ExitCode::from(2)
 }
 
+/// Causas diferentes permanecem tipadas até a apresentação na CLI.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FalhaAplicarTroca {
+    Cookie(FalhaTransporte),
+    Gravacao(crate::sessao_login::ErroLogin),
+}
+
 /// Depois da troca verificada: grava a URL do Controle novo (e o
 /// marcador) como a da sessão, apaga os links assinados da instalação e
 /// colhe o Controle novo com a chave da unidade nova. O cookie é o do
@@ -155,11 +162,10 @@ pub(crate) fn aplicar_troca(
     instalacao: &Instalacao,
     cookie: &CookieDaSessao,
     novo: &ControleLido,
-) -> Result<Option<usize>, &'static str> {
-    let falha = "url_do_controle_da_unidade_nova_nao_gravada";
-    let cookie = cookie.valor().map_err(|_| falha)?;
+) -> Result<Option<usize>, FalhaAplicarTroca> {
+    let cookie = cookie.valor().map_err(FalhaAplicarTroca::Cookie)?;
     crate::sessao_login::regravar_url_do_controle(arquivos, &novo.url, cookie)
-        .map_err(|_| falha)?;
+        .map_err(FalhaAplicarTroca::Gravacao)?;
     let descartados = indice.esquecer_links_da_instalacao(instalacao);
     crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, &novo.url)
         .colher(&novo.html, Some(&novo.mime));
@@ -178,7 +184,9 @@ fn concluir(
     if let Some(novo) = &troca.controle_novo {
         match aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo) {
             Ok(n) => descartados = n,
-            Err(subcodigo) => {
+            Err(_causa) => {
+                // A saída mantém o subcódigo legado; a origem não é mais perdida na função.
+                let subcodigo = "url_do_controle_da_unidade_nova_nao_gravada";
                 let mensagem = "a unidade foi trocada e conferida, mas a URL da sessão não foi gravada; rode ies login --forcar";
                 if json_mode {
                     println!(
