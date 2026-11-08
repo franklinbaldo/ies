@@ -44,6 +44,7 @@ fn conferir_cadastro(endereco: std::net::SocketAddr, cadastro: &str) {
     let form = consultar(endereco, "GET", cadastro, "");
     assert!(form.starts_with("HTTP/1.1 200 OK"));
     assert!(form.contains("frmDocumentoCadastro"));
+    assert!(form.contains(&format!("infra_hash={}", "4".repeat(64))));
     // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
     assert!(form.contains("name='hdnFlagDocumentoCadastro' value='1'"));
     assert!(form.contains("id='btnSalvar' name='btnSalvar'"));
@@ -56,7 +57,7 @@ fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
     assert!(escolhido.contains(&format!(
         "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291&infra_hash={}\r\n",
-        "e".repeat(64)
+        "4".repeat(64)
     )));
     let ausente = consultar(endereco, "POST", selecao, "hdnIdSerie=999");
     assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
@@ -112,6 +113,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
     assert!(render1.contains("id='ifrArvore'"));
+    assert!(render1.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert!(render1.contains("acao=procedimento_visualizar"));
     assert!(render1.contains("lnkInfraUnidade"));
     assert!(render1.contains("Despacho 1000001"));
@@ -121,6 +123,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(lista.starts_with("HTTP/1.1 200 OK"));
     assert!(lista.contains("tblSeries"));
     assert!(lista.contains("frmDocumentoEscolherTipo"));
+    assert!(lista.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert!(lista.contains("onclick='escolher(291)'"));
     verificar_navegacao_da_serie(endereco, &selecao);
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
