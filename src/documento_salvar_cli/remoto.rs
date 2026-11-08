@@ -98,11 +98,37 @@ enum Resultado {
 
 /// A confirmação requer uma releitura independente da nova versão,
 /// além da resposta ao único POST. Sem essa prova, o efeito é incerto.
+/// A contagem é informação explícita no editor sintético, não heurística
+/// sobre a presença de blocos de assinatura no HTML da versão.
+fn assinaturas_no_editor(html: &str) -> Option<u32> {
+    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let parser = dom.parser();
+    let mut contagem = None;
+    for handle in dom.query_selector("output")? {
+        let node = handle.get(parser)?;
+        let tag = node.as_tag()?;
+        let attrs = crate::html_atributos::atributos(tag).ok()?;
+        if attrs.valor("id").ok()? == Some("assinaturasAtuais") {
+            if contagem.is_some() {
+                return None;
+            }
+            contagem = Some(node.inner_text(parser).parse().ok()?);
+        }
+    }
+    contagem
+}
+
+fn editor_observado(html: &str, versao_base: u32) -> bool {
+    html.contains(&format!("name='versao_base' value='{versao_base}'"))
+        && assinaturas_no_editor(html).is_some()
+}
+
 fn verificar_publicacao(
     envio: &mut EnvioHttps,
     origem: &str,
     cookie: &str,
     id_documento: &str,
+    url_editor: &str,
     numero: &NumeroDocumento,
     versao_nova: u32,
     editada: &str,
@@ -114,11 +140,23 @@ fn verificar_publicacao(
     let Ok(html) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Incerto;
     };
+    // Um segundo GET do editor confirma o estado das assinaturas após o POST.
+    let assinaturas_conferidas = envio
+        .get(url_editor, cookie)
+        .and_then(decodificar_resposta)
+        .ok()
+        .and_then(|pagina| assinaturas_no_editor(&pagina))
+        == Some(0);
     let versao_igual = crate::rodape_do_documento::versao_do_rodape(&html)
         .is_some_and(|v| v.numero() == versao_nova);
     let identidade_igual = crate::documento_web::identidade_do_titulo(&html)
         .is_ok_and(|i| i.numero == numero.as_str());
-    if respondeu && versao_igual && identidade_igual && corpo_sintetico(&html) == Some(editada) {
+    if respondeu
+        && versao_igual
+        && identidade_igual
+        && assinaturas_conferidas
+        && corpo_sintetico(&html) == Some(editada)
+    {
         Resultado::Confirmado(versao_nova)
     } else {
         Resultado::Incerto
@@ -197,7 +235,7 @@ fn executar(
     let Ok(editor) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
         return Resultado::Recusado(Falha::EditorIndisponivel);
     };
-    if !editor.contains(&format!("name='versao_base' value='{}'", n.numero())) {
+    if !editor_observado(&editor, n.numero()) {
         return Resultado::Recusado(Falha::Formulario);
     }
     let envio_unico = derivar_submissao(
@@ -233,6 +271,7 @@ fn executar(
         sessao.origem,
         cookie,
         &lido.id_documento,
+        &url,
         numero,
         previa.versao_editada,
         editada,
@@ -251,7 +290,8 @@ pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopi
                             "documento": numero.as_str(),
                             "confirmado": true,
                             "versao_criada": versao,
-                            "releitura_confirmada": true
+                            "releitura_confirmada": true,
+                            "assinaturas_apos": 0
                         })
                     );
                 } else {

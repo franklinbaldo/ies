@@ -39,6 +39,7 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let conteudo = escapar(&ultima.html_corpo);
+    let assinaturas = oferta.assinaturas;
     let aviso = if oferta.assinaturas > 0 {
         format!(
             "<p id='avisoAssinaturas'>A edição pode remover {} assinatura(s). Confirmação explícita necessária.</p>",
@@ -48,7 +49,7 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
         String::new()
     };
     Resposta::html(format!(
-        "<html><body><h1>Editar documento {}</h1>{aviso}\
+        "<html><body><h1>Editar documento {}</h1><output id='assinaturasAtuais'>{assinaturas}</output>{aviso}\
          <form id='frmDocumentoEditar' method='post' action='controlador.php?acao=documento_editar&amp;id_documento={id}&amp;infra_hash={}'>\
          <input type='hidden' name='versao_base' value='{}'>\
          <textarea name='html_base' hidden>{conteudo}</textarea>\

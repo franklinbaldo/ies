@@ -148,7 +148,7 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(com_documento: bool) -> (Connection, Instalacao) {
+fn estado(com_documento: bool, assinaturas: u32) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -200,7 +200,7 @@ fn estado(com_documento: bool) -> (Connection, Instalacao) {
             "42",
             Oferta {
                 editavel: true,
-                assinaturas: 0,
+                assinaturas,
             },
         )
         .unwrap();
@@ -218,6 +218,16 @@ fn executar_com_estado(
     requisicoes: usize,
     com_documento: bool,
 ) -> Output {
+    executar_com_assinaturas(pasta, args, requisicoes, com_documento, 0)
+}
+
+fn executar_com_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    assinaturas: u32,
+) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -232,7 +242,7 @@ fn executar_com_estado(
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_documento);
+        let (db, instalacao) = estado(com_documento, assinaturas);
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -438,7 +448,7 @@ fn bdd_89_02_cli_publica_uma_versao_e_confere_por_releitura() {
             "3",
             "--confirmar",
         ],
-        9, // busca/histórico/versão (6) + editor + POST + releitura (3).
+        10, // seis leituras + editor + POST + versão e assinaturas relidas.
     );
     assert_eq!(
         resposta.status.code(),
@@ -507,4 +517,58 @@ fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
         fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
         divergente,
     );
+}
+
+#[test]
+fn bdd_89_04_cli_documento_assinado_confirma_estado_apos_edicao() {
+    let pasta = Pasta::nova();
+    let leitura = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            DOC,
+            "--versao",
+            "3",
+            "--saida",
+            pasta.0.to_str().unwrap(),
+            "--sem-cache",
+        ],
+        6,
+    );
+    assert_eq!(leitura.status.code(), Some(0), "{:?}", json(&leitura));
+    let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
+    pasta.privado(
+        "0011519.v4.html",
+        &base.replace("Terceira redação", "Assinatura removida após edição"),
+    );
+    // A oferta do editor informa duas assinaturas. Após o POST único,
+    // a releitura do editor confirma contagem zero, além da versão nova.
+    let resposta = executar_com_assinaturas(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            "salvar",
+            DOC,
+            "--versao",
+            "3",
+            "--confirmar",
+        ],
+        10,
+        true,
+        2,
+    );
+    assert_eq!(
+        resposta.status.code(),
+        Some(0),
+        "falha: {:?}; stderr={}",
+        json(&resposta),
+        String::from_utf8_lossy(&resposta.stderr),
+    );
+    let publicado = json(&resposta);
+    assert_eq!(publicado["versao_criada"], 4);
+    assert_eq!(publicado["assinaturas_apos"], 0);
+    assert_eq!(publicado["releitura_confirmada"], true);
+    assert_eq!(fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(), base);
 }
