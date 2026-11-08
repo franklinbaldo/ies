@@ -110,7 +110,9 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         b"selSerie=293&hdnFlagDocumentoCadastro=2&hdnAnexos=upload-1%C2%B1prova.pdf",
     );
     assert!(definitivo.starts_with("HTTP/1.1 302 Found\r\n"));
-    assert!(definitivo.contains("Location: controlador.php?acao=arvore_visualizar&id_procedimento=7&id_documento=1"));
+    assert!(definitivo.contains(
+        "Location: controlador.php?acao=arvore_visualizar&id_procedimento=7&id_documento=1"
+    ));
 
     let depois = pedir(
         endereco,
