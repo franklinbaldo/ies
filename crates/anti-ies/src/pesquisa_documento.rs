@@ -1,7 +1,7 @@
 //! Busca sintética de número SEI: rota de pesquisa rápida e estado SQLite.
 //! Somente loopback; sem consultas externas ou credenciais verdadeiras.
 use crate::{Estado, Resposta, despachar, eh_controlador_sei, parametro_unico};
-use iesei::documento_versoes::ids_por_numero;
+use iesei::documento_versoes::{ids_por_numero, ler as ler_documento};
 use iesei::documentos_simulados::ids_por_nup;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -93,6 +93,33 @@ fn formulario_de_pesquisa(unidade: &str, termo: &str, sem_resultado: bool) -> St
     )
 }
 
+/// O número SEI exato recupera a mesma identidade já presente nas versões.
+/// Identidades ausentes ou ambíguas não são convertidas em "sem resultado".
+fn documento_exato(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    termo: &str,
+) -> Resposta {
+    if !termo.bytes().all(|b| b.is_ascii_digit()) {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
+    let Ok(ids) = ids_por_numero(banco, instalacao, cenario, termo) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let [id] = ids.as_slice() else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Ok(Some(documento)) = ler_documento(banco, instalacao, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    Resposta::redirecionar(format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisar&id_procedimento={}&id_documento={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        documento.id_procedimento,
+        crate::protocolo_sintetico::INFRA_HASH
+    ))
+}
+
 /// Pesquisa por protocolo na forma documento. Estado desconhecido retorna
 /// 503, nunca `sem_resultado` por omissão de registro no SQLite.
 #[must_use]
@@ -137,7 +164,8 @@ pub fn responder_pesquisa(
                 Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => Resposta::html(
                     formulario_de_pesquisa(controle.unidade.as_str(), &termo, true),
                 ),
-                Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+                Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
+                Err(_) => Resposta::nova(Estado::DadosInsuficientes),
             }
         }
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
