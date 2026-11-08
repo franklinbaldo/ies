@@ -141,3 +141,65 @@ fn dado_formulario_com_campos_quando_previa_entao_exibe_so_controles_ativos_sem_
             .any(|campo| campo.contains("confidencial"))
     );
 }
+
+
+#[test]
+fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
+    use crate::documento_externo_incluir::escolha::{
+        EscolhaExterna, escolher_externo, identificar_tipo,
+    };
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::pdf_externo::{Processo, TipoExterno, semear};
+    use rusqlite::Connection;
+
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    semear(
+        &banco,
+        &origem,
+        "ensaio",
+        &Processo {
+            id: "7".into(),
+            nup: "00001.000001/2026-01".into(),
+            unidade: "TESTE".into(),
+        },
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 200 * 1024 * 1024,
+        },
+    )
+    .unwrap();
+    let renderizar = |metodo, alvo, corpo: &[u8]| {
+        anti_ies::pdf_externo::atender(metodo, alvo, corpo, &banco, &origem, "ensaio")
+            .expect("rota disponível")
+            .corpo
+    };
+    let escolha = renderizar(
+        "GET",
+        "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=7",
+        b"",
+    );
+    assert!(matches!(
+        escolher_externo(&escolha),
+        Ok(EscolhaExterna::Url(_))
+    ));
+    let formulario = renderizar(
+        "GET",
+        "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
+        b"",
+    );
+    assert_eq!(identificar_tipo(&formulario, "Anexo"), Ok("293".into()));
+    let recarregado = renderizar(
+        "POST",
+        "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
+        b"hdnFlagDocumentoCadastro=1&selSerie=293",
+    );
+    let previa = observar_cadastro(&recarregado, "Anexo", 68).unwrap();
+    assert_eq!(previa.id_tipo, "293");
+    assert_eq!(previa.limite_pdf_bytes, 200 * 1024 * 1024);
+    assert!(previa.campos_oferecidos.contains(&"txtDataElaboracao".to_owned()));
+    assert!(previa.campos_oferecidos.contains(&"rdoNivelAcesso".to_owned()));
+}
