@@ -271,6 +271,10 @@ struct PedidoHttp {
     corpo: String,
 }
 
+// O editor transporta HTML até 8 MiB; form-urlencoded pode triplicar
+// os bytes por escapes %. O limite HTTP acomoda essa codificação.
+const LIMITE_CORPO_FORMULARIO: usize = 24 * 1024 * 1024;
+
 /// Leitura limitada da requisição para suportar o POST do simulador.
 /// Sem cookies, proxy, streaming, chunked ou acesso à rede externa.
 fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Estado>>> {
@@ -319,9 +323,6 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
             }
         }
     }
-    // O editor transporta HTML até 8 MiB; form-urlencoded pode triplicar
-    // os bytes por escapes %. O limite HTTP deve acomodar essa codificação.
-    const LIMITE_CORPO_FORMULARIO: usize = 24 * 1024 * 1024;
     if !terminado
         || tamanho.unwrap_or(0) > LIMITE_CORPO_FORMULARIO
         || (metodo == "POST" && tamanho.is_none())
