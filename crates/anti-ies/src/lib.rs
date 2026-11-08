@@ -208,8 +208,11 @@ fn menu_com_retornos(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Result<String, Estado> {
-    let observados = iesei::retornos_cassettes::periodos(banco, instalacao, cenario)
-        .map_err(|_| Estado::DadosInsuficientes)?;
+    // O Controle válido continua legível mesmo se um mês sintético
+    // desconhecido (ex.: "01"/"31") não oferecer calendário navegável.
+    let Ok(observados) = iesei::retornos_cassettes::periodos(banco, instalacao, cenario) else {
+        return Ok(html);
+    };
     if observados.is_empty() {
         return Ok(html);
     }
