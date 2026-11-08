@@ -1,3 +1,0 @@
-cassettes/pen1/documento-numero-e-busca-pen1--f274a10a3ee0.md
-cassettes/pen2/documento-numero-e-busca-pen2--fac3b99dd330.md
-cassettes/pen4/documento-numero-e-busca-pen4--831054375369.md
