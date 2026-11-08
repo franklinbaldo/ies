@@ -126,7 +126,7 @@ pub fn publicar(
     id: &str,
     edicao: Edicao<'_>,
 ) -> Result<Publicacao, Falha> {
-    if edicao.html_editado.trim().is_empty() || edicao.html_editado == edicao.html_base {
+    if edicao.html_editado == edicao.html_base {
         return Err(Falha::DadoInvalido);
     }
     let origem = instalacao.url_base();
