@@ -115,6 +115,15 @@ pub fn responder(
     let Ok(Some(documento)) = ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    // A URL publicada pode declarar o processo: nunca entregar conteúdo
+    // de outro processo quando a identidade composta não corresponde.
+    match parametro(alvo, "id_procedimento") {
+        Ok(Some(processo)) if processo != documento.id_procedimento.as_str() => {
+            return Resposta::nova(Estado::NaoEncontrado);
+        }
+        Err(estado) => return Resposta::nova(estado),
+        _ => {}
+    }
     if acao == "documento_versao_listar" {
         return resposta_html(historico(&documento));
     }
