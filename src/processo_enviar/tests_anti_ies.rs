@@ -2,10 +2,13 @@
 //! o consumidor da submissão, do autocomplete e da árvore é o IES real.
 use super::destino::{escolher_destino, itens_do_autocompletar};
 use super::tela::{
-    ENVIAR_PROCESSO, campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
+    AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, campos_da_consulta, campos_do_envio,
+    conferir_tela_de_envio, redirecionamento_esperado,
 };
 use crate::arvore_processo::{AbertoEm, ler_arvore};
-use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+use crate::formulario_web::{
+    CodificacaoDaTela, TelaServida, derivar_consulta_ajax, derivar_submissao,
+};
 use iesei::banco_cassettes::iniciar;
 use iesei::instalacao::Instalacao as OrigemSimulada;
 use iesei::processos::{Destino, ProcessoSimulado, guardar, ler};
@@ -45,23 +48,28 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
     let tela = conferir_tela_de_envio(&formulario.corpo, id).unwrap();
     assert!(tela.remover_anotacoes_oferecida);
-    let resposta_ajax = anti_ies::processo_envio::autocompletar(
-        "POST",
-        "/sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo",
-        "palavras_pesquisa=DESTINO&id_orgao=",
-        &banco,
-        &origem,
-        cenario,
-    );
-    let itens = itens_do_autocompletar(&resposta_ajax.corpo).unwrap();
-    let escolhido = escolher_destino("DESTINO", &itens).unwrap();
-    let campos = campos_do_envio(&tela, &escolhido, true, true);
-    let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let servida = TelaServida {
         url: "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
         html: &formulario.corpo,
         codificacao: CodificacaoDaTela::Iso88591,
     };
+    let consulta = derivar_consulta_ajax(
+        &AUTOCOMPLETAR_UNIDADE,
+        &instalacao,
+        &servida,
+        &tela.autocompletar,
+        &campos_da_consulta(&tela, "DESTINO"),
+    )
+    .unwrap();
+    let caminho_ajax = format!("/sei/{}", consulta.url().split_once("/sei/").unwrap().1);
+    let corpo_ajax = String::from_utf8(consulta.corpo().to_vec()).unwrap();
+    let resposta_ajax = anti_ies::processo_envio::autocompletar(
+        "POST", &caminho_ajax, &corpo_ajax, &banco, &origem, cenario,
+    );
+    let itens = itens_do_autocompletar(&resposta_ajax.corpo).unwrap();
+    let escolhido = escolher_destino("DESTINO", &itens).unwrap();
+    let campos = campos_do_envio(&tela, &escolhido, true, true);
+    let pares: Vec<_> = campos.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares).unwrap();
     let caminho = format!("/sei/{}", submissao.url().split_once("/sei/").unwrap().1);
     assert_eq!(ler(&banco, &origem, cenario, id).unwrap().unwrap(), antes);
