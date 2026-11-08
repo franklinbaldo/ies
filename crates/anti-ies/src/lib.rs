@@ -1,5 +1,6 @@
 //! Servidor experimental. O Controle R usa somente observações verificadas.
 pub mod documento_versoes;
+pub mod documento_arvore;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -299,6 +300,11 @@ pub fn atender_http(
                         Some("documento_versao_listar" | "documento_visualizar")
                     ) {
                         documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
+                    } else if matches!(
+                        parametro_unico(alvo, "acao"),
+                        Some("procedimento_visualizar" | "procedimento_trabalhar")
+                    ) {
+                        documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
                     } else {
                         controlar(metodo, alvo, banco, instalacao, cenario)
                     }

@@ -20,6 +20,7 @@ pub struct DocumentoSimulado {
     pub instalacao: Instalacao,
     pub id_documento: String,
     pub id_procedimento: String,
+    pub numero_processo: String,
     pub numero: String,
     pub tipo: String,
     pub revisoes: Vec<Revisao>,
@@ -54,6 +55,7 @@ pub fn guardar(
             .id_procedimento
             .bytes()
             .all(|b| b.is_ascii_digit())
+        || !valido(&documento.numero_processo)
         || !valido(&documento.numero)
         || !documento.numero.bytes().all(|b| b.is_ascii_digit())
         || !valido(&documento.id_documento)
@@ -78,12 +80,15 @@ pub fn guardar(
     let origem = documento.instalacao.url_base();
     let tx = banco.transaction()?;
     tx.execute(
-        "INSERT INTO documento_simulado (origem, cenario, id_documento, id_procedimento, numero, tipo)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO documento_simulado
+         (origem, cenario, id_documento, id_procedimento, numero_processo, numero, tipo)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
          ON CONFLICT(origem, cenario, id_documento) DO UPDATE SET
          id_procedimento=excluded.id_procedimento,
+         numero_processo=excluded.numero_processo,
          numero=excluded.numero, tipo=excluded.tipo",
-        params![origem, cenario, documento.id_documento, documento.id_procedimento, documento.numero, documento.tipo],
+        params![origem, cenario, documento.id_documento, documento.id_procedimento,
+                documento.numero_processo, documento.numero, documento.tipo],
     )?;
     tx.execute(
         "DELETE FROM documento_revisao WHERE origem=?1 AND cenario=?2 AND id_documento=?3",
@@ -122,15 +127,15 @@ pub fn ler(
     id_documento: &str,
 ) -> Result<Option<DocumentoSimulado>, Falha> {
     let origem = instalacao.url_base();
-    let cabecalho: Option<(String, String, String)> = banco
+    let cabecalho: Option<(String, String, String, String)> = banco
         .query_row(
-            "SELECT id_procedimento, numero, tipo FROM documento_simulado
+            "SELECT id_procedimento, numero_processo, numero, tipo FROM documento_simulado
              WHERE origem=?1 AND cenario=?2 AND id_documento=?3",
             params![origem, cenario, id_documento],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )
         .optional()?;
-    let Some((id_procedimento, numero, tipo)) = cabecalho else {
+    let Some((id_procedimento, numero_processo, numero, tipo)) = cabecalho else {
         return Ok(None);
     };
     let mut stmt = banco.prepare(
@@ -167,6 +172,7 @@ pub fn ler(
         instalacao: instalacao.clone(),
         id_documento: id_documento.to_owned(),
         id_procedimento,
+        numero_processo,
         numero,
         tipo,
         revisoes,

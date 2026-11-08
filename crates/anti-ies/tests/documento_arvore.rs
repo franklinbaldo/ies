@@ -15,6 +15,7 @@ fn documento() -> DocumentoSimulado {
         instalacao: origem(),
         id_documento: "42".into(),
         id_procedimento: "7".into(),
+        numero_processo: "00001.000001/2026-01".into(),
         numero: "0011519".into(),
         tipo: "Ofício".into(),
         revisoes: vec![
@@ -55,6 +56,14 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     assert!(arvore.corpo.contains("documento_versao_listar"));
     assert!(arvore.corpo.contains("acao=documento_visualizar"));
 
+    let tela = responder(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_protocolo=42",
+        &banco, &origem(), "ensaio",
+    );
+    assert_eq!(tela.estado, Estado::Ok);
+    assert!(tela.corpo.contains("id=\"ifrArvore\""));
+    assert!(tela.corpo.contains("id_procedimento=7"));
     let historico = responder(
         "GET",
         "/sei/controlador.php?acao=documento_versao_listar&id_documento=42",
