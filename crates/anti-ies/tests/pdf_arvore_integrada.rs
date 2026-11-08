@@ -85,8 +85,10 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
         .unwrap();
         interno::criar(&banco, &origem, "caso", "7", "291", "Primeiro").unwrap();
 
-        let mut conexao = aceitar(&escuta);
-        anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
+        {
+            let mut conexao = aceitar(&escuta);
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
+        }
         let temporario = externo::receber(&banco, &origem, "caso", "7", "prova.pdf", 42).unwrap();
         externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);

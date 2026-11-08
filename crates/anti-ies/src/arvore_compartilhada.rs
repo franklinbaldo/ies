@@ -74,13 +74,11 @@ pub(crate) fn responder(
         parametro_unico(alvo, "id_documento").or_else(|| parametro_unico(alvo, "id_protocolo"));
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
-    let internos = match interno::documentos(banco, origem, cenario, id_processo) {
-        Ok(documentos) => documentos,
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(internos) = interno::documentos(banco, origem, cenario, id_processo) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let externos = match externo::documentos(banco, origem, cenario, id_processo) {
-        Ok(documentos) => documentos,
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(externos) = externo::documentos(banco, origem, cenario, id_processo) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let cadastrado = selecionado.is_some_and(|id| {
         internos.iter().any(|doc| doc.id.to_string() == id)
@@ -99,7 +97,8 @@ pub(crate) fn responder(
     // Ao selecionar o PDF, preserve também a barra e a situação da raiz
     // já publicadas pela navegação de tramitação para o mesmo processo.
     let alvo_sem_selecao = selecionado.map(|_| {
-        format!("controlador.php?acao=procedimento_visualizar&id_procedimento={id_processo}")
+        let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
+        format!("{caminho}?acao=procedimento_visualizar&id_procedimento={id_processo}")
     });
     let base = crate::processo_envio::navegacao(
         metodo,
@@ -121,23 +120,22 @@ pub(crate) fn responder(
             Err(estado) => return Resposta::nova(estado),
         }
     };
-    let mut indice = pagina
+    let inicio = pagina
         .lines()
         .chain(novos.lines())
         .filter(|linha| linha.starts_with("Nos[") && linha.contains(" = new infraArvoreNo("))
         .count();
-    for documento in externos {
+    for (deslocamento, documento) in externos.into_iter().enumerate() {
         // Espaço numérico separado: rowids internos e externos são independentes.
         let id = documento.id_publico();
         novos.push_str(&no_documento(
-            indice,
+            inicio + deslocamento,
             &id,
             id_processo,
             &documento.tipo,
             &documento.numero_sei,
             "documento_pdf",
         ));
-        indice += 1;
     }
     let Some(posicao) = pagina.find("</script>") else {
         return Resposta::nova(Estado::DadosInsuficientes);

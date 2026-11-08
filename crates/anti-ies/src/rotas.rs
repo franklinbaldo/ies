@@ -7,6 +7,47 @@ use crate::{
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
+// Responde a visualização de documentos a partir de um único estado SQLite.
+fn visualizar(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let pdfs = parametro_unico(alvo, "id_procedimento")
+        .map(|id| iesei::pdf_externo::documentos(banco, instalacao, cenario, id))
+        .transpose();
+    match pdfs {
+        Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
+        Ok(Some(documentos)) if !documentos.is_empty() => {
+            arvore_compartilhada::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Ok(_) => processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario)
+            .unwrap_or_else(|| {
+                if documentos::eh_rota_documentos(alvo)
+                    && let Some(id) = parametro_unico(alvo, "id_procedimento")
+                {
+                    match iesei::documentos_simulados::ler_processo(
+                        banco, instalacao, cenario, id,
+                    ) {
+                        Ok(Some(_)) => {
+                            return documentos::atender(
+                                metodo, alvo, corpo, banco, instalacao, cenario,
+                            );
+                        }
+                        Ok(None) => {}
+                        Err(_) => {
+                            return Resposta::nova(crate::Estado::DadosInsuficientes);
+                        }
+                    }
+                }
+                documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
+            }),
+    }
+}
+
 /// Resolve uma única operação a partir do estado da instalação e do cenário.
 pub(crate) fn responder(
     metodo: &str,
@@ -74,36 +115,7 @@ pub(crate) fn responder(
             )
         }
         Some("procedimento_visualizar") if eh_controlador_sei(alvo) => {
-            let pdfs = parametro_unico(alvo, "id_procedimento")
-                .map(|id| iesei::pdf_externo::documentos(banco, instalacao, cenario, id))
-                .transpose();
-            match pdfs {
-                Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
-                Ok(Some(documentos)) if !documentos.is_empty() => {
-                    arvore_compartilhada::responder(metodo, alvo, banco, instalacao, cenario)
-                }
-                Ok(_) => processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario)
-                    .unwrap_or_else(|| {
-                        if documentos::eh_rota_documentos(alvo)
-                            && let Some(id) = parametro_unico(alvo, "id_procedimento")
-                        {
-                            match iesei::documentos_simulados::ler_processo(
-                                banco, instalacao, cenario, id,
-                            ) {
-                                Ok(Some(_)) => {
-                                    return documentos::atender(
-                                        metodo, alvo, corpo, banco, instalacao, cenario,
-                                    );
-                                }
-                                Ok(None) => {}
-                                Err(_) => {
-                                    return Resposta::nova(crate::Estado::DadosInsuficientes);
-                                }
-                            }
-                        }
-                        documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
-                    }),
-            }
+            visualizar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
