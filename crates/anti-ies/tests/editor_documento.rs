@@ -274,8 +274,10 @@ fn editor_aceita_limpar_o_corpo_e_preserva_a_versao_anterior() {
 fn editor_preserva_secao_inalterada_em_documento_multissecao() {
     use iesei::editor_documento::{Edicao, publicar};
 
-    let base = "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Antigo</p></section>";
-    let editado = "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Novo</p></section>";
+    let base =
+        "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Antigo</p></section>";
+    let editado =
+        "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Novo</p></section>";
     let mut documento = documento();
     documento.revisoes[0].html_corpo = base.into();
     let mut banco = Connection::open_in_memory().unwrap();
