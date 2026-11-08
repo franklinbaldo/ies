@@ -1,9 +1,11 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
+mod arvore_compartilhada;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
 pub mod processo_envio;
@@ -272,7 +274,7 @@ pub fn controlar(
 struct PedidoHttp {
     metodo: String,
     alvo: String,
-    corpo: String,
+    corpo: Vec<u8>,
 }
 
 /// Leitura limitada da requisição para suportar o POST do simulador.
@@ -323,14 +325,16 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
             }
         }
     }
-    if !terminado || tamanho.unwrap_or(0) > 8192 || (metodo == "POST" && tamanho.is_none()) {
+    let limite = if parametro_unico(&alvo, "acao") == Some("documento_upload_anexo") {
+        256 * 1024 * 1024
+    } else {
+        8192
+    };
+    if !terminado || tamanho.unwrap_or(0) > limite || (metodo == "POST" && tamanho.is_none()) {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     }
     let mut corpo = vec![0; tamanho.unwrap_or(0)];
     leitor.read_exact(&mut corpo)?;
-    let Ok(corpo) = String::from_utf8(corpo) else {
-        return Ok(Some(Err(Estado::RequisicaoInvalida)));
-    };
     Ok(Some(Ok(PedidoHttp {
         metodo,
         alvo,

@@ -4,6 +4,7 @@ use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle, inic
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::pdf_externo::{Processo as ProcessoPdf, TipoExterno, semear as semear_pdf};
 use iesei::processos::{Destino, ProcessoSimulado, guardar};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
@@ -49,6 +50,22 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 },
             )
             .map_err(|_| "falha ao preparar processo de demonstração")?;
+            semear_pdf(
+                &banco,
+                &instalacao,
+                &cenario,
+                &ProcessoPdf {
+                    id: "10".into(),
+                    nup: "00001.000001/2026-01".into(),
+                    unidade: "UNIDADE TESTE".into(),
+                },
+                &TipoExterno {
+                    id: "293".into(),
+                    nome: "Anexo".into(),
+                    limite_bytes: 200 * 1024 * 1024,
+                },
+            )
+            .map_err(|_| "falha ao preparar PDF externo de demonstração")?;
             guardar(
                 &mut banco,
                 &instalacao,
