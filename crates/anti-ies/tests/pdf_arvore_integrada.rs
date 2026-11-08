@@ -189,6 +189,9 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
     assert!(resposta.contains("documento_versao_listar"));
     assert!(resposta.contains("Despacho 1000001"));
     assert!(resposta.contains("Anexo 050000001"));
-    assert_eq!(resposta.matches("new infraArvoreNo(\"DOCUMENTO\"").count(), 3);
+    assert_eq!(
+        resposta.matches("new infraArvoreNo(\"DOCUMENTO\"").count(),
+        3
+    );
     servidor.join().unwrap();
 }

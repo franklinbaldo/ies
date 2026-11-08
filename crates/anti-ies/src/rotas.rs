@@ -1,8 +1,8 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_versoes, documentos,
-    eh_controlador_sei, pdf_externo,
-    parametro_unico, pesquisa_documento, processo_envio, retorno_programado,
+    eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento, processo_envio,
+    retorno_programado,
 };
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -54,15 +54,13 @@ pub(crate) fn responder(
         Some("documento_gerar") if eh_controlador_sei(alvo) => {
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("arvore_visualizar") if eh_controlador_sei(alvo) => {
-            pdf_externo::complementar_arvore(
-                documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
-                alvo,
-                banco,
-                instalacao,
-                cenario,
-            )
-        }
+        Some("arvore_visualizar") if eh_controlador_sei(alvo) => pdf_externo::complementar_arvore(
+            documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+            alvo,
+            banco,
+            instalacao,
+            cenario,
+        ),
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
         {
