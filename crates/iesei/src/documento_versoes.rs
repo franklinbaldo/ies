@@ -217,7 +217,10 @@ pub fn ids_por_numero(
 /// # Errors
 /// Propaga a falha original do SQLite.
 pub fn ids_do_processo(
-    banco: &Connection, instalacao: &Instalacao, cenario: &str, id_procedimento: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
 ) -> rusqlite::Result<Vec<String>> {
     let mut stmt = banco.prepare(
         "SELECT id_documento FROM documento_simulado

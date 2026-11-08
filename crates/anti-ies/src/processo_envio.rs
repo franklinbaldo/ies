@@ -308,7 +308,10 @@ fn literal_js(texto: &str) -> String {
 }
 
 fn arvore_do_processo(
-    processo: &ProcessoSimulado, banco: &Connection, instalacao: &Instalacao, cenario: &str,
+    processo: &ProcessoSimulado,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
 ) -> Result<String, Estado> {
     let nos = super::documento_arvore::nos_do_processo(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
@@ -369,8 +372,10 @@ pub fn navegacao(
     if acao == "procedimento_trabalhar" {
         return Some(resposta_html(trabalho_do_processo(&processo)));
     }
-    Some(match arvore_do_processo(&processo, banco, instalacao, cenario) {
-        Ok(corpo) => resposta_html(corpo),
-        Err(estado) => Resposta::nova(estado),
-    })
+    Some(
+        match arvore_do_processo(&processo, banco, instalacao, cenario) {
+            Ok(corpo) => resposta_html(corpo),
+            Err(estado) => Resposta::nova(estado),
+        },
+    )
 }

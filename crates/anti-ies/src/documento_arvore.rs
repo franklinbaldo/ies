@@ -109,7 +109,10 @@ pub fn responder(
 /// Renderiza nós dos documentos existentes no SQLite do processo em tramitação.
 /// Versões e documentos internos compartilham o mesmo pai e não desaparecem.
 pub(crate) fn nos_do_processo(
-    banco: &Connection, instalacao: &Instalacao, cenario: &str, processo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    processo: &str,
 ) -> Result<String, Estado> {
     let ids = versoes::ids_do_processo(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
@@ -122,20 +125,43 @@ pub(crate) fn nos_do_processo(
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
-        nos.push_str(&no_de_documento(indice, processo, &id, &documento.numero, &documento.tipo, true));
+        nos.push_str(&no_de_documento(
+            indice,
+            processo,
+            &id,
+            &documento.numero,
+            &documento.tipo,
+            true,
+        ));
         indice += 1;
         vistos.push(id);
     }
     for documento in internos {
         let id = documento.id.to_string();
-        if vistos.contains(&id) { continue; }
-        nos.push_str(&no_de_documento(indice, processo, &id, &documento.numero_sei, &documento.tipo, false));
+        if vistos.contains(&id) {
+            continue;
+        }
+        nos.push_str(&no_de_documento(
+            indice,
+            processo,
+            &id,
+            &documento.numero_sei,
+            &documento.tipo,
+            false,
+        ));
         indice += 1;
     }
     Ok(nos)
 }
 
-fn no_de_documento(indice: usize, processo: &str, id: &str, numero: &str, tipo: &str, versoes: bool) -> String {
+fn no_de_documento(
+    indice: usize,
+    processo: &str,
+    id: &str,
+    numero: &str,
+    tipo: &str,
+    versoes: bool,
+) -> String {
     let id = js(id);
     let processo = js(processo);
     let numero = js(numero);
@@ -153,7 +179,9 @@ Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}
 "#
         ));
     } else {
-        no.push_str(&format!("Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n"));
+        no.push_str(&format!(
+            "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n"
+        ));
     }
     no.push_str(&format!("Nos[{indice}].html = '';\n"));
     no

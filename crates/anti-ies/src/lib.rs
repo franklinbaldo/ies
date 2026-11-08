@@ -4,9 +4,9 @@ mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+pub mod pesquisa_documento;
 pub mod processo_envio;
 mod rotas;
-pub mod pesquisa_documento;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
 use iesei::retornos_cassettes::{Mes, Situacao, ler as ler_retornos};
@@ -350,8 +350,12 @@ pub fn atender_http(
         Ok(pedido) => {
             if let Some((banco, instalacao, cenario)) = fonte {
                 rotas::responder(
-                    &pedido.metodo, &pedido.alvo, &pedido.corpo,
-                    banco, instalacao, cenario,
+                    &pedido.metodo,
+                    &pedido.alvo,
+                    &pedido.corpo,
+                    banco,
+                    instalacao,
+                    cenario,
                 )
             } else {
                 despachar(&pedido.metodo, &pedido.alvo)

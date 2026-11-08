@@ -144,19 +144,38 @@ fn envio_preserva_documentos_internos_e_versoes_na_arvore() {
     use std::num::NonZeroU32;
 
     let mut db = banco();
-    registrar_tipo(&db, &origem(), "bdd-333", "10",
-        &Tipo { id: "291".into(), nome: "Despacho".into() }).unwrap();
+    registrar_tipo(
+        &db,
+        &origem(),
+        "bdd-333",
+        "10",
+        &Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        },
+    )
+    .unwrap();
     let interno = criar(&db, &origem(), "bdd-333", "10", "291", "Interno").unwrap();
-    guardar_versao(&mut db, "bdd-333", &DocumentoSimulado {
-        instalacao: origem(), id_documento: "42".into(), id_procedimento: "10".into(),
-        numero_processo: "00001.000001/2026-01".into(),
-        numero: "0011519".into(), tipo: "Ofício".into(),
-        revisoes: vec![Revisao {
-            versao: NonZeroU32::new(1).unwrap(), usuario: "Teste".into(),
-            unidade: "ORIGEM".into(), modificacao: "08/11/2026".into(),
-            html_corpo: "<p>Versão preservada</p>".into(),
-        }],
-    }).unwrap();
+    guardar_versao(
+        &mut db,
+        "bdd-333",
+        &DocumentoSimulado {
+            instalacao: origem(),
+            id_documento: "42".into(),
+            id_procedimento: "10".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0011519".into(),
+            tipo: "Ofício".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Teste".into(),
+                unidade: "ORIGEM".into(),
+                modificacao: "08/11/2026".into(),
+                html_corpo: "<p>Versão preservada</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
@@ -164,7 +183,10 @@ fn envio_preserva_documentos_internos_e_versoes_na_arvore() {
             let (mut conexao, _) = escuta.accept().unwrap();
             atender_http(&mut conexao, Some((&db, &origem(), "bdd-333"))).unwrap();
         }
-        assert_eq!(documentos(&db, &origem(), "bdd-333", "10").unwrap(), [interno]);
+        assert_eq!(
+            documentos(&db, &origem(), "bdd-333", "10").unwrap(),
+            [interno]
+        );
         ler(&db, &origem(), "bdd-333", "10").unwrap().unwrap()
     });
     let raiz = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10";
@@ -172,21 +194,35 @@ fn envio_preserva_documentos_internos_e_versoes_na_arvore() {
     assert!(antes.contains("Nos[1] = new infraArvoreNo"), "{antes}");
     assert!(antes.contains("Nos[2] = new infraArvoreNo"), "{antes}");
     assert!(antes.contains("documento_versao_listar"));
-    let envio = pedir(endereco, "POST",
+    let envio = pedir(
+        endereco,
+        "POST",
         "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
-        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on&chkSinRemoverAnotacoes=on");
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on&chkSinRemoverAnotacoes=on",
+    );
     assert!(envio.starts_with("HTTP/1.1 302 Found"), "{envio}");
     let depois = pedir(endereco, "GET", raiz, "");
     assert!(depois.contains("Nos[1] = new infraArvoreNo"), "{depois}");
     assert!(depois.contains("Nos[2] = new infraArvoreNo"), "{depois}");
     assert!(depois.contains("DESTINO"));
     assert!(depois.contains("documento_versao_listar"));
-    let arvore_documento = pedir(endereco, "GET",
-        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42", "");
+    let arvore_documento = pedir(
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
+        "",
+    );
     assert!(arvore_documento.contains("Nos[1] = new infraArvoreNo"));
-    let historico = pedir(endereco, "GET",
-        "/sei/controlador.php?acao=documento_versao_listar&id_documento=42", "");
-    assert!(historico.contains("Lista de Versões (1 registros)"), "{historico}");
+    let historico = pedir(
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento=42",
+        "",
+    );
+    assert!(
+        historico.contains("Lista de Versões (1 registros)"),
+        "{historico}"
+    );
     let processo = servidor.join().unwrap();
     assert_eq!(processo.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(processo.anotacao_origem.as_deref(), Some(""));
