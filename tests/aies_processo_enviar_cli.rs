@@ -194,13 +194,43 @@ fn omitir_checkbox_do_envio(pedido: Vec<u8>) -> Vec<u8> {
     format!("{cabecalho}\r\n\r\n{corpo}").into_bytes()
 }
 
+/// Desvios de teste isolados: a origem HTTP e o SQLite permanecem os mesmos.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum EnsaioRemocao {
+    Normal,
+    IgnorarNoPost,
+    TelaSemCheckbox,
+}
+
+/// Projeta a hipótese de uma instalação sem checkbox na tela de envio.
+/// Só modifica o HTML da resposta GET, não a identidade nem o SQLite.
+fn ocultar_checkbox_na_resposta(resposta: Vec<u8>) -> Vec<u8> {
+    let texto = String::from_utf8(resposta).unwrap();
+    let (cabecalho, corpo) = texto.split_once("\r\n\r\n").unwrap();
+    let campo = "<input type='checkbox' name='chkSinRemoverAnotacoes'>";
+    assert!(corpo.contains(campo), "bancada precisa oferecer a anotação");
+    let corpo = corpo.replacen(campo, "", 1);
+    let cabecalho = cabecalho
+        .split("\r\n")
+        .map(|linha| {
+            if linha.to_ascii_lowercase().starts_with("content-length:") {
+                format!("Content-Length: {}", corpo.len())
+            } else {
+                linha.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\r\n");
+    format!("{cabecalho}\r\n\r\n{corpo}").into_bytes()
+}
+
 /// Executa o único desvio sintético controlado antes de entregar ao anti-IES.
 fn pedido_com_ensaio(
     canal: &mut impl Read,
-    omitir_remocao_no_post: bool,
+    ensaio: EnsaioRemocao,
 ) -> (Vec<u8>, String, String) {
     let (bytes, metodo, acao) = pedido(canal);
-    if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
+    if ensaio == EnsaioRemocao::IgnorarNoPost && metodo == "POST" && acao == "procedimento_enviar" {
         return (omitir_checkbox_do_envio(bytes), metodo, acao);
     }
     (bytes, metodo, acao)
@@ -324,7 +354,7 @@ fn executar(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
-    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false, false)
+    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false, EnsaioRemocao::Normal)
 }
 
 fn executar_com_ensaio_local(
@@ -332,14 +362,14 @@ fn executar_com_ensaio_local(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
     ensaio_local: bool,
-    omitir_remocao_no_post: bool,
+    ensaio: EnsaioRemocao,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     executar_com_troca_de_unidade(
         comandos,
         falhar_releitura,
         anotacao,
         ensaio_local,
-        omitir_remocao_no_post,
+        ensaio,
         None,
     )
 }
@@ -351,7 +381,7 @@ fn executar_com_troca_de_unidade(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
     ensaio_local: bool,
-    omitir_remocao_no_post: bool,
+    ensaio: EnsaioRemocao,
     trocar_apos_primeiro: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
@@ -407,7 +437,7 @@ fn executar_com_troca_de_unidade(
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
-            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, omitir_remocao_no_post);
+            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, ensaio);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
             let mut resposta = if bloquear {
@@ -420,6 +450,12 @@ fn executar_com_troca_de_unidade(
                 backend.read_to_end(&mut resposta).unwrap();
                 resposta
             };
+            if ensaio == EnsaioRemocao::TelaSemCheckbox
+                && metodo == "GET"
+                && acao == "procedimento_enviar"
+            {
+                resposta = ocultar_checkbox_na_resposta(resposta);
+            }
             if metodo == "POST" && acao == "procedimento_enviar" {
                 enviado = true;
             }
