@@ -28,7 +28,7 @@ fn envio_sucessivo_pela_cli_usa_unidade_ativa_e_mesmo_sqlite() {
         Some("Nota da origem"),
         false,
         false,
-        true,
+        Some("DESTINO"),
     );
     for (indice, saida) in saidas.iter().enumerate() {
         assert_eq!(
