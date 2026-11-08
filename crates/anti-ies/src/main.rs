@@ -14,7 +14,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     match (caminho, origem, cenario) {
         (None, None, None) => Ok(None),
         (Some(caminho), Some(origem), Some(cenario)) if !cenario.is_empty() => {
-            // Nunca usar diretamente o índice operacional com URLs de sessão.
+            // Banco derivado do ensaio aceita transições; nunca o índice operacional.
             if std::path::Path::new(&caminho).file_name()
                 == Some(std::ffi::OsStr::new("ies.sqlite3"))
             {
@@ -24,7 +24,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NOFOLLOW,
             )?;
             Ok(Some((banco, instalacao, cenario)))
         }
