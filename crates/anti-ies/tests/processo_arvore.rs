@@ -15,26 +15,35 @@ fn origem() -> Instalacao {
 fn banco() -> Connection {
     let mut db = Connection::open_in_memory().unwrap();
     iniciar(&db).unwrap();
-    guardar(&mut db, &origem(), "bdd-333", &ProcessoSimulado {
-        id: "10".into(),
-        numero: "00001.000001/2026-01".into(),
-        unidade_origem: "ORIGEM".into(),
-        aberto_em: vec!["ORIGEM".into()],
-        anotacao_origem: Some("Observação".into()),
-        destinos: vec![Destino {
-            id: "2".into(), sigla: "DESTINO".into(),
-            descricao: "DESTINO - Teste".into()
-        }],
-    }).unwrap();
+    guardar(
+        &mut db,
+        &origem(),
+        "bdd-333",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Observação".into()),
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Teste".into(),
+            }],
+        },
+    )
+    .unwrap();
     db
 }
 
 fn pedir(endereco: SocketAddr, metodo: &str, caminho: &str, corpo: &str) -> String {
     let mut cliente = TcpStream::connect(endereco).unwrap();
-    write!(cliente,
+    write!(
+        cliente,
         "{metodo} {caminho} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
         corpo.len()
-    ).unwrap();
+    )
+    .unwrap();
     cliente.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
     cliente.read_to_string(&mut resposta).unwrap();
@@ -61,7 +70,8 @@ fn bdd_333_04_arvore_relida_mostra_unidades_e_anotacao_depois_do_post_unico() {
     assert!(!antes.contains("DESTINO"));
 
     let envio = pedir(
-        endereco, "POST",
+        endereco,
+        "POST",
         "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
         "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on&chkSinRemoverAnotacoes=on",
     );
@@ -74,8 +84,10 @@ fn bdd_333_04_arvore_relida_mostra_unidades_e_anotacao_depois_do_post_unico() {
     assert!(depois.contains("DESTINO"));
 
     let anotacao = pedir(
-        endereco, "GET",
-        "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10", "",
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10",
+        "",
     );
     assert!(anotacao.contains("txaDescricao"));
     assert!(!anotacao.contains("Observação"));
@@ -92,8 +104,6 @@ fn processar_navegacao_nao_muta_estado_e_outro_cenario_nao_vaza_dados() {
     let navegacao = anti_ies::processo_envio::navegacao("GET", rota, &db, &origem(), "bdd-333");
     assert_eq!(navegacao.unwrap().estado, Estado::Ok);
     assert_eq!(ler(&db, &origem(), "bdd-333", "10").unwrap(), antes);
-    let desconhecido = anti_ies::processo_envio::navegacao(
-        "GET", rota, &db, &origem(), "outro",
-    );
+    let desconhecido = anti_ies::processo_envio::navegacao("GET", rota, &db, &origem(), "outro");
     assert!(desconhecido.is_none());
 }

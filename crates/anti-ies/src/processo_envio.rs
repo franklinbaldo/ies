@@ -296,7 +296,11 @@ fn situacao_da_raiz(processo: &ProcessoSimulado) -> String {
 
 /// O leitor do IES interpreta literais JS, não executa a árvore.
 fn literal_js(texto: &str) -> String {
-    texto.replace('\\', "\\\\").replace('\'', "\\'").replace('\r', "\\r").replace('\n', "\\n")
+    texto
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
 }
 
 fn arvore_do_processo(processo: &ProcessoSimulado) -> String {
