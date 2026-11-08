@@ -233,7 +233,9 @@ pub fn conteudo_do_anexo(
     if !id_valido(id_anexo) {
         return Err(Falha::EntradaInvalida);
     }
-    let id = id_anexo.parse::<i64>().map_err(|_| Falha::EntradaInvalida)?;
+    let id = id_anexo
+        .parse::<i64>()
+        .map_err(|_| Falha::EntradaInvalida)?;
     let conteudo: Option<Option<Vec<u8>>> = banco
         .query_row(
             "SELECT u.conteudo FROM externo_documento d
