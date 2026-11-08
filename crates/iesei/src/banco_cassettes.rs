@@ -30,7 +30,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0013_cancelamento_documento.sql"),
     "\n",
-    include_str!("../migrations/0014_pesquisa_documento_sem_resultado.sql")
+    include_str!("../migrations/0014_pesquisa_documento_sem_resultado.sql"),
+    "\n",
+    include_str!("../migrations/0015_pesquisa_documento_paginas.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
