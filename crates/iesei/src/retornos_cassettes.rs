@@ -57,7 +57,7 @@ fn data_mensal(valor: &str) -> Option<(u8, u8, u16)> {
 fn ultimo_dia(ano: u16, mes: u8) -> u8 {
     match mes {
         4 | 6 | 9 | 11 => 30,
-        2 if ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0) => 29,
+        2 if ano.is_multiple_of(4) && (!ano.is_multiple_of(100) || ano.is_multiple_of(400)) => 29,
         2 => 28,
         _ => 31,
     }
