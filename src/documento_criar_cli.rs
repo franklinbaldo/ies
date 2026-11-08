@@ -359,4 +359,32 @@ mod tests {
             "processo não está aberto na unidade da sessão"
         );
     }
+
+    #[test]
+    fn recusa_de_nivel_antes_da_sessao_explica_acao_necessaria() {
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::NivelNaoInformado),
+            "informe --nivel publico para confirmar a criação"
+        );
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::NivelRestritoSemHipotese),
+            "nível não público exige hipótese legal não disponível nesta operação"
+        );
+    }
+
+    #[test]
+    fn recusa_de_cadastro_ou_arvore_informa_o_impedimento_observado() {
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::SubmissaoNaoComprovada),
+            "cadastro do SEI não ofereceu a ação Salvar de forma reconhecida"
+        );
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::ArvoreIncompleta),
+            "árvore do processo contém pastas não carregadas; criação não pode ser comprovada"
+        );
+        assert_eq!(
+            mensagem_da_recusa(&ErroPreviaCriacao::FotoInicialInconsistente),
+            "árvore inicial não permite distinguir os documentos com segurança"
+        );
+    }
 }
