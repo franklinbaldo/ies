@@ -247,18 +247,14 @@ O que falta implementar e em que ordem está na
   versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
   BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
   (autorização do proprietário); nos demais comandos, vale o 🐘.
-  **Todos os oito agentes trabalham para a compatibilidade anti-IES,**
-  sem criar um nono agente/rotina exclusiva. Nas fatias CLI com
-  cassette verificável, a entrega preferencial é **vertical na mesma PR**:
-  parser IES → tipos Rust → SQLite efêmero → anti-IES HTTP → leitor/CLI IES
-  comparado à fonte independente. Os implementadores 🦊 🦉 🐢 🐙 🦫
-  estendem a capacidade da própria especialidade; 🦅 revisa evidência,
-  🦡 reduz churn e integra, 🐘 coordena fila e integração. Não
-  transformar isso em oito PRs para o mesmo caso, nem editar WIP alheio.
-  Se faltar cassette ou transição comprovada, entregar o que for seguro na
-  CLI e registrar anti-IES como **PARCIAL/NOT_RUN**, sem bloquear
-  artificialmente a capacidade ou inventar resposta. Não remover testes
-  existentes até equivalência demonstrada; CI e BDD continuam valendo.
+  **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
+  Quando houver cassette verificável, implementadores 🦊 🦉 🐢 🐙 🦫
+  preferem fechar na mesma PR a vertical IES → SQLite efêmero →
+  anti-IES → comparação da CLI. 🦅 revisa a evidência, 🦡 evita
+  duplicação e integra, 🐘 coordena a fila. Respeitar WIP alheio;
+  não criar PR por camada. Sem evidência, registrar PARCIAL/NOT_RUN
+  sem bloquear a CLI nem inventar HTML. Remover mocks somente após
+  equivalência comprovada, preservando BDD e CI.
   **Engenharia reversa por evidências:** usar a skill oficial REA
   quando houver captura HAR, artefato ou runtime autorizado; o
   [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
