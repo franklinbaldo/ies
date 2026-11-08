@@ -259,6 +259,10 @@ pub fn controlar(
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    let Ok(snapshot) = iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
     let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
