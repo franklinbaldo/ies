@@ -331,6 +331,36 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
     })))
 }
 
+/// Resolve a entrada por protocolo no SQLite antes de escolher a tela.
+fn trabalho_por_protocolo(
+    pedido: &PedidoHttp,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let Some(id) = parametro_unico(&pedido.alvo, "id_protocolo") else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+        Ok(Some(_)) => documentos::atender(
+            &pedido.metodo,
+            &pedido.alvo,
+            &pedido.corpo,
+            banco,
+            instalacao,
+            cenario,
+        ),
+        Ok(None) => documento_arvore::responder(
+            &pedido.metodo,
+            &pedido.alvo,
+            banco,
+            instalacao,
+            cenario,
+        ),
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 /// Atende a sessão HTTP local sequencialmente, com estado SQLite compartilhado.
 /// Um POST de criação é consumido uma única vez; nenhuma escrita remota existe.
 ///
@@ -400,27 +430,7 @@ pub fn atender_http(
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
                     {
-                        let id = parametro_unico(&pedido.alvo, "id_protocolo").unwrap_or_default();
-                        match iesei::documentos_simulados::ler_processo(
-                            banco, instalacao, cenario, id,
-                        ) {
-                            Ok(Some(_)) => documentos::atender(
-                                &pedido.metodo,
-                                &pedido.alvo,
-                                &pedido.corpo,
-                                banco,
-                                instalacao,
-                                cenario,
-                            ),
-                            Ok(None) => documento_arvore::responder(
-                                &pedido.metodo,
-                                &pedido.alvo,
-                                banco,
-                                instalacao,
-                                cenario,
-                            ),
-                            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-                        }
+                        trabalho_por_protocolo(&pedido, banco, instalacao, cenario)
                     }
                     Some("documento_versao_listar" | "documento_visualizar")
                         if eh_controlador_sei(&pedido.alvo) =>
