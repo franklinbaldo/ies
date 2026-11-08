@@ -1,8 +1,9 @@
 name: Polvo - merge main e conciliacao (temporario)
 
 on:
-  pull_request:
-    types: [synchronize]
+  push:
+    branches:
+      - codex/polvo-89-editor-antiies-20261108
     paths:
       - '.github/workflows/polvo-merge-temp.yml'
 
@@ -17,7 +18,7 @@ jobs:
       - name: Checkout da branch autoral
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: codex/polvo-89-editor-antiies-20261108
           fetch-depth: 0
           persist-credentials: true
       - name: Mesclar main e listar conflitos sem publicar estado parcial
@@ -36,6 +37,11 @@ jobs:
             echo 'CONFLITOS_DETECTADOS'
             git status --short
             git diff --name-only --diff-filter=U
-            echo 'FIM_CONFLITOS'
-            exit 1
+            git diff --name-only --diff-filter=U > /tmp/polvo-conflitos
+            git merge --abort
+            cp /tmp/polvo-conflitos .github/polvo-merge-conflitos.txt
+            git add .github/polvo-merge-conflitos.txt
+            git commit -m '🐙 docs: registrar lista exata de conflitos do merge #459'
+            git push origin HEAD:refs/heads/codex/polvo-89-editor-antiies-20261108
+            echo 'CONFLITOS_REGISTRADOS'
           fi
