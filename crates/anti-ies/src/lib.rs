@@ -9,6 +9,7 @@ pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
+mod processo_relacionar;
 pub mod processo_envio;
 mod rotas;
 use iesei::banco_cassettes::ler;

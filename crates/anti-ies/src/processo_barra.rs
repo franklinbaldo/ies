@@ -4,7 +4,9 @@ use iesei::processos::ProcessoSimulado;
 use std::fmt::Write as _;
 
 /// Renderiza apenas ações oferecidas pelo estado conhecido da origem.
-pub(crate) fn acoes_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
+pub(crate) fn acoes_do_processo(
+    processo: &ProcessoSimulado, unidade_atual: &str, relacionamentos_observados: bool,
+) -> String {
     let mut links = String::new();
     let id = &processo.id;
     let assinatura = "4".repeat(64);
@@ -23,6 +25,12 @@ pub(crate) fn acoes_do_processo(processo: &ProcessoSimulado, unidade_atual: &str
             r#"<a href="controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Incluir Documento</a>"#
         )
         .expect("formatação de String");
+    }
+    if relacionamentos_observados && processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        write!(
+            links,
+            r#"<a href="controlador.php?acao=procedimento_relacionar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Relacionar Processos</a>"#
+        ).expect("formatação de String");
     }
     if unidade_atual == processo.unidade_origem && processo.anotacao_origem.is_some() {
         write!(

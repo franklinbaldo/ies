@@ -2,7 +2,7 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_versoes, documentos,
     editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
-    processo_envio, retorno_programado,
+    processo_envio, processo_relacionar, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -84,6 +84,12 @@ pub(crate) fn responder(
             == Some("unidade_auto_completar_envio_processo") =>
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
+            processo_relacionar::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {
+            processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("protocolo_pesquisa_rapida") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
