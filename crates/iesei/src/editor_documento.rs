@@ -102,13 +102,14 @@ pub fn consultar_oferta(
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .optional()?;
-    linha.map(|(editavel, assinaturas)| {
-        Ok(Oferta {
-            editavel,
-            assinaturas: u32::try_from(assinaturas).map_err(|_| Falha::DadoInvalido)?,
+    linha
+        .map(|(editavel, assinaturas)| {
+            Ok(Oferta {
+                editavel,
+                assinaturas: u32::try_from(assinaturas).map_err(|_| Falha::DadoInvalido)?,
+            })
         })
-    })
-    .transpose()
+        .transpose()
 }
 
 /// Uma transação insere N+1 preservando N, compara base com a versão atual
