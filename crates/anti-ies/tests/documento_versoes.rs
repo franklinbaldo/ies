@@ -155,7 +155,6 @@ fn estado_invalido_nao_grava_meia_revisao() {
     assert!(ler(&banco, &origem(), "ensaio", "42").unwrap().is_none());
 }
 
-
 #[test]
 fn duas_rotas_http_reais_compartilham_a_mesma_versao_no_banco() {
     use std::io::{Read, Write};
@@ -163,11 +162,7 @@ fn duas_rotas_http_reais_compartilham_a_mesma_versao_no_banco() {
 
     fn pedir(endereco: SocketAddr, alvo: &str) -> String {
         let mut conexao = TcpStream::connect(endereco).unwrap();
-        write!(
-            conexao,
-            "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n"
-        )
-        .unwrap();
+        write!(conexao, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
         conexao.shutdown(Shutdown::Write).unwrap();
         let mut resposta = String::new();
         conexao.read_to_string(&mut resposta).unwrap();
