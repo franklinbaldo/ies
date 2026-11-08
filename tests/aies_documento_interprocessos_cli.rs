@@ -450,3 +450,48 @@ fn pesquisa_rapida_de_documento_confere_id_antes_de_servir_conteudo() {
         "somente navegação de leitura: {trilha:?}"
     );
 }
+
+#[test]
+fn bdd_60_04_cli_nao_inventa_propriedades_sem_link_na_barra() {
+    // No mesmo SQLite do processo A, a barra não oferece cadastro.
+    // O BDD exige distinguir propriedade não observada de cadastro vazio.
+    let (saida, trilha) = executar(
+        true,
+        &[
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--com-propriedades",
+            "--sem-cache",
+        ],
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor = json(&saida);
+    let documento = &valor["documentos"][0];
+    assert_eq!(documento["numero"], DOC_A);
+    assert_eq!(documento["propriedades"], Value::Null, "{documento}");
+    assert_eq!(
+        documento["propriedades_motivo"], "nao_publicadas_na_barra",
+        "{documento}"
+    );
+    assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
+    assert!(
+        !trilha
+            .iter()
+            .any(|p| p.contains("documento_alterar") || p.contains("documento_consultar")),
+        "sem link publicado, nenhum GET de cadastro: {trilha:?}"
+    );
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "a leitura não escreve: {trilha:?}"
+    );
+}
