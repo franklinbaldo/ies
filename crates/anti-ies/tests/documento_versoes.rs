@@ -154,3 +154,51 @@ fn estado_invalido_nao_grava_meia_revisao() {
     assert!(guardar(&mut banco, "ensaio", &invalido).is_err());
     assert!(ler(&banco, &origem(), "ensaio", "42").unwrap().is_none());
 }
+
+
+#[test]
+fn duas_rotas_http_reais_compartilham_a_mesma_versao_no_banco() {
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+
+    fn pedir(endereco: SocketAddr, alvo: &str) -> String {
+        let mut conexao = TcpStream::connect(endereco).unwrap();
+        write!(
+            conexao,
+            "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        )
+        .unwrap();
+        conexao.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        conexao.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "ensaio", &documento()).unwrap();
+        let origem = origem();
+        for _ in 0..2 {
+            let (mut conexao, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "ensaio"))).unwrap();
+        }
+    });
+
+    let lista = pedir(
+        endereco,
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento=42",
+    );
+    assert!(lista.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(lista.contains("Lista de Versões (2 registros)"));
+    let antiga = pedir(
+        endereco,
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1",
+    );
+    assert!(antiga.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(antiga.contains("Texto histórico"));
+    assert!(!antiga.contains("Texto atual"));
+    servidor.join().unwrap();
+}
