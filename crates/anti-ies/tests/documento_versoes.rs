@@ -251,7 +251,6 @@ fn id_de_processo_explicito_nao_pode_selecionar_conteudo_de_outro_processo() {
     servidor.join().unwrap();
 }
 
-
 /// #60 / BDD-60-05 (teste técnico): a rota não escolhe o primeiro valor
 /// se a identidade ou a versão vier repetida na própria requisição HTTP.
 /// A leitura válida posterior continua a usar o mesmo SQLite.
