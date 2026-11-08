@@ -375,3 +375,7 @@ pub(crate) fn cadastro_redirecionado(
 mod tests;
 #[cfg(test)]
 mod tests_scripts_inertes;
+
+#[cfg(test)]
+#[path = "documento_criar/tests_anties.rs"]
+mod tests_anties;
