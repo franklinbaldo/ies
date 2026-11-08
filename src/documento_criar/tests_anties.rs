@@ -284,3 +284,105 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
     );
     servidor.join().unwrap();
 }
+
+/// #246: o IES interpreta a lista curta recebida por HTTP, deriva o POST
+/// de filtro e relê todos os tipos; nenhum documento é criado nessa etapa.
+#[test]
+fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        registrar_processo(
+            &banco,
+            &origem,
+            "filtro",
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        for (id, nome) in [("291", "Despacho"), ("292", "Parecer")] {
+            registrar_tipo(
+                &banco,
+                &origem,
+                "filtro",
+                "10",
+                &Tipo {
+                    id: id.into(),
+                    nome: nome.into(),
+                },
+            )
+            .unwrap();
+        }
+        for _ in 0..2 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
+        }
+        assert!(
+            iesei::documentos_simulados::documentos(&banco, &origem, "filtro", "10")
+                .unwrap()
+                .is_empty()
+        );
+    });
+    let solicitar = |metodo: &str, alvo: &str, corpo: &str| {
+        let mut fluxo = TcpStream::connect(endereco).unwrap();
+        write!(
+            fluxo,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
+            corpo.len()
+        )
+        .unwrap();
+        fluxo.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        fluxo.read_to_string(&mut resposta).unwrap();
+        resposta
+    };
+    let alvo = "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=10";
+    let resposta = solicitar("GET", alvo, "");
+    let (_, html_curto) = resposta.split_once("\r\n\r\n").unwrap();
+    assert_eq!(tipos_oferecidos(html_curto).unwrap(), ["Despacho"]);
+    assert!(super::filtro_de_todos(html_curto).unwrap());
+
+    let origem =
+        crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let url = format!("https://simulado.invalid{alvo}&infra_hash={}", "e".repeat(64));
+    let submissao = derivar_submissao(
+        &super::fluxo::FILTRAR_TIPOS,
+        &origem,
+        &TelaServida {
+            url: &url,
+            html: html_curto,
+            codificacao: CodificacaoDaTela::Utf8,
+        },
+        "TESTE",
+        &[("hdnFiltroSerie", "T")],
+    )
+    .unwrap();
+    assert_eq!(submissao.corpo(), b"hdnIdSerie=&hdnFiltroSerie=T");
+    let alvo_filtro = submissao
+        .url()
+        .strip_prefix("https://simulado.invalid")
+        .unwrap();
+    let resposta = solicitar(
+        "POST",
+        alvo_filtro,
+        std::str::from_utf8(submissao.corpo()).unwrap(),
+    );
+    assert!(resposta.starts_with("HTTP/1.1 200 OK"));
+    let (_, html_completo) = resposta.split_once("\r\n\r\n").unwrap();
+    assert_eq!(
+        tipos_oferecidos(html_completo).unwrap(),
+        ["Despacho", "Parecer"]
+    );
+    assert_eq!(
+        escolha_do_tipo(&origem, html_completo, "10", "Parecer"),
+        Ok(EscolhaDoDocumento::Formulario("292".into()))
+    );
+    servidor.join().unwrap();
+}
