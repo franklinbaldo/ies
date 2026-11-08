@@ -148,6 +148,53 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
+fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, documento_exato: bool) {
+    banco_cassettes::guardar(
+        &mut banco,
+        CENARIO,
+        &ControleResumido {
+        instalacao: instalacao.clone(),
+        unidade: UnidadeExibida::nova("TESTE").unwrap(),
+        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    if documento_exato {
+        // A identidade e as revisões já pertencem ao mesmo SQLite do anti-IES.
+        documento_versoes::guardar(
+        &mut banco,
+        CENARIO,
+        &DocumentoSimulado {
+        instalacao: instalacao.clone(),
+        id_documento: "42".into(),
+        id_procedimento: "7".into(),
+        numero_processo: "00001.000001/2026-01".into(),
+        numero: TERMO_EXATO.into(),
+        tipo: "Ofício".into(),
+        revisoes: vec![Revisao {
+        versao: NonZeroU32::new(1).unwrap(),
+        usuario: "Usuário sintético".into(),
+        unidade: "TESTE".into(),
+        modificacao: "01/11/2026".into(),
+        html_corpo: "<p>Conteúdo de teste</p>".into(),
+        }],
+        },
+        )
+        .unwrap();
+    } else {
+        // Zero explicitamente observado; ausência de registro seria desconhecido.
+        iesei::pesquisa_documento::registrar_sem_resultado(
+        &banco,
+        &instalacao,
+        CENARIO,
+        &UnidadeExibida::nova("TESTE").unwrap(),
+        TERMO,
+        )
+        .unwrap();
+    }
+}
+
 fn executar(pasta: &Pasta, args: &[&str]) -> Output {
     executar_com_estado(pasta, args, false)
 }
@@ -169,50 +216,7 @@ fn executar_com_estado(pasta: &Pasta, args: &[&str], documento_exato: bool) -> O
         let mut banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-        banco_cassettes::guardar(
-            &mut banco,
-            CENARIO,
-            &ControleResumido {
-                instalacao: instalacao.clone(),
-                unidade: UnidadeExibida::nova("TESTE").unwrap(),
-                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            },
-        )
-        .unwrap();
-        if documento_exato {
-            // A identidade e as revisões já pertencem ao mesmo SQLite do anti-IES.
-            documento_versoes::guardar(
-                &mut banco,
-                CENARIO,
-                &DocumentoSimulado {
-                    instalacao: instalacao.clone(),
-                    id_documento: "42".into(),
-                    id_procedimento: "7".into(),
-                    numero_processo: "00001.000001/2026-01".into(),
-                    numero: TERMO_EXATO.into(),
-                    tipo: "Ofício".into(),
-                    revisoes: vec![Revisao {
-                        versao: NonZeroU32::new(1).unwrap(),
-                        usuario: "Usuário sintético".into(),
-                        unidade: "TESTE".into(),
-                        modificacao: "01/11/2026".into(),
-                        html_corpo: "<p>Conteúdo de teste</p>".into(),
-                    }],
-                },
-            )
-            .unwrap();
-        } else {
-            // Zero explicitamente observado; ausência de registro seria desconhecido.
-            iesei::pesquisa_documento::registrar_sem_resultado(
-                &banco,
-                &instalacao,
-                CENARIO,
-                &UnidadeExibida::nova("TESTE").unwrap(),
-                TERMO,
-            )
-            .unwrap();
-        }
+        preparar_estado(&mut banco, &instalacao, documento_exato);
         for _ in 0..3 {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
