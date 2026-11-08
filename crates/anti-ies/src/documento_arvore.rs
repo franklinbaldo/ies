@@ -87,8 +87,20 @@ pub fn responder(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let id = super::parametro_unico(alvo, "id_documento")
-        .or_else(|| super::parametro_unico(alvo, "id_protocolo"));
+    // Se id_documento foi informado mas não é único, recusar: nunca
+    // selecionar id_protocolo como fallback para uma identidade ambígua.
+    let menciona_documento = alvo.split_once('?').is_some_and(|(_, consulta)| {
+        consulta.split('&').any(|campo| {
+            campo
+                .split_once('=')
+                .is_some_and(|(nome, _)| nome == "id_documento")
+        })
+    });
+    let documento = super::parametro_unico(alvo, "id_documento");
+    if menciona_documento && documento.is_none() {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let id = documento.or_else(|| super::parametro_unico(alvo, "id_protocolo"));
     let Some(id) = id.filter(|s| s.bytes().all(|b| b.is_ascii_digit())) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
