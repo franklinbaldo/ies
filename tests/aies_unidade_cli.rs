@@ -133,7 +133,18 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn executar(visao: VisaoFixture, esperada: Option<&str>) -> Output {
+fn executar(snapshot: bool, esperada: Option<&str>) -> Output {
+    executar_visao(
+        if snapshot {
+            VisaoFixture::Resumida
+        } else {
+            VisaoFixture::Ausente
+        },
+        esperada,
+    )
+}
+
+fn executar_visao(visao: VisaoFixture, esperada: Option<&str>) -> Output {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -254,7 +265,7 @@ fn json(saida: &Output) -> Value {
 // BDDs definidos previamente na #355, verificados contra a CLI real.
 #[test]
 fn aies_01_cli_real_ler_unidade_observada() {
-    let saida = executar(VisaoFixture::Resumida, None);
+    let saida = executar(true, None);
     assert_eq!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["unidade_exibida"], "TESTE");
@@ -263,7 +274,7 @@ fn aies_01_cli_real_ler_unidade_observada() {
 
 #[test]
 fn aies_03_cli_real_recusa_controle_ausente() {
-    let saida = executar(VisaoFixture::Ausente, None);
+    let saida = executar(false, None);
     assert_ne!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
@@ -273,7 +284,7 @@ fn aies_03_cli_real_recusa_controle_ausente() {
 
 #[test]
 fn aies_04_cli_real_recusa_unidade_divergente() {
-    let saida = executar(VisaoFixture::Resumida, Some("OUTRA"));
+    let saida = executar(true, Some("OUTRA"));
     assert_ne!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
@@ -287,7 +298,7 @@ fn aies_04_cli_real_recusa_unidade_divergente() {
 // AIES-02: a sessão já lembrava uma página posterior da visão D.
 #[test]
 fn aies_02_cli_real_unidade_na_detalhada_pagina_posterior() {
-    let saida = executar(VisaoFixture::Detalhada, None);
+    let saida = executar_visao(VisaoFixture::Detalhada, None);
     assert_eq!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["unidade_exibida"], "TESTE");
