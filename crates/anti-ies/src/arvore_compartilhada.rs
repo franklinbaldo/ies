@@ -74,12 +74,6 @@ pub(crate) fn responder(
         parametro_unico(alvo, "id_documento").or_else(|| parametro_unico(alvo, "id_protocolo"));
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
-    if original
-        .as_ref()
-        .is_some_and(|resposta| resposta.estado != Estado::Ok)
-    {
-        return original.expect("resposta presente");
-    }
     let internos = match interno::documentos(banco, origem, cenario, id_processo) {
         Ok(documentos) => documentos,
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
@@ -88,7 +82,22 @@ pub(crate) fn responder(
         Ok(documentos) => documentos,
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let mut pagina = original.map_or_else(
+    // A ausência de snapshot de versões não apaga um documento
+    // efetivamente cadastrado no estado compartilhado. Um ID desconhecido
+    // continua recusado, em vez de produzir uma árvore inventada.
+    let cadastrado = selecionado.is_some_and(|id| {
+        internos.iter().any(|doc| doc.id.to_string() == id)
+            || externos
+                .iter()
+                .any(|doc| format!("8{:012}", doc.id) == id || doc.id.to_string() == id)
+    });
+    if original
+        .as_ref()
+        .is_some_and(|resposta| resposta.estado != Estado::Ok && !cadastrado)
+    {
+        return original.expect("resposta presente");
+    }
+    let mut pagina = original.filter(|r| r.estado == Estado::Ok).map_or_else(
         || raiz(id_processo, &processo.nup),
         |resposta| resposta.corpo,
     );
