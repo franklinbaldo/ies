@@ -211,7 +211,6 @@ fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
     );
 }
 
-
 #[test]
 fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferivel() {
     // Integra componentes reais do consumidor IES e do provedor anti-IES
@@ -269,9 +268,14 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
     )
     .unwrap();
     let recibo = interpretar_resposta(200, &upload.corpo, "prova.pdf", pdf.len() as u64).unwrap();
-    assert!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap().is_empty());
+    assert!(
+        modelo::documentos(&banco, &origem, "ensaio", "7")
+            .unwrap()
+            .is_empty()
+    );
 
-    let url_cadastro = "https://sei.exemplo/sei/controlador.php?acao=documento_receber&id_procedimento=7";
+    let url_cadastro =
+        "https://sei.exemplo/sei/controlador.php?acao=documento_receber&id_procedimento=7";
     let tela = TelaServida {
         url: url_cadastro,
         html: &recarregado.corpo,
@@ -279,15 +283,9 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
     };
     let submissao =
         preparar_cadastro_definitivo(&origem, &tela, "TESTE", &previa, &recibo).unwrap();
-    let definitivo = anti_ies::pdf_externo::atender(
-        "POST",
-        alvo,
-        submissao.corpo(),
-        &banco,
-        &origem,
-        "ensaio",
-    )
-    .unwrap();
+    let definitivo =
+        anti_ies::pdf_externo::atender("POST", alvo, submissao.corpo(), &banco, &origem, "ensaio")
+            .unwrap();
     let documentos = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
     assert_eq!(documentos.len(), 1);
     assert_eq!(documentos[0].tipo, "Anexo");
@@ -295,9 +293,11 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
     // O IES não considera HTTP 200 genérico prova da autoria do cadastro:
     // exige redirect ao documento recém-observado na árvore.
     assert_eq!(definitivo.estado, anti_ies::Estado::Redirecionamento);
-    assert!(crate::documento_criar::redirecionamento_do_mesmo_controlador(
-        definitivo.localizacao.as_deref().unwrap(),
-        submissao.url(),
-        &documentos[0].id.to_string(),
-    ));
+    assert!(
+        crate::documento_criar::redirecionamento_do_mesmo_controlador(
+            definitivo.localizacao.as_deref().unwrap(),
+            submissao.url(),
+            &documentos[0].id.to_string(),
+        )
+    );
 }
