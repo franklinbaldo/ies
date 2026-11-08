@@ -1,7 +1,7 @@
 ---
 type: Guide
 title: Erros tipados no IES
-description: Condições específicas, códigos estáveis e tratamento seguro no Rust
+description: Erros tipados, causas preservadas e compatibilidade das saídas legadas
 ---
 
 # Erros tipados
@@ -17,8 +17,10 @@ a hierarquia de subclasses Python quando a família é fechada.
 - Use variante específica por condição, com campos tipados quando
   contexto for necessário. Não construa uma variante genérica com
   mensagem variável para simular casos diferentes.
-- `subcodigo` identifica a condição de modo estável; a mensagem
-  apresentada na CLI pode evoluir sem quebrar automações.
+- O tipo Rust (`enum` e seus campos) identifica a falha. **Não introduzir
+  subcódigos novos, métodos de tradução ou catálogos paralelos** (ADR 0005).
+  O campo `subcodigo` só permanece nos contratos legados até sua migração;
+  não é critério de classificação no domínio.
 - Preserve o erro concreto até a borda de apresentação. Não inspecione
   o texto para tomar decisões; evite `String` como tipo de erro
   para condições conhecidas.
@@ -33,12 +35,12 @@ a hierarquia de subclasses Python quando a família é fechada.
 
 `src/historico.rs` devolve `ErroHistorico` com variantes como
 `NumeroDoHistoricoDiferenteDoSolicitado`, `HistoricoAusente` e
-`LinhaInvalida`. As funções não devolvem mais códigos como
-`&'static str`; o texto público deriva de `subcodigo()` na CLI.
-Testes comparam variantes, não mensagens. Nomes descrevem a condição
-observada, evitando qualificadores vagos como `ambíguo` e `divergente`.
-O subcódigo `numero_do_historico_diferente_do_solicitado` identifica
-a condição observada, sem compromisso artificial com clientes inexistentes.
+`LinhaInvalida`. As funções não precisam devolver uma string para
+classificar a falha: os consumidores fazem `match` nas variantes.
+O campo público `subcodigo`, quando ainda exigido por contrato legado,
+é produzido apenas na fronteira de apresentação, sem nova fonte de verdade.
+Nomes descrevem a condição observada, evitando qualificadores vagos
+como `ambíguo` e `divergente`.
 
 `ErroCaixa` e `FalhaTransporte` já utilizam variantes específicas.
 Revisões posteriores devem acrescentar dados úteis e padronizar
@@ -48,9 +50,10 @@ categoria e apresentação, sem alterar códigos públicos desnecessariamente.
 
 `FalhaTransporte` carrega `StatusHttpRecusado` (status e mensagem
 saneada do SEI) em 3xx, 401/403, 429, 5xx e outro status; por isso
-deixou de ser `Copy`. A variante e o subcódigo continuam sendo a
-classificação: o status e a mensagem são só apresentação e nenhum
-código os inspeciona para decidir tratamento. Ver o
+deixou de ser `Copy`. A **variante** é a identidade tipada da falha;
+o subcódigo é apenas representação de compatibilidade da CLI antiga.
+Status e mensagem saneada são dados de apresentação, nunca um
+atalho para classificar a falha. Ver o
 [contrato da CLI](../contracts/cli.md).
 
 ## Partes do guia
@@ -59,12 +62,14 @@ código os inspeciona para decidir tratamento. Ver o
 - [Erros das leituras](erros-tipados/leituras.md): anexo externo, pesquisa em documentos, versões e filtros da pesquisa.
 - [Erros das escritas](erros-tipados/escritas.md): concluir, reabrir, assinar e enviar o processo.
 - [Erros locais](erros-tipados/locais.md): configuração local e gravação privada de arquivos.
-- [Catálogo de subcódigos](erros-tipados/catalogo.md): catálogo literal por contexto, nomes contextuais e históricos e literais passados por helpers.
+- [Catálogo legado de subcódigos](erros-tipados/catalogo.md): inventário histórico para compatibilidade; não autoriza novos códigos, tabelas ou helpers.
 
 
-## Subcódigos de blocos (#256)
+## Subcódigos legados de blocos (#256)
 
-Os seguintes subcódigos discriminam a causa de falha fechada em leitura Web de bloco; links e cookies nunca aparecem na saída.
+Os literais abaixo documentam apenas contratos históricos ainda publicados.
+Novas fatias devem expor a causa tipada na fronteira Serde, sem acrescentar
+subcódigos. Links e cookies nunca aparecem na saída.
 
 | Subcódigo | Descrição |
 | --- | --- |
