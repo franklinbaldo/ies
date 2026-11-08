@@ -89,9 +89,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     ));
     let ausente = consultar(endereco, "POST", &selecao, "hdnIdSerie=999");
     assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
-    let repetido = consultar(
-        endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291",
-    );
+    let repetido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291");
     assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
     let form = consultar(endereco, "GET", &cadastro, "");
