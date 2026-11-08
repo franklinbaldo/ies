@@ -16,6 +16,8 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
+const CONFIRMACAO_VALIDADA_EM_TREINAMENTO: bool = false;
+
 #[derive(Debug, Serialize)]
 enum FalhaTipoExterno {
     Vazio,
@@ -104,7 +106,6 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     };
     // A ligação completa existe na branch, mas não publica escrita antes do
     // ensaio único em TREINAMENTO. A próxima fatia libera este caminho.
-    const CONFIRMACAO_VALIDADA_EM_TREINAMENTO: bool = false;
     if *confirmar && CONFIRMACAO_VALIDADA_EM_TREINAMENTO {
         return Some(confirmar_remoto::executar(
             cli,
