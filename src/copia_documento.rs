@@ -360,4 +360,13 @@ mod testes {
         assert!(!diff.contains("segredo"));
         assert!(!diff.contains("outro"));
     }
+
+    #[test]
+    fn previa_omite_referencia_relativa_e_valores_de_formulario() {
+        let linhas = b"<a href=\"/controlador.php?acao=abrir\">link</a>\n<input value=\"segredo-sem-nome\" />";
+        let mostradas = linhas_da_previa(linhas, 0, 2, '+');
+        assert_eq!(mostradas.matches("[linha omitida:").count(), 2);
+        assert!(!mostradas.contains("controlador.php"));
+        assert!(!mostradas.contains("segredo-sem-nome"));
+    }
 }
