@@ -1,5 +1,5 @@
 //! #355 AIES-05: binário real, TLS local, anti-IES e SQLite efêmero compartilhado.
-//! Meses e números abaixo são hipóteses sintéticas; não são registros da UnB.
+//! Meses e números abaixo são hipóteses sintéticas; não são registros da `UnB`.
 #![cfg(unix)]
 
 use anti_ies::atender_http;
