@@ -137,7 +137,7 @@ fn forma_do_protocolo(numero: &str) -> String {
         .collect()
 }
 
-fn mesmo_protocolo(pedido: &str, mostrado: &str) -> bool {
+pub(crate) fn mesmo_protocolo(pedido: &str, mostrado: &str) -> bool {
     let forma = forma_do_protocolo(pedido);
     !forma.is_empty() && forma == forma_do_protocolo(mostrado)
 }
