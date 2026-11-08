@@ -150,6 +150,9 @@ pub(crate) fn responder(
         Some("documento_cancelar") if eh_controlador_sei(alvo) => {
             documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("documento_download_anexo") if eh_controlador_sei(alvo) => {
+            pdf_externo::baixar(metodo, alvo, banco, instalacao, cenario)
+        }
         Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }

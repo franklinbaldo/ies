@@ -70,6 +70,8 @@ pub struct Resposta {
     pub tipo_conteudo: &'static str,
     pub corpo: String,
     pub localizacao: Option<String>,
+    /// Bytes do PDF quando o corpo HTTP não é texto UTF-8.
+    pub corpo_binario: Option<Vec<u8>>,
 }
 
 impl Resposta {
@@ -90,6 +92,7 @@ impl Resposta {
             tipo_conteudo: "application/json; charset=utf-8",
             corpo: corpo.to_owned(),
             localizacao: None,
+            corpo_binario: None,
         }
     }
 
@@ -100,6 +103,7 @@ impl Resposta {
             tipo_conteudo: "text/html; charset=utf-8",
             corpo,
             localizacao: None,
+            corpo_binario: None,
         }
     }
 
@@ -110,6 +114,18 @@ impl Resposta {
             tipo_conteudo: "text/html; charset=utf-8",
             corpo: String::new(),
             localizacao: Some(localizacao),
+            corpo_binario: None,
+        }
+    }
+    /// Resposta com os bytes originais do PDF, sem conversão para texto.
+    #[must_use]
+    pub fn pdf(bytes: Vec<u8>) -> Self {
+        Self {
+            estado: Estado::Ok,
+            tipo_conteudo: "application/pdf",
+            corpo: String::new(),
+            localizacao: None,
+            corpo_binario: Some(bytes),
         }
     }
 }
@@ -451,15 +467,19 @@ pub fn atender_http(
         .localizacao
         .as_ref()
         .map_or_else(String::new, |valor| format!("Location: {valor}\r\n"));
+    let bytes = resposta
+        .corpo_binario
+        .as_deref()
+        .unwrap_or(resposta.corpo.as_bytes());
     write!(
         fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
         resposta.estado.codigo_http(),
         resposta.estado.motivo_http(),
         resposta.tipo_conteudo,
-        resposta.corpo.len(),
+        bytes.len(),
         location,
-        resposta.corpo
     )?;
+    fluxo.write_all(bytes)?;
     fluxo.flush()
 }
