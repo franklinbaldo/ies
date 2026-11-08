@@ -27,6 +27,19 @@ fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &s
     resposta
 }
 
+fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
+    // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
+    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291");
+    assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
+    assert!(escolhido.contains(
+        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
+    ));
+    let ausente = consultar(endereco, "POST", &selecao, "hdnIdSerie=999");
+    assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
+    let repetido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291");
+    assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
+}
+ 
 #[test]
 fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -81,16 +94,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(lista.contains("tblSeries"));
     assert!(lista.contains("frmDocumentoEscolherTipo"));
     assert!(lista.contains("onclick='escolher(291)'"));
-    // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
-    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291");
-    assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
-    assert!(escolhido.contains(
-        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
-    ));
-    let ausente = consultar(endereco, "POST", &selecao, "hdnIdSerie=999");
-    assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
-    let repetido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291");
-    assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
+    verificar_navegacao_da_serie(endereco, &selecao);
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
     let form = consultar(endereco, "GET", &cadastro, "");
     assert!(form.starts_with("HTTP/1.1 200 OK"));
@@ -124,7 +128,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
-    let metodo_errado = consultar(endereco, "POST", &selecao, "");
+    let metodo_errado = consultar(endereco, "PUT", &selecao, "");
     assert!(metodo_errado.starts_with("HTTP/1.1 405 Method Not Allowed"));
     let sem_nup = consultar(
         endereco,
