@@ -140,15 +140,36 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
         Err(modelo::Falha::UploadAusente)
     ));
     assert!(matches!(
-        modelo::receber(&banco, &origem, "ensaio", "7", "maior.pdf", 201 * 1024 * 1024),
+        modelo::receber(
+            &banco,
+            &origem,
+            "ensaio",
+            "7",
+            "maior.pdf",
+            201 * 1024 * 1024
+        ),
         Err(modelo::Falha::LimiteExcedido)
     ));
     assert_eq!(
-        modelo::documentos(&banco, &origem, "outro", "7").unwrap().len(),
+        modelo::documentos(&banco, &origem, "outro", "7")
+            .unwrap()
+            .len(),
         0
     );
-    assert!(modelo::processo(&banco, &origem, "outro", "7").unwrap().is_none());
+    assert!(
+        modelo::processo(&banco, &origem, "outro", "7")
+            .unwrap()
+            .is_none()
+    );
     let outra = Instalacao::interpretar("https://outra.exemplo/sei").unwrap();
-    assert!(modelo::processo(&banco, &outra, "ensaio", "7").unwrap().is_none());
-    assert!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap().is_empty());
+    assert!(
+        modelo::processo(&banco, &outra, "ensaio", "7")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        modelo::documentos(&banco, &origem, "ensaio", "7")
+            .unwrap()
+            .is_empty()
+    );
 }
