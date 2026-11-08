@@ -1,0 +1,56 @@
+name: "Coruja — inspecao temporaria de cassettes publicas"
+on:
+  push:
+    branches:
+      - codex/coruja-333-efeito-parcial-anotacao
+    paths:
+      - .github/workflows/coruja-inspecao-cassettes-temp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Conferir integridade e schema sem publicar respostas
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import io
+          import json
+          import urllib.request
+          import zipfile
+
+          fontes = [
+              (
+                  "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-c7a4af8d9d70ddc3.zip",
+                  "c7a4af8d9d70ddc3599cdd9bccbb98e6d726db78",
+                  [
+                      ("processo-escritas-ufrj.json", "d21a20db9b10a89bf02e860fd5fba4a846e27258a5a2e79c89f5e865e30a5cb8", 40),
+                      ("processo-escritas-unb.json", "47c0acc994ac9124f824a8f2a34e13cee68b4674f6d91f63613843ef48569ed4", 37),
+                  ],
+              ),
+              (
+                  "https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-unb.zip",
+                  "21e0559015c56c403daf8933e5040504a7b83837",
+                  [("processo-enviar-retorno-unb.json", "326217a6e1112dabf6bf7cd6e232bca3039941ac2718ad94bd289f4db4a96738", 22)],
+              ),
+          ]
+          for url, zip_sha1, membros in fontes:
+              with urllib.request.urlopen(url, timeout=120) as resposta:
+                  bruto = resposta.read()
+              assert hashlib.sha1(bruto).hexdigest() == zip_sha1
+              with zipfile.ZipFile(io.BytesIO(bruto)) as pacote:
+                  for membro, sha256, quantidade in membros:
+                      conteudo = pacote.read(membro)
+                      assert hashlib.sha256(conteudo.replace(b"\r\n", b"\n")).hexdigest() == sha256
+                      dados = json.loads(conteudo)
+                      assert dados["schema_version"] == 1
+                      assert dados["complete"] is True
+                      assert len(dados["interactions"]) == quantidade
+                      print(f"OK {membro}: {quantidade} interacoes, hashes e schema validos")
+          print("Verificacao de integridade e estrutura; nao prova paridade nem live.")
+          PY
