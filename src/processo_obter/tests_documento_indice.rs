@@ -97,7 +97,7 @@ fn primeira_leitura(amb: &Ambiente) {
         None,
         vec![
             ok(controle(&[("7", "OUTRO-1")])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -247,7 +247,7 @@ fn recusa_da_entrada_com_documento_para_e_a_proxima_vai_pela_pesquisa() {
         None,
         vec![
             ok(controle(&[])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -268,7 +268,7 @@ fn entrada_que_enderecou_outro_documento_esquece_e_cai_na_pesquisa_uma_vez() {
         vec![
             r302(&trabalhar_entrada_doc(ID, "99")),
             ok(controle(&[])),
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento(ID_DOC)),
             ok(arvore_dos_dois()),
             ok(conteudo(DOC)),
@@ -463,7 +463,7 @@ fn pesquisa_com_documento_em_pasta_fechada_abre_as_pastas() {
         None,
         vec![
             ok(controle(&[])),
-            r302(&trabalhar_rapida("21")),
+            r302(&trabalhar_rapida_documento("21")),
             ok(tela_do_documento("21")),
             ok(arvore_fechada()),
             ok(com_src_assinado(&arvore_aberta(), "21")),
