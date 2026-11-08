@@ -1,9 +1,8 @@
 name: Polvo - sincronizar PR 458 com main (temporario)
 
 on:
-  push:
-    branches:
-      - codex/polvo-89-editor-antiies-20261108
+  pull_request:
+    types: [synchronize]
     paths:
       - '.github/workflows/polvo-sync-main-temp.yml'
 
@@ -19,7 +18,7 @@ jobs:
       - name: Mesclar main por API GitHub, sem rebase ou force-push
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA_ESPERADO: ${{ github.sha }}
+          SHA_ESPERADO: ${{ github.event.pull_request.head.sha }}
         run: |
           gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/458/update-branch" \
             -f expected_head_sha="${SHA_ESPERADO}"
