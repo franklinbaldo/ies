@@ -284,9 +284,9 @@ pub(crate) fn atender(
                 return resposta;
             }
             Resposta::redirecionar(format!(
-                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}&infra_hash={} ",
+                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}&infra_hash={}",
                 "e".repeat(64)
-            ).trim_end().to_owned())
+            ))
         }
         ("documento_gerar", "GET") => {
             let Some(serie) = id_da_rota(alvo, "id_serie") else {
