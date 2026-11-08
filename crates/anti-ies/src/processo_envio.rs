@@ -383,8 +383,8 @@ fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> Str
          src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
          <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
          {incluir}</body></html>",
-        "e".repeat(64),
-        html(unidade_atual)
+        html(unidade_atual),
+        "e".repeat(64)
     )
 }
 
