@@ -135,7 +135,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
 }
 
 #[allow(clippy::too_many_lines)] // Bancada E2E reúne proxy TLS, servidor HTTP e processos reais.
-fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
+fn executar(incerteza: bool, somente_previa: bool) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -217,11 +217,12 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
         "--arquivo",
     ];
     let pdf_str = pdf.to_str().unwrap();
-    let confirmar = [
-        base.as_slice(),
-        &[pdf_str, "--tipo", "Anexo", "--confirmar"],
-    ]
-    .concat();
+    let modo = if somente_previa {
+        "--consultar-sei"
+    } else {
+        "--confirmar"
+    };
+    let incluir = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", modo]].concat();
     let consultar = [
         "--json",
         "processo",
@@ -230,7 +231,7 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
         "--sem-propriedades",
         "--sem-marcadores",
     ];
-    let saidas = [&confirmar[..], &consultar[..]]
+    let saidas = [&incluir[..], &consultar[..]]
         .iter()
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -272,7 +273,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total) = executar(false);
+    let (saidas, eventos, total) = executar(false, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -318,7 +319,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
-    let (saidas, eventos, total) = executar(true);
+    let (saidas, eventos, total) = executar(true, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -345,5 +346,50 @@ fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
             .filter(|e| *e == "POST documento_receber 302")
             .count(),
         1
+    );
+}
+
+/// BDD-332-02: a prévia passa pelo binário e pelas rotas do anti-IES,
+/// mas nenhuma linha de upload nem documento definitivo pode surgir.
+#[test]
+fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
+    let (saidas, eventos, total) = executar(false, true);
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "stdout={} stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
+    let previa = json(&saidas[0]);
+    assert_eq!(previa["escopo"], "previa_web");
+    assert_eq!(previa["id_tipo"], "293");
+    assert_eq!(previa["tipo_solicitado"], "Anexo");
+    assert_eq!(previa["limite_pdf_bytes"], 10 * 1024 * 1024);
+    assert_eq!(previa["cadastro_sei_observado"], true);
+    assert_eq!(previa["previa_remota"], true);
+    assert_eq!(previa["confirmado"], false);
+    assert_eq!(previa["escrita_remota"], false);
+    assert_eq!(saidas[1].status.code(), Some(0));
+    assert_eq!(total, 0, "a prévia não deve registrar documento");
+    assert!(
+        !json(&saidas[1])["documentos"]
+            .to_string()
+            .contains("050000001")
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|evento| *evento == "POST documento_receber 200")
+            .count(),
+        1,
+        "a recarga do tipo é navegação, não cadastro: {eventos:?}"
+    );
+    assert!(
+        !eventos
+            .iter()
+            .any(|evento| evento.starts_with("POST documento_upload_anexo")
+                || evento == "POST documento_receber 302"),
+        "prévia nunca envia o PDF nem cadastra documento: {eventos:?}"
     );
 }

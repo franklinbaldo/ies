@@ -367,3 +367,87 @@ fn leitor_ies_descobre_nova_tramitacao_depois_de_trocar_a_unidade_ativa() {
         ["ARQUIVO"]
     );
 }
+
+/// BDD-333-01/02: a tela servida ao navegar por `id_protocolo` precisa ser
+/// interpretável pelo leitor de produção do IES, inclusive após o envio.
+#[test]
+fn leitor_ies_rele_unidade_da_tela_pesquisada_apos_envio() {
+    use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = OrigemSimulada::interpretar("https://simulado.invalid/sei").unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let cenario = "bdd-333-tela-pesquisada-ies";
+    let controle = |unidade: &str| ControleResumido {
+        instalacao: origem.clone(),
+        unidade: UnidadeExibida::nova(unidade).unwrap(),
+        recebidos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+        gerados: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+    };
+    guardar_controle(&mut banco, cenario, &controle("ORIGEM")).unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        cenario,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: None,
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+
+    let tela = |banco: &Connection| {
+        let resposta = anti_ies::processo_envio::navegacao(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_trabalhar&id_protocolo=10",
+            banco,
+            &origem,
+            cenario,
+        )
+        .unwrap();
+        assert_eq!(resposta.estado, anti_ies::Estado::Ok);
+        crate::arvore_processo::ler_tela_do_processo(&instalacao, &resposta.corpo, "10", None)
+            .unwrap()
+    };
+    assert_eq!(tela(&banco).unidade, "ORIGEM");
+    let previa = anti_ies::processo_envio::responder(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
+        "",
+        &banco,
+        &origem,
+        cenario,
+    );
+    assert_eq!(previa.estado, anti_ies::Estado::Ok);
+    assert_eq!(tela(&banco).unidade, "ORIGEM");
+
+    let envio = anti_ies::processo_envio::responder(
+        "POST",
+        "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on",
+        &banco,
+        &origem,
+        cenario,
+    );
+    assert_eq!(envio.estado, anti_ies::Estado::Redirecionamento);
+    assert_eq!(
+        ler(&banco, &origem, cenario, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
+        ["ORIGEM", "DESTINO"]
+    );
+    guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
+    assert_eq!(tela(&banco).unidade, "DESTINO");
+}

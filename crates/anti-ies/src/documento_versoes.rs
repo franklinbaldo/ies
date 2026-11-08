@@ -16,7 +16,7 @@ fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
             return Err(Estado::RequisicaoInvalida);
         };
         if chave == nome {
-            if v.is_empty() || valor.is_some_and(|anterior| anterior != v) {
+            if v.is_empty() || valor.is_some() {
                 return Err(Estado::RequisicaoInvalida);
             }
             valor = Some(v);
