@@ -1,4 +1,4 @@
--- 0003: modelo sintético revisável de documento interno (#246).
+-- 0004: modelo sintético revisável de documento interno (#246).
 -- Estado compartilhado entre lista de tipos, cadastro e árvore local.
 CREATE TABLE sim_processo (
     origem TEXT NOT NULL,
@@ -25,4 +25,4 @@ CREATE TABLE sim_documento (
     descricao TEXT NOT NULL,
     nivel INTEGER NOT NULL CHECK (nivel = 0)
 ) STRICT;
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
