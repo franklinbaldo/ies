@@ -134,7 +134,7 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
     semear(&banco);
     let origem = origem();
     let vazio = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
-    assert!(vazio.is_empty());
+    assert_eq!(vazio, []);
     assert!(matches!(
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", 999),
         Err(modelo::Falha::UploadAusente)
@@ -167,9 +167,5 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
             .unwrap()
             .is_none()
     );
-    assert!(
-        modelo::documentos(&banco, &origem, "ensaio", "7")
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(), []);
 }
