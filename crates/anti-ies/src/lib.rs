@@ -426,36 +426,18 @@ fn atender_com_fonte(
             atender_documento(&pedido, banco, instalacao, cenario)
         }
         Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
-            documento_arvore::responder(
-                &pedido.metodo,
-                &pedido.alvo,
-                banco,
-                instalacao,
-                cenario,
-            )
+            documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(&pedido.alvo)
                 && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
         {
-            documento_arvore::responder(
-                &pedido.metodo,
-                &pedido.alvo,
-                banco,
-                instalacao,
-                cenario,
-            )
+            documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
         }
         Some("documento_versao_listar" | "documento_visualizar")
             if eh_controlador_sei(&pedido.alvo) =>
         {
-            documento_versoes::responder(
-                &pedido.metodo,
-                &pedido.alvo,
-                banco,
-                instalacao,
-                cenario,
-            )
+            documento_versoes::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
         }
         _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
     }
