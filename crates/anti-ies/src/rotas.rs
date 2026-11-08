@@ -4,6 +4,7 @@ use crate::{
     editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
     processo_envio, retorno_programado,
 };
+use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
@@ -56,6 +57,14 @@ pub(crate) fn responder(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
+    // A recusa de sessão sintética vale inclusive antes de um upload.
+    if eh_controlador_sei(alvo) {
+        match acesso_sessao::consultar(banco, instalacao, cenario) {
+            Ok(AcessoSessao::Recusado) => return Resposta::nova(crate::Estado::AcessoNegado),
+            Ok(AcessoSessao::Permitido) => {}
+            Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
+        }
+    }
     if matches!(
         parametro_unico(alvo, "acao"),
         Some("documento_receber" | "documento_upload_anexo")

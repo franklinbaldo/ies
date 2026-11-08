@@ -2,6 +2,8 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::acesso_sessao;
+use iesei::acesso_versao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::editor_documento::{Oferta, registrar_oferta};
@@ -148,7 +150,7 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(caminho: &Path, com_documento: bool, assinaturas: u32) -> (Connection, Instalacao) {
+fn estado(caminho: &Path, com_documento: bool, assinaturas: u32, versao_restrita: bool) -> (Connection, Instalacao) {
     let novo = !caminho.exists();
     let mut banco = Connection::open(caminho).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -210,6 +212,11 @@ fn estado(caminho: &Path, com_documento: bool, assinaturas: u32) -> (Connection,
         )
         .unwrap();
     }
+    if versao_restrita {
+        acesso_versao::restringir(
+            &banco, &instalacao, CENARIO, "42", NonZeroU32::new(1).unwrap(),
+        ).unwrap();
+    }
     (banco, instalacao)
 }
 
@@ -233,6 +240,39 @@ fn executar_com_assinaturas(
     com_documento: bool,
     assinaturas: u32,
 ) -> Output {
+    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, false, false, assinaturas)
+}
+
+fn executar_com_restricao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+) -> Output {
+    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, versao_restrita, false, 0)
+}
+
+fn executar_com_sessao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+) -> Output {
+    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, versao_restrita, sessao_bloqueada, 0)
+}
+
+fn executar_com_sessao_e_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+    assinaturas: u32,
+) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -248,7 +288,10 @@ fn executar_com_assinaturas(
     let endereco = servidor.local_addr().unwrap();
     let banco = pasta.0.join("anti-ies.sqlite3");
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(&banco, com_documento, assinaturas);
+        let (db, instalacao) = estado(&banco, com_documento, assinaturas, versao_restrita);
+        if sessao_bloqueada {
+            acesso_sessao::bloquear(&db, &instalacao, CENARIO).unwrap();
+        }
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -422,3 +465,6 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
 
 #[path = "aies_documento_cli/testes_editor.rs"]
 mod testes_editor;
+
+#[path = "aies_documento_cli/negativos.rs"]
+mod negativos;
