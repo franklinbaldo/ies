@@ -148,10 +148,15 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(com_documento: bool, assinaturas: u32) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
+fn estado(caminho: &Path, com_documento: bool, assinaturas: u32) -> (Connection, Instalacao) {
+    let novo = !caminho.exists();
+    let mut banco = Connection::open(caminho).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    if !novo {
+        return (banco, instalacao);
+    }
+    fs::set_permissions(caminho, fs::Permissions::from_mode(0o600)).unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
     banco_cassettes::guardar(
         &mut banco,
         CENARIO,
@@ -241,8 +246,9 @@ fn executar_com_assinaturas(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
+    let banco = pasta.0.join("anti-ies.sqlite3");
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_documento, assinaturas);
+        let (db, instalacao) = estado(&banco, com_documento, assinaturas);
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();

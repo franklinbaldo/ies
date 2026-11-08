@@ -108,7 +108,7 @@ fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
 #[test]
 fn bdd_89_04_cli_documento_assinado_confirma_estado_apos_edicao() {
     let pasta = Pasta::nova();
-    let leitura = executar(
+    let leitura = executar_com_assinaturas(
         &pasta,
         &[
             "--json",
@@ -121,6 +121,8 @@ fn bdd_89_04_cli_documento_assinado_confirma_estado_apos_edicao() {
             "--sem-cache",
         ],
         6,
+        true,
+        2,
     );
     assert_eq!(leitura.status.code(), Some(0), "{:?}", json(&leitura));
     let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
