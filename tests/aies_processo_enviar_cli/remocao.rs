@@ -265,7 +265,7 @@ fn bdd_333_03_previa_fallback_e_confirmacao_releem_anotacao_no_mesmo_sqlite() {
         &[&previa, &confirmacao],
         false,
         Some("Nota da origem"),
-        false,
+        true,
         EnsaioRemocao::TelaSemCheckbox,
     );
 
