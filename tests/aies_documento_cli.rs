@@ -6,6 +6,7 @@ use iesei::acesso_sessao;
 use iesei::acesso_versao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
+use iesei::editor_documento::{Oferta, registrar_oferta};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
@@ -149,10 +150,20 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(com_documento: bool, versao_restrita: bool) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
+fn estado(
+    caminho: &Path,
+    com_documento: bool,
+    assinaturas: u32,
+    versao_restrita: bool,
+) -> (Connection, Instalacao) {
+    let novo = !caminho.exists();
+    let mut banco = Connection::open(caminho).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    if !novo {
+        return (banco, instalacao);
+    }
+    fs::set_permissions(caminho, fs::Permissions::from_mode(0o600)).unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
     banco_cassettes::guardar(
         &mut banco,
         CENARIO,
@@ -194,6 +205,17 @@ fn estado(com_documento: bool, versao_restrita: bool) -> (Connection, Instalacao
             },
         )
         .unwrap();
+        registrar_oferta(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            Oferta {
+                editavel: true,
+                assinaturas,
+            },
+        )
+        .unwrap();
     }
     if versao_restrita {
         acesso_versao::restringir(
@@ -218,7 +240,25 @@ fn executar_com_estado(
     requisicoes: usize,
     com_documento: bool,
 ) -> Output {
-    executar_com_restricao(pasta, args, requisicoes, com_documento, false)
+    executar_com_assinaturas(pasta, args, requisicoes, com_documento, 0)
+}
+
+fn executar_com_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    assinaturas: u32,
+) -> Output {
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        false,
+        false,
+        assinaturas,
+    )
 }
 
 fn executar_com_restricao(
@@ -228,13 +268,14 @@ fn executar_com_restricao(
     com_documento: bool,
     versao_restrita: bool,
 ) -> Output {
-    executar_com_sessao(
+    executar_com_sessao_e_assinaturas(
         pasta,
         args,
         requisicoes,
         com_documento,
         versao_restrita,
         false,
+        0,
     )
 }
 
@@ -245,6 +286,26 @@ fn executar_com_sessao(
     com_documento: bool,
     versao_restrita: bool,
     sessao_bloqueada: bool,
+) -> Output {
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        sessao_bloqueada,
+        0,
+    )
+}
+
+fn executar_com_sessao_e_assinaturas(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+    assinaturas: u32,
 ) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -259,8 +320,9 @@ fn executar_com_sessao(
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
+    let banco = pasta.0.join("anti-ies.sqlite3");
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_documento, versao_restrita);
+        let (db, instalacao) = estado(&banco, com_documento, assinaturas, versao_restrita);
         if sessao_bloqueada {
             acesso_sessao::bloquear(&db, &instalacao, CENARIO).unwrap();
         }
@@ -289,6 +351,7 @@ fn executar_com_sessao(
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta.0)
         .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
@@ -381,6 +444,9 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
         "<html><body>Edição local</body></html>"
     );
 }
+
+#[path = "aies_documento_cli/testes_editor.rs"]
+mod testes_editor;
 
 #[path = "aies_documento_cli/negativos.rs"]
 mod negativos;

@@ -5,6 +5,7 @@ mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
@@ -329,10 +330,10 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
             }
         }
     }
-    let limite = if parametro_unico(&alvo, "acao") == Some("documento_upload_anexo") {
-        256 * 1024 * 1024
-    } else {
-        8192
+    let limite = match parametro_unico(&alvo, "acao") {
+        Some("documento_upload_anexo") => 256 * 1024 * 1024,
+        Some("documento_editar" | "editor_salvar") => 24 * 1024 * 1024,
+        _ => 8192,
     };
     if !terminado || tamanho.unwrap_or(0) > limite || (metodo == "POST" && tamanho.is_none()) {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));

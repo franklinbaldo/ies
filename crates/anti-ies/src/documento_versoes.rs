@@ -62,7 +62,7 @@ fn historico(documento: &DocumentoSimulado) -> String {
 
 fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao) -> String {
     format!(
-        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body>{}<div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
+        "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body><main id='corpoEditavel'>{}</main><div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
         escapar(&documento.numero),
         escapar(&documento.tipo),
         revisao.html_corpo,
