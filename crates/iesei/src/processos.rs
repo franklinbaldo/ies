@@ -308,21 +308,15 @@ fn pagina_inteira(tabela: &TabelaObservada<Linha>) -> bool {
     }
     match (tabela.faixa_observada, tabela.linhas.len()) {
         (None, 0) => true,
-        (Some(faixa), tamanho) if tamanho > 0 => {
-            faixa.inicio() == 1 && faixa.fim() == tamanho
-        }
+        (Some(faixa), tamanho) if tamanho > 0 => faixa.inicio() == 1 && faixa.fim() == tamanho,
         _ => false,
     }
 }
 
 fn tabela_atualizada(linhas: Vec<Linha>) -> Result<TabelaObservada<Linha>, Falha> {
     let tamanho = linhas.len();
-    TabelaObservada::nova(
-        Some(tamanho),
-        FaixaObservada::nova(1, tamanho),
-        linhas,
-    )
-    .map_err(|_| Falha::DadoInvalido)
+    TabelaObservada::nova(Some(tamanho), FaixaObservada::nova(1, tamanho), linhas)
+        .map_err(|_| Falha::DadoInvalido)
 }
 
 /// Projeta as transições do SQLite no Controle R da unidade ativa.
