@@ -164,32 +164,32 @@ fn estado(com_documento: bool) -> (Connection, Instalacao) {
     .unwrap();
     if com_documento {
         documento_versoes::guardar(
-        &mut banco,
-        CENARIO,
-        &DocumentoSimulado {
-            instalacao: instalacao.clone(),
-            id_documento: "42".into(),
-            id_procedimento: "7".into(),
-            numero_processo: "00001.000001/2026-01".into(),
-            numero: DOC.into(),
-            tipo: "Despacho".into(),
-            revisoes: vec![
-                Revisao {
-                    versao: NonZeroU32::new(1).unwrap(),
-                    usuario: "Ana".into(),
-                    unidade: "TESTE".into(),
-                    modificacao: "01/11/2026".into(),
-                    html_corpo: "<p>Primeira redação</p>".into(),
-                },
-                Revisao {
-                    versao: NonZeroU32::new(3).unwrap(),
-                    usuario: "Bia".into(),
-                    unidade: "TESTE".into(),
-                    modificacao: "03/11/2026".into(),
-                    html_corpo: "<p>Terceira redação</p>".into(),
-                },
-            ],
-        },
+            &mut banco,
+            CENARIO,
+            &DocumentoSimulado {
+                instalacao: instalacao.clone(),
+                id_documento: "42".into(),
+                id_procedimento: "7".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: DOC.into(),
+                tipo: "Despacho".into(),
+                revisoes: vec![
+                    Revisao {
+                        versao: NonZeroU32::new(1).unwrap(),
+                        usuario: "Ana".into(),
+                        unidade: "TESTE".into(),
+                        modificacao: "01/11/2026".into(),
+                        html_corpo: "<p>Primeira redação</p>".into(),
+                    },
+                    Revisao {
+                        versao: NonZeroU32::new(3).unwrap(),
+                        usuario: "Bia".into(),
+                        unidade: "TESTE".into(),
+                        modificacao: "03/11/2026".into(),
+                        html_corpo: "<p>Terceira redação</p>".into(),
+                    },
+                ],
+            },
         )
         .unwrap();
     }
