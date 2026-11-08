@@ -58,6 +58,8 @@ pub(super) fn faixas_de_controles_inativos(dom: &tl::VDom<'_>) -> Option<Vec<(us
 /// A captura 4.0.9 publica btnSalvar como button habilitado com
 /// `onclick=confirmarDados()`; a mera funcao `submeter()` morta nao prova
 /// que a tela oferece a escrita. Topo e rodape podem repetir o botao.
+/// Um button type=button nao participa do corpo do submit: seu atributo
+/// name e opcional, desde que id, tipo, onclick e disponibilidade coincidam.
 fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) -> bool {
     let Some(faixas_inativas) = faixas_de_controles_inativos(dom) else {
         return false;
@@ -87,9 +89,6 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
         let Ok(tipo) = crate::html_atributos::valor_do_atributo(botao, "type") else {
             return false;
         };
-        let Ok(nome) = crate::html_atributos::valor_do_atributo(botao, "name") else {
-            return false;
-        };
         let Ok(acionador) = crate::html_atributos::valor_do_atributo(botao, "onclick") else {
             return false;
         };
@@ -98,7 +97,6 @@ fn botoes_salvar_publicam_acao(dom: &tl::VDom<'_>, faixas: &[(usize, usize)]) ->
         };
         if desabilitado
             || tipo.as_deref() != Some("button")
-            || nome.as_deref() != Some("btnSalvar")
             || acionador.as_deref().map(str::trim) != Some("confirmarDados()")
         {
             return false;
