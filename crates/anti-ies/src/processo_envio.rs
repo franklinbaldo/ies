@@ -71,12 +71,12 @@ fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
     }
 }
 
-fn destino_indicado(campos: &[(&str, &str)]) -> Option<&str> {
+fn destino_indicado(campos: &[(&str, &str)]) -> Option<String> {
     let unidades = campo_unico(campos, "hdnUnidades")?;
     let (id, _) = unidades
         .split_once("%B1")
         .or_else(|| unidades.split_once("%C2%B1"))?;
-    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 
 fn resposta_html(corpo: String) -> Resposta {
@@ -179,7 +179,7 @@ pub fn responder(
         cenario,
         PedidoEnvio {
             id,
-            id_destino,
+            id_destino: &id_destino,
             manter_aberto,
             remover_anotacoes,
         },

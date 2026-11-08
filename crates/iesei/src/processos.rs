@@ -120,11 +120,12 @@ pub fn guardar(
         params![origem, cenario, processo.id],
     )?;
     for (posicao, unidade) in processo.aberto_em.iter().enumerate() {
+        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_abertura
              (origem, cenario, id_procedimento, posicao, unidade)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![origem, cenario, processo.id, posicao as i64, unidade],
+            params![origem, cenario, processo.id, posicao, unidade],
         )?;
     }
     for destino in &processo.destinos {
@@ -252,11 +253,12 @@ pub fn enviar(
         params![origem, cenario, pedido.id],
     )?;
     for (i, unidade) in processo.aberto_em.iter().enumerate() {
+        let i = i64::try_from(i).map_err(|_| Falha::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_abertura
              (origem, cenario, id_procedimento, posicao, unidade)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![origem, cenario, pedido.id, i as i64, unidade],
+            params![origem, cenario, pedido.id, i, unidade],
         )?;
     }
     tx.commit()?;
