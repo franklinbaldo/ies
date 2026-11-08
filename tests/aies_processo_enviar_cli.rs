@@ -260,6 +260,64 @@ fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+/// Arquivos efêmeros e proxy da bancada CLI, sem produção.
+struct BancadaCli<'a> {
+    pasta: &'a Pasta,
+    controle: &'a Path,
+    cookie: &'a Path,
+    origem: &'a Path,
+    cert: &'a Path,
+    porta: u16,
+    ensaio_local: bool,
+}
+
+impl BancadaCli<'_> {
+    fn executar(&self, args: &[&str]) -> Output {
+        let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+        if self.ensaio_local {
+            comando.env("IES_ANTI_IES_TESTE", "1");
+        } else {
+            comando.env_remove("IES_ANTI_IES_TESTE");
+        }
+        comando
+            .args(args)
+            .env("IES_URL_CONTROLE_FILE", self.controle)
+            .env("IES_COOKIE_FILE", self.cookie)
+            .env("IES_ORIGEM_FILE", self.origem)
+            .env("SSL_CERT_FILE", self.cert)
+            .env("https_proxy", format!("http://127.0.0.1:{}", self.porta))
+            .env("HOME", &self.pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .expect("binário da CLI")
+    }
+}
+
+/// A troca é disparada antes da segunda CLI, mantendo o mesmo SQLite.
+fn selecionar_unidade_destino(banco: &mut Connection, instalacao: &Instalacao, unidade: &str) {
+    let intermediario = processos::ler(banco, instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(intermediario.aberto_em, ["DESTINO"]);
+    banco_cassettes::guardar(
+        banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: instalacao.clone(),
+            unidade: UnidadeExibida::nova(unidade).unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+}
+
 /// Trilha tem apenas método e ação; nunca URL completa, corpo ou cookie.
 fn executar(
     comandos: &[&[&str]],
@@ -282,7 +340,7 @@ fn executar_com_ensaio_local(
         anotacao,
         ensaio_local,
         omitir_remocao_no_post,
-        false,
+        None,
     )
 }
 
@@ -294,7 +352,7 @@ fn executar_com_troca_de_unidade(
     anotacao: Option<&'static str>,
     ensaio_local: bool,
     omitir_remocao_no_post: bool,
-    trocar_apos_primeiro: bool,
+    trocar_apos_primeiro: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
@@ -323,23 +381,11 @@ fn executar_com_troca_de_unidade(
         assert_eq!(antes.aberto_em, ["ORIGEM"]);
         while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
             if trocar_sim.swap(false, Ordering::SeqCst) {
-                // Verificação antes da segunda escrita: o primeiro envio
-                // fechou ORIGEM, mas ainda não transferiu o processo a ARQUIVO.
-                let intermediario = processos::ler(&banco, &instalacao, CENARIO, "10")
-                    .unwrap()
-                    .unwrap();
-                assert_eq!(intermediario.aberto_em, ["DESTINO"]);
-                banco_cassettes::guardar(
+                selecionar_unidade_destino(
                     &mut banco,
-                    CENARIO,
-                    &ControleResumido {
-                        instalacao: instalacao.clone(),
-                        unidade: UnidadeExibida::nova("DESTINO").unwrap(),
-                        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                    },
-                )
-                .unwrap();
+                    &instalacao,
+                    trocar_apos_primeiro.expect("segunda unidade especificada"),
+                );
             }
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -383,36 +429,23 @@ fn executar_com_troca_de_unidade(
             resposta.clear();
         }
     });
+    let cli = BancadaCli {
+        pasta: &pasta,
+        controle: &controle,
+        cookie: &cookie,
+        origem: &origem,
+        cert: &cert,
+        porta,
+        ensaio_local,
+    };
     let saidas = comandos
         .iter()
         .enumerate()
         .map(|(indice, args)| {
-            if trocar_apos_primeiro && indice == 1 {
+            if trocar_apos_primeiro.is_some() && indice == 1 {
                 trocar.store(true, Ordering::SeqCst);
             }
-            let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
-            if ensaio_local {
-                comando.env("IES_ANTI_IES_TESTE", "1");
-            } else {
-                comando.env_remove("IES_ANTI_IES_TESTE");
-            }
-            comando
-                .args(*args)
-                .env("IES_URL_CONTROLE_FILE", &controle)
-                .env("IES_COOKIE_FILE", &cookie)
-                .env("IES_ORIGEM_FILE", &origem)
-                .env("SSL_CERT_FILE", &cert)
-                .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-                .env("HOME", &pasta.0)
-                .env_remove("HTTPS_PROXY")
-                .env_remove("all_proxy")
-                .env_remove("ALL_PROXY")
-                .env_remove("NO_PROXY")
-                .env_remove("no_proxy")
-                .env_remove("IES_CONFIG_FILE")
-                .env_remove("IES_CREDENCIAIS_FILE")
-                .output()
-                .expect("binário da CLI")
+            cli.executar(args)
         })
         .collect();
     parar.store(true, Ordering::SeqCst);
