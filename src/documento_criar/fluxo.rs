@@ -238,12 +238,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
-    eprintln!("RAPOSA_DIAG: tipos={}, alvo_presente={}", tipos.len(), tipos.iter().any(|nome| nome == pedido.tipo));
     if !tipos.iter().any(|nome| nome == pedido.tipo)
-        && filtro_de_todos(&html_lista).map_err(|erro| {
-            eprintln!("RAPOSA_DIAG: falha no filtro");
-            E::Tipo(erro)
-        })?
+        && filtro_de_todos(&html_lista).map_err(E::Tipo)?
     {
         let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
         let servida = TelaServida {
@@ -278,10 +274,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         &aberto.arvore.processo.id,
         pedido.tipo,
     )
-    .map_err(|erro| {
-        eprintln!("RAPOSA_DIAG: falha na seleção");
-        E::Tipo(erro)
-    })?;
+    .map_err(E::Tipo)?;
     let url_do_cadastro = match escolha {
         EscolhaDoDocumento::Link(url) => url,
         EscolhaDoDocumento::Formulario(id_serie) => {
