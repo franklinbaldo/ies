@@ -363,7 +363,12 @@ fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
     let (_, html) = resposta.split_once("\r\n\r\n").unwrap();
     let arvore = ler_arvore(html, "00001.000001/2026-01", "7").unwrap();
     assert_eq!(arvore.documentos.len(), 2);
-    assert!(arvore.documentos.iter().any(|d| d.rotulo == "Despacho 1000001"));
+    assert!(
+        arvore
+            .documentos
+            .iter()
+            .any(|d| d.rotulo == "Despacho 1000001")
+    );
     assert!(
         arvore
             .documentos
