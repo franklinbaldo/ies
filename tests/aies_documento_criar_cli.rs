@@ -158,7 +158,7 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
 
 /// O POST foi realmente aplicado pelo anti-IES, mas a resposta perde
 /// a prova de autoria: o IES não deve atribuir a si um documento concorrente.
-fn resposta_sem_prova_de_autoria(resposta: Vec<u8>) -> Vec<u8> {
+fn resposta_sem_prova_de_autoria(resposta: &[u8]) -> Vec<u8> {
     let fim = resposta
         .windows(4)
         .position(|parte| parte == b"\r\n\r\n")
@@ -313,7 +313,7 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
                 .push(format!("{metodo} {acao}: {status} {nomes:?}"));
             if resposta_incerta && metodo == "POST" && acao == "documento_gerar" && status == "302"
             {
-                resposta = resposta_sem_prova_de_autoria(resposta);
+                resposta = resposta_sem_prova_de_autoria(&resposta);
             }
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
