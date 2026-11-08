@@ -239,8 +239,14 @@ fn executar(
     fs::create_dir(&destino_arquivo).unwrap();
     let destino_str = destino_arquivo.to_str().unwrap();
     let ler_pdf = [
-        "--json", "documento", "050000001", "--processo", NUP,
-        "--saida", destino_str, "--sem-cache",
+        "--json",
+        "documento",
+        "050000001",
+        "--processo",
+        NUP,
+        "--saida",
+        destino_str,
+        "--sem-cache",
     ];
     let mut comandos = vec![&incluir[..], &consultar[..]];
     if com_leitura {
@@ -434,7 +440,10 @@ fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
     assert_eq!(lido["documentos"][0]["anexo"]["mime"], "application/pdf");
     assert_eq!(lido["documentos"][0]["arquivo"]["nome"], "050000001.pdf");
     assert_eq!(
-        eventos.iter().filter(|e| e.as_str() == "GET documento_download_anexo 200").count(),
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET documento_download_anexo 200")
+            .count(),
         1,
         "o link assinado deve ser seguido uma só vez"
     );
