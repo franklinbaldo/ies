@@ -167,5 +167,8 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
             .unwrap()
             .is_none()
     );
-    assert_eq!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(), []);
+    assert_eq!(
+        modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(),
+        []
+    );
 }
