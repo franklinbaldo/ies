@@ -26,7 +26,9 @@ impl Pasta {
     fn nova() -> Self {
         let instante = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let pasta = std::env::temp_dir().join(format!(
-            "aies-buscar-{}-{}", std::process::id(), instante.as_nanos()
+            "aies-buscar-{}-{}",
+            std::process::id(),
+            instante.as_nanos()
         ));
         fs::create_dir(&pasta).unwrap();
         Self(pasta)
@@ -50,19 +52,44 @@ fn certificado(pasta: &Path) -> (PathBuf, Identity) {
     let p12 = pasta.join("identidade.p12");
     let criado = Command::new("openssl")
         .args([
-            "req", "-x509", "-newkey", "rsa:2048", "-nodes",
-            "-sha256", "-days", "1", "-subj", "/CN=sei.test",
-            "-addext", "subjectAltName=DNS:sei.test", "-keyout",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-sha256",
+            "-days",
+            "1",
+            "-subj",
+            "/CN=sei.test",
+            "-addext",
+            "subjectAltName=DNS:sei.test",
+            "-keyout",
         ])
-        .arg(&key).arg("-out").arg(&cert)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+        .arg(&key)
+        .arg("-out")
+        .arg(&cert)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
     assert!(criado.success());
     let convertido = Command::new("openssl")
         .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey"])
-        .arg(&key).arg("-in").arg(&cert).arg("-out").arg(&p12)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+        .arg(&key)
+        .arg("-in")
+        .arg(&cert)
+        .arg("-out")
+        .arg(&p12)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .unwrap();
     assert!(convertido.success());
-    (cert, Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap())
+    (
+        cert,
+        Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap(),
+    )
 }
 
 fn aceitar(listener: &TcpListener) -> TcpStream {
@@ -77,7 +104,10 @@ fn aceitar(listener: &TcpListener) -> TcpStream {
                 return tcp;
             }
             Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(inicio.elapsed() < Duration::from_secs(3), "requisição ausente");
+                assert!(
+                    inicio.elapsed() < Duration::from_secs(3),
+                    "requisição ausente"
+                );
                 thread::sleep(Duration::from_millis(10));
             }
             Err(erro) => panic!("accept: {erro}"),
@@ -99,11 +129,14 @@ fn cabecalho(canal: &mut impl Read) -> Vec<u8> {
 fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     let cab = cabecalho(canal);
     let texto = std::str::from_utf8(&cab).unwrap();
-    let tamanho = texto.lines().find_map(|linha| {
-        let (nome, valor) = linha.split_once(':')?;
-        nome.eq_ignore_ascii_case("content-length")
-            .then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let tamanho = texto
+        .lines()
+        .find_map(|linha| {
+            let (nome, valor) = linha.split_once(':')?;
+            nome.eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000);
     destino.write_all(&cab).unwrap();
     let mut corpo = vec![0; tamanho];
@@ -117,7 +150,10 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
     let origem = pasta.privado("origem", ORIGEM);
     let url = pasta.privado(
         "url",
-        &format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={}", "a".repeat(64)),
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={}",
+            "a".repeat(64)
+        ),
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -127,19 +163,25 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
         banco_cassettes::guardar(
-            &mut banco, CENARIO,
+            &mut banco,
+            CENARIO,
             &ControleResumido {
                 instalacao: instalacao.clone(),
                 unidade: UnidadeExibida::nova("TESTE").unwrap(),
                 recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
                 gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
             },
-        ).unwrap();
+        )
+        .unwrap();
         // O negativo é observado EXPLICITAMENTE no SQLite, não inferido da ausência.
         iesei::pesquisa_documento::registrar_sem_resultado(
-            &banco, &instalacao, CENARIO,
-            &UnidadeExibida::nova("TESTE").unwrap(), TERMO,
-        ).unwrap();
+            &banco,
+            &instalacao,
+            CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(),
+            TERMO,
+        )
+        .unwrap();
         for _ in 0..3 {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
@@ -152,7 +194,8 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
         for _ in 0..3 {
             let mut tcp = aceitar(&proxy);
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let mut destino = TcpStream::connect(endereco).unwrap();
             encaminhar(&mut canal, &mut destino);
@@ -164,17 +207,23 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .current_dir(&pasta.0).args(args)
+        .current_dir(&pasta.0)
+        .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
         .env("SSL_CERT_FILE", cert)
         .env("https_proxy", format!("http://127.0.0.1:{porta}"))
         .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY").env_remove("all_proxy").env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY").env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE").env_remove("IES_CREDENCIAIS_FILE")
-        .output().unwrap();
+        .env_remove("HTTPS_PROXY")
+        .env_remove("all_proxy")
+        .env_remove("ALL_PROXY")
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy")
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_CREDENCIAIS_FILE")
+        .output()
+        .unwrap();
     tunel.join().unwrap();
     servidor_thread.join().unwrap();
     saida
@@ -184,7 +233,12 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
 fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
     let pasta = Pasta::nova();
     let saida = executar(&pasta, &["--json", "documento", "buscar", TERMO]);
-    assert_eq!(saida.status.code(), Some(0), "{}", String::from_utf8_lossy(&saida.stderr));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["resultado"], "sem_resultado");
     assert_eq!(json["termo"], TERMO);
