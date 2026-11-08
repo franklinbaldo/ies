@@ -80,4 +80,3 @@ pub(super) fn identidade(pasta: &Path) -> (PathBuf, Identity) {
         Identity::from_pkcs12(&fs::read(arquivo).unwrap(), "teste").unwrap(),
     )
 }
-
