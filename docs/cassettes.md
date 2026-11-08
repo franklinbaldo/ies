@@ -34,6 +34,44 @@ da matriz do Todos com estes registros, sem inventar provas de escrita.
 6. Distinga o que a resposta mostrou daquilo que seria necessário
    provar sobre uma operação completa.
 
+## Caminho curto para qualquer agente — mesmo sem rede no sandbox
+
+**Cassette-first, não cassette-gated:** localize o card antes de inventar
+uma fixture; se não houver observação aplicável, siga com hipótese e teste.
+Não confunda falha de rede do sandbox com falta de cassette: use o
+[workflow opcional de inspeção](../.github/workflows/inspecionar-cassettes.yml).
+Ele baixa ZIPs públicos, verifica SHA-1/SHA-256, `schema_version`,
+`complete` e contagem, e mostra apenas métodos, nomes de ações e
+estrutura das requisições, nunca HTML, cookies ou URLs assinadas.
+
+**Com GitHub CLI** (depois da integração do workflow na `main`):
+
+```sh
+gh workflow run inspecionar-cassettes.yml --ref main \
+  -f cards="cassettes/unb/documento-escritas-unb--36a904749e20.md"
+gh run list --workflow inspecionar-cassettes.yml --limit 3
+# Abra o run indicado para conferir PASS/FAIL e os logs sanitizados.
+```
+
+**Só com o conector GitHub, sem `gh` nem acesso de rede local:**
+na branch da PR ativa, crie temporariamente
+`.github/cassettes-a-inspecionar.txt`, com **um caminho de card por
+linha** (em `cassettes/`). O evento `pull_request` executará a mesma
+inspeção no Actions. Consulte o run; depois **remova o arquivo da PR**
+para não persistir solicitações transitórias. Não é necessário escrever
+outro workflow. O workflow não é gate do CI regular.
+
+**Com rede local:** rode
+`python3 scripts/inspecionar_cassettes.py cassettes/<instalacao>/<card>.md`
+ou forneça vários cards. O script usa apenas a biblioteca padrão Python.
+
+A inspeção **não é replay ou prova de paridade**. Na mesma fatia,
+importe as observações pertinentes ao estado do anti-IES, compare
+separadamente as respostas originais com o leitor IES e com o simulador,
+e execute o ciclo completo da CLI. Onde a captura não mostrar corpos de
+POST ou transições, use hipóteses testáveis sem bloquear o progresso.
+Ausência de cassette no runner: registre o motivo e continue.
+
 ## Exemplo verificado: bloco no PEN2
 
 ```sh
