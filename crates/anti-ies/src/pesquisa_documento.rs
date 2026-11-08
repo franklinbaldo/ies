@@ -55,7 +55,6 @@ pub fn responder(
     }
 }
 
-
 /// Página HTML da mesma pesquisa servida pela interface Web observada,
 /// reconstruída do estado (não de uma cópia de HTML de cassette).
 fn formulario_de_pesquisa(unidade: &str, termo: &str, sem_resultado: bool) -> String {
@@ -105,9 +104,7 @@ pub fn responder_pesquisa(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo)
-        || parametro_unico(alvo, "acao") != Some("protocolo_pesquisar")
-    {
+    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("protocolo_pesquisar") {
         return despachar(metodo, alvo);
     }
     let Ok(Some(controle)) = iesei::banco_cassettes::ler(banco, instalacao, cenario) else {
@@ -131,13 +128,15 @@ pub fn responder_pesquisa(
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
             match iesei::pesquisa_documento::consultar(
-                banco, instalacao, cenario, &controle.unidade, &termo,
+                banco,
+                instalacao,
+                cenario,
+                &controle.unidade,
+                &termo,
             ) {
-                Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
-                    Resposta::html(formulario_de_pesquisa(
-                        controle.unidade.as_str(), &termo, true,
-                    ))
-                }
+                Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => Resposta::html(
+                    formulario_de_pesquisa(controle.unidade.as_str(), &termo, true),
+                ),
                 Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
             }
         }
@@ -169,7 +168,11 @@ mod tests {
         )
         .unwrap();
         iesei::pesquisa_documento::registrar_sem_resultado(
-            &banco, &instalacao, "cenario", &unidade, "DOC-NAO-ACHADO",
+            &banco,
+            &instalacao,
+            "cenario",
+            &unidade,
+            "DOC-NAO-ACHADO",
         )
         .unwrap();
         let url = "/sei/controlador.php?acao=protocolo_pesquisar";
@@ -181,9 +184,7 @@ mod tests {
             responder_pesquisa(
                 "POST",
                 url,
-                &format!(
-                    "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa={termo}"
-                ),
+                &format!("rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa={termo}"),
                 &banco,
                 &instalacao,
                 "cenario",
