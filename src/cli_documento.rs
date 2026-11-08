@@ -37,7 +37,7 @@ pub(crate) enum DocumentoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Prévia de cópia local; confirmação remota ainda bloqueada
+    /// Prévia de cópia local; confirmação somente no anti-IES de ensaio
     Salvar {
         numero: String,
         #[arg(long)]
