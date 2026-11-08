@@ -148,7 +148,7 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
             pdf_externo::cadastrar(&banco, &origem, CENARIO, "7", "293", upload.id).unwrap();
         let id = documento.id_publico();
         let numero = documento.numero_sei;
-        for _ in 0..4 {
+        for _ in 0..5 {
             let (mut tcp, cliente) = servidor.accept().unwrap();
             assert!(cliente.ip().is_loopback());
             atender_http(&mut tcp, Some((&banco, &origem, CENARIO))).unwrap();
@@ -178,6 +178,19 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
         !ambiguo.contains("050000001"),
         "recusa não publica outro documento"
     );
+
+    // Com id_protocolo repetido, a seleção é ambígua mesmo que os
+    // dois valores sejam iguais. Não responder com a árvore inteira.
+    let protocolo_ambiguo = pedir(
+        endereco,
+        "GET",
+        "id_procedimento=7&id_protocolo=8000000000001&id_protocolo=8000000000001",
+    );
+    assert!(
+        protocolo_ambiguo.starts_with("HTTP/1.1 400 Bad Request\\r\\n"),
+        "{protocolo_ambiguo}"
+    );
+    assert!(!protocolo_ambiguo.contains("050000001"));
 
     let metodo = pedir(
         endereco,
