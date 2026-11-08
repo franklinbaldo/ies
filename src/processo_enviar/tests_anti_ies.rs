@@ -66,13 +66,26 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     .unwrap()
     .expect("anotação simulada deve oferecer consulta/edição");
     assert!(anotacao_publicada.contains("acao=anotacao_registrar"));
-    let alvo = "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10";
-    let formulario = anti_ies::processo_envio::responder("GET", alvo, "", &banco, &origem, cenario);
+    let alvo = format!(
+        "/sei/{}",
+        envio_publicado.as_str().split_once("/sei/").unwrap().1
+    );
+    let caminho_anotacao = format!(
+        "/sei/{}",
+        anotacao_publicada.split_once("/sei/").unwrap().1
+    );
+    let anotacao_antes = anti_ies::processo_envio::responder(
+        "GET", &caminho_anotacao, "", &banco, &origem, cenario,
+    );
+    assert!(super::anotacoes::anotacao_presente(&anotacao_antes.corpo, id).unwrap());
+    let formulario = anti_ies::processo_envio::responder(
+        "GET", &alvo, "", &banco, &origem, cenario,
+    );
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
     let tela = conferir_tela_de_envio(&formulario.corpo, id).unwrap();
     assert!(tela.remover_anotacoes_oferecida);
     let servida = TelaServida {
-        url: "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
+        url: envio_publicado.as_str(),
         html: &formulario.corpo,
         codificacao: CodificacaoDaTela::Iso88591,
     };
@@ -113,6 +126,10 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let depois = ler(&banco, &origem, cenario, id).unwrap().unwrap();
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+    let anotacao_depois = anti_ies::processo_envio::responder(
+        "GET", &caminho_anotacao, "", &banco, &origem, cenario,
+    );
+    assert!(!super::anotacoes::anotacao_presente(&anotacao_depois.corpo, id).unwrap());
     let html_arvore = anti_ies::processo_envio::navegacao(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
@@ -129,5 +146,51 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     assert_eq!(
         unidades.into_iter().map(|u| u.sigla).collect::<Vec<_>>(),
         ["ORIGEM", "DESTINO"]
+    );
+}
+
+#[test]
+fn barra_da_origem_fechada_nao_oferece_novo_envio_ou_anotacao_nao_observada() {
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = OrigemSimulada::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        "processo-fechado",
+        &ProcessoSimulado {
+            id: "20".into(),
+            numero: "00001.000002/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["DESTINO".into()],
+            anotacao_origem: None,
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let arvore = anti_ies::processo_envio::navegacao(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=20",
+        &banco,
+        &origem,
+        "processo-fechado",
+    )
+    .unwrap()
+    .corpo;
+    assert!(
+        crate::arvore_processo::ler_enviar_da_barra(&instalacao, &arvore, "20")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        crate::arvore_processo::ler_link_das_anotacoes(&instalacao, &arvore, "20")
+            .unwrap()
+            .is_none()
     );
 }
