@@ -279,54 +279,135 @@ pub fn controlar(
     }
 }
 
-/// Um atendimento HTTP real, com fonte optional e sem expor a sessão.
-/// O banco é aberto pelo servidor exclusivamente em modo de leitura.
+/// Pedido HTTP de loopback, com corpo explicitamente delimitado.
+enum PedidoHttp {
+    Vazio,
+    Invalido,
+    Valido {
+        metodo: String,
+        alvo: String,
+        corpo: String,
+    },
+}
+
+fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<PedidoHttp> {
+    let mut leitor = BufReader::new(&mut *fluxo);
+    let mut primeira = String::new();
+    let lidos = leitor.read_line(&mut primeira)?;
+    if lidos == 0 {
+        return Ok(PedidoHttp::Vazio);
+    }
+    if lidos > 4096 || !primeira.ends_with('\n') {
+        return Ok(PedidoHttp::Invalido);
+    }
+    let mut partes = primeira.split_ascii_whitespace();
+    let (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) =
+        (partes.next(), partes.next(), partes.next(), partes.next())
+    else {
+        return Ok(PedidoHttp::Invalido);
+    };
+    let (metodo, alvo) = (metodo.to_owned(), alvo.to_owned());
+    let mut tamanho: Option<usize> = None;
+    let mut lidos_cabecalho = 0;
+    loop {
+        let mut linha = String::new();
+        let n = leitor.read_line(&mut linha)?;
+        lidos_cabecalho += n;
+        if n == 0 || lidos_cabecalho > 8192 {
+            return Ok(PedidoHttp::Invalido);
+        }
+        if linha == "\r\n" || linha == "\n" {
+            break;
+        }
+        let Some((nome, valor)) = linha.split_once(':') else {
+            return Ok(PedidoHttp::Invalido);
+        };
+        if nome.eq_ignore_ascii_case("Transfer-Encoding") {
+            return Ok(PedidoHttp::Invalido);
+        }
+        if nome.eq_ignore_ascii_case("Content-Length") {
+            if tamanho.is_some() {
+                return Ok(PedidoHttp::Invalido);
+            }
+            tamanho = valor.trim().parse::<usize>().ok().filter(|n| *n <= 16_384);
+            if tamanho.is_none() {
+                return Ok(PedidoHttp::Invalido);
+            }
+        }
+    }
+    if metodo == "POST" && tamanho.is_none() {
+        return Ok(PedidoHttp::Invalido);
+    }
+    let mut bytes = vec![0; tamanho.unwrap_or(0)];
+    if leitor.read_exact(&mut bytes).is_err() {
+        return Ok(PedidoHttp::Invalido);
+    }
+    let Ok(corpo) = String::from_utf8(bytes) else {
+        return Ok(PedidoHttp::Invalido);
+    };
+    Ok(PedidoHttp::Valido {
+        metodo,
+        alvo,
+        corpo,
+    })
+}
+
+fn responder_pedido(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    fonte: Option<(&mut Connection, &Instalacao, &str)>,
+) -> Resposta {
+    let Some((banco, instalacao, cenario)) = fonte else {
+        return despachar(metodo, alvo);
+    };
+    if matches!(
+        parametro_unico(alvo, "acao"),
+        Some("procedimento_enviar" | "anotacao_registrar")
+    ) {
+        return processo_envio::responder(metodo, alvo, corpo, banco, instalacao, cenario);
+    }
+    if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
+        retorno_programado(metodo, alvo, banco, instalacao, cenario)
+    } else if matches!(
+        parametro_unico(alvo, "acao"),
+        Some("documento_versao_listar" | "documento_visualizar")
+    ) {
+        documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
+    } else {
+        controlar(metodo, alvo, banco, instalacao, cenario)
+    }
+}
+
+/// Um atendimento HTTP de loopback, utilizando a mesma conexão SQLite
+/// para GET de prévia, POST único e GET de reconciliação.
 ///
 /// # Errors
 /// Propaga falhas de I/O da conexão local.
 pub fn atender_http(
     fluxo: &mut TcpStream,
-    fonte: Option<(&Connection, &Instalacao, &str)>,
+    fonte: Option<(&mut Connection, &Instalacao, &str)>,
 ) -> io::Result<()> {
-    let mut primeira_linha = Vec::new();
-    let lidos = BufReader::new(&mut *fluxo)
-        .take(4096)
-        .read_until(b'\n', &mut primeira_linha)?;
-    if lidos == 0 {
-        return Ok(());
-    }
-    let resposta = if primeira_linha.ends_with(b"\n") {
-        let texto = std::str::from_utf8(&primeira_linha).unwrap_or_default();
-        let mut partes = texto.split_ascii_whitespace();
-        match (partes.next(), partes.next(), partes.next(), partes.next()) {
-            (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) => {
-                if let Some((banco, instalacao, cenario)) = fonte {
-                    if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
-                        retorno_programado(metodo, alvo, banco, instalacao, cenario)
-                    } else if matches!(
-                        parametro_unico(alvo, "acao"),
-                        Some("documento_versao_listar" | "documento_visualizar")
-                    ) {
-                        documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
-                    } else {
-                        controlar(metodo, alvo, banco, instalacao, cenario)
-                    }
-                } else {
-                    despachar(metodo, alvo)
-                }
-            }
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
+    let pedido = ler_pedido(fluxo)?;
+    let resposta = match pedido {
+        PedidoHttp::Vazio => return Ok(()),
+        PedidoHttp::Invalido => Resposta::nova(Estado::RequisicaoInvalida),
+        PedidoHttp::Valido { metodo, alvo, corpo } => {
+            responder_pedido(&metodo, &alvo, &corpo, fonte)
         }
-    } else {
-        Resposta::nova(Estado::RequisicaoInvalida)
     };
+    let localizacao = resposta
+        .localizacao
+        .as_ref()
+        .map_or_else(String::new, |url| format!("Location: {url}\r\n"));
     write!(
         fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
         resposta.estado.codigo_http(),
         resposta.estado.motivo_http(),
         resposta.tipo_conteudo,
         resposta.corpo.len(),
+        localizacao,
         resposta.corpo
     )?;
     fluxo.flush()
