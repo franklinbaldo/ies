@@ -68,8 +68,7 @@ impl IndiceLocal {
             .iter()
             .copied()
             .filter(|(numero, id)| {
-                conferir_numero_sei(numero).is_ok()
-                    && conferir_id_procedimento(id).is_ok()
+                conferir_numero_sei(numero).is_ok() && conferir_id_procedimento(id).is_ok()
             })
             .partition(|(numero, id)| unico(numero, id));
         if validos.is_empty() && ambiguos.is_empty() {
