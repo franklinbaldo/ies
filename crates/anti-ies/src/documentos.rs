@@ -85,6 +85,14 @@ fn pagina_do_processo(
     Resposta::html(html)
 }
 
+/// A árvore de processo não deve tomar a rota de versões de documento.
+pub(crate) fn eh_arvore_do_processo(alvo: &str) -> bool {
+    eh_controlador_sei(alvo)
+        && parametro_unico(alvo, "id_procedimento").is_some()
+        && parametro_unico(alvo, "id_documento").is_none()
+        && parametro_unico(alvo, "id_protocolo").is_none()
+}
+
 /// A árvore é projetada dos documentos persistidos, não de HTML congelado.
 /// A mesma leitura é usada antes e depois do POST criador da #246.
 fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
@@ -96,13 +104,13 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     };
     let mut html = String::from("<html><head><script>\nvar Nos = new Array();\n");
     let nup = escapar_js(&processo.nup);
-    write!(
+    writeln!(
         html,
         "Nos[0] = new infraArvoreNo(\"PROCESSO\",\"{id}\",null,\
          \"controlador.php?acao=arvore_visualizar&id_procedimento={id}\",\
          \"ifrVisualizacao\",\"{nup}\",\"Processo simulado\",\
          \"svg/processo.svg\",\"svg/processo.svg\",\"svg/processo.svg\",\
-         true,true,\"noVisitado\",null,\"noVisitado\",\"{nup}\");\n"
+         true,true,\"noVisitado\",null,\"noVisitado\",\"{nup}\");"
     )
     .expect("formatação String");
     let link = format!(
