@@ -285,7 +285,7 @@ fn parametros_repetidos_na_visualizacao_recusam_sem_entregar_documento() {
     });
 
     for alvo in [
-        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_documento=42",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_documento=43",
         "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&versao=1",
         "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_procedimento=7&id_procedimento=7",
     ] {
@@ -295,7 +295,10 @@ fn parametros_repetidos_na_visualizacao_recusam_sem_entregar_documento() {
     }
     let alvo = "/sei/controlador.php?acao=documento_visualizar&id_documento=42";
     assert!(pedir(endereco, "POST", alvo).starts_with("HTTP/1.1 405"));
-    let valido = pedir(endereco, "GET", alvo);
+    // A URL de histórico publicada repete id_documento com o mesmo valor.
+    // Ela continua legítima, enquanto a repetição divergente acima é recusada.
+    let link_historico = "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_procedimento=7&id_documento=42";
+    let valido = pedir(endereco, "GET", link_historico);
     assert!(valido.starts_with("HTTP/1.1 200"), "{valido}");
     assert!(valido.contains("Texto atual"));
     servidor.join().unwrap();
