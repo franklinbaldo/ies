@@ -102,6 +102,14 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
             ));
         }
     };
+    // A ligação completa existe na branch, mas não publica escrita antes do
+    // ensaio único em TREINAMENTO. A próxima fatia libera este caminho.
+    const CONFIRMACAO_VALIDADA_EM_TREINAMENTO: bool = false;
+    if *confirmar && CONFIRMACAO_VALIDADA_EM_TREINAMENTO {
+        return Some(confirmar_remoto::executar(
+            cli, &processo, tipo, &pdf, Path::new(arquivo),
+        ));
+    }
     if *confirmar {
         return Some(recusa(
             cli.json,
