@@ -8,6 +8,9 @@ use iesei::processos::{
 use rusqlite::Connection;
 use std::fmt::Write;
 
+mod formulario;
+use formulario::pagina_de_envio;
+
 fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
     let mut valores = query
@@ -36,24 +39,6 @@ fn unidade_da_sessao(
         Ok(None) => Ok(processo.unidade_origem.clone()),
         Err(_) => Err(Estado::DadosInsuficientes),
     }
-}
-
-fn pagina_de_envio(processo: &ProcessoSimulado) -> String {
-    let mut pagina = format!(
-        "<html><head><script type='text/javascript'>\n         objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}');\n         return 'palavras_pesquisa='+document.getElementById('txtUnidade').value+'&id_orgao='+document.getElementById('selOrgao').value;\n         </script></head><body>",
-        "2".repeat(64)
-    );
-    write!(
-        pagina,
-        "<form id='frmAtividadeListar' method='post' action='controlador.php?acao=procedimento_enviar&acao_origem=procedimento_enviar&arvore=1&id_procedimento={}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}'>         <input type='hidden' name='hdnInfraTipoPagina' value='2'>         <button type='submit' name='sbmEnviar' value='Enviar'>Enviar</button>         <select id='selProcedimentos' name='selProcedimentos' multiple>         <option value='{}'>{} - Processo simulado</option></select>         <select id='selOrgao' name='selOrgao'>         <option value='null' selected>&nbsp;</option>         <option value='' selected>Todos</option></select>         <input type='text' id='txtUnidade' name='txtUnidade'>         <input type='hidden' name='hdnIdUnidade' value=''>         <select id='selUnidades' name='selUnidades' multiple></select>         <input type='checkbox' name='chkSinManterAberto'>         <input type='checkbox' name='chkSinRemoverAnotacoes'>         <input type='checkbox' name='chkSinEnviarEmailNotificacao'>         <input type='radio' name='rdoPrazo' value='1'>         <input type='text' name='txtPrazo' value=''>         <input type='radio' name='rdoPrazo' value='2'>         <input type='text' name='txtDias' value=''>         <input type='checkbox' name='chkSinDiasUteis'>         <input type='hidden' name='hdnIdProtocolos' value='{}'>         <input type='hidden' name='hdnIdAtividades' value='1'>         <input type='hidden' name='hdnUnidades' value=''>         </form></body></html>",
-        html(&processo.id),
-        "3".repeat(64),
-        html(&processo.id),
-        html(&processo.numero),
-        html(&processo.id),
-    )
-    .expect("formatação de String");
-    pagina
 }
 
 fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
@@ -92,9 +77,11 @@ fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
 
 fn destino_indicado(campos: &[(&str, &str)]) -> Option<String> {
     let unidades = campo_unico(campos, "hdnUnidades")?;
+    // O sufixo %B1 está contido em %C2%B1: testar UTF-8 primeiro evita
+    // interpretar "2%C2" como identificador do destino.
     let (id, _) = unidades
-        .split_once("%B1")
-        .or_else(|| unidades.split_once("%C2%B1"))?;
+        .split_once("%C2%B1")
+        .or_else(|| unidades.split_once("%B1"))?;
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 
@@ -362,13 +349,29 @@ Nos[0].html = '{situacao}';
 
 fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
     let id = &processo.id;
+    // A pesquisa por id_protocolo não pode perder a ação documental
+    // já oferecida antes da tramitação. A unidade fechada não a publica.
+    // A inclusão em unidade de destino exige a capacidade documental
+    // correspondente, ainda não simulada fora da origem.
+    let incluir = if unidade_atual == processo.unidade_origem
+        && processo.aberto_em.iter().any(|u| u == unidade_atual)
+    {
+        format!(
+            "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
+            "e".repeat(64)
+        )
+    } else {
+        String::new()
+    };
     format!(
         "<html><head><title>SEI - Processo</title></head><body>\
          <a id='lnkInfraUnidade'>{}</a>\
          <iframe id='ifrArvore' name='ifrArvore' \
-         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}'></iframe>\
-         <iframe id='ifrVisualizacao' src='about:blank'></iframe></body></html>",
-        html(unidade_atual)
+         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
+         <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
+         {incluir}</body></html>",
+        html(unidade_atual),
+        "e".repeat(64)
     )
 }
 
@@ -389,10 +392,19 @@ pub fn navegacao(
     if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
         return None;
     }
-    if unico(alvo, "id_documento").is_some() || unico(alvo, "id_protocolo").is_some() {
+    if unico(alvo, "id_documento").is_some() {
         return None;
     }
-    let id = unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
+    // A pesquisa rápida redireciona para id_protocolo, enquanto os links
+    // da árvore usam id_procedimento. Ambos identificam a mesma simulação.
+    let id = match (unico(alvo, "id_procedimento"), unico(alvo, "id_protocolo")) {
+        (Some(id), None) => id,
+        (None, Some(id)) if acao == "procedimento_trabalhar" => id,
+        _ => return None,
+    };
+    if !id.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
     let processo = match ler(banco, instalacao, cenario, id) {
         Ok(Some(processo)) => processo,
         Ok(None) => return None,
