@@ -25,21 +25,11 @@ pub(crate) fn pedido(versao: Option<u32>, saida: bool) -> Option<PedidoDeVersoes
 
 /// As fotos do lote, na ordem (`None` para o externo): todas conferidas
 /// antes da primeira gravação, então uma divergência não grava nenhuma.
+/// A foto editável recebe inode próprio, sem ligar ao cache privado.
 pub(crate) fn gravar_fotos(
     diretorio: &Path,
     obtidos: &[DocumentoObtido],
 ) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
-    gravar_fotos_com_cache(diretorio, obtidos, &[])
-}
-
-/// Com cache ativo, a foto explícita é um hard link para o arquivo privado,
-/// ou uma cópia exclusiva quando o destino estiver em outro filesystem.
-pub(crate) fn gravar_fotos_com_cache(
-    diretorio: &Path,
-    obtidos: &[DocumentoObtido],
-    caches: &[Option<crate::cache_documento::Registro>],
-) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
-    // Antes da primeira gravação, confere a coerência de todas as fotos.
     for d in obtidos {
         if let Some(f) = &d.versoes.foto {
             foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
@@ -47,31 +37,24 @@ pub(crate) fn gravar_fotos_com_cache(
     }
     obtidos
         .iter()
-        .enumerate()
-        .map(|(i, d)| {
+        .map(|d| {
             d.versoes
                 .foto
                 .as_ref()
-                .map(|f| {
-                    let plano = foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
-                    if !plano.gravado {
-                        return Ok(plano);
-                    }
-                    let Some(Some(cache)) = caches.get(i) else {
-                        return foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html);
-                    };
-                    let destino = diretorio.join(&plano.nome);
-                    let gravado = crate::cache_documento::copiar_para_saida(
-                        &cache.caminho,
-                        &destino,
-                        &plano.sha256,
-                    )
-                    .map_err(|_| ErroCopia::GravacaoFalhou)?;
-                    Ok(FotoGravada { gravado, ..plano })
-                })
+                .map(|f| foto_documento::gravar(diretorio, &d.numero, f.versao, &f.html))
                 .transpose()
         })
         .collect()
+}
+
+/// Mesmo com cache, a foto local precisa ser independente: um hard link
+/// permitiria que uma edição do usuário adulterasse o cache privado.
+pub(crate) fn gravar_fotos_com_cache(
+    diretorio: &Path,
+    obtidos: &[DocumentoObtido],
+    _caches: &[Option<crate::cache_documento::Registro>],
+) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    gravar_fotos(diretorio, obtidos)
 }
 
 /// O objeto `arquivo` de um documento gravado em `--saida`.
@@ -257,6 +240,45 @@ pub(crate) mod testes {
         ];
         assert_eq!(gravar_fotos(&pasta, &lote), Err(ErroCopia::FotoDivergente));
         assert_eq!(nomes(&pasta), ["0011520.v1.html"]);
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
+    // BDD-88-02: editar a foto local nao pode editar o cache privado.
+    // A releitura deve poder comparar os bytes originais e recusar a foto divergente.
+    #[test]
+    fn bdd_88_02_foto_editavel_nao_altera_cache_privado() {
+        let pasta = diretorio();
+        let cache_raiz = pasta.join("cache");
+        let cache = crate::cache_documento::gravar_em(
+            &cache_raiz,
+            "sei.exemplo",
+            "0011519",
+            Some(1),
+            "html",
+            HTML.as_bytes(),
+        )
+        .unwrap();
+        let registro = crate::cache_documento::Registro {
+            caminho: cache.clone(),
+            versao: Some(1),
+            sha256: foto_documento::sha256(HTML.as_bytes()),
+        };
+        let gravadas =
+            gravar_fotos_com_cache(&pasta, &[com_foto("0011519", 1, HTML)], &[Some(registro)])
+                .unwrap();
+        assert!(gravadas[0].as_ref().unwrap().gravado);
+        let destino = pasta.join("0011519.v1.html");
+        std::fs::write(&destino, b"edicao local ainda nao enviada").unwrap();
+        assert_eq!(
+            std::fs::read(&cache).unwrap(),
+            HTML.as_bytes(),
+            "editar DOC.v1.html nao pode corromper o cache do HTML servido",
+        );
+        assert_eq!(
+            gravar_fotos(&pasta, &[com_foto("0011519", 1, HTML)]),
+            Err(ErroCopia::FotoDivergente),
+            "nova leitura recusa a foto divergente sem sobrescrever",
+        );
         std::fs::remove_dir_all(pasta).unwrap();
     }
 
