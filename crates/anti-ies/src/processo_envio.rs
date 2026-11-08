@@ -415,6 +415,11 @@ pub fn navegacao(
     if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
         return None;
     }
+    // Mesmo sem PDF, uma seleção documental repetida não é a árvore sem seleção.
+    // Valida também a tela de trabalho antes de escolher o processo do SQLite.
+    if let Err(estado) = crate::documento_arvore::identidade_documental(alvo, true) {
+        return Some(Resposta::nova(estado));
+    }
     if unico(alvo, "id_documento").is_some() {
         return None;
     }
