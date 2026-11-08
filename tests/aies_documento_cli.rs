@@ -2,6 +2,7 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::acesso_sessao;
 use iesei::acesso_versao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
@@ -227,6 +228,17 @@ fn executar_com_restricao(
     com_documento: bool,
     versao_restrita: bool,
 ) -> Output {
+    executar_com_sessao(pasta, args, requisicoes, com_documento, versao_restrita, false)
+}
+
+fn executar_com_sessao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
+    sessao_bloqueada: bool,
+) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -242,6 +254,9 @@ fn executar_com_restricao(
     let endereco = servidor.local_addr().unwrap();
     let simulador = thread::spawn(move || {
         let (db, instalacao) = estado(com_documento, versao_restrita);
+        if sessao_bloqueada {
+            acesso_sessao::bloquear(&db, &instalacao, CENARIO).unwrap();
+        }
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -449,4 +464,29 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
         String::from_utf8_lossy(&humano.stderr).contains("HTTP 403"),
         "recusa humana sem HTTP 403"
     );
+}
+
+#[test]
+fn bdd_88_03_cli_recusa_sessao_sem_acesso_antes_da_pesquisa() {
+    let pasta = Pasta::nova();
+    let destino = pasta.0.join("saida");
+    fs::create_dir(&destino).unwrap();
+    let args = [
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        destino.to_str().unwrap(),
+        "--sem-cache",
+    ];
+    // O primeiro GET de Controle responde pela sessão inacessível;
+    // não há pesquisa nem leitura do histórico, muito menos foto.
+    let saida = executar_com_sessao(&pasta, &args, 1, true, false, true);
+    assert_eq!(saida.status.code(), Some(1));
+    let valor = json(&saida);
+    assert_eq!(valor["status_http"], 403, "sessão não recusada: {valor}");
+    assert!(valor["documentos"].is_null());
+    assert!(!destino.join("0011519.v1.html").exists());
 }
