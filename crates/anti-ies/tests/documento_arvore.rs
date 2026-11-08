@@ -59,7 +59,9 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     let tela = responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_trabalhar&id_protocolo=42",
-        &banco, &origem(), "ensaio",
+        &banco,
+        &origem(),
+        "ensaio",
     );
     assert_eq!(tela.estado, Estado::Ok);
     assert!(tela.corpo.contains("id=\"ifrArvore\""));

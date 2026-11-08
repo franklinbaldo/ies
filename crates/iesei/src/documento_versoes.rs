@@ -87,8 +87,15 @@ pub fn guardar(
          id_procedimento=excluded.id_procedimento,
          numero_processo=excluded.numero_processo,
          numero=excluded.numero, tipo=excluded.tipo",
-        params![origem, cenario, documento.id_documento, documento.id_procedimento,
-                documento.numero_processo, documento.numero, documento.tipo],
+        params![
+            origem,
+            cenario,
+            documento.id_documento,
+            documento.id_procedimento,
+            documento.numero_processo,
+            documento.numero,
+            documento.tipo
+        ],
     )?;
     tx.execute(
         "DELETE FROM documento_revisao WHERE origem=?1 AND cenario=?2 AND id_documento=?3",

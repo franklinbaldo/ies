@@ -38,14 +38,20 @@ fn bdd_88_01_arvore_anti_ies_lida_pelo_ies() {
     let resposta = anti_ies::documento_arvore::responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=42",
-        &banco, &origem, "bdd-88",
+        &banco,
+        &origem,
+        "bdd-88",
     );
     assert_eq!(resposta.estado, Estado::Ok);
     let a = ler_arvore(&resposta.corpo, &documento.numero_processo, "7").unwrap();
     assert_eq!(a.documentos.len(), 1);
     assert_eq!(a.documentos[0].numero_sei.as_deref(), Some("0011519"));
-    assert!(ler_barra_do_documento(&origem, &resposta.corpo, "42", "7")
-        .unwrap().versoes.is_some());
+    assert!(
+        ler_barra_do_documento(&origem, &resposta.corpo, "42", "7")
+            .unwrap()
+            .versoes
+            .is_some()
+    );
     assert!(matches!(
         ler_conteudo_na_arvore(&origem, &resposta.corpo, "42").unwrap(),
         ConteudoNaArvore::Visualizar(_)
@@ -64,7 +70,7 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
             instalacao: origem.clone(),
             id_documento: "42".into(),
             id_procedimento: "7".into(),
-        numero_processo: "00001.000001/2026-01".into(),
+            numero_processo: "00001.000001/2026-01".into(),
             numero: "0011519".into(),
             tipo: "Ofício".into(),
             revisoes: vec![

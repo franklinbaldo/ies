@@ -1,6 +1,6 @@
 //! Servidor experimental. O Controle R usa somente observações verificadas.
-pub mod documento_versoes;
 pub mod documento_arvore;
+pub mod documento_versoes;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
