@@ -65,7 +65,10 @@ fn cadastro(id: &str, tipos: &[TipoExterno], selecionado: Option<&str>) -> Respo
         escapar(selecionado)
     )
     .expect("formatar HTML");
-    if let Some(tipo) = tipos.iter().find(|t| Some(t.id.as_str()) == Some(selecionado)) {
+    if let Some(tipo) = tipos
+        .iter()
+        .find(|t| Some(t.id.as_str()) == Some(selecionado))
+    {
         // A assinatura inteiramente zerada é sintética; não é infra_hash real.
         let assinatura = "0".repeat(64);
         let tamanho_mb = tipo.limite_bytes / (1024 * 1024);
@@ -176,8 +179,10 @@ pub fn atender(
     let acao = parametro_unico(alvo, "acao")?;
     if !matches!(
         acao,
-        "documento_escolher_tipo" | "documento_receber"
-            | "documento_upload_anexo" | "arvore_visualizar"
+        "documento_escolher_tipo"
+            | "documento_receber"
+            | "documento_upload_anexo"
+            | "arvore_visualizar"
     ) {
         return None;
     }
@@ -204,30 +209,29 @@ pub fn atender(
             let flag = campo(texto, "hdnFlagDocumentoCadastro");
             let serie = campo(texto, "selSerie");
             let resposta = match (flag.as_deref(), serie.as_deref()) {
-                (Some("1"), Some(serie)) => {
-                    match modelo::tipos(banco, origem, cenario, id) {
-                        Ok(tipos) if tipos.iter().any(|t| t.id == serie) => {
-                            cadastro(id, &tipos, Some(serie))
-                        }
-                        Ok(_) => erro(Estado::RequisicaoInvalida),
-                        Err(e) => falha(&e),
+                (Some("1"), Some(serie)) => match modelo::tipos(banco, origem, cenario, id) {
+                    Ok(tipos) if tipos.iter().any(|t| t.id == serie) => {
+                        cadastro(id, &tipos, Some(serie))
                     }
-                }
+                    Ok(_) => erro(Estado::RequisicaoInvalida),
+                    Err(e) => falha(&e),
+                },
                 (Some("2"), Some(serie)) => {
                     let token = campo(texto, "hdnAnexos")
                         .and_then(|linha| linha.split('±').next().map(str::to_owned))
                         .and_then(|campo| campo.strip_prefix("upload-").map(str::to_owned))
                         .and_then(|id| id.parse::<i64>().ok());
                     match token {
-                        Some(token) => match modelo::cadastrar(
-                            banco, origem, cenario, id, serie, token
-                        ) {
-                            Ok(doc) => html(format!(
-                                "<html><body><a href='controlador.php?acao=arvore_visualizar&amp;id_procedimento={id}&amp;id_documento={}'>Documento {}</a></body></html>",
-                                doc.id, escapar(&doc.numero_sei)
-                            )),
-                            Err(e) => falha(&e),
-                        },
+                        Some(token) => {
+                            match modelo::cadastrar(banco, origem, cenario, id, serie, token) {
+                                Ok(doc) => html(format!(
+                                    "<html><body><a href='controlador.php?acao=arvore_visualizar&amp;id_procedimento={id}&amp;id_documento={}'>Documento {}</a></body></html>",
+                                    doc.id,
+                                    escapar(&doc.numero_sei)
+                                )),
+                                Err(e) => falha(&e),
+                            }
+                        }
                         None => erro(Estado::RequisicaoInvalida),
                     }
                 }
@@ -236,19 +240,19 @@ pub fn atender(
             resposta
         }
         ("documento_upload_anexo", "POST") => match pdf_do_multipart(corpo) {
-            Some((nome, tamanho)) => match modelo::receber(
-                banco, origem, cenario, id, &nome, tamanho
-            ) {
-                Ok(temp) => Resposta {
-                    estado: Estado::Ok,
-                    tipo_conteudo: "text/plain; charset=utf-8",
-                    corpo: format!(
-                        "upload-{}#{}#application/pdf#{}#01/01/2026 00:00:00#",
-                        temp.id, temp.nome, temp.tamanho
-                    ),
-                },
-                Err(e) => falha(&e),
-            },
+            Some((nome, tamanho)) => {
+                match modelo::receber(banco, origem, cenario, id, &nome, tamanho) {
+                    Ok(temp) => Resposta {
+                        estado: Estado::Ok,
+                        tipo_conteudo: "text/plain; charset=utf-8",
+                        corpo: format!(
+                            "upload-{}#{}#application/pdf#{}#01/01/2026 00:00:00#",
+                            temp.id, temp.nome, temp.tamanho
+                        ),
+                    },
+                    Err(e) => falha(&e),
+                }
+            }
             None => erro(Estado::RequisicaoInvalida),
         },
         ("arvore_visualizar", "GET") => documento_na_arvore(banco, origem, cenario, id),
