@@ -186,14 +186,9 @@ pub(crate) fn nos_do_processo(
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
-        let situacao = crate::documento_cancelar::estado(
-            banco,
-            instalacao,
-            cenario,
-            &id,
-            processo,
-        )?
-        .ok_or(Estado::DadosInsuficientes)?;
+        let situacao =
+            crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
+                .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
