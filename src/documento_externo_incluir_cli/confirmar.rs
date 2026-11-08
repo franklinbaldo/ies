@@ -26,8 +26,8 @@ pub(super) fn executar(
         // O marker opt-in, sozinho, não autoriza tocar em instalações reais.
         // Exigir origem reservada e proxy exclusivamente na máquina local
         // antes da primeira requisição, inclusive GET.
-        let proxy_local = std::env::var("https_proxy")
-            .is_ok_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
+        let proxy_local =
+            std::env::var("https_proxy").is_ok_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
         if sessao.origem != "https://sei.test/sei" || !proxy_local {
             return super::recusa(
                 cli.json,
