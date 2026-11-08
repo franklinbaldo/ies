@@ -42,6 +42,15 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
+## Rituais do proprietário não são churn
+
+Cafezinho, memórias OKF, fichas, BDD, cassettes, handoff e CI são
+rituais deliberados, mesmo quando seu valor surge depois. **Antichurn
+atua dentro do método, não contra ele.** Nenhum agente, inclusive 🦡,
+pode descumpri-los por simplicidade. Pode propor mudanças fundamentadas,
+mas cumpre a regra vigente até decisão do proprietário. Elimine
+retrabalho e cerimônias extras, não rituais. Não invente evidência.
+
 ## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
