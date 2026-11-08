@@ -281,13 +281,14 @@ pub fn retorno_programado(
             Resposta::html(html_de_retornos(&mes))
         }
         (None, None) => {
-            let Ok(observados) =
-                iesei::retornos_cassettes::periodos(banco, instalacao, cenario)
+            let Ok(observados) = iesei::retornos_cassettes::periodos(banco, instalacao, cenario)
             else {
                 return Resposta::nova(Estado::DadosInsuficientes);
             };
             let atual = if let Some(data) = parametro_unico(alvo, "data_atual") {
-                observados.iter().find(|periodo| periodo.data_inicial == data)
+                observados
+                    .iter()
+                    .find(|periodo| periodo.data_inicial == data)
             } else {
                 observados.first()
             };
@@ -336,8 +337,7 @@ pub fn controlar(
     let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    menu_com_retornos(corpo, banco, instalacao, cenario)
-        .map_or_else(Resposta::nova, Resposta::html)
+    menu_com_retornos(corpo, banco, instalacao, cenario).map_or_else(Resposta::nova, Resposta::html)
 }
 
 /// Pedido HTTP local. Não preservar URL, headers nem corpo além do atendimento.
