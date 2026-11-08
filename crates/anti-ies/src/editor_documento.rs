@@ -49,7 +49,7 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
     };
     Resposta::html(format!(
         "<html><body><h1>Editar documento {}</h1>{aviso}\
-         <form id='frmDocumentoEditar' method='post' action='controlador.php?acao=documento_editar&amp;id_documento={id}'>\
+         <form id='frmDocumentoEditar' method='post' action='controlador.php?acao=documento_editar&amp;id_documento={id}&amp;infra_hash={}'>\
          <input type='hidden' name='versao_base' value='{}'>\
          <textarea name='html_base' hidden>{conteudo}</textarea>\
          <textarea name='html_editado'>{conteudo}</textarea>\
@@ -57,7 +57,8 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
          Confirmo possível perda de assinaturas</label>\
          <button type='submit'>Salvar edição</button></form></body></html>",
         escapar(&documento.numero),
-        ultima.versao
+        ultima.versao,
+        "e".repeat(64)
     ))
 }
 
