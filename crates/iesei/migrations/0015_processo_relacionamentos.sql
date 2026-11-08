@@ -1,4 +1,4 @@
--- 0013: relações observadas entre processos, distintas de ausência de observação.
+-- 0015: relações observadas entre processos, distintas de ausência de observação.
 -- Identidade do processo e cenário já estão em sim_processo (0004).
 CREATE TABLE processo_relacionamentos_observados (
     origem TEXT NOT NULL,
@@ -19,4 +19,4 @@ CREATE TABLE processo_relacao (
     FOREIGN KEY (origem, cenario, id_destino)
         REFERENCES sim_processo(origem, cenario, id_procedimento)
 ) STRICT;
-PRAGMA user_version = 13;
+PRAGMA user_version = 15;
