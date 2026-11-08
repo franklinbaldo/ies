@@ -16,7 +16,11 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-const CONFIRMACAO_VALIDADA_EM_TREINAMENTO: bool = false;
+// A escrita externa continua fechada. O ensaio opt-in somente pode tentar
+// confirmação contra o domínio reservado .test com proxy TLS em loopback.
+fn ensaio_local_habilitado() -> bool {
+    std::env::var("IES_ANTI_IES_TESTE").as_deref() == Ok("1")
+}
 
 #[derive(Debug, Serialize)]
 enum FalhaTipoExterno {
@@ -104,9 +108,9 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
             ));
         }
     };
-    // A ligação completa existe na branch, mas não publica escrita antes do
-    // ensaio único em TREINAMENTO. A próxima fatia libera este caminho.
-    if *confirmar && CONFIRMACAO_VALIDADA_EM_TREINAMENTO {
+    // Não habilita escrita em SEI: somente a bancada isolada pode
+    // exercitar a confirmação já existente.
+    if *confirmar && ensaio_local_habilitado() {
         return Some(confirmar_remoto::executar(
             cli,
             &processo,
