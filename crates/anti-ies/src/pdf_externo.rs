@@ -337,10 +337,9 @@ pub fn atender(
                     match token {
                         Some(token) => {
                             match modelo::cadastrar(banco, origem, cenario, id, serie, token) {
-                                Ok(doc) => html(format!(
-                                    "<html><body><a href='controlador.php?acao=arvore_visualizar&amp;id_procedimento={id}&amp;id_documento={}'>Documento {}</a></body></html>",
-                                    doc.id,
-                                    escapar(&doc.numero_sei)
+                                Ok(doc) => Resposta::redirecionar(format!(
+                                    "controlador.php?acao=arvore_visualizar&id_procedimento={id}&id_documento={}",
+                                    doc.id
                                 )),
                                 Err(e) => falha(&e),
                             }
