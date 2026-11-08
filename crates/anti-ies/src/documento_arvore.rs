@@ -290,7 +290,15 @@ mod testes_cancelamento_arvore_mista {
         let antes = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
         assert_eq!(antes.matches("documento_cancelado.svg").count(), 0);
         assert_eq!(
-            aplicar(&banco, &origem, cenario, "42", "10", "Motivo do cancelamento").unwrap(),
+            aplicar(
+                &banco,
+                &origem,
+                cenario,
+                "42",
+                "10",
+                "Motivo do cancelamento"
+            )
+            .unwrap(),
             Aplicacao::Aplicada
         );
         let depois = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
