@@ -325,7 +325,7 @@ fn ler_pedido(
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     }
     let tamanho = tamanho.unwrap_or_default();
-    if tamanho > 8 * 1024 * 1024 {
+    if tamanho > 256 * 1024 * 1024 {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     }
     let mut corpo = vec![0; tamanho];
