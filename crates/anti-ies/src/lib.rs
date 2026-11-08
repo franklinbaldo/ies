@@ -248,8 +248,10 @@ pub fn controlar(
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
     if let Some(observacao) = detalhe {
-        return controle_detalhado::html(&observacao)
-            .map_or_else(|| Resposta::nova(Estado::DadosInsuficientes), Resposta::html);
+        return controle_detalhado::html(&observacao).map_or_else(
+            || Resposta::nova(Estado::DadosInsuficientes),
+            Resposta::html,
+        );
     }
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
