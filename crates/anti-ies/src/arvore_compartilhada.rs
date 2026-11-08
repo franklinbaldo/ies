@@ -82,14 +82,9 @@ pub(crate) fn responder(
         Ok(documentos) => documentos,
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    // A ausência de snapshot de versões não apaga um documento
-    // efetivamente cadastrado no estado compartilhado. Um ID desconhecido
-    // continua recusado, em vez de produzir uma árvore inventada.
     let cadastrado = selecionado.is_some_and(|id| {
         internos.iter().any(|doc| doc.id.to_string() == id)
-            || externos
-                .iter()
-                .any(|doc| format!("8{:012}", doc.id) == id || doc.id.to_string() == id)
+            || externos.iter().any(|doc| format!("8{:012}", doc.id) == id)
     });
     if original
         .as_ref()
@@ -97,30 +92,33 @@ pub(crate) fn responder(
     {
         return original.expect("resposta presente");
     }
-    let mut pagina = original.filter(|r| r.estado == Estado::Ok).map_or_else(
-        || raiz(id_processo, &processo.nup),
-        |resposta| resposta.corpo,
-    );
+
+    // A navegação de tramitação já contém versões e internos com seus links.
+    // Sem snapshot de navegação, reutilizamos sua projeção de nós, sem
+    // duplicar identidades e sem descartar versões anteriores ao PDF.
+    let base = if selecionado.is_none() {
+        crate::processo_envio::navegacao(metodo, alvo, banco, origem, cenario)
+    } else {
+        None
+    };
+    if base.as_ref().is_some_and(|r| r.estado != Estado::Ok) {
+        return base.expect("resposta presente");
+    }
+    let tem_nos = base.is_some();
+    let mut pagina = base.map_or_else(|| raiz(id_processo, &processo.nup), |r| r.corpo);
+    let mut novos = if tem_nos {
+        String::new()
+    } else {
+        match documento_arvore::nos_do_processo(banco, origem, cenario, id_processo) {
+            Ok(nos) => nos,
+            Err(estado) => return Resposta::nova(estado),
+        }
+    };
     let mut indice = pagina
         .lines()
+        .chain(novos.lines())
         .filter(|linha| linha.starts_with("Nos[") && linha.contains(" = new infraArvoreNo("))
         .count();
-    let mut novos = String::new();
-    for documento in internos {
-        let id = documento.id.to_string();
-        if selecionado == Some(id.as_str()) {
-            continue;
-        }
-        novos.push_str(&no_documento(
-            indice,
-            &id,
-            id_processo,
-            &documento.tipo,
-            &documento.numero_sei,
-            "documento_interno",
-        ));
-        indice += 1;
-    }
     for documento in externos {
         // Espaço numérico separado: rowids internos e externos são independentes.
         let id = format!("8{:012}", documento.id);

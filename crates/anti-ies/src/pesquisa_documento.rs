@@ -38,7 +38,8 @@ pub fn responder(
     }
     match ids_por_numero(banco, instalacao, cenario, numero) {
         Ok(ids) => match ids.as_slice() {
-            [] => Resposta::nova(Estado::NaoEncontrado),
+            // A ausência no SQLite parcial não comprova inexistência no SEI.
+            [] => Resposta::nova(Estado::DadosInsuficientes),
             [id] => Resposta::redirecionar(format!(
                 "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
                 "c".repeat(64)

@@ -1,9 +1,10 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
-use iesei::documentos_simulados::{Tipo, registrar_tipo};
+use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
-use iesei::pdf_externo::{Processo, TipoExterno, semear as semear_pdf};
+use iesei::processos::{Destino, ProcessoSimulado, guardar};
+use iesei::pdf_externo::{Processo as ProcessoPdf, TipoExterno, semear as semear_pdf};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
 use std::time::Duration;
@@ -17,16 +18,27 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     match (caminho, origem, cenario) {
         (None, None, None) => {
             // Cenário sintético de demonstração. Nunca abre SEI nem arquivo operacional.
-            let banco = Connection::open_in_memory()?;
+            let mut banco = Connection::open_in_memory()?;
             iniciar(&banco)?;
             let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
                 .ok_or("origem sintética inválida")?;
             let cenario = "bdd-246".to_owned();
-            semear_pdf(
+            registrar_processo(
                 &banco,
                 &instalacao,
                 &cenario,
                 &Processo {
+                    id: "10".into(),
+                    nup: "00001.000001/2026-01".into(),
+                    unidade: "UNIDADE TESTE".into(),
+                },
+            )
+            .map_err(|_| "falha ao preparar processo de demonstração")?;
+            semear_pdf(
+                &banco,
+                &instalacao,
+                &cenario,
+                &ProcessoPdf {
                     id: "10".into(),
                     nup: "00001.000001/2026-01".into(),
                     unidade: "UNIDADE TESTE".into(),
@@ -38,6 +50,24 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 },
             )
             .map_err(|_| "falha ao preparar PDF externo de demonstração")?;
+            guardar(
+                &mut banco,
+                &instalacao,
+                &cenario,
+                &ProcessoSimulado {
+                    id: "10".into(),
+                    numero: "00001.000001/2026-01".into(),
+                    unidade_origem: "UNIDADE TESTE".into(),
+                    aberto_em: vec!["UNIDADE TESTE".into()],
+                    anotacao_origem: Some("Nota de teste".into()),
+                    destinos: vec![Destino {
+                        id: "2".into(),
+                        sigla: "DESTINO".into(),
+                        descricao: "DESTINO - Unidade de testes".into(),
+                    }],
+                },
+            )
+            .map_err(|_| "falha ao preparar tramitação sintética")?;
             registrar_tipo(
                 &banco,
                 &instalacao,
@@ -62,7 +92,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NOFOLLOW,
             )?;
             Ok(Some((banco, instalacao, cenario)))
         }

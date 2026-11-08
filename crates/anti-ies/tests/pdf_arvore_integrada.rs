@@ -115,3 +115,80 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
     assert!(resposta.contains("Anexo 050000001"));
     servidor.join().unwrap();
 }
+
+#[test]
+fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
+    use iesei::documento_versoes::{self as versoes, DocumentoSimulado, Revisao};
+    use std::num::NonZeroU32;
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        externo::semear(
+            &banco,
+            &origem,
+            "triplo",
+            &Processo {
+                id: "7".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+            &TipoExterno {
+                id: "293".into(),
+                nome: "Anexo".into(),
+                limite_bytes: 100_000,
+            },
+        )
+        .unwrap();
+        interno::registrar_tipo(
+            &banco,
+            &origem,
+            "triplo",
+            "7",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        interno::criar(&banco, &origem, "triplo", "7", "291", "Interno").unwrap();
+        versoes::guardar(
+            &mut banco,
+            "triplo",
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: "300".into(),
+                id_procedimento: "7".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: "2000003".into(),
+                tipo: "Oficio".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "AUTOR".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "08/11/2026".into(),
+                    html_corpo: "<p>Versao inicial</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        let temporario = externo::receber(&banco, &origem, "triplo", "7", "anexo.pdf", 42).unwrap();
+        externo::cadastrar(&banco, &origem, "triplo", "7", "293", temporario.id).unwrap();
+        let (mut conexao, _) = escuta.accept().unwrap();
+        anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "triplo"))).unwrap();
+    });
+    let resposta = pedir(
+        endereco,
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7",
+    );
+    assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(resposta.contains("Oficio 2000003"));
+    assert!(resposta.contains("documento_versao_listar"));
+    assert!(resposta.contains("Despacho 1000001"));
+    assert!(resposta.contains("Anexo 050000001"));
+    assert_eq!(resposta.matches("new infraArvoreNo(\"DOCUMENTO\"").count(), 3);
+    servidor.join().unwrap();
+}
