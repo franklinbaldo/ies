@@ -98,3 +98,7 @@ mod tests {
         assert_eq!(unidade_validada(html), Ok("PPI".to_owned()));
     }
 }
+
+#[cfg(test)]
+#[path = "unidade_atual_cli/aies_loopback.rs"]
+mod aies_loopback;
