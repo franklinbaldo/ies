@@ -77,8 +77,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 8. **Cafezinho permanente e livre:** a convivência do time acontece na
    issue aberta com as etiquetas `cafezinho` e `conversa`
    ([Cafezinho #388](https://github.com/franklinbaldo/ies/issues/388)).
-   **Em toda rodada, visite a issue, leia o que os colegas compartilharam
-   e participe livremente se quiser.** Pode conversar sobre trabalho,
+   **Em toda rodada, antes da memória de encerramento, visite a issue,
+   leia o que os colegas compartilharam e participe se quiser.** Pode conversar sobre trabalho,
    arte, ciência, música, livros, hobbies, novidades, ideias, dúvidas ou
    qualquer outro assunto; pode responder, iniciar conversa, pesquisar
    curiosidades e propor brincadeiras. Sem tema, agenda, relatório, cota
@@ -88,39 +88,33 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    segurança. Uma única issue permanece aberta; **não criar/fechar
    Cafezinho diariamente**. Cada agente participa com sua personalidade.
 
-### Memórias operacionais OKF: continuidade leve
+### Memórias OKF: fechar o ciclo
 
-As memórias dos agentes são documentos `AgentMemory` em
-[`team/memories/`](team/memories/README.md), indexáveis por
-`okf-parser`; seu formato é definido em
-[`.okf/specs/agentmemory.md`](.okf/specs/agentmemory.md).
+Use `AgentMemory` em [`team/memories/`](team/memories/README.md).
+Formato e exemplos: [guia](team/memories/README.md) e
+[especificação](.okf/specs/agentmemory.md).
 
-- **Ao iniciar a rodada:** leia `AGENTS.md`, sua ficha em `team/`,
-  **todas as memórias fixadas** na lista `memorias_fixadas` da ficha
-  e até **cinco memórias recentes** do diretório
-  `team/memories/<seu-slug>/`, em ordem decrescente de timestamp
-  no nome. Não leia de novo as fixadas que também estiverem entre
-  as recentes. Consulte outras por busca OKF apenas quando úteis.
-- **Ao aprender algo durável:** registre um arquivo `AgentMemory`
-  novo, pequeno e verificável com `title`, `description` (resumo),
-  `agent`, `timestamp` UTC e `tags`. Sem escrita cerimonial:
-  uma memória só quando isso facilitar uma próxima execução.
-- **Publicação direta:** memórias novas são **aditivas e dispensam
-  issue/PR e CI completo**. Faça commit diretamente na `main`
-  atual, somente em `team/memories/<seu-slug>/`, com o avatar no
-  começo da mensagem. O CI rápido verifica OKF/tamanho/formatação.
-  Se a `main` avançou, reconstrua o commit sobre a nova `main`
-  sem rebase ou force-push. Não use esse atalho para código.
-- **Fixar:** adicione o caminho da memória a `memorias_fixadas` no
-  frontmatter de sua própria ficha; desafixar só remove a referência.
-  A memória original não muda. A permissão de editar a própria ficha
-  para esta lista vale inclusive para o 🦅 Gavião, sem autorização
-  adicional; não autoriza alterar outros trechos da ficha.
-- **Confiabilidade:** fatos verificados e hipóteses são distinguíveis.
-  Memória não prevalece sobre contrato/issue/PR/`main` atual. Nunca
-  grave segredos, cookies, URLs assinadas, credenciais ou conteúdo
-  privado. Para corrigir memória antiga, crie outra com referência;
-  não reescreva o histórico.
+- **Ao iniciar:** leia `AGENTS.md`, sua ficha, todas as
+  `memorias_fixadas` e até **cinco memórias recentes** da sua pasta,
+  por timestamp decrescente, sem reler duplicatas. Busque outras
+  memórias no OKF apenas quando um assunto pedir.
+- **Antes de encerrar TODA rodada:** depois do trabalho e da visita ao
+  Cafezinho, escreva **uma nova memória curta** sobre o que deve
+  retornar no próximo ciclo. Cabem descobertas, hipóteses, dúvidas,
+  ideias, inspirações e conversas do Cafezinho, mesmo sem relação com
+  código; inclua link quando útil. Se nada novo surgiu, registre
+  honestamente o ponto de retomada, sem inventar aprendizado.
+  **Visitar é obrigatório; comentar no Cafezinho continua opcional.**
+- **Grave no formato OKF:** `title`, `description` (resumo),
+  `agent`, `timestamp` UTC e `tags`; separe fato de hipótese.
+  Memória não é relatório, nem muda contrato, issue, PR ou `main`.
+- **Publique diretamente na `main`:** adicione somente um arquivo
+  em `team/memories/<seu-slug>/`, sem issue/PR e com avatar no
+  primeiro caractere do commit. Se a `main` avançar, refaça o
+  commit na nova base sem rebase/force-push. Não use o atalho para código.
+- **Fixação:** altere só `memorias_fixadas` na própria ficha,
+  inclusive 🦅, sem reescrever memórias antigas. Correção é aditiva.
+  Nunca grave segredos, cookies, URLs assinadas ou dados privados.
 
 ### Sincronização obrigatória no começo de **cada rodada**
 
