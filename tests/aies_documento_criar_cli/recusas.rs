@@ -17,7 +17,9 @@ fn bdd_246_03_cli_recusa_tipo_ausente_sem_escrita() {
     assert_eq!(resposta["retentavel"], false);
     assert_eq!(quantidade, 1);
     assert!(
-        !trilha.iter().any(|pedido| pedido.starts_with("POST documento_gerar:")),
+        !trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST documento_gerar:")),
         "a lista sem o tipo não permite criar documento: {trilha:?}"
     );
 }
@@ -39,11 +41,15 @@ fn bdd_246_03_cli_expande_lista_e_recusa_tipo_ambiguo_sem_escrita() {
     assert_eq!(resposta["retentavel"], false);
     assert_eq!(quantidade, 1, "a lista ambígua não deve criar documento");
     assert!(
-        trilha.iter().any(|pedido| pedido.starts_with("POST documento_escolher_tipo:")),
+        trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST documento_escolher_tipo:")),
         "a lista completa precisa ser consultada para aferir unicidade: {trilha:?}"
     );
     assert!(
-        !trilha.iter().any(|pedido| pedido.starts_with("POST documento_gerar:")),
+        !trilha
+            .iter()
+            .any(|pedido| pedido.starts_with("POST documento_gerar:")),
         "não enviar escrita ao encontrar tipo ambíguo: {trilha:?}"
     );
 }
