@@ -239,5 +239,33 @@ mod tests {
                 .id,
             "22"
         );
+    #[test]
+    fn identificar_prioriza_nup_literal_antes_de_equivalencia() {
+        let mut db = Connection::open_in_memory().unwrap();
+        iniciar(&db).unwrap();
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        for (id, numero) in [("10", "AB-C"), ("22", "A-BC")] {
+            guardar(
+                &mut db,
+                &origem,
+                "caso",
+                &ProcessoSimulado {
+                    id: id.into(),
+                    numero: numero.into(),
+                    unidade_origem: "TESTE".into(),
+                    aberto_em: vec!["TESTE".into()],
+                    anotacao_origem: None,
+                    destinos: vec![],
+                },
+            )
+            .unwrap();
+        }
+        assert_eq!(identificar(&db, &origem, "caso", "AB-C").unwrap().unwrap().id, "10");
+        assert_eq!(identificar(&db, &origem, "caso", "A-BC").unwrap().unwrap().id, "22");
+        assert!(matches!(
+            identificar(&db, &origem, "caso", "ABC"),
+            Err(Falha::DestinoAmbiguo)
+        ));
+    }
     }
 }
