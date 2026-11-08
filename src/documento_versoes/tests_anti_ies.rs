@@ -3,8 +3,8 @@ use super::{VersaoDocumento, interpretar_historico};
 use crate::documento::NumeroDocumento;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::rodape_do_documento::versao_do_rodape;
-use anti_ies::documento_versoes::responder;
 use anti_ies::Estado;
+use anti_ies::documento_versoes::responder;
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use iesei::instalacao::Instalacao;
@@ -56,23 +56,25 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
     let numero = NumeroDocumento::novo("0011519").unwrap();
     let historico = interpretar_historico(&lista.corpo, &numero, "42", None).unwrap();
     assert_eq!(historico.atual().unwrap().numero(), 3);
-    let antiga = historico.selecionar(VersaoDocumento::nova(1).unwrap()).unwrap();
+    let antiga = historico
+        .selecionar(VersaoDocumento::nova(1).unwrap())
+        .unwrap();
     let link = antiga.link_privado();
     assert!(link.contains("id_procedimento=7"));
-    assert!(!link.contains("&amp;"), "o enlace entregue ao leitor é URL, não entidade HTML");
-
-    let resposta = responder(
-        "GET",
-        &format!("/sei/{link}"),
-        &banco,
-        &origem,
-        "bdd-88",
+    assert!(
+        !link.contains("&amp;"),
+        "o enlace entregue ao leitor é URL, não entidade HTML"
     );
+
+    let resposta = responder("GET", &format!("/sei/{link}"), &banco, &origem, "bdd-88");
     assert_eq!(resposta.estado, Estado::Ok);
     let identidade = identidade_do_titulo(&resposta.corpo).unwrap();
     assert_eq!(identidade.numero, "0011519");
     assert_eq!(identidade.tipo, "Ofício");
-    assert_eq!(versao_do_rodape(&resposta.corpo).map(VersaoDocumento::numero), Some(1));
+    assert_eq!(
+        versao_do_rodape(&resposta.corpo).map(VersaoDocumento::numero),
+        Some(1)
+    );
     let texto = texto_do_corpo(&resposta.corpo).unwrap();
     assert!(texto.contains("Primeira redação"));
     assert!(!texto.contains("Terceira redação"));

@@ -294,8 +294,10 @@ pub fn atender_http(
                 if let Some((banco, instalacao, cenario)) = fonte {
                     if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
                         retorno_programado(metodo, alvo, banco, instalacao, cenario)
-                    } else if matches!(parametro_unico(alvo, "acao"),
-                        Some("documento_versao_listar" | "documento_visualizar")) {
+                    } else if matches!(
+                        parametro_unico(alvo, "acao"),
+                        Some("documento_versao_listar" | "documento_visualizar")
+                    ) {
                         documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
                     } else {
                         controlar(metodo, alvo, banco, instalacao, cenario)

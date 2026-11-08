@@ -50,7 +50,10 @@ pub fn guardar(
     let valido = |texto: &str| !texto.trim().is_empty();
     if !valido(cenario)
         || !valido(&documento.id_procedimento)
-        || !documento.id_procedimento.bytes().all(|b| b.is_ascii_digit())
+        || !documento
+            .id_procedimento
+            .bytes()
+            .all(|b| b.is_ascii_digit())
         || !valido(&documento.numero)
         || !documento.numero.bytes().all(|b| b.is_ascii_digit())
         || !valido(&documento.id_documento)
@@ -92,8 +95,14 @@ pub fn guardar(
              (origem, cenario, id_documento, versao, usuario, unidade, modificacao, html_corpo)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                origem, cenario, documento.id_documento, i64::from(r.versao.get()),
-                r.usuario, r.unidade, r.modificacao, r.html_corpo
+                origem,
+                cenario,
+                documento.id_documento,
+                i64::from(r.versao.get()),
+                r.usuario,
+                r.unidade,
+                r.modificacao,
+                r.html_corpo
             ],
         )?;
     }
@@ -143,7 +152,13 @@ pub fn ler(
         let (versao, usuario, unidade, modificacao, html_corpo) = linha?;
         let numero_versao = u32::try_from(versao).map_err(|_| Falha::DadoInvalido)?;
         let versao = NonZeroU32::new(numero_versao).ok_or(Falha::DadoInvalido)?;
-        revisoes.push(Revisao { versao, usuario, unidade, modificacao, html_corpo });
+        revisoes.push(Revisao {
+            versao,
+            usuario,
+            unidade,
+            modificacao,
+            html_corpo,
+        });
     }
     if revisoes.is_empty() {
         return Err(Falha::DadoInvalido);

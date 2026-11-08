@@ -25,12 +25,20 @@ fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
 }
 
 fn escapar(texto: &str) -> String {
-    texto.replace('&', "&amp;").replace('<', "&lt;")
-        .replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    texto
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 fn resposta_html(corpo: String) -> Resposta {
-    Resposta { estado: Estado::Ok, tipo_conteudo: "text/html; charset=utf-8", corpo }
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "text/html; charset=utf-8",
+        corpo,
+    }
 }
 
 fn historico(documento: &DocumentoSimulado) -> String {
@@ -58,8 +66,12 @@ fn historico(documento: &DocumentoSimulado) -> String {
 fn visualizar(documento: &DocumentoSimulado, revisao: &Revisao) -> String {
     format!(
         "<html><head><title>SEI/anti-IES - {} - {}</title></head>         <body>{}<div unselectable='on'>Criado por <a>{}</a>, versão {} por <a>{}</a> em {}.</div></body></html>",
-        escapar(&documento.numero), escapar(&documento.tipo), revisao.html_corpo,
-        escapar(&revisao.usuario), revisao.versao, escapar(&revisao.usuario),
+        escapar(&documento.numero),
+        escapar(&documento.tipo),
+        revisao.html_corpo,
+        escapar(&revisao.usuario),
+        revisao.versao,
+        escapar(&revisao.usuario),
         escapar(&revisao.modificacao)
     )
 }
