@@ -313,6 +313,6 @@ mod tests {
             criar(&banco, &origem, "c", "10", "291", "Sem processo"),
             Err(Falha::ProcessoIndisponivel)
         ));
-        assert!(documentos(&banco, &origem, "c", "10").unwrap().is_empty());
+        assert_eq!(documentos(&banco, &origem, "c", "10").unwrap(), []);
     }
 }
