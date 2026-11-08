@@ -575,3 +575,40 @@ fn bdd_89_04_cli_documento_assinado_confirma_estado_apos_edicao() {
         base
     );
 }
+
+#[test]
+fn bdd_89_03_cli_nao_ignora_edicao_na_moldura_do_documento() {
+    let pasta = Pasta::nova();
+    let leitura = executar(
+        &pasta,
+        &[
+            "--json", "documento", DOC, "--versao", "3", "--saida",
+            pasta.0.to_str().unwrap(), "--sem-cache",
+        ],
+        6,
+    );
+    assert_eq!(leitura.status.code(), Some(0));
+    let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
+    let edicao = base
+        .replace("Terceira redação", "Quarta redação")
+        .replace("<title>", "<title>Alterado ");
+    pasta.privado("0011519.v4.html", &edicao);
+    let resposta = executar(
+        &pasta,
+        &[
+            "--json", "documento", "salvar", DOC, "--versao", "3", "--confirmar",
+        ],
+        6, // Leitura remota; nem consulta ao editor nem POST.
+    );
+    assert_eq!(resposta.status.code(), Some(1));
+    assert!(
+        json(&resposta)["erro"]
+            .as_str()
+            .unwrap()
+            .contains("região não editável")
+    );
+    assert_eq!(
+        fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
+        base
+    );
+}
