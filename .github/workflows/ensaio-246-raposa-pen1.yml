@@ -1,0 +1,83 @@
+name: Ensaio pontual 246 Raposa PEN1 somente leitura
+on:
+  push:
+    branches: [codex/246-raposa-preflight-pen1-20261108]
+permissions:
+  contents: read
+jobs:
+  somente-leitura:
+    if: github.event.head_commit.message == '🦊 test: prévia única PEN1 #246'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - name: Compilar IES
+        run: cargo build --locked --release --bin ies
+      - name: Montar arquivos privados a partir das credenciais públicas do repositório
+        run: |
+          python3 - <<'PY'
+          import os,pathlib
+          doc=pathlib.Path('docs/interfaces/credenciais-de-treinamento.md').read_text()
+          rows=[x for x in doc.splitlines() if x.startswith('| `pen1` |')]
+          if len(rows)!=1: raise SystemExit('Instalação não encontrada')
+          cols=[x.strip().strip('`') for x in rows[0].split('|')[1:-1]]
+          origem,usuario,senha,orgao=cols[2:6]
+          if origem!='https://sei.orgao1.tramita.processoeletronico.gov.br/sei':
+              raise SystemExit('Origem divergente')
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'ies-246'
+          p.mkdir(mode=0o700)
+          def gravar(nome,conteudo):
+              f=p/nome;f.write_text(conteudo);f.chmod(0o600);return f
+          cfg={'IES_ORIGEM_FILE':gravar('origem',origem),
+               'IES_CREDENCIAIS_FILE':gravar('credenciais',f'usuario={usuario}\nsenha={senha}\norgao={orgao}\n'),
+               'IES_COOKIE_FILE':gravar('cookie',''),
+               'IES_URL_CONTROLE_FILE':gravar('controle','')}
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              for key,value in cfg.items(): f.write(f'{key}={value}\n')
+              f.write('IES_SEM_INDICE=1\n')
+          PY
+      - name: Login, leitura inicial, prévia, releitura (nenhuma escrita documental)
+        run: |
+          python3 - <<'PY'
+          import json,subprocess,time
+          exe='./target/release/ies'
+          nup='08227.000048/2026-12'
+          def executar(etapa,args):
+              p=subprocess.run([exe,'--json',*args],capture_output=True,text=True,timeout=180)
+              try: data=json.loads(p.stdout)
+              except ValueError: data={}
+              print(json.dumps({'etapa':etapa,'exit':p.returncode,
+                    'requisicoes':data.get('requisicoes'),'subcodigo':data.get('subcodigo'),
+                    'status_http':data.get('status_http')},ensure_ascii=False),flush=True)
+              return p.returncode,data
+          rc,_=executar('login',['login'])
+          if rc: raise SystemExit('Login recusado, sem retry')
+          time.sleep(61)
+          leitura=['processo',nup,'--sem-andamentos','--sem-marcadores','--sem-propriedades']
+          rc,antes=executar('antes',leitura)
+          if rc or not isinstance(antes.get('documentos'),list) or antes.get('documentos_incluidos') is False:
+              raise SystemExit('Árvore inicial não comprovada')
+          ids_antes=[(d.get('id_documento'),d.get('numero_sei')) for d in antes['documentos']]
+          if len(ids_antes)!=len(set(ids_antes)):
+              raise SystemExit('Fotografia inicial ambígua')
+          time.sleep(61)
+          rc,previa=executar('previa',['documento','criar','--processo',nup,
+             '--tipo','Despacho','--nivel','publico','--descricao',
+             'Ensaio IES #246 PEN1 2026-11-08'])
+          if rc: raise SystemExit('Prévia recusada; nenhuma confirmação enviada')
+          print(json.dumps({'previa':{k:previa.get(k) for k in
+              ['tipo','nivel','confirmado','alterado','numero_sei']}},ensure_ascii=False),flush=True)
+          if previa.get('confirmado') is not False or previa.get('alterado') is not False or previa.get('numero_sei') is not None:
+              raise SystemExit('Prévia inconsistente')
+          time.sleep(61)
+          rc,depois=executar('depois',leitura)
+          if rc or not isinstance(depois.get('documentos'),list) or depois.get('documentos_incluidos') is False:
+              raise SystemExit('Árvore posterior não comprovada')
+          ids_depois=[(d.get('id_documento'),d.get('numero_sei')) for d in depois['documentos']]
+          if ids_antes!=ids_depois: raise SystemExit('Lista mudou; sem atribuir causalidade')
+          print(json.dumps({'resultado':'BDD-246-01-PASS','documentos_antes':len(ids_antes),
+              'documentos_depois':len(ids_depois),'post_criador':0,'retry':0},ensure_ascii=False),flush=True)
+          PY
