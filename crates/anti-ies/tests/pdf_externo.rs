@@ -173,7 +173,6 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
     );
 }
 
-
 #[test]
 fn bdd_332_03_multipart_com_campo_adicional_preserva_pdf_e_cadastro() {
     let banco = Connection::open_in_memory().unwrap();
@@ -182,21 +181,27 @@ fn bdd_332_03_multipart_com_campo_adicional_preserva_pdf_e_cadastro() {
     let origem = origem();
     let alvo = "/sei/controlador.php?acao=documento_upload_anexo&id_procedimento=7";
     let multipart = b"--B\r\nContent-Disposition: form-data; name=\"contexto\"\r\n\r\nensaio\r\n--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"prova.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nconteudo\r\n--B--\r\n";
-    let resposta = anti_ies::pdf_externo::atender(
-        "POST", alvo, multipart, &banco, &origem, "ensaio",
-    ).unwrap();
+    let resposta =
+        anti_ies::pdf_externo::atender("POST", alvo, multipart, &banco, &origem, "ensaio").unwrap();
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
-    assert!(resposta.corpo.contains("upload-1#prova.pdf#application/pdf#"));
-    let temporarios: i64 = banco.query_row(
-        "SELECT COUNT(*) FROM externo_upload", [], |r| r.get(0),
-    ).unwrap();
+    assert!(
+        resposta
+            .corpo
+            .contains("upload-1#prova.pdf#application/pdf#")
+    );
+    let temporarios: i64 = banco
+        .query_row("SELECT COUNT(*) FROM externo_upload", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(temporarios, 1);
     let definitivo = anti_ies::pdf_externo::atender(
         "POST",
         "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
         b"selSerie=293&hdnFlagDocumentoCadastro=2&hdnAnexos=upload-1%C2%B1prova.pdf",
-        &banco, &origem, "ensaio",
-    ).unwrap();
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
     assert_eq!(definitivo.estado, anti_ies::Estado::Ok);
     let docs = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
     assert_eq!(docs.len(), 1);
@@ -212,16 +217,20 @@ fn multipart_com_dois_arquivos_nao_pode_gerar_recibo_ambiguo() {
     let origem = origem();
     let multipart = b"--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"a.pdf\"\r\n\r\n%PDF-1.7\nA\r\n--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"b.pdf\"\r\n\r\n%PDF-1.7\nB\r\n--B--\r\n";
     let resposta = anti_ies::pdf_externo::atender(
-        "POST", "/sei/controlador.php?acao=documento_upload_anexo&id_procedimento=7",
-        multipart, &banco, &origem, "ensaio",
-    ).unwrap();
+        "POST",
+        "/sei/controlador.php?acao=documento_upload_anexo&id_procedimento=7",
+        multipart,
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
     assert_eq!(resposta.estado, anti_ies::Estado::RequisicaoInvalida);
-    let temporarios: i64 = banco.query_row(
-        "SELECT COUNT(*) FROM externo_upload", [], |r| r.get(0),
-    ).unwrap();
+    let temporarios: i64 = banco
+        .query_row("SELECT COUNT(*) FROM externo_upload", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(temporarios, 0);
 }
-
 
 #[test]
 fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
@@ -231,17 +240,19 @@ fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
     let origem = origem();
     let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "prova.pdf", 42).unwrap();
     modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id).unwrap();
-    banco.execute_batch("DROP TABLE externo_processo").unwrap();
+    banco.execute_batch("DROP TABLE sim_processo").unwrap();
     let resposta = anti_ies::pdf_externo::atender(
         "GET",
         "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7",
         b"",
-        &banco, &origem, "ensaio",
-    ).unwrap();
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
     assert_eq!(resposta.estado, anti_ies::Estado::DadosInsuficientes);
     assert!(!resposta.corpo.contains("050000001"));
 }
-
 
 #[test]
 fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
@@ -254,9 +265,16 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
         semear(&banco);
         let origem = origem();
         interno::registrar_tipo(
-            &banco, &origem, "ensaio", "7",
-            &interno::Tipo { id: "291".into(), nome: "Despacho".into() },
-        ).unwrap();
+            &banco,
+            &origem,
+            "ensaio",
+            "7",
+            &interno::Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
         interno::criar(&banco, &origem, "ensaio", "7", "291", "Interno").unwrap();
         let temporario = modelo::receber(&banco, &origem, "ensaio", "7", "anexo.pdf", 45).unwrap();
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", temporario.id).unwrap();
@@ -266,14 +284,18 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
         }
     });
     let escolha = pedir(
-        endereco, "GET",
-        "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=7", b"",
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=7",
+        b"",
     );
     assert!(escolha.contains("frmDocumentoEscolherTipo"));
     assert!(escolha.contains("incluirExterno"));
     let arvore = pedir(
-        endereco, "GET",
-        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7", b"",
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7",
+        b"",
     );
     assert!(arvore.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(arvore.contains("Despacho"));

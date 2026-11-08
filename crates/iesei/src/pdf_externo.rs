@@ -1,8 +1,8 @@
 //! Estado tipado do PDF externo simulado, comum ao IES e ao anti-IES.
 //! O upload temporário e o cadastro definitivo são transições independentes.
 use crate::documentos_simulados as documentos;
-use crate::instalacao::Instalacao;
 pub use crate::documentos_simulados::Processo;
+use crate::instalacao::Instalacao;
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -2,8 +2,8 @@
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
 use iesei::documentos_simulados::{Tipo, registrar_tipo};
-use iesei::pdf_externo::{Processo, TipoExterno, semear as semear_pdf};
 use iesei::instalacao::Instalacao;
+use iesei::pdf_externo::{Processo, TipoExterno, semear as semear_pdf};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
 use std::time::Duration;

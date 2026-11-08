@@ -370,14 +370,9 @@ fn atender_documento(
     cenario: &str,
 ) -> Resposta {
     match std::str::from_utf8(&pedido.corpo) {
-        Ok(corpo) => documentos::atender(
-            &pedido.metodo,
-            &pedido.alvo,
-            corpo,
-            banco,
-            origem,
-            cenario,
-        ),
+        Ok(corpo) => {
+            documentos::atender(&pedido.metodo, &pedido.alvo, corpo, banco, origem, cenario)
+        }
         Err(_) => Resposta::nova(Estado::RequisicaoInvalida),
     }
 }

@@ -232,11 +232,16 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
     let mut arquivo = None;
     loop {
         let fim_cabecalho = inicio
-            + corpo.get(inicio..)?.windows(4).position(|p| p == b"\r\n\r\n")?;
+            + corpo
+                .get(inicio..)?
+                .windows(4)
+                .position(|p| p == b"\r\n\r\n")?;
         let cabecalho = std::str::from_utf8(corpo.get(inicio..fim_cabecalho)?).ok()?;
         let inicio_dados = fim_cabecalho + 4;
         let fim_dados = inicio_dados
-            + corpo.get(inicio_dados..)?.windows(terminador.len())
+            + corpo
+                .get(inicio_dados..)?
+                .windows(terminador.len())
                 .position(|p| p == terminador.as_slice())?;
         if cabecalho.contains("name=\"filArquivo\"") {
             if arquivo.is_some() {
