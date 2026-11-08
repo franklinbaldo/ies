@@ -62,17 +62,26 @@ fn pagina_do_processo(
     let Ok(documentos) = modelo::documentos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    // A tela de trabalho e a árvore devem anunciar a mesma capacidade.
+    // Depois de enviar sem manter aberto, o cadastro já recusa a escrita:
+    // não se pode continuar oferecendo um link que não funcionará.
+    let incluir = match modelo::conferir_abertura(banco, origem, cenario, id) {
+        Ok(()) => format!(
+            "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
+            "e".repeat(64)
+        ),
+        Err(Falha::ProcessoNaoAbertoNaUnidade) => String::new(),
+        Err(falha) => return erros_de_modelo(&falha),
+    };
     let mut html = format!(
         "<html><body><a id='lnkInfraUnidade' href='#'>{}</a>\
          <iframe id='ifrArvore' name='ifrArvore' src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
          <span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
-         <a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={}'>Incluir Documento</a>\
-         <ul id='documentos'>",
+         {incluir}<ul id='documentos'>",
         escapar(&processo.unidade),
         "e".repeat(64),
         escapar(&processo.nup),
         escapar(&processo.unidade),
-        id,
     );
     for doc in documentos {
         write!(
