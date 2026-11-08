@@ -27,7 +27,9 @@ impl Pasta {
     fn nova() -> Self {
         let agora = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let pasta = std::env::temp_dir().join(format!(
-            "aies-retornos-{}-{}", std::process::id(), agora.as_nanos()
+            "aies-retornos-{}-{}",
+            std::process::id(),
+            agora.as_nanos()
         ));
         fs::create_dir(&pasta).unwrap();
         fs::set_permissions(&pasta, fs::Permissions::from_mode(0o700)).unwrap();
@@ -51,9 +53,19 @@ fn certificado(pasta: &Path) -> (PathBuf, Identity) {
     let p12 = pasta.join("identidade.p12");
     let status = Command::new("openssl")
         .args([
-            "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256",
-            "-days", "1", "-subj", "/CN=sei.test", "-addext",
-            "subjectAltName=DNS:sei.test", "-keyout",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-sha256",
+            "-days",
+            "1",
+            "-subj",
+            "/CN=sei.test",
+            "-addext",
+            "subjectAltName=DNS:sei.test",
+            "-keyout",
         ])
         .arg(&key)
         .arg("-out")
@@ -92,7 +104,10 @@ fn aceitar(listener: &TcpListener) -> TcpStream {
                 return tcp;
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(inicio.elapsed() < Duration::from_secs(10), "GET esperado ausente");
+                assert!(
+                    inicio.elapsed() < Duration::from_secs(10),
+                    "GET esperado ausente"
+                );
                 thread::sleep(Duration::from_millis(20));
             }
             Err(e) => panic!("accept: {e}"),
@@ -260,12 +275,18 @@ fn aies_05_cli_mes_observado_preserva_os_dois_retornos() {
         assert_eq!(valor["retornos"][0]["situacao"], "aguardando");
         assert_eq!(valor["retornos"][0]["numero"], registros[0]);
         assert_eq!(valor["retornos"][0]["unidade"], "U-TESTE-A");
-        assert_eq!(valor["retornos"][0]["data_programada"], format!("15/{}/2026", &mes[5..]));
+        assert_eq!(
+            valor["retornos"][0]["data_programada"],
+            format!("15/{}/2026", &mes[5..])
+        );
         assert!(valor["retornos"][0]["data_retorno"].is_null());
         assert_eq!(valor["retornos"][1]["situacao"], "devolver");
         assert_eq!(valor["retornos"][1]["numero"], registros[1]);
         assert_eq!(valor["retornos"][1]["unidade"], "U-TESTE-B");
-        assert_eq!(valor["retornos"][1]["data_retorno"], format!("21/{}/2026", &mes[5..]));
+        assert_eq!(
+            valor["retornos"][1]["data_retorno"],
+            format!("21/{}/2026", &mes[5..])
+        );
         assert_eq!(valor["retornos"][1]["prazo_restante"], "2 dias");
         assert!(pedidos.last().unwrap().contains("data_inicial=01%2F"));
     }
