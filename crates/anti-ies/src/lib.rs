@@ -406,9 +406,7 @@ pub fn atender_http(
                             cenario,
                         )
                     }
-                    Some("procedimento_visualizar")
-                        if eh_controlador_sei(&pedido.alvo) =>
-                    {
+                    Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
                         documento_arvore::responder(
                             &pedido.metodo,
                             &pedido.alvo,
