@@ -29,3 +29,19 @@ pub(super) fn ocultar_checkbox_na_resposta(resposta: Vec<u8>) -> Vec<u8> {
         .join("\r\n");
     format!("{cabecalho}\r\n\r\n{corpo}").into_bytes()
 }
+
+pub(super) fn ajustar_resposta(
+    resposta: Vec<u8>,
+    ensaio: EnsaioRemocao,
+    metodo: &str,
+    acao: &str,
+) -> Vec<u8> {
+    if ensaio == EnsaioRemocao::TelaSemCheckbox
+        && metodo == "GET"
+        && acao == "procedimento_enviar"
+    {
+        ocultar_checkbox_na_resposta(resposta)
+    } else {
+        resposta
+    }
+}
