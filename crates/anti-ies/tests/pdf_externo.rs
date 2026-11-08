@@ -54,7 +54,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         iniciar(&banco).unwrap();
         semear(&banco);
         let origem = origem();
-        for _ in 0..7 {
+        for _ in 0..8 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, "ensaio"))).unwrap();
         }
@@ -111,8 +111,20 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
     );
     assert!(definitivo.starts_with("HTTP/1.1 302 Found\r\n"));
     assert!(definitivo.contains(
-        "Location: controlador.php?acao=arvore_visualizar&id_procedimento=7&id_documento=1"
+        "Location: controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=8000000000001"
     ));
+
+    // A URL devolvida pelo cadastro deve selecionar o MESMO ID publico
+    // da arvore que o leitor IES interpreta; seguir exatamente o Location.
+    let location = definitivo
+        .lines()
+        .find_map(|linha| linha.strip_prefix("Location: "))
+        .unwrap()
+        .trim_end_matches('\r');
+    let selecionado = pedir(endereco, "GET", &format!("/sei/{location}"), b"");
+    assert!(selecionado.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(selecionado.contains("infraArvoreNo(\"DOCUMENTO\",\"8000000000001\""));
+    assert!(selecionado.contains("Anexo 050000001"));
 
     let depois = pedir(
         endereco,
