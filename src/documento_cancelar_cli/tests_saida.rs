@@ -73,3 +73,17 @@ fn falha_sem_detalhes_nao_cria_linhas_artificiais() {
         vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())]
     );
 }
+
+#[test]
+fn bdd_273_02_cancelamento_conferido_sem_falha_do_post_informa_releitura() {
+    let mut feito = exemplo();
+    feito.confirmado = true;
+    feito.alterado = true;
+    // A releitura da árvore confirmou o efeito; nenhum erro de envio ocorreu.
+    feito.reconciliado_por = None;
+    let json = serde_json::to_value(resultado_cancelamento(&feito)).unwrap();
+    assert_eq!(json["confirmado"], true);
+    assert_eq!(json["alterado"], true);
+    assert_eq!(json["reconciliado_por_leitura"], true);
+    assert!(json.get("falha_do_envio").is_none());
+}
