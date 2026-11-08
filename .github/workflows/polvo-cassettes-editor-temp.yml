@@ -1,0 +1,79 @@
+name: Polvo - verificar cassettes editor (temporario)
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - '.github/workflows/polvo-cassettes-editor-temp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout do catalogo publico
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Conferir ZIP e membros JSON das cassettes de editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import collections, hashlib, json, pathlib, re, tempfile, urllib.request, zipfile
+          from urllib.parse import parse_qs, urlsplit
+
+          cards = [
+              'cassettes/unb/documento-escritas-unb--36a904749e20.md',
+              'cassettes/pen1/documento-escritas-pen1--a6cac1d02f3e.md',
+              'cassettes/ufrj/documento-escritas-ufrj--2241d2a8f71b.md',
+          ]
+          def metadata(path):
+              source = pathlib.Path(path).read_text(encoding='utf-8')
+              front = source.split('---', 2)[1]
+              return dict(line.split(': ', 1) for line in front.splitlines() if ': ' in line)
+
+          with tempfile.TemporaryDirectory() as temp:
+              archives = {}
+              for path in cards:
+                  card = metadata(path)
+                  url = card['source_zip']
+                  assert url.startswith('https://archive.org/download/todos-sei-cassettes-2026/'), path
+                  if url not in archives:
+                      out = pathlib.Path(temp) / (str(len(archives)) + '.zip')
+                      with urllib.request.urlopen(url, timeout=240) as reply, out.open('wb') as sink:
+                          while chunk := reply.read(1024 * 1024):
+                              sink.write(chunk)
+                      archives[url] = out
+                  zip_file = archives[url]
+                  digest = hashlib.sha1(zip_file.read_bytes()).hexdigest()
+                  assert digest == card['archive_sha1'], f'ZIP SHA1 divergente: {path}'
+                  with zipfile.ZipFile(zip_file) as archive:
+                      raw = archive.read(card['archive_member'])
+                  member_hash = hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest()
+                  assert member_hash == card['cassette_sha256_lf'], f'Membro SHA256 divergente: {path}'
+                  cassette = json.loads(raw)
+                  assert cassette['schema_version'] == 1 and cassette['complete'] is True, path
+                  interactions = cassette['interactions']
+                  assert len(interactions) == int(card['interactions']), path
+                  ops = collections.Counter()
+                  methods = collections.Counter()
+                  for item in interactions:
+                      req = item.get('request') or item.get('requisicao') or {}
+                      if not isinstance(req, dict):
+                          req = {}
+                      method = req.get('method') or item.get('method') or '?'
+                      target = req.get('url') or req.get('path') or item.get('url') or ''
+                      action = parse_qs(urlsplit(str(target)).query).get('acao', [''])[0]
+                      if action in ('documento_alterar', 'editor_montar', 'editor_salvar', 'editor_salvar_conteudo'):
+                          ops[(str(method).upper(), action)] += 1
+                      methods[str(method).upper()] += 1
+                  # Apenas contadores e nomes de chaves; nunca HTML, URLs assinadas, cookies ou valores de campos.
+                  print(f"VERIFIED {card['installation']} interactions={len(interactions)} zip_sha1={digest} member_sha256={member_hash}")
+                  print('LAYOUT', card['installation'], sorted(interactions[0].keys()) if interactions else [])
+                  print('METHODS', card['installation'], sorted(methods.items()))
+                  print('EDITOR_ACTIONS', card['installation'], sorted((k[0], k[1], n) for k, n in ops.items()))
+          PY
