@@ -55,3 +55,69 @@ fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
         "a opcao nao oferecida deve ser recusada antes da escrita: {pedidos:?}"
     );
 }
+
+#[test]
+fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
+    let mut confirmacao = args(true);
+    confirmacao.push("--remover-anotacoes");
+    let (saidas, pedidos, depois) =
+        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true);
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
+    let resultado = json(&saidas[0]);
+    assert_eq!(resultado["alterado"], true);
+    assert_eq!(resultado["confirmado"], true);
+    assert_eq!(resultado["anotacao_antes"], true);
+    assert_eq!(resultado["anotacao_depois"], false);
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"])
+    );
+    assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1,
+        "o processo só pode ser enviado uma vez"
+    );
+    assert!(!pedidos.iter().any(|p| p == "POST anotacao_registrar"));
+    assert!(
+        pedidos.iter().rposition(|p| p == "GET anotacao_registrar")
+            > pedidos.iter().position(|p| p == "POST procedimento_enviar"),
+        "a anotação deve ser relida depois da escrita: {pedidos:?}"
+    );
+}
+
+#[test]
+fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
+    let mut confirmacao = args(true);
+    confirmacao.push("--remover-anotacoes");
+    let (saidas, pedidos, depois) =
+        executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true);
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(3),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
+    assert_eq!(json(&saidas[0])["codigo"], "efeito_incerto");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1,
+        "a resposta incerta não autoriza repetir escrita"
+    );
+    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+}
