@@ -73,7 +73,7 @@ pub(crate) fn responder(
         }
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let documento = match documento_arvore::identidade_documental(alvo) {
+    let documento = match documento_arvore::identidade_documental(alvo, true) {
         Ok(documento) => documento,
         Err(estado) => return Resposta::nova(estado),
     };
