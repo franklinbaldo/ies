@@ -77,7 +77,13 @@ pub(crate) fn responder(
         Ok(documento) => documento,
         Err(estado) => return Resposta::nova(estado),
     };
-    let selecionado = documento.or_else(|| parametro_unico(alvo, "id_protocolo"));
+    // A ausência de uma seleção não equivale a duas seleções iguais.
+    // Use o validador existente antes de projetar a árvore inteira.
+    let protocolo = match crate::documento_versoes::parametro(alvo, "id_protocolo") {
+        Ok(protocolo) => protocolo,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    let selecionado = documento.or(protocolo);
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
     let Ok(internos) = interno::documentos(banco, origem, cenario, id_processo) else {
