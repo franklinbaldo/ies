@@ -8,8 +8,9 @@ description: "Evidências de interface Web, modelo funcional compartilhado e tra
 
 O anti-IES deve comportar-se como **um sistema simulado de SEI**, não como
 uma biblioteca de mocks, endpoints independentes ou páginas HTML armazenadas.
-O IES interpreta cassettes conferidas e alimenta um SQLite efêmero; o
-anti-IES consulta o estado e aplica as **transições comprovadas** na bancada.
+O IES alimenta SQLite efêmero com cassettes ou fixtures sintéticas;
+o anti-IES executa **transições testáveis mesmo antes de capturas**.
+Hipóteses são corrigidas conforme testes e evidências posteriores.
 Um processo, uma unidade e um retorno referem-se às mesmas entidades entre
 operações quando a identidade comum foi efetivamente observada.
 
@@ -73,10 +74,10 @@ Para cada capacidade contratada da CLI, a investigação precisa distinguir:
 - **Representação:** HTML/JSON são projeções desse estado. Não duplicar um
   snapshot por endpoint nem copiar bytes da resposta capturada.
 
-A definição de esquema permanece em
-`crates/iesei/migrations/NNNN_<capacidade>.sql`. Quando uma cassette
-provar nova entidade ou relação, os agentes podem modificar tipos,
-SQL, ingestão do IES e servidor anti-IES **na mesma PR vertical**.
+O esquema permanece em `crates/iesei/migrations/NNNN_<capacidade>.sql`.
+Novas entidades e relações **podem nascer como hipóteses testadas**,
+sem esperar cassette; tipos, SQL, ingestão e servidor evoluem na mesma
+PR vertical, sendo revistos diante de novas evidências.
 Dados do SQLite de ensaio são descartáveis; a cassette verificada é a
 fonte durável. Não misturar com `ies.sqlite3` operacional nem expor
 `cookie`, `infra_hash`, URLs assinadas ou HTML autenticado.
@@ -88,9 +89,9 @@ fonte durável. Não misturar com `ies.sqlite3` operacional nem expor
 2. **Coerência de leituras:** sem trocar banco ou escolher manualmente
    uma fixture por chamada, duas operações consultam o **mesmo estado**
    de instalação/cenário. Não afirmar vínculo de identidade sem fonte.
-3. **Transição funcional (quando observada):** operação altera estado
-   temporário; a próxima leitura da entidade e suas demais projeções
-   refletem o efeito. Testar também recusa e idempotência, se comprovada.
+3. **Transição funcional:** implementar a mudança de estado, testar
+   leitura posterior e recusas. Manter a hipótese revisável até ser
+   confrontada com o SEI gravado.
 4. **Comparação independente:** resultado do IES nas respostas originais
    versus o IES contra HTTP do anti-IES, preservando códigos, causas,
    contagens e relações. Um parser isolado é **COMPONENTE**, nunca E2E
@@ -99,7 +100,8 @@ fonte durável. Não misturar com `ies.sqlite3` operacional nem expor
    cenários positivos/negativos equivalentes. Sem nova suíte global
    paralela, sem baixar ZIP em toda PR, sem abrandar CI.
 
-Cada PR informa `fonte/digest`, `REA: PASS/FAIL/NOT_RUN`, transição
-observada ou apenas hipotética, versão do shape, comandos e cobertura
-reprodutível, SHA do CI e efeito posterior. Casos não observados são
-`NOT_RUN` ou recusados, jamais preenchidos com comportamento inventado.
+Cada PR informa hipótese, testes e cobertura reproduzível, versão
+do shape, SHA do CI e efeitos. Fonte/digest e `REA: PASS/FAIL/NOT_RUN`
+quando aplicáveis. **Testes são evidência de funcionamento sintético**.
+Falta de observação externa não bloqueia a execução; não declarar
+hipótese como compatibilidade SEI já demonstrada.
