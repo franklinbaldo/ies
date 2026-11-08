@@ -39,22 +39,22 @@ fn sem_configuracao_previa_recusa_sem_rede() {
 /// e sem rede; confirmar ou remover não podem adiar essa recusa.
 #[test]
 fn bdd_258_05_autorrelacionamento_recusado_antes_da_sessao() {
-    for remover in [false, true] {
-        for confirmar in [false, true] {
-            let mut args = vec![
-                "processo", "relacionar", NUP, "--com", NUP, "--json",
-            ];
-            if remover {
-                args.push("--remover");
+    for destino in [NUP, "00001000001202601"] {
+        for remover in [false, true] {
+            for confirmar in [false, true] {
+                let mut args = vec!["processo", "relacionar", NUP, "--com", destino, "--json"];
+                if remover {
+                    args.push("--remover");
+                }
+                if confirmar {
+                    args.push("--confirmar");
+                }
+                let saida = sem_sessao(&args);
+                assert_eq!(saida.status.code(), Some(1), "stderr={:?}", saida.stderr);
+                let valor = json(&saida);
+                assert_eq!(valor["subcodigo"], "relacionamento_consigo_mesmo");
+                assert_eq!(valor["retentavel"], false);
             }
-            if confirmar {
-                args.push("--confirmar");
-            }
-            let saida = sem_sessao(&args);
-            assert_eq!(saida.status.code(), Some(1), "stderr={:?}", saida.stderr);
-            let valor = json(&saida);
-            assert_eq!(valor["subcodigo"], "relacionamento_consigo_mesmo");
-            assert_eq!(valor["retentavel"], false);
         }
     }
 }
