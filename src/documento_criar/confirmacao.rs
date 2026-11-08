@@ -59,6 +59,8 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
             .or_else(|| localizacao.strip_prefix(&format!("/{}?", origem.caminho)))
     };
     consulta.is_some_and(|consulta| {
+        // O PDF externo pode redirecionar à árvore do processo selecionando
+        // explicitamente o documento, sem perder a exigência de identidade.
         // A resposta precisa identificar o próprio documento observado na
         // árvore, não apenas navegar para qualquer ação do controlador.
         let mut acoes = consulta
@@ -69,7 +71,7 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
             .filter_map(|campo| campo.strip_prefix("id_documento="));
         matches!(
             acoes.next(),
-            Some("documento_visualizar" | "arvore_visualizar")
+            Some("documento_visualizar" | "arvore_visualizar" | "procedimento_visualizar")
         ) && acoes.next().is_none()
             && ids.next() == Some(id_novo)
             && ids.next().is_none()

@@ -34,7 +34,7 @@ fn banco_efemero_guarda_observado_sem_inventar_ausentes() {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     // Migração 0003 acrescenta o estado compartilhado de documentos simulados.
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     assert!(ler(&banco, &origem(), "cartao").unwrap().is_none());
 
     let observado = controle();

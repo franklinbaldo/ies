@@ -238,9 +238,10 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
-    if !tipos.iter().any(|nome| nome == pedido.tipo)
-        && filtro_de_todos(&html_lista).map_err(E::Tipo)?
-    {
+    // A lista inicial pode conter só os tipos recentes. Mesmo quando
+    // o nome já aparece, a lista completa precisa confirmar sua unicidade:
+    // outra série com o mesmo nome pode estar oculta pelo filtro.
+    if filtro_de_todos(&html_lista).map_err(E::Tipo)? {
         let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
         let servida = TelaServida {
             url: link.as_str(),
