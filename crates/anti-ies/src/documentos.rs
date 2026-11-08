@@ -362,8 +362,18 @@ pub(crate) fn atender(
             {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
-            let Some(descricao) = campo_formulario_unico(corpo, "txtDescricao") else {
-                return Resposta::nova(Estado::RequisicaoInvalida);
+            // A descrição é opcional no contrato da CLI; não enviá-la
+            // equivale a deixar em branco o controle de texto do cadastro.
+            // Se foi enviada, preservamos a recusa por repetição ou escape inválido.
+            let descricao = match campo_formulario_unico(corpo, "txtDescricao") {
+                Some(valor) => valor,
+                None if !corpo
+                    .split('&')
+                    .any(|campo| campo.split('=').next() == Some("txtDescricao")) =>
+                {
+                    String::new()
+                }
+                None => return Resposta::nova(Estado::RequisicaoInvalida),
             };
             match modelo::criar(banco, origem, cenario, id, serie, &descricao) {
                 Ok(novo) => Resposta::redirecionar(format!(
