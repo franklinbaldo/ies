@@ -324,10 +324,9 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
         }
-        assert!(
-            iesei::documentos_simulados::documentos(&banco, &origem, "filtro", "10")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            iesei::documentos_simulados::documentos(&banco, &origem, "filtro", "10").unwrap(),
+            Vec::new()
         );
     });
     let solicitar = |metodo: &str, alvo: &str, corpo: &str| {
