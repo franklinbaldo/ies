@@ -162,7 +162,6 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
     );
 }
 
-
 #[test]
 fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
     // O destino consultado nao consta do mesmo SQLite que sustenta o
@@ -183,12 +182,15 @@ fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
     assert!(
-        pedidos.iter().any(|p| p == "POST unidade_auto_completar_envio_processo"),
+        pedidos
+            .iter()
+            .any(|p| p == "POST unidade_auto_completar_envio_processo"),
         "a escolha deve vir do autocomplete do servidor: {pedidos:?}",
     );
     assert!(
-        !pedidos.iter().any(|p| p == "POST procedimento_enviar"
-            || p == "POST anotacao_registrar"),
+        !pedidos
+            .iter()
+            .any(|p| p == "POST procedimento_enviar" || p == "POST anotacao_registrar"),
         "destino invalido nao pode produzir escrita: {pedidos:?}",
     );
 }
