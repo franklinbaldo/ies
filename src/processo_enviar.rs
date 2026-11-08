@@ -17,6 +17,8 @@ mod acervo_busca;
 #[cfg(test)]
 mod tests_anotacoes;
 #[cfg(test)]
+mod tests_anti_ies;
+#[cfg(test)]
 pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_busca;
@@ -30,8 +32,6 @@ mod tests_fluxo;
 mod tests_reconciliacao;
 #[cfg(test)]
 mod tests_tela;
-#[cfg(test)]
-mod tests_anti_ies;
 
 pub(crate) use erro::ErroEnviar;
 pub(crate) use fluxo::enviar_processo;

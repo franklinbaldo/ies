@@ -16,10 +16,8 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let mut banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
     let origem = OrigemSimulada::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-    let instalacao = crate::instalacao::Instalacao::interpretar(
-        "https://sei.exemplo.gov.br/sei",
-    )
-    .unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let cenario = "bdd-333-envio";
     let id = "10";
     let numero = "00001.000001/2026-01";
@@ -43,8 +41,7 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     .unwrap();
     let antes = ler(&banco, &origem, cenario, id).unwrap().unwrap();
     let alvo = "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10";
-    let formulario =
-        anti_ies::processo_envio::responder("GET", alvo, "", &banco, &origem, cenario);
+    let formulario = anti_ies::processo_envio::responder("GET", alvo, "", &banco, &origem, cenario);
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
     let tela = conferir_tela_de_envio(&formulario.corpo, id).unwrap();
     assert!(tela.remover_anotacoes_oferecida);
@@ -65,17 +62,17 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
         html: &formulario.corpo,
         codificacao: CodificacaoDaTela::Iso88591,
     };
-    let submissao =
-        derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares).unwrap();
+    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares).unwrap();
     let caminho = format!("/sei/{}", submissao.url().split_once("/sei/").unwrap().1);
     assert_eq!(ler(&banco, &origem, cenario, id).unwrap().unwrap(), antes);
     let corpo = String::from_utf8(submissao.corpo().to_vec()).unwrap();
-    let post = anti_ies::processo_envio::responder(
-        "POST", &caminho, &corpo, &banco, &origem, cenario,
-    );
+    let post =
+        anti_ies::processo_envio::responder("POST", &caminho, &corpo, &banco, &origem, cenario);
     assert_eq!(post.estado, anti_ies::Estado::Redirecionamento);
     assert!(redirecionamento_esperado(
-        post.localizacao.as_deref(), submissao.url(), id
+        post.localizacao.as_deref(),
+        submissao.url(),
+        id
     ));
     let depois = ler(&banco, &origem, cenario, id).unwrap().unwrap();
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
@@ -83,7 +80,9 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let html_arvore = anti_ies::processo_envio::navegacao(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
-        &banco, &origem, cenario,
+        &banco,
+        &origem,
+        cenario,
     )
     .unwrap()
     .corpo;

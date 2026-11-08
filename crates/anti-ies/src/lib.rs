@@ -176,8 +176,6 @@ fn controle_html(controle: &ControleResumido) -> Option<String> {
         "<html><body>{formulario}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
         escapar(controle.unidade.as_str())
     );
-        escapar(controle.unidade.as_str())
-    );
     tabela_html("tblProcessosRecebidos", &controle.recebidos, &mut html)?;
     tabela_html("tblProcessosGerados", &controle.gerados, &mut html)?;
     html.push_str("</body></html>");
