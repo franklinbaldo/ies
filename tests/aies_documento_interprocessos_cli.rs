@@ -386,8 +386,7 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
     // ErroHtml::ausente da localização tipada pelo contexto --processo;
     // preservar a causa já publicada, sem criar novo subcódigo.
     assert_eq!(
-        valor["subcodigo"],
-        "numero_sei_ausente_da_arvore_do_processo",
+        valor["subcodigo"], "numero_sei_ausente_da_arvore_do_processo",
         "{valor}"
     );
     assert_eq!(valor["documento"], DOC_B, "{valor}");
