@@ -270,3 +270,92 @@ fn decodificar_formulario(texto: &str) -> Option<String> {
     }
     String::from_utf8(saida).ok()
 }
+
+
+/// Projeta abertura de unidades na forma do nó raiz interpretada pelo IES.
+/// Hipótese local revisável, com estado derivado exclusivamente do SQLite.
+fn situacao_da_raiz(processo: &ProcessoSimulado) -> String {
+    let ancora = |sigla: &str| -> String {
+        let sigla = html(sigla);
+        format!(r#"<a alt="{sigla}" title="{sigla}" class="ancoraSigla">{sigla}</a>"#)
+    };
+    match processo.aberto_em.as_slice() {
+        [] => "Processo não possui andamentos abertos.<br />".to_owned(),
+        [unidade] => format!("Processo aberto somente na unidade {}.<br />", ancora(unidade)),
+        unidades => {
+            let mut texto = String::from("Processo aberto nas unidades:<br />");
+            for unidade in unidades {
+                texto.push_str(&ancora(unidade));
+                texto.push_str("<br />");
+            }
+            texto.push_str("<br />");
+            texto
+        }
+    }
+}
+
+/// O leitor do IES interpreta literais JS, não executa a árvore.
+fn literal_js(texto: &str) -> String {
+    texto.replace('\\', "\\\\").replace('\'', "\\'").replace('\r', "\\r").replace('\n', "\\n")
+}
+
+fn arvore_do_processo(processo: &ProcessoSimulado) -> String {
+    let id = &processo.id;
+    let numero = literal_js(&processo.numero);
+    let situacao = literal_js(&situacao_da_raiz(processo));
+    format!(
+        r#"<html><head><script>
+var Nos = new Array();
+Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
+Nos[0].acoes = '';
+Nos[0].src = '';
+Nos[0].html = '{situacao}';
+</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+    )
+}
+
+fn trabalho_do_processo(processo: &ProcessoSimulado) -> String {
+    let id = &processo.id;
+    format!(
+        "<html><head><title>SEI - Processo</title></head><body>\
+         <a id='lnkInfraUnidade'>{}</a>\
+         <iframe id='ifrArvore' name='ifrArvore' \
+         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}'></iframe>\
+         <iframe id='ifrVisualizacao' src='about:blank'></iframe></body></html>",
+        html(&processo.unidade_origem)
+    )
+}
+
+/// Consulta a árvore ou a tela de trabalho sem efeito; ausência do processo
+/// delega à rota de documentos existente do mesmo cenário.
+#[must_use]
+pub fn navegacao(
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Option<Resposta> {
+    if !super::eh_controlador_sei(alvo) {
+        return None;
+    }
+    let acao = unico(alvo, "acao")?;
+    if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
+        return None;
+    }
+    let id = unico(alvo, "id_procedimento")
+        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
+    let processo = match ler(banco, instalacao, cenario, id) {
+        Ok(Some(processo)) => processo,
+        Ok(None) => return None,
+        Err(_) => return Some(Resposta::nova(Estado::DadosInsuficientes)),
+    };
+    if metodo != "GET" {
+        return Some(Resposta::nova(Estado::MetodoNaoPermitido));
+    }
+    Some(resposta_html(if acao == "procedimento_trabalhar" {
+        trabalho_do_processo(&processo)
+    } else {
+        arvore_do_processo(&processo)
+    }))
+}

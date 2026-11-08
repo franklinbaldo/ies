@@ -422,6 +422,14 @@ pub fn atender_http(
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
                     {
+                        processo_envio::navegacao(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                        .unwrap_or_else(|| {
                         documentos::atender(
                             &pedido.metodo,
                             &pedido.alvo,
@@ -430,8 +438,17 @@ pub fn atender_http(
                             instalacao,
                             cenario,
                         )
+                        })
                     }
                     Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
+                        processo_envio::navegacao(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                        .unwrap_or_else(|| {
                         documento_arvore::responder(
                             &pedido.metodo,
                             &pedido.alvo,
@@ -439,6 +456,7 @@ pub fn atender_http(
                             instalacao,
                             cenario,
                         )
+                        })
                     }
                     Some("procedimento_trabalhar")
                         if eh_controlador_sei(&pedido.alvo)
