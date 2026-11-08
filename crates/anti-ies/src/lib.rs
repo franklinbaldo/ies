@@ -1,6 +1,6 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
-mod documentos;
 pub mod documento_versoes;
+mod documentos;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
