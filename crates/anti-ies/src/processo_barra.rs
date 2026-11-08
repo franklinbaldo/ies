@@ -8,7 +8,11 @@ pub(crate) fn acoes_do_processo(processo: &ProcessoSimulado, unidade_atual: &str
     let mut links = String::new();
     let id = &processo.id;
     let assinatura = "4".repeat(64);
-    if processo.aberto_em.iter().any(|unidade| unidade == unidade_atual) {
+    if processo
+        .aberto_em
+        .iter()
+        .any(|unidade| unidade == unidade_atual)
+    {
         write!(
             links,
             r#"<a href="controlador.php?acao=procedimento_enviar&amp;acao_origem=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_hash={assinatura}">Enviar</a>"#

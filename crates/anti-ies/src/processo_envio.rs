@@ -2,7 +2,9 @@
 //! Não representa a identidade exata do HTML de nenhuma instalação real.
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
-use iesei::processos::{Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, limpar_anotacao};
+use iesei::processos::{
+    Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, limpar_anotacao,
+};
 use rusqlite::Connection;
 use std::fmt::Write;
 
@@ -343,7 +345,10 @@ fn arvore_do_processo(
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let situacao = literal_js(&situacao_da_raiz(processo));
-    let barra = literal_js(&super::processo_barra::acoes_do_processo(processo, unidade_atual));
+    let barra = literal_js(&super::processo_barra::acoes_do_processo(
+        processo,
+        unidade_atual,
+    ));
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
@@ -401,7 +406,10 @@ pub fn navegacao(
         Err(estado) => return Some(Resposta::nova(estado)),
     };
     if acao == "procedimento_trabalhar" {
-        return Some(resposta_html(trabalho_do_processo(&processo, &unidade_atual)));
+        return Some(resposta_html(trabalho_do_processo(
+            &processo,
+            &unidade_atual,
+        )));
     }
     Some(
         match arvore_do_processo(&processo, &unidade_atual, banco, instalacao, cenario) {

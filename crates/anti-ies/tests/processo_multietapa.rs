@@ -81,14 +81,20 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
             if requisicao == 3 {
                 assert_eq!(
-                    ler(&banco, &instalacao, CENARIO, "10").unwrap().unwrap().aberto_em,
+                    ler(&banco, &instalacao, CENARIO, "10")
+                        .unwrap()
+                        .unwrap()
+                        .aberto_em,
                     ["DESTINO"]
                 );
                 controlar(&mut banco, &instalacao, "DESTINO");
             }
             if requisicao == 7 {
                 assert_eq!(
-                    ler(&banco, &instalacao, CENARIO, "10").unwrap().unwrap().aberto_em,
+                    ler(&banco, &instalacao, CENARIO, "10")
+                        .unwrap()
+                        .unwrap()
+                        .aberto_em,
                     ["ARQUIVO"]
                 );
                 controlar(&mut banco, &instalacao, "ARQUIVO");
