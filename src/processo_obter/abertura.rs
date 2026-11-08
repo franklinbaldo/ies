@@ -313,6 +313,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         &mut self,
         contexto: &Contexto<'_>,
         submissao: SubmissaoDerivada,
+        valor_pesquisado: &str,
     ) -> Result<Option<ProcessoRedirecionado>, E> {
         // Só conta a tentativa se a validação do cookie permitir o POST.
         let envio = &mut *self.envio;
@@ -324,14 +325,21 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         let sem_trabalho = |status| E::PesquisaRapidaSemUrlDeTrabalho(status);
         match resposta {
             Ok(RespostaDoEnvio::Redirecionamento(r)) => match destino(r.localizacao()) {
-                DestinoDoRedirecionamento::Outro => conferir_trabalho(
-                    r.localizacao(),
-                    r.url_do_envio(),
-                    &contexto.instalacao,
-                    OrigemDoTrabalho::PesquisaRapida,
-                )
-                .map(Some)
-                .map_err(E::Redirecionamento),
+                DestinoDoRedirecionamento::Outro => {
+                    let origem = if contexto.documento_procurado == Some(valor_pesquisado) {
+                        OrigemDoTrabalho::PesquisaRapidaDocumento
+                    } else {
+                        OrigemDoTrabalho::PesquisaRapida
+                    };
+                    conferir_trabalho(
+                        r.localizacao(),
+                        r.url_do_envio(),
+                        &contexto.instalacao,
+                        origem,
+                    )
+                    .map(Some)
+                    .map_err(E::Redirecionamento)
+                }
                 _ => Ok(None),
             },
             Ok(RespostaDoEnvio::Html(_)) => {

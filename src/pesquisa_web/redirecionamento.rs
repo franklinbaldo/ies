@@ -88,6 +88,9 @@ pub(crate) enum OrigemDoTrabalho<'a> {
     /// 302 da pesquisa rápida (cassettes de GO): `acao_origem=protocolo_pesquisa_rapida`
     /// e o id em `id_protocolo`.
     PesquisaRapida,
+    /// Busca rápida de número SEI: a cassette publica `id_documento`,
+    /// não o `id_protocolo` da consulta por NUP.
+    PesquisaRapidaDocumento,
     /// 302 da entrada sem assinatura (ADR 0003): sem `acao_origem`, mesmo id;
     /// a URL pedida não tem unidade nem sistema para comparar.
     EntradaPorId { id: &'a str },
@@ -102,7 +105,9 @@ impl OrigemDoTrabalho<'_> {
     fn acao_de_origem(self) -> Option<&'static str> {
         match self {
             Self::Pesquisa => Some("protocolo_pesquisar"),
-            Self::PesquisaRapida => Some("protocolo_pesquisa_rapida"),
+            Self::PesquisaRapida | Self::PesquisaRapidaDocumento => {
+                Some("protocolo_pesquisa_rapida")
+            }
             Self::EntradaPorId { .. } | Self::EntradaPorIdComDocumento { .. } => None,
             Self::Controle { .. } => Some("procedimento_controlar"),
         }
@@ -110,6 +115,7 @@ impl OrigemDoTrabalho<'_> {
     fn chave_do_id(self) -> &'static str {
         match self {
             Self::PesquisaRapida => "id_protocolo",
+            Self::PesquisaRapidaDocumento => "id_documento",
             _ => "id_procedimento",
         }
     }
@@ -270,11 +276,17 @@ pub(crate) fn conferir_trabalho(
         ([_], Some(_)) => return Err(E::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa),
         (_, Some(_)) => return Err(E::AcaoDeOrigemRepetidaNoRedirecionamento),
     }
+    let documento = matches!(origem, OrigemDoTrabalho::PesquisaRapidaDocumento);
     let id = match valores(&pares, origem.chave_do_id()).as_slice() {
+        [] | [""] if documento => return Err(E::IdDocumentoAusenteNoRedirecionamento),
         [] | [""] => return Err(E::IdProcedimentoAusenteNoRedirecionamento),
+        [id] if documento => {
+            IdProcedimento::novo(id).map_err(|_| E::IdDocumentoNaoDecimalNoRedirecionamento)?
+        }
         [id] => {
             IdProcedimento::novo(id).map_err(|_| E::IdProcedimentoNaoDecimalNoRedirecionamento)?
         }
+        _ if documento => return Err(E::IdDocumentoRepetidoNoRedirecionamento),
         _ => return Err(E::IdProcedimentoRepetidoNoRedirecionamento),
     };
     if let OrigemDoTrabalho::EntradaPorId { id: pedido }

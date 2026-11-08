@@ -104,11 +104,14 @@ fn bdd_88_01_02_controle_pesquisa_arvore_historico_e_conteudo_em_loopback() {
         "txtPesquisaRapida=0011519",
     );
     assert!(pesquisa.starts_with("HTTP/1.1 302 Found"), "{pesquisa}");
-    assert!(pesquisa.contains("id_protocolo=42"), "{pesquisa}");
+    // Cassettes documento-numero-e-busca-* (sete instalações): o 302 de
+    // número SEI endereça id_documento, diferentemente do NUP.
+    assert!(pesquisa.contains("id_documento=42"), "{pesquisa}");
+    assert!(!pesquisa.contains("id_protocolo=42"), "{pesquisa}");
     let tela = pedir(
         endereco,
         "GET",
-        &format!("{BASE}?acao=procedimento_trabalhar&id_protocolo=42"),
+        &format!("{BASE}?acao=procedimento_trabalhar&id_documento=42"),
         "",
     );
     assert!(tela.contains("id=\"ifrArvore\""), "{tela}");

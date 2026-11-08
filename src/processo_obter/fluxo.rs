@@ -389,7 +389,7 @@ pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
             return Ok(None);
         }
     };
-    let Some(redirecionado) = rede.pesquisar(contexto, submissao)? else {
+    let Some(redirecionado) = rede.pesquisar(contexto, submissao, valor)? else {
         contexto.esquecer_link(acao, "");
         return Ok(None);
     };
@@ -483,6 +483,6 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &[(CAMPO, valor)],
     )
     .map_err(E::Formulario)?;
-    rede.pesquisar(contexto, submissao)?
+    rede.pesquisar(contexto, submissao, valor)?
         .ok_or(E::SessaoEncerrada)
 }

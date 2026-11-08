@@ -68,7 +68,7 @@ fn url_da_versao(n: u32) -> String {
 fn ate_a_arvore(arvore: String) -> Vec<Resposta> {
     vec![
         ok(controle(&[("7", "OUTRO-1")])),
-        r302(&trabalhar_rapida(ID_DOC)),
+        r302(&trabalhar_rapida_documento(ID_DOC)),
         ok(tela_do_documento()),
         ok(arvore),
     ]
@@ -78,7 +78,7 @@ fn primeiros() -> Vec<Pedido> {
     vec![
         get(&url_controle()),
         post(&absoluta(&action_rapida()), "txtPesquisaRapida=0000101"),
-        get(&absoluta(&trabalhar_rapida(ID_DOC))),
+        get(&absoluta(&trabalhar_rapida_documento(ID_DOC))),
         get(&absoluta(&src_da_arvore_do_documento(ID, ID_DOC))),
     ]
 }

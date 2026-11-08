@@ -49,10 +49,19 @@ pub(super) fn action_rapida() -> String {
     )
 }
 
-/// `Location` relativo do 302 da pesquisa rápida (forma das cassettes de GO).
+/// `Location` relativo do 302 da pesquisa rápida de NUP (GO).
 pub(super) fn trabalhar_rapida(id: &str) -> String {
+    trabalhar_rapida_com("id_protocolo", id)
+}
+
+/// Pesquisa pelo número SEI: forma `id_documento` das sete cassettes.
+pub(super) fn trabalhar_rapida_documento(id: &str) -> String {
+    trabalhar_rapida_com("id_documento", id)
+}
+
+fn trabalhar_rapida_com(chave: &str, id: &str) -> String {
     format!(
-        "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&{CONTEXTO}&infra_hash={}",
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&{chave}={id}&{CONTEXTO}&infra_hash={}",
         hash('c')
     )
 }

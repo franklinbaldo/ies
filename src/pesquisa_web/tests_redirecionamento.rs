@@ -369,3 +369,33 @@ fn subcodigos_sao_estaveis_e_distintos() {
         "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
     );
 }
+
+#[test]
+fn redirect_de_documento_na_pesquisa_rapida_nao_aceita_id_protocolo() {
+    let envio = url_do_envio().replace("protocolo_pesquisar", "protocolo_pesquisa_rapida");
+    let destino = format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_documento=42&infra_sistema=1&infra_unidade_atual=5&infra_hash={HASH_DESTINO}"
+    );
+    let conferir = |alvo: &str| {
+        conferir_trabalho(
+            Some(alvo),
+            &envio,
+            &instalacao(),
+            OrigemDoTrabalho::PesquisaRapidaDocumento,
+        )
+        .map(|redirecionado| redirecionado.id)
+    };
+    assert_eq!(conferir(&destino).unwrap().as_str(), "42");
+    assert_eq!(
+        conferir(&destino.replace("id_documento=42", "id_protocolo=42")),
+        Err(E::IdDocumentoAusenteNoRedirecionamento)
+    );
+    assert_eq!(
+        conferir(&format!("{destino}&id_documento=42")),
+        Err(E::IdDocumentoRepetidoNoRedirecionamento)
+    );
+    assert_eq!(
+        conferir(&destino.replace("id_documento=42", "id_documento=x")),
+        Err(E::IdDocumentoNaoDecimalNoRedirecionamento)
+    );
+}
