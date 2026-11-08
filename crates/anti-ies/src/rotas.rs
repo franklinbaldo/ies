@@ -1,7 +1,7 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, controlar, documento_arvore, documento_versoes, documentos, eh_controlador_sei,
-    parametro_unico, processo_envio, retorno_programado,
+    parametro_unico, pesquisa_documento, processo_envio, retorno_programado,
 };
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -23,6 +23,9 @@ pub(crate) fn responder(
             == Some("unidade_auto_completar_envio_processo") =>
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("protocolo_pesquisa_rapida") if eh_controlador_sei(alvo) => {
+            pesquisa_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
