@@ -43,9 +43,10 @@ fn historico(documento: &DocumentoSimulado) -> String {
     let token_teste = "0".repeat(64);
     for r in &documento.revisoes {
         let id = escapar(&documento.id_documento);
+        let processo = escapar(&documento.id_procedimento);
         write!(
             corpo,
-            "<tr><td></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>             <td><a href='controlador.php?acao=documento_visualizar&amp;versao={}&amp;id_documento={id}&amp;infra_hash={token_teste}'>Visualizar</a></td></tr>",
+            "<tr><td></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>             <td><a href='controlador.php?acao=documento_visualizar&versao={}&id_documento={id}&id_procedimento={processo}&infra_hash={token_teste}'>Visualizar</a></td></tr>",
             r.versao, escapar(&r.usuario), escapar(&r.unidade),
             escapar(&r.modificacao), r.versao
         ).expect("formatação String");
@@ -91,17 +92,25 @@ pub fn responder(
         Ok(Some(id)) if id.bytes().all(|b| b.is_ascii_digit()) => id,
         _ => return Resposta::nova(Estado::RequisicaoInvalida),
     };
+    let versao_pedida = if acao == "documento_visualizar" {
+        match parametro(alvo, "versao") {
+            Ok(None) => None,
+            Ok(Some(n)) => match n.parse::<u32>().ok().filter(|n| *n > 0) {
+                Some(n) => Some(n),
+                None => return Resposta::nova(Estado::RequisicaoInvalida),
+            },
+            Err(estado) => return Resposta::nova(estado),
+        }
+    } else {
+        None
+    };
     let Ok(Some(documento)) = ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     if acao == "documento_versao_listar" {
         return resposta_html(historico(&documento));
     }
-    let versao = match parametro(alvo, "versao") {
-        Ok(None) => documento.revisoes.iter().map(|r| r.versao.get()).max(),
-        Ok(Some(n)) => n.parse::<u32>().ok().filter(|n| *n > 0),
-        Err(_) => None,
-    };
+    let versao = versao_pedida.or_else(|| documento.revisoes.iter().map(|r| r.versao.get()).max());
     let Some(versao) = versao else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

@@ -4,6 +4,7 @@ CREATE TABLE documento_simulado (
     origem TEXT NOT NULL,
     cenario TEXT NOT NULL,
     id_documento TEXT NOT NULL,
+    id_procedimento TEXT NOT NULL,
     numero TEXT NOT NULL,
     tipo TEXT NOT NULL,
     PRIMARY KEY (origem, cenario, id_documento)

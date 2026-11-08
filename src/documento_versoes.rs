@@ -307,6 +307,10 @@ pub fn interpretar_historico(
 }
 
 #[cfg(test)]
+#[path = "documento_versoes/tests_anti_ies.rs"]
+mod testes_anti_ies;
+
+#[cfg(test)]
 pub(crate) mod testes {
     use super::*;
     fn pagina(numeros: &[u32], ids: &[&str]) -> String {

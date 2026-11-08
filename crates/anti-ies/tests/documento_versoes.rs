@@ -15,6 +15,7 @@ fn documento() -> DocumentoSimulado {
     DocumentoSimulado {
         instalacao: origem(),
         id_documento: "42".into(),
+        id_procedimento: "7".into(),
         numero: "0011519".into(),
         tipo: "Ofício".into(),
         revisoes: vec![
