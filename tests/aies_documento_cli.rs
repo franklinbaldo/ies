@@ -382,4 +382,5 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
     );
 }
 
+#[path = "aies_documento_cli/negativos.rs"]
 mod negativos;
