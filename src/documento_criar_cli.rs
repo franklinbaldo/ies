@@ -168,9 +168,7 @@ fn mensagem_da_recusa(erro: &ErroPreviaCriacao) -> &'static str {
         ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade => {
             "processo não está aberto na unidade da sessão"
         }
-        ErroPreviaCriacao::NivelNaoInformado => {
-            "informe --nivel publico para confirmar a criação"
-        }
+        ErroPreviaCriacao::NivelNaoInformado => "informe --nivel publico para confirmar a criação",
         ErroPreviaCriacao::NivelRestritoSemHipotese => {
             "nível não público exige hipótese legal não disponível nesta operação"
         }
