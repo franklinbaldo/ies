@@ -1,4 +1,5 @@
 //! Controle resumido R: HTML tipado e sem recuperação de conteúdo externo.
+use crate::escapar;
 use iesei::banco_cassettes::{ControleResumido, Linha};
 use iesei::observacao::TabelaObservada;
 use std::fmt::Write as _;
