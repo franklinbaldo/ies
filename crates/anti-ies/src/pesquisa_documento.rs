@@ -6,6 +6,8 @@ use iesei::documentos_simulados::ids_por_nup;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 
+mod paginas;
+
 /// Consulta o numero solicitado pela CLI. Nao cria documento nem
 /// escolhe um ID arbitrario se a pesquisa encontra mais de um.
 #[must_use]
@@ -57,15 +59,15 @@ pub fn responder(
 
 /// Página HTML da mesma pesquisa servida pela interface Web observada,
 /// reconstruída do estado (não de uma cópia de HTML de cassette).
-fn formulario_de_pesquisa(unidade: &str, termo: &str, sem_resultado: bool) -> String {
+fn formulario_de_pesquisa(unidade: &str, termo: &str, conteudo: &str) -> String {
     let hash = "c".repeat(64);
-    let conteudo = if sem_resultado {
-        "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>"
-    } else {
-        ""
-    };
     format!(
-        r#"<html><body><a id="lnkInfraUnidade">{}</a>
+        r#"<html><head><script>
+        function navegar(inicio) {{
+          document.getElementById('hdnInicio').value = inicio;
+          document.getElementById('frmPesquisaProtocolo').submit();
+        }}
+        </script></head><body><a id="lnkInfraUnidade">{}</a>
         <form id="frmPesquisaProtocolo" name="frmPesquisaProtocolo" method="post"
         onsubmit="return onSubmitForm();"
         action="controlador.php?acao=protocolo_pesquisar&amp;acao_origem=protocolo_pesquisar&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}#ancoraBarraPesquisa">
@@ -138,7 +140,7 @@ pub fn responder_pesquisa(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     match metodo {
-        "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", false)),
+        "GET" => Resposta::html(formulario_de_pesquisa(controle.unidade.as_str(), "", "")),
         "POST" => {
             let termo = super::documentos::campo_formulario_unico(corpo, "txtProtocoloPesquisa");
             let radio = super::documentos::campo_formulario_unico(corpo, "rdoPesquisarEm");
@@ -154,18 +156,58 @@ pub fn responder_pesquisa(
             {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
-            match iesei::pesquisa_documento::consultar(
+            // O POST de navegar() repete o formulário, mudando só hdnInicio.
+            // Sem a página observada, não inferimos uma faixa pelo total.
+            let deslocamento = super::documentos::campo_formulario_unico(corpo, "hdnInicio")
+                .unwrap_or_else(|| "0".to_owned());
+            let Ok(deslocamento) = deslocamento.parse::<u64>() else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            let pagina = iesei::pesquisa_documento::consultar_por_inicio(
                 banco,
                 instalacao,
                 cenario,
                 &controle.unidade,
                 &termo,
-            ) {
-                Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => Resposta::html(
-                    formulario_de_pesquisa(controle.unidade.as_str(), &termo, true),
-                ),
-                Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
+                deslocamento,
+            );
+            match pagina {
+                Ok(Some(pagina)) => {
+                    let tamanho = if pagina.pagina == 1 {
+                        pagina.fim
+                    } else {
+                        let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
+                            banco, instalacao, cenario, &controle.unidade, &termo, 1,
+                        ) else {
+                            return Resposta::nova(Estado::DadosInsuficientes);
+                        };
+                        if primeira.total_declarado != pagina.total_declarado {
+                            return Resposta::nova(Estado::DadosInsuficientes);
+                        }
+                        primeira.fim
+                    };
+                    match paginas::renderizar(banco, instalacao, cenario, &pagina, tamanho) {
+                        Ok(html) => Resposta::html(formulario_de_pesquisa(
+                            controle.unidade.as_str(), &termo, &html,
+                        )),
+                        Err(estado) => Resposta::nova(estado),
+                    }
+                }
                 Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+                Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
+                Ok(None) => match iesei::pesquisa_documento::consultar(
+                    banco, instalacao, cenario, &controle.unidade, &termo,
+                ) {
+                    Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
+                        Resposta::html(formulario_de_pesquisa(
+                            controle.unidade.as_str(),
+                            &termo,
+                            "<div class='pesquisaSemResultado'>Nenhum resultado encontrado.</div>",
+                        ))
+                    }
+                    Ok(None) => documento_exato(banco, instalacao, cenario, &termo),
+                    Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+                },
             }
         }
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
