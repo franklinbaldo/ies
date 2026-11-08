@@ -106,7 +106,7 @@ fn iniciar_anti_ies_com_documento() -> (std::net::SocketAddr, std::thread::JoinH
         .unwrap();
         iesei::documentos_simulados::criar(&banco, &origem, "bdd-246", "10", "291", "Anterior")
             .unwrap();
-        for _ in 0..7 {
+        for _ in 0..8 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
         }
@@ -133,6 +133,20 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     let raiz = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10";
     let escolha = "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=10";
     let cadastro = "/sei/controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291";
+
+    let trabalho = consultar(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10",
+        "",
+    );
+    assert!(trabalho.starts_with("HTTP/1.1 200 OK"));
+    let (_, html_trabalho) = trabalho.split_once("\r\n\r\n").unwrap();
+    let origem = crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei")
+        .unwrap();
+    let tela =
+        crate::arvore_processo::ler_tela_do_processo(&origem, html_trabalho, "10", Some("TESTE"))
+            .unwrap();
+    assert!(tela.arvore.as_str().contains("procedimento_visualizar"));
 
     let resposta_antes = consultar("GET", raiz, "");
     assert!(resposta_antes.starts_with("HTTP/1.1 200 OK"));
