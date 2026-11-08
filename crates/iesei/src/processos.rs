@@ -226,10 +226,36 @@ pub fn enviar(
     cenario: &str,
     pedido: PedidoEnvio<'_>,
 ) -> Result<ProcessoSimulado, Falha> {
+    enviar_com_unidade(banco, instalacao, cenario, pedido, None)
+}
+
+/// Envia a partir da unidade ativa no Controle R, não necessariamente a
+/// unidade na qual o processo foi originalmente cadastrado.
+///
+/// # Errors
+/// Recusa unidade fechada e propaga a causa SQLite ou de validação.
+pub fn enviar_da_unidade(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    pedido: PedidoEnvio<'_>,
+    unidade: &str,
+) -> Result<ProcessoSimulado, Falha> {
+    enviar_com_unidade(banco, instalacao, cenario, pedido, Some(unidade))
+}
+
+fn enviar_com_unidade(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    pedido: PedidoEnvio<'_>,
+    unidade: Option<&str>,
+) -> Result<ProcessoSimulado, Falha> {
     let tx = banco.unchecked_transaction()?;
     let mut processo =
         ler(&tx, instalacao, cenario, pedido.id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
-    if !processo.aberto_em.contains(&processo.unidade_origem) {
+    let unidade_atual = unidade.unwrap_or(&processo.unidade_origem).to_owned();
+    if !processo.aberto_em.contains(&unidade_atual) {
         return Err(Falha::OrigemNaoAberta);
     }
     let destino = processo
@@ -241,6 +267,9 @@ pub fn enviar(
         return Err(Falha::DestinoJaAberto);
     }
     if pedido.remover_anotacoes {
+        if unidade_atual != processo.unidade_origem {
+            return Err(Falha::AnotacaoNaoObservada);
+        }
         let anotacao = processo
             .anotacao_origem
             .as_mut()
@@ -251,7 +280,7 @@ pub fn enviar(
     if !pedido.manter_aberto {
         processo
             .aberto_em
-            .retain(|unidade| unidade != &processo.unidade_origem);
+            .retain(|unidade| unidade != &unidade_atual);
     }
     processo.aberto_em.push(sigla);
     let origem = instalacao.url_base();

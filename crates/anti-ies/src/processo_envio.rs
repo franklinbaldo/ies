@@ -2,7 +2,7 @@
 //! Não representa a identidade exata do HTML de nenhuma instalação real.
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
-use iesei::processos::{Falha, PedidoEnvio, ProcessoSimulado, enviar, ler, limpar_anotacao};
+use iesei::processos::{Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, limpar_anotacao};
 use rusqlite::Connection;
 use std::fmt::Write;
 
@@ -19,6 +19,21 @@ fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
 
 fn html(texto: &str) -> String {
     super::escapar(texto)
+}
+
+/// A unidade ativa vem da fotografia do Controle R; cenários antigos sem
+/// Controle R conservam a origem do processo como unidade da sessão.
+fn unidade_da_sessao(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    processo: &ProcessoSimulado,
+) -> Result<String, Estado> {
+    match iesei::banco_cassettes::ler(banco, instalacao, cenario) {
+        Ok(Some(controle)) => Ok(controle.unidade.as_str().to_owned()),
+        Ok(None) => Ok(processo.unidade_origem.clone()),
+        Err(_) => Err(Estado::DadosInsuficientes),
+    }
 }
 
 fn pagina_de_envio(processo: &ProcessoSimulado) -> String {
@@ -139,6 +154,15 @@ pub fn responder(
     let Ok(Some(processo)) = ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    let unidade_atual = match unidade_da_sessao(banco, instalacao, cenario, &processo) {
+        Ok(unidade) => unidade,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    if acao == "procedimento_enviar" && !processo.aberto_em.contains(&unidade_atual)
+        || acao == "anotacao_registrar" && unidade_atual != processo.unidade_origem
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
     if metodo == "GET" {
         return match acao {
             "procedimento_enviar" => resposta_html(pagina_de_envio(&processo)),
@@ -174,7 +198,7 @@ pub fn responder(
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    match enviar(
+    match enviar_da_unidade(
         banco,
         instalacao,
         cenario,
@@ -184,6 +208,7 @@ pub fn responder(
             manter_aberto,
             remover_anotacoes,
         },
+        &unidade_atual,
     ) {
         Ok(_) => redirecionado(acao, id),
         Err(falha) => Resposta::nova(estado_da_falha(&falha)),
@@ -309,6 +334,7 @@ fn literal_js(texto: &str) -> String {
 
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
+    unidade_atual: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
@@ -317,7 +343,7 @@ fn arvore_do_processo(
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let situacao = literal_js(&situacao_da_raiz(processo));
-    let barra = literal_js(&super::processo_barra::acoes_do_processo(processo));
+    let barra = literal_js(&super::processo_barra::acoes_do_processo(processo, unidade_atual));
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
@@ -329,7 +355,7 @@ Nos[0].html = '{situacao}';
     ))
 }
 
-fn trabalho_do_processo(processo: &ProcessoSimulado) -> String {
+fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
     let id = &processo.id;
     format!(
         "<html><head><title>SEI - Processo</title></head><body>\
@@ -337,7 +363,7 @@ fn trabalho_do_processo(processo: &ProcessoSimulado) -> String {
          <iframe id='ifrArvore' name='ifrArvore' \
          src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}'></iframe>\
          <iframe id='ifrVisualizacao' src='about:blank'></iframe></body></html>",
-        html(&processo.unidade_origem)
+        html(unidade_atual)
     )
 }
 
@@ -370,11 +396,15 @@ pub fn navegacao(
     if metodo != "GET" {
         return Some(Resposta::nova(Estado::MetodoNaoPermitido));
     }
+    let unidade_atual = match unidade_da_sessao(banco, instalacao, cenario, &processo) {
+        Ok(unidade) => unidade,
+        Err(estado) => return Some(Resposta::nova(estado)),
+    };
     if acao == "procedimento_trabalhar" {
-        return Some(resposta_html(trabalho_do_processo(&processo)));
+        return Some(resposta_html(trabalho_do_processo(&processo, &unidade_atual)));
     }
     Some(
-        match arvore_do_processo(&processo, banco, instalacao, cenario) {
+        match arvore_do_processo(&processo, &unidade_atual, banco, instalacao, cenario) {
             Ok(corpo) => resposta_html(corpo),
             Err(estado) => Resposta::nova(estado),
         },
