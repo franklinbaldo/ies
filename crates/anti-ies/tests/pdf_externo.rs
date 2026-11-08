@@ -221,3 +221,23 @@ fn multipart_com_dois_arquivos_nao_pode_gerar_recibo_ambiguo() {
     ).unwrap();
     assert_eq!(temporarios, 0);
 }
+
+
+#[test]
+fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    semear(&banco);
+    let origem = origem();
+    let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "prova.pdf", 42).unwrap();
+    modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id).unwrap();
+    banco.execute_batch("DROP TABLE externo_processo").unwrap();
+    let resposta = anti_ies::pdf_externo::atender(
+        "GET",
+        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7",
+        b"",
+        &banco, &origem, "ensaio",
+    ).unwrap();
+    assert_eq!(resposta.estado, anti_ies::Estado::DadosInsuficientes);
+    assert!(!resposta.corpo.contains("050000001"));
+}

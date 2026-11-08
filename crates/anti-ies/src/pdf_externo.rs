@@ -88,11 +88,14 @@ fn documento_na_arvore(
     cenario: &str,
     id: &str,
 ) -> Resposta {
-    let Ok(Some(processo)) = modelo::processo(banco, origem, cenario, id) else {
-        return erro(Estado::NaoEncontrado);
+    let processo = match modelo::processo(banco, origem, cenario, id) {
+        Ok(Some(processo)) => processo,
+        Ok(None) => return erro(Estado::NaoEncontrado),
+        Err(e) => return falha(&e),
     };
-    let Ok(documentos) = modelo::documentos(banco, origem, cenario, id) else {
-        return erro(Estado::DadosInsuficientes);
+    let documentos = match modelo::documentos(banco, origem, cenario, id) {
+        Ok(documentos) => documentos,
+        Err(e) => return falha(&e),
     };
     let mut pagina = format!(
         "<html><body><span id='numeroProcesso'>{}</span><span id='unidade'>{}</span><ul id='documentos'>",
