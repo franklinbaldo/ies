@@ -144,12 +144,8 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         let link = link_anotacao
             .as_deref()
             .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
-        feito.anotacao_depois = observar_anotacao_depois(
-            &mut rede,
-            &cookie,
-            link,
-            &feito.id_procedimento,
-        );
+        feito.anotacao_depois =
+            observar_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento);
     }
     let mut feito = conciliar(feito, falha, verificacao)?;
     if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
@@ -307,7 +303,6 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
         }),
     }
 }
-
 
 /// A remoção é um efeito distinto da tramitação: observar separadamente
 /// permite registrar o que ocorreu mesmo se a árvore ficou indisponível.
