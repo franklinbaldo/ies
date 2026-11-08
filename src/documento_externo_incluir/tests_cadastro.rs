@@ -294,7 +294,7 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
         crate::documento_criar::redirecionamento_do_mesmo_controlador(
             definitivo.localizacao.as_deref().unwrap(),
             submissao.url(),
-            &documentos[0].id.to_string(),
+            &documentos[0].id_publico(),
         )
     );
 }
