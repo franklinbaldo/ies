@@ -362,12 +362,27 @@ Nos[0].html = '{situacao}';
 
 fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
     let id = &processo.id;
+    // A pesquisa por id_protocolo não pode perder a ação documental
+    // já oferecida antes da tramitação. A unidade fechada não a publica.
+    // A inclusão em unidade de destino exige a capacidade documental
+    // correspondente, ainda não simulada fora da origem.
+    let incluir = if unidade_atual == processo.unidade_origem
+        && processo.aberto_em.iter().any(|u| u == unidade_atual)
+    {
+        format!(
+            "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
+            "e".repeat(64)
+        )
+    } else {
+        String::new()
+    };
     format!(
         "<html><head><title>SEI - Processo</title></head><body>\
          <a id='lnkInfraUnidade'>{}</a>\
          <iframe id='ifrArvore' name='ifrArvore' \
          src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}'></iframe>\
-         <iframe id='ifrVisualizacao' src='about:blank'></iframe></body></html>",
+         <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
+         {incluir}</body></html>",
         html(unidade_atual)
     )
 }
