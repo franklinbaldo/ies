@@ -3,6 +3,9 @@
 use crate::documento_externo_incluir::{
     FalhaPdf, contem_controle_de_apresentacao, fluxo::executar_previa, inspecionar_pdf,
 };
+#[path = "documento_externo_incluir_cli/confirmar.rs"]
+mod confirmar_remoto;
+
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
