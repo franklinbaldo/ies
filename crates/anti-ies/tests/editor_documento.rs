@@ -269,3 +269,54 @@ fn editor_aceita_limpar_o_corpo_e_preserva_a_versao_anterior() {
     assert_eq!(versao.estado, Estado::Ok);
     assert!(versao.corpo.contains("<main id='corpoEditavel'></main>"));
 }
+
+#[test]
+fn editor_preserva_secao_inalterada_em_documento_multissecao() {
+    use iesei::editor_documento::{Edicao, publicar};
+
+    let base = "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Antigo</p></section>";
+    let editado = "<section id='cabecalho'><p>Fixo</p></section><section id='texto'><p>Novo</p></section>";
+    let mut documento = documento();
+    documento.revisoes[0].html_corpo = base.into();
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    guardar(&mut banco, "ensaio", &documento).unwrap();
+    registrar_oferta(
+        &banco,
+        &origem(),
+        "ensaio",
+        "42",
+        Oferta {
+            editavel: true,
+            assinaturas: 0,
+        },
+    )
+    .unwrap();
+
+    let publicada = publicar(
+        &banco,
+        &origem(),
+        "ensaio",
+        "42",
+        Edicao {
+            versao_base: NonZeroU32::new(2).unwrap(),
+            html_base: base,
+            html_editado: editado,
+            confirmar_assinaturas: false,
+        },
+    )
+    .unwrap();
+    assert_eq!(publicada.versao_nova.get(), 3);
+    let revisoes = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+    assert_eq!(revisoes.revisoes[0].html_corpo, base);
+    assert_eq!(revisoes.revisoes[1].html_corpo, editado);
+    let pagina = anti_ies::documento_versoes::responder(
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=3",
+        &banco,
+        &origem(),
+        "ensaio",
+    );
+    assert_eq!(pagina.estado, Estado::Ok);
+    assert!(pagina.corpo.contains(editado));
+}
