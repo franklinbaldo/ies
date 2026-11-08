@@ -73,8 +73,11 @@ pub(crate) fn responder(
         }
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let selecionado =
-        parametro_unico(alvo, "id_documento").or_else(|| parametro_unico(alvo, "id_protocolo"));
+    let documento = match documento_arvore::identidade_documental(alvo, true) {
+        Ok(documento) => documento,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    let selecionado = documento.or_else(|| parametro_unico(alvo, "id_protocolo"));
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
     let Ok(internos) = interno::documentos(banco, origem, cenario, id_processo) else {
