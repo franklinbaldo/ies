@@ -4,7 +4,7 @@
 
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
-use iesei::detalhada_cassettes::{self, ControleDetalhado};
+use iesei::detalhada_cassettes::{self, ControleDetalhado, LinhaDetalhada};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
@@ -177,11 +177,11 @@ fn executar(visao: VisaoFixture, esperada: Option<&str>) -> Output {
                     processos: TabelaObservada::nova(
                         Some(150),
                         FaixaObservada::nova(101, 101),
-                        vec![Linha {
+                        vec![LinhaDetalhada {
                             id: "901".to_owned(),
                             numero: "000901/2026".to_owned(),
-                            visualizado: true,
-                            sigiloso: false,
+                            visualizado: Some(true),
+                            sigiloso: Some(false),
                         }],
                     ).unwrap(),
                 },
