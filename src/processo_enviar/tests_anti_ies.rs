@@ -43,6 +43,29 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     )
     .unwrap();
     let antes = ler(&banco, &origem, cenario, id).unwrap().unwrap();
+    // BDD-333-03/05: o fluxo real só descobre envio e anotação pela
+    // árvore servida, não por caminhos montados pelo teste.
+    let arvore_antes = anti_ies::processo_envio::navegacao(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
+        &banco,
+        &origem,
+        cenario,
+    )
+    .unwrap()
+    .corpo;
+    let envio_publicado = crate::arvore_processo::ler_enviar_da_barra(
+        &instalacao, &arvore_antes, id,
+    )
+    .unwrap()
+    .expect("o anti-IES deve publicar Enviar na barra");
+    assert!(envio_publicado.as_str().contains("acao=procedimento_enviar"));
+    let anotacao_publicada = crate::arvore_processo::ler_link_das_anotacoes(
+        &instalacao, &arvore_antes, id,
+    )
+    .unwrap()
+    .expect("anotação simulada deve oferecer consulta/edição");
+    assert!(anotacao_publicada.contains("acao=anotacao_registrar"));
     let alvo = "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10";
     let formulario = anti_ies::processo_envio::responder("GET", alvo, "", &banco, &origem, cenario);
     assert_eq!(formulario.estado, anti_ies::Estado::Ok);
