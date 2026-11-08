@@ -165,9 +165,20 @@ pub fn identificar(
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut encontrados = linhas.into_iter().filter(|d| forma(&d.numero) == pedido);
-    let primeiro = encontrados.next();
-    if encontrados.next().is_some() {
+    // Preserva o NUP exato antes da equivalência sem pontuação, como a CLI.
+    let literal = numero.trim().to_lowercase();
+    let mut exatos = linhas
+        .iter()
+        .filter(|d| d.numero.trim().to_lowercase() == literal);
+    if let Some(primeiro) = exatos.next() {
+        if exatos.next().is_some() {
+            return Err(Falha::DestinoAmbiguo);
+        }
+        return Ok(Some(primeiro.clone()));
+    }
+    let mut equivalentes = linhas.into_iter().filter(|d| forma(&d.numero) == pedido);
+    let primeiro = equivalentes.next();
+    if equivalentes.next().is_some() {
         return Err(Falha::DestinoAmbiguo);
     }
     Ok(primeiro)
