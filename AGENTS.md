@@ -255,6 +255,11 @@ O que falta implementar e em que ordem está na
   [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
   observação, hipótese e mutação demonstrada. REA não substitui
   leitura de código Rust nem é novo gate obrigatório do CI.
+  **Emulação seletiva:** simular efeitos/estado no SQLite, emular
+  HTML, URLs, formulários e tokens sintéticos; dispensar mecanismos
+  internos do SEI não observáveis. Separar fatos, hipóteses e
+  desconhecidos; não criar `SeiProps` genérico nem estados duplicados.
+  Aplicar incrementalmente: #495, #496 e #497, sem gate novo.
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
