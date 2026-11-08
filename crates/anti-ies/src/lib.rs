@@ -463,6 +463,11 @@ pub fn atender_http(
             }
         }
     };
+    escrever_resposta(fluxo, resposta)
+}
+
+/// Serialização HTTP isolada do despacho, preservando métodos e estado.
+fn escrever_resposta(fluxo: &mut TcpStream, resposta: Resposta) -> io::Result<()> {
     let location = resposta
         .localizacao
         .as_ref()
