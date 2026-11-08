@@ -180,7 +180,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
             id: &feito.processo.id,
             nup: &feito.processo.nup,
         },
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        reconciliado_por_leitura: feito.alterado,
         requisicoes: feito.requisicoes,
         unidade: feito.unidade.as_deref(),
     }
@@ -196,7 +196,7 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
         "motivo":feito.motivo,
         "origem":"web", "confirmado":feito.confirmado,"alterado":feito.alterado,
         "requisicoes":feito.requisicoes,
-        "reconciliado_por_leitura":feito.reconciliado_por.is_some()
+        "reconciliado_por_leitura":feito.alterado
     });
     if let (Some(f), Some(obj)) = (&feito.reconciliado_por, valor.as_object_mut()) {
         obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));

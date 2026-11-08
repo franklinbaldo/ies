@@ -3,6 +3,7 @@ mod arvore_compartilhada;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
+pub mod documento_cancelar;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;
@@ -11,6 +12,7 @@ pub mod pesquisa_documento;
 mod processo_barra;
 pub mod processo_envio;
 mod processo_relacionar;
+mod protocolo_sintetico;
 mod rotas;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
@@ -215,7 +217,7 @@ fn html_de_retornos(mes: &Mes) -> String {
 fn link_calendario() -> String {
     format!(
         "controlador.php?acao=retorno_programado_listar&amp;infra_hash={}",
-        "b".repeat(64)
+        protocolo_sintetico::INFRA_HASH
     )
 }
 

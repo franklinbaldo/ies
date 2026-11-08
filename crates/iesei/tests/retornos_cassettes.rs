@@ -30,7 +30,7 @@ fn reconstroi_meses_e_isola_instalacao_e_periodo() {
     let versao: i64 = banco
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    // A migração 0004 acrescenta documentos simulados sem alterar retornos.
+    // O esquema derivado v15 preserva a identidade dos retornos.
     assert_eq!(versao, 15);
     let m = mes();
     assert!(

@@ -11,7 +11,7 @@ pub(crate) fn acoes_do_processo(
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
-    let assinatura = "4".repeat(64);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     if processo
         .aberto_em
         .iter()
