@@ -351,9 +351,9 @@ pub fn atender_http(
         Ok((metodo, alvo, corpo)) => {
             if let Some((banco, instalacao, cenario)) = fonte {
                 if eh_controlador_sei(&alvo) {
-                    if let Some(resposta) = pdf_externo::atender(
-                        &metodo, &alvo, &corpo, banco, instalacao, cenario,
-                    ) {
+                    if let Some(resposta) =
+                        pdf_externo::atender(&metodo, &alvo, &corpo, banco, instalacao, cenario)
+                    {
                         return responder_http(fluxo, &resposta);
                     }
                 }
