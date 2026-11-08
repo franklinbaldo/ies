@@ -10,7 +10,7 @@ fn id_da_rota<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     parametro_unico(alvo, nome).filter(|v| v.bytes().all(|b| b.is_ascii_digit()))
 }
 
-fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
+pub(crate) fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
     let mut campos = corpo.split('&').filter_map(|campo| campo.split_once('='));
     let valor = campos.find(|(n, _)| *n == nome)?.1;
     let existe_repetido = corpo
