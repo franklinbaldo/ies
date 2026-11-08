@@ -386,7 +386,7 @@ fn responder_pedido(
 /// Propaga falhas de I/O da conexão local.
 pub fn atender_http(
     fluxo: &mut TcpStream,
-    fonte: Option<(&mut Connection, &Instalacao, &str)>,
+    fonte: Option<(&Connection, &Instalacao, &str)>,
 ) -> io::Result<()> {
     let pedido = ler_pedido(fluxo)?;
     let resposta = match pedido {
