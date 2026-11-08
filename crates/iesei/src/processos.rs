@@ -1,6 +1,8 @@
 //! Estados e transições de processos no banco descartável do anti-IES.
 //! A hipótese é sintética, não uma afirmação sobre o protocolo SEI real.
+use crate::banco_cassettes::{ControleResumido, Linha};
 use crate::instalacao::Instalacao;
+use crate::observacao::{FaixaObservada, TabelaObservada};
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -296,6 +298,102 @@ pub fn limpar_anotacao(
         params![instalacao.url_base(), cenario, id],
     )?;
     Ok(())
+}
+
+/// Somente uma página integral autoriza atualizar contagem e presença de linhas.
+/// Uma página parcial continua tendo exatamente a cobertura que foi observada.
+fn pagina_inteira(tabela: &TabelaObservada<Linha>) -> bool {
+    if tabela.total_declarado != Some(tabela.linhas.len()) {
+        return false;
+    }
+    match (tabela.faixa_observada, tabela.linhas.len()) {
+        (None, 0) => true,
+        (Some(faixa), tamanho) if tamanho > 0 => {
+            faixa.inicio() == 1 && faixa.fim() == tamanho
+        }
+        _ => false,
+    }
+}
+
+fn tabela_atualizada(linhas: Vec<Linha>) -> Result<TabelaObservada<Linha>, Falha> {
+    let tamanho = linhas.len();
+    TabelaObservada::nova(
+        Some(tamanho),
+        FaixaObservada::nova(1, tamanho),
+        linhas,
+    )
+    .map_err(|_| Falha::DadoInvalido)
+}
+
+/// Projeta as transições do SQLite no Controle R da unidade ativa.
+///
+/// O snapshot conserva as linhas alheias à simulação. Apenas processos com
+/// estado explícito em `processo_simulado` mudam de presença, e somente quando
+/// as tabelas do Controle R representam páginas integrais.
+///
+/// # Errors
+/// Propaga a causa SQLite sem classificar pelo texto.
+pub fn controle_da_unidade(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    mut controle: ControleResumido,
+) -> Result<ControleResumido, Falha> {
+    if !pagina_inteira(&controle.recebidos) || !pagina_inteira(&controle.gerados) {
+        return Ok(controle);
+    }
+    let mut consulta = banco.prepare(
+        "SELECT base.id_procedimento, base.nup,
+                EXISTS(SELECT 1 FROM processo_abertura aberta
+                       WHERE aberta.origem=base.origem
+                         AND aberta.cenario=base.cenario
+                         AND aberta.id_procedimento=base.id_procedimento
+                         AND aberta.unidade=?3)
+         FROM sim_processo base
+         JOIN processo_simulado sim
+           ON sim.origem=base.origem AND sim.cenario=base.cenario
+          AND sim.id_procedimento=base.id_procedimento
+         WHERE base.origem=?1 AND base.cenario=?2
+         ORDER BY base.id_procedimento",
+    )?;
+    let estados = consulta
+        .query_map(
+            params![instalacao.url_base(), cenario, controle.unidade.as_str()],
+            |linha| {
+                Ok((
+                    linha.get::<_, String>(0)?,
+                    linha.get::<_, String>(1)?,
+                    linha.get::<_, i64>(2)? != 0,
+                ))
+            },
+        )?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut mudou = false;
+    for (id, numero, aberta) in estados {
+        if !aberta {
+            let recebidos = controle.recebidos.linhas.len();
+            let gerados = controle.gerados.linhas.len();
+            controle.recebidos.linhas.retain(|linha| linha.id != id);
+            controle.gerados.linhas.retain(|linha| linha.id != id);
+            mudou |= recebidos != controle.recebidos.linhas.len()
+                || gerados != controle.gerados.linhas.len();
+        } else if !controle.recebidos.linhas.iter().any(|linha| linha.id == id)
+            && !controle.gerados.linhas.iter().any(|linha| linha.id == id)
+        {
+            controle.recebidos.linhas.push(Linha {
+                id,
+                numero,
+                visualizado: false,
+                sigiloso: false,
+            });
+            mudou = true;
+        }
+    }
+    if mudou {
+        controle.recebidos = tabela_atualizada(controle.recebidos.linhas)?;
+        controle.gerados = tabela_atualizada(controle.gerados.linhas)?;
+    }
+    Ok(controle)
 }
 
 /// Lista os destinos oferecidos no cenário, compartilhados entre processos.
