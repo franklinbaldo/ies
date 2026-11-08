@@ -2,6 +2,7 @@
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+pub mod pesquisa_documento;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -163,8 +164,14 @@ fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) 
 }
 
 fn controle_html(controle: &ControleResumido) -> Option<String> {
+    // A pesquisa e o unico POST da leitura de documento, sem criar objeto.
+    // Assinaturas aqui sao placeholders locais, nunca tokens de SEI.
+    let formulario = format!(
+        r#"<form id="frmProtocoloPesquisaRapida" method="post" action="controlador.php?acao=protocolo_pesquisa_rapida&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}"><input type="text" id="txtPesquisaRapida" name="txtPesquisaRapida" /><img src="svg/pesquisa_rapida.svg" onclick="document.getElementById('frmProtocoloPesquisaRapida').submit();" /></form>"#,
+        "b".repeat(64)
+    );
     let mut html = format!(
-        "<html><body><a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
+        "<html><body>{formulario}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
         escapar(controle.unidade.as_str())
     );
     tabela_html("tblProcessosRecebidos", &controle.recebidos, &mut html)?;
@@ -380,6 +387,16 @@ pub fn atender_http(
                 match parametro_unico(&pedido.alvo, "acao") {
                     Some("retorno_programado_listar") => {
                         retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+                    }
+                    Some("protocolo_pesquisa_rapida") if eh_controlador_sei(&pedido.alvo) => {
+                        pesquisa_documento::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
                     }
                     Some(
                         "documento_escolher_tipo"
