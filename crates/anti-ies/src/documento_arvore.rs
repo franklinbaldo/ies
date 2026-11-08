@@ -254,7 +254,7 @@ mod testes_cancelamento_arvore_mista {
     use super::*;
     use iesei::banco_cassettes::iniciar;
     use iesei::cancelamento_documento::{Aplicacao, aplicar};
-    use iesei::documento_versoes::{Revisao, guardar};
+    use iesei::documento_versoes::Revisao;
     use std::num::NonZeroU32;
 
     /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
