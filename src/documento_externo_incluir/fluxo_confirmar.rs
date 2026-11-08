@@ -32,7 +32,9 @@ impl ErroConfirmacaoExterna {
     pub(crate) fn codigo_saida(&self) -> u8 {
         match self {
             Self::Pdf(_) => 2,
-            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado | Self::CampoCadastroNaoOferecido(_) => 1,
+            Self::Previa(_)
+            | Self::EnderecoDeUploadNaoObservado
+            | Self::CampoCadastroNaoOferecido(_) => 1,
             Self::Sequencia(e) => e.codigo_saida(),
         }
     }
@@ -40,7 +42,9 @@ impl ErroConfirmacaoExterna {
     pub(crate) fn etapa(&self) -> &'static str {
         match self {
             Self::Pdf(_) => "arquivo_local",
-            Self::Previa(_) | Self::EnderecoDeUploadNaoObservado | Self::CampoCadastroNaoOferecido(_) => "previa",
+            Self::Previa(_)
+            | Self::EnderecoDeUploadNaoObservado
+            | Self::CampoCadastroNaoOferecido(_) => "previa",
             Self::Sequencia(
                 FalhaConfirmacao::FotoInicialIncompleta
                 | FalhaConfirmacao::FotoInicialInconsistente,
@@ -187,7 +191,12 @@ where
     // faltar um dos campos que a submissao definitiva exigira.
     if prevalidar {
         for campo in ["txtDataElaboracao", "rdoFormato", "rdoNivelAcesso"] {
-            if !preparado.previa.campos_oferecidos.iter().any(|nome| nome == campo) {
+            if !preparado
+                .previa
+                .campos_oferecidos
+                .iter()
+                .any(|nome| nome == campo)
+            {
                 return Err(ErroConfirmacaoExterna::CampoCadastroNaoOferecido(campo));
             }
         }
