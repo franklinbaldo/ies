@@ -417,3 +417,29 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
         "a recusa não autoriza escrita: {trilha:?}"
     );
 }
+
+#[test]
+fn pesquisa_rapida_de_documento_confere_id_antes_de_servir_conteudo() {
+    let (saida, trilha) = executar(true, &["--json", "documento", DOC_A, "--sem-cache"]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor = json(&saida);
+    let docs = valor["documentos"].as_array().expect("lote de documentos");
+    assert_eq!(docs.len(), 1, "{valor}");
+    assert_eq!(docs[0]["numero"], DOC_A);
+    assert_eq!(docs[0]["processo"]["nup"], NUP_A);
+    assert!(docs[0]["texto"].as_str().unwrap().contains("primeiro processo"));
+    assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
+    assert!(
+        trilha.iter().any(|p| p == "POST protocolo_pesquisa_rapida"),
+        "exercitar pesquisa por número, não o cache: {trilha:?}"
+    );
+    assert!(
+        trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "somente navegação de leitura: {trilha:?}"
+    );
+}
