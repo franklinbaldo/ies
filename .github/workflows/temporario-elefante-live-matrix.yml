@@ -1,0 +1,18 @@
+name: "Temporary training SEI connectivity check"
+on:
+  push:
+    branches:
+      - codex/elefante-live-matrix-20261108
+permissions:
+  contents: read
+jobs:
+  training-connectivity:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Read-only network check of documented training hosts"
+        shell: bash
+        run: bash scripts/diagnostico_sei_treinamento.sh
