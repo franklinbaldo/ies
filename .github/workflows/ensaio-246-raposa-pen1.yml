@@ -81,3 +81,54 @@ jobs:
           print(json.dumps({'resultado':'BDD-246-01-PASS','documentos_antes':len(ids_antes),
               'documentos_depois':len(ids_depois),'post_criador':0,'retry':0},ensure_ascii=False),flush=True)
           PY
+
+  inspecao-acervo:
+    if: "github.event.head_commit.message == '🦊 test: inspecionar cassette PEN1'"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Conferir ZIP público e identificar forma de navegação sem divulgar HTML
+        run: |
+          curl --fail --silent --show-error --location --max-time 180 --retry 0 \
+            -o "$RUNNER_TEMP/acervo.zip" \
+            https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-0306b45276ae0084.zip
+          echo "0306b45276ae0084b78e781051f7ab5fc07e2693  $RUNNER_TEMP/acervo.zip" | sha1sum -c -
+          python3 - <<'PY'
+          import os,zipfile,hashlib,base64,json,re,html.parser
+          with zipfile.ZipFile(os.environ['RUNNER_TEMP']+'/acervo.zip') as z:
+              raw=z.read('documento-incluir-pen1.json')
+          sha=hashlib.sha256(raw.replace(b'\r\n',b'\n')).hexdigest()
+          if sha!='3d879b332aac5a834b785b9ff34c296f4af78ab8efce49fae363ee9a010733ba':
+              raise SystemExit('Cassette divergente')
+          c=json.loads(raw)
+          if c['schema_version']!=1 or c['complete'] is not True: raise SystemExit('Schema divergente')
+          class Links(html.parser.HTMLParser):
+              def __init__(self): super().__init__();self.tags=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a':
+                      d=dict(attrs);onclick=d.get('onclick','')
+                      if 'escolher(' in onclick or d.get('href','').startswith('#'):
+                          self.tags.append((d.get('href',''),onclick))
+          for i,it in enumerate(c['interactions']):
+              if it['request'].get('operation')!='documento_escolher_tipo' or it['response'].get('status_code')!=200:continue
+              body=base64.b64decode(it['response'].get('body_base64','')).decode('latin-1',errors='replace')
+              links=Links();links.feed(body)
+              print('PASSO',i,'TAMANHO',len(body),'LINKS',len(links.tags))
+              for href,onclick in links.tags[:8]:
+                  tipo='direto_documento_gerar' if 'acao=documento_gerar' in href else ('ancora' if href=='#' else 'outro')
+                  chamada='escolher_decimal' if re.fullmatch(r'\s*escolher\(\d+\);?\s*',onclick) else ('escolher_outro' if 'escolher(' in onclick else 'outro')
+                  print('LINK',tipo,chamada)
+              for m in list(re.finditer(r'function\s+escolher\s*\([^)]*\)\s*\{',body))[:3]:
+                  snippet=body[m.start():m.start()+550]
+                  # Nunca publicar HTML, URL assinada, hash ou conteúdo do processo.
+                  literals={'hdnIdSerie','frmDocumentoEscolherTipo','value','submit','document'}
+                  snippet=re.sub(r'(["\x27])([^"\x27]{0,120})\1',
+                    lambda q: q.group(1)+(q.group(2) if q.group(2) in literals else '[LIT]')+q.group(1),snippet)
+                  snippet=re.sub(r'https?://\S+','[URL]',snippet)
+                  snippet=re.sub(r'[a-f0-9]{32,}','[HASH]',snippet)
+                  snippet=re.sub(r'[^\w\s.(){}=;!,"\x27+$\[\]]',' ',snippet)
+                  print('FUNCAO',re.sub(r'\s+',' ',snippet)[:400])
+          PY
