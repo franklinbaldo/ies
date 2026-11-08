@@ -33,7 +33,7 @@ fn banco_efemero_guarda_observado_sem_inventar_ausentes() {
     let version: i64 = banco
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 2);
+    assert_eq!(version, 3);
     assert!(ler(&banco, &origem(), "cartao").unwrap().is_none());
 
     let observado = controle();

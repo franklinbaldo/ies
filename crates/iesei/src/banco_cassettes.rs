@@ -6,7 +6,9 @@ use rusqlite::{Connection, OptionalExtension, params};
 pub const ESQUEMA: &str = concat!(
     include_str!("../migrations/0001_controle_resumido.sql"),
     "\n",
-    include_str!("../migrations/0002_retornos_mensais.sql")
+    include_str!("../migrations/0002_retornos_mensais.sql"),
+    "\n",
+    include_str!("../migrations/0003_documento_versoes.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
