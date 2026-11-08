@@ -307,6 +307,29 @@ fn literal_js(texto: &str) -> String {
         .replace('\n', "\\n")
 }
 
+/// A barra de ações deriva do processo relido no SQLite, sem links inertes.
+/// Somente o simulador emite uma assinatura fixa e fictícia para seu HTML.
+fn acoes_do_processo(processo: &ProcessoSimulado) -> String {
+    let mut links = String::new();
+    let id = &processo.id;
+    let assinatura = "4".repeat(64);
+    if processo.aberto_em.contains(&processo.unidade_origem) {
+        write!(
+            links,
+            r#"<a href="controlador.php?acao=procedimento_enviar&amp;acao_origem=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_hash={assinatura}">Enviar</a>"#
+        )
+        .expect("formatação de String");
+    }
+    if processo.anotacao_origem.is_some() {
+        write!(
+            links,
+            r#"<a href="controlador.php?acao=anotacao_registrar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Anotações</a>"#
+        )
+        .expect("formatação de String");
+    }
+    literal_js(&links)
+}
+
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
     banco: &Connection,
@@ -317,11 +340,12 @@ fn arvore_do_processo(
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let situacao = literal_js(&situacao_da_raiz(processo));
+    let barra = acoes_do_processo(processo);
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
 Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
-Nos[0].acoes = '';
+Nos[0].acoes = '{barra}';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
 {nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
