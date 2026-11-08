@@ -72,7 +72,6 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     );
 }
 
-
 /// BDD-246-02: uma leitura da árvore, navegação sem efeito, único POST
 /// criador e releitura independente. HTML real recebido no loopback é
 /// interpretado pelos leitores da produção, sem confiar em markup fixo.
@@ -106,10 +105,8 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
             },
         )
         .unwrap();
-        iesei::documentos_simulados::criar(
-            &banco, &origem, "bdd-246", "10", "291", "Anterior",
-        )
-        .unwrap();
+        iesei::documentos_simulados::criar(&banco, &origem, "bdd-246", "10", "291", "Anterior")
+            .unwrap();
         for _ in 0..7 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
@@ -135,10 +132,8 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     let resposta_antes = consultar("GET", raiz, "");
     assert!(resposta_antes.starts_with("HTTP/1.1 200 OK"));
     let (_, html_antes) = resposta_antes.split_once("\r\n\r\n").unwrap();
-    let arvore_antes = crate::arvore_processo::ler_arvore(
-        html_antes, "00001.000001/2026-01", "10",
-    )
-    .unwrap();
+    let arvore_antes =
+        crate::arvore_processo::ler_arvore(html_antes, "00001.000001/2026-01", "10").unwrap();
     assert_eq!(arvore_antes.documentos.len(), 1);
 
     let lista = consultar("GET", escolha, "");
@@ -149,18 +144,15 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     let formulario = consultar("GET", cadastro, "");
     assert!(formulario.starts_with("HTTP/1.1 200 OK"));
     let (_, html_cadastro) = formulario.split_once("\r\n\r\n").unwrap();
-    super::conferir_cadastro(html_cadastro, "Despacho", Some("Novo"), Some("publico"))
-        .unwrap();
+    super::conferir_cadastro(html_cadastro, "Despacho", Some("Novo"), Some("publico")).unwrap();
     assert!(super::guarda_script::cadastro_oferece_salvar(html_cadastro));
 
     let sem_criacao = consultar("GET", raiz, "");
     let (_, html_sem_criacao) = sem_criacao.split_once("\r\n\r\n").unwrap();
     assert_eq!(
-        crate::arvore_processo::ler_arvore(
-            html_sem_criacao, "00001.000001/2026-01", "10",
-        )
-        .unwrap()
-        .documentos,
+        crate::arvore_processo::ler_arvore(html_sem_criacao, "00001.000001/2026-01", "10",)
+            .unwrap()
+            .documentos,
         arvore_antes.documentos
     );
 
@@ -173,13 +165,13 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     assert!(resposta.contains("id_documento=2\r\n"));
     let resposta_depois = consultar("GET", raiz, "");
     let (_, html_depois) = resposta_depois.split_once("\r\n\r\n").unwrap();
-    let arvore_depois = crate::arvore_processo::ler_arvore(
-        html_depois, "00001.000001/2026-01", "10",
-    )
-    .unwrap();
+    let arvore_depois =
+        crate::arvore_processo::ler_arvore(html_depois, "00001.000001/2026-01", "10").unwrap();
     assert_eq!(
         super::conferir_criacao(
-            &arvore_antes.documentos, &arvore_depois.documentos, "Despacho",
+            &arvore_antes.documentos,
+            &arvore_depois.documentos,
+            "Despacho",
         ),
         Ok("1000002".to_owned())
     );
