@@ -250,3 +250,54 @@ fn id_de_processo_explicito_nao_pode_selecionar_conteudo_de_outro_processo() {
     assert!(pedir("POST", "42", "7").starts_with("HTTP/1.1 405"));
     servidor.join().unwrap();
 }
+
+
+/// #60 / BDD-60-05 (teste técnico): a rota não escolhe o primeiro valor
+/// se a identidade ou a versão vier repetida na própria requisição HTTP.
+/// A leitura válida posterior continua a usar o mesmo SQLite.
+#[test]
+fn parametros_repetidos_na_visualizacao_recusam_sem_entregar_documento() {
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+
+    fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
+        let mut tcp = TcpStream::connect(endereco).unwrap();
+        write!(
+            tcp,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+        tcp.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        tcp.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "ensaio", &documento()).unwrap();
+        for _ in 0..5 {
+            let (mut tcp, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut tcp, Some((&banco, &origem(), "ensaio"))).unwrap();
+        }
+    });
+
+    for alvo in [
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_documento=42",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&versao=1",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&id_procedimento=7&id_procedimento=7",
+    ] {
+        let resposta = pedir(endereco, "GET", alvo);
+        assert!(resposta.starts_with("HTTP/1.1 400"), "{resposta}");
+        assert!(!resposta.contains("Texto atual"), "{resposta}");
+    }
+    let alvo = "/sei/controlador.php?acao=documento_visualizar&id_documento=42";
+    assert!(pedir(endereco, "POST", alvo).starts_with("HTTP/1.1 405"));
+    let valido = pedir(endereco, "GET", alvo);
+    assert!(valido.starts_with("HTTP/1.1 200"), "{valido}");
+    assert!(valido.contains("Texto atual"));
+    servidor.join().unwrap();
+}
