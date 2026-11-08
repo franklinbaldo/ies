@@ -185,6 +185,6 @@ Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}
         write!(no, "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n")
             .expect("formatação de String");
     }
-    write!(no, "Nos[{indice}].html = '';\n").expect("formatação de String");
+    writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
     no
 }
