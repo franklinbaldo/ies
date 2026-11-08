@@ -66,7 +66,10 @@ pub(super) fn resolver_action(
 ) -> Result<String, E> {
     let absoluta = resolver_referencia(form, servida)?;
     let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
-    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho)
+        && !(operacao.acao == "editor_salvar"
+            && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho))
+    {
         return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
@@ -93,7 +96,10 @@ pub(super) fn resolver_action_declarada(
         None => format!("https://{}/{url_declarada}", servida.host),
     };
     let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
-    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho) {
+    if !instalacao.autoriza_controlador(alvo.host, alvo.caminho)
+        && !(operacao.acao == "editor_salvar"
+            && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho))
+    {
         return Err(E::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;

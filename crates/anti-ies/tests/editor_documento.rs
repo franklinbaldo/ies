@@ -375,3 +375,35 @@ fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
         Estado::RequisicaoInvalida
     );
 }
+
+#[test]
+fn editor_4_documento_assinado_exige_confirmacao_no_post() {
+    let banco = preparar(2);
+    let rota = "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42";
+    let corpo = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=%3Cp%3Edepois%3C%2Fp%3E";
+    assert_eq!(
+        responder("POST", rota, corpo, &banco, &origem(), "ensaio").estado,
+        Estado::RequisicaoInvalida
+    );
+    let inicial = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+    assert_eq!(inicial.revisoes.len(), 1);
+    let autorizado = format!("{corpo}&confirmar_assinaturas=1");
+    let salvo = responder("POST", rota, &autorizado, &banco, &origem(), "ensaio");
+    assert_eq!(salvo.estado, Estado::Ok);
+    assert_eq!(salvo.corpo, "OK 3");
+    assert_eq!(
+        consultar_oferta(&banco, &origem(), "ensaio", "42")
+            .unwrap()
+            .unwrap()
+            .assinaturas,
+        0
+    );
+    assert_eq!(
+        ler(&banco, &origem(), "ensaio", "42")
+            .unwrap()
+            .unwrap()
+            .revisoes
+            .len(),
+        2
+    );
+}

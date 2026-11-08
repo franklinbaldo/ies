@@ -134,6 +134,7 @@ fn formulario_editor_4(
          <textarea name='txaEditor_1'>{}</textarea>\
          <input type='hidden' id='hdnVersao' name='hdnVersao' value='{}'>\
          <input type='hidden' id='hdnIgnorarNovaVersao' name='hdnIgnorarNovaVersao' value='N'>\
+         <label><input type='checkbox' name='confirmar_assinaturas' value='1'>Confirmar perda de assinaturas (anti-IES)</label>\
          </form><iframe id='ifrEditorSalvar' name='ifrEditorSalvar'></iframe>\
          <output id='assinaturasAtuais'>{}</output></body></html>",
         "e".repeat(64),
@@ -161,6 +162,12 @@ fn salvar_editor_4(
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
+    let confirmar_assinaturas = match campo_formulario_unico(corpo, "confirmar_assinaturas") {
+        None => false,
+        Some(texto) if texto == "1" => true,
+        Some(texto) if texto == "0" => false,
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
+    };
     let Ok(Some(documento)) = ler(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
@@ -176,7 +183,7 @@ fn salvar_editor_4(
             versao_base,
             html_base: &ultima.html_corpo,
             html_editado: &html_editado,
-            confirmar_assinaturas: false,
+            confirmar_assinaturas,
         },
     ) {
         Ok(revisao) => Resposta::html(format!("OK {}", revisao.versao_nova)),

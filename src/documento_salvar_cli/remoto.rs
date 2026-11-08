@@ -1,4 +1,4 @@
-//! Confirmação sintética BDD-89-02/03 do editor: uma escrita, releitura.
+//! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
 use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
@@ -23,15 +23,15 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-/// Operação local simulada; o POST usa os controles publicados na tela.
-/// Não é contrato do HTML real do SEI: a hipótese só vale no anti-IES.
+/// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
+/// dos corpos originais de POST. Só usado na instalação sintética sei.test.
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "documento_editar",
-    formulario: "frmDocumentoEditar",
+    acao: "editor_salvar",
+    formulario: "frmEditor",
     envio: EnvioDoFormulario::SubmitPorScript,
-    campos_ocultos_exigidos: &["versao_base"],
+    campos_ocultos_exigidos: &["hdnVersao", "hdnIgnorarNovaVersao"],
     campos_ocultos_reescritos: &[],
-    campos_usuario: &["html_base", "html_editado", "confirmar_assinaturas"],
+    campos_usuario: &["txaEditor_1", "confirmar_assinaturas"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
     efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
@@ -126,7 +126,9 @@ fn assinaturas_no_editor(html: &str) -> Option<u32> {
 }
 
 fn editor_observado(html: &str, versao_base: u32) -> bool {
-    html.contains(&format!("name='versao_base' value='{versao_base}'"))
+    html.contains(&format!("name='hdnVersao' value='{versao_base}'"))
+        && html.contains("name='hdnIgnorarNovaVersao' value='N'")
+        && html.contains("name='txaEditor_1'")
         && assinaturas_no_editor(html).is_some()
 }
 
@@ -248,12 +250,12 @@ fn executar(
     if lido.versoes.foto.as_ref().map(|foto| foto.html.as_str()) != Some(local_base.as_str()) {
         return Resultado::Recusado(Falha::BaseAlterada);
     }
-    let (base, editada) = match corpos_da_edicao(&local_base, &local_editada) {
+    let (_base, editada) = match corpos_da_edicao(&local_base, &local_editada) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
     let url = format!(
-        "{}/controlador.php?acao=documento_editar&id_documento={}",
+        "{}/controlador.php?acao=editor_montar&id_documento={}",
         sessao.origem, lido.id_documento
     );
     let Ok(cookie) = sessao.cookie.valor() else {
@@ -274,11 +276,7 @@ fn executar(
             codificacao: CodificacaoDaTela::Utf8,
         },
         cli.unidade.as_deref().unwrap_or(""),
-        &[
-            ("html_base", base),
-            ("html_editado", editada),
-            ("confirmar_assinaturas", "1"),
-        ],
+        &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
     );
     let Ok(envio_unico) = envio_unico else {
         return Resultado::Recusado(Falha::Formulario);
@@ -287,11 +285,8 @@ fn executar(
     let post = enviar_submissao_via(envio_unico, sessao.cookie, |s, c| envio.post(s, c));
     let respondeu = matches!(
         post,
-        Ok(RespostaDoEnvio::Redirecionamento(ref r))
-            if r.localizacao().is_some_and(|destino|
-                destino.contains("acao=documento_visualizar")
-                && destino.contains(&format!("id_documento={}", lido.id_documento))
-                && destino.contains(&format!("versao={}", previa.versao_editada)))
+        Ok(RespostaDoEnvio::Html(ref resposta))
+            if resposta.trim() == format!("OK {}", previa.versao_editada)
     );
     verificar_publicacao(
         &mut envio,
