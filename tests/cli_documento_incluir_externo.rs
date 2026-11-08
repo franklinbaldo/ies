@@ -69,7 +69,10 @@ fn bdd_332_01_pdf_local_publica_inspecao_sem_sessao_ou_http() {
     assert_eq!(valor["escopo"], "inspecao_local");
     assert_eq!(valor["processo"], "23106.000001/2026-11");
     assert_eq!(valor["tipo_solicitado"], "Anexo");
-    assert_eq!(valor["arquivo"]["nome"], pdf.0.file_name().unwrap().to_str().unwrap());
+    assert_eq!(
+        valor["arquivo"]["nome"],
+        pdf.0.file_name().unwrap().to_str().unwrap()
+    );
     assert_eq!(valor["arquivo"]["tamanho_bytes"], 23);
     assert_eq!(
         valor["arquivo"]["sha256"],
@@ -82,7 +85,6 @@ fn bdd_332_01_pdf_local_publica_inspecao_sem_sessao_ou_http() {
     assert_eq!(valor["escrita_remota"], false);
     assert!(valor.get("subcodigo").is_none());
 }
-
 
 #[test]
 fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
@@ -106,11 +108,19 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
                 args.push(modo);
             }
             let saida = executar(&args);
-            assert_eq!(saida.status.code(), Some(2), "modo={modo:?} stderr={:?}", saida.stderr);
+            assert_eq!(
+                saida.status.code(),
+                Some(2),
+                "modo={modo:?} stderr={:?}",
+                saida.stderr
+            );
             let valor = json(&saida);
             assert_eq!(valor["causa"], serde_json::json!({"Pdf": causa}));
             assert_eq!(valor["retentavel"], false);
-            assert_eq!(valor["requisicoes"], 0, "modo={modo:?}: nenhuma requisição permitida");
+            assert_eq!(
+                valor["requisicoes"], 0,
+                "modo={modo:?}: nenhuma requisição permitida"
+            );
             assert_eq!(valor["escrita_remota"], false);
             assert!(valor.get("subcodigo").is_none());
         }
@@ -128,10 +138,15 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
     fs::create_dir(&diretorio).unwrap();
     for (caminho, causa) in [(&link, "LinkSimbolico"), (&diretorio, "NaoRegular")] {
         let saida = executar(&[
-            "--json", "documento", "incluir-externo",
-            "--processo", "23106.000001/2026-11",
-            "--arquivo", caminho.to_str().unwrap(),
-            "--tipo", "Anexo",
+            "--json",
+            "documento",
+            "incluir-externo",
+            "--processo",
+            "23106.000001/2026-11",
+            "--arquivo",
+            caminho.to_str().unwrap(),
+            "--tipo",
+            "Anexo",
         ]);
         assert_eq!(saida.status.code(), Some(2), "stderr={:?}", saida.stderr);
         let valor = json(&saida);
