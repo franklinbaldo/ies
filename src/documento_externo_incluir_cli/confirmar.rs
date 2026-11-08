@@ -1,13 +1,14 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
 //! A rotina de chamada permanece fechada até ensaio real em TREINAMENTO.
+use crate::Cli;
 use crate::documento_externo_incluir::{
-    PdfLocal, fluxo_confirmar::{ErroConfirmacaoExterna, executar_confirmacao_https},
+    PdfLocal,
+    fluxo_confirmar::{ErroConfirmacaoExterna, executar_confirmacao_https},
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::Cli;
 use serde_json::{Value, json};
 use std::path::Path;
 use std::process::ExitCode;
@@ -40,23 +41,29 @@ pub(super) fn executar(
         match resultado {
             Ok(feito) => {
                 if cli.json {
-                    println!("{}", json!({
-                        "escopo": "confirmacao_web",
-                        "processo": processo.as_str(),
-                        "tipo_solicitado": tipo,
-                        "numero_sei": feito.numero_sei,
-                        "unidade": feito.unidade,
-                        "confirmado": true,
-                        "escrita_remota": true,
-                        "upload_tentado": true,
-                        "cadastro_tentado": true,
-                        "reconciliado_por_leitura": true,
-                        "requisicoes": requisicoes
-                    }));
+                    println!(
+                        "{}",
+                        json!({
+                            "escopo": "confirmacao_web",
+                            "processo": processo.as_str(),
+                            "tipo_solicitado": tipo,
+                            "numero_sei": feito.numero_sei,
+                            "unidade": feito.unidade,
+                            "confirmado": true,
+                            "escrita_remota": true,
+                            "upload_tentado": true,
+                            "cadastro_tentado": true,
+                            "reconciliado_por_leitura": true,
+                            "requisicoes": requisicoes
+                        })
+                    );
                 } else {
                     println!(
                         "Documento externo {} incluído no processo {} (unidade {}), comprovado por releitura independente. Upload temporário: 1 tentativa; cadastro definitivo: 1 tentativa. Requisições: {}.",
-                        feito.numero_sei, processo.as_str(), feito.unidade, requisicoes
+                        feito.numero_sei,
+                        processo.as_str(),
+                        feito.unidade,
+                        requisicoes
                     );
                 }
                 ExitCode::SUCCESS
@@ -81,11 +88,7 @@ pub(super) fn executar(
     })
 }
 
-fn json_da_falha(
-    erro: &ErroConfirmacaoExterna,
-    upload_tentado: bool,
-    requisicoes: u8,
-) -> Value {
+fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
     json!({
         "confirmado": false,
         "etapa": erro.etapa(),
