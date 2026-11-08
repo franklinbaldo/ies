@@ -396,7 +396,11 @@ mod tests {
         let hash = sha256(pdf);
         assert_eq!(copiar_para_saida(&origem, &destino, &hash), Ok(true));
         fs::write(&destino, b"%PDF-1.7 edicao local").unwrap();
-        assert_eq!(fs::read(&origem).unwrap(), pdf, "cache não pode ser editado pela foto");
+        assert_eq!(
+            fs::read(&origem).unwrap(),
+            pdf,
+            "cache não pode ser editado pela foto"
+        );
         assert_eq!(
             copiar_para_saida(&origem, &destino, &hash),
             Err(FalhaCache::ArquivoDivergente),
