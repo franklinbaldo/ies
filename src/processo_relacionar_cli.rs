@@ -34,7 +34,10 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
     if mesmo_protocolo(nup.as_str(), outro.as_str()) {
-        return Some(falha(cli.json, &FalhaRelacionar::RelacionamentoConsigoMesmo));
+        return Some(falha(
+            cli.json,
+            &FalhaRelacionar::RelacionamentoConsigoMesmo,
+        ));
     }
     Some(com_sessao(cli, |sessao, indice| {
         // A escrita real só será habilitada após ensaio de treinamento.
