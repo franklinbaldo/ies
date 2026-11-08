@@ -234,6 +234,18 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+fn nomes_dos_campos_do_post(metodo: &str, acao: &str, bytes: &[u8]) -> Vec<String> {
+    if metodo != "POST" || acao != "documento_gerar" {
+        return Vec::new();
+    }
+    let inicio = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+    std::str::from_utf8(&bytes[inicio..])
+        .unwrap_or("")
+        .split('&')
+        .filter_map(|campo| campo.split_once('=').map(|(nome, _)| nome.to_owned()))
+        .collect()
+}
+
 fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identity) = identidade(&pasta.0);
@@ -295,16 +307,7 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
                 .and_then(|linha| linha.split_whitespace().nth(1))
                 .unwrap_or("?");
             // Só nomes dos campos do POST criador, jamais valores.
-            let nomes = if metodo == "POST" && acao == "documento_gerar" {
-                let inicio = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-                std::str::from_utf8(&bytes[inicio..])
-                    .unwrap_or("")
-                    .split('&')
-                    .filter_map(|campo| campo.split_once('=').map(|(nome, _)| nome))
-                    .collect::<Vec<_>>()
-            } else {
-                Vec::new()
-            };
+            let nomes = nomes_dos_campos_do_post(metodo, acao, &bytes);
             registro
                 .lock()
                 .unwrap()
