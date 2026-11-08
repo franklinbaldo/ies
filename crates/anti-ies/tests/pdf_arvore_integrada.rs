@@ -6,9 +6,31 @@ use iesei::pdf_externo::{self as externo, Processo, TipoExterno};
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::time::{Duration, Instant};
+
+// Evita bloqueio quando uma asserção impede o segundo GET do teste.
+fn aceitar(escuta: &TcpListener) -> TcpStream {
+    escuta.set_nonblocking(true).unwrap();
+    let prazo = Instant::now() + Duration::from_secs(5);
+    loop {
+        match escuta.accept() {
+            Ok((fluxo, _)) => {
+                fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                fluxo.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                return fluxo;
+            }
+            Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < prazo => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(erro) => panic!("servidor HTTP sintético não recebeu GET: {erro}"),
+        }
+    }
+}
 
 fn pedir(endereco: SocketAddr, alvo: &str) -> String {
-    let mut fluxo = TcpStream::connect(endereco).unwrap();
+    let mut fluxo = TcpStream::connect_timeout(&endereco, Duration::from_secs(5)).unwrap();
+    fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    fluxo.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
     write!(fluxo, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
     fluxo.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
@@ -53,25 +75,26 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
         .unwrap();
         interno::criar(&banco, &origem, "caso", "7", "291", "Primeiro").unwrap();
 
-        let (mut conexao, _) = escuta.accept().unwrap();
+        let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
         let temporario = externo::receber(&banco, &origem, "caso", "7", "prova.pdf", 42).unwrap();
         externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
-        let (mut conexao, _) = escuta.accept().unwrap();
+        let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
     });
     let alvo = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=";
     let antes = pedir(endereco, alvo);
+    // Ambas as requisições ocorrem antes de validar o primeiro resultado.
+    let depois = pedir(endereco, alvo);
+    servidor.join().unwrap();
     assert!(antes.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(antes.contains("Nos[1] = new infraArvoreNo(\"DOCUMENTO\""));
     assert!(antes.contains("Despacho"));
     assert!(!antes.contains("050000001"));
-    let depois = pedir(endereco, alvo);
     assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(depois.contains("Despacho"));
     assert!(depois.contains("Nos[2] = new infraArvoreNo(\"DOCUMENTO\""));
     assert!(depois.contains("Anexo 050000001"));
-    servidor.join().unwrap();
 }
 
 #[test]
@@ -103,7 +126,7 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
         let temporario =
             externo::receber(&banco, &origem, "selecao", "7", "prova.pdf", 42).unwrap();
         externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id).unwrap();
-        let (mut conexao, _) = escuta.accept().unwrap();
+        let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "selecao"))).unwrap();
     });
     let resposta = pedir(
@@ -177,7 +200,7 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
         .unwrap();
         let temporario = externo::receber(&banco, &origem, "triplo", "7", "anexo.pdf", 42).unwrap();
         externo::cadastrar(&banco, &origem, "triplo", "7", "293", temporario.id).unwrap();
-        let (mut conexao, _) = escuta.accept().unwrap();
+        let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "triplo"))).unwrap();
     });
     let resposta = pedir(
@@ -239,7 +262,7 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
-        let (mut conexao, _) = escuta.accept().unwrap();
+        let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "barra"))).unwrap();
     });
     let alvo = format!(
