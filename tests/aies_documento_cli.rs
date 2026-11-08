@@ -582,8 +582,14 @@ fn bdd_89_03_cli_nao_ignora_edicao_na_moldura_do_documento() {
     let leitura = executar(
         &pasta,
         &[
-            "--json", "documento", DOC, "--versao", "3", "--saida",
-            pasta.0.to_str().unwrap(), "--sem-cache",
+            "--json",
+            "documento",
+            DOC,
+            "--versao",
+            "3",
+            "--saida",
+            pasta.0.to_str().unwrap(),
+            "--sem-cache",
         ],
         6,
     );
@@ -596,7 +602,13 @@ fn bdd_89_03_cli_nao_ignora_edicao_na_moldura_do_documento() {
     let resposta = executar(
         &pasta,
         &[
-            "--json", "documento", "salvar", DOC, "--versao", "3", "--confirmar",
+            "--json",
+            "documento",
+            "salvar",
+            DOC,
+            "--versao",
+            "3",
+            "--confirmar",
         ],
         6, // Leitura remota; nem consulta ao editor nem POST.
     );
