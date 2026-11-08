@@ -478,8 +478,7 @@ fn bdd_60_04_cli_nao_inventa_propriedades_sem_link_na_barra() {
     assert_eq!(documento["numero"], DOC_A);
     assert_eq!(documento["propriedades"], Value::Null, "{documento}");
     assert_eq!(
-        documento["propriedades_motivo"],
-        "nao_publicadas_na_barra",
+        documento["propriedades_motivo"], "nao_publicadas_na_barra",
         "{documento}"
     );
     assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
