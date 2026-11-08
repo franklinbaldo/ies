@@ -6,28 +6,36 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 
 # Ciclo fechado IES ↔ anti-IES
 
-**Implementar → testar → aprender → corrigir:** o teste também produz
-evidência. **Cassette e REA não são pré-requisitos** para iniciar, codificar
-ou concluir uma fatia funcional: começar com hipótese testável e fixture
-sintética. Cassettes verificadas são referência para confrontar e corrigir
-hipóteses depois, não uma condição de autorização para implementar.
+**Cassette-first, não cassette-gated.** Comece pelo BDD e procure as
+cassettes já registradas; observações verificadas são a entrada preferida
+para modelar o estado inicial do anti-IES. **Não exija** cassette/REA/live
+para codificar, testar ou integrar: quando houver lacunas, use hipótese e
+fixture mínima. Testes sintéticos produzem evidência de funcionamento,
+não de fidelidade ao SEI.
 O anti-IES não deve simplesmente devolver HTML gravado.
 O objetivo é um **sistema funcional, com estado coerente entre operações**.
 A reconstrução do comportamento Web e das transições segue o
 [guia de engenharia reversa com REA](rea-engenharia-reversa.md):
 captura comprovada ≠ hipótese; reproduzir estados e efeitos, não páginas isoladas.
 
-1. Partir do BDD da CLI; escrever um teste RED com a hipótese mais simples.
-   Sem cassette, construir fixture sintética e seguir implementando.
-2. Implementar parser, tipos Rust e estado, usando testes como evidência de
-   funcionamento e fonte de contraexemplos.
-3. Recriar SQLite efêmero e servir no anti-IES o comportamento testado,
-   sem acesso a instalações reais do SEI.
-4. Rodar o IES contra o anti-IES e conferir saída, erros e efeitos com
-   expectativa independente do renderizador. Com cassette disponível,
-   comparar também a gravação externa e seus hashes.
-5. Corrigir e repetir. Só ablar mocks após cobertura equivalente de casos
-   positivos e negativos; preservar testes de invariantes distintas.
+1. **BDD → busca de observações:** procure o comando em
+   [docs/cassettes.md](../cassettes.md), `cassettes/` e
+   `contracts/evidencias/`; leia os cards pertinentes ANTES da fixture.
+2. **Obter/validar:** confira ZIP e membro JSON por hash. Se o sandbox
+   estiver sem rede, execute o
+   [workflow de inspeção](../../.github/workflows/inspecionar-cassettes.yml)
+   no GitHub Actions (despacho ou arquivo temporário na PR); **não**
+   trate restrição do sandbox como ausência de cassette.
+3. **Estado inicial:** derive os dados do SQLite efêmero das observações
+   disponíveis. Preencha somente campos/efeitos não registrados com
+   hipóteses e fixture sintética mínima. Sem cassette aplicável, prossiga
+   com hipótese testável e RED; não pare esperando observação externa.
+4. **Vertical:** implemente leitores IES, tipos Rust, SQLite e rotas
+   anti-IES; execute a CLI real contra o simulador e confira efeitos.
+5. **Confronto independente:** rode o leitor IES sobre respostas originais
+   e compare separadamente o anti-IES com a mesma observação. Não
+   equipare concordância IES↔anti-IES à fidelidade aos cassettes.
+   Corrija divergências e preserve invariantes/negativos úteis.
 
 O teste de parser isolado não comprova o passo 4: documentar `PARCIAL`,
 não `E2E PASS`. Um caso completo por operação vale mais do que
@@ -78,11 +86,13 @@ Também não basta IES ler uma cassette: a simulação deve ser confrontada
 **separadamente** com a fonte. Não atribuir um PASS antigo à implementação
 nova sem cobrir seu comportamento e SHA/versão correspondentes.
 
-**Cadência:** começar imediatamente pelo nível 1, sem cassette, REA ou
-acesso externo. Criar fixture mínima e teste que gere evidência. Havendo
-cassette aplicável, confrontá-la na própria fatia e corrigir divergência
-observada; se ausente/inacessível, nível 2 fica `NOT_RUN` com motivo,
-**sem impedir código, PR ou integração de fatia sintética verde**.
+**Cadência:** procurar primeiro os cards disponíveis e inspecioná-los
+pelo runner GitHub Actions quando o sandbox não tiver rede. Isso é
+observação inicial, não autorização ou gate: se a cassette estiver
+realmente ausente ou inacessível também no runner, avance pelo nível 1
+com fixture mínima e registre nível 2 `NOT_RUN` com motivo. Havendo
+cassette aplicável, confrontá-la na mesma fatia. Nenhum desses casos
+impede código, PR ou integração sintética verde.
 O nível 3 acontece quando houver ambiente autorizado e acessível;
 `NOT_RUN` não é fracasso sintético, nem PASS real. Não criar novo gate,
 pipeline ou modo CLI só para mostrar esses estados.
