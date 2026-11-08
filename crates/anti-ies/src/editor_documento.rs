@@ -106,6 +106,84 @@ fn salvar(
     }
 }
 
+/// Projeção SEI 4 guiada pela observação do editor UnB 4.0.9
+/// (docs/como-o-sei-funciona/editor-do-documento.md).
+/// Os campos são uma hipótese funcional: o membro JSON original ainda
+/// precisa ser confrontado; não é reprodução de cassette.
+fn formulario_editor_4(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> Resposta {
+    let oferta = match consultar_oferta(banco, origem, cenario, id) {
+        Ok(Some(oferta)) if oferta.editavel => oferta,
+        Ok(Some(_)) => return Resposta::nova(Estado::MetodoNaoPermitido),
+        Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+        Err(falha) => return resposta_de_falha(&falha),
+    };
+    let Ok(Some(documento)) = ler(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    Resposta::html(format!(
+        "<html><body><form id='frmEditor' hidden method='post' target='ifrEditorSalvar' \
+         action='editor/editor_processar.php?acao=editor_salvar&amp;id_documento={id}&amp;infra_hash={}'>\
+         <textarea name='txaEditor_1'>{}</textarea>\
+         <input type='hidden' id='hdnVersao' name='hdnVersao' value='{}'>\
+         <input type='hidden' id='hdnIgnorarNovaVersao' name='hdnIgnorarNovaVersao' value='N'>\
+         </form><iframe id='ifrEditorSalvar' name='ifrEditorSalvar'></iframe>\
+         <output id='assinaturasAtuais'>{}</output></body></html>",
+        "e".repeat(64),
+        escapar(&ultima.html_corpo),
+        ultima.versao,
+        oferta.assinaturas
+    ))
+}
+
+/// Simula editor_salvar com versão e seção do formulário observado,
+/// sem fingir que o POST gravado no acervo contém todos os campos.
+fn salvar_editor_4(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> Resposta {
+    let (Some(versao_base), Some(html_editado), Some("N")) = (
+        campo_formulario_unico(corpo, "hdnVersao")
+            .and_then(|v| v.parse::<u32>().ok())
+            .and_then(NonZeroU32::new),
+        campo_formulario_unico(corpo, "txaEditor_1"),
+        campo_formulario_unico(corpo, "hdnIgnorarNovaVersao").as_deref(),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let Ok(Some(documento)) = ler(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Some(ultima) = documento.revisoes.iter().max_by_key(|r| r.versao) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    match publicar(
+        banco,
+        origem,
+        cenario,
+        id,
+        Edicao {
+            versao_base,
+            html_base: &ultima.html_corpo,
+            html_editado: &html_editado,
+            confirmar_assinaturas: false,
+        },
+    ) {
+        Ok(revisao) => Resposta::html(format!("OK {}", revisao.versao_nova)),
+        Err(falha) => resposta_de_falha(&falha),
+    }
+}
+
 /// GET exibe a oferta observada; POST único publica somente no SQLite local.
 /// Nenhum endpoint de instalação externa é chamado.
 #[must_use]
@@ -117,7 +195,15 @@ pub fn responder(
     origem: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("documento_editar") {
+    let acao = parametro_unico(alvo, "acao");
+    let base = origem.url_base();
+    let pasta = base.strip_prefix(&format!("https://{}", origem.host())).unwrap_or("");
+    let destino_editor = format!("{pasta}/editor/editor_processar.php");
+    let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
+    let controlador = eh_controlador_sei(alvo);
+    if !((controlador && matches!(acao, Some("documento_editar" | "editor_montar")))
+        || (caminho == destino_editor && acao == Some("editor_salvar")))
+    {
         return despachar(metodo, alvo);
     }
     let Some(id) = parametro_unico(alvo, "id_documento")
@@ -125,9 +211,11 @@ pub fn responder(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    match metodo {
-        "GET" => formulario(banco, origem, cenario, id),
-        "POST" => salvar(corpo, banco, origem, cenario, id),
+    match (acao, metodo) {
+        (Some("documento_editar"), "GET") => formulario(banco, origem, cenario, id),
+        (Some("documento_editar"), "POST") => salvar(corpo, banco, origem, cenario, id),
+        (Some("editor_montar"), "GET") => formulario_editor_4(banco, origem, cenario, id),
+        (Some("editor_salvar"), "POST") => salvar_editor_4(corpo, banco, origem, cenario, id),
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
