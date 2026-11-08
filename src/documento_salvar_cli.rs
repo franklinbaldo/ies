@@ -86,12 +86,15 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     match previa {
         Ok(dados) if !confirmar => {
             if cli.json {
-                println!("{}", json!({
-                    "previa": dados,
-                    "confirmado": false,
-                    "assinaturas_remotas": null,
-                    "aviso_assinaturas": "editar pode remover assinaturas; a oferta do editor ainda não foi verificada"
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "previa": dados,
+                        "confirmado": false,
+                        "assinaturas_remotas": null,
+                        "aviso_assinaturas": "editar pode remover assinaturas; a oferta do editor ainda não foi verificada"
+                    })
+                );
             } else {
                 println!(
                     "IES: {} v{} editada sobre a v{} local ({} → {} bytes; base não verificada; sem escrita no SEI)",
@@ -105,7 +108,9 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                     "Diferenças locais (não comprovam alteração remota):\n{}",
                     dados.diff_humano
                 );
-                println!("Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada.");
+                println!(
+                    "Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada."
+                );
             }
             Some(ExitCode::SUCCESS)
         }
