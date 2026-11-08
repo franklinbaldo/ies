@@ -570,5 +570,8 @@ fn bdd_89_04_cli_documento_assinado_confirma_estado_apos_edicao() {
     assert_eq!(publicado["versao_criada"], 4);
     assert_eq!(publicado["assinaturas_apos"], 0);
     assert_eq!(publicado["releitura_confirmada"], true);
-    assert_eq!(fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(), base);
+    assert_eq!(
+        fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
+        base
+    );
 }

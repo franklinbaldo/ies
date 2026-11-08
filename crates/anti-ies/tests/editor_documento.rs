@@ -110,7 +110,11 @@ fn editor_oferecido_aceita_assinado_com_consentimento() {
     let previa = responder("GET", alvo(), "", &banco, &origem(), "ensaio");
     assert_eq!(previa.estado, Estado::Ok);
     assert!(previa.corpo.contains("2 assinatura"));
-    assert!(previa.corpo.contains("<output id='assinaturasAtuais'>2</output>"));
+    assert!(
+        previa
+            .corpo
+            .contains("<output id='assinaturasAtuais'>2</output>")
+    );
     assert_eq!(
         responder("POST", alvo(), &form(false), &banco, &origem(), "ensaio").estado,
         Estado::RequisicaoInvalida
@@ -136,7 +140,11 @@ fn editor_oferecido_aceita_assinado_com_consentimento() {
     );
     let depois = responder("GET", alvo(), "", &banco, &origem(), "ensaio");
     assert_eq!(depois.estado, Estado::Ok);
-    assert!(depois.corpo.contains("<output id='assinaturasAtuais'>0</output>"));
+    assert!(
+        depois
+            .corpo
+            .contains("<output id='assinaturasAtuais'>0</output>")
+    );
 }
 #[test]
 fn oferta_nao_observada_nao_inventa_permissao() {
