@@ -13,8 +13,8 @@ fn html(corpo: String) -> Resposta {
 }
 
 fn js(s: &str) -> String {
-    s.replace('\\', "\\")
-        .replace('"', "\"")
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
         .replace('\'', "\\'")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
