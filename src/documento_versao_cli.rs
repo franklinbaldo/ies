@@ -30,8 +30,18 @@ pub(crate) fn gravar_fotos(
     diretorio: &Path,
     obtidos: &[DocumentoObtido],
 ) -> Result<Vec<Option<FotoGravada>>, ErroCopia> {
+    // Duas entradas do lote podem apontar ao mesmo DOC.vN.html.
+    // Conferir tambem entre elas, nao apenas contra o disco: caso
+    // contrario, a segunda poderia falhar depois de gravada a primeira.
+    let mut propostos = std::collections::HashMap::new();
     for d in obtidos {
         if let Some(f) = &d.versoes.foto {
+            let destino = foto_documento::nome(&d.numero, f.versao);
+            if let Some(anterior) = propostos.insert(destino, f.html.as_str())
+                && anterior != f.html.as_str()
+            {
+                return Err(ErroCopia::FotoDivergente);
+            }
             foto_documento::planejar(diretorio, &d.numero, f.versao, &f.html)?;
         }
     }
@@ -279,6 +289,38 @@ pub(crate) mod testes {
             Err(ErroCopia::FotoDivergente),
             "nova leitura recusa a foto divergente sem sobrescrever",
         );
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
+    // BDD-88-02: duas entradas do mesmo DOC/versao no lote nao podem
+    // fazer uma foto parcial antes de a divergencia ser percebida.
+    #[test]
+    fn bdd_88_02_fotos_divergentes_para_mesmo_nome_nao_gravam_parcial() {
+        let pasta = diretorio();
+        let primeira = com_foto("0011519", 2, HTML);
+        let segunda = com_foto("0011519", 2, &HTML.replace("<p>a</p>", "<p>outro</p>"));
+        assert_eq!(
+            gravar_fotos(&pasta, &[primeira, segunda]),
+            Err(ErroCopia::FotoDivergente)
+        );
+        assert!(
+            nomes(&pasta).is_empty(),
+            "o lote divergente nao deve deixar foto parcial"
+        );
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
+    #[test]
+    fn bdd_88_02_fotos_iguais_para_mesmo_nome_sao_idempotentes() {
+        let pasta = diretorio();
+        let fotos = gravar_fotos(
+            &pasta,
+            &[com_foto("0011519", 2, HTML), com_foto("0011519", 2, HTML)],
+        )
+        .unwrap();
+        assert!(fotos[0].as_ref().unwrap().gravado);
+        assert!(!fotos[1].as_ref().unwrap().gravado);
+        assert_eq!(nomes(&pasta), ["0011519.v2.html"]);
         std::fs::remove_dir_all(pasta).unwrap();
     }
 
