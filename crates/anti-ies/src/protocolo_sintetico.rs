@@ -4,7 +4,8 @@
 
 /// Token emulado estável entre páginas geradas pela mesma bancada.
 /// Não fornece autenticação; existe apenas para a navegação da CLI.
-pub(crate) const INFRA_HASH: &str = "4444444444444444444444444444444444444444444444444444444444444444";
+pub(crate) const INFRA_HASH: &str =
+    "4444444444444444444444444444444444444444444444444444444444444444";
 
 #[cfg(test)]
 mod tests {
