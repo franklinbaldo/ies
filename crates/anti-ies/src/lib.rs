@@ -406,6 +406,21 @@ pub fn atender_http(
                             cenario,
                         )
                     }
+                    Some("procedimento_visualizar")
+                        if eh_controlador_sei(&pedido.alvo)
+                            && parametro_unico(&pedido.alvo, "id_procedimento").is_some()
+                            && parametro_unico(&pedido.alvo, "id_documento").is_none()
+                            && parametro_unico(&pedido.alvo, "id_protocolo").is_none() =>
+                    {
+                        documentos::atender(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
                     Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
                         documento_arvore::responder(
                             &pedido.metodo,
