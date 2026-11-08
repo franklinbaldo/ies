@@ -29,6 +29,7 @@ pub enum Falha {
     Sqlite(rusqlite::Error),
     EntradaInvalida,
     TipoIndisponivel,
+    ProcessoIndisponivel,
 }
 
 impl From<rusqlite::Error> for Falha {
@@ -200,6 +201,9 @@ pub fn criar(
     if !escopo_valido(cenario, id_procedimento) || !escopo_valido(cenario, id_serie) {
         return Err(Falha::EntradaInvalida);
     }
+    if ler_processo(banco, origem, cenario, id_procedimento)?.is_none() {
+        return Err(Falha::ProcessoIndisponivel);
+    }
     let quantidade = banco.execute(
         "INSERT INTO sim_documento (origem, cenario, id_procedimento, id_serie, descricao, nivel)
          SELECT origem, cenario, id_procedimento, id_serie, ?5, 0
@@ -307,7 +311,7 @@ mod tests {
         // Uma série órfã não permite criar documento sem processo existente.
         assert!(matches!(
             criar(&banco, &origem, "c", "10", "291", "Sem processo"),
-            Err(Falha::TipoIndisponivel)
+            Err(Falha::ProcessoIndisponivel)
         ));
         assert!(documentos(&banco, &origem, "c", "10").unwrap().is_empty());
     }
