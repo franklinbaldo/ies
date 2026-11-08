@@ -57,7 +57,7 @@ fn previa_e_confirmacao_reconciliam_o_mesmo_estado_sqlite() {
         &origem(),
         "cenario-a",
     );
-    assert_eq!(envio.estado, Estado::Redirecionado);
+    assert_eq!(envio.estado, Estado::Redirecionamento);
     assert_eq!(
         envio.localizacao.as_deref(),
         Some(
@@ -81,7 +81,7 @@ fn envio_sem_manter_aberto_fecha_origem_e_preserva_anotacao() {
         &origem(),
         "cenario-a",
     );
-    assert_eq!(r.estado, Estado::Redirecionado);
+    assert_eq!(r.estado, Estado::Redirecionamento);
     let depois = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
     assert_eq!(depois.aberto_em, ["DESTINO"]);
     assert_eq!(

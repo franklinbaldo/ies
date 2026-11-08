@@ -34,12 +34,7 @@ fn escapar(texto: &str) -> String {
 }
 
 fn resposta_html(corpo: String) -> Resposta {
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo,
-        localizacao: None,
-    }
+    Resposta::html(corpo)
 }
 
 fn historico(documento: &DocumentoSimulado) -> String {

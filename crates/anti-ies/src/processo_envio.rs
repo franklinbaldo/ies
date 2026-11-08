@@ -90,7 +90,7 @@ fn resposta_html(corpo: String) -> Resposta {
 
 fn redirecionado(acao: &str, id: &str) -> Resposta {
     Resposta {
-        estado: Estado::Redirecionado,
+        estado: Estado::Redirecionamento,
         tipo_conteudo: "text/html; charset=utf-8",
         corpo: String::new(),
         localizacao: Some(format!(
