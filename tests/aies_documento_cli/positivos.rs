@@ -59,7 +59,10 @@ fn bdd_88_02_cli_preserva_foto_local_coerente_mas_editada() {
         "<p>Primeira redação editada localmente</p>",
         1,
     );
-    assert_ne!(html_editado, html_servido, "fixture não contém o corpo esperado");
+    assert_ne!(
+        html_editado, html_servido,
+        "fixture não contém o corpo esperado"
+    );
     fs::write(&foto, &html_editado).unwrap();
 
     // O título e o rodapé permanecem intactos: a divergência só fica
