@@ -246,6 +246,7 @@ fn executar_com_estado(
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta.0)
         .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
@@ -389,4 +390,37 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         "publicou documento não observado: {valor}"
     );
     assert!(!destino.join("0011519.v1.html").exists());
+}
+
+#[test]
+fn bdd_89_02_cli_publica_uma_versao_e_confere_por_releitura() {
+    let pasta = Pasta::nova();
+    let leitura = executar(
+        &pasta,
+        &["--json", "documento", DOC, "--versao", "3",
+          "--saida", pasta.0.to_str().unwrap(), "--sem-cache"],
+        6,
+    );
+    assert_eq!(leitura.status.code(), Some(0), "{:?}", json(&leitura));
+    let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
+    assert!(base.contains("Terceira redação"));
+    let editada = base.replace("Terceira redação", "Quarta redação");
+    assert_ne!(base, editada);
+    pasta.privado("0011519.v4.html", &editada);
+    let resposta = executar(
+        &pasta,
+        &["--json", "documento", "salvar", DOC, "--versao", "3", "--confirmar"],
+        9, // busca/histórico/versão (6) + editor + POST + releitura (3).
+    );
+    assert_eq!(
+        resposta.status.code(), Some(0),
+        "falha: {:?}; stderr={}",
+        json(&resposta), String::from_utf8_lossy(&resposta.stderr),
+    );
+    let salvo = json(&resposta);
+    assert_eq!(salvo["confirmado"], true);
+    assert_eq!(salvo["versao_criada"], 4);
+    assert_eq!(salvo["releitura_confirmada"], true);
+    assert_eq!(fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(), base);
+    assert_eq!(fs::read_to_string(pasta.0.join("0011519.v4.html")).unwrap(), editada);
 }
