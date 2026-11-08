@@ -41,8 +41,13 @@ pub(crate) fn controle_html(controle: &ControleResumido) -> Option<String> {
         r#"<form id="frmProtocoloPesquisaRapida" method="post" action="controlador.php?acao=protocolo_pesquisa_rapida&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}"><input type="text" id="txtPesquisaRapida" name="txtPesquisaRapida" /><img src="svg/pesquisa_rapida.svg" onclick="document.getElementById('frmProtocoloPesquisaRapida').submit();" /></form>"#,
         "b".repeat(64)
     );
+    // Link do menu real para a pesquisa em documentos; não é pesquisa rápida.
+    let menu_pesquisa = format!(
+        "<a link='protocolo_pesquisar' href='controlador.php?acao=protocolo_pesquisar&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={}'>Pesquisa</a>",
+        "b".repeat(64)
+    );
     let mut html = format!(
-        "<html><body>{formulario}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
+        "<html><body>{formulario}{menu_pesquisa}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
         escapar(controle.unidade.as_str())
     );
     tabela_html("tblProcessosRecebidos", &controle.recebidos, &mut html)?;
