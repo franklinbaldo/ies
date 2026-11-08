@@ -4,8 +4,9 @@
 
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::detalhada_cassettes::{self, ControleDetalhado};
 use iesei::instalacao::Instalacao;
-use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -20,6 +21,12 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "aies-unidade-cli";
+
+enum VisaoFixture {
+    Ausente,
+    Resumida,
+    Detalhada,
+}
 
 struct Pasta(PathBuf);
 impl Pasta {
@@ -126,7 +133,7 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn executar(snapshot: bool, esperada: Option<&str>) -> Output {
+fn executar(visao: VisaoFixture, esperada: Option<&str>) -> Output {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -147,7 +154,7 @@ fn executar(snapshot: bool, esperada: Option<&str>) -> Output {
         let mut db = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&db).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-        if snapshot {
+        if matches!(visao, VisaoFixture::Resumida) {
             banco_cassettes::guardar(
                 &mut db,
                 CENARIO,
@@ -159,6 +166,26 @@ fn executar(snapshot: bool, esperada: Option<&str>) -> Output {
                 },
             )
             .unwrap();
+        }
+        if matches!(visao, VisaoFixture::Detalhada) {
+            detalhada_cassettes::guardar(
+                &mut db,
+                CENARIO,
+                &ControleDetalhado {
+                    instalacao: instalacao.clone(),
+                    unidade: UnidadeExibida::nova("TESTE").unwrap(),
+                    processos: TabelaObservada::nova(
+                        Some(150),
+                        FaixaObservada::nova(101, 101),
+                        vec![Linha {
+                            id: "901".to_owned(),
+                            numero: "000901/2026".to_owned(),
+                            visualizado: true,
+                            sigiloso: false,
+                        }],
+                    ).unwrap(),
+                },
+            ).unwrap();
         }
         let mut tcp = aceitar(&servidor);
         atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -225,7 +252,7 @@ fn json(saida: &Output) -> Value {
 // BDDs definidos previamente na #355, verificados contra a CLI real.
 #[test]
 fn aies_01_cli_real_ler_unidade_observada() {
-    let saida = executar(true, None);
+    let saida = executar(VisaoFixture::Resumida, None);
     assert_eq!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["unidade_exibida"], "TESTE");
@@ -234,7 +261,7 @@ fn aies_01_cli_real_ler_unidade_observada() {
 
 #[test]
 fn aies_03_cli_real_recusa_controle_ausente() {
-    let saida = executar(false, None);
+    let saida = executar(VisaoFixture::Ausente, None);
     assert_ne!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
@@ -244,7 +271,7 @@ fn aies_03_cli_real_recusa_controle_ausente() {
 
 #[test]
 fn aies_04_cli_real_recusa_unidade_divergente() {
-    let saida = executar(true, Some("OUTRA"));
+    let saida = executar(VisaoFixture::Resumida, Some("OUTRA"));
     assert_ne!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
@@ -253,4 +280,14 @@ fn aies_04_cli_real_recusa_unidade_divergente() {
         "unidade_exibida_diferente_da_solicitada"
     );
     assert!(valor.get("unidade_exibida").is_none());
+}
+
+// AIES-02: a sessão já lembrava uma página posterior da visão D.
+#[test]
+fn aies_02_cli_real_unidade_na_detalhada_pagina_posterior() {
+    let saida = executar(VisaoFixture::Detalhada, None);
+    assert_eq!(saida.status.code(), Some(0));
+    let valor = json(&saida);
+    assert_eq!(valor["unidade_exibida"], "TESTE");
+    assert_eq!(valor["origem"], "controle_de_processos");
 }
