@@ -352,7 +352,7 @@ mod tests {
             banco
                 .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
                 .unwrap(),
-            15
+            16
         );
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
         let tipo = Tipo {
