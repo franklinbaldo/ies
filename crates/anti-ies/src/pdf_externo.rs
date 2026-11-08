@@ -29,7 +29,7 @@ fn falha(causa: &Falha) -> Resposta {
     }
 }
 
-fn id_processo<'a>(alvo: &'a str) -> Option<&'a str> {
+fn id_processo(alvo: &str) -> Option<&str> {
     parametro_unico(alvo, "id_procedimento")
         .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
 }
@@ -154,7 +154,9 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
         return None;
     }
     let nome = cabecalho.split("filename=\"").nth(1)?.split('"').next()?;
-    if nome.is_empty() || nome.contains(['\r', '\n']) || !nome.ends_with(".pdf") {
+    if nome.is_empty() || nome.contains(['\r', '\n']) || !std::path::Path::new(nome)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
         return None;
     }
     let restante = &corpo[separador + 4..];
@@ -208,7 +210,7 @@ pub fn atender(
             };
             let flag = campo(texto, "hdnFlagDocumentoCadastro");
             let serie = campo(texto, "selSerie");
-            let resposta = match (flag.as_deref(), serie.as_deref()) {
+            match (flag.as_deref(), serie.as_deref()) {
                 (Some("1"), Some(serie)) => match modelo::tipos(banco, origem, cenario, id) {
                     Ok(tipos) if tipos.iter().any(|t| t.id == serie) => {
                         cadastro(id, &tipos, Some(serie))
@@ -236,8 +238,7 @@ pub fn atender(
                     }
                 }
                 _ => erro(Estado::RequisicaoInvalida),
-            };
-            resposta
+            }
         }
         ("documento_upload_anexo", "POST") => match pdf_do_multipart(corpo) {
             Some((nome, tamanho)) => {
