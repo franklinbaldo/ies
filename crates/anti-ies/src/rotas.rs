@@ -1,8 +1,8 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
-    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_versoes, documentos,
-    editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
-    processo_envio, retorno_programado,
+    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
+    documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
+    pdf_externo, pesquisa_documento, processo_envio, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -46,6 +46,26 @@ fn visualizar(
                 documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
             }),
     }
+}
+
+/// Resolve o destino obtido por pesquisa sem confundir identidade documental
+/// com a unidade ativa de um processo em tramitação.
+fn trabalhar_protocolo(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(|| {
+        let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
+        match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+            Ok(Some(_)) => documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+            Ok(None) => documento_arvore::responder(metodo, alvo, banco, instalacao, cenario),
+            Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
+        }
+    })
 }
 
 /// Resolve uma única operação a partir do estado da instalação e do cenário.
@@ -131,24 +151,13 @@ pub(crate) fn responder(
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
-            // A pesquisa rápida devolve id_protocolo. Quando esse id também
-            // tem estado de tramitação, a tela deve seguir a unidade ativa,
-            // não a unidade antiga do cadastro documental.
-            processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(
-                || {
-                    let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
-                    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id)
-                    {
-                        Ok(Some(_)) => {
-                            documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
-                        }
-                        Ok(None) => {
-                            documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
-                        }
-                        Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
-                    }
-                },
-            )
+            trabalhar_protocolo(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("documento_cancelar") if eh_controlador_sei(alvo) => {
+            documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("documento_download_anexo") if eh_controlador_sei(alvo) => {
+            pdf_externo::baixar(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)

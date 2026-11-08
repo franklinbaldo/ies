@@ -106,6 +106,24 @@ fn destino_invalido_e_duplicado_nao_modificam_o_banco() {
 }
 
 #[test]
+fn destino_com_id_oferecido_mas_sigla_nao_oferecida_recusa_sem_mutacao() {
+    // O id isolado nao torna uma descricao divergente um destino oferecido.
+    // O anti-IES deve conferir a relacao id/sigla do mesmo SQLite antes de tramitar.
+    let banco = preparar();
+    let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
+    let resposta = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1INEXISTENTE",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
+    assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
+}
+
+#[test]
 fn mesmo_id_em_outro_cenario_nao_acessa_ou_muta_estado() {
     let banco = preparar();
     let r = responder(

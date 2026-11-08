@@ -222,7 +222,7 @@ fn campo(corpo: &str, chave: &str) -> Option<String> {
     decode(valor)
 }
 
-fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
+fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, Vec<u8>)> {
     // O formulario pode enviar outros campos antes do arquivo. So um
     // filArquivo e permitido, e somente seu conteudo conta para o tamanho.
     let fim_primeira = corpo.windows(2).position(|p| p == b"\r\n")?;
@@ -263,7 +263,7 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
             if !pdf.starts_with(b"%PDF-") {
                 return None;
             }
-            arquivo = Some((nome.to_owned(), u64::try_from(pdf.len()).ok()?));
+            arquivo = Some((nome.to_owned(), pdf.to_vec()));
         }
         let depois = fim_dados + terminador.len();
         let marcador = corpo.get(depois..depois + 2)?;
@@ -279,6 +279,31 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
             return None;
         }
         inicio = depois + 2;
+    }
+}
+
+/// GET binário pelo `id_anexo` realmente ligado ao cadastro definitivo.
+/// Sem registro e sem bytes, não fornece arquivo fictício.
+pub(crate) fn baixar(
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if metodo != "GET" {
+        return erro(Estado::MetodoNaoPermitido);
+    }
+    let Some(id_anexo) =
+        parametro_unico(alvo, "id_anexo").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    else {
+        return erro(Estado::RequisicaoInvalida);
+    };
+    match modelo::conteudo_do_anexo(banco, origem, cenario, id_anexo) {
+        Ok(Some(bytes)) => Resposta::pdf(bytes),
+        Ok(None) => erro(Estado::NaoEncontrado),
+        Err(Falha::EntradaInvalida) => erro(Estado::RequisicaoInvalida),
+        Err(e) => falha(&e),
     }
 }
 
@@ -356,8 +381,8 @@ pub fn atender(
             }
         }
         ("documento_upload_anexo", "POST") => match pdf_do_multipart(corpo) {
-            Some((nome, tamanho)) => {
-                match modelo::receber(banco, origem, cenario, id, &nome, tamanho) {
+            Some((nome, bytes)) => {
+                match modelo::receber_conteudo(banco, origem, cenario, id, &nome, &bytes) {
                     Ok(temp) => Resposta {
                         estado: Estado::Ok,
                         tipo_conteudo: "text/plain; charset=utf-8",
@@ -366,6 +391,7 @@ pub fn atender(
                             temp.id, temp.nome, temp.tamanho
                         ),
                         localizacao: None,
+                        corpo_binario: None,
                     },
                     Err(e) => falha(&e),
                 }

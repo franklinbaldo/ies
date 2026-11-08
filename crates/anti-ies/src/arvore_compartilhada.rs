@@ -33,16 +33,19 @@ fn no_documento(
     indice: usize,
     id: &str,
     id_processo: &str,
+    id_anexo: &str,
     tipo: &str,
     numero: &str,
     icone: &str,
 ) -> String {
     let rotulo = js(&format!("{tipo} {numero}"));
     let numero = js(numero);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
+    let anexo = js(id_anexo);
     format!(
         r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{id_processo}","about:blank","ifrVisualizacao","{rotulo}","{rotulo}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 Nos[{indice}].acoes = '';
-Nos[{indice}].src = '';
+Nos[{indice}].src = 'controlador.php?acao=documento_download_anexo&acao_origem=procedimento_visualizar&id_anexo={anexo}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={assinatura}';
 Nos[{indice}].html = '';
 "#
     )
@@ -132,6 +135,7 @@ pub(crate) fn responder(
             inicio + deslocamento,
             &id,
             id_processo,
+            &documento.id.to_string(),
             &documento.tipo,
             &documento.numero_sei,
             "documento_pdf",

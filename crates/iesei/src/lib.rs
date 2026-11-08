@@ -2,6 +2,7 @@
 pub mod acesso_sessao;
 pub mod acesso_versao;
 pub mod banco_cassettes;
+pub mod cancelamento_documento;
 pub mod detalhada_cassettes;
 pub mod documento_versoes;
 pub mod documentos_simulados;

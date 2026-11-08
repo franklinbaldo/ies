@@ -33,6 +33,8 @@ fn bdd_333_03_previa_de_remocao_nao_muta_o_processo_ou_a_anotacao() {
 #[test]
 fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
     let mut previa = args(false);
+    // Comando literal BDD-333-05: sem --manter-aberto.
+    previa.retain(|arg| *arg != "--manter-aberto");
     previa.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar(&[&previa], false, None);
     assert_eq!(
@@ -167,6 +169,8 @@ fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
     // O destino consultado nao consta do mesmo SQLite que sustenta o
     // formulario; a recusa da CLI real nao pode alterar o processo.
     let mut previa = args(false);
+    // Comando literal BDD-333-05: sem --manter-aberto.
+    previa.retain(|arg| *arg != "--manter-aberto");
     previa[5] = "INEXISTENTE";
     previa.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar(&[&previa], false, Some("Nota da origem"));
@@ -192,5 +196,44 @@ fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
             .iter()
             .any(|p| p == "POST procedimento_enviar" || p == "POST anotacao_registrar"),
         "destino invalido nao pode produzir escrita: {pedidos:?}",
+    );
+}
+
+#[test]
+fn bdd_333_05_recusa_da_remocao_nao_bloqueia_envio_basico_posterior() {
+    // A primeira CLI recusa a opcao nao oferecida. Uma segunda CLI,
+    // sem essa opcao, deve conseguir tramitar pelo MESMO SQLite.
+    let mut recusada = args(false);
+    recusada.retain(|arg| *arg != "--manter-aberto");
+    recusada.push("--remover-anotacoes");
+    let mut envio_basico = args(true);
+    envio_basico.retain(|arg| *arg != "--manter-aberto");
+    let (saidas, pedidos, depois) = executar(&[&recusada, &envio_basico], false, None);
+    assert_eq!(saidas[0].status.code(), Some(1), "{pedidos:?}");
+    assert_eq!(
+        json(&saidas[0])["subcodigo"],
+        "remocao_de_anotacoes_nao_oferecida"
+    );
+    assert_eq!(
+        saidas[1].status.code(),
+        Some(0),
+        "envio basico apos recusa: stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saidas[1].stdout),
+        String::from_utf8_lossy(&saidas[1].stderr)
+    );
+    assert_eq!(json(&saidas[1])["depois"], serde_json::json!(["DESTINO"]));
+    assert_eq!(depois.aberto_em, ["DESTINO"]);
+    assert_eq!(depois.anotacao_origem, None);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1,
+        "a recusa da opcao nao pode disparar a escrita"
+    );
+    assert!(
+        !pedidos.iter().any(|p| p == "POST anotacao_registrar"),
+        "a anotacao nao foi observada: {pedidos:?}"
     );
 }

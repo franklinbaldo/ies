@@ -75,14 +75,29 @@ fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
     }
 }
 
-fn destino_indicado(campos: &[(&str, &str)]) -> Option<String> {
+fn destino_indicado(campos: &[(&str, &str)], processo: &ProcessoSimulado) -> Option<String> {
     let unidades = campo_unico(campos, "hdnUnidades")?;
     // O sufixo %B1 está contido em %C2%B1: testar UTF-8 primeiro evita
     // interpretar "2%C2" como identificador do destino.
-    let (id, _) = unidades
+    let (id, descricao) = unidades
         .split_once("%C2%B1")
         .or_else(|| unidades.split_once("%B1"))?;
-    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    // A escolha efetiva é o par id/sigla publicado pelo autocomplete,
+    // não apenas um id verdadeiro acompanhado de um rótulo inventado.
+    // A descrição pode seguir a sigla ("SIGLA - Nome") ou ser só a sigla.
+    let sigla = descricao
+        .split_once("+-+")
+        .or_else(|| descricao.split_once("%20-%20"))
+        .map_or(descricao, |(sigla, _)| sigla);
+    let sigla = decodificar_formulario(sigla)?;
+    processo
+        .destinos
+        .iter()
+        .any(|destino| destino.id == id && destino.sigla == sigla)
+        .then(|| id.to_owned())
 }
 
 fn resposta_html(corpo: String) -> Resposta {
@@ -91,6 +106,7 @@ fn resposta_html(corpo: String) -> Resposta {
         tipo_conteudo: "text/html; charset=utf-8",
         corpo,
         localizacao: None,
+        corpo_binario: None,
     }
 }
 
@@ -102,6 +118,7 @@ fn redirecionado(acao: &str, id: &str) -> Resposta {
         localizacao: Some(format!(
             "controlador.php?acao=arvore_visualizar&acao_origem={acao}&id_procedimento={id}"
         )),
+        corpo_binario: None,
     }
 }
 
@@ -159,7 +176,7 @@ pub fn responder(
     }
     if metodo == "GET" {
         return match acao {
-            "procedimento_enviar" => resposta_html(pagina_de_envio(&processo)),
+            "procedimento_enviar" => resposta_html(pagina_de_envio(&processo, &unidade_atual)),
             "anotacao_registrar" => pagina_anotacao(&processo)
                 .map_or_else(|| Resposta::nova(Estado::DadosInsuficientes), resposta_html),
             _ => unreachable!(),
@@ -186,7 +203,7 @@ pub fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
     let (Some(id_destino), Some(manter_aberto), Some(remover_anotacoes)) = (
-        destino_indicado(&campos),
+        destino_indicado(&campos, &processo),
         checar_checkbox(&campos, "chkSinManterAberto"),
         checar_checkbox(&campos, "chkSinRemoverAnotacoes"),
     ) else {
@@ -268,6 +285,7 @@ pub fn autocompletar(
         tipo_conteudo: "application/xml; charset=utf-8",
         corpo: xml,
         localizacao: None,
+        corpo_binario: None,
     }
 }
 
