@@ -6,7 +6,7 @@ permissions:
   contents: read
 jobs:
   acervo:
-    if: "github.event.head_commit.message == '🦊 test: inspecionar formulário do acervo PEN1'"
+    if: "github.event.head_commit.message == '🦊 test: revisar href filtro PEN1'"
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
@@ -38,7 +38,12 @@ jobs:
                       metodo=re.match(r'\s*([\w$]+)\(',click)
                       forma=metodo.group(1) if metodo else ('sem_onclick' if not click else 'outro_onclick')
                       if self.nivel: self.ancoras.append((classe,forma))
-                      if a.get('id')=='ancExibirSeries':self.filtro.append((classe,forma))
+                      if a.get('id')=='ancExibirSeries':
+                          self.filtro.append((classe,forma))
+                          if re.fullmatch(r'javascript:[\\w();.\\s-]{0,80}',href):
+                              print('FILTRO_HREF_LITERAL',repr(href))
+                          else:
+                              print('FILTRO_HREF_CLASSE',classe,'COMPRIMENTO',len(href))
                   if tag=='script' and not a.get('src'):self.dentro_script=True
               def handle_endtag(self,tag):
                   if tag=='table' and self.nivel:self.nivel-=1
