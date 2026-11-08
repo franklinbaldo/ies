@@ -62,8 +62,14 @@ pub fn guardar(
         }
     }
     let origem = controle.instalacao.url_base();
-    let inicio = tabela.faixa_observada.map(|f| inteiro(f.inicio())).transpose()?;
-    let fim = tabela.faixa_observada.map(|f| inteiro(f.fim())).transpose()?;
+    let inicio = tabela
+        .faixa_observada
+        .map(|f| inteiro(f.inicio()))
+        .transpose()?;
+    let fim = tabela
+        .faixa_observada
+        .map(|f| inteiro(f.fim()))
+        .transpose()?;
     let tx = banco.transaction()?;
     tx.execute(
         "INSERT INTO controle_detalhado (origem, cenario, unidade, total, inicio, fim)
@@ -71,7 +77,14 @@ pub fn guardar(
          ON CONFLICT(origem, cenario) DO UPDATE SET
          unidade=excluded.unidade, total=excluded.total,
          inicio=excluded.inicio, fim=excluded.fim",
-        params![origem, cenario, controle.unidade.as_str(), inteiro(total)?, inicio, fim],
+        params![
+            origem,
+            cenario,
+            controle.unidade.as_str(),
+            inteiro(total)?,
+            inicio,
+            fim
+        ],
     )?;
     tx.execute(
         "DELETE FROM controle_detalhado_linha WHERE origem=?1 AND cenario=?2",
@@ -83,8 +96,13 @@ pub fn guardar(
              (origem, cenario, posicao, id, numero, visualizado, sigiloso)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                origem, cenario, inteiro(posicao)?, linha.id, linha.numero,
-                linha.visualizado, linha.sigiloso
+                origem,
+                cenario,
+                inteiro(posicao)?,
+                linha.id,
+                linha.numero,
+                linha.visualizado,
+                linha.sigiloso
             ],
         )?;
     }
@@ -124,10 +142,9 @@ pub fn ler(
     let unidade = UnidadeExibida::nova(&nome).ok_or(Falha::ObservacaoInvalida)?;
     let faixa = match (inicio, fim) {
         (None, None) => None,
-        (Some(i), Some(f)) => Some(
-            FaixaObservada::nova(natural(i)?, natural(f)?)
-                .ok_or(Falha::ObservacaoInvalida)?,
-        ),
+        (Some(i), Some(f)) => {
+            Some(FaixaObservada::nova(natural(i)?, natural(f)?).ok_or(Falha::ObservacaoInvalida)?)
+        }
         _ => return Err(Falha::ObservacaoInvalida),
     };
     let mut consulta = banco.prepare(
