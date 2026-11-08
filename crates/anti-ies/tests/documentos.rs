@@ -39,7 +39,7 @@ fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     let repetido = consultar(endereco, "POST", selecao, "hdnIdSerie=291&hdnIdSerie=291");
     assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
 }
- 
+
 #[test]
 fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
