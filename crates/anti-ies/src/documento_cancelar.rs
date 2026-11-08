@@ -1,8 +1,8 @@
 //! Oferta de cancelamento e POST único do SEI simulado (#273).
 //! A tela é derivada de identidade e estado SQLite; não é cópia de cassette.
 use crate::{
-    Estado, Resposta, despachar, documentos::campo_formulario_unico,
-    eh_controlador_sei, parametro_unico,
+    Estado, Resposta, despachar, documentos::campo_formulario_unico, eh_controlador_sei,
+    parametro_unico,
 };
 use iesei::cancelamento_documento::{self, Aplicacao, Situacao};
 use iesei::documento_versoes::ler;
@@ -17,10 +17,8 @@ pub(crate) fn estado(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<Option<Situacao>, Estado> {
-    cancelamento_documento::consultar(
-        banco, instalacao, cenario, id_documento, id_procedimento,
-    )
-    .map_err(|_| Estado::DadosInsuficientes)
+    cancelamento_documento::consultar(banco, instalacao, cenario, id_documento, id_procedimento)
+        .map_err(|_| Estado::DadosInsuficientes)
 }
 
 fn formulario(id_doc: &str, id_proc: &str) -> Resposta {
@@ -44,8 +42,7 @@ pub fn responder(
         return despachar(metodo, alvo);
     }
     let (Some(id_doc), Some(id_proc)) = (
-        parametro_unico(alvo, "id_documento")
-            .filter(|id| id.bytes().all(|b| b.is_ascii_digit())),
+        parametro_unico(alvo, "id_documento").filter(|id| id.bytes().all(|b| b.is_ascii_digit())),
         parametro_unico(alvo, "id_procedimento")
             .filter(|id| id.bytes().all(|b| b.is_ascii_digit())),
     ) else {
@@ -77,9 +74,7 @@ pub fn responder(
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    match cancelamento_documento::aplicar(
-        banco, origem, cenario, id_doc, id_proc, &motivo,
-    ) {
+    match cancelamento_documento::aplicar(banco, origem, cenario, id_doc, id_proc, &motivo) {
         Ok(Aplicacao::Aplicada) => Resposta::redirecionar(format!(
             "controlador.php?acao=arvore_visualizar&acao_origem=documento_cancelar&arvore=1&id_procedimento={id_proc}&id_documento={id_doc}&atualizar_arvore=1&infra_hash={}",
             "c".repeat(64)
