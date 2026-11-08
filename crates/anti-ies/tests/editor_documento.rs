@@ -206,7 +206,10 @@ fn bdd_89_02_editor_http_grava_html_maior_que_oito_kib_e_rele() {
     assert!(formulario.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(formulario.contains("frmDocumentoEditar"));
     let publicada = pedir(endereco, "POST", alvo(), &corpo);
-    assert!(publicada.starts_with("HTTP/1.1 302 Found\r\n"), "{publicada}");
+    assert!(
+        publicada.starts_with("HTTP/1.1 302 Found\r\n"),
+        "{publicada}"
+    );
     let lida = pedir(
         endereco,
         "GET",
