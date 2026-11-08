@@ -96,11 +96,18 @@ pub(crate) fn responder(
     // A navegação de tramitação já contém versões e internos com seus links.
     // Sem snapshot de navegação, reutilizamos sua projeção de nós, sem
     // duplicar identidades e sem descartar versões anteriores ao PDF.
-    let base = if selecionado.is_none() {
-        crate::processo_envio::navegacao(metodo, alvo, banco, origem, cenario)
-    } else {
-        None
-    };
+    // Ao selecionar o PDF, preserve também a barra e a situação da raiz
+    // já publicadas pela navegação de tramitação para o mesmo processo.
+    let alvo_sem_selecao = selecionado.map(|_| {
+        format!("controlador.php?acao=procedimento_visualizar&id_procedimento={id_processo}")
+    });
+    let base = crate::processo_envio::navegacao(
+        metodo,
+        alvo_sem_selecao.as_deref().unwrap_or(alvo),
+        banco,
+        origem,
+        cenario,
+    );
     if base.as_ref().is_some_and(|r| r.estado != Estado::Ok) {
         return base.expect("resposta presente");
     }
