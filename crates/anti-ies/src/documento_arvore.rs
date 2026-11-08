@@ -33,7 +33,10 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
         Situacao::Disponivel => (
             "documento_interno",
             "Documento interno".to_owned(),
-            format!("<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>", "a".repeat(64)),
+            format!(
+                "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>",
+                "a".repeat(64)
+            ),
         ),
         Situacao::Cancelado { motivo } => (
             "documento_cancelado",
@@ -121,14 +124,18 @@ pub fn responder(
     match acao {
         Some("procedimento_visualizar") => {
             let situacao = match crate::documento_cancelar::estado(
-                banco, instalacao, cenario, &documento.id_documento, &documento.id_procedimento,
+                banco,
+                instalacao,
+                cenario,
+                &documento.id_documento,
+                &documento.id_procedimento,
             ) {
                 Ok(Some(situacao)) => situacao,
                 Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
                 Err(estado) => return Resposta::nova(estado),
             };
             html(arvore(&documento, &situacao))
-        },
+        }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
     }
