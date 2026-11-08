@@ -69,7 +69,9 @@ impl Falha {
             Self::BaseAlterada => "a base local não corresponde ao HTML remoto da versão",
             Self::EditorIndisponivel => "a instalação sintética não ofereceu editor verificável",
             Self::Formulario => "o formulário publicado não corresponde ao editor simulado",
-            Self::RegiaoNaoEditavelAlterada => "a edição alterou uma região não editável da foto local",
+            Self::RegiaoNaoEditavelAlterada => {
+                "a edição alterou uma região não editável da foto local"
+            }
         }
     }
 }
@@ -306,7 +308,6 @@ fn executar(
     )
 }
 
-
 #[cfg(test)]
 mod testes_moldura {
     use super::corpos_da_edicao;
@@ -320,10 +321,7 @@ mod testes_moldura {
             corpo_novo.replace("<title>Documento</title>", "<title>Outro</title>"),
             corpo_novo.replace("<div>Versão 3</div>", "<div>Versão 99</div>"),
         ] {
-            assert!(matches!(
-                corpos_da_edicao(BASE, &edicao),
-                Err(_)
-            ));
+            assert!(matches!(corpos_da_edicao(BASE, &edicao), Err(_)));
         }
     }
 
