@@ -126,12 +126,7 @@ fn enviar(
         // A recusa ocorre antes de construir o pedido ou abrir a rede.
         if remover_anotacoes && confirmar && !destino_do_ensaio_local(sessao.origem) {
             let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                None,
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.subcodigo(), erro.mensagem(), None);
         }
         let pedido = PedidoDoEnvio {
             nup,
