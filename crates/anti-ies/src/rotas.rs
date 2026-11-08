@@ -1,6 +1,6 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
-    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_versoes, documentos,
+    Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar, documento_versoes, documentos,
     editor_documento, eh_controlador_sei, parametro_unico, pdf_externo, pesquisa_documento,
     processo_envio, retorno_programado,
 };
@@ -146,6 +146,9 @@ pub(crate) fn responder(
                     }
                 },
             )
+        }
+        Some("documento_cancelar") if eh_controlador_sei(alvo) => {
+            documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("documento_editar" | "editor_montar") if eh_controlador_sei(alvo) => {
             editor_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
