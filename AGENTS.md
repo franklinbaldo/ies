@@ -240,21 +240,22 @@ O que falta implementar e em que ordem está na
   texto, tabela ou código para caber; não espere o gate falhar.
 - **Fatia vertical IES ↔ anti-IES:** a **mesma PR** pode alterar
   `src/**`, `crates/iesei/**`, `crates/anti-ies/**` e seus testes,
-  inclusive criar tipos e evoluir o esquema SQLite, **quando necessária
-  para fechar uma capacidade da CLI contra cassettes verificadas**.
+  inclusive criar tipos e evoluir o esquema SQLite, **sem exigir
+  cassette prévia: implementar e testar a capacidade já é progresso**.
   É exceção à divisão rígida por prefixos, não licença para editar
   branch ou arquivos com dono ativo sem coordenação. Fluxo, shape
   versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
   BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
   (autorização do proprietário); nos demais comandos, vale o 🐘.
   **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
-  Quando houver cassette verificável, implementadores 🦊 🦉 🐢 🐙 🦫
-  preferem fechar na mesma PR a vertical IES → SQLite efêmero →
-  anti-IES → comparação da CLI. 🦅 revisa a evidência, 🦡 evita
-  duplicação e integra, 🐘 coordena a fila. Respeitar WIP alheio;
-  não criar PR por camada. Sem evidência, registrar PARCIAL/NOT_RUN
-  sem bloquear a CLI nem inventar HTML. Remover mocks somente após
-  equivalência comprovada, preservando BDD e CI.
+  **Implementar → testar → aprender → corrigir.** 🦊 🦉 🐢 🐙 🦫
+  devem construir a vertical IES → SQLite efêmero → anti-IES → CLI.
+  **Não esperar cassette, REA nem prova externa para começar.**
+  Criar hipótese revisável, fixture sintética e testes como evidência
+  de funcionamento. 🦅 não veta por ausência de cassette; 🦡 evita
+  espera/churn; 🐘 distribui a fila. Respeitar WIP alheio e BDD da CLI.
+  PASS sintético não significa compatibilidade SEI validada; corrigir
+  hipóteses quando surgirem capturas. Remover mocks só após equivalência.
   **Engenharia reversa por evidências:** usar a skill oficial REA
   quando houver captura HAR, artefato ou runtime autorizado; o
   [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue

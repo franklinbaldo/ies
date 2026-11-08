@@ -6,30 +6,28 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 
 # Ciclo fechado IES ↔ anti-IES
 
-**Fonte de verdade:** cassettes públicas e imutáveis do SEI, com cards OKF,
-ZIPs, hashes e proveniência conferidos. **Resultado esperado:** fatos
-extraídos da resposta original por verificação independente do renderizador.
-O anti-IES não deve simplesmente devolver o HTML gravado.
+**Implementar → testar → aprender → corrigir:** o teste também produz
+evidência. **Cassette e REA não são pré-requisitos** para iniciar, codificar
+ou concluir uma fatia funcional: começar com hipótese testável e fixture
+sintética. Cassettes verificadas são referência para confrontar e corrigir
+hipóteses depois, não uma condição de autorização para implementar.
+O anti-IES não deve simplesmente devolver HTML gravado.
 O objetivo é um **sistema funcional, com estado coerente entre operações**.
 A reconstrução do comportamento Web e das transições segue o
 [guia de engenharia reversa com REA](rea-engenharia-reversa.md):
 captura comprovada ≠ hipótese; reproduzir estados e efeitos, não páginas isoladas.
 
-1. Carregar a cassette **conferida** (ZIP SHA-1, membro SHA-256 normalizado,
-   instalação, schema e status), com o leitor de acervo existente.
-2. O **IES real** interpreta a resposta e transforma os fatos observados em
-   entidades Rust tipadas; informações que não vieram na cassette continuam
-   ausentes, jamais iguais a zero por conveniência.
-3. Gravar a projeção num **SQLite efêmero**, criado do zero para a execução
-   local/offline. O **anti-IES** lê as entidades e serve a operação Web
-   equivalente, sem contatos externos com instalações SEI.
-4. O **comando real do IES** consome a resposta do anti-IES. Comparar saída
-   e efeitos observáveis com uma expectativa independente da cassette:
-   valores, causas de erro, unidade, listas, total, faixa e estado, conforme
-   o que a captura demonstrou. HTML byte a byte não é contrato.
-5. Só substituir mocks/testes redundantes após comprovar cobertura
-   equivalente **inclusive das recusas**. Preservar testes unitários que
-   provam invariantes distintas e os gates atuais.
+1. Partir do BDD da CLI; escrever um teste RED com a hipótese mais simples.
+   Sem cassette, construir fixture sintética e seguir implementando.
+2. Implementar parser, tipos Rust e estado, usando testes como evidência de
+   funcionamento e fonte de contraexemplos.
+3. Recriar SQLite efêmero e servir no anti-IES o comportamento testado,
+   sem acesso a instalações reais do SEI.
+4. Rodar o IES contra o anti-IES e conferir saída, erros e efeitos com
+   expectativa independente do renderizador. Com cassette disponível,
+   comparar também a gravação externa e seus hashes.
+5. Corrigir e repetir. Só ablar mocks após cobertura equivalente de casos
+   positivos e negativos; preservar testes de invariantes distintas.
 
 O teste de parser isolado não comprova o passo 4: documentar `PARCIAL`,
 não `E2E PASS`. Um caso completo por operação vale mais do que
@@ -83,8 +81,9 @@ nem bancos derivados.
 ## Trabalho simultâneo e aceite
 
 **Responsabilidade transversal de toda a equipe, não um agente novo:**
-a cada comando/BDD assumido, seu implementador procura cassettes pertinentes
-e, quando a evidência permitir, fecha também a vertical no anti-IES.
+a cada comando/BDD assumido, o implementador inicia também a vertical
+anti-IES. **Não esperar por cassette, REA ou "evidência suficiente".**
+Fazer o modelo funcionar com testes e hipóteses que possam mudar.
 Não delegar o servidor a uma fila separada: quem altera o parser pode alterar
 os tipos `iesei`, a migração SQL, a renderização e o teste diferencial
 no **mesmo PR**. 🦅 revisa a correspondência à cassette e a ausência de
@@ -94,11 +93,11 @@ remove duplicações **após** equivalência e desbloqueia integrações;
 seguem suas áreas — UX, processos, Web e documentos — e não disputam um
 mesmo arquivo ativo.
 
-Não exigir que cada correção interna ou capacidade sem cassette vire uma
-implementação artificial no anti-IES: sinalizar `PARCIAL/NOT_RUN`,
-preservar o avanço independente da CLI e registrar a lacuna no handoff.
-Uma cassette ausente não é motivo para inventar HTML. Não criar
-nova rotina, gate, pipeline ou suite paralela somente para esta divisão.
+Sem cassette, implementar e testar a melhor versão funcional com fixture
+sintética revisável. **Não entregar apenas parecer de falta de evidência.**
+Gerar HTML pelo estado do servidor, não copiar um mock estático.
+Declarar PASS sintético na prova executada e NOT_RUN apenas na
+comparação externa ainda não realizada. Não criar novo gate ou pipeline.
 
 Um agente pode corrigir o parser do IES, acrescentar `struct`/`enum`,
 nova migração SQL, renderização do anti-IES e o teste de CLI **na mesma
@@ -108,10 +107,10 @@ vertical; respeitar reservas e branches de outros donos, coordenando
 arquivos compartilhados. Não criar uma PR por camada, não introduzir
 framework, outra suíte de CI ou testes repetidos.
 
-A PR declara: card/hashes, operação/cenário BDD AIES-01..04 (ou cenário
-CLI previamente aprovado), versão do shape e arquivos de migração,
-tabelas e tipos novos, fato observado vs. desconhecido, resultados de
-`cassette → banco → anti-IES` e `IES → anti-IES`, testes antigos
-substituídos e suas garantias, status `PASS/FAIL/NOT_RUN`, SHA e risco
-residual. **Sem prova, registrar NOT_RUN, não anunciar compatibilidade.**
-CI canônico e limites de treinamento, HTTPS e não produção permanecem.
+A PR informa BDD, hipótese, testes, schema/tipos, ciclo
+`IES → SQLite → anti-IES → IES`, status do CI e riscos. Card e hashes
+somente quando disponíveis. **PASS nos testes é evidência suficiente
+para continuar implementação e integrar a fatia com gates verdes.**
+Não confundir PASS sintético com compatibilidade externa comprovada.
+Ausência de cassette/REA **não bloqueia desenvolvimento ou PR**;
+HTTPS, restrições de produção e segurança continuam vigentes.
