@@ -1,9 +1,9 @@
 //! Fronteira tipada IES ↔ anti-IES: a lista vem de uma resposta HTTP real.
 //! Teste técnico da seleção BDD-246-01/03, não um teste da CLI completa.
-use super::{conferir_tipo, tipos_oferecidos, ErroCriar};
+use super::{ErroCriar, conferir_tipo, tipos_oferecidos};
 use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
-use iesei::documentos_simulados::{registrar_processo, registrar_tipo, Processo, Tipo};
+use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::io::{Read, Write};
@@ -17,12 +17,28 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
         let banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-        registrar_processo(&banco, &origem, "bdd-246", &Processo {
-            id: "10".into(), nup: "00001.000001/2026-01".into(), unidade: "TESTE".into(),
-        }).unwrap();
-        registrar_tipo(&banco, &origem, "bdd-246", "10", &Tipo {
-            id: "291".into(), nome: "Despacho".into(),
-        }).unwrap();
+        registrar_processo(
+            &banco,
+            &origem,
+            "bdd-246",
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        registrar_tipo(
+            &banco,
+            &origem,
+            "bdd-246",
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
         let (mut fluxo, _) = escuta.accept().unwrap();
         atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
     });
@@ -40,7 +56,10 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     let tipos = tipos_oferecidos(html).unwrap();
     assert_eq!(tipos, ["Despacho"]);
     assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
-    assert_eq!(conferir_tipo("Parecer", &tipos), Err(ErroCriar::TipoAusente));
+    assert_eq!(
+        conferir_tipo("Parecer", &tipos),
+        Err(ErroCriar::TipoAusente)
+    );
     assert_eq!(
         conferir_tipo("Despacho", &["Despacho".into(), "Despacho".into()]),
         Err(ErroCriar::TipoAmbiguo)

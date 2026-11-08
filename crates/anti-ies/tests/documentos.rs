@@ -17,10 +17,13 @@ fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &s
         fluxo,
         "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
         corpo.len()
-    ).expect("enviar requisição");
+    )
+    .expect("enviar requisição");
     fluxo.shutdown(Shutdown::Write).expect("encerrar envio");
     let mut resposta = String::new();
-    fluxo.read_to_string(&mut resposta).expect("receber resposta");
+    fluxo
+        .read_to_string(&mut resposta)
+        .expect("receber resposta");
     resposta
 }
 
@@ -33,14 +36,28 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
         iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
         let cenario = "bdd-246";
-        sim::registrar_processo(&banco, &origem, cenario, &Processo {
-            id: "10".into(),
-            nup: "00001.000001/2026-01".into(),
-            unidade: "UNIDADE TESTE".into(),
-        }).unwrap();
-        sim::registrar_tipo(&banco, &origem, cenario, "10", &Tipo {
-            id: "291".into(), nome: "Despacho".into(),
-        }).unwrap();
+        sim::registrar_processo(
+            &banco,
+            &origem,
+            cenario,
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "UNIDADE TESTE".into(),
+            },
+        )
+        .unwrap();
+        sim::registrar_tipo(
+            &banco,
+            &origem,
+            cenario,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
         let anterior = sim::criar(&banco, &origem, cenario, "10", "291", "Anterior").unwrap();
         assert_eq!(anterior.numero_sei, "1000001");
         for _ in 0..NUMERO_PEDIDOS {
@@ -67,28 +84,40 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(form.starts_with("HTTP/1.1 200 OK"));
     assert!(form.contains("frmDocumentoCadastro"));
     let invalido = consultar(
-        endereco, "POST", &cadastro,
+        endereco,
+        "POST",
+        &cadastro,
         "hdnIdSerie=999&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Errado",
     );
     assert!(invalido.starts_with("HTTP/1.1 400 Bad Request"));
     let apos_recusa = consultar(endereco, "GET", &arvore, "");
     assert!(!apos_recusa.contains("Despacho 1000002"));
     let duplicado = consultar(
-        endereco, "POST", &cadastro,
+        endereco,
+        "POST",
+        &cadastro,
         "hdnIdSerie=291&hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Errado",
     );
     assert!(duplicado.starts_with("HTTP/1.1 400 Bad Request"));
-    let corpo = "hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Ensaio+PEN1";
+    let corpo =
+        "hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Ensaio+PEN1";
     let confirmacao = consultar(endereco, "POST", &cadastro, corpo);
     assert!(confirmacao.starts_with("HTTP/1.1 302 Found"));
-    assert!(confirmacao.contains("Location: controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=2\r\n"));
+    assert!(confirmacao.contains(
+        "Location: controlador.php?acao=arvore_visualizar&id_procedimento=10&id_documento=2\r\n"
+    ));
     let apos = consultar(endereco, "GET", &arvore, "");
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
     let metodo_errado = consultar(endereco, "POST", &selecao, "");
     assert!(metodo_errado.starts_with("HTTP/1.1 405 Method Not Allowed"));
-    let sem_nup = consultar(endereco, "GET", &format!("{BASE}?acao=procedimento_trabalhar&id_procedimento=999"), "");
+    let sem_nup = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_trabalhar&id_procedimento=999"),
+        "",
+    );
     assert!(sem_nup.starts_with("HTTP/1.1 404 Not Found"));
     servidor.join().unwrap();
 }

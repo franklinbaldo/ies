@@ -378,21 +378,34 @@ pub fn atender_http(
         Ok(pedido) => {
             if let Some((banco, instalacao, cenario)) = fonte {
                 match parametro_unico(&pedido.alvo, "acao") {
-                    Some("retorno_programado_listar") =>
-                        retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
+                    Some("retorno_programado_listar") => {
+                        retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+                    }
                     Some("documento_escolher_tipo" | "documento_gerar" | "arvore_visualizar")
                         if eh_controlador_sei(&pedido.alvo) =>
+                    {
                         documentos::atender(
-                            &pedido.metodo, &pedido.alvo, &pedido.corpo,
-                            banco, instalacao, cenario,
-                        ),
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
                     Some("procedimento_trabalhar")
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
+                    {
                         documentos::atender(
-                            &pedido.metodo, &pedido.alvo, &pedido.corpo,
-                            banco, instalacao, cenario,
-                        ),
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
                     _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
                 }
             } else {

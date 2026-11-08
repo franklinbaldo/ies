@@ -1,6 +1,6 @@
 //! Rotas de navegação e criação de documento no anti-IES (#246).
 //! Modelo local sintético; HTML vem de SQLite, jamais de uma cassette congelada.
-use super::{eh_controlador_sei, escapar, parametro_unico, Estado, Resposta};
+use super::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
 use iesei::documentos_simulados::{self as modelo, Falha};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -13,10 +13,12 @@ fn id_da_rota<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
 fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
     let mut campos = corpo.split('&').filter_map(|campo| campo.split_once('='));
     let valor = campos.find(|(n, _)| *n == nome)?.1;
-    let existe_repetido = corpo.split('&')
+    let existe_repetido = corpo
+        .split('&')
         .filter_map(|parte| parte.split_once('='))
         .filter(|(n, _)| *n == nome)
-        .count() != 1;
+        .count()
+        != 1;
     if existe_repetido {
         return None;
     }
@@ -40,8 +42,9 @@ fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
 
 fn erros_de_modelo(falha: Falha) -> Resposta {
     match falha {
-        Falha::TipoIndisponivel | Falha::EntradaInvalida =>
-            Resposta::nova(Estado::RequisicaoInvalida),
+        Falha::TipoIndisponivel | Falha::EntradaInvalida => {
+            Resposta::nova(Estado::RequisicaoInvalida)
+        }
         Falha::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
@@ -62,24 +65,26 @@ fn pagina_do_processo(
         "<html><body><span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
          <a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={}'>Incluir Documento</a>\
          <ul id='documentos'>",
-        escapar(&processo.nup), escapar(&processo.unidade), id,
+        escapar(&processo.nup),
+        escapar(&processo.unidade),
+        id,
     );
     for doc in documentos {
         write!(
-            html, "<li data-id='{}' data-numero-sei='{}'>{} {}</li>",
-            doc.id, doc.numero_sei, escapar(&doc.tipo), doc.numero_sei
-        ).expect("formatação String");
+            html,
+            "<li data-id='{}' data-numero-sei='{}'>{} {}</li>",
+            doc.id,
+            doc.numero_sei,
+            escapar(&doc.tipo),
+            doc.numero_sei
+        )
+        .expect("formatação String");
     }
     html.push_str("</ul></body></html>");
     Resposta::html(html)
 }
 
-fn pagina_da_lista(
-    banco: &Connection,
-    origem: &Instalacao,
-    cenario: &str,
-    id: &str,
-) -> Resposta {
+fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
     let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
@@ -141,18 +146,23 @@ pub(crate) fn atender(
     let Some(acao) = parametro_unico(alvo, "acao") else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if !matches!(acao, "documento_gerar" | "documento_escolher_tipo" |
-                  "procedimento_trabalhar" | "arvore_visualizar") {
+    if !matches!(
+        acao,
+        "documento_gerar"
+            | "documento_escolher_tipo"
+            | "procedimento_trabalhar"
+            | "arvore_visualizar"
+    ) {
         return Resposta::nova(Estado::NaoImplementado);
     }
     let Some(id) = id_da_rota(alvo, "id_procedimento") else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     match (acao, metodo) {
-        ("procedimento_trabalhar" | "arvore_visualizar", "GET") =>
-            pagina_do_processo(banco, origem, cenario, id),
-        ("documento_escolher_tipo", "GET") =>
-            pagina_da_lista(banco, origem, cenario, id),
+        ("procedimento_trabalhar" | "arvore_visualizar", "GET") => {
+            pagina_do_processo(banco, origem, cenario, id)
+        }
+        ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id),
         ("documento_gerar", "GET") => {
             let Some(serie) = id_da_rota(alvo, "id_serie") else {
                 return Resposta::nova(Estado::RequisicaoInvalida);

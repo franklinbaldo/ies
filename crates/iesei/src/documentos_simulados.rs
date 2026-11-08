@@ -1,7 +1,7 @@
 //! Estado tipado e compartilhado do simulador local de documento interno.
 //! Hipótese sintética revisável; não contém cookies, URLs assinadas ou dados reais.
 use crate::instalacao::Instalacao;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Processo {
@@ -62,7 +62,13 @@ pub fn registrar_processo(
          VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(origem, cenario, id_procedimento)
          DO UPDATE SET nup=excluded.nup, unidade=excluded.unidade",
-        params![origem.url_base(), cenario, processo.id, processo.nup, processo.unidade],
+        params![
+            origem.url_base(),
+            cenario,
+            processo.id,
+            processo.nup,
+            processo.unidade
+        ],
     )?;
     Ok(())
 }
@@ -89,7 +95,13 @@ pub fn registrar_tipo(
          VALUES (?1, ?2, ?3, ?4, ?5)
          ON CONFLICT(origem, cenario, id_procedimento, id_serie)
          DO UPDATE SET nome=excluded.nome",
-        params![origem.url_base(), cenario, id_procedimento, tipo.id, tipo.nome],
+        params![
+            origem.url_base(),
+            cenario,
+            id_procedimento,
+            tipo.id,
+            tipo.nome
+        ],
     )?;
     Ok(())
 }
@@ -104,12 +116,20 @@ pub fn ler_processo(
     cenario: &str,
     id: &str,
 ) -> rusqlite::Result<Option<Processo>> {
-    banco.query_row(
-        "SELECT id_procedimento, nup, unidade FROM sim_processo
+    banco
+        .query_row(
+            "SELECT id_procedimento, nup, unidade FROM sim_processo
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
-        params![origem.url_base(), cenario, id],
-        |r| Ok(Processo { id: r.get(0)?, nup: r.get(1)?, unidade: r.get(2)? }),
-    ).optional()
+            params![origem.url_base(), cenario, id],
+            |r| {
+                Ok(Processo {
+                    id: r.get(0)?,
+                    nup: r.get(1)?,
+                    unidade: r.get(2)?,
+                })
+            },
+        )
+        .optional()
 }
 
 /// Lista oferecida pelo modelo, inclusive nomes duplicados para testar ambiguidade.
@@ -127,8 +147,12 @@ pub fn tipos(
          AND id_procedimento=?3 ORDER BY id_serie",
     )?;
     stmt.query_map(params![origem.url_base(), cenario, id_procedimento], |r| {
-        Ok(Tipo { id: r.get(0)?, nome: r.get(1)? })
-    })?.collect()
+        Ok(Tipo {
+            id: r.get(0)?,
+            nome: r.get(1)?,
+        })
+    })?
+    .collect()
 }
 
 /// Fotografia independente dos documentos que existem no estado simulado.
@@ -157,7 +181,8 @@ pub fn documentos(
             tipo: r.get(1)?,
             descricao: r.get(2)?,
         })
-    })?.collect()
+    })?
+    .collect()
 }
 
 /// Uma chamada equivale a uma única escrita. Não há retry ou sucesso presumido.
@@ -180,7 +205,13 @@ pub fn criar(
          SELECT origem, cenario, id_procedimento, id_serie, ?5, 0
          FROM sim_tipo WHERE origem=?1 AND cenario=?2
            AND id_procedimento=?3 AND id_serie=?4",
-        params![origem.url_base(), cenario, id_procedimento, id_serie, descricao],
+        params![
+            origem.url_base(),
+            cenario,
+            id_procedimento,
+            id_serie,
+            descricao
+        ],
     )?;
     if quantidade != 1 {
         return Err(Falha::TipoIndisponivel);
@@ -210,25 +241,68 @@ mod tests {
         let banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-        let processo = Processo { id: "10".into(), nup: "00001.000001/2026-01".into(), unidade: "U1".into() };
+        let processo = Processo {
+            id: "10".into(),
+            nup: "00001.000001/2026-01".into(),
+            unidade: "U1".into(),
+        };
         registrar_processo(&banco, &origem, "bdd-246", &processo).unwrap();
-        registrar_tipo(&banco, &origem, "bdd-246", "10", &Tipo { id: "291".into(), nome: "Despacho".into() }).unwrap();
-        assert!(documentos(&banco, &origem, "bdd-246", "10").unwrap().is_empty());
+        registrar_tipo(
+            &banco,
+            &origem,
+            "bdd-246",
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        assert!(
+            documentos(&banco, &origem, "bdd-246", "10")
+                .unwrap()
+                .is_empty()
+        );
         let criado = criar(&banco, &origem, "bdd-246", "10", "291", "Teste").unwrap();
-        assert_eq!(documentos(&banco, &origem, "bdd-246", "10").unwrap(), vec![criado]);
-        assert!(documentos(&banco, &origem, "outro", "10").unwrap().is_empty());
-        assert!(ler_processo(&banco, &origem, "outro", "10").unwrap().is_none());
-        assert!(matches!(criar(&banco, &origem, "bdd-246", "10", "999", "X"), Err(Falha::TipoIndisponivel)));
-        assert_eq!(documentos(&banco, &origem, "bdd-246", "10").unwrap().len(), 1);
+        assert_eq!(
+            documentos(&banco, &origem, "bdd-246", "10").unwrap(),
+            vec![criado]
+        );
+        assert!(
+            documentos(&banco, &origem, "outro", "10")
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            ler_processo(&banco, &origem, "outro", "10")
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            criar(&banco, &origem, "bdd-246", "10", "999", "X"),
+            Err(Falha::TipoIndisponivel)
+        ));
+        assert_eq!(
+            documentos(&banco, &origem, "bdd-246", "10").unwrap().len(),
+            1
+        );
     }
 
     #[test]
     fn esquema_descartavel_e_idempotente_por_identidade_da_serie() {
         let banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
-        assert_eq!(banco.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0)).unwrap(), 3);
+        assert_eq!(
+            banco
+                .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
+                .unwrap(),
+            3
+        );
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-        let tipo = Tipo { id: "291".into(), nome: "Despacho".into() };
+        let tipo = Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        };
         registrar_tipo(&banco, &origem, "c", "10", &tipo).unwrap();
         registrar_tipo(&banco, &origem, "c", "10", &tipo).unwrap();
         assert_eq!(tipos(&banco, &origem, "c", "10").unwrap(), vec![tipo]);
