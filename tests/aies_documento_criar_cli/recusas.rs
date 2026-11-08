@@ -34,8 +34,7 @@ fn bdd_246_03_cli_expande_lista_e_recusa_tipo_ambiguo_sem_escrita() {
     // de nome igual está disponível somente após "Exibir todos".
     let previa = criar(false);
     let confirmacao = criar(true);
-    let (saidas, trilha, quantidade) =
-        executar_com_cena(&[&previa, &confirmacao], false, true);
+    let (saidas, trilha, quantidade) = executar_com_cena(&[&previa, &confirmacao], false, true);
     for saida in &saidas {
         assert_eq!(
             saida.status.code(),
