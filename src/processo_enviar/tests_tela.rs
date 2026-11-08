@@ -263,3 +263,159 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
         }
     }
 }
+
+// Teste técnico do cenário CLI BDD-333-03 com HTML originado do SQLite.
+// A fonte do formulário é o anti-IES, não uma fixture HTML copiada.
+#[test]
+fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::processos::{Destino as DestinoSimulado, ProcessoSimulado, guardar};
+    use rusqlite::Connection;
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        "teste-leitor",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Texto".into()),
+            destinos: vec![DestinoSimulado {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let resposta = anti_ies::processo_envio::responder(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
+        "",
+        &banco,
+        &origem,
+        "teste-leitor",
+    );
+    assert_eq!(resposta.estado, anti_ies::Estado::Ok);
+    let tela = conferir_tela_de_envio(&resposta.corpo, "10").unwrap();
+    assert_eq!(tela.orgao, "");
+    assert!(tela.remover_anotacoes_oferecida);
+    assert_eq!(tela.textos, ["txtPrazo", "txtDias"]);
+}
+
+#[test]
+fn anti_ies_autocomplete_e_lido_pelo_parser_real_do_ies() {
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::processos::{Destino, ProcessoSimulado, guardar};
+    use rusqlite::Connection;
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        "teste-autocomplete",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Texto".into()),
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let resposta = anti_ies::processo_envio::autocompletar(
+        "POST",
+        "/sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo",
+        "palavras_pesquisa=DES&id_orgao=",
+        &banco,
+        &origem,
+        "teste-autocomplete",
+    );
+    assert_eq!(resposta.estado, anti_ies::Estado::Ok);
+    let itens = super::destino::itens_do_autocompletar(&resposta.corpo).unwrap();
+    let escolhido = super::destino::escolher_destino("DESTINO", &itens).unwrap();
+    assert_eq!(escolhido.id_unidade, "2");
+    assert_eq!(escolhido.sigla, "DESTINO");
+}
+
+/// BDD-333-04 (CLI processo enviar): a mesma árvore HTML simulada precisa
+/// atravessar o leitor real do IES antes e depois da transição SQLite.
+#[test]
+fn bdd_333_04_ies_interpreta_a_arvore_anti_ies_antes_e_depois_da_tramitacao() {
+    use crate::arvore_processo::{AbertoEm, ler_arvore};
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::processos::{
+        Destino as DestinoSimulado, PedidoEnvio, ProcessoSimulado, enviar, guardar,
+    };
+    use rusqlite::Connection;
+
+    let mut db = Connection::open_in_memory().unwrap();
+    iniciar(&db).unwrap();
+    let instalacao = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    guardar(
+        &mut db,
+        &instalacao,
+        "bdd-333",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Texto anterior".into()),
+            destinos: vec![DestinoSimulado {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Teste".into(),
+            }],
+        },
+    )
+    .unwrap();
+
+    let ler_siglas = || {
+        let html = anti_ies::processo_envio::navegacao(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
+            &db,
+            &instalacao,
+            "bdd-333",
+        )
+        .expect("processo presente")
+        .corpo;
+        let arvore = ler_arvore(&html, "00001.000001/2026-01", "10").unwrap();
+        match arvore.aberto_em {
+            AbertoEm::Unidades(unidades) => {
+                unidades.into_iter().map(|u| u.sigla).collect::<Vec<_>>()
+            }
+            outro => panic!("situação não lida pelo IES: {outro:?}"),
+        }
+    };
+    assert_eq!(ler_siglas(), ["ORIGEM"]);
+    enviar(
+        &db,
+        &instalacao,
+        "bdd-333",
+        PedidoEnvio {
+            id: "10",
+            id_destino: "2",
+            manter_aberto: true,
+            remover_anotacoes: true,
+        },
+    )
+    .unwrap();
+    assert_eq!(ler_siglas(), ["ORIGEM", "DESTINO"]);
+}
