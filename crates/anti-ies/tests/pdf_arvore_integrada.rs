@@ -41,7 +41,10 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
         )
         .unwrap();
         interno::registrar_tipo(
-            &banco, &origem, "caso", "7",
+            &banco,
+            &origem,
+            "caso",
+            "7",
             &Tipo {
                 id: "291".into(),
                 nome: "Despacho".into(),

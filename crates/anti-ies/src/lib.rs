@@ -361,7 +361,12 @@ fn atender_com_fonte(
         Some("protocolo_pesquisa_rapida") if eh_controlador_sei(&pedido.alvo) => {
             match std::str::from_utf8(&pedido.corpo) {
                 Ok(corpo) => pesquisa_documento::responder(
-                    &pedido.metodo, &pedido.alvo, corpo, banco, instalacao, cenario,
+                    &pedido.metodo,
+                    &pedido.alvo,
+                    corpo,
+                    banco,
+                    instalacao,
+                    cenario,
                 ),
                 Err(_) => Resposta::nova(Estado::RequisicaoInvalida),
             }
