@@ -47,7 +47,7 @@ fn historico(documento: &DocumentoSimulado) -> String {
     );
     // Token fictício produzido somente em resposta de simulador local:
     // não há cookie, credencial ou URL assinada guardada no SQLite.
-    let token_teste = "0".repeat(64);
+    let token_teste = crate::protocolo_sintetico::INFRA_HASH;
     for r in &documento.revisoes {
         let id = escapar(&documento.id_documento);
         let processo = escapar(&documento.id_procedimento);
