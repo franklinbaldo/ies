@@ -418,8 +418,14 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
     let destino = pasta.0.join("saida");
     fs::create_dir(&destino).unwrap();
     let args = [
-        "--json", "documento", DOC, "--versao", "1",
-        "--saida", destino.to_str().unwrap(), "--sem-cache",
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        destino.to_str().unwrap(),
+        "--sem-cache",
     ];
     // Controle, pesquisa, tela, árvore, lista e versão restrita:
     // nenhum POST modificador e nenhuma foto da versão não acessível.
