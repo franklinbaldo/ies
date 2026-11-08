@@ -239,21 +239,23 @@ fn preparar_paginas(banco: &mut Connection, instalacao: &Instalacao) {
             id_anexo: None,
         });
     }
-    // Goiás, pesquisa-paginas-go#4: faixa 11–20 publicada com menos
-    // linhas. Valores/identidades são sintéticos, não copiados da fonte.
+    // Goiás, pesquisa-paginas-go#3/#4: total 27.338 e faixa 11–20,
+    // com uma linha na segunda página (replay do acervo em 04/11).
+    // Números de documentos e conteúdo são sintéticos: isto não é
+    // confronto independente dos corpos originais da cassette.
     for pagina in [
         PaginaObservada {
             pagina: 1,
             inicio: 1,
             fim: 10,
-            total_declarado: 27,
+            total_declarado: 27_338,
             linhas: linhas[..10].to_vec(),
         },
         PaginaObservada {
             pagina: 2,
             inicio: 11,
             fim: 20,
-            total_declarado: 27,
+            total_declarado: 27_338,
             linhas: linhas[10..].to_vec(),
         },
     ] {

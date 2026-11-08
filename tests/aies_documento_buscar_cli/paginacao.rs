@@ -28,7 +28,9 @@ fn bdd_61_02_cli_pagina_2_nao_mistura_faixas_nem_inventa_linhas() {
     assert_eq!(json["unidade"], "TESTE");
     assert_eq!(json["origem"], "web");
     assert_eq!(json["requisicoes"], 4);
-    assert_eq!(json["total_declarado"], 27);
+    // Goiás, pesquisa-paginas-go#3: o total da barra observada é 27.338.
+    // As identidades da fixture continuam sintéticas, não são paridade do HTML.
+    assert_eq!(json["total_declarado"], 27_338);
     assert_eq!(
         json["faixa_observada"],
         serde_json::json!({"inicio": 11, "fim": 20})
@@ -62,6 +64,7 @@ fn bdd_61_02_cli_pagina_1_usa_mesmo_estado_sem_observar_a_segunda() {
     let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["resultado"], "lista");
     assert_eq!(json["requisicoes"], 3);
+    assert_eq!(json["total_declarado"], 27_338);
     assert_eq!(
         json["faixa_observada"],
         serde_json::json!({"inicio": 1, "fim": 10})
