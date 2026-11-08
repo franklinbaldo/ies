@@ -304,5 +304,11 @@ mod tests {
         registrar_tipo(&banco, &origem, "c", "10", &tipo).unwrap();
         registrar_tipo(&banco, &origem, "c", "10", &tipo).unwrap();
         assert_eq!(tipos(&banco, &origem, "c", "10").unwrap(), vec![tipo]);
+        // Uma série órfã não permite criar documento sem processo existente.
+        assert!(matches!(
+            criar(&banco, &origem, "c", "10", "291", "Sem processo"),
+            Err(Falha::TipoIndisponivel)
+        ));
+        assert!(documentos(&banco, &origem, "c", "10").unwrap().is_empty());
     }
 }
