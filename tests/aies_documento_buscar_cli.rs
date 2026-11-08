@@ -6,7 +6,7 @@ use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
 use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
@@ -136,9 +136,9 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
             },
         ).unwrap();
         // O negativo é observado EXPLICITAMENTE no SQLite, não inferido da ausência.
-        banco.execute(
-            "INSERT INTO pesquisa_documento_sem_resultado (origem, cenario, unidade, termo) VALUES (?1, ?2, ?3, ?4)",
-            params![instalacao.url_base(), CENARIO, "TESTE", TERMO],
+        iesei::pesquisa_documento::registrar_sem_resultado(
+            &banco, &instalacao, CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(), TERMO,
         ).unwrap();
         for _ in 0..3 {
             let mut tcp = aceitar(&servidor);
