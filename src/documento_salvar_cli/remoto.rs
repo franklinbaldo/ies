@@ -123,17 +123,28 @@ fn editor_observado(html: &str, versao_base: u32) -> bool {
         && assinaturas_no_editor(html).is_some()
 }
 
-fn verificar_publicacao(
-    envio: &mut EnvioHttps,
-    origem: &str,
-    cookie: &str,
-    id_documento: &str,
-    url_editor: &str,
-    numero: &NumeroDocumento,
+struct ConferenciaPublicacao<'a> {
+    origem: &'a str,
+    cookie: &'a str,
+    id_documento: &'a str,
+    url_editor: &'a str,
+    numero: &'a NumeroDocumento,
     versao_nova: u32,
-    editada: &str,
+    editada: &'a str,
     respondeu: bool,
-) -> Resultado {
+}
+
+fn verificar_publicacao(envio: &mut EnvioHttps, dados: ConferenciaPublicacao<'_>) -> Resultado {
+    let ConferenciaPublicacao {
+        origem,
+        cookie,
+        id_documento,
+        url_editor,
+        numero,
+        versao_nova,
+        editada,
+        respondeu,
+    } = dados;
     let url = format!(
         "{origem}/controlador.php?acao=documento_visualizar&id_documento={id_documento}&versao={versao_nova}"
     );
@@ -163,6 +174,16 @@ fn verificar_publicacao(
     }
 }
 
+fn carregar_par(
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+) -> Result<(VersaoDocumento, String, String), Falha> {
+    let n = VersaoDocumento::nova(previa.versao_base).map_err(|_| Falha::VersaoAlterada)?;
+    let pasta = std::env::current_dir().map_err(|_| Falha::Leitura)?;
+    let (base, editada) = ler_par(&pasta, numero, n)?;
+    Ok((n, base, editada))
+}
+
 fn executar(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
@@ -174,13 +195,7 @@ fn executar(
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
         _ => return Resultado::Recusado(Falha::EditorIndisponivel),
     };
-    let Ok(n) = VersaoDocumento::nova(previa.versao_base) else {
-        return Resultado::Recusado(Falha::VersaoAlterada);
-    };
-    let Ok(pasta) = std::env::current_dir() else {
-        return Resultado::Recusado(Falha::Leitura);
-    };
-    let (local_base, local_editada) = match ler_par(&pasta, numero, n) {
+    let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
         Err(falha) => return Resultado::Recusado(falha),
     };
@@ -268,14 +283,16 @@ fn executar(
     );
     verificar_publicacao(
         &mut envio,
-        sessao.origem,
-        cookie,
-        &lido.id_documento,
-        &url,
-        numero,
-        previa.versao_editada,
-        editada,
-        respondeu,
+        ConferenciaPublicacao {
+            origem: sessao.origem,
+            cookie,
+            id_documento: &lido.id_documento,
+            url_editor: &url,
+            numero,
+            versao_nova: previa.versao_editada,
+            editada,
+            respondeu,
+        },
     )
 }
 

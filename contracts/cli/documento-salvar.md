@@ -62,9 +62,12 @@ O JSON continua sem conteúdo HTML, URLs assinadas ou cookies e traz
 `--confirmar` **continua bloqueado para instalações reais do SEI**:
 retorna `escrita_remota_nao_validada` após conferir o par.
 Somente no host sintético `sei.test`, com sessão de ensaio, a CLI
-executa o BDD-89-02/03: relê a versão N, confere conteúdo idêntico à
-foto local, consulta o editor oferecido, deriva um único POST do
-formulário servido e comprova a versão N+1 por GET independente.
+executa os BDD-89-02/03/04 sintéticos: relê a versão N, confere
+conteúdo idêntico à foto local, consulta o editor oferecido, deriva um
+único POST do formulário servido e comprova a versão N+1 por GET
+independente. Também relê o editor para observar a contagem de assinaturas
+após a publicação; sem ambas as conferências, não declara sucesso.
+O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
 Resposta inconclusiva após a tentativa de POST resulta em
 `efeito_incerto`, sem retry. O editor da simulação usa uma região
 `main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
