@@ -4,6 +4,9 @@
 use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
 use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
+
+#[path = "documento_salvar_cli/remoto.rs"]
+mod remoto;
 use std::process::ExitCode;
 
 fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
@@ -114,11 +117,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
             }
             Some(ExitCode::SUCCESS)
         }
-        Ok(_) => Some(erro_fonte(
-            cli.json,
-            "escrita_remota_nao_validada",
-            "confirmação recusada: faltam identidade e concorrência Web verificadas",
-        )),
+        Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
         Err(erro) => Some(erro_fonte(
             cli.json,
             erro.subcodigo(),
