@@ -30,6 +30,7 @@ pub enum Falha {
     EntradaInvalida,
     TipoIndisponivel,
     ProcessoIndisponivel,
+    ProcessoNaoAbertoNaUnidade,
 }
 
 impl From<rusqlite::Error> for Falha {
@@ -178,6 +179,34 @@ pub fn ids_por_nup(
         .collect()
 }
 
+/// Confere a abertura na unidade ativa quando o processo possui estado de
+/// tramitação. Cenas antigas sem a projeção de envio continuam independentes.
+///
+/// # Errors
+/// Retorna a causa tipada de processo ausente/fechado ou o erro SQLite.
+pub fn conferir_abertura(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+) -> Result<(), Falha> {
+    let processo = ler_processo(banco, origem, cenario, id_procedimento)?
+        .ok_or(Falha::ProcessoIndisponivel)?;
+    let (tem_tramitacao, aberto): (bool, bool) = banco.query_row(
+        "SELECT
+           EXISTS(SELECT 1 FROM processo_simulado
+                  WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3),
+           EXISTS(SELECT 1 FROM processo_abertura
+                  WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
+        params![origem.url_base(), cenario, id_procedimento, processo.unidade],
+        |linha| Ok((linha.get(0)?, linha.get(1)?)),
+    )?;
+    if tem_tramitacao && !aberto {
+        return Err(Falha::ProcessoNaoAbertoNaUnidade);
+    }
+    Ok(())
+}
+
 /// Fotografia independente dos documentos que existem no estado simulado.
 ///
 /// # Errors
@@ -223,9 +252,7 @@ pub fn criar(
     if !escopo_valido(cenario, id_procedimento) || !escopo_valido(cenario, id_serie) {
         return Err(Falha::EntradaInvalida);
     }
-    if ler_processo(banco, origem, cenario, id_procedimento)?.is_none() {
-        return Err(Falha::ProcessoIndisponivel);
-    }
+    conferir_abertura(banco, origem, cenario, id_procedimento)?;
     let quantidade = banco.execute(
         "INSERT INTO sim_documento (origem, cenario, id_procedimento, id_serie, descricao, nivel)
          SELECT origem, cenario, id_procedimento, id_serie, ?5, 0
