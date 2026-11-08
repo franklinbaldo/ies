@@ -258,3 +258,74 @@ fn autocomplete_http_real_le_estado_compartilhado_sem_alteracao() {
     assert!(resposta.contains("id='2' descricao='DESTINO - Unidade de testes'"));
     assert_eq!(servidor.join().unwrap(), antes);
 }
+
+#[test]
+fn bdd_333_04_anotacao_da_origem_fechada_pode_ser_relida_mas_nao_regravada() {
+    // Hipotese sintetica: a leitura independente apos tramitar continua
+    // possivel, mas a unidade fechada nao pode gravar outra anotacao.
+    let banco = preparar();
+    let envio = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(envio.estado, Estado::Redirecionamento);
+    let anotacao = "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10";
+    let antes = ler(&banco, &origem(), "cenario-a", "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(antes.aberto_em, ["DESTINO"]);
+    assert_eq!(
+        antes.anotacao_origem.as_deref(),
+        Some("Anotação temporária")
+    );
+    let leitura = responder("GET", anotacao, "", &banco, &origem(), "cenario-a");
+    assert_eq!(leitura.estado, Estado::Ok, "releitura nao e escrita");
+    assert!(leitura.corpo.contains("Anotação temporária"));
+    let gravacao = responder(
+        "POST",
+        anotacao,
+        "hdnIdProtocolo=10&txaDescricao=",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(gravacao.estado, Estado::RequisicaoInvalida);
+    assert_eq!(
+        ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap(),
+        antes,
+        "a anotacao e as unidades nao podem mudar por POST da origem fechada"
+    );
+}
+
+#[test]
+fn bdd_333_04_origem_mantida_aberta_pode_limpar_anotacao_antes_do_envio() {
+    let banco = preparar();
+    let anotacao = "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10";
+    let envio = responder(
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(envio.estado, Estado::Redirecionamento);
+    let limpeza = responder(
+        "POST",
+        anotacao,
+        "hdnIdProtocolo=10&txaDescricao=",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(limpeza.estado, Estado::Redirecionamento);
+    let depois = ler(&banco, &origem(), "cenario-a", "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+}
