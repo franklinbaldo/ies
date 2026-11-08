@@ -450,3 +450,6 @@ mod testes_editor;
 
 #[path = "aies_documento_cli/negativos.rs"]
 mod negativos;
+
+#[path = "aies_documento_cli/positivos.rs"]
+mod positivos;
