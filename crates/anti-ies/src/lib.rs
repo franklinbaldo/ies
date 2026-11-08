@@ -384,7 +384,81 @@ fn atender_com_fonte(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    match parametro_unico(&pedido.alvo, "acao") {        Some("retorno_programado_listar") => {            retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)        }        Some("documento_receber" | "documento_upload_anexo")            if eh_controlador_sei(&pedido.alvo) =>        {            pdf_externo::atender(                &pedido.metodo,                &pedido.alvo,                &pedido.corpo,                banco,                instalacao,                cenario,            )            .unwrap_or_else(|| Resposta::nova(Estado::NaoImplementado))        }        Some("documento_escolher_tipo") if eh_controlador_sei(&pedido.alvo) => {            pdf_externo::complementar_escolha(                atender_documento(&pedido, banco, instalacao, cenario),                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("arvore_visualizar" | "procedimento_trabalhar")            if eh_controlador_sei(&pedido.alvo)                && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>        {            pdf_externo::complementar_arvore(                atender_documento(&pedido, banco, instalacao, cenario),                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {            atender_documento(&pedido, banco, instalacao, cenario)        }        Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {            documento_arvore::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("procedimento_trabalhar")            if eh_controlador_sei(&pedido.alvo)                && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>        {            documento_arvore::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("documento_versao_listar" | "documento_visualizar")            if eh_controlador_sei(&pedido.alvo) =>        {            documento_versoes::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),    }
+    match parametro_unico(&pedido.alvo, "acao") {
+        Some("retorno_programado_listar") => {
+            retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+        }
+        Some("documento_receber" | "documento_upload_anexo")
+            if eh_controlador_sei(&pedido.alvo) =>
+        {
+            pdf_externo::atender(
+                &pedido.metodo,
+                &pedido.alvo,
+                &pedido.corpo,
+                banco,
+                instalacao,
+                cenario,
+            )
+            .unwrap_or_else(|| Resposta::nova(Estado::NaoImplementado))
+        }
+        Some("documento_escolher_tipo") if eh_controlador_sei(&pedido.alvo) => {
+            pdf_externo::complementar_escolha(
+                atender_documento(&pedido, banco, instalacao, cenario),
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        Some("arvore_visualizar" | "procedimento_trabalhar")
+            if eh_controlador_sei(&pedido.alvo)
+                && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
+        {
+            pdf_externo::complementar_arvore(
+                atender_documento(&pedido, banco, instalacao, cenario),
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {
+            atender_documento(&pedido, banco, instalacao, cenario)
+        }
+        Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
+            documento_arvore::responder(
+                &pedido.metodo,
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        Some("procedimento_trabalhar")
+            if eh_controlador_sei(&pedido.alvo)
+                && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
+        {
+            documento_arvore::responder(
+                &pedido.metodo,
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        Some("documento_versao_listar" | "documento_visualizar")
+            if eh_controlador_sei(&pedido.alvo) =>
+        {
+            documento_versoes::responder(
+                &pedido.metodo,
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
+        }
+        _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
+    }
 }
 
 /// Atende a sessão HTTP local sequencialmente, com estado SQLite compartilhado.
