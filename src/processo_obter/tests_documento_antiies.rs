@@ -62,6 +62,46 @@ fn origem_e_documento() -> (Connection, iesei::instalacao::Instalacao) {
     (banco, origem)
 }
 
+/// Foto gerada pela leitura real: sem sobrescrita local e sem retry remoto.
+fn conferir_foto_local(resultado: &super::DocumentoObtido) {
+    let foto = resultado.versoes.foto.as_ref().unwrap();
+    assert_eq!(foto.versao.numero(), 1);
+    assert!(foto.html.contains("Primeira redação"));
+
+    // BDD-88-02: a mesma resposta do anti-IES segue ate a foto da CLI.
+    // A segunda leitura e idempotente; edicao local divergente permanece.
+    let pasta = std::env::temp_dir().join(format!(
+        "ies-anti-ies-88-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir(&pasta).unwrap();
+    let lote = std::slice::from_ref(&resultado);
+    let primeira = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
+    assert!(primeira[0].as_ref().unwrap().gravado);
+    let destino = pasta.join("0000101.v1.html");
+    assert!(
+        std::fs::read_to_string(&destino)
+            .unwrap()
+            .contains("Primeira redação")
+    );
+    let repetida = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
+    assert!(!repetida[0].as_ref().unwrap().gravado);
+    std::fs::write(&destino, "<html><body>Edicao local</body></html>").unwrap();
+    assert_eq!(
+        crate::documento_versao_cli::gravar_fotos(&pasta, lote),
+        Err(crate::copia_documento::ErroCopia::FotoDivergente)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&destino).unwrap(),
+        "<html><body>Edicao local</body></html>"
+    );
+    std::fs::remove_dir_all(pasta).unwrap();
+}
+
 #[test]
 fn bdd_88_01_02_leitor_rust_real_percorre_a_pesquisa_do_anti_ies() {
     let (banco, origem) = origem_e_documento();
@@ -150,42 +190,7 @@ fn bdd_88_01_02_leitor_rust_real_percorre_a_pesquisa_do_anti_ies() {
     assert!(!resultado.texto.contains("Terceira redação"));
     assert_eq!(resultado.versoes.lida.unwrap().numero(), 1);
     assert_eq!(resultado.versoes.atual.unwrap().numero(), 3);
-    let foto = resultado.versoes.foto.as_ref().unwrap();
-    assert_eq!(foto.versao.numero(), 1);
-    assert!(foto.html.contains("Primeira redação"));
-
-    // BDD-88-02: a mesma resposta do anti-IES segue ate a foto da CLI.
-    // A segunda leitura e idempotente; edicao local divergente permanece.
-    let pasta = std::env::temp_dir().join(format!(
-        "ies-anti-ies-88-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::create_dir(&pasta).unwrap();
-    let lote = std::slice::from_ref(&resultado);
-    let primeira = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
-    assert!(primeira[0].as_ref().unwrap().gravado);
-    let destino = pasta.join("0000101.v1.html");
-    assert!(
-        std::fs::read_to_string(&destino)
-            .unwrap()
-            .contains("Primeira redação")
-    );
-    let repetida = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
-    assert!(!repetida[0].as_ref().unwrap().gravado);
-    std::fs::write(&destino, "<html><body>Edicao local</body></html>").unwrap();
-    assert_eq!(
-        crate::documento_versao_cli::gravar_fotos(&pasta, lote),
-        Err(crate::copia_documento::ErroCopia::FotoDivergente)
-    );
-    assert_eq!(
-        std::fs::read_to_string(&destino).unwrap(),
-        "<html><body>Edicao local</body></html>"
-    );
-    std::fs::remove_dir_all(pasta).unwrap();
+    conferir_foto_local(&resultado);
     assert_eq!(roteiro.respostas_restantes(), 0);
     assert_eq!(roteiro.pedidos.len(), 6);
 }
