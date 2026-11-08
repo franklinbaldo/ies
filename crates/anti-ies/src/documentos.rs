@@ -40,7 +40,7 @@ fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
-fn erros_de_modelo(falha: Falha) -> Resposta {
+fn erros_de_modelo(falha: &Falha) -> Resposta {
     match falha {
         Falha::TipoIndisponivel | Falha::EntradaInvalida => {
             Resposta::nova(Estado::RequisicaoInvalida)
@@ -187,7 +187,7 @@ pub(crate) fn atender(
                     "controlador.php?acao=arvore_visualizar&id_procedimento={id}&id_documento={}",
                     novo.id,
                 )),
-                Err(falha) => erros_de_modelo(falha),
+                Err(falha) => erros_de_modelo(&falha),
             }
         }
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
