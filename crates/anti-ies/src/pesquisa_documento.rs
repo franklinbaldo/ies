@@ -144,3 +144,66 @@ pub fn responder_pesquisa(
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iesei::banco_cassettes::{self, ControleResumido, Linha};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+
+    #[test]
+    fn registro_negativo_na_unidade_nao_inventa_resultado_de_outro_termo() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        banco_cassettes::iniciar(&banco).unwrap();
+        let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let unidade = UnidadeExibida::nova("TESTE").unwrap();
+        banco_cassettes::guardar(
+            &mut banco,
+            "cenario",
+            &ControleResumido {
+                instalacao: instalacao.clone(),
+                unidade: unidade.clone(),
+                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            },
+        )
+        .unwrap();
+        iesei::pesquisa_documento::registrar_sem_resultado(
+            &banco, &instalacao, "cenario", &unidade, "DOC-NAO-ACHADO",
+        )
+        .unwrap();
+        let url = "/sei/controlador.php?acao=protocolo_pesquisar";
+        let tela = responder_pesquisa("GET", url, "", &banco, &instalacao, "cenario");
+        assert_eq!(tela.estado, Estado::Ok);
+        assert!(tela.corpo.contains("frmPesquisaProtocolo"));
+        assert!(tela.corpo.contains("optDocumentos"));
+        let buscar = |termo: &str| {
+            responder_pesquisa(
+                "POST",
+                url,
+                &format!(
+                    "rdoPesquisarEm=D&chkSinDocumentosGerados=S&txtProtocoloPesquisa={termo}"
+                ),
+                &banco,
+                &instalacao,
+                "cenario",
+            )
+        };
+        let observado = buscar("DOC-NAO-ACHADO");
+        assert_eq!(observado.estado, Estado::Ok);
+        assert!(observado.corpo.contains("pesquisaSemResultado"));
+        assert_eq!(buscar("OUTRO").estado, Estado::DadosInsuficientes);
+        assert_eq!(
+            responder_pesquisa(
+                "POST",
+                url,
+                "rdoPesquisarEm=P&txtProtocoloPesquisa=DOC-NAO-ACHADO",
+                &banco,
+                &instalacao,
+                "cenario",
+            )
+            .estado,
+            Estado::RequisicaoInvalida
+        );
+    }
+}
