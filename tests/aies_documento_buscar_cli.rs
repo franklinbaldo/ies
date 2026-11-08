@@ -1,0 +1,197 @@
+//! BDD-61-03: CLI real -> TLS local -> anti-IES -> SQLite efêmero.
+//! A observação "sem resultado" é explícita no banco e limitada ao termo/unidade.
+#![cfg(unix)]
+use anti_ies::atender_http;
+use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::instalacao::Instalacao;
+use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use native_tls::{Identity, TlsAcceptor};
+use rusqlite::{Connection, params};
+use serde_json::Value;
+use std::fs;
+use std::io::{Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+const ORIGEM: &str = "https://sei.test/sei";
+const CENARIO: &str = "bdd-61-03";
+const TERMO: &str = "SEM-REGISTRO-XYZ";
+
+struct Pasta(PathBuf);
+impl Pasta {
+    fn nova() -> Self {
+        let instante = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+        let pasta = std::env::temp_dir().join(format!(
+            "aies-buscar-{}-{}", std::process::id(), instante.as_nanos()
+        ));
+        fs::create_dir(&pasta).unwrap();
+        Self(pasta)
+    }
+    fn privado(&self, nome: &str, texto: &str) -> PathBuf {
+        let caminho = self.0.join(nome);
+        fs::write(&caminho, texto).unwrap();
+        fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
+        caminho
+    }
+}
+impl Drop for Pasta {
+    fn drop(&mut self) {
+        fs::remove_dir_all(&self.0).unwrap();
+    }
+}
+
+fn certificado(pasta: &Path) -> (PathBuf, Identity) {
+    let cert = pasta.join("cert.pem");
+    let key = pasta.join("key.pem");
+    let p12 = pasta.join("identidade.p12");
+    let criado = Command::new("openssl")
+        .args([
+            "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-sha256", "-days", "1", "-subj", "/CN=sei.test",
+            "-addext", "subjectAltName=DNS:sei.test", "-keyout",
+        ])
+        .arg(&key).arg("-out").arg(&cert)
+        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+    assert!(criado.success());
+    let convertido = Command::new("openssl")
+        .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey"])
+        .arg(&key).arg("-in").arg(&cert).arg("-out").arg(&p12)
+        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap();
+    assert!(convertido.success());
+    (cert, Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap())
+}
+
+fn aceitar(listener: &TcpListener) -> TcpStream {
+    listener.set_nonblocking(true).unwrap();
+    let inicio = Instant::now();
+    loop {
+        match listener.accept() {
+            Ok((tcp, peer)) => {
+                assert!(peer.ip().is_loopback());
+                tcp.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                tcp.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                return tcp;
+            }
+            Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
+                assert!(inicio.elapsed() < Duration::from_secs(3), "requisição ausente");
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(erro) => panic!("accept: {erro}"),
+        }
+    }
+}
+
+fn cabecalho(canal: &mut impl Read) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    let mut byte = [0u8];
+    while !bytes.ends_with(b"\r\n\r\n") {
+        assert!(bytes.len() < 16_384);
+        canal.read_exact(&mut byte).unwrap();
+        bytes.push(byte[0]);
+    }
+    bytes
+}
+
+fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
+    let cab = cabecalho(canal);
+    let texto = std::str::from_utf8(&cab).unwrap();
+    let tamanho = texto.lines().find_map(|linha| {
+        let (nome, valor) = linha.split_once(':')?;
+        nome.eq_ignore_ascii_case("content-length")
+            .then(|| valor.trim().parse::<usize>().unwrap())
+    }).unwrap_or(0);
+    assert!(tamanho < 64_000);
+    destino.write_all(&cab).unwrap();
+    let mut corpo = vec![0; tamanho];
+    canal.read_exact(&mut corpo).unwrap();
+    destino.write_all(&corpo).unwrap();
+    destino.flush().unwrap();
+}
+
+fn executar(pasta: &Pasta, args: &[&str]) -> Output {
+    let (cert, identity) = certificado(&pasta.0);
+    let origem = pasta.privado("origem", ORIGEM);
+    let url = pasta.privado(
+        "url",
+        &format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_hash={}", "a".repeat(64)),
+    );
+    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = servidor.local_addr().unwrap();
+    let servidor_thread = thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        banco_cassettes::iniciar(&banco).unwrap();
+        let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+        banco_cassettes::guardar(
+            &mut banco, CENARIO,
+            &ControleResumido {
+                instalacao: instalacao.clone(),
+                unidade: UnidadeExibida::nova("TESTE").unwrap(),
+                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            },
+        ).unwrap();
+        // O negativo é observado EXPLICITAMENTE no SQLite, não inferido da ausência.
+        banco.execute(
+            "INSERT INTO pesquisa_documento_sem_resultado (origem, cenario, unidade, termo) VALUES (?1, ?2, ?3, ?4)",
+            params![instalacao.url_base(), CENARIO, "TESTE", TERMO],
+        ).unwrap();
+        for _ in 0..3 {
+            let mut tcp = aceitar(&servidor);
+            atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+        }
+    });
+    let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let porta = proxy.local_addr().unwrap().port();
+    let tunel = thread::spawn(move || {
+        let tls = TlsAcceptor::new(identity).unwrap();
+        for _ in 0..3 {
+            let mut tcp = aceitar(&proxy);
+            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            let mut canal = tls.accept(tcp).unwrap();
+            let mut destino = TcpStream::connect(endereco).unwrap();
+            encaminhar(&mut canal, &mut destino);
+            destino.shutdown(Shutdown::Write).unwrap();
+            let mut resposta = Vec::new();
+            destino.read_to_end(&mut resposta).unwrap();
+            canal.write_all(&resposta).unwrap();
+            canal.flush().unwrap();
+        }
+    });
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .current_dir(&pasta.0).args(args)
+        .env("IES_URL_CONTROLE_FILE", url)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .env("SSL_CERT_FILE", cert)
+        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+        .env("HOME", &pasta.0)
+        .env_remove("HTTPS_PROXY").env_remove("all_proxy").env_remove("ALL_PROXY")
+        .env_remove("NO_PROXY").env_remove("no_proxy")
+        .env_remove("IES_CONFIG_FILE").env_remove("IES_CREDENCIAIS_FILE")
+        .output().unwrap();
+    tunel.join().unwrap();
+    servidor_thread.join().unwrap();
+    saida
+}
+
+#[test]
+fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
+    let pasta = Pasta::nova();
+    let saida = executar(&pasta, &["--json", "documento", "buscar", TERMO]);
+    assert_eq!(saida.status.code(), Some(0), "{}", String::from_utf8_lossy(&saida.stderr));
+    let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["resultado"], "sem_resultado");
+    assert_eq!(json["termo"], TERMO);
+    assert_eq!(json["unidade"], "TESTE");
+    assert_eq!(json["origem"], "web");
+    assert_eq!(json["requisicoes"], 3);
+    assert_eq!(json["total_declarado"], 0);
+    assert!(json["faixa_observada"].is_null());
+    assert_eq!(json["documentos"].as_array().unwrap().len(), 0);
+}
