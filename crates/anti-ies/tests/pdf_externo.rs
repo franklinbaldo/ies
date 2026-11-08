@@ -109,8 +109,8 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         &format!("{base}documento_receber&id_procedimento=7"),
         b"selSerie=293&hdnFlagDocumentoCadastro=2&hdnAnexos=upload-1%C2%B1prova.pdf",
     );
-    assert!(definitivo.starts_with("HTTP/1.1 200 OK\r\n"));
-    assert!(definitivo.contains("Documento 050000001"));
+    assert!(definitivo.starts_with("HTTP/1.1 302 Found\r\n"));
+    assert!(definitivo.contains("Location: controlador.php?acao=arvore_visualizar&id_procedimento=7&id_documento=1"));
 
     let depois = pedir(
         endereco,
@@ -202,7 +202,7 @@ fn bdd_332_03_multipart_com_campo_adicional_preserva_pdf_e_cadastro() {
         "ensaio",
     )
     .unwrap();
-    assert_eq!(definitivo.estado, anti_ies::Estado::Ok);
+    assert_eq!(definitivo.estado, anti_ies::Estado::Redirecionamento);
     let docs = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
     assert_eq!(docs.len(), 1);
     assert_eq!(docs[0].nome, "prova.pdf");
