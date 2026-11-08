@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 pub(crate) fn acoes_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
     let mut links = String::new();
     let id = &processo.id;
-    let assinatura = "4".repeat(64);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     if processo
         .aberto_em
         .iter()
