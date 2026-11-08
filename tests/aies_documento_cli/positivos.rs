@@ -22,7 +22,9 @@ fn bdd_88_01_cli_json_ler_versao_historica_sem_criar_foto() {
     assert_eq!(documento["versao"], 1);
     assert_eq!(documento["versao_atual"], 3);
     assert_eq!(valor["requisicoes"], 6);
-    let texto = documento["texto"].as_str().expect("texto da versão solicitada");
+    let texto = documento["texto"]
+        .as_str()
+        .expect("texto da versão solicitada");
     assert!(texto.contains("Primeira redação"), "versão 1 ausente");
     assert!(!texto.contains("Terceira redação"), "retornou versão atual");
     assert!(documento.get("arquivo").is_none(), "não pediu --saida");

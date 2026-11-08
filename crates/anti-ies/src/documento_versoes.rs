@@ -152,7 +152,10 @@ mod testes {
         let alvo = "/sei/controlador.php?acao=documento_visualizar&versao=1&id_documento=42&id_procedimento=7&id_documento=42";
         assert_eq!(parametro(alvo, "id_documento"), Ok(Some("42")));
         assert_eq!(
-            parametro("/sei/controlador.php?id_documento=42&id_documento=43", "id_documento"),
+            parametro(
+                "/sei/controlador.php?id_documento=42&id_documento=43",
+                "id_documento"
+            ),
             Err(Estado::RequisicaoInvalida)
         );
         assert_eq!(
