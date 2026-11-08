@@ -133,7 +133,15 @@ where
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
     executar_confirmacao_via_impl(
-        sessao, nup, unidade_pedida, tipo, pdf, indice, envio, upload, false,
+        sessao,
+        nup,
+        unidade_pedida,
+        tipo,
+        pdf,
+        indice,
+        envio,
+        upload,
+        false,
     )
 }
 
@@ -159,7 +167,15 @@ where
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
     executar_confirmacao_via_impl(
-        sessao, nup, unidade_pedida, tipo, pdf, indice, envio, upload, true,
+        sessao,
+        nup,
+        unidade_pedida,
+        tipo,
+        pdf,
+        indice,
+        envio,
+        upload,
+        true,
     )
 }
 
