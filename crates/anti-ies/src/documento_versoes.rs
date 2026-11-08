@@ -18,9 +18,7 @@ fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
         if chave == nome {
             // O SEI publica duas vezes id_documento no link da versão.
             // Aceitar somente a repetição idêntica; qualquer ambiguidade recusa.
-            if v.is_empty()
-                || (valor.is_some() && (nome != "id_documento" || valor != Some(v)))
-            {
+            if v.is_empty() || (valor.is_some() && (nome != "id_documento" || valor != Some(v))) {
                 return Err(Estado::RequisicaoInvalida);
             }
             valor = Some(v);
