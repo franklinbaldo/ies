@@ -97,7 +97,7 @@ pub(crate) fn eh_arvore_do_processo(alvo: &str) -> bool {
         && parametro_unico(alvo, "id_protocolo").is_none()
 }
 
-/// Rotas da criação: outras formas de procedimento_visualizar
+/// Rotas da criação: outras formas de `procedimento_visualizar`
 /// continuam pertencendo ao leitor de versões, sem colisão por nome.
 pub(crate) fn eh_rota_documentos(alvo: &str) -> bool {
     match parametro_unico(alvo, "acao") {
