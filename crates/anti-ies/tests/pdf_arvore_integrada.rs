@@ -195,3 +195,62 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
     );
     servidor.join().unwrap();
 }
+
+#[test]
+fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
+    use iesei::processos::{self, ProcessoSimulado};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let processo = Processo {
+        id: "7".into(),
+        nup: "00001.000001/2026-01".into(),
+        unidade: "TESTE".into(),
+    };
+    externo::semear(
+        &banco,
+        &origem,
+        "barra",
+        &processo,
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 100_000,
+        },
+    )
+    .unwrap();
+    processos::guardar(
+        &mut banco,
+        &origem,
+        "barra",
+        &ProcessoSimulado {
+            id: processo.id.clone(),
+            numero: processo.nup.clone(),
+            unidade_origem: processo.unidade.clone(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: Some("Conferir".into()),
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+    let temp = externo::receber(&banco, &origem, "barra", "7", "prova.pdf", 42).unwrap();
+    let doc = externo::cadastrar(&banco, &origem, "barra", "7", "293", temp.id).unwrap();
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let (mut conexao, _) = escuta.accept().unwrap();
+        anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "barra"))).unwrap();
+    });
+    let alvo = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento={}",
+        doc.id_publico()
+    );
+    let resposta = pedir(endereco, &alvo);
+    assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Nos[0].acoes = '"));
+    assert!(resposta.contains("procedimento_enviar"));
+    assert!(resposta.contains("anotacao_registrar"));
+    servidor.join().unwrap();
+}
