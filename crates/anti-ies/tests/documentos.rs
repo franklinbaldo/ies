@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 
 const BASE: &str = "/sei/controlador.php";
-const NUMERO_PEDIDOS: usize = 13;
+const NUMERO_PEDIDOS: usize = 15;
 
 fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
     let mut fluxo = TcpStream::connect(servidor).expect("conectar loopback");
@@ -27,13 +27,37 @@ fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &s
     resposta
 }
 
+fn conferir_arvore(endereco: std::net::SocketAddr, documento_novo: bool) {
+    let resposta = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
+    assert!(resposta.starts_with("HTTP/1.1 200 OK"));
+    assert!(resposta.contains("Nos[0] = new infraArvoreNo"));
+    assert!(resposta.contains("Despacho 1000001"));
+    assert_eq!(resposta.contains("Despacho 1000002"), documento_novo);
+}
+
+fn conferir_cadastro(endereco: std::net::SocketAddr, cadastro: &str) {
+    let form = consultar(endereco, "GET", cadastro, "");
+    assert!(form.starts_with("HTTP/1.1 200 OK"));
+    assert!(form.contains("frmDocumentoCadastro"));
+    // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
+    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='1'"));
+    assert!(form.contains("id='btnSalvar' name='btnSalvar'"));
+    assert!(form.contains("onclick='confirmarDados()'"));
+}
+
 fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
     let escolhido = consultar(endereco, "POST", selecao, "hdnIdSerie=291");
     assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
-    assert!(escolhido.contains(
-        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
-    ));
+    assert!(escolhido.contains(&format!(
+        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291&infra_hash={}\r\n",
+        "e".repeat(64)
+    )));
     let ausente = consultar(endereco, "POST", selecao, "hdnIdSerie=999");
     assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
     let repetido = consultar(endereco, "POST", selecao, "hdnIdSerie=291&hdnIdSerie=291");
@@ -87,7 +111,11 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let cadastro = format!("{BASE}?acao=documento_gerar&id_procedimento=10&id_serie=291");
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
+    assert!(render1.contains("id='ifrArvore'"));
+    assert!(render1.contains("acao=procedimento_visualizar"));
+    assert!(render1.contains("lnkInfraUnidade"));
     assert!(render1.contains("Despacho 1000001"));
+    conferir_arvore(endereco, false);
     assert!(!render1.contains("Despacho 1000002"));
     let lista = consultar(endereco, "GET", &selecao, "");
     assert!(lista.starts_with("HTTP/1.1 200 OK"));
@@ -96,11 +124,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(lista.contains("onclick='escolher(291)'"));
     verificar_navegacao_da_serie(endereco, &selecao);
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
-    let form = consultar(endereco, "GET", &cadastro, "");
-    assert!(form.starts_with("HTTP/1.1 200 OK"));
-    assert!(form.contains("frmDocumentoCadastro"));
-    // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
-    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='2'"));
+    conferir_cadastro(endereco, &cadastro);
     let invalido = consultar(
         endereco,
         "POST",
@@ -128,6 +152,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
+    conferir_arvore(endereco, true);
     let metodo_errado = consultar(endereco, "PUT", &selecao, "");
     assert!(metodo_errado.starts_with("HTTP/1.1 405 Method Not Allowed"));
     let sem_nup = consultar(
@@ -137,5 +162,88 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
         "",
     );
     assert!(sem_nup.starts_with("HTTP/1.1 404 Not Found"));
+    servidor.join().unwrap();
+}
+
+/// #246: uma lista curta pode exigir Exibir todos antes de escolher o tipo.
+/// O filtro é um POST de navegação, nunca a escrita criadora.
+#[test]
+fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        sim::registrar_processo(
+            &banco,
+            &origem,
+            "filtro",
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        for (id, nome) in [("291", "Despacho"), ("292", "Parecer")] {
+            sim::registrar_tipo(
+                &banco,
+                &origem,
+                "filtro",
+                "10",
+                &Tipo {
+                    id: id.into(),
+                    nome: nome.into(),
+                },
+            )
+            .unwrap();
+        }
+        for _ in 0..6 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
+        }
+        assert_eq!(
+            sim::documentos(&banco, &origem, "filtro", "10").unwrap(),
+            Vec::new()
+        );
+    });
+    let selecao = format!("{BASE}?acao=documento_escolher_tipo&id_procedimento=10");
+    let curta = consultar(endereco, "GET", &selecao, "");
+    assert!(curta.starts_with("HTTP/1.1 200 OK"));
+    assert!(curta.contains("ancExibirSeries"));
+    assert!(curta.contains(">Despacho</a>"));
+    assert!(!curta.contains(">Parecer</a>"));
+
+    let completa = consultar(endereco, "POST", &selecao, "hdnIdSerie=&hdnFiltroSerie=T");
+    assert!(completa.starts_with("HTTP/1.1 200 OK"));
+    assert!(completa.contains(">Despacho</a>"));
+    assert!(completa.contains(">Parecer</a>"));
+
+    let misturado = consultar(
+        endereco,
+        "POST",
+        &selecao,
+        "hdnIdSerie=292&hdnFiltroSerie=T",
+    );
+    assert!(misturado.starts_with("HTTP/1.1 400 Bad Request"));
+    let escolhido = consultar(
+        endereco,
+        "POST",
+        &selecao,
+        "hdnIdSerie=292&hdnFiltroSerie=U",
+    );
+    assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
+    assert!(escolhido.contains("id_serie=292"));
+
+    let nova_leitura = consultar(endereco, "GET", &selecao, "");
+    assert!(!nova_leitura.contains(">Parecer</a>"));
+    let arvore = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
+    assert!(!arvore.contains("Nos[1] = new infraArvoreNo"));
     servidor.join().unwrap();
 }

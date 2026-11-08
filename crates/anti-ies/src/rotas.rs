@@ -50,11 +50,31 @@ pub(crate) fn responder(
         Some("procedimento_visualizar") if eh_controlador_sei(alvo) => processo_envio::navegacao(
             metodo, alvo, banco, instalacao, cenario,
         )
-        .unwrap_or_else(|| documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)),
+        .unwrap_or_else(|| {
+            if documentos::eh_rota_documentos(alvo)
+                && let Some(id) = parametro_unico(alvo, "id_procedimento")
+            {
+                match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+                    Ok(Some(_)) => {
+                        return documentos::atender(
+                            metodo, alvo, corpo, banco, instalacao, cenario,
+                        );
+                    }
+                    Ok(None) => {}
+                    Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
+                }
+            }
+            documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
+        }),
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
-            documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
+            let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
+            match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+                Ok(Some(_)) => documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+                Ok(None) => documento_arvore::responder(metodo, alvo, banco, instalacao, cenario),
+                Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
+            }
         }
         Some("documento_versao_listar" | "documento_visualizar") if eh_controlador_sei(alvo) => {
             documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
