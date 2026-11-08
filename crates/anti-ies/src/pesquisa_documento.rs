@@ -177,7 +177,12 @@ pub fn responder_pesquisa(
                         pagina.fim
                     } else {
                         let Ok(Some(primeira)) = iesei::pesquisa_documento::consultar_pagina(
-                            banco, instalacao, cenario, &controle.unidade, &termo, 1,
+                            banco,
+                            instalacao,
+                            cenario,
+                            &controle.unidade,
+                            &termo,
+                            1,
                         ) else {
                             return Resposta::nova(Estado::DadosInsuficientes);
                         };
@@ -188,7 +193,9 @@ pub fn responder_pesquisa(
                     };
                     match paginas::renderizar(banco, instalacao, cenario, &pagina, tamanho) {
                         Ok(html) => Resposta::html(formulario_de_pesquisa(
-                            controle.unidade.as_str(), &termo, &html,
+                            controle.unidade.as_str(),
+                            &termo,
+                            &html,
                         )),
                         Err(estado) => Resposta::nova(estado),
                     }
@@ -196,7 +203,11 @@ pub fn responder_pesquisa(
                 Err(_) => Resposta::nova(Estado::DadosInsuficientes),
                 Ok(None) if deslocamento != 0 => Resposta::nova(Estado::DadosInsuficientes),
                 Ok(None) => match iesei::pesquisa_documento::consultar(
-                    banco, instalacao, cenario, &controle.unidade, &termo,
+                    banco,
+                    instalacao,
+                    cenario,
+                    &controle.unidade,
+                    &termo,
                 ) {
                     Ok(Some(iesei::pesquisa_documento::Resultado::SemResultado)) => {
                         Resposta::html(formulario_de_pesquisa(
