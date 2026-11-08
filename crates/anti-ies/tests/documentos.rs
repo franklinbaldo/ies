@@ -203,10 +203,9 @@ fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
         }
-        assert!(
-            sim::documentos(&banco, &origem, "filtro", "10")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            sim::documentos(&banco, &origem, "filtro", "10").unwrap(),
+            Vec::new()
         );
     });
     let selecao = format!("{BASE}?acao=documento_escolher_tipo&id_procedimento=10");
