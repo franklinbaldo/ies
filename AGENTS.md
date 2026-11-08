@@ -247,6 +247,14 @@ O que falta implementar e em que ordem está na
   versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
   BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
   (autorização do proprietário); nos demais comandos, vale o 🐘.
+  **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
+  Quando houver cassette verificável, implementadores 🦊 🦉 🐢 🐙 🦫
+  preferem fechar na mesma PR a vertical IES → SQLite efêmero →
+  anti-IES → comparação da CLI. 🦅 revisa a evidência, 🦡 evita
+  duplicação e integra, 🐘 coordena a fila. Respeitar WIP alheio;
+  não criar PR por camada. Sem evidência, registrar PARCIAL/NOT_RUN
+  sem bloquear a CLI nem inventar HTML. Remover mocks somente após
+  equivalência comprovada, preservando BDD e CI.
   **Engenharia reversa por evidências:** usar a skill oficial REA
   quando houver captura HAR, artefato ou runtime autorizado; o
   [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
