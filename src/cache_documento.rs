@@ -226,8 +226,8 @@ pub(crate) fn publicar_parcial(
     })
 }
 
-/// A cópia explícita usa hard link quando disponível. Caso contrário,
-/// o mesmo primitivo privado escreve em fluxo, sem seguir symlink final.
+/// A cópia explícita tem inode próprio, para a edição local não alterar
+/// o cache privado. Gravação exclusiva em fluxo, sem seguir symlink final.
 pub(crate) fn copiar_para_saida(
     origem: &Path,
     destino: &Path,
