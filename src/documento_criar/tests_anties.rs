@@ -55,8 +55,8 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
     let (_, html) = resposta.split_once("\r\n\r\n").unwrap();
     let tipos = tipos_oferecidos(html).unwrap();
     assert_eq!(tipos, ["Despacho"]);
-    let instalacao = crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei")
-        .unwrap();
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
     assert_eq!(
         escolha_do_tipo(&instalacao, html, "10", "Despacho"),
         Ok(EscolhaDoDocumento::Formulario("291".into())),
