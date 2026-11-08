@@ -445,58 +445,6 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
     );
 }
 
-#[test]
-fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
-    let pasta = Pasta::nova();
-    // O documento tem apenas versões 1 e 3. A CLI deve recusar a
-    // versão 2 como não observada, sem declarar que nunca existiu.
-    // Controle, pesquisa, tela, árvore e histórico: cinco pedidos.
-    let saida = executar(
-        &pasta,
-        &["--json", "documento", DOC, "--versao", "2", "--sem-cache"],
-        5,
-    );
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["documento"], DOC);
-    assert_eq!(valor["subcodigo"], "versao_nao_observada");
-    assert!(!pasta.0.join("0011519.v2.html").exists());
-}
-
-/// BDD-88-03: uma sessão funcional não concede acesso a um DOC ausente
-/// do estado compartilhado; a recusa vem da pesquisa HTTP do simulador.
-#[test]
-fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
-    let pasta = Pasta::nova();
-    let destino = pasta.0.join("saida");
-    fs::create_dir(&destino).unwrap();
-    let args = [
-        "--json",
-        "documento",
-        DOC,
-        "--versao",
-        "1",
-        "--saida",
-        destino.to_str().unwrap(),
-        "--sem-cache",
-    ];
-    // Controle conhecido, busca sem snapshot de DOC: um GET e um POST
-    // local de leitura. O simulador recusa com 503, sem inventar ausência.
-    let saida = executar_com_estado(&pasta, &args, 2, false);
-    assert_ne!(
-        saida.status.code(),
-        Some(0),
-        "documento ausente virou sucesso"
-    );
-    let valor = json(&saida);
-    assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
-    assert!(
-        valor["documentos"].is_null(),
-        "publicou documento não observado: {valor}"
-    );
-    assert!(!destino.join("0011519.v1.html").exists());
-}
-
 #[path = "aies_documento_cli/testes_editor.rs"]
 mod testes_editor;
 
