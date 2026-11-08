@@ -6,12 +6,23 @@ use super::*;
 fn unidade_recebente_nao_pode_remover_anotacao_da_origem_fechada() {
     // Primeiro envio muda o estado real do SQLite: ORIGEM fecha, DESTINO abre.
     let enviar = [
-        "--json", "processo", "enviar", NUP, "--para", "DESTINO", "--confirmar",
+        "--json",
+        "processo",
+        "enviar",
+        NUP,
+        "--para",
+        "DESTINO",
+        "--confirmar",
     ];
     // A sessao passa para DESTINO no mesmo banco. A anotacao pertence
     // a ORIGEM, portanto a tela de envio nao deve oferecer sua remocao.
     let remocao = [
-        "--json", "processo", "enviar", NUP, "--para", "ARQUIVO",
+        "--json",
+        "processo",
+        "enviar",
+        NUP,
+        "--para",
+        "ARQUIVO",
         "--remover-anotacoes",
     ];
     let (saidas, pedidos, depois) = executar_com_troca_de_unidade(
