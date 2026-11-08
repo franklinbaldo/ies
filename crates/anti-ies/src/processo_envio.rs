@@ -99,7 +99,7 @@ fn redirecionado(acao: &str, id: &str) -> Resposta {
     }
 }
 
-fn estado_da_falha(falha: Falha) -> Estado {
+fn estado_da_falha(falha: &Falha) -> Estado {
     match falha {
         Falha::ProcessoNaoEncontrado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
         Falha::DadoInvalido
@@ -134,9 +134,8 @@ pub fn responder(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    let processo = match ler(banco, instalacao, cenario, id) {
-        Ok(Some(p)) => p,
-        Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(processo)) = ler(banco, instalacao, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     if metodo == "GET" {
         return match acao {
@@ -160,7 +159,7 @@ pub fn responder(
         }
         return match limpar_anotacao(banco, instalacao, cenario, id) {
             Ok(()) => redirecionado(acao, id),
-            Err(falha) => Resposta::nova(estado_da_falha(falha)),
+            Err(falha) => Resposta::nova(estado_da_falha(&falha)),
         };
     }
     if campo_unico(&campos, "hdnIdProtocolos") != Some(id) {
@@ -185,6 +184,6 @@ pub fn responder(
         },
     ) {
         Ok(_) => redirecionado(acao, id),
-        Err(falha) => Resposta::nova(estado_da_falha(falha)),
+        Err(falha) => Resposta::nova(estado_da_falha(&falha)),
     }
 }
