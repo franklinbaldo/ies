@@ -15,6 +15,10 @@ use iesei::processos::{Destino, ProcessoSimulado, guardar, ler};
 use rusqlite::Connection;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "um único ciclo SQLite, leitura da árvore, POST e releitura usando os consumidores reais"
+)]
 fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
     let mut banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
