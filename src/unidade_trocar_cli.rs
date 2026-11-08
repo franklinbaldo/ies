@@ -184,10 +184,18 @@ fn concluir(
     if let Some(novo) = &troca.controle_novo {
         match aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo) {
             Ok(n) => descartados = n,
-            Err(_causa) => {
-                // A saída mantém o subcódigo legado; a origem não é mais perdida na função.
+            Err(causa) => {
+                // A saída mantém o subcódigo legado, mas a apresentação
+                // distingue o fato observado usando a variante tipada.
                 let subcodigo = "url_do_controle_da_unidade_nova_nao_gravada";
-                let mensagem = "a unidade foi trocada e conferida, mas a URL da sessão não foi gravada; rode ies login --forcar";
+                let mensagem = match causa {
+                    FalhaAplicarTroca::Cookie(_) => {
+                        "a unidade foi trocada e conferida, mas o cookie da sessão não pôde ser lido; rode ies login --forcar"
+                    }
+                    FalhaAplicarTroca::Gravacao(_) => {
+                        "a unidade foi trocada e conferida, mas a URL da sessão não foi gravada; rode ies login --forcar"
+                    }
+                };
                 if json_mode {
                     println!(
                         "{}",
