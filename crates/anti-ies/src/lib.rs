@@ -275,9 +275,7 @@ pub fn controlar(
 /// Não registra requisições, URLs nem cabeçalhos de sessão.
 type PedidoLocal = (String, String, Vec<u8>);
 
-fn ler_pedido(
-    fluxo: &mut TcpStream,
-) -> io::Result<Option<Result<PedidoLocal, Estado>>> {
+fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoLocal, Estado>>> {
     let mut leitor = BufReader::new(fluxo);
     let mut linha = String::new();
     if leitor.read_line(&mut linha)? == 0 {
