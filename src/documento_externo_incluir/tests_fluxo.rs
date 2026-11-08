@@ -238,7 +238,6 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
     );
 }
 
-
 #[test]
 fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
     // O cadastro recarregado oferece apenas selSerie. O fluxo publico ainda
@@ -274,9 +273,11 @@ fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
     });
     assert!(matches!(
         resultado,
-        Err(super::super::fluxo_confirmar::ErroConfirmacaoExterna::CampoCadastroNaoOferecido(
-            "txtDataElaboracao"
-        ))
+        Err(
+            super::super::fluxo_confirmar::ErroConfirmacaoExterna::CampoCadastroNaoOferecido(
+                "txtDataElaboracao"
+            )
+        )
     ));
     assert!(!upload_tentado);
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
