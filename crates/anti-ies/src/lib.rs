@@ -1,5 +1,6 @@
 //! Servidor experimental. O Controle R usa somente observações verificadas.
 pub mod documento_versoes;
+pub mod processo_envio;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -13,6 +14,7 @@ use std::net::TcpStream;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Estado {
     Ok,
+    Redirecionado,
     RequisicaoInvalida,
     MetodoNaoPermitido,
     NaoEncontrado,
@@ -25,6 +27,7 @@ impl Estado {
     pub const fn codigo_http(self) -> u16 {
         match self {
             Self::Ok => 200,
+            Self::Redirecionado => 302,
             Self::RequisicaoInvalida => 400,
             Self::MetodoNaoPermitido => 405,
             Self::NaoEncontrado => 404,
@@ -37,6 +40,7 @@ impl Estado {
     pub const fn motivo_http(self) -> &'static str {
         match self {
             Self::Ok => "OK",
+            Self::Redirecionado => "Found",
             Self::RequisicaoInvalida => "Bad Request",
             Self::MetodoNaoPermitido => "Method Not Allowed",
             Self::NaoEncontrado => "Not Found",
@@ -52,6 +56,7 @@ pub struct Resposta {
     pub estado: Estado,
     pub tipo_conteudo: &'static str,
     pub corpo: String,
+    pub localizacao: Option<String>,
 }
 
 impl Resposta {
@@ -59,6 +64,7 @@ impl Resposta {
     pub fn nova(estado: Estado) -> Self {
         let corpo = match estado {
             Estado::Ok => r#"{"status":"ok","servidor":"anti-ies"}"#,
+            Estado::Redirecionado => "",
             Estado::RequisicaoInvalida => r#"{"erro":"requisicao_invalida"}"#,
             Estado::MetodoNaoPermitido => r#"{"erro":"metodo_nao_permitido"}"#,
             Estado::NaoEncontrado => r#"{"erro":"rota_nao_encontrada"}"#,
@@ -69,6 +75,7 @@ impl Resposta {
             estado,
             tipo_conteudo: "application/json; charset=utf-8",
             corpo: corpo.to_owned(),
+            localizacao: None,
         }
     }
 }
@@ -238,6 +245,7 @@ pub fn retorno_programado(
         estado: Estado::Ok,
         tipo_conteudo: "text/html; charset=utf-8",
         corpo: html_de_retornos(&mes),
+        localizacao: None,
     }
 }
 
@@ -267,6 +275,7 @@ pub fn controlar(
         estado: Estado::Ok,
         tipo_conteudo: "text/html; charset=utf-8",
         corpo,
+        localizacao: None,
     }
 }
 

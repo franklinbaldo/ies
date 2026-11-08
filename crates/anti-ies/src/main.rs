@@ -24,7 +24,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NOFOLLOW,
             )?;
             Ok(Some((banco, instalacao, cenario)))
         }
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (Some(texto), None) => texto.parse::<u16>()?,
         _ => return Err("uso: anti-ies [porta]".into()),
     };
-    let fonte = fonte_da_cassette()?;
+    let mut fonte = fonte_da_cassette()?;
     let servidor = TcpListener::bind(("127.0.0.1", porta))?;
     eprintln!(
         "anti-IES experimental: http://{}/__anti_ies/health",
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fluxo.set_read_timeout(Some(Duration::from_secs(3)))?;
                 fluxo.set_write_timeout(Some(Duration::from_secs(3)))?;
                 let acesso = fonte
-                    .as_ref()
+                    .as_mut()
                     .map(|(banco, instalacao, cenario)| (banco, instalacao, cenario.as_str()));
                 if let Err(erro) = atender_http(&mut fluxo, acesso) {
                     // Não registrar a requisição: pode conter URL assinada.
@@ -101,7 +101,7 @@ mod tests {
                 .unwrap();
             }
             let acesso =
-                (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((&banco, &instalacao, "ensaio"));
+                (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((&mut banco, &instalacao, "ensaio"));
             atender_http(&mut fluxo, acesso).expect("responder");
         });
         let mut cliente = TcpStream::connect(endereco).expect("conectar");

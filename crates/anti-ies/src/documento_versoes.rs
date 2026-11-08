@@ -38,6 +38,7 @@ fn resposta_html(corpo: String) -> Resposta {
         estado: Estado::Ok,
         tipo_conteudo: "text/html; charset=utf-8",
         corpo,
+        localizacao: None,
     }
 }
 

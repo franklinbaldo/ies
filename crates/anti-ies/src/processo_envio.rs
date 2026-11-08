@@ -1,0 +1,191 @@
+//! Hipótese funcional de envio e anotação com estado derivado em SQLite.
+//! Não representa a identidade exata do HTML de nenhuma instalação real.
+use crate::{Estado, Resposta, despachar};
+use iesei::instalacao::Instalacao;
+use iesei::processos::{Falha, PedidoEnvio, ProcessoSimulado, enviar, ler, limpar_anotacao};
+use rusqlite::Connection;
+use std::fmt::Write;
+
+fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
+    let (_, query) = alvo.split_once('?')?;
+    let mut valores = query
+        .split('&')
+        .filter_map(|p| p.split_once('='))
+        .filter(|(k, _)| *k == chave)
+        .map(|(_, v)| v);
+    let valor = valores.next()?;
+    (!valor.is_empty() && valores.next().is_none()).then_some(valor)
+}
+
+fn html(texto: &str) -> String {
+    super::escapar(texto)
+}
+
+fn pagina_de_envio(processo: &ProcessoSimulado) -> String {
+    let mut pagina = String::from(
+        "<html><head><script type='text/javascript'>\n         objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo');\n         return 'palavras_pesquisa='+document.getElementById('txtUnidade').value+'&id_orgao='+document.getElementById('selOrgao').value;\n         </script></head><body>",
+    );
+    write!(
+        pagina,
+        "<form id='frmAtividadeListar' method='post' action='controlador.php?acao=procedimento_enviar&id_procedimento={}'>         <input type='hidden' name='hdnInfraTipoPagina' value='2'>         <button type='submit' name='sbmEnviar' value='Enviar'>Enviar</button>         <select id='selProcedimentos' name='selProcedimentos' multiple>         <option value='{}'>{} - Processo simulado</option></select>         <select id='selOrgao' name='selOrgao'>         <option value='null' selected>&nbsp;</option>         <option value='' selected>Todos</option></select>         <input type='text' id='txtUnidade' name='txtUnidade'>         <input type='hidden' name='hdnIdUnidade' value=''>         <select id='selUnidades' name='selUnidades' multiple></select>         <input type='checkbox' name='chkSinManterAberto'>         <input type='checkbox' name='chkSinRemoverAnotacoes'>         <input type='checkbox' name='chkSinEnviarEmailNotificacao'>         <input type='radio' name='rdoPrazo' value='1'>         <input type='text' name='txtPrazo' value=''>         <input type='radio' name='rdoPrazo' value='2'>         <input type='text' name='txtDias' value=''>         <input type='checkbox' name='chkSinDiasUteis'>         <input type='hidden' name='hdnIdProtocolos' value='{}'>         <input type='hidden' name='hdnIdAtividades' value='1'>         <input type='hidden' name='hdnUnidades' value=''>         </form></body></html>",
+        html(&processo.id),
+        html(&processo.id),
+        html(&processo.numero),
+        html(&processo.id),
+    )
+    .expect("formatação de String");
+    pagina
+}
+
+fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
+    let texto = processo.anotacao_origem.as_deref()?;
+    Some(format!(
+        "<html><body><form id='frmAnotacaoCadastro' method='post'          action='controlador.php?acao=anotacao_registrar&id_procedimento={}'>         <input type='hidden' name='hdnIdProtocolo' value='{}'>         <textarea id='txaDescricao' name='txaDescricao'>{}</textarea>         <button type='submit' name='sbmRegistrarAnotacao'>Salvar</button>         </form></body></html>",
+        html(&processo.id),
+        html(&processo.id),
+        html(texto),
+    ))
+}
+
+fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
+    if corpo.len() > 16_384 {
+        return None;
+    }
+    corpo
+        .split('&')
+        .map(|campo| campo.split_once('='))
+        .collect::<Option<Vec<_>>>()
+}
+
+fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
+    let mut valores = campos.iter().filter(|(k, _)| *k == chave).map(|(_, v)| *v);
+    let valor = valores.next()?;
+    valores.next().is_none().then_some(valor)
+}
+
+fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
+    match campo_unico(campos, chave) {
+        None if campos.iter().all(|(k, _)| *k != chave) => Some(false),
+        Some("on") => Some(true),
+        _ => None,
+    }
+}
+
+fn destino_indicado(campos: &[(&str, &str)]) -> Option<&str> {
+    let unidades = campo_unico(campos, "hdnUnidades")?;
+    let (id, _) = unidades
+        .split_once("%B1")
+        .or_else(|| unidades.split_once("%C2%B1"))?;
+    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+}
+
+fn resposta_html(corpo: String) -> Resposta {
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "text/html; charset=utf-8",
+        corpo,
+        localizacao: None,
+    }
+}
+
+fn redirecionado(acao: &str, id: &str) -> Resposta {
+    Resposta {
+        estado: Estado::Redirecionado,
+        tipo_conteudo: "text/html; charset=utf-8",
+        corpo: String::new(),
+        localizacao: Some(format!(
+            "controlador.php?acao=arvore_visualizar&acao_origem={acao}&id_procedimento={id}"
+        )),
+    }
+}
+
+fn estado_da_falha(falha: Falha) -> Estado {
+    match falha {
+        Falha::ProcessoNaoEncontrado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
+        Falha::DadoInvalido
+        | Falha::OrigemNaoAberta
+        | Falha::DestinoNaoOferecido
+        | Falha::DestinoJaAberto
+        | Falha::AnotacaoNaoObservada => Estado::RequisicaoInvalida,
+    }
+}
+
+/// Serve a prévia do envio e executa uma transição única, verificável por GET.
+///
+/// # Cautela
+/// É um simulador offline. Não confirma compatibilidade com uma instalação SEI.
+#[must_use]
+pub fn responder(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if !super::eh_controlador_sei(alvo) {
+        return despachar(metodo, alvo);
+    }
+    let Some(acao @ ("procedimento_enviar" | "anotacao_registrar")) = unico(alvo, "acao")
+    else {
+        return despachar(metodo, alvo);
+    };
+    let Some(id) = unico(alvo, "id_procedimento")
+        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let processo = match ler(banco, instalacao, cenario, id) {
+        Ok(Some(p)) => p,
+        Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    };
+    if metodo == "GET" {
+        return match acao {
+            "procedimento_enviar" => resposta_html(pagina_de_envio(&processo)),
+            "anotacao_registrar" => pagina_anotacao(&processo)
+                .map_or_else(|| Resposta::nova(Estado::DadosInsuficientes), resposta_html),
+            _ => unreachable!(),
+        };
+    }
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    let Some(campos) = pares(corpo) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if acao == "anotacao_registrar" {
+        if campo_unico(&campos, "hdnIdProtocolo") != Some(id)
+            || campo_unico(&campos, "txaDescricao") != Some("")
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match limpar_anotacao(banco, instalacao, cenario, id) {
+            Ok(()) => redirecionado(acao, id),
+            Err(falha) => Resposta::nova(estado_da_falha(falha)),
+        };
+    }
+    if campo_unico(&campos, "hdnIdProtocolos") != Some(id) {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let (Some(id_destino), Some(manter_aberto), Some(remover_anotacoes)) = (
+        destino_indicado(&campos),
+        checar_checkbox(&campos, "chkSinManterAberto"),
+        checar_checkbox(&campos, "chkSinRemoverAnotacoes"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    match enviar(
+        banco,
+        instalacao,
+        cenario,
+        PedidoEnvio {
+            id,
+            id_destino,
+            manter_aberto,
+            remover_anotacoes,
+        },
+    ) {
+        Ok(_) => redirecionado(acao, id),
+        Err(falha) => Resposta::nova(estado_da_falha(falha)),
+    }
+}
