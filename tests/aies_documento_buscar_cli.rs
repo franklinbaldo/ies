@@ -195,3 +195,14 @@ fn bdd_61_03_cli_sem_resultado_observado_na_unidade() {
     assert!(json["faixa_observada"].is_null());
     assert_eq!(json["documentos"].as_array().unwrap().len(), 0);
 }
+
+#[test]
+fn bdd_61_03_cli_humana_nao_confunde_sem_resultado_com_inexistencia() {
+    let pasta = Pasta::nova();
+    let saida = executar(&pasta, &["documento", "buscar", TERMO]);
+    assert_eq!(saida.status.code(), Some(0));
+    let texto = String::from_utf8(saida.stdout).unwrap();
+    assert!(texto.contains("nenhum resultado para esta conta e unidade"));
+    assert!(texto.contains("não prova inexistência"));
+    assert!(texto.contains("3 requisições"));
+}
