@@ -109,7 +109,6 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
     atendimento.join().unwrap();
 }
 
-
 #[test]
 fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
     use iesei::pdf_externo::{self, Processo, TipoExterno};
@@ -145,8 +144,8 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
             b"%PDF-1.4\n%%EOF\n",
         )
         .unwrap();
-        let documento = pdf_externo::cadastrar(&banco, &origem, CENARIO, "7", "293", upload.id)
-            .unwrap();
+        let documento =
+            pdf_externo::cadastrar(&banco, &origem, CENARIO, "7", "293", upload.id).unwrap();
         let id = documento.id_publico();
         let numero = documento.numero_sei;
         for _ in 0..4 {
@@ -159,7 +158,11 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
 
     // O PDF efetivamente existe no SQLite do processo. A rota de
     // árvore mista deve aplicar a mesma recusa que a árvore de versões.
-    let valido = pedir(endereco, "GET", "id_procedimento=7&id_documento=8000000000001");
+    let valido = pedir(
+        endereco,
+        "GET",
+        "id_procedimento=7&id_documento=8000000000001",
+    );
     assert!(valido.starts_with("HTTP/1.1 200 OK\r\n"), "{valido}");
 
     let ambiguo = pedir(
@@ -167,13 +170,30 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
         "GET",
         "id_procedimento=7&id_documento=8000000000001&id_documento=8000000000001",
     );
-    assert!(ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"), "{ambiguo}");
-    assert!(!ambiguo.contains("050000001"), "recusa não publica outro documento");
+    assert!(
+        ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{ambiguo}"
+    );
+    assert!(
+        !ambiguo.contains("050000001"),
+        "recusa não publica outro documento"
+    );
 
-    let metodo = pedir(endereco, "POST", "id_procedimento=7&id_documento=8000000000001");
-    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{metodo}");
+    let metodo = pedir(
+        endereco,
+        "POST",
+        "id_procedimento=7&id_documento=8000000000001",
+    );
+    assert!(
+        metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+        "{metodo}"
+    );
 
-    let depois = pedir(endereco, "GET", "id_procedimento=7&id_documento=8000000000001");
+    let depois = pedir(
+        endereco,
+        "GET",
+        "id_procedimento=7&id_documento=8000000000001",
+    );
     assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"), "{depois}");
     assert!(depois.contains("050000001"), "a recusa não altera o SQLite");
     let (id, numero) = atendimento.join().unwrap();
