@@ -165,7 +165,6 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     servidor.join().unwrap();
 }
 
-
 /// #246: uma lista curta pode exigir Exibir todos antes de escolher o tipo.
 /// O filtro é um POST de navegação, nunca a escrita criadora.
 #[test]
@@ -204,9 +203,11 @@ fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
         }
-        assert!(sim::documentos(&banco, &origem, "filtro", "10")
-            .unwrap()
-            .is_empty());
+        assert!(
+            sim::documentos(&banco, &origem, "filtro", "10")
+                .unwrap()
+                .is_empty()
+        );
     });
     let selecao = format!("{BASE}?acao=documento_escolher_tipo&id_procedimento=10");
     let curta = consultar(endereco, "GET", &selecao, "");
@@ -220,9 +221,19 @@ fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
     assert!(completa.contains(">Despacho</a>"));
     assert!(completa.contains(">Parecer</a>"));
 
-    let misturado = consultar(endereco, "POST", &selecao, "hdnIdSerie=292&hdnFiltroSerie=T");
+    let misturado = consultar(
+        endereco,
+        "POST",
+        &selecao,
+        "hdnIdSerie=292&hdnFiltroSerie=T",
+    );
     assert!(misturado.starts_with("HTTP/1.1 400 Bad Request"));
-    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=292&hdnFiltroSerie=U");
+    let escolhido = consultar(
+        endereco,
+        "POST",
+        &selecao,
+        "hdnIdSerie=292&hdnFiltroSerie=U",
+    );
     assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
     assert!(escolhido.contains("id_serie=292"));
 
