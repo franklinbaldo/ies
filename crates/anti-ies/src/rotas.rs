@@ -2,7 +2,7 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
-    pdf_externo, pesquisa_documento, processo_envio, retorno_programado,
+    pdf_externo, pesquisa_documento, processo_criacao, processo_envio, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -113,6 +113,14 @@ pub(crate) fn responder(
         }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
+            processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("procedimento_escolher_tipo" | "procedimento_gerar")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_criacao::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_escolher_tipo") if eh_controlador_sei(alvo) => {
             pdf_externo::complementar_escolha(
