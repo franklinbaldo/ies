@@ -162,8 +162,9 @@ externos usam PDF, TXT ou HTML original em fluxo, com limite e hash
 já conferidos. A leitura não consulta lista apenas para nomear o cache.
 
 `--sem-cache` e `IES_CACHE_DOCUMENTOS=0` desligam a escrita.
-`--saida DIR` continua como cópia opcional, com idempotência:
-link físico quando possível, cópia exclusiva caso contrário.
+`--saida DIR` continua como cópia opcional. Ao copiar PDF do cache,
+a foto recebe inode próprio, sem hard link: uma edição local não altera
+o cache. Uma cópia já igual é no-op; uma divergente não é sobrescrita.
 O JSON acrescenta `cache: {caminho, versao, sha256}` ou `null` e
 `crc_rodape` do bloco assinado, quando observado, ou `null`.
 CRC não é identidade ou validação criptográfica.

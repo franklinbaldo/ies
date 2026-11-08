@@ -226,8 +226,8 @@ pub(crate) fn publicar_parcial(
     })
 }
 
-/// A cópia explícita usa hard link quando disponível. Caso contrário,
-/// o mesmo primitivo privado escreve em fluxo, sem seguir symlink final.
+/// A cópia explícita tem inode próprio, para a edição local não alterar
+/// o cache privado. Gravação exclusiva em fluxo, sem seguir symlink final.
 pub(crate) fn copiar_para_saida(
     origem: &Path,
     destino: &Path,
@@ -240,9 +240,7 @@ pub(crate) fn copiar_para_saida(
         }
         return Err(FalhaCache::ArquivoDivergente);
     }
-    if fs::hard_link(origem, destino).is_ok() {
-        return Ok(true);
-    }
+    // A cópia do usuário deve ter inode próprio: sua edição não pode adulterar o cache.
     let mut arquivo = fs::File::open(origem).map_err(|_| FalhaCache::Gravacao)?;
     let mut parcial = Parcial::abrir(destino, Politica::exclusiva().diretorio_do_usuario())
         .map_err(|_| FalhaCache::Gravacao)?;
@@ -375,6 +373,39 @@ mod tests {
                 .unwrap()
                 .to_string_lossy()
                 .starts_with("x-")
+        );
+        fs::remove_dir_all(raiz).unwrap();
+    }
+
+    // Apoio técnico ao BDD-60-03: a foto PDF editável do usuário não
+    // pode compartilhar inode com o cache privado de conteúdo observado.
+    #[test]
+    fn bdd_60_03_copia_pdf_editada_nao_adultera_cache_privado() {
+        let raiz = std::env::temp_dir().join(format!(
+            "ies-cache-pdf-independente-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let pdf = b"%PDF-1.7 original";
+        let origem = gravar_em(&raiz, "sei.exemplo", "0007", None, "pdf", pdf).unwrap();
+        let saida = raiz.join("saida");
+        fs::create_dir(&saida).unwrap();
+        let destino = saida.join("0007.pdf");
+        let hash = sha256(pdf);
+        assert_eq!(copiar_para_saida(&origem, &destino, &hash), Ok(true));
+        fs::write(&destino, b"%PDF-1.7 edicao local").unwrap();
+        assert_eq!(
+            fs::read(&origem).unwrap(),
+            pdf,
+            "cache não pode ser editado pela foto"
+        );
+        assert_eq!(
+            copiar_para_saida(&origem, &destino, &hash),
+            Err(FalhaCache::ArquivoDivergente),
+            "a edição local não pode ser sobrescrita"
         );
         fs::remove_dir_all(raiz).unwrap();
     }
