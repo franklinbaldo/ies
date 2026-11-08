@@ -147,7 +147,7 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(com_documento: bool) -> (Connection, Instalacao) {
+fn estado(com_documento: bool, versao_restrita: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -193,6 +193,18 @@ fn estado(com_documento: bool) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
+    if versao_restrita {
+        // RED: estado sintético deliberadamente ignorado pelo anti-IES atual.
+        // A implementação substitui esta preparação SQL pelo modelo iesei.
+        banco.execute_batch(
+            "CREATE TABLE IF NOT EXISTS versao_inacessivel (
+                origem TEXT NOT NULL, cenario TEXT NOT NULL,
+                id_documento TEXT NOT NULL, versao INTEGER NOT NULL,
+                PRIMARY KEY (origem, cenario, id_documento, versao));
+             INSERT INTO versao_inacessivel VALUES
+                ('https://sei.test/sei', 'bdd-88-cli', '42', 1);",
+        ).unwrap();
+    }
     (banco, instalacao)
 }
 
@@ -205,6 +217,16 @@ fn executar_com_estado(
     args: &[&str],
     requisicoes: usize,
     com_documento: bool,
+) -> Output {
+    executar_com_restricao(pasta, args, requisicoes, com_documento, false)
+}
+
+fn executar_com_restricao(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+    versao_restrita: bool,
 ) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -220,7 +242,7 @@ fn executar_com_estado(
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_documento);
+        let (db, instalacao) = estado(com_documento, versao_restrita);
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -388,5 +410,25 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         valor["documentos"].is_null(),
         "publicou documento não observado: {valor}"
     );
+    assert!(!destino.join("0011519.v1.html").exists());
+}
+
+#[test]
+fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
+    let pasta = Pasta::nova();
+    let destino = pasta.0.join("saida");
+    fs::create_dir(&destino).unwrap();
+    let args = [
+        "--json", "documento", DOC, "--versao", "1",
+        "--saida", destino.to_str().unwrap(), "--sem-cache",
+    ];
+    // Controle, pesquisa, tela, árvore, lista e versão restrita:
+    // nenhum POST modificador e nenhuma foto da versão não acessível.
+    let saida = executar_com_restricao(&pasta, &args, 6, true, true);
+    assert_eq!(saida.status.code(), Some(1), "não recusou versão restrita");
+    let valor = json(&saida);
+    assert_eq!(valor["status_http"], 403, "recusa sem HTTP 403: {valor}");
+    assert_eq!(valor["documento"], DOC);
+    assert!(valor["documentos"].is_null());
     assert!(!destino.join("0011519.v1.html").exists());
 }
