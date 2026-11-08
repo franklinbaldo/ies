@@ -95,7 +95,6 @@ fn pedir(banco: Connection, metodo: &str, alvo: &str, corpo: &str) -> (Connectio
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "um ciclo HTTP e SQLite de ponta a ponta para tramitação")]
 fn pesquisa_abre_a_unidade_ativa_e_preserva_o_estado_ate_o_post_unico() {
     let mut banco = preparar();
     let antes = ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap();
