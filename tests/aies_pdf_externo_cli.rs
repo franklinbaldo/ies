@@ -260,19 +260,25 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
 }
 
 fn json(saida: &Output) -> Value {
-    serde_json::from_slice(&saida.stdout).unwrap_or_else(|erro| panic!(
-        "saída inválida {erro}: status={:?}, stderr={}", saida.status.code(),
-        String::from_utf8_lossy(&saida.stderr)
-    ))
+    serde_json::from_slice(&saida.stdout).unwrap_or_else(|erro| {
+        panic!(
+            "saída inválida {erro}: status={:?}, stderr={}",
+            saida.status.code(),
+            String::from_utf8_lossy(&saida.stderr)
+        )
+    })
 }
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
     let (saidas, eventos, total) = executar(false);
-    assert_eq!(saidas[0].status.code(), Some(0),
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
         "stdout={} stderr={} eventos={eventos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr));
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     let incluido = json(&saidas[0]);
     assert_eq!(incluido["confirmado"], true);
     assert_eq!(incluido["numero_sei"], "050000001");
@@ -312,9 +318,13 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 #[test]
 fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
     let (saidas, eventos, total) = executar(true);
-    assert_eq!(saidas[0].status.code(), Some(3), "stdout={} stderr={} eventos={eventos:?}",
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(3),
+        "stdout={} stderr={} eventos={eventos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr));
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     let incerto = json(&saidas[0]);
     assert_eq!(incerto["confirmado"], false);
     assert_eq!(incerto["efeito_incerto"], true);
