@@ -277,7 +277,12 @@ fn executar_com_ensaio_local(
     omitir_remocao_no_post: bool,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     executar_com_troca_de_unidade(
-        comandos, falhar_releitura, anotacao, ensaio_local, omitir_remocao_no_post, false,
+        comandos,
+        falhar_releitura,
+        anotacao,
+        ensaio_local,
+        omitir_remocao_no_post,
+        false,
     )
 }
 
@@ -321,17 +326,20 @@ fn executar_com_troca_de_unidade(
                 // Verificação antes da segunda escrita: o primeiro envio
                 // fechou ORIGEM, mas ainda não transferiu o processo a ARQUIVO.
                 let intermediario = processos::ler(&banco, &instalacao, CENARIO, "10")
-                    .unwrap().unwrap();
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(intermediario.aberto_em, ["DESTINO"]);
                 banco_cassettes::guardar(
-                    &mut banco, CENARIO,
+                    &mut banco,
+                    CENARIO,
                     &ControleResumido {
                         instalacao: instalacao.clone(),
                         unidade: UnidadeExibida::nova("DESTINO").unwrap(),
                         recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
                         gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
                     },
-                ).unwrap();
+                )
+                .unwrap();
             }
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
