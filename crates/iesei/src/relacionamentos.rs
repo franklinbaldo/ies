@@ -218,6 +218,15 @@ mod tests {
             listar(&db, &origem, "caso", "10").unwrap().unwrap().len(),
             1
         );
+        // A relação aparece nos dois processos quando ambos foram observados.
+        observar(&db, &origem, "caso", "22").unwrap();
+        assert_eq!(
+            listar(&db, &origem, "caso", "22").unwrap(),
+            Some(vec![Relacionamento {
+                id: "10".into(),
+                numero: "P-01".into(),
+            }])
+        );
         assert!(listar(&db, &origem, "outro", "10").unwrap().is_none());
         assert_eq!(
             identificar(&db, &origem, "caso", "P02")
