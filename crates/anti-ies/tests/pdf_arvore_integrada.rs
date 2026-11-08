@@ -15,11 +15,17 @@ fn aceitar(escuta: &TcpListener) -> TcpStream {
     loop {
         match escuta.accept() {
             Ok((fluxo, _)) => {
-                fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                fluxo.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                fluxo
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                fluxo
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return fluxo;
             }
-            Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < prazo => {
+            Err(erro)
+                if erro.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < prazo =>
+            {
                 std::thread::sleep(Duration::from_millis(10));
             }
             Err(erro) => panic!("servidor HTTP sintético não recebeu GET: {erro}"),
@@ -29,8 +35,12 @@ fn aceitar(escuta: &TcpListener) -> TcpStream {
 
 fn pedir(endereco: SocketAddr, alvo: &str) -> String {
     let mut fluxo = TcpStream::connect_timeout(&endereco, Duration::from_secs(5)).unwrap();
-    fluxo.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-    fluxo.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+    fluxo
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    fluxo
+        .set_write_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
     write!(fluxo, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
     fluxo.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
