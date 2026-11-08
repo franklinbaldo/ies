@@ -218,14 +218,22 @@ mod tests {
         banco_cassettes::guardar(&mut banco, "sessao", &resumo(&origem)).unwrap();
 
         guardar(&mut banco, "sessao", &detalhe(&origem)).unwrap();
-        assert!(banco_cassettes::ler(&banco, &origem, "sessao").unwrap().is_none());
+        assert!(
+            banco_cassettes::ler(&banco, &origem, "sessao")
+                .unwrap()
+                .is_none()
+        );
         let atual = ler(&banco, &origem, "sessao").unwrap().unwrap();
         assert_eq!(atual.processos.faixa_observada.unwrap().inicio(), 101);
         assert_eq!(atual.processos.total_declarado, Some(150));
 
         banco_cassettes::guardar(&mut banco, "sessao", &resumo(&origem)).unwrap();
         assert!(ler(&banco, &origem, "sessao").unwrap().is_none());
-        assert!(banco_cassettes::ler(&banco, &origem, "sessao").unwrap().is_some());
+        assert!(
+            banco_cassettes::ler(&banco, &origem, "sessao")
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]
