@@ -1,4 +1,5 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
+mod arvore_compartilhada;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
@@ -409,7 +410,13 @@ fn atender_com_fonte(
             atender_documento(pedido, banco, instalacao, cenario)
         }
         Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
-            documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+            arvore_compartilhada::responder(
+                &pedido.metodo,
+                &pedido.alvo,
+                banco,
+                instalacao,
+                cenario,
+            )
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(&pedido.alvo)
