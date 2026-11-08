@@ -72,12 +72,7 @@ fn preparar() -> Connection {
 
 /// Requisição HTTP real, sem rede externa. A conexão SQLite volta da thread
 /// para que o teste compare o estado antes/depois de cada operação.
-fn pedir(
-    banco: Connection,
-    metodo: &str,
-    alvo: &str,
-    corpo: &str,
-) -> (Connection, String) {
+fn pedir(banco: Connection, metodo: &str, alvo: &str, corpo: &str) -> (Connection, String) {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
@@ -100,6 +95,7 @@ fn pedir(
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "um ciclo HTTP e SQLite de ponta a ponta para tramitação")]
 fn pesquisa_abre_a_unidade_ativa_e_preserva_o_estado_ate_o_post_unico() {
     let mut banco = preparar();
     let antes = ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap();
@@ -131,7 +127,10 @@ fn pesquisa_abre_a_unidade_ativa_e_preserva_o_estado_ate_o_post_unico() {
     );
     banco = novo;
     assert!(arvore.contains("acao=procedimento_enviar"));
-    assert_eq!(ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap(), antes);
+    assert_eq!(
+        ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap(),
+        antes
+    );
 
     // Exatamente um POST mutador; a consulta seguinte é independente.
     let (novo, envio) = pedir(
@@ -143,7 +142,10 @@ fn pesquisa_abre_a_unidade_ativa_e_preserva_o_estado_ate_o_post_unico() {
     banco = novo;
     assert!(envio.starts_with("HTTP/1.1 302 Found"));
     assert_eq!(
-        ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap().aberto_em,
+        ler(&banco, &origem(), CENARIO, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
         ["DESTINO"]
     );
 
@@ -156,7 +158,10 @@ fn pesquisa_abre_a_unidade_ativa_e_preserva_o_estado_ate_o_post_unico() {
         "pesquisa reabriu tela documental com unidade de origem obsoleta"
     );
     assert_eq!(
-        ler(&banco, &origem(), CENARIO, "10").unwrap().unwrap().aberto_em,
+        ler(&banco, &origem(), CENARIO, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
         ["DESTINO"]
     );
 }
