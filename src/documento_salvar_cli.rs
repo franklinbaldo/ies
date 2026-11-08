@@ -1,4 +1,5 @@
-//! Prévia segura: nunca executa confirmação Web. O par local é
+//! Prévia offline e confirmação exclusivamente contra o anti-IES de ensaio.
+//! O par local é
 //! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207. Offline:
 //! não lê índice, configuração nem sessão, e não verifica a base.
 use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
