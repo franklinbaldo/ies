@@ -1,4 +1,5 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
+pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
 pub mod pdf_externo;
@@ -433,6 +434,27 @@ pub fn atender_http(
                     }
                     Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {
                         atender_documento(&pedido, banco, instalacao, cenario)
+                    }
+                    Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
+                        documento_arvore::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    Some("procedimento_trabalhar")
+                        if eh_controlador_sei(&pedido.alvo)
+                            && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
+                    {
+                        documento_arvore::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
                     }
                     Some("documento_versao_listar" | "documento_visualizar")
                         if eh_controlador_sei(&pedido.alvo) =>

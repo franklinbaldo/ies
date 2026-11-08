@@ -1,4 +1,4 @@
--- Shape v5: documento externo sintético com duas transições separadas.
+-- Shape v6: documento externo sintético com duas transições separadas.
 -- Banco exclusivamente efêmero do anti-IES, sem sessão/cookie/URL assinada.
 -- Reusa sim_processo da migração 0004: uma identidade por processo.
 CREATE TABLE externo_tipo (
@@ -18,4 +18,4 @@ CREATE TABLE externo_documento (
   numero_sei TEXT NOT NULL, nome TEXT NOT NULL, tamanho INTEGER NOT NULL,
   FOREIGN KEY (id_upload) REFERENCES externo_upload(id)
 ) STRICT;
-PRAGMA user_version = 5;
+PRAGMA user_version = 6;

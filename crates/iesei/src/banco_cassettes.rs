@@ -12,7 +12,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0004_documentos_simulados.sql"),
     "\n",
-    include_str!("../migrations/0005_pdf_externo.sql")
+    include_str!("../migrations/0005_documento_processo.sql"),
+    "\n",
+    include_str!("../migrations/0006_pdf_externo.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
