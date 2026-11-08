@@ -320,7 +320,9 @@ pub fn atender(
                 return Some(erro(Estado::RequisicaoInvalida));
             };
             let flag = campo(texto, "hdnFlagDocumentoCadastro");
-            let serie = campo(texto, "selSerie");
+            // O cadastro final conserva a série no hidden hdnIdSerie; a
+            // recarga por tipo também aceita a seleção visível selSerie.
+            let serie = campo(texto, "hdnIdSerie").or_else(|| campo(texto, "selSerie"));
             match (flag.as_deref(), serie.as_deref()) {
                 (Some("1"), Some(serie)) => match modelo::tipos(banco, origem, cenario, id) {
                     Ok(tipos) if tipos.iter().any(|t| t.id == serie) => {
