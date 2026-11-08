@@ -1,7 +1,7 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
 pub mod documento_versoes;
-pub mod processo_envio;
 mod documentos;
+pub mod processo_envio;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -382,16 +382,24 @@ pub fn atender_http(
                         if eh_controlador_sei(&pedido.alvo) =>
                     {
                         processo_envio::responder(
-                            &pedido.metodo, &pedido.alvo, &pedido.corpo,
-                            banco, instalacao, cenario,
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
                         )
                     }
                     None if parametro_unico(&pedido.alvo, "acao_ajax")
                         == Some("unidade_auto_completar_envio_processo") =>
                     {
                         processo_envio::autocompletar(
-                            &pedido.metodo, &pedido.alvo, &pedido.corpo,
-                            banco, instalacao, cenario,
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
                         )
                     }
                     Some("retorno_programado_listar") => {
