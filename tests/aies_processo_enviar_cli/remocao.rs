@@ -61,7 +61,7 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true);
+        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -101,7 +101,7 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true);
+        executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -120,4 +120,44 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     );
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+}
+
+#[test]
+fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
+    // O proxy local omite somente o checkbox no POST. O anti-IES então
+    // tramita no SQLite, mas mantém a anotação: efeitos independentes.
+    let mut confirmacao = args(true);
+    confirmacao.push("--remover-anotacoes");
+    let (saidas, pedidos, depois) =
+        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, true);
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(1),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saidas[0].stdout),
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
+    let resultado = json(&saidas[0]);
+    assert_eq!(resultado["codigo"], "escrita_diferente_da_solicitada");
+    assert_eq!(resultado["subcodigo"], "anotacoes_nao_removidas_apos_envio");
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"]),
+        "a falha deve preservar a tramitação comprovada"
+    );
+    assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1
+    );
+    assert!(!pedidos.iter().any(|p| p == "POST anotacao_registrar"));
+    assert!(
+        pedidos.iter().rposition(|p| p == "GET anotacao_registrar")
+            > pedidos.iter().position(|p| p == "POST procedimento_enviar"),
+        "a recusa exige releitura independente: {pedidos:?}"
+    );
 }
