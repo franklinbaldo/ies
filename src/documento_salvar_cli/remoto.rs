@@ -308,33 +308,6 @@ fn executar(
     )
 }
 
-#[cfg(test)]
-mod testes_moldura {
-    use super::corpos_da_edicao;
-
-    const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
-
-    #[test]
-    fn nao_publica_uma_edicao_que_tambem_mudou_a_moldura_nao_editavel() {
-        let corpo_novo = BASE.replace("<p>Antes</p>", "<p>Depois</p>");
-        for edicao in [
-            corpo_novo.replace("<title>Documento</title>", "<title>Outro</title>"),
-            corpo_novo.replace("<div>Versão 3</div>", "<div>Versão 99</div>"),
-        ] {
-            assert!(matches!(corpos_da_edicao(BASE, &edicao), Err(_)));
-        }
-    }
-
-    #[test]
-    fn mantem_o_caminho_editavel_quando_so_o_corpo_muda() {
-        let edicao = BASE.replace("<p>Antes</p>", "<p>Depois</p>");
-        assert!(matches!(
-            corpos_da_edicao(BASE, &edicao),
-            Ok(("<p>Antes</p>", "<p>Depois</p>"))
-        ));
-    }
-}
-
 pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
         match executar(cli, sessao, indice, numero, previa) {
@@ -382,4 +355,31 @@ pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopi
             }
         }
     })
+}
+
+#[cfg(test)]
+mod testes_moldura {
+    use super::corpos_da_edicao;
+
+    const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
+
+    #[test]
+    fn nao_publica_uma_edicao_que_tambem_mudou_a_moldura_nao_editavel() {
+        let corpo_novo = BASE.replace("<p>Antes</p>", "<p>Depois</p>");
+        for edicao in [
+            corpo_novo.replace("<title>Documento</title>", "<title>Outro</title>"),
+            corpo_novo.replace("<div>Versão 3</div>", "<div>Versão 99</div>"),
+        ] {
+            assert!(corpos_da_edicao(BASE, &edicao).is_err());
+        }
+    }
+
+    #[test]
+    fn mantem_o_caminho_editavel_quando_so_o_corpo_muda() {
+        let edicao = BASE.replace("<p>Antes</p>", "<p>Depois</p>");
+        assert!(matches!(
+            corpos_da_edicao(BASE, &edicao),
+            Ok(("<p>Antes</p>", "<p>Depois</p>"))
+        ));
+    }
 }
