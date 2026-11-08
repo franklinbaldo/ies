@@ -133,6 +133,8 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
         b"",
     );
     assert!(depois.contains("documento_pdf"));
+    // O mesmo ID publicado no Location aparece na arvore alternativa.
+    assert!(depois.contains("data-id='8000000000001'"));
     assert!(depois.contains("prova.pdf"));
     assert!(depois.contains("050000001"));
     let documentos = servidor.join().unwrap();
