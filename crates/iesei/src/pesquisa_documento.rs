@@ -21,9 +21,7 @@ impl From<rusqlite::Error> for Falha {
 }
 
 fn valido(cenario: &str, termo: &str) -> bool {
-    !cenario.is_empty()
-        && !termo.trim().is_empty()
-        && !termo.chars().any(char::is_control)
+    !cenario.is_empty() && !termo.trim().is_empty() && !termo.chars().any(char::is_control)
 }
 
 /// Registra somente uma busca cuja resposta negativa foi observada no cenário.
@@ -63,12 +61,14 @@ pub fn consultar(
     if !valido(cenario, termo) {
         return Err(Falha::EntradaInvalida);
     }
-    let achado: Option<i64> = banco.query_row(
-        "SELECT 1 FROM pesquisa_documento_sem_resultado
+    let achado: Option<i64> = banco
+        .query_row(
+            "SELECT 1 FROM pesquisa_documento_sem_resultado
          WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4",
-        params![instalacao.url_base(), cenario, unidade.as_str(), termo],
-        |linha| linha.get(0),
-    ).optional()?;
+            params![instalacao.url_base(), cenario, unidade.as_str(), termo],
+            |linha| linha.get(0),
+        )
+        .optional()?;
     Ok(achado.map(|_| Resultado::SemResultado))
 }
 
@@ -82,16 +82,32 @@ mod tests {
         crate::banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let unidade = UnidadeExibida::nova("TESTE").unwrap();
-        assert!(consultar(&banco, &origem, "cenario", &unidade, "sem").unwrap().is_none());
+        assert!(
+            consultar(&banco, &origem, "cenario", &unidade, "sem")
+                .unwrap()
+                .is_none()
+        );
         registrar_sem_resultado(&banco, &origem, "cenario", &unidade, "sem").unwrap();
         registrar_sem_resultado(&banco, &origem, "cenario", &unidade, "sem").unwrap();
         assert_eq!(
             consultar(&banco, &origem, "cenario", &unidade, "sem").unwrap(),
             Some(Resultado::SemResultado)
         );
-        assert!(consultar(&banco, &origem, "cenario", &unidade, "outro").unwrap().is_none());
-        assert!(consultar(
-            &banco, &origem, "cenario", &UnidadeExibida::nova("OUTRA").unwrap(), "sem"
-        ).unwrap().is_none());
+        assert!(
+            consultar(&banco, &origem, "cenario", &unidade, "outro")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            consultar(
+                &banco,
+                &origem,
+                "cenario",
+                &UnidadeExibida::nova("OUTRA").unwrap(),
+                "sem"
+            )
+            .unwrap()
+            .is_none()
+        );
     }
 }
