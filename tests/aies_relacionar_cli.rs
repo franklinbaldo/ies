@@ -233,9 +233,9 @@ fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
         1
     );
     assert!(
-        eventos
-            .iter()
-            .all(|e| e.starts_with("GET ") || e == "POST protocolo_RI1023" || e == "POST protocolo_pesquisa_rapida"),
+        eventos.iter().all(|e| e.starts_with("GET ")
+            || e == "POST protocolo_RI1023"
+            || e == "POST protocolo_pesquisa_rapida"),
         "a prévia jamais grava relação: {eventos:?}"
     );
     assert_eq!(
