@@ -53,6 +53,7 @@ fn recusa(json_mode: bool, causa: &FalhaInclusaoExterna, mensagem: &str, status:
             json!({
                 "causa": causa,
                 "retentavel": false,
+                "requisicoes": 0,
                 "escrita_remota": false
             })
         );
