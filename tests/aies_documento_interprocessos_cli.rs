@@ -366,9 +366,20 @@ fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
 fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
     let (saida, trilha) = executar(
         true,
-        &["--json", "documento", DOC_B, "--processo", NUP_A, "--sem-cache"],
+        &[
+            "--json",
+            "documento",
+            DOC_B,
+            "--processo",
+            NUP_A,
+            "--sem-cache",
+        ],
     );
-    assert_ne!(saida.status.code(), Some(0), "documento alheio não pode ser lido");
+    assert_ne!(
+        saida.status.code(),
+        Some(0),
+        "documento alheio não pode ser lido"
+    );
     let valor = json(&saida);
     assert_eq!(valor["documento"], DOC_B, "{valor}");
     assert!(valor.get("documentos").is_none(), "{valor}");

@@ -134,7 +134,8 @@ fn bdd_60_05_http_identidade_composta_repetida_recusa_sem_vazar_documento() {
         assert!(resposta.starts_with("HTTP/1.1 400"), "{resposta}");
         assert!(!resposta.contains("0011519"), "{resposta}");
     }
-    let valido = "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7";
+    let valido =
+        "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7";
     assert!(pedir(endereco, "POST", valido).starts_with("HTTP/1.1 405"));
     let resposta = pedir(endereco, "GET", valido);
     assert!(resposta.starts_with("HTTP/1.1 200"), "{resposta}");
