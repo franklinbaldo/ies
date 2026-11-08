@@ -1,4 +1,5 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
+pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
@@ -400,6 +401,27 @@ pub fn atender_http(
                             &pedido.metodo,
                             &pedido.alvo,
                             &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
+                        documento_arvore::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    Some("procedimento_trabalhar")
+                        if eh_controlador_sei(&pedido.alvo)
+                            && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
+                    {
+                        documento_arvore::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
                             banco,
                             instalacao,
                             cenario,

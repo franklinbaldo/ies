@@ -12,6 +12,53 @@ use rusqlite::Connection;
 use std::num::NonZeroU32;
 
 #[test]
+fn bdd_88_01_arvore_anti_ies_lida_pelo_ies() {
+    use crate::arvore_processo::{
+        ConteudoNaArvore, ler_arvore, ler_barra_do_documento, ler_conteudo_na_arvore,
+    };
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let documento = DocumentoSimulado {
+        instalacao: origem.clone(),
+        id_documento: "42".into(),
+        id_procedimento: "7".into(),
+        numero_processo: "00001.000001/2026-01".into(),
+        numero: "0011519".into(),
+        tipo: "Ofício".into(),
+        revisoes: vec![Revisao {
+            versao: NonZeroU32::new(3).unwrap(),
+            usuario: "Bia".into(),
+            unidade: "PPI".into(),
+            modificacao: "03/11/2026".into(),
+            html_corpo: "<p>Terceira redação</p>".into(),
+        }],
+    };
+    guardar(&mut banco, "bdd-88", &documento).unwrap();
+    let resposta = anti_ies::documento_arvore::responder(
+        "GET",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=42",
+        &banco,
+        &origem,
+        "bdd-88",
+    );
+    assert_eq!(resposta.estado, Estado::Ok);
+    let a = ler_arvore(&resposta.corpo, &documento.numero_processo, "7").unwrap();
+    assert_eq!(a.documentos.len(), 1);
+    assert_eq!(a.documentos[0].numero_sei.as_deref(), Some("0011519"));
+    assert!(
+        ler_barra_do_documento(&origem, &resposta.corpo, "42", "7")
+            .unwrap()
+            .versoes
+            .is_some()
+    );
+    assert!(matches!(
+        ler_conteudo_na_arvore(&origem, &resposta.corpo, "42").unwrap(),
+        ConteudoNaArvore::Visualizar(_)
+    ));
+}
+
+#[test]
 fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
     let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
     let mut banco = Connection::open_in_memory().unwrap();
@@ -23,6 +70,7 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
             instalacao: origem.clone(),
             id_documento: "42".into(),
             id_procedimento: "7".into(),
+            numero_processo: "00001.000001/2026-01".into(),
             numero: "0011519".into(),
             tipo: "Ofício".into(),
             revisoes: vec![
