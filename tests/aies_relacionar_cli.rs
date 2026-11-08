@@ -87,7 +87,7 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
     (cabecalho, evento)
 }
 
-fn banco() -> (Connection, Instalacao) {
+fn banco(vinculo_inicial: bool) -> (Connection, Instalacao) {
     let mut db = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&db).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
@@ -119,10 +119,13 @@ fn banco() -> (Connection, Instalacao) {
         .unwrap();
     }
     relacionamentos::observar(&db, &origem, CENARIO, "10").unwrap();
+    if vinculo_inicial {
+        relacionamentos::registrar(&db, &origem, CENARIO, "10", "22").unwrap();
+    }
     (db, origem)
 }
 
-fn executar() -> (Output, Vec<String>, usize) {
+fn executar(vinculo_inicial: bool) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -145,7 +148,7 @@ fn executar() -> (Output, Vec<String>, usize) {
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (db, origem) = banco();
+        let (db, origem) = banco(vinculo_inicial);
         while let Some(mut canal) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut canal, Some((&db, &origem, CENARIO))).unwrap();
         }
@@ -202,7 +205,7 @@ fn executar() -> (Output, Vec<String>, usize) {
 
 #[test]
 fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
-    let (saida, eventos, relacionados) = executar();
+    let (saida, eventos, relacionados) = executar(false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -242,4 +245,40 @@ fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
         relacionados, 0,
         "estado SQLite compartilhado permanece sem vínculo"
     );
+}
+
+#[test]
+fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
+    let (saida, eventos, relacionados) = executar(true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} http={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["nup"], NUP);
+    assert_eq!(valor["destino"], DESTINO);
+    assert_eq!(valor["id_destino"], "22");
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(valor["alterado"], false);
+    assert_eq!(valor["sem_efeito"], true);
+    assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET procedimento_relacionar")
+            .count(),
+        1
+    );
+    assert!(
+        !eventos.iter().any(|e| e.as_str() == "POST protocolo_RI1023"),
+        "vínculo publicado na tabela dispensa consulta complementar: {eventos:?}"
+    );
+    assert!(
+        eventos.iter().all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"),
+        "a prévia não submete vínculo: {eventos:?}"
+    );
+    assert_eq!(relacionados, 1, "a prévia preserva a única relação existente");
 }
