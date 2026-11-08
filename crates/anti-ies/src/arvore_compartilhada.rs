@@ -135,7 +135,7 @@ pub(crate) fn responder(
             id_processo,
             &documento.tipo,
             &documento.numero_sei,
-            "documento_externo",
+            "documento_pdf",
         ));
         indice += 1;
     }
