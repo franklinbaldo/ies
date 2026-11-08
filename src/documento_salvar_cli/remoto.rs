@@ -134,8 +134,8 @@ struct ConferenciaPublicacao<'a> {
     respondeu: bool,
 }
 
-fn verificar_publicacao(envio: &mut EnvioHttps, dados: ConferenciaPublicacao<'_>) -> Resultado {
-    let ConferenciaPublicacao {
+fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_>) -> Resultado {
+    let &ConferenciaPublicacao {
         origem,
         cookie,
         id_documento,
@@ -283,7 +283,7 @@ fn executar(
     );
     verificar_publicacao(
         &mut envio,
-        ConferenciaPublicacao {
+        &ConferenciaPublicacao {
             origem: sessao.origem,
             cookie,
             id_documento: &lido.id_documento,
