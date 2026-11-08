@@ -237,3 +237,48 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
             .contains("hdnAnexos=temp-42")
     );
 }
+
+#[test]
+fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
+    // O cadastro recarregado oferece apenas selSerie. O fluxo publico ainda
+    // permanece bloqueado; a fronteira HTTPS futura deve recusar ANTES do upload.
+    let amb = a::ambiente();
+    let mut respostas = a::abertura(arvore());
+    respostas.push(a::ok(lista()));
+    respostas.push(a::ok(cadastro("1", false)));
+    respostas.push(a::ok(cadastro("1", true).replace(
+        "infra_hash=FICTICIO",
+        &format!("infra_hash={}", "b".repeat(64)),
+    )));
+    let mut upload_tentado = false;
+    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        let pdf = PdfLocal {
+            nome: "prova.pdf".into(),
+            tamanho_bytes: 68,
+            sha256: "ficticio".into(),
+        };
+        super::super::fluxo_confirmar::executar_confirmacao_via_prevalidada(
+            sessao,
+            nup,
+            None,
+            "Anexo",
+            &pdf,
+            indice,
+            rede,
+            |_, _, _, _, _| {
+                upload_tentado = true;
+                panic!("formulario incompleto nao pode iniciar upload");
+            },
+        )
+    });
+    assert!(matches!(
+        resultado,
+        Err(
+            super::super::fluxo_confirmar::ErroConfirmacaoExterna::CampoCadastroNaoOferecido(
+                "txtDataElaboracao"
+            )
+        )
+    ));
+    assert!(!upload_tentado);
+    assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+}
