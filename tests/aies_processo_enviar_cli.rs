@@ -164,7 +164,7 @@ fn pedido(fonte: &mut impl Read) -> (Vec<u8>, String, String) {
     (bytes, metodo, acao)
 }
 
-fn preparar_banco() -> (Connection, Instalacao) {
+fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
@@ -199,7 +199,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
             numero: NUP.into(),
             unidade_origem: "ORIGEM".into(),
             aberto_em: vec!["ORIGEM".into()],
-            anotacao_origem: Some("Nota da origem".into()),
+            anotacao_origem: anotacao.map(str::to_owned),
             destinos: vec![Destino {
                 id: "2".into(),
                 sigla: "DESTINO".into(),
@@ -215,6 +215,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
 fn executar(
     comandos: &[&[&str]],
     falhar_releitura: bool,
+    anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
@@ -234,7 +235,7 @@ fn executar(
     let parar = Arc::new(AtomicBool::new(false));
     let parar_sim = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (banco, instalacao) = preparar_banco();
+        let (banco, instalacao) = preparar_banco(anotacao);
         let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
@@ -342,7 +343,7 @@ fn json(saida: &Output) -> Value {
 fn bdd_333_01_02_previa_nao_muta_e_confirmacao_unica_atualiza_sqlite() {
     let previa = args(false);
     let confirmacao = args(true);
-    let (saidas, pedidos, depois) = executar(&[&previa, &confirmacao], false);
+    let (saidas, pedidos, depois) = executar(&[&previa, &confirmacao], false, Some("Nota da origem"));
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -384,7 +385,7 @@ fn bdd_333_01_02_previa_nao_muta_e_confirmacao_unica_atualiza_sqlite() {
 #[test]
 fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
     let confirmacao = args(true);
-    let (saidas, pedidos, depois) = executar(&[&confirmacao], true);
+    let (saidas, pedidos, depois) = executar(&[&confirmacao], true, Some("Nota da origem"));
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -406,3 +407,6 @@ fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
         "a mutação ocorreu apesar de não haver prova independente"
     );
 }
+
+#[path = "aies_processo_enviar_cli/remocao.rs"]
+mod remocao;
