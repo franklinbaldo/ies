@@ -1,5 +1,8 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
+use iesei::banco_cassettes::iniciar;
+use iesei::documentos_simulados::{Tipo, registrar_tipo};
+use iesei::pdf_externo::{Processo, TipoExterno, semear as semear_pdf};
 use iesei::instalacao::Instalacao;
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
@@ -12,9 +15,44 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     let origem = std::env::var("ANTI_IES_CASSETTE_ORIGEM").ok();
     let cenario = std::env::var("ANTI_IES_CASSETTE_CENARIO").ok();
     match (caminho, origem, cenario) {
-        (None, None, None) => Ok(None),
+        (None, None, None) => {
+            // Cenário sintético de demonstração. Nunca abre SEI nem arquivo operacional.
+            let banco = Connection::open_in_memory()?;
+            iniciar(&banco)?;
+            let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
+                .ok_or("origem sintética inválida")?;
+            let cenario = "bdd-246".to_owned();
+            semear_pdf(
+                &banco,
+                &instalacao,
+                &cenario,
+                &Processo {
+                    id: "10".into(),
+                    nup: "00001.000001/2026-01".into(),
+                    unidade: "UNIDADE TESTE".into(),
+                },
+                &TipoExterno {
+                    id: "293".into(),
+                    nome: "Anexo".into(),
+                    limite_bytes: 200 * 1024 * 1024,
+                },
+            )
+            .map_err(|_| "falha ao preparar PDF externo de demonstração")?;
+            registrar_tipo(
+                &banco,
+                &instalacao,
+                &cenario,
+                "10",
+                &Tipo {
+                    id: "291".into(),
+                    nome: "Despacho".into(),
+                },
+            )
+            .map_err(|_| "falha ao preparar tipo de demonstração")?;
+            Ok(Some((banco, instalacao, cenario)))
+        }
         (Some(caminho), Some(origem), Some(cenario)) if !cenario.is_empty() => {
-            // Banco derivado do ensaio aceita transições; nunca o índice operacional.
+            // Nunca usar diretamente o índice operacional com URLs de sessão.
             if std::path::Path::new(&caminho).file_name()
                 == Some(std::ffi::OsStr::new("ies.sqlite3"))
             {
@@ -24,7 +62,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
-                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
             )?;
             Ok(Some((banco, instalacao, cenario)))
         }

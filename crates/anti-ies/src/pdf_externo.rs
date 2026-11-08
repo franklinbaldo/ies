@@ -7,11 +7,7 @@ use rusqlite::Connection;
 use std::fmt::Write as _;
 
 fn html(corpo: String) -> Resposta {
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo,
-    }
+    Resposta::html(corpo)
 }
 
 fn erro(estado: Estado) -> Resposta {
@@ -116,6 +112,81 @@ fn documento_na_arvore(
     }
     pagina.push_str("</ul></body></html>");
     html(pagina)
+}
+
+/// A escolha interna mantém seus controles, e o mesmo processo oferece
+/// a inclusão externa quando há uma série de PDF declarada no SQLite.
+pub(crate) fn complementar_escolha(
+    mut resposta: Resposta,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let Some(id) = id_processo(alvo) else {
+        return resposta;
+    };
+    let tipos = match modelo::tipos(banco, origem, cenario, id) {
+        Ok(tipos) => tipos,
+        Err(e) => return falha(&e),
+    };
+    if tipos.is_empty() {
+        return resposta;
+    }
+    if resposta.estado == Estado::NaoEncontrado {
+        return inicio_da_inclusao(id);
+    }
+    if resposta.estado == Estado::Ok {
+        let link = format!(
+            "<a id='incluirExterno' href='controlador.php?acao=documento_receber&amp;id_procedimento={id}'>Incluir Documento Externo</a>"
+        );
+        if let Some(fim) = resposta.corpo.rfind("</body>") {
+            resposta.corpo.insert_str(fim, &link);
+        }
+    }
+    resposta
+}
+
+/// Uma única árvore do processo mostra documentos internos e PDFs externos,
+/// inclusive quando ambos foram cadastrados no mesmo cenário SQLite.
+pub(crate) fn complementar_arvore(
+    mut resposta: Resposta,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let Some(id) = id_processo(alvo) else {
+        return resposta;
+    };
+    if resposta.estado == Estado::NaoEncontrado {
+        return documento_na_arvore(banco, origem, cenario, id);
+    }
+    if resposta.estado != Estado::Ok {
+        return resposta;
+    }
+    let documentos = match modelo::documentos(banco, origem, cenario, id) {
+        Ok(documentos) => documentos,
+        Err(e) => return falha(&e),
+    };
+    let mut itens = String::new();
+    for doc in documentos {
+        write!(
+            itens,
+            "<li class='documento_pdf' data-id='{}' data-numero-sei='{}'>{} {} ({})</li>",
+            doc.id,
+            escapar(&doc.numero_sei),
+            escapar(&doc.tipo),
+            escapar(&doc.numero_sei),
+            escapar(&doc.nome),
+        )
+        .expect("formatar árvore");
+    }
+    let Some(fim) = resposta.corpo.find("</ul>") else {
+        return erro(Estado::DadosInsuficientes);
+    };
+    resposta.corpo.insert_str(fim, &itens);
+    resposta
 }
 
 fn decode(texto: &str) -> Option<String> {
@@ -285,6 +356,7 @@ pub fn atender(
                             "upload-{}#{}#application/pdf#{}#01/01/2026 00:00:00#",
                             temp.id, temp.nome, temp.tamanho
                         ),
+                        localizacao: None,
                     },
                     Err(e) => falha(&e),
                 }

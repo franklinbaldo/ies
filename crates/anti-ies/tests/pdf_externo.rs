@@ -241,3 +241,45 @@ fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
     assert_eq!(resposta.estado, anti_ies::Estado::DadosInsuficientes);
     assert!(!resposta.corpo.contains("050000001"));
 }
+
+
+#[test]
+fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
+    use iesei::documentos_simulados as interno;
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        semear(&banco);
+        let origem = origem();
+        interno::registrar_tipo(
+            &banco, &origem, "ensaio", "7",
+            &interno::Tipo { id: "291".into(), nome: "Despacho".into() },
+        ).unwrap();
+        interno::criar(&banco, &origem, "ensaio", "7", "291", "Interno").unwrap();
+        let temporario = modelo::receber(&banco, &origem, "ensaio", "7", "anexo.pdf", 45).unwrap();
+        modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", temporario.id).unwrap();
+        for _ in 0..2 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, "ensaio"))).unwrap();
+        }
+    });
+    let escolha = pedir(
+        endereco, "GET",
+        "/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=7", b"",
+    );
+    assert!(escolha.contains("frmDocumentoEscolherTipo"));
+    assert!(escolha.contains("incluirExterno"));
+    let arvore = pedir(
+        endereco, "GET",
+        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7", b"",
+    );
+    assert!(arvore.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(arvore.contains("Despacho"));
+    assert!(arvore.contains("1000001"));
+    assert!(arvore.contains("Anexo"));
+    assert!(arvore.contains("050000001"));
+    assert!(arvore.contains("anexo.pdf"));
+    servidor.join().unwrap();
+}

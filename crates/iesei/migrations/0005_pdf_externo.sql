@@ -1,10 +1,6 @@
 -- Shape v5: documento externo sintético com duas transições separadas.
 -- Banco exclusivamente efêmero do anti-IES, sem sessão/cookie/URL assinada.
-CREATE TABLE externo_processo (
-  origem TEXT NOT NULL, cenario TEXT NOT NULL, id_procedimento TEXT NOT NULL,
-  nup TEXT NOT NULL, unidade TEXT NOT NULL,
-  PRIMARY KEY (origem, cenario, id_procedimento)
-) STRICT;
+-- Reusa sim_processo da migração 0004: uma identidade por processo.
 CREATE TABLE externo_tipo (
   origem TEXT NOT NULL, cenario TEXT NOT NULL, id_procedimento TEXT NOT NULL,
   id_serie TEXT NOT NULL, nome TEXT NOT NULL, limite_bytes INTEGER NOT NULL CHECK (limite_bytes > 0),

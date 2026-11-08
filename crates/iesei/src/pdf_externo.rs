@@ -1,14 +1,9 @@
 //! Estado tipado do PDF externo simulado, comum ao IES e ao anti-IES.
 //! O upload temporário e o cadastro definitivo são transições independentes.
+use crate::documentos_simulados as documentos;
 use crate::instalacao::Instalacao;
+pub use crate::documentos_simulados::Processo;
 use rusqlite::{Connection, OptionalExtension, params};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Processo {
-    pub id: String,
-    pub nup: String,
-    pub unidade: String,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TipoExterno {
@@ -83,18 +78,12 @@ pub fn semear(
     {
         return Err(Falha::EntradaInvalida);
     }
-    banco.execute(
-        "INSERT INTO externo_processo (origem, cenario, id_procedimento, nup, unidade)
-         VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (origem, cenario, id_procedimento)
-         DO UPDATE SET nup=excluded.nup, unidade=excluded.unidade",
-        params![
-            origem.url_base(),
-            cenario,
-            processo.id,
-            processo.nup,
-            processo.unidade
-        ],
-    )?;
+    documentos::registrar_processo(banco, origem, cenario, processo).map_err(|e| match e {
+        documentos::Falha::Sqlite(e) => Falha::Sqlite(e),
+        documentos::Falha::EntradaInvalida => Falha::EntradaInvalida,
+        documentos::Falha::ProcessoIndisponivel => Falha::ProcessoAusente,
+        documentos::Falha::TipoIndisponivel => Falha::TipoAusente,
+    })?;
     banco.execute(
         "INSERT INTO externo_tipo (origem, cenario, id_procedimento, id_serie, nome, limite_bytes)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -122,21 +111,7 @@ pub fn processo(
     cenario: &str,
     id: &str,
 ) -> Result<Option<Processo>, Falha> {
-    banco
-        .query_row(
-            "SELECT id_procedimento, nup, unidade FROM externo_processo
-             WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
-            params![origem.url_base(), cenario, id],
-            |r| {
-                Ok(Processo {
-                    id: r.get(0)?,
-                    nup: r.get(1)?,
-                    unidade: r.get(2)?,
-                })
-            },
-        )
-        .optional()
-        .map_err(Falha::from)
+    documentos::ler_processo(banco, origem, cenario, id).map_err(Falha::from)
 }
 
 /// Tipos realmente disponíveis no cenário, sem inventar alternativas.
