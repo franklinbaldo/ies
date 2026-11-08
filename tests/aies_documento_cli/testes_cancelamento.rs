@@ -64,7 +64,6 @@ fn bdd_273_02_cli_um_cancelamento_com_releitura_e_sem_retry() {
     assert!(feito.get("falha_do_envio").is_none());
 }
 
-
 /// A confirmação da CLI altera o mesmo SQLite usado pelas rotas do anti-IES.
 /// Prova técnica complementar ao BDD-273-02: a árvore posterior deixa de
 /// oferecer cancelar, e uma nova tentativa não substitui o motivo original.
@@ -99,9 +98,7 @@ fn bdd_273_02_estado_cancelado_persiste_entre_cli_arvore_e_formulario() {
     // parser da CLI: é uma expectativa independente do efeito persistido.
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    let estado = || {
-        cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap()
-    };
+    let estado = || cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap();
     assert_eq!(
         estado(),
         Some(Situacao::Cancelado {
@@ -122,9 +119,8 @@ fn bdd_273_02_estado_cancelado_persiste_entre_cli_arvore_e_formulario() {
     assert!(!arvore.corpo.contains("Cancelar Documento"));
 
     let alvo = "/sei/controlador.php?acao=documento_cancelar&id_procedimento=7&id_documento=42";
-    let formulario = anti_ies::documento_cancelar::responder(
-        "GET", alvo, "", &banco, &origem, CENARIO,
-    );
+    let formulario =
+        anti_ies::documento_cancelar::responder("GET", alvo, "", &banco, &origem, CENARIO);
     assert_eq!(formulario.estado, anti_ies::Estado::MetodoNaoPermitido);
 
     // Mesmo um POST sintético direto não cancela duas vezes nem troca o
