@@ -240,9 +240,7 @@ pub(crate) fn copiar_para_saida(
         }
         return Err(FalhaCache::ArquivoDivergente);
     }
-    if fs::hard_link(origem, destino).is_ok() {
-        return Ok(true);
-    }
+    // A cópia do usuário deve ter inode próprio: sua edição não pode adulterar o cache.
     let mut arquivo = fs::File::open(origem).map_err(|_| FalhaCache::Gravacao)?;
     let mut parcial = Parcial::abrir(destino, Politica::exclusiva().diretorio_do_usuario())
         .map_err(|_| FalhaCache::Gravacao)?;
@@ -386,7 +384,10 @@ mod tests {
         let raiz = std::env::temp_dir().join(format!(
             "ies-cache-pdf-independente-{}-{}",
             std::process::id(),
-            std::thread::current().name().unwrap_or("teste")
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         let pdf = b"%PDF-1.7 original";
         let origem = gravar_em(&raiz, "sei.exemplo", "0007", None, "pdf", pdf).unwrap();
