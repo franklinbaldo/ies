@@ -72,3 +72,65 @@ fn bdd_88_02_cli_preserva_foto_local_coerente_mas_editada() {
     assert_eq!(json(&segunda)["subcodigo"], "foto_local_divergente");
     assert_eq!(fs::read_to_string(&foto).unwrap(), html_editado);
 }
+
+// BDD-88-02: a foto da versão histórica já idêntica é um no-op.
+// A confirmação é pela CLI real e pelo inode/mtime do arquivo local,
+// não por um mock do renderizador nem por reescrever os mesmos bytes.
+#[test]
+fn bdd_88_02_cli_foto_idempotente_sem_substituir_arquivo_existente() {
+    use std::os::unix::fs::MetadataExt as _;
+
+    let pasta = Pasta::nova();
+    let destino = pasta.0.join("saida");
+    fs::create_dir(&destino).unwrap();
+    let args = [
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        destino.to_str().unwrap(),
+        "--sem-cache",
+    ];
+    let primeira = executar(&pasta, &args, 6);
+    assert_eq!(
+        primeira.status.code(),
+        Some(0),
+        "primeira leitura: {}",
+        String::from_utf8_lossy(&primeira.stderr)
+    );
+    let primeiro_json = json(&primeira);
+    assert_eq!(primeiro_json["documentos"][0]["arquivo"]["gravado"], true);
+    let foto = destino.join("0011519.v1.html");
+    let conteudo = fs::read(&foto).unwrap();
+    assert!(
+        String::from_utf8_lossy(&conteudo).contains("Primeira redação"),
+        "a foto não representa a versão pedida"
+    );
+    assert!(
+        !String::from_utf8_lossy(&conteudo).contains("Terceira redação"),
+        "a versão atual contaminou a foto histórica"
+    );
+    let antes = fs::metadata(&foto).unwrap();
+
+    let segunda = executar(&pasta, &args, 6);
+    assert_eq!(
+        segunda.status.code(),
+        Some(0),
+        "releitura idempotente: {}",
+        String::from_utf8_lossy(&segunda.stderr)
+    );
+    let segundo_json = json(&segunda);
+    let arquivo = &segundo_json["documentos"][0]["arquivo"];
+    assert_eq!(arquivo["nome"], "0011519.v1.html");
+    assert_eq!(arquivo["gravado"], false);
+    assert_eq!(arquivo["motivo"], "igual");
+    assert_eq!(segundo_json["documentos"][0]["versao"], 1);
+    assert_eq!(segundo_json["requisicoes"], 6);
+    assert_eq!(fs::read(&foto).unwrap(), conteudo);
+    let depois = fs::metadata(&foto).unwrap();
+    assert_eq!(depois.ino(), antes.ino(), "a foto foi substituída");
+    assert_eq!(depois.mtime(), antes.mtime(), "a foto foi regravada");
+    assert_eq!(depois.mtime_nsec(), antes.mtime_nsec());
+}
