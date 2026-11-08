@@ -63,7 +63,13 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, EnsaioRemocao::Normal);
+        executar_com_ensaio_local(
+            &[&confirmacao],
+            false,
+            Some("Nota da origem"),
+            true,
+            EnsaioRemocao::Normal,
+        );
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -103,7 +109,13 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], true, Some("Nota da origem"), true, EnsaioRemocao::Normal);
+        executar_com_ensaio_local(
+            &[&confirmacao],
+            true,
+            Some("Nota da origem"),
+            true,
+            EnsaioRemocao::Normal,
+        );
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -131,7 +143,13 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) =
-        executar_com_ensaio_local(&[&confirmacao], false, Some("Nota da origem"), true, EnsaioRemocao::IgnorarNoPost);
+        executar_com_ensaio_local(
+            &[&confirmacao],
+            false,
+            Some("Nota da origem"),
+            true,
+            EnsaioRemocao::IgnorarNoPost,
+        );
     assert_eq!(
         saidas[0].status.code(),
         Some(1),
