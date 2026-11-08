@@ -22,8 +22,38 @@ cargo test -p anti-ies
 
 A primeira consulta retorna HTTP 200 e a identidade do servidor de testes.
 A segunda retorna HTTP **501**, pois `procedimento_trabalhar` ainda não é servido.
-Sem fonte configurada, até `procedimento_controlar` permanece em 501.
-A CLI `ies` existente permanece inalterada.
+Sem fonte de cassette configurada, um processo e um tipo são criados
+**em memória**, e `procedimento_controlar` sem snapshot continua indisponível (503).
+O transporte de produção da CLI `ies` não é alterado.
+
+## Documento interno — simulador sintético com estado compartilhado
+
+Sem variáveis de ambiente, o anti-IES inicializa um SQLite **somente em
+memória**, com esquema versionado em
+`crates/iesei/migrations/0003_documentos_simulados.sql`. Uma instalação
+local de exemplo contém o processo `10`, unidade `UNIDADE TESTE` e
+tipo `Despacho` (série `291`). Teste a sequência:
+
+```sh
+cargo run -p anti-ies -- 8765
+curl -i 'http://127.0.0.1:8765/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10'
+curl -i 'http://127.0.0.1:8765/sei/controlador.php?acao=documento_escolher_tipo&id_procedimento=10'
+curl -i 'http://127.0.0.1:8765/sei/controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291'
+curl -i -X POST --data 'hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Ensaio' 'http://127.0.0.1:8765/sei/controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291'
+curl -i 'http://127.0.0.1:8765/sei/controlador.php?acao=arvore_visualizar&id_procedimento=10'
+```
+
+As leituras não criam documentos. O POST muda o estado **uma vez**,
+responde com 302 para um documento sintético e a releitura mostra o novo
+número sem perder os anteriores. Os testes exercitam HTTP, recusa de
+método e corpo inválido, isolamento por instalação e cenário, e
+reconciliação com o seletor de tipos do IES.
+
+Esta é uma **hipótese sintética testável**; o HTML da lista e da árvore
+ainda não é integralmente compatível com o leitor de processos/autenticação
+da CLI. O ensaio de ponta a ponta do binário completo e a compatibilidade
+com o SEI real ainda não estão comprovados. Não há escrita remota,
+execução de REA, autenticação, cookies ou redução da validação TLS real.
 
 ## Nova capacidade: Controle R reconstruído de cassette
 
@@ -57,8 +87,9 @@ essa prova adicional permanece na #355.
 - Sem usuários, autenticação, cookies, JS, proxy ou acesso a instalações
   SEI; pode ler um banco **efêmero de testes**, nunca o índice operacional;
   não serve como substituto do servidor oficial.
-- Apenas Controle resumido R observado; não há suporte ao fluxo de abertura
-  de processos, documentos, visão D ou escritas. Dados insuficientes são 503.
+- Controle resumido e retornos mensais usam observações; o documento interno
+  é um simulador SQLite sintético. Não reproduz ainda toda a árvore/visão D
+  nem a autenticação da CLI. Dados insuficientes são 503.
 - Os testes são sintéticos e offline; validação live: **NOT_RUN**.
 
 ## Próxima fatia
