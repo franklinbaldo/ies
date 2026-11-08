@@ -95,3 +95,49 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     );
     assert_eq!(outro.estado, Estado::NaoEncontrado);
 }
+
+#[test]
+fn bdd_60_05_http_identidade_composta_repetida_recusa_sem_vazar_documento() {
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
+
+    fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
+        let mut tcp = TcpStream::connect(endereco).unwrap();
+        write!(
+            tcp,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        )
+        .unwrap();
+        tcp.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        tcp.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = listener.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "ensaio", &documento()).unwrap();
+        for _ in 0..5 {
+            let (mut tcp, _) = listener.accept().unwrap();
+            anti_ies::atender_http(&mut tcp, Some((&banco, &origem(), "ensaio"))).unwrap();
+        }
+    });
+    for alvo in [
+        "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7&id_procedimento=8",
+        "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7&id_procedimento=7",
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_documento=42&id_procedimento=7&id_procedimento=8",
+    ] {
+        let resposta = pedir(endereco, "GET", alvo);
+        assert!(resposta.starts_with("HTTP/1.1 400"), "{resposta}");
+        assert!(!resposta.contains("0011519"), "{resposta}");
+    }
+    let valido = "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42&id_procedimento=7";
+    assert!(pedir(endereco, "POST", valido).starts_with("HTTP/1.1 405"));
+    let resposta = pedir(endereco, "GET", valido);
+    assert!(resposta.starts_with("HTTP/1.1 200"), "{resposta}");
+    assert!(resposta.contains("0011519"));
+    servidor.join().unwrap();
+}

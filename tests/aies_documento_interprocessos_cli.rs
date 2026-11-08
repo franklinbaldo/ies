@@ -203,7 +203,7 @@ fn acao_do_pedido(cab: &[u8]) -> String {
 /// TCP e TLS exclusivamente no loopback, sem mudanças no transporte de produção.
 /// A saída do subprocesso encerra os dois ouvintes sem assumir número fixo
 /// de leituras: um segundo DOC pode ou não reutilizar ação de pesquisa.
-fn executar(com_segundo: bool) -> (Output, Vec<String>) {
+fn executar(com_segundo: bool, args: &[&str]) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -264,7 +264,7 @@ fn executar(com_segundo: bool) -> (Output, Vec<String>) {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "documento", DOC_A, DOC_B, "--sem-cache"])
+        .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -299,7 +299,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
-    let (saida, trilha) = executar(true);
+    let (saida, trilha) = executar(true, &["--json", "documento", DOC_A, DOC_B, "--sem-cache"]);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -341,7 +341,7 @@ fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
 
 #[test]
 fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
-    let (saida, trilha) = executar(false);
+    let (saida, trilha) = executar(false, &["--json", "documento", DOC_A, DOC_B, "--sem-cache"]);
     assert_ne!(
         saida.status.code(),
         Some(0),
@@ -359,5 +359,23 @@ fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
             .iter()
             .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "a falha não autoriza escrita: {trilha:?}"
+    );
+}
+
+#[test]
+fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
+    let (saida, trilha) = executar(
+        true,
+        &["--json", "documento", DOC_B, "--processo", NUP_A, "--sem-cache"],
+    );
+    assert_ne!(saida.status.code(), Some(0), "documento alheio não pode ser lido");
+    let valor = json(&saida);
+    assert_eq!(valor["documento"], DOC_B, "{valor}");
+    assert!(valor.get("documentos").is_none(), "{valor}");
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "a recusa não autoriza escrita: {trilha:?}"
     );
 }
