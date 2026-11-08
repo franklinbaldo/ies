@@ -260,3 +260,38 @@ fn bdd_61_03_cli_humana_nao_confunde_sem_resultado_com_inexistencia() {
     assert!(texto.contains("não prova inexistência"));
     assert!(texto.contains("3 requisições"));
 }
+
+#[test]
+fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
+    // O BDD prescreve saída 2 tanto para vazio quanto para controle.
+    // Sem servidor/proxy de teste: qualquer tentativa de rede/configuração
+    // no caminho de validação deixa de produzir a recusa contratada.
+    let pasta = Pasta::nova();
+    for (termo, causa) in [
+        ("   ", "termo_de_documento_vazio"),
+        ("123\n", "termo_de_documento_contem_controle"),
+        ("123\t", "termo_de_documento_contem_controle"),
+    ] {
+        let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+            .current_dir(&pasta.0)
+            .args(["--json", "documento", "buscar", termo])
+            .env("HOME", &pasta.0)
+            .env("https_proxy", "http://127.0.0.1:1")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_URL_CONTROLE_FILE")
+            .env_remove("IES_COOKIE_FILE")
+            .env_remove("IES_ORIGEM_FILE")
+            .output()
+            .unwrap();
+        assert_eq!(
+            saida.status.code(),
+            Some(2),
+            "termo={termo:?}: {}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let erro: Value = serde_json::from_slice(&saida.stdout).unwrap();
+        assert_eq!(erro["codigo"], "entrada_invalida");
+        assert_eq!(erro["subcodigo"], causa);
+        assert_eq!(erro["retentavel"], false);
+    }
+}
