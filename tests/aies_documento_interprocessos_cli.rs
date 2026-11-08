@@ -5,6 +5,7 @@ use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
+use iesei::processos::{self, ProcessoSimulado};
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
@@ -143,6 +144,23 @@ fn estado(com_segundo: bool) -> (Connection, Instalacao) {
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
+    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
+    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "7".into(),
+            numero: NUP_A.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
         },
     )
     .unwrap();
