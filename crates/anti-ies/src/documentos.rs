@@ -179,13 +179,14 @@ fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     // POST de navegacao escolhe a serie, mas nao cadastra documento.
+    let hash = "e".repeat(64); // Identificador local sintético, não assinatura de sessão.
     let mut html = format!(
         "<html><head><script>function escolher(id) {{\
          document.getElementById('hdnIdSerie').value=id;\
          document.getElementById('frmDocumentoEscolherTipo').submit();\
          }}</script></head><body>\
          <form id='frmDocumentoEscolherTipo' method='post' \
-         action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}'>\
+         action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={hash}'>\
          <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>\
          </form><table id='tblSeries'>"
     );
@@ -218,13 +219,14 @@ fn cadastro(
     let Some(tipo) = tipos.iter().find(|t| t.id == id_serie) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
+    let hash = "e".repeat(64); // Somente para a navegação no simulador.
     Resposta::html(format!(
         "<html><head><script>function confirmarDados() {{ submeter(); }}\
          function submeter() {{ document.getElementById('hdnFlagDocumentoCadastro').value='2';\
          document.getElementById('frmDocumentoCadastro').submit(); }}</script></head><body>\
          <label id='lblSerieTitulo'>{}</label>\
          <form id='frmDocumentoCadastro' method='post' \
-         action='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={id_serie}'>\
+         action='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={id_serie}&amp;infra_hash={hash}'>\
          <input type='hidden' name='hdnIdSerie' value='{id_serie}'>\
          <input type='hidden' name='hdnFlagDocumentoCadastro' value='1'>\
          <input type='radio' id='optPublico' name='rdoNivelAcesso' value='0'>\
@@ -282,8 +284,9 @@ pub(crate) fn atender(
                 return resposta;
             }
             Resposta::redirecionar(format!(
-                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}"
-            ))
+                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}&infra_hash={} ",
+                "e".repeat(64)
+            ).trim_end().to_owned())
         }
         ("documento_gerar", "GET") => {
             let Some(serie) = id_da_rota(alvo, "id_serie") else {
