@@ -227,7 +227,7 @@ fn id_de_processo_explicito_nao_pode_selecionar_conteudo_de_outro_processo() {
         let mut conexao = TcpStream::connect(endereco).unwrap();
         write!(
             conexao,
-            "{metodo} /sei/controlador.php?acao=documento_visualizar&id_documento={documento}&id_procedimento={processo} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+            "{metodo} /sei/controlador.php?acao=documento_visualizar&id_documento={documento}&id_procedimento={processo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"
         )
         .unwrap();
         conexao.shutdown(Shutdown::Write).unwrap();
