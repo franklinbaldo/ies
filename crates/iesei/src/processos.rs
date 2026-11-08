@@ -286,3 +286,41 @@ pub fn limpar_anotacao(
     )?;
     Ok(())
 }
+
+ 
+/// Lista os destinos oferecidos no cenário, compartilhados entre processos.
+///
+/// Um cenário inexistente não equivale a lista vazia. Uma lista vazia,
+/// em contraste, pode representar um processo conhecido sem destinos.
+///
+/// # Errors
+/// Preserva erros da leitura SQLite.
+pub fn destinos_do_cenario(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Result<Option<Vec<Destino>>, Falha> {
+    let origem = instalacao.url_base();
+    let observado: i64 = banco.query_row(
+        "SELECT EXISTS(SELECT 1 FROM processo_simulado WHERE origem=?1 AND cenario=?2)",
+        params![origem, cenario],
+        |linha| linha.get(0),
+    )?;
+    if observado == 0 {
+        return Ok(None);
+    }
+    let mut consulta = banco.prepare(
+        "SELECT DISTINCT id_unidade, sigla, descricao FROM processo_destino
+         WHERE origem=?1 AND cenario=?2 ORDER BY sigla, id_unidade",
+    )?;
+    let destinos = consulta
+        .query_map(params![origem, cenario], |linha| {
+            Ok(Destino {
+                id: linha.get(0)?,
+                sigla: linha.get(1)?,
+                descricao: linha.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(Some(destinos))
+}

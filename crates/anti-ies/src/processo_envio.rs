@@ -187,3 +187,87 @@ pub fn responder(
         Err(falha) => Resposta::nova(estado_da_falha(&falha)),
     }
 }
+
+ 
+/// Responde ao autocomplete publicado na tela de envio a partir do SQLite.
+///
+/// O pedido consulta a instalação/cenário, não depende de um HTML fixo nem
+/// altera estado. A filtragem é uma hipótese revisável para o anti-IES.
+#[must_use]
+pub fn autocompletar(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
+    if !caminho.ends_with("/controlador_ajax.php")
+        || unico(alvo, "acao_ajax") != Some("unidade_auto_completar_envio_processo")
+    {
+        return despachar(metodo, alvo);
+    }
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    let Some(campos) = pares(corpo) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let Some(termo) = campo_unico(&campos, "palavras_pesquisa")
+        .and_then(decodificar_formulario)
+        .filter(|texto| !texto.trim().is_empty())
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if campo_unico(&campos, "id_orgao").is_none()
+        || !matches!(campo_unico(&campos, "unidade_atual"), None | Some("0"))
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let Ok(Some(destinos)) = iesei::processos::destinos_do_cenario(banco, instalacao, cenario)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let termo = termo.to_lowercase();
+    let mut xml = String::from("<?xml version='1.0' encoding='UTF-8'?><itens>");
+    for destino in destinos {
+        if destino.descricao.to_lowercase().contains(&termo) {
+            write!(
+                xml,
+                "<item id='{}' descricao='{}'></item>",
+                html(&destino.id),
+                html(&destino.descricao)
+            )
+            .expect("formatação String");
+        }
+    }
+    xml.push_str("</itens>");
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "application/xml; charset=utf-8",
+        corpo: xml,
+        localizacao: None,
+    }
+}
+
+/// Decodifica o corpo de consulta form-urlencoded, inclusive escape percentual.
+fn decodificar_formulario(texto: &str) -> Option<String> {
+    let bytes = texto.as_bytes();
+    let mut saida = Vec::with_capacity(bytes.len());
+    let mut posicao = 0;
+    while posicao < bytes.len() {
+        match bytes[posicao] {
+            b'+' => saida.push(b' '),
+            b'%' => {
+                let alto = (char::from(*bytes.get(posicao + 1)?)).to_digit(16)?;
+                let baixo = (char::from(*bytes.get(posicao + 2)?)).to_digit(16)?;
+                saida.push(u8::try_from((alto << 4) + baixo).ok()?);
+                posicao += 2;
+            }
+            byte => saida.push(byte),
+        }
+        posicao += 1;
+    }
+    String::from_utf8(saida).ok()
+}

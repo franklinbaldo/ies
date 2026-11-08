@@ -208,3 +208,36 @@ fn bdd_333_05_autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
     assert!(ausente.corpo.contains("<itens></itens>"));
     assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
 }
+
+ 
+#[test]
+fn autocomplete_http_real_le_estado_compartilhado_sem_alteracao() {
+    use anti_ies::atender_http;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let banco = preparar();
+    let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
+    let servidor = std::thread::spawn(move || {
+        let (mut fluxo, _) = escuta.accept().unwrap();
+        atender_http(&mut fluxo, Some((&banco, &origem(), "cenario-a"))).unwrap();
+        ler(&banco, &origem(), "cenario-a", "10").unwrap()
+    });
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    let corpo = "palavras_pesquisa=D%45STINO&id_orgao=";
+    write!(
+        cliente,
+        "POST /sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
+        corpo.len()
+    )
+    .unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(resposta.contains("Content-Type: application/xml; charset=utf-8"));
+    assert!(resposta.contains("id='2' descricao='DESTINO - Unidade de testes'"));
+    assert_eq!(servidor.join().unwrap(), antes);
+}

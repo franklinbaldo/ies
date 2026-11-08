@@ -361,6 +361,9 @@ fn responder_pedido(
     let Some((banco, instalacao, cenario)) = fonte else {
         return despachar(metodo, alvo);
     };
+    if parametro_unico(alvo, "acao_ajax") == Some("unidade_auto_completar_envio_processo") {
+        return processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario);
+    }
     if matches!(
         parametro_unico(alvo, "acao"),
         Some("procedimento_enviar" | "anotacao_registrar")
