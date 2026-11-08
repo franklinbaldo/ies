@@ -1,9 +1,11 @@
 //! Árvore e tela de trabalho derivadas das versões no mesmo SQLite.
 //! Hipótese de integração sintética para #88; não realiza requisições ao SEI.
 use crate::{Estado, Resposta, despachar};
-use iesei::documento_versoes::{DocumentoSimulado, ler};
+use iesei::documento_versoes::{self as versoes, DocumentoSimulado, ler};
+use iesei::documentos_simulados;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 fn html(corpo: String) -> Resposta {
     Resposta::html(corpo)
@@ -103,4 +105,86 @@ pub fn responder(
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
     }
+}
+
+/// Renderiza nós dos documentos existentes no SQLite do processo em tramitação.
+/// Versões e documentos internos compartilham o mesmo pai e não desaparecem.
+pub(crate) fn nos_do_processo(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    processo: &str,
+) -> Result<String, Estado> {
+    let ids = versoes::ids_do_processo(banco, instalacao, cenario, processo)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    let mut nos = String::new();
+    let mut vistos = Vec::new();
+    let mut indice = 1;
+    for id in ids {
+        let documento = versoes::ler(banco, instalacao, cenario, &id)
+            .map_err(|_| Estado::DadosInsuficientes)?
+            .ok_or(Estado::DadosInsuficientes)?;
+        nos.push_str(&no_de_documento(
+            indice,
+            processo,
+            &id,
+            &documento.numero,
+            &documento.tipo,
+            true,
+        ));
+        indice += 1;
+        vistos.push(id);
+    }
+    for documento in internos {
+        let id = documento.id.to_string();
+        if vistos.contains(&id) {
+            continue;
+        }
+        nos.push_str(&no_de_documento(
+            indice,
+            processo,
+            &id,
+            &documento.numero_sei,
+            &documento.tipo,
+            false,
+        ));
+        indice += 1;
+    }
+    Ok(nos)
+}
+
+fn no_de_documento(
+    indice: usize,
+    processo: &str,
+    id: &str,
+    numero: &str,
+    tipo: &str,
+    versoes: bool,
+) -> String {
+    let id = js(id);
+    let processo = js(processo);
+    let numero = js(numero);
+    let rotulo = js(&format!("{tipo} {numero}"));
+    let mut no = format!(
+        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","Documento interno","svg/documento_interno.svg","svg/documento_interno.svg","svg/documento_interno.svg",true,false,null,null,"noVisitado","{numero}");
+"#
+    );
+    if versoes {
+        let hash = "e".repeat(64);
+        let hash_corpo = "f".repeat(64);
+        write!(
+            no,
+            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>';
+Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}';
+"#
+        )
+        .expect("formatação de String");
+    } else {
+        write!(no, "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n")
+            .expect("formatação de String");
+    }
+    writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
+    no
 }
