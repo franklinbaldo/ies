@@ -302,14 +302,12 @@ fn executar_com_ensaio_local(
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, metodo, acao) = pedido(&mut canal);
-            let bytes = if omitir_remocao_no_post
-                && metodo == "POST"
-                && acao == "procedimento_enviar"
-            {
-                omitir_checkbox_do_envio(bytes)
-            } else {
-                bytes
-            };
+            let bytes =
+                if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
+                    omitir_checkbox_do_envio(bytes)
+                } else {
+                    bytes
+                };
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
             let mut resposta = if bloquear {
