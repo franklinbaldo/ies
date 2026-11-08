@@ -258,7 +258,7 @@ fn selecao_documental_repetida_na_arvore_de_tramitacao_recusa_sem_apagar_estado(
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
-        for _ in 0..5 {
+        for _ in 0..6 {
             let (mut fluxo, cliente) = escuta.accept().unwrap();
             assert!(cliente.ip().is_loopback());
             atender_http(&mut fluxo, Some((&db, &origem(), "bdd-333"))).unwrap();
@@ -278,18 +278,43 @@ fn selecao_documental_repetida_na_arvore_de_tramitacao_recusa_sem_apagar_estado(
         &format!("{raiz}&id_documento=42&id_documento=42"),
         "",
     );
-    assert!(ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"), "{ambiguo}");
+    assert!(
+        ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{ambiguo}"
+    );
     assert!(!ambiguo.contains("0011519"), "recusa nao publica documento");
+
+    // A tela de trabalho tem a mesma fronteira de identidade da arvore.
+    let trabalhar = pedir(
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10&id_documento=42&id_documento=42",
+        "",
+    );
+    assert!(
+        trabalhar.starts_with("HTTP/1.1 400 Bad Request\\r\\n"),
+        "{trabalhar}"
+    );
 
     let vazio = pedir(endereco, "GET", &format!("{raiz}&id_documento="), "");
     assert!(vazio.starts_with("HTTP/1.1 200 OK\r\n"), "{vazio}");
-    assert!(vazio.contains("0011519"), "selecao vazia unica abre a arvore");
+    assert!(
+        vazio.contains("0011519"),
+        "selecao vazia unica abre a arvore"
+    );
 
     let post = pedir(endereco, "POST", raiz, "");
-    assert!(post.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{post}");
+    assert!(
+        post.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+        "{post}"
+    );
 
     let depois = pedir(endereco, "GET", raiz, "");
     assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"), "{depois}");
     assert!(depois.contains("0011519"));
-    assert_eq!(servidor.join().unwrap(), antes, "leitura e recusa sao imutaveis");
+    assert_eq!(
+        servidor.join().unwrap(),
+        antes,
+        "leitura e recusa sao imutaveis"
+    );
 }
