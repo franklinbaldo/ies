@@ -375,4 +375,13 @@ fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
             .iter()
             .any(|d| d.rotulo == "Anexo 050000001")
     );
+    // A confirmação da CLI exige natureza PDF, não apenas rótulo/número.
+    // O leitor IES deve reconhecer o ícone publicado pelo anti-IES.
+    let pdf = arvore
+        .documentos
+        .iter()
+        .find(|d| d.rotulo == "Anexo 050000001")
+        .expect("documento definitivo lido");
+    assert_eq!(pdf.natureza.icone.as_deref(), Some("documento_pdf"));
+    assert_eq!(pdf.natureza.cancelado, Some(false));
 }
