@@ -23,6 +23,20 @@ pub(super) fn executar(
     caminho_pdf: &Path,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
+        // O marker opt-in, sozinho, não autoriza tocar em instalações reais.
+        // Exigir origem reservada e proxy exclusivamente na máquina local
+        // antes da primeira requisição, inclusive GET.
+        let proxy_local = std::env::var("https_proxy")
+            .ok()
+            .is_some_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
+        if sessao.origem != "https://sei.test/sei" || !proxy_local {
+            return super::recusa(
+                cli.json,
+                &super::FalhaInclusaoExterna::CadastroNaoValidado,
+                "ensaio de confirmação somente em sei.test com proxy loopback",
+                1,
+            );
+        }
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);
         let mut upload_tentado = false;
