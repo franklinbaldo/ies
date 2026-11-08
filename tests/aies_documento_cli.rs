@@ -460,3 +460,48 @@ fn bdd_89_02_cli_publica_uma_versao_e_confere_por_releitura() {
         editada
     );
 }
+
+#[test]
+fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
+    let pasta = Pasta::nova();
+    let leitura = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            DOC,
+            "--versao",
+            "3",
+            "--saida",
+            pasta.0.to_str().unwrap(),
+            "--sem-cache",
+        ],
+        6,
+    );
+    assert_eq!(leitura.status.code(), Some(0), "{:?}", json(&leitura));
+    let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
+    let divergente = base.replace("Terceira redação", "Base local modificada");
+    pasta.privado("0011519.v3.html", &divergente);
+    pasta.privado("0011519.v4.html", &divergente.replace("modificada", "editada"));
+    let resposta = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            "salvar",
+            DOC,
+            "--versao",
+            "3",
+            "--confirmar",
+        ],
+        6, // conferência da leitura, sem chegar ao editor ou ao POST.
+    );
+    assert_eq!(resposta.status.code(), Some(1));
+    let erro = json(&resposta);
+    assert_eq!(erro["subcodigo"], "escrita_remota_nao_validada");
+    assert!(erro["erro"].as_str().unwrap().contains("base local"));
+    assert_eq!(
+        fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
+        divergente,
+    );
+}
