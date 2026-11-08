@@ -87,12 +87,7 @@ fn pagina_do_processo(
 
 /// A árvore é projetada dos documentos persistidos, não de HTML congelado.
 /// A mesma leitura é usada antes e depois do POST criador da #246.
-fn pagina_da_arvore(
-    banco: &Connection,
-    origem: &Instalacao,
-    cenario: &str,
-    id: &str,
-) -> Resposta {
+fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
     let Ok(Some(processo)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
