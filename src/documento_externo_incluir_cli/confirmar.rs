@@ -1,8 +1,7 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
 //! A rotina de chamada permanece fechada até ensaio real em TREINAMENTO.
 use crate::documento_externo_incluir::{
-    PdfLocal, confirmacao::FalhaConfirmacao,
-    fluxo_confirmar::{ErroConfirmacaoExterna, executar_confirmacao_https},
+    PdfLocal, fluxo_confirmar::{ErroConfirmacaoExterna, executar_confirmacao_https},
 };
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
@@ -102,6 +101,7 @@ fn json_da_falha(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::documento_externo_incluir::confirmacao::FalhaConfirmacao;
 
     #[test]
     fn bdd_332_04_efeito_incerto_informa_etapa_e_residuo_sem_repeticao() {
