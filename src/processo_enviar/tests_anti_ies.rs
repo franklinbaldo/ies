@@ -195,7 +195,6 @@ fn barra_da_origem_fechada_nao_oferece_novo_envio_ou_anotacao_nao_observada() {
     );
 }
 
-
 #[test]
 fn leitor_real_da_caixa_reflete_tramitacao_no_controle_r_sintetico() {
     use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle};
@@ -261,5 +260,8 @@ fn leitor_real_da_caixa_reflete_tramitacao_no_controle_r_sintetico() {
     guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
     let destino = consultar(&banco);
     assert_eq!(destino.recebidos.processos.len(), 1);
-    assert_eq!(destino.recebidos.processos[0].numero, "00001.000001/2026-01");
+    assert_eq!(
+        destino.recebidos.processos[0].numero,
+        "00001.000001/2026-01"
+    );
 }
