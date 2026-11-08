@@ -42,6 +42,15 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
+## Rituais do proprietário não são churn
+
+Cafezinho, memórias OKF, fichas, BDD, cassettes, handoff e CI são
+rituais deliberados, mesmo quando seu valor surge depois. **Antichurn
+atua dentro do método, não contra ele.** Nenhum agente, inclusive 🦡,
+pode descumpri-los por simplicidade. Pode propor mudanças fundamentadas,
+mas cumpre a regra vigente até decisão do proprietário. Elimine
+retrabalho e cerimônias extras, não rituais. Não invente evidência.
+
 ## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
@@ -250,16 +259,12 @@ O que falta implementar e em que ordem está na
   Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
   REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
   por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
-  **Engenharia reversa por evidências:** usar a skill oficial REA
-  quando houver captura HAR, artefato ou runtime autorizado; o
-  [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
-  observação, hipótese e mutação demonstrada. REA não substitui
-  leitura de código Rust nem é novo gate obrigatório do CI.
-  **Emulação seletiva:** simular efeitos/estado no SQLite, emular
-  HTML, URLs, formulários e tokens sintéticos; dispensar mecanismos
-  internos do SEI não observáveis. Separar fatos, hipóteses e
-  desconhecidos; não criar `SeiProps` genérico nem estados duplicados.
-  Aplicar incrementalmente: #495, #496 e #497, sem gate novo.
+  **REA / emulação seletiva:** efeitos no SQLite; HTML, URLs,
+  formulários e tokens são projeções sintéticas. Dispensar mecanismos
+  internos não observáveis; separar fatos, hipóteses e desconhecidos.
+  REA em HAR/artefato/runtime autorizado; não substitui Rust nem
+  cria gate ([guia](docs/anti-ies/rea-engenharia-reversa.md),
+  #495–#497).
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
