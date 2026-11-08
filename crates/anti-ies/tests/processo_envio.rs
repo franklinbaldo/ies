@@ -260,7 +260,7 @@ fn autocomplete_http_real_le_estado_compartilhado_sem_alteracao() {
 }
 
 #[test]
-fn bdd_333_04_anotacao_da_origem_fechada_pode_ser_relida_mas_nao_regravada() {
+fn anotacao_da_origem_fechada_pode_ser_relida_mas_nao_regravada() {
     // Hipotese sintetica: a leitura independente apos tramitar continua
     // possivel, mas a unidade fechada nao pode gravar outra anotacao.
     let banco = preparar();
@@ -274,9 +274,7 @@ fn bdd_333_04_anotacao_da_origem_fechada_pode_ser_relida_mas_nao_regravada() {
     );
     assert_eq!(envio.estado, Estado::Redirecionamento);
     let anotacao = "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10";
-    let antes = ler(&banco, &origem(), "cenario-a", "10")
-        .unwrap()
-        .unwrap();
+    let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
     assert_eq!(antes.aberto_em, ["DESTINO"]);
     assert_eq!(
         antes.anotacao_origem.as_deref(),
@@ -302,7 +300,7 @@ fn bdd_333_04_anotacao_da_origem_fechada_pode_ser_relida_mas_nao_regravada() {
 }
 
 #[test]
-fn bdd_333_04_origem_mantida_aberta_pode_limpar_anotacao_antes_do_envio() {
+fn origem_mantida_aberta_pode_limpar_anotacao_apos_envio() {
     let banco = preparar();
     let anotacao = "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10";
     let envio = responder(
@@ -323,9 +321,7 @@ fn bdd_333_04_origem_mantida_aberta_pode_limpar_anotacao_antes_do_envio() {
         "cenario-a",
     );
     assert_eq!(limpeza.estado, Estado::Redirecionamento);
-    let depois = ler(&banco, &origem(), "cenario-a", "10")
-        .unwrap()
-        .unwrap();
+    let depois = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
     assert_eq!(depois.aberto_em, ["ORIGEM", "DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
 }
