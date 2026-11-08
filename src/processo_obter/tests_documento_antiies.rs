@@ -1,6 +1,7 @@
 //! #88: o leitor real do IES percorre as paginas sinteticas do mesmo SQLite.
 //! Roteiro de transporte: prova do fluxo Rust, nao de HTTPS ou CLI externa.
 use super::tests_apoio::*;
+use crate::arvore_processo::tests::NUP;
 use super::{PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
