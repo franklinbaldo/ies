@@ -434,7 +434,7 @@ fn bdd_89_02_cli_publica_uma_versao_e_confere_por_releitura() {
     assert_eq!(leitura.status.code(), Some(0), "{:?}", json(&leitura));
     let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
     assert!(base.contains("Terceira redação"));
-    let editada = base.replace("Terceira redação", "Quarta redação");
+    let editada = base.replace("<p>Terceira redação</p>", "");
     assert_ne!(base, editada);
     pasta.privado("0011519.v4.html", &editada);
     let resposta = executar(
