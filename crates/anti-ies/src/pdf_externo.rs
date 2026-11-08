@@ -340,8 +340,8 @@ pub fn atender(
                         Some(token) => {
                             match modelo::cadastrar(banco, origem, cenario, id, serie, token) {
                                 Ok(doc) => Resposta::redirecionar(format!(
-                                    "controlador.php?acao=arvore_visualizar&id_procedimento={id}&id_documento={}",
-                                    doc.id
+                                    "controlador.php?acao=procedimento_visualizar&id_procedimento={id}&id_documento={}",
+                                    doc.id_publico()
                                 )),
                                 Err(e) => falha(&e),
                             }

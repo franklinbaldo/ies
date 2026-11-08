@@ -29,6 +29,15 @@ pub struct Documento {
     pub tamanho: u64,
 }
 
+impl Documento {
+    /// Identidade pública única entre árvore JS e redirecionamento HTTP.
+    /// Os rowids dos documentos internos e externos são independentes.
+    #[must_use]
+    pub fn id_publico(&self) -> String {
+        format!("8{:012}", self.id)
+    }
+}
+
 #[derive(Debug)]
 pub enum Falha {
     Sqlite(rusqlite::Error),

@@ -84,7 +84,7 @@ pub(crate) fn responder(
     };
     let cadastrado = selecionado.is_some_and(|id| {
         internos.iter().any(|doc| doc.id.to_string() == id)
-            || externos.iter().any(|doc| format!("8{:012}", doc.id) == id)
+            || externos.iter().any(|doc| doc.id_publico() == id)
     });
     if original
         .as_ref()
@@ -121,7 +121,7 @@ pub(crate) fn responder(
         .count();
     for documento in externos {
         // Espaço numérico separado: rowids internos e externos são independentes.
-        let id = format!("8{:012}", documento.id);
+        let id = documento.id_publico();
         novos.push_str(&no_documento(
             indice,
             &id,
