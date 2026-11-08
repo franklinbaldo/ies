@@ -46,7 +46,7 @@ const FILTRAR_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
+pub(super) const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "documento_escolher_tipo",
     formulario: "frmDocumentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
@@ -60,7 +60,7 @@ const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
+pub(super) const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "documento_gerar",
     formulario: "frmDocumentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
