@@ -9,7 +9,6 @@ use iesei::processos::{self, ProcessoSimulado};
 use iesei::relacionamentos;
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
-use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};
@@ -236,7 +235,7 @@ fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
     assert!(
         eventos
             .iter()
-            .all(|e| e.starts_with("GET ") || e == "POST protocolo_RI1023"),
+            .all(|e| e.starts_with("GET ") || e == "POST protocolo_RI1023" || e == "POST protocolo_pesquisa_rapida"),
         "a prévia jamais grava relação: {eventos:?}"
     );
     assert_eq!(

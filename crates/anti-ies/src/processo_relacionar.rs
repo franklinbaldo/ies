@@ -105,9 +105,8 @@ pub(crate) fn consulta(
     if valores.next().is_some() {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    let destino = match relacionamentos::identificar(banco, origem, cenario, &pedido) {
-        Ok(destino) => destino,
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(destino) = relacionamentos::identificar(banco, origem, cenario, &pedido) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let corpo = if let Some(destino) = destino {
         format!(
