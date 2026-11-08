@@ -1,0 +1,40 @@
+name: "🦫 Castor — sincronizar PR 491 com main"
+on:
+  push:
+    branches:
+      - codex/castor-258-relacionar-aies-bdd01
+    paths:
+      - .github/workflows/castor-sincronizar-491.yml
+permissions:
+  contents: write
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Incorporar main por merge verdadeiro (sem resolver conflito à força)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "codex/castor-258-relacionar-aies-bdd01"
+          git fetch origin main
+          git config user.name "Castor (GitHub Actions)"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git merge --no-ff --no-edit -m "🦫 merge: sincronizar main na PR #491" origin/main; then
+            echo "::error::Conflitos; nenhuma resolução automática ou push realizado"
+            git status --short
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+          git push origin HEAD:codex/castor-258-relacionar-aies-bdd01
+      - name: Remover o próprio workflow transitório
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/castor-sincronizar-491.yml
+          git commit -m "🦫 chore: remover workflow temporário de sincronização"
+          git push origin HEAD:codex/castor-258-relacionar-aies-bdd01
