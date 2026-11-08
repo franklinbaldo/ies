@@ -44,14 +44,12 @@ risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 ## Rituais do proprietário não são churn
 
-Leitura de AGENTS.md/fichas, Cafezinho, memórias OKF, BDD, cassettes,
-handoff e CI são rituais deliberados, mesmo quando seu valor aparece
-apenas nas rodadas seguintes. **Antichurn atua dentro do método, não
-contra ele.** Nenhum agente, inclusive 🦡, pode descumprir ou tornar
-opcional um ritual do proprietário sob pretexto de simplicidade.
-Pode propor uma mudança fundamentada, mas **cumpre a regra vigente até
-decisão expressa**. Elimine retrabalho e cerimônias extras, não os
-rituais; nunca invente execução ou evidência.
+Cafezinho, memórias OKF, fichas, BDD, cassettes, handoff e CI são
+rituais deliberados, mesmo quando seu valor surge depois. **Antichurn
+atua dentro do método, não contra ele.** Nenhum agente, inclusive 🦡,
+pode descumpri-los por simplicidade. Pode propor mudanças fundamentadas,
+mas cumpre a regra vigente até decisão do proprietário. Elimine
+retrabalho e cerimônias extras, não rituais. Não invente evidência.
 
 ## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
