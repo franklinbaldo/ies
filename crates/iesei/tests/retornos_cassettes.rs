@@ -30,7 +30,7 @@ fn reconstroi_meses_e_isola_instalacao_e_periodo() {
     let versao: i64 = banco
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(versao, 3);
+    assert_eq!(versao, 5);
     let m = mes();
     assert!(
         ler(
