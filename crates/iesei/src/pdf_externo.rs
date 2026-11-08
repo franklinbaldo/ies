@@ -87,7 +87,13 @@ pub fn semear(
         "INSERT INTO externo_processo (origem, cenario, id_procedimento, nup, unidade)
          VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT (origem, cenario, id_procedimento)
          DO UPDATE SET nup=excluded.nup, unidade=excluded.unidade",
-        params![origem.url_base(), cenario, processo.id, processo.nup, processo.unidade],
+        params![
+            origem.url_base(),
+            cenario,
+            processo.id,
+            processo.nup,
+            processo.unidade
+        ],
     )?;
     banco.execute(
         "INSERT INTO externo_tipo (origem, cenario, id_procedimento, id_serie, nome, limite_bytes)
@@ -95,7 +101,11 @@ pub fn semear(
          ON CONFLICT (origem, cenario, id_procedimento, id_serie)
          DO UPDATE SET nome=excluded.nome, limite_bytes=excluded.limite_bytes",
         params![
-            origem.url_base(), cenario, processo.id, tipo.id, tipo.nome,
+            origem.url_base(),
+            cenario,
+            processo.id,
+            tipo.id,
+            tipo.nome,
             numero(tipo.limite_bytes)?
         ],
     )?;
@@ -117,7 +127,13 @@ pub fn processo(
             "SELECT id_procedimento, nup, unidade FROM externo_processo
              WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
             params![origem.url_base(), cenario, id],
-            |r| Ok(Processo { id: r.get(0)?, nup: r.get(1)?, unidade: r.get(2)? }),
+            |r| {
+                Ok(Processo {
+                    id: r.get(0)?,
+                    nup: r.get(1)?,
+                    unidade: r.get(2)?,
+                })
+            },
         )
         .optional()
         .map_err(Falha::from)
@@ -138,7 +154,11 @@ pub fn tipos(
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY id_serie",
     )?;
     let linhas = consulta.query_map(params![origem.url_base(), cenario, id], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, i64>(2)?,
+        ))
     })?;
     let mut tipos = Vec::new();
     for linha in linhas {
@@ -180,7 +200,13 @@ pub fn receber(
     banco.execute(
         "INSERT INTO externo_upload (origem, cenario, id_procedimento, nome, tamanho)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![origem.url_base(), cenario, id_procedimento, nome, numero(tamanho)?],
+        params![
+            origem.url_base(),
+            cenario,
+            id_procedimento,
+            nome,
+            numero(tamanho)?
+        ],
     )?;
     Ok(Temporario {
         id: banco.last_insert_rowid(),
@@ -225,8 +251,13 @@ pub fn cadastrar(
          (origem, cenario, id_procedimento, id_serie, id_upload, numero_sei, nome, tamanho)
          VALUES (?1, ?2, ?3, ?4, ?5, '', ?6, ?7)",
         params![
-            origem.url_base(), cenario, id_procedimento, id_serie, id_upload,
-            nome, numero(tamanho)?
+            origem.url_base(),
+            cenario,
+            id_procedimento,
+            id_serie,
+            id_upload,
+            nome,
+            numero(tamanho)?
         ],
     )?;
     let id = transacao.last_insert_rowid();
@@ -236,7 +267,14 @@ pub fn cadastrar(
         params![numero_sei, id],
     )?;
     transacao.commit()?;
-    Ok(Documento { id, numero_sei, id_serie: id_serie.to_owned(), tipo: tipo.nome, nome, tamanho })
+    Ok(Documento {
+        id,
+        numero_sei,
+        id_serie: id_serie.to_owned(),
+        tipo: tipo.nome,
+        nome,
+        tamanho,
+    })
 }
 
 /// Releitura independente comprova somente documentos definitivos.
@@ -257,15 +295,24 @@ pub fn documentos(
          WHERE d.origem=?1 AND d.cenario=?2 AND d.id_procedimento=?3 ORDER BY d.id",
     )?;
     let linhas = consulta.query_map(params![origem.url_base(), cenario, id_procedimento], |r| {
-        Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?, r.get::<_, String>(3)?,
-            r.get::<_, String>(4)?, r.get::<_, i64>(5)?))
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+            r.get::<_, String>(4)?,
+            r.get::<_, i64>(5)?,
+        ))
     })?;
     let mut documentos = Vec::new();
     for linha in linhas {
         let (id, numero_sei, id_serie, tipo, nome, tamanho) = linha?;
         documentos.push(Documento {
-            id, numero_sei, id_serie, tipo, nome,
+            id,
+            numero_sei,
+            id_serie,
+            tipo,
+            nome,
             tamanho: u64::try_from(tamanho).map_err(|_| Falha::EntradaInvalida)?,
         });
     }
