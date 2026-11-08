@@ -248,3 +248,64 @@ Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
     no
 }
+
+#[cfg(test)]
+mod testes_cancelamento_arvore_mista {
+    use super::*;
+    use iesei::banco_cassettes::iniciar;
+    use iesei::cancelamento_documento::{Aplicacao, aplicar};
+    use iesei::documento_versoes::{Revisao, guardar};
+    use std::num::NonZeroU32;
+
+    /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
+    /// cancelamento persistido, sem perder os outros documentos.
+    #[test]
+    fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+        let cenario = "bdd-273";
+        for (id, numero) in [("42", "0011519"), ("43", "0011520")] {
+            versoes::guardar(
+                &mut banco,
+                cenario,
+                &DocumentoSimulado {
+                    instalacao: origem.clone(),
+                    id_documento: id.into(),
+                    id_procedimento: "10".into(),
+                    numero_processo: "00001.000001/2026-01".into(),
+                    numero: numero.into(),
+                    tipo: "Despacho".into(),
+                    revisoes: vec![Revisao {
+                        versao: NonZeroU32::new(1).unwrap(),
+                        usuario: "Teste".into(),
+                        unidade: "ORIGEM".into(),
+                        modificacao: "08/11/2026".into(),
+                        html_corpo: "<p>Original</p>".into(),
+                    }],
+                },
+            )
+            .unwrap();
+        }
+        let antes = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(antes.matches("documento_cancelado.svg").count(), 0);
+        assert_eq!(
+            aplicar(&banco, &origem, cenario, "42", "10", "Motivo do cancelamento").unwrap(),
+            Aplicacao::Aplicada
+        );
+        let depois = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(depois.matches("documento_cancelado.svg").count(), 3);
+        assert_eq!(depois.matches("documento_interno.svg").count(), 3);
+        assert!(depois.contains("Motivo do cancelamento"));
+        assert!(depois.contains("0011519"));
+        assert!(depois.contains("0011520"));
+        let individual = responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
+            &banco,
+            &origem,
+            cenario,
+        );
+        assert!(individual.corpo.contains("documento_cancelado.svg"));
+    }
+}
