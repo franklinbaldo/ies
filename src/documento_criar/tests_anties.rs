@@ -351,7 +351,10 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
 
     let origem =
         crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
-    let url = format!("https://simulado.invalid{alvo}&infra_hash={}", "e".repeat(64));
+    let url = format!(
+        "https://simulado.invalid{alvo}&infra_hash={}",
+        "e".repeat(64)
+    );
     let submissao = derivar_submissao(
         &super::fluxo::FILTRAR_TIPOS,
         &origem,
