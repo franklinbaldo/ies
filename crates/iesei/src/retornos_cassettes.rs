@@ -36,6 +36,76 @@ pub struct Mes {
     pub itens: Vec<Retorno>,
 }
 
+/// Intervalo mensal que realmente existe no SQLite derivado; mês ausente não é vazio.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PeriodoMensal {
+    pub ano: u16,
+    pub mes: u8,
+    pub data_inicial: String,
+    pub data_final: String,
+}
+
+fn data_mensal(valor: &str) -> Option<(u8, u8, u16)> {
+    let data = valor.replace("%2F", "/").replace("%2f", "/");
+    let mut partes = data.split('/');
+    let dia = partes.next()?.parse().ok()?;
+    let mes = partes.next()?.parse().ok()?;
+    let ano = partes.next()?.parse().ok()?;
+    (partes.next().is_none() && ano > 0 && (1..=12).contains(&mes))
+        .then_some((dia, mes, ano))
+}
+
+fn ultimo_dia(ano: u16, mes: u8) -> u8 {
+    match mes {
+        4 | 6 | 9 | 11 => 30,
+        2 if ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0) => 29,
+        2 => 28,
+        _ => 31,
+    }
+}
+
+/// Meses cujas listagens foram expressamente armazenadas, sem inventar lacunas.
+///
+/// # Errors
+/// Rejeita intervalo incongruente ou mês duplicado e preserva falhas SQL.
+pub fn periodos(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Result<Vec<PeriodoMensal>, Falha> {
+    let mut consulta = banco.prepare(
+        "SELECT data_inicial, data_final FROM retorno_mes
+         WHERE origem=?1 AND cenario=?2",
+    )?;
+    let linhas = consulta.query_map(params![instalacao.url_base(), cenario], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    })?;
+    let mut saida = Vec::new();
+    for linha in linhas {
+        let (inicio, fim) = linha?;
+        let Some((1, mes, ano)) = data_mensal(&inicio) else {
+            return Err(Falha::DadoInvalido);
+        };
+        if data_mensal(&fim) != Some((ultimo_dia(ano, mes), mes, ano)) {
+            return Err(Falha::DadoInvalido);
+        }
+        saida.push(PeriodoMensal {
+            ano,
+            mes,
+            data_inicial: inicio,
+            data_final: fim,
+        });
+    }
+    saida.sort_by_key(|periodo| (periodo.ano, periodo.mes));
+    if saida
+        .windows(2)
+        .any(|par| (par[0].ano, par[0].mes) == (par[1].ano, par[1].mes))
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    Ok(saida)
+}
+
 #[derive(Debug)]
 pub enum Falha {
     Sqlite(rusqlite::Error),
