@@ -92,14 +92,25 @@ fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let mut html = String::from("<html><body><table id='tblSeries'>");
+    // POST de navegacao escolhe a serie, mas nao cadastra documento.
+    let mut html = format!(
+        "<html><head><script>function escolher(id) {{\
+         document.getElementById('hdnIdSerie').value=id;\
+         document.getElementById('frmDocumentoEscolherTipo').submit();\
+         }}</script></head><body>\
+         <form id='frmDocumentoEscolherTipo' method='post' \
+         action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}'>\
+         <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>\
+         </form><table id='tblSeries'>"
+    );
     for tipo in tipos {
         write!(
             html,
-            "<tr><td><a href='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={}'>\
-             {}</a></td></tr>",
-            tipo.id, escapar(&tipo.nome)
-        ).expect("formatação String");
+            "<tr><td><a href='#' onclick='escolher({})'>{}</a></td></tr>",
+            tipo.id,
+            escapar(&tipo.nome)
+        )
+        .expect("formatação String");
     }
     html.push_str("</table></body></html>");
     Resposta::html(html)
@@ -167,6 +178,22 @@ pub(crate) fn atender(
             pagina_do_processo(banco, origem, cenario, id)
         }
         ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id),
+        ("documento_escolher_tipo", "POST") => {
+            let Some(serie) = campo_formulario_unico(corpo, "hdnIdSerie") else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            if serie.is_empty() || !serie.bytes().all(|b| b.is_ascii_digit()) {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            // A mesma conferencia do cadastro valida processo e serie.
+            let resposta = cadastro(banco, origem, cenario, id, &serie);
+            if resposta.estado != Estado::Ok {
+                return resposta;
+            }
+            Resposta::redirecionar(format!(
+                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}"
+            ))
+        }
         ("documento_gerar", "GET") => {
             let Some(serie) = id_da_rota(alvo, "id_serie") else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
