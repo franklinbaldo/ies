@@ -3,6 +3,7 @@ use anti_ies::atender_http;
 use iesei::banco_cassettes::iniciar;
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
+use iesei::processos::{Destino, ProcessoSimulado, guardar};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
 use std::time::Duration;
@@ -16,7 +17,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     match (caminho, origem, cenario) {
         (None, None, None) => {
             // Cenário sintético de demonstração. Nunca abre SEI nem arquivo operacional.
-            let banco = Connection::open_in_memory()?;
+            let mut banco = Connection::open_in_memory()?;
             iniciar(&banco)?;
             let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
                 .ok_or("origem sintética inválida")?;
@@ -32,6 +33,24 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 },
             )
             .map_err(|_| "falha ao preparar processo de demonstração")?;
+            guardar(
+                &mut banco,
+                &instalacao,
+                &cenario,
+                &ProcessoSimulado {
+                    id: "10".into(),
+                    numero: "00001.000001/2026-01".into(),
+                    unidade_origem: "UNIDADE TESTE".into(),
+                    aberto_em: vec!["UNIDADE TESTE".into()],
+                    anotacao_origem: Some("Nota de teste".into()),
+                    destinos: vec![Destino {
+                        id: "2".into(),
+                        sigla: "DESTINO".into(),
+                        descricao: "DESTINO - Unidade de testes".into(),
+                    }],
+                },
+            )
+            .map_err(|_| "falha ao preparar tramitação sintética")?;
             registrar_tipo(
                 &banco,
                 &instalacao,
