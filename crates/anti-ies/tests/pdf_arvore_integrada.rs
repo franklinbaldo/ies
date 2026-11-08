@@ -73,3 +73,47 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
     assert!(depois.contains("Anexo 050000001"));
     servidor.join().unwrap();
 }
+
+
+#[test]
+fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
+    // Apoio tecnico ao BDD: a releitura com o id do PDF selecionado
+    // tambem precisa apresentar o documento externo ja cadastrado.
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        externo::semear(
+            &banco,
+            &origem,
+            "selecao",
+            &Processo {
+                id: "7".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+            &TipoExterno {
+                id: "293".into(),
+                nome: "Anexo".into(),
+                limite_bytes: 100_000,
+            },
+        )
+        .unwrap();
+        let temporario =
+            externo::receber(&banco, &origem, "selecao", "7", "prova.pdf", 42).unwrap();
+        externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id)
+            .unwrap();
+        let (mut conexao, _) = escuta.accept().unwrap();
+        anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "selecao"))).unwrap();
+    });
+    let resposta = pedir(
+        endereco,
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=8000000000001",
+    );
+    assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(resposta.contains("Nos[1] = new infraArvoreNo(\"DOCUMENTO\""));
+    assert!(resposta.contains("Anexo 050000001"));
+    servidor.join().unwrap();
+}
