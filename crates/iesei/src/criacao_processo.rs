@@ -17,15 +17,18 @@ pub enum Falha {
     DadoInvalido,
 }
 impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self { Self::Sqlite(erro) }
+    fn from(erro: rusqlite::Error) -> Self {
+        Self::Sqlite(erro)
+    }
 }
 
 fn validar(tipo: &TipoDeProcesso) -> bool {
-    [&tipo.id, &tipo.id_assunto].iter().all(|s| {
-        !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
-    }) && [&tipo.nome, &tipo.assunto].iter().all(|s| {
-        !s.trim().is_empty() && !s.chars().any(char::is_control)
-    })
+    [&tipo.id, &tipo.id_assunto]
+        .iter()
+        .all(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+        && [&tipo.nome, &tipo.assunto]
+            .iter()
+            .all(|s| !s.trim().is_empty() && !s.chars().any(char::is_control))
 }
 
 /// Registra uma escolha de tipo que a instalação ofereceu, sem criar processo.
@@ -48,7 +51,14 @@ pub fn registrar(
          ON CONFLICT(origem, cenario, id_tipo) DO UPDATE SET
          nome=excluded.nome, id_assunto=excluded.id_assunto,
          assunto=excluded.assunto",
-        params![instalacao.url_base(), cenario, tipo.id, tipo.nome, tipo.id_assunto, tipo.assunto],
+        params![
+            instalacao.url_base(),
+            cenario,
+            tipo.id,
+            tipo.nome,
+            tipo.id_assunto,
+            tipo.assunto
+        ],
     )?;
     Ok(())
 }
@@ -67,14 +77,16 @@ pub fn listar(
          FROM tipo_processo_simulado WHERE origem=?1 AND cenario=?2
          ORDER BY id_tipo",
     )?;
-    let tipos = consulta.query_map(params![instalacao.url_base(), cenario], |r| {
-        Ok(TipoDeProcesso {
-            id: r.get(0)?,
-            nome: r.get(1)?,
-            id_assunto: r.get(2)?,
-            assunto: r.get(3)?,
-        })
-    })?.collect::<rusqlite::Result<Vec<_>>>()?;
+    let tipos = consulta
+        .query_map(params![instalacao.url_base(), cenario], |r| {
+            Ok(TipoDeProcesso {
+                id: r.get(0)?,
+                nome: r.get(1)?,
+                id_assunto: r.get(2)?,
+                assunto: r.get(3)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok((!tipos.is_empty()).then_some(tipos))
 }
 
@@ -88,12 +100,19 @@ pub fn consultar(
     cenario: &str,
     id: &str,
 ) -> rusqlite::Result<Option<TipoDeProcesso>> {
-    banco.query_row(
-        "SELECT id_tipo, nome, id_assunto, assunto FROM tipo_processo_simulado
+    banco
+        .query_row(
+            "SELECT id_tipo, nome, id_assunto, assunto FROM tipo_processo_simulado
          WHERE origem=?1 AND cenario=?2 AND id_tipo=?3",
-        params![instalacao.url_base(), cenario, id],
-        |r| Ok(TipoDeProcesso {
-            id: r.get(0)?, nome: r.get(1)?, id_assunto: r.get(2)?, assunto: r.get(3)?,
-        }),
-    ).optional()
+            params![instalacao.url_base(), cenario, id],
+            |r| {
+                Ok(TipoDeProcesso {
+                    id: r.get(0)?,
+                    nome: r.get(1)?,
+                    id_assunto: r.get(2)?,
+                    assunto: r.get(3)?,
+                })
+            },
+        )
+        .optional()
 }
