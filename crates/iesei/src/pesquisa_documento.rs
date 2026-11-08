@@ -112,7 +112,6 @@ mod tests {
     }
 }
 
-
 /// Um documento da página observada. A identidade e o conteúdo vivem em
 /// `documento_simulado`; aqui ficam somente os dados da listagem.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -142,16 +141,16 @@ fn validar_pagina(pagina: &PaginaObservada) -> bool {
         && pagina.inicio > 0
         && pagina.fim >= pagina.inicio
         && pagina.total_declarado >= pagina.fim
-        && u64::try_from(pagina.linhas.len())
-            .is_ok_and(|n| n <= pagina.fim - pagina.inicio + 1)
+        && u64::try_from(pagina.linhas.len()).is_ok_and(|n| n <= pagina.fim - pagina.inicio + 1)
         && pagina.linhas.iter().all(|linha| {
             !linha.id_documento.is_empty()
                 && linha.id_documento.bytes().all(|b| b.is_ascii_digit())
                 && !linha.rotulo.trim().is_empty()
                 && ids.insert(linha.id_documento.as_str())
-                && linha.id_anexo.as_ref().is_none_or(|id| {
-                    !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())
-                })
+                && linha
+                    .id_anexo
+                    .as_ref()
+                    .is_none_or(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
         })
 }
 
@@ -187,7 +186,16 @@ pub fn registrar_pagina(
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(origem, cenario, unidade, termo, pagina)
          DO UPDATE SET inicio=excluded.inicio, fim=excluded.fim, total=excluded.total",
-        params![origem, cenario, unidade.as_str(), termo, numero, inicio, fim, total],
+        params![
+            origem,
+            cenario,
+            unidade.as_str(),
+            termo,
+            numero,
+            inicio,
+            fim,
+            total
+        ],
     )?;
     tx.execute(
         "DELETE FROM pesquisa_documento_pagina_linha
@@ -235,12 +243,14 @@ pub fn consultar_pagina(
         return Err(Falha::EntradaInvalida);
     }
     let origem = instalacao.url_base();
-    let dados: Option<(i64, i64, i64)> = banco.query_row(
-        "SELECT inicio, fim, total FROM pesquisa_documento_pagina
+    let dados: Option<(i64, i64, i64)> = banco
+        .query_row(
+            "SELECT inicio, fim, total FROM pesquisa_documento_pagina
          WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4 AND pagina=?5",
-        params![origem, cenario, unidade.as_str(), termo, i64::from(numero)],
-        |linha| Ok((linha.get(0)?, linha.get(1)?, linha.get(2)?)),
-    ).optional()?;
+            params![origem, cenario, unidade.as_str(), termo, i64::from(numero)],
+            |linha| Ok((linha.get(0)?, linha.get(1)?, linha.get(2)?)),
+        )
+        .optional()?;
     let Some((inicio, fim, total)) = dados else {
         return Ok(None);
     };
@@ -290,15 +300,25 @@ pub fn consultar_por_inicio(
     deslocamento: u64,
 ) -> Result<Option<PaginaObservada>, Falha> {
     let inicio = inteiro(deslocamento.checked_add(1).ok_or(Falha::EntradaInvalida)?)?;
-    let numero: Option<i64> = banco.query_row(
-        "SELECT pagina FROM pesquisa_documento_pagina
+    let numero: Option<i64> = banco
+        .query_row(
+            "SELECT pagina FROM pesquisa_documento_pagina
          WHERE origem=?1 AND cenario=?2 AND unidade=?3 AND termo=?4 AND inicio=?5",
-        params![instalacao.url_base(), cenario, unidade.as_str(), termo, inicio],
-        |r| r.get(0),
-    ).optional()?;
-    numero.map(|n| {
-        let n = u32::try_from(n).map_err(|_| Falha::EntradaInvalida)?;
-        consultar_pagina(banco, instalacao, cenario, unidade, termo, n)?
-            .ok_or(Falha::EntradaInvalida)
-    }).transpose()
+            params![
+                instalacao.url_base(),
+                cenario,
+                unidade.as_str(),
+                termo,
+                inicio
+            ],
+            |r| r.get(0),
+        )
+        .optional()?;
+    numero
+        .map(|n| {
+            let n = u32::try_from(n).map_err(|_| Falha::EntradaInvalida)?;
+            consultar_pagina(banco, instalacao, cenario, unidade, termo, n)?
+                .ok_or(Falha::EntradaInvalida)
+        })
+        .transpose()
 }
