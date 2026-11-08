@@ -5,8 +5,8 @@ use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
-use iesei::pesquisa_documento::{self, LinhaPaginada, PaginaObservada};
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::pesquisa_documento::{self, LinhaPaginada, PaginaObservada};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -258,7 +258,12 @@ fn preparar_paginas(banco: &mut Connection, instalacao: &Instalacao) {
         },
     ] {
         pesquisa_documento::registrar_pagina(
-            banco, instalacao, CENARIO, &unidade, TERMO_PAGINADO, &pagina,
+            banco,
+            instalacao,
+            CENARIO,
+            &unidade,
+            TERMO_PAGINADO,
+            &pagina,
         )
         .unwrap();
     }
@@ -431,7 +436,6 @@ fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
     assert!(json["documento"].get("numero_sei").is_none());
     assert!(json["processo"].get("numero").is_none());
 }
-
 
 #[path = "aies_documento_buscar_cli/paginacao.rs"]
 mod paginacao;
