@@ -114,10 +114,14 @@ pub fn listar(
         return Ok(None);
     }
     let mut consulta = banco.prepare(
-        "SELECT d.id_procedimento, d.nup
+        "SELECT DISTINCT d.id_procedimento, d.nup
          FROM processo_relacao r JOIN sim_processo d
-           ON d.origem=r.origem AND d.cenario=r.cenario AND d.id_procedimento=r.id_destino
-         WHERE r.origem=?1 AND r.cenario=?2 AND r.id_procedimento=?3
+           ON d.origem=r.origem AND d.cenario=r.cenario
+          AND d.id_procedimento=CASE
+              WHEN r.id_procedimento=?3 THEN r.id_destino
+              ELSE r.id_procedimento END
+         WHERE r.origem=?1 AND r.cenario=?2
+           AND (r.id_procedimento=?3 OR r.id_destino=?3)
          ORDER BY d.id_procedimento",
     )?;
     let linhas = consulta
