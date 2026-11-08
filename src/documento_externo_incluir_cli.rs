@@ -107,7 +107,11 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     const CONFIRMACAO_VALIDADA_EM_TREINAMENTO: bool = false;
     if *confirmar && CONFIRMACAO_VALIDADA_EM_TREINAMENTO {
         return Some(confirmar_remoto::executar(
-            cli, &processo, tipo, &pdf, Path::new(arquivo),
+            cli,
+            &processo,
+            tipo,
+            &pdf,
+            Path::new(arquivo),
         ));
     }
     if *confirmar {
