@@ -106,7 +106,7 @@ fn ate_a_arvore() -> Vec<Resposta> {
     .replace("svg/documento_interno.svg", "svg/documento_pdf.svg");
     vec![
         ok(controle(&[("7", "OUTRO-1")])),
-        r302(&trabalhar_rapida(ID_DOC)),
+        r302(&trabalhar_rapida_documento(ID_DOC)),
         ok(tela),
         ok(arvore),
     ]
@@ -159,7 +159,7 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
         [
             get(&url_controle()),
             post(&absoluta(&action_rapida()), "txtPesquisaRapida=0000101"),
-            get(&absoluta(&trabalhar_rapida(ID_DOC))),
+            get(&absoluta(&trabalhar_rapida_documento(ID_DOC))),
             get(&absoluta(&src_da_arvore_do_documento(ID, ID_DOC))),
             get(&absoluta(&src_anexo())),
         ]
