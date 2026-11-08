@@ -308,3 +308,46 @@ fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
     assert!(tela.remover_anotacoes_oferecida);
     assert_eq!(tela.textos, ["txtPrazo", "txtDias"]);
 }
+
+#[test]
+fn anti_ies_autocomplete_e_lido_pelo_parser_real_do_ies() {
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::processos::{Destino, ProcessoSimulado, guardar};
+    use rusqlite::Connection;
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    guardar(
+        &mut banco,
+        &origem,
+        "teste-autocomplete",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Texto".into()),
+            destinos: vec![Destino {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Unidade de testes".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let resposta = anti_ies::processo_envio::autocompletar(
+        "POST",
+        "/sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo",
+        "palavras_pesquisa=DES&id_orgao=",
+        &banco,
+        &origem,
+        "teste-autocomplete",
+    );
+    assert_eq!(resposta.estado, anti_ies::Estado::Ok);
+    let itens = super::destino::itens_do_autocompletar(&resposta.corpo).unwrap();
+    let escolhido = super::destino::escolher_destino("DESTINO", &itens).unwrap();
+    assert_eq!(escolhido.id_unidade, "2");
+    assert_eq!(escolhido.sigla, "DESTINO");
+}

@@ -38,7 +38,7 @@ const ENDERECO: &str = "/sei/controlador.php?acao=procedimento_enviar&id_procedi
 
 #[test]
 fn previa_e_confirmacao_reconciliam_o_mesmo_estado_sqlite() {
-    let mut banco = preparar();
+    let banco = preparar();
     let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
     let previa = responder("GET", ENDERECO, "", &banco, &origem(), "cenario-a");
     assert_eq!(previa.estado, Estado::Ok);
@@ -72,7 +72,7 @@ fn previa_e_confirmacao_reconciliam_o_mesmo_estado_sqlite() {
 
 #[test]
 fn envio_sem_manter_aberto_fecha_origem_e_preserva_anotacao() {
-    let mut banco = preparar();
+    let banco = preparar();
     let r = responder(
         "POST",
         ENDERECO,
@@ -92,7 +92,7 @@ fn envio_sem_manter_aberto_fecha_origem_e_preserva_anotacao() {
 
 #[test]
 fn destino_invalido_e_duplicado_nao_modificam_o_banco() {
-    let mut banco = preparar();
+    let banco = preparar();
     let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
     for corpo in [
         "hdnIdProtocolos=10&hdnUnidades=999%B1FALSO",
@@ -107,7 +107,7 @@ fn destino_invalido_e_duplicado_nao_modificam_o_banco() {
 
 #[test]
 fn mesmo_id_em_outro_cenario_nao_acessa_ou_muta_estado() {
-    let mut banco = preparar();
+    let banco = preparar();
     let r = responder(
         "POST",
         ENDERECO,
@@ -177,4 +177,34 @@ fn bdd_333_03_http_loopback_persiste_envio_e_releitura_independente() {
     let depois = servidor.join().unwrap();
     assert_eq!(depois.aberto_em, ["DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+}
+
+#[test]
+fn bdd_333_05_autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
+    let banco = preparar();
+    let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
+    let alvo = "/sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo";
+    let encontrado = anti_ies::processo_envio::autocompletar(
+        "POST",
+        alvo,
+        "palavras_pesquisa=DESTINO&id_orgao=",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(encontrado.estado, Estado::Ok);
+    assert_eq!(encontrado.tipo_conteudo, "application/xml; charset=utf-8");
+    assert!(encontrado.corpo.contains("id='2'"));
+    assert!(encontrado.corpo.contains("DESTINO - Unidade de testes"));
+    let ausente = anti_ies::processo_envio::autocompletar(
+        "POST",
+        alvo,
+        "palavras_pesquisa=INEXISTENTE&id_orgao=",
+        &banco,
+        &origem(),
+        "cenario-a",
+    );
+    assert_eq!(ausente.estado, Estado::Ok);
+    assert!(ausente.corpo.contains("<itens></itens>"));
+    assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
 }
