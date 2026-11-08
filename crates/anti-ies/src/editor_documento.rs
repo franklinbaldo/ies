@@ -197,7 +197,9 @@ pub fn responder(
 ) -> Resposta {
     let acao = parametro_unico(alvo, "acao");
     let base = origem.url_base();
-    let pasta = base.strip_prefix(&format!("https://{}", origem.host())).unwrap_or("");
+    let pasta = base
+        .strip_prefix(&format!("https://{}", origem.host()))
+        .unwrap_or("");
     let destino_editor = format!("{pasta}/editor/editor_processar.php");
     let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
     let controlador = eh_controlador_sei(alvo);
