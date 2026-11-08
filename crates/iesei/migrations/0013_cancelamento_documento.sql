@@ -1,4 +1,4 @@
--- 0012: efeito de cancelamento de documento no estado sintético compartilhado (#273).
+-- 0013: efeito de cancelamento de documento no estado sintético compartilhado (#273).
 -- Nunca guarda cookie, token, URL assinada ou conteúdo privado do SEI.
 CREATE TABLE documento_cancelamento (
     origem TEXT NOT NULL,
@@ -10,4 +10,4 @@ CREATE TABLE documento_cancelamento (
     FOREIGN KEY (origem, cenario, id_documento)
         REFERENCES documento_simulado (origem, cenario, id_documento)
 ) STRICT;
-PRAGMA user_version = 12;
+PRAGMA user_version = 13;
