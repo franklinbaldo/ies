@@ -60,6 +60,7 @@ fn versao_nova_exige_releitura_do_conteudo() {
     assert_eq!(previa.estado, Estado::Ok);
     assert!(previa.corpo.contains("&lt;p&gt;antes&lt;/p&gt;"));
     assert!(previa.corpo.contains("name='html_editado'"));
+    assert!(previa.corpo.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert_eq!(
         ler(&banco, &origem(), "ensaio", "42")
             .unwrap()
@@ -341,6 +342,7 @@ fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
     assert!(montagem.corpo.contains("id='frmEditor'"));
     assert!(montagem.corpo.contains("target='ifrEditorSalvar'"));
     assert!(montagem.corpo.contains("acao=editor_salvar"));
+    assert!(montagem.corpo.contains(&format!("infra_hash={}", "4".repeat(64))));
     assert!(montagem.corpo.contains("name='txaEditor_1'"));
     assert!(montagem.corpo.contains("name='hdnVersao' value='2'"));
     assert!(
