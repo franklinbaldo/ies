@@ -6,6 +6,7 @@ use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::processos::{self, ProcessoSimulado};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -146,6 +147,23 @@ fn estado(com_segundo: bool) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
+    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
+    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "7".into(),
+            numero: NUP_A.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
     for (id, processo, nup, numero, corpo) in [
         (
             "42",
@@ -203,7 +221,7 @@ fn acao_do_pedido(cab: &[u8]) -> String {
 /// TCP e TLS exclusivamente no loopback, sem mudanças no transporte de produção.
 /// A saída do subprocesso encerra os dois ouvintes sem assumir número fixo
 /// de leituras: um segundo DOC pode ou não reutilizar ação de pesquisa.
-fn executar(com_segundo: bool) -> (Output, Vec<String>) {
+fn executar(com_segundo: bool, args: &[&str]) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -264,7 +282,7 @@ fn executar(com_segundo: bool) -> (Output, Vec<String>) {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "documento", DOC_A, DOC_B, "--sem-cache"])
+        .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -299,7 +317,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
-    let (saida, trilha) = executar(true);
+    let (saida, trilha) = executar(true, &["--json", "documento", DOC_A, DOC_B, "--sem-cache"]);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -341,7 +359,7 @@ fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
 
 #[test]
 fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
-    let (saida, trilha) = executar(false);
+    let (saida, trilha) = executar(false, &["--json", "documento", DOC_A, DOC_B, "--sem-cache"]);
     assert_ne!(
         saida.status.code(),
         Some(0),
@@ -359,5 +377,43 @@ fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
             .iter()
             .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "a falha não autoriza escrita: {trilha:?}"
+    );
+}
+
+#[test]
+fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
+    let (saida, trilha) = executar(
+        true,
+        &[
+            "--json",
+            "documento",
+            DOC_B,
+            "--processo",
+            NUP_A,
+            "--sem-cache",
+        ],
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(1),
+        "recusa de identidade, não falha genérica de sessão: stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor = json(&saida);
+    assert_eq!(valor["codigo"], "fonte_invalida", "{valor}");
+    // ErroHtml::ausente da localização tipada pelo contexto --processo;
+    // preservar a causa já publicada, sem criar novo subcódigo.
+    assert_eq!(
+        valor["subcodigo"], "numero_sei_ausente_da_arvore_do_processo",
+        "{valor}"
+    );
+    assert_eq!(valor["documento"], DOC_B, "{valor}");
+    assert_eq!(valor["documentos_lidos_antes"], 0, "{valor}");
+    assert!(valor.get("documentos").is_none(), "{valor}");
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "a recusa não autoriza escrita: {trilha:?}"
     );
 }

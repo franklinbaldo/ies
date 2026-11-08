@@ -6,7 +6,7 @@ use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write;
 
-fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
+pub(crate) fn parametro<'a>(alvo: &'a str, nome: &str) -> Result<Option<&'a str>, Estado> {
     let Some((_, query)) = alvo.split_once('?') else {
         return Ok(None);
     };
