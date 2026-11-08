@@ -106,7 +106,7 @@ fn salvar(
     }
 }
 
-/// Projeção SEI 4 guiada pela observação do editor UnB 4.0.9
+/// Projeção SEI 4 guiada pela observação do editor `UnB` 4.0.9
 /// (docs/como-o-sei-funciona/editor-do-documento.md).
 /// Os campos são uma hipótese funcional: o membro JSON original ainda
 /// precisa ser confrontado; não é reprodução de cassette.
@@ -143,7 +143,7 @@ fn formulario_editor_4(
     ))
 }
 
-/// Simula editor_salvar com versão e seção do formulário observado,
+/// Simula `editor_salvar` com versão e seção do formulário observado,
 /// sem fingir que o POST gravado no acervo contém todos os campos.
 fn salvar_editor_4(
     corpo: &str,
