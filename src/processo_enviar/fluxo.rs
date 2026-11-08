@@ -137,18 +137,35 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
     let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
-    if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
-        // Releitura independente da anotação mesmo se a árvore falhou.
-        // A saída 3 pode assim distinguir remoção observada de tramitação
-        // incerta, sem reenviar o POST nem seguir o redirect.
-        let link = link_anotacao
-            .as_deref()
-            .ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
+    let mut feito = conciliar_efeitos(
+        &mut rede,
+        &cookie,
+        link_anotacao.as_deref(),
+        feito,
+        falha,
+        verificacao,
+    )?;
+    feito.requisicoes = rede.feitas();
+    Ok(feito)
+}
+
+/// Concilia duas provas independentes. Mesmo quando a árvore falha, o GET
+/// da anotação pode comprovar sua remoção sem repetir a escrita.
+fn conciliar_efeitos<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link_anotacao: Option<&str>,
+    mut feito: ProcessoEnviado,
+    falha: Option<FalhaDoEnvio>,
+    verificacao: VerificacaoPorLeitura,
+) -> Result<ProcessoEnviado, C> {
+    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+        let link = link_anotacao.ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
         feito.anotacao_depois =
-            observar_anotacao_depois(&mut rede, &cookie, link, &feito.id_procedimento);
+            observar_anotacao_depois(rede, cookie, link, &feito.id_procedimento);
     }
-    let mut feito = conciliar(feito, falha, verificacao)?;
-    if metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+    let feito = conciliar(feito, falha, verificacao)?;
+    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
         match feito.anotacao_depois {
             Some(false) => {}
             Some(true) => return Err(C::AnotacoesNaoRemovidasAposEnvio),
@@ -159,7 +176,6 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
             }
         }
     }
-    feito.requisicoes = rede.feitas();
     Ok(feito)
 }
 
