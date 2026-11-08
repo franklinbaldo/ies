@@ -49,4 +49,3 @@ pub(crate) fn controle_html(controle: &ControleResumido) -> Option<String> {
     html.push_str("</body></html>");
     Some(html)
 }
-
