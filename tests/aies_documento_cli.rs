@@ -4,8 +4,8 @@
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
-use iesei::instalacao::Instalacao;
 use iesei::editor_documento::{Oferta, registrar_oferta};
+use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
@@ -194,9 +194,16 @@ fn estado(com_documento: bool) -> (Connection, Instalacao) {
         )
         .unwrap();
         registrar_oferta(
-            &banco, &instalacao, CENARIO, "42",
-            Oferta { editavel: true, assinaturas: 0 },
-        ).unwrap();
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            Oferta {
+                editavel: true,
+                assinaturas: 0,
+            },
+        )
+        .unwrap();
     }
     (banco, instalacao)
 }
