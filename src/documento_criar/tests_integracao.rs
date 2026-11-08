@@ -263,6 +263,44 @@ fn botao_salvar_observado_publica_controle_de_gravacao() {
 }
 
 #[test]
+fn botao_salvar_sem_name_conserva_post_unico_e_releitura() {
+    // Um button type=button com onclick nao envia seu atributo name.
+    // A ausencia dele nao remove a oferta de salvar publicada na tela.
+    let html = cadastro().replace(" name=\"btnSalvar\"", "");
+    assert!(cadastro_oferece_salvar(&html));
+    let amb = a::ambiente();
+    let mut respostas = a::abertura(arvore_inicial());
+    respostas.push(a::ok(lista_de_tipos()));
+    respostas.push(a::ok(html));
+    respostas.push(a::r302(
+        "controlador.php?acao=documento_visualizar&id_documento=22",
+    ));
+    respostas.push(a::ok(arvore_verificadora(1)));
+    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+        let pedido = PedidoCriacao {
+            nup,
+            unidade: None,
+            tipo: "Despacho",
+            descricao: Some("Ensaio"),
+            nivel: Some("publico"),
+        };
+        executar_criacao(sessao, &pedido, indice, rede, true)
+    });
+    assert!(matches!(
+        resultado,
+        Ok(ResultadoCriacao {
+            estado: EstadoCriacao::Criado { numero_sei },
+            requisicoes: 7,
+            ..
+        }) if numero_sei == "0000102"
+    ));
+    let mut esperados = pedidos_antes_da_escrita();
+    esperados.push(pedido_criador());
+    esperados.push(a::get(&a::url_arvore()));
+    assert_eq!(pedidos, esperados);
+}
+
+#[test]
 fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post() {
     // Captura Todos documento_gerar.html @323eb01: linhas 810 e 1061
     // publicam dois botoes btnSalvar habilitados e onclick=confirmarDados().
