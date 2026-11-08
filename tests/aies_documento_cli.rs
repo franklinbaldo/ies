@@ -473,6 +473,42 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
     );
 }
 
+/// Controle positivo do BDD-88-03: negar a versão 1 não impede
+/// a leitura da versão 3 na mesma identidade de documento e cenário.
+#[test]
+fn bdd_88_03_cli_restricao_de_versao_nao_bloqueia_outras_versoes() {
+    let pasta = Pasta::nova();
+    let destino = pasta.0.join("saida");
+    fs::create_dir(&destino).unwrap();
+    let args = [
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "3",
+        "--saida",
+        destino.to_str().unwrap(),
+        "--sem-cache",
+    ];
+    let saida = executar_com_restricao(&pasta, &args, 6, true, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "bloqueio da versão 1 contaminou versão 3: {}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor = json(&saida);
+    assert_eq!(valor["documentos"][0]["numero"], DOC);
+    assert_eq!(valor["documentos"][0]["versao"], 3);
+    assert_eq!(valor["documentos"][0]["arquivo"]["gravado"], true);
+    assert_eq!(valor["requisicoes"], 6);
+    let foto = destino.join("0011519.v3.html");
+    let html = fs::read_to_string(&foto).unwrap();
+    assert!(html.contains("Terceira redação"));
+    assert!(!html.contains("Primeira redação"));
+    assert!(!destino.join("0011519.v1.html").exists());
+}
+
 #[test]
 fn bdd_88_03_cli_recusa_sessao_sem_acesso_antes_da_pesquisa() {
     let pasta = Pasta::nova();
