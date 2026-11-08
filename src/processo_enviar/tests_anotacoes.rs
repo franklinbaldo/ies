@@ -244,7 +244,7 @@ fn bdd_anotacao_ainda_presente_apos_envio_e_resultado_parcial() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        super::ErroEnviar::AnotacoesNaoRemovidasAposEnvio
+        super::ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
     ));
     assert_eq!(erro.codigo(), "escrita_diferente_da_solicitada");
     assert_eq!(pedidos.len(), 9);

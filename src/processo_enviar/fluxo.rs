@@ -168,7 +168,11 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
     if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
         match feito.anotacao_depois {
             Some(false) => {}
-            Some(true) => return Err(C::AnotacoesNaoRemovidasAposEnvio),
+            Some(true) => {
+                return Err(C::AnotacoesNaoRemovidasAposEnvio {
+                    depois: feito.depois,
+                });
+            }
             None => {
                 return Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
                     depois: feito.depois,
@@ -297,7 +301,7 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
     // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
     match conferir_anotacao_depois(rede, cookie, link, id, None) {
         Ok(()) => Ok(()),
-        Err(C::AnotacoesNaoRemovidasAposEnvio) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
+        Err(C::AnotacoesNaoRemovidasAposEnvio { .. }) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
         Err(_) => Err(C::EfeitoIncertoNaLimpezaDaAnotacao),
     }
 }
@@ -313,7 +317,9 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
 ) -> Result<(), C> {
     match observar_anotacao_depois(rede, cookie, link, id) {
         Some(false) => Ok(()),
-        Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio),
+        Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio {
+            depois: unidades_apos_envio.map(ToOwned::to_owned),
+        }),
         None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),

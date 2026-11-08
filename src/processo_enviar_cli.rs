@@ -239,7 +239,8 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     let depois = match erro {
         E::EnvioNaoAplicado { depois, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
-        E::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
+        E::AnotacoesNaoRemovidasAposEnvio { depois }
+        | E::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
         _ => None,
     };
     for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
@@ -387,7 +388,8 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
             valor.depois = Some(depois);
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
+        ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }
+        | ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
             valor.depois = depois.as_deref();
         }
         ErroEnviar::EfeitoIncertoNoEnvio {

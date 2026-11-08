@@ -164,6 +164,48 @@ fn pedido(fonte: &mut impl Read) -> (Vec<u8>, String, String) {
     (bytes, metodo, acao)
 }
 
+/// Simula um SEI que aceita o envio, mas ignora o checkbox de remoção.
+/// Só altera a requisição entre a CLI real e o anti-IES isolado.
+fn omitir_checkbox_do_envio(pedido: Vec<u8>) -> Vec<u8> {
+    let bruto = String::from_utf8(pedido).unwrap();
+    let (cabecalho, corpo) = bruto.split_once("\r\n\r\n").unwrap();
+    let campos: Vec<_> = corpo.split('&').collect();
+    assert!(
+        campos
+            .iter()
+            .any(|campo| campo.starts_with("chkSinRemoverAnotacoes="))
+    );
+    let corpo = campos
+        .into_iter()
+        .filter(|campo| !campo.starts_with("chkSinRemoverAnotacoes="))
+        .collect::<Vec<_>>()
+        .join("&");
+    let cabecalho = cabecalho
+        .split("\r\n")
+        .map(|linha| {
+            if linha.to_ascii_lowercase().starts_with("content-length:") {
+                format!("Content-Length: {}", corpo.len())
+            } else {
+                linha.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\r\n");
+    format!("{cabecalho}\r\n\r\n{corpo}").into_bytes()
+}
+
+/// Executa o único desvio sintético controlado antes de entregar ao anti-IES.
+fn pedido_com_ensaio(
+    canal: &mut impl Read,
+    omitir_remocao_no_post: bool,
+) -> (Vec<u8>, String, String) {
+    let (bytes, metodo, acao) = pedido(canal);
+    if omitir_remocao_no_post && metodo == "POST" && acao == "procedimento_enviar" {
+        return (omitir_checkbox_do_envio(bytes), metodo, acao);
+    }
+    (bytes, metodo, acao)
+}
+
 fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -217,7 +259,7 @@ fn executar(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
-    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false)
+    executar_com_ensaio_local(comandos, falhar_releitura, anotacao, false, false)
 }
 
 fn executar_com_ensaio_local(
@@ -225,6 +267,7 @@ fn executar_com_ensaio_local(
     falhar_releitura: bool,
     anotacao: Option<&'static str>,
     ensaio_local: bool,
+    omitir_remocao_no_post: bool,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
@@ -270,7 +313,7 @@ fn executar_com_ensaio_local(
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
-            let (bytes, metodo, acao) = pedido(&mut canal);
+            let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, omitir_remocao_no_post);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
             let mut resposta = if bloquear {

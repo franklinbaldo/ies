@@ -84,7 +84,10 @@ pub(crate) enum ErroEnviar {
     /// Confirmação pública fechada enquanto a nova escrita não foi validada em treinamento.
     RemocaoDeAnotacoesSemVerificacao,
     /// O envio foi confirmado pela árvore, mas a anotação ainda existe.
-    AnotacoesNaoRemovidasAposEnvio,
+    AnotacoesNaoRemovidasAposEnvio {
+        /// A árvore comprovou esta situação mesmo com a anotação persistente.
+        depois: Option<Vec<String>>,
+    },
     /// A tentativa de limpar foi relida, mas a anotação segue preenchida: não tramitar.
     AnotacaoNaoLimpaAntesDeEnviar,
     /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
@@ -144,7 +147,7 @@ impl ErroEnviar {
         match self {
             Self::EnvioNaoAplicado { .. } => "escrita_nao_aplicada",
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
-            | Self::AnotacoesNaoRemovidasAposEnvio
+            | Self::AnotacoesNaoRemovidasAposEnvio { .. }
             | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
             Self::EfeitoIncertoNoEnvio { .. }
             | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
@@ -221,7 +224,7 @@ impl ErroEnviar {
             Self::RemocaoDeAnotacoesSemVerificacao => {
                 "a remoção de anotações ainda não foi validada em treinamento; nada foi enviado"
             }
-            Self::AnotacoesNaoRemovidasAposEnvio => {
+            Self::AnotacoesNaoRemovidasAposEnvio { .. } => {
                 "o processo foi enviado, mas a anotação continua presente na origem"
             }
             Self::AnotacaoNaoLimpaAntesDeEnviar => {
