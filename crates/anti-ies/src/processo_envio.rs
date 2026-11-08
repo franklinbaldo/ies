@@ -92,9 +92,11 @@ fn checar_checkbox(campos: &[(&str, &str)], chave: &str) -> Option<bool> {
 
 fn destino_indicado(campos: &[(&str, &str)]) -> Option<String> {
     let unidades = campo_unico(campos, "hdnUnidades")?;
+    // O sufixo %B1 está contido em %C2%B1: testar UTF-8 primeiro evita
+    // interpretar "2%C2" como identificador do destino.
     let (id, _) = unidades
-        .split_once("%B1")
-        .or_else(|| unidades.split_once("%C2%B1"))?;
+        .split_once("%C2%B1")
+        .or_else(|| unidades.split_once("%B1"))?;
     (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then(|| id.to_owned())
 }
 
