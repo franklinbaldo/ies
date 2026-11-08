@@ -1,5 +1,5 @@
 //! #88 BDD-88-01/03: a arvore e as versoes consultam o mesmo documento do SQLite.
-use anti_ies::{Estado, documento_versoes::responder};
+use anti_ies::{Estado, documento_arvore, documento_versoes};
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use iesei::instalacao::Instalacao;
@@ -43,7 +43,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     iniciar(&banco).unwrap();
     guardar(&mut banco, "ensaio", &documento()).unwrap();
 
-    let arvore = responder(
+    let arvore = documento_arvore::responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=42",
         &banco,
@@ -56,7 +56,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     assert!(arvore.corpo.contains("documento_versao_listar"));
     assert!(arvore.corpo.contains("acao=documento_visualizar"));
 
-    let tela = responder(
+    let tela = documento_arvore::responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_trabalhar&id_protocolo=42",
         &banco,
@@ -66,7 +66,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     assert_eq!(tela.estado, Estado::Ok);
     assert!(tela.corpo.contains("id=\"ifrArvore\""));
     assert!(tela.corpo.contains("id_procedimento=7"));
-    let historico = responder(
+    let historico = documento_versoes::responder(
         "GET",
         "/sei/controlador.php?acao=documento_versao_listar&id_documento=42",
         &banco,
@@ -75,7 +75,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     );
     assert_eq!(historico.estado, Estado::Ok);
     assert!(historico.corpo.contains("Lista de Versões (2 registros)"));
-    let antiga = responder(
+    let antiga = documento_versoes::responder(
         "GET",
         "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1",
         &banco,
@@ -86,7 +86,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     assert!(antiga.corpo.contains("Primeira redação"));
     assert!(!antiga.corpo.contains("Terceira redação"));
 
-    let outro = responder(
+    let outro = documento_arvore::responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=99&id_documento=42",
         &banco,
