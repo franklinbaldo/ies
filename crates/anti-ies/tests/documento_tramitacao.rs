@@ -76,9 +76,10 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String 
 
 #[test]
 fn documento_criar_perde_oferta_apos_enviar_sem_manter_aberto() {
-    let (endereco, tarefa) = servidor(7);
+    let (endereco, tarefa) = servidor(9);
     let arvore = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10";
     let cadastro = "/sei/controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291";
+    let trabalho = "/sei/controlador.php?acao=procedimento_trabalhar&id_protocolo=10";
     let escrever = "hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Novo";
 
     let inicial = pedir(endereco, "GET", arvore, "");
@@ -87,6 +88,9 @@ fn documento_criar_perde_oferta_apos_enviar_sem_manter_aberto() {
         inicial.contains("acao=documento_escolher_tipo"),
         "a CLI precisa encontrar Incluir Documento"
     );
+
+    let tela_inicial = pedir(endereco, "GET", trabalho, "");
+    assert!(tela_inicial.contains("id='incluirDocumento'"));
 
     let criado = pedir(endereco, "POST", cadastro, escrever);
     assert!(criado.starts_with("HTTP/1.1 302 Found"));
@@ -107,6 +111,11 @@ fn documento_criar_perde_oferta_apos_enviar_sem_manter_aberto() {
         "processo não está mais aberto em TESTE"
     );
 
+    let tela_fechada = pedir(endereco, "GET", trabalho, "");
+    assert!(
+        !tela_fechada.contains("id='incluirDocumento'"),
+        "a tela de trabalho não pode oferecer inclusão após envio"
+    );
     let recusado = pedir(endereco, "POST", cadastro, escrever);
     assert!(
         recusado.starts_with("HTTP/1.1 400 Bad Request"),
