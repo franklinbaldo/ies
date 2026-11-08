@@ -88,7 +88,12 @@ fn bdd_88_01_02_controle_pesquisa_arvore_historico_e_conteudo_em_loopback() {
             atender_http(&mut fluxo, Some((&banco, &origem, "documento-88"))).unwrap();
         }
     });
-    let controle = pedir(endereco, "GET", &format!("{BASE}?acao=procedimento_controlar"), "");
+    let controle = pedir(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_controlar"),
+        "",
+    );
     assert!(controle.starts_with("HTTP/1.1 200 OK"), "{controle}");
     assert!(controle.contains("id=\"frmProtocoloPesquisaRapida\""));
     assert!(controle.contains("name=\"txtPesquisaRapida\""));
@@ -142,7 +147,10 @@ fn bdd_88_01_02_controle_pesquisa_arvore_historico_e_conteudo_em_loopback() {
         &format!("{BASE}?acao=protocolo_pesquisa_rapida"),
         "txtPesquisaRapida=0011519&txtPesquisaRapida=0011519",
     );
-    assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"), "{repetido}");
+    assert!(
+        repetido.starts_with("HTTP/1.1 400 Bad Request"),
+        "{repetido}"
+    );
     servidor.join().unwrap();
 }
 
@@ -153,8 +161,14 @@ fn bdd_88_03_pesquisa_nao_finge_sucesso_sem_snapshot_do_documento() {
     let alvo = format!("{BASE}?acao=protocolo_pesquisa_rapida");
     assert_eq!(
         anti_ies::pesquisa_documento::responder(
-            "POST", &alvo, "txtPesquisaRapida=0011519", &banco, &origem(), "vazio"
-        ).estado,
+            "POST",
+            &alvo,
+            "txtPesquisaRapida=0011519",
+            &banco,
+            &origem(),
+            "vazio"
+        )
+        .estado,
         anti_ies::Estado::NaoEncontrado
     );
 }
