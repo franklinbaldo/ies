@@ -33,8 +33,12 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
         match escuta.accept() {
             Ok((conexao, peer)) => {
                 assert!(peer.ip().is_loopback(), "ensaio somente em loopback");
-                conexao.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                conexao.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                conexao
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                conexao
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return Some(conexao);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -58,19 +62,26 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String, String) {
     }
     let texto = std::str::from_utf8(&cabecalho).unwrap();
     let inicio = texto.lines().next().unwrap().to_owned();
-    let tamanho = texto.lines().find_map(|linha| {
-        let (nome, valor) = linha.split_once(':')?;
-        nome.eq_ignore_ascii_case("content-length")
-            .then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let tamanho = texto
+        .lines()
+        .find_map(|linha| {
+            let (nome, valor) = linha.split_once(':')?;
+            nome.eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000, "PDF sintético deve ser pequeno");
     let mut corpo = vec![0; tamanho];
     canal.read_exact(&mut corpo).unwrap();
     cabecalho.extend(corpo);
-    let acao = inicio.split_whitespace().nth(1).unwrap()
+    let acao = inicio
+        .split_whitespace()
+        .nth(1)
+        .unwrap()
         .split_once('?')
         .and_then(|(_, query)| query.split('&').find_map(|par| par.strip_prefix("acao=")))
-        .unwrap_or("desconhecida").to_owned();
+        .unwrap_or("desconhecida")
+        .to_owned();
     let metodo = inicio.split_whitespace().next().unwrap().to_owned();
     (cabecalho, metodo, acao)
 }
@@ -79,20 +90,47 @@ fn preparar_banco() -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(&mut banco, CENARIO, &ControleResumido {
-        instalacao: origem.clone(),
-        unidade: UnidadeExibida::nova("TESTE").unwrap(),
-        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-    }).unwrap();
-    processos::guardar(&mut banco, &origem, CENARIO, &ProcessoSimulado {
-        id: "10".into(), numero: NUP.into(), unidade_origem: "TESTE".into(),
-        aberto_em: vec!["TESTE".into()], anotacao_origem: None, destinos: vec![],
-    }).unwrap();
-    pdf_externo::semear(&banco, &origem, CENARIO,
-        &Processo { id: "10".into(), nup: NUP.into(), unidade: "TESTE".into() },
-        &TipoExterno { id: "293".into(), nome: "Anexo".into(), limite_bytes: 10 * 1024 * 1024 },
-    ).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: NUP.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+    pdf_externo::semear(
+        &banco,
+        &origem,
+        CENARIO,
+        &Processo {
+            id: "10".into(),
+            nup: NUP.into(),
+            unidade: "TESTE".into(),
+        },
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 10 * 1024 * 1024,
+        },
+    )
+    .unwrap();
     (banco, origem)
 }
 
@@ -101,9 +139,13 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
-    let controle = pasta.privado("url", &format!(
-        "{ORIGEM}/controlador.php?acao=procedimento_controlar&{chave}={}", "a".repeat(64)
-    ));
+    let controle = pasta.privado(
+        "url",
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{chave}={}",
+            "a".repeat(64)
+        ),
+    );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let pdf = pasta.0.join("peticao.pdf");
     fs::write(&pdf, b"%PDF-1.4\n1 0 obj\n%%EOF\n").unwrap();
@@ -118,7 +160,9 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
         while let Some(mut cliente) = aceitar(&escuta, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        pdf_externo::documentos(&banco, &instalacao, CENARIO, "10").unwrap().len()
+        pdf_externo::documentos(&banco, &instalacao, CENARIO, "10")
+            .unwrap()
+            .len()
     });
 
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -132,7 +176,8 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
         while let Some(mut tcp) = aceitar(&proxy, &sinal_proxy) {
             let (connect, _, _) = pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, metodo, acao) = pedido(&mut canal);
             let mut backend = TcpStream::connect(destino).unwrap();
@@ -140,11 +185,21 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            let status = std::str::from_utf8(&resposta[..resposta.iter().position(|b| *b == b'\r').unwrap()])
-                .unwrap().split_whitespace().nth(1).unwrap().to_owned();
-            registro.lock().unwrap().push(format!("{metodo} {acao} {status}"));
+            let status = std::str::from_utf8(
+                &resposta[..resposta.iter().position(|b| *b == b'\r').unwrap()],
+            )
+            .unwrap()
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .to_owned();
+            registro
+                .lock()
+                .unwrap()
+                .push(format!("{metodo} {acao} {status}"));
             if incerteza && metodo == "POST" && acao == "documento_receber" && status == "302" {
-                resposta = String::from_utf8(resposta).unwrap()
+                resposta = String::from_utf8(resposta)
+                    .unwrap()
                     .replace("id_documento=8000000000001", "id_documento=8000000000999")
                     .into_bytes();
             }
@@ -152,29 +207,51 @@ fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
             canal.flush().unwrap();
         }
     });
-    let base = ["--json", "documento", "incluir-externo", "--processo", NUP, "--arquivo"];
+    let base = [
+        "--json",
+        "documento",
+        "incluir-externo",
+        "--processo",
+        NUP,
+        "--arquivo",
+    ];
     let pdf_str = pdf.to_str().unwrap();
-    let confirmar = [base.as_slice(), &[pdf_str, "--tipo", "Anexo", "--confirmar"]].concat();
-    let consultar = ["--json", "processo", NUP, "--sem-andamentos", "--sem-propriedades", "--sem-marcadores"];
-    let saidas = [&confirmar[..], &consultar[..]].iter().map(|args| {
-        Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(*args)
-            .env("IES_ANTI_IES_TESTE", "1")
-            .env("IES_URL_CONTROLE_FILE", &controle)
-            .env("IES_COOKIE_FILE", &cookie)
-            .env("IES_ORIGEM_FILE", &origem)
-            .env("SSL_CERT_FILE", &cert)
-            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-            .env("HOME", &pasta.0)
-            .env_remove("HTTPS_PROXY")
-            .env_remove("all_proxy")
-            .env_remove("ALL_PROXY")
-            .env_remove("NO_PROXY")
-            .env_remove("no_proxy")
-            .env_remove("IES_CONFIG_FILE")
-            .env_remove("IES_CREDENCIAIS_FILE")
-            .output().unwrap()
-    }).collect();
+    let confirmar = [
+        base.as_slice(),
+        &[pdf_str, "--tipo", "Anexo", "--confirmar"],
+    ]
+    .concat();
+    let consultar = [
+        "--json",
+        "processo",
+        NUP,
+        "--sem-andamentos",
+        "--sem-propriedades",
+        "--sem-marcadores",
+    ];
+    let saidas = [&confirmar[..], &consultar[..]]
+        .iter()
+        .map(|args| {
+            Command::new(env!("CARGO_BIN_EXE_ies"))
+                .args(*args)
+                .env("IES_ANTI_IES_TESTE", "1")
+                .env("IES_URL_CONTROLE_FILE", &controle)
+                .env("IES_COOKIE_FILE", &cookie)
+                .env("IES_ORIGEM_FILE", &origem)
+                .env("SSL_CERT_FILE", &cert)
+                .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+                .env("HOME", &pasta.0)
+                .env_remove("HTTPS_PROXY")
+                .env_remove("all_proxy")
+                .env_remove("ALL_PROXY")
+                .env_remove("NO_PROXY")
+                .env_remove("no_proxy")
+                .env_remove("IES_CONFIG_FILE")
+                .env_remove("IES_CREDENCIAIS_FILE")
+                .output()
+                .unwrap()
+        })
+        .collect();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
@@ -200,17 +277,36 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
     assert_eq!(incluido["confirmado"], true);
     assert_eq!(incluido["numero_sei"], "050000001");
     assert_eq!(incluido["reconciliado_por_leitura"], true);
-    assert_eq!(saidas[1].status.code(), Some(0), "leitura externa: {:?}", saidas[1].stderr);
-    assert!(json(&saidas[1])["documentos"].to_string().contains("050000001"));
+    assert_eq!(
+        saidas[1].status.code(),
+        Some(0),
+        "leitura externa: {:?}",
+        saidas[1].stderr
+    );
+    assert!(
+        json(&saidas[1])["documentos"]
+            .to_string()
+            .contains("050000001")
+    );
     assert_eq!(total, 1, "upload temporário não duplica o documento");
     for acao in ["documento_upload_anexo", "documento_receber"] {
-        assert_eq!(eventos.iter().filter(|e| *e == &format!("POST {acao} 200")
-            || *e == &format!("POST {acao} 302")).count(),
+        assert_eq!(
+            eventos
+                .iter()
+                .filter(|e| *e == &format!("POST {acao} 200") || *e == &format!("POST {acao} 302"))
+                .count(),
             if acao == "documento_receber" { 2 } else { 1 },
-            "recarga de tipo, upload e cadastro não podem causar retry: {eventos:?}");
+            "recarga de tipo, upload e cadastro não podem causar retry: {eventos:?}"
+        );
     }
-    assert!(eventos.iter().rposition(|e| e.starts_with("GET procedimento_visualizar"))
-        > eventos.iter().position(|e| e == "POST documento_receber 302"));
+    assert!(
+        eventos
+            .iter()
+            .rposition(|e| e.starts_with("GET procedimento_visualizar"))
+            > eventos
+                .iter()
+                .position(|e| e == "POST documento_receber 302")
+    );
 }
 
 #[test]
@@ -225,6 +321,18 @@ fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
     assert_eq!(incerto["retentavel"], false);
     assert_eq!(incerto["cadastro_tentado"], true);
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");
-    assert_eq!(eventos.iter().filter(|e| *e == "POST documento_upload_anexo 200").count(), 1);
-    assert_eq!(eventos.iter().filter(|e| *e == "POST documento_receber 302").count(), 1);
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| *e == "POST documento_upload_anexo 200")
+            .count(),
+        1
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| *e == "POST documento_receber 302")
+            .count(),
+        1
+    );
 }
