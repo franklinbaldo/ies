@@ -94,9 +94,7 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
                 controlar(&mut banco, &instalacao, "DESTINO");
             }
             if requisicao == 7 {
-                let estado = ler(&banco, &instalacao, CENARIO, "10")
-                    .unwrap()
-                    .unwrap();
+                let estado = ler(&banco, &instalacao, CENARIO, "10").unwrap().unwrap();
                 assert_eq!(estado.aberto_em, ["DESTINO"]);
                 assert_eq!(estado.anotacao_origem.as_deref(), Some("Nota da origem"));
             }
