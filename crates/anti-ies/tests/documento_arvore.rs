@@ -75,6 +75,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
     );
     assert_eq!(historico.estado, Estado::Ok);
     assert!(historico.corpo.contains("Lista de Versões (2 registros)"));
+    assert!(historico.corpo.contains(&format!("infra_hash={}", "4".repeat(64))));
     let antiga = documento_versoes::responder(
         "GET",
         "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1",
