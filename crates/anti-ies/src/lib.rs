@@ -399,7 +399,7 @@ pub fn atender_http(
     let bytes = resposta
         .corpo_binario
         .as_deref()
-        .unwrap_or_else(|| resposta.corpo.as_bytes());
+        .unwrap_or(resposta.corpo.as_bytes());
     write!(
         fluxo,
         "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
