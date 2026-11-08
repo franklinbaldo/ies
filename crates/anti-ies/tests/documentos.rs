@@ -164,3 +164,76 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(sem_nup.starts_with("HTTP/1.1 404 Not Found"));
     servidor.join().unwrap();
 }
+
+
+/// #246: uma lista curta pode exigir Exibir todos antes de escolher o tipo.
+/// O filtro é um POST de navegação, nunca a escrita criadora.
+#[test]
+fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        sim::registrar_processo(
+            &banco,
+            &origem,
+            "filtro",
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        for (id, nome) in [("291", "Despacho"), ("292", "Parecer")] {
+            sim::registrar_tipo(
+                &banco,
+                &origem,
+                "filtro",
+                "10",
+                &Tipo {
+                    id: id.into(),
+                    nome: nome.into(),
+                },
+            )
+            .unwrap();
+        }
+        for _ in 0..6 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem, "filtro"))).unwrap();
+        }
+        assert!(sim::documentos(&banco, &origem, "filtro", "10")
+            .unwrap()
+            .is_empty());
+    });
+    let selecao = format!("{BASE}?acao=documento_escolher_tipo&id_procedimento=10");
+    let curta = consultar(endereco, "GET", &selecao, "");
+    assert!(curta.starts_with("HTTP/1.1 200 OK"));
+    assert!(curta.contains("ancExibirSeries"));
+    assert!(curta.contains(">Despacho</a>"));
+    assert!(!curta.contains(">Parecer</a>"));
+
+    let completa = consultar(endereco, "POST", &selecao, "hdnIdSerie=&hdnFiltroSerie=T");
+    assert!(completa.starts_with("HTTP/1.1 200 OK"));
+    assert!(completa.contains(">Despacho</a>"));
+    assert!(completa.contains(">Parecer</a>"));
+
+    let misturado = consultar(endereco, "POST", &selecao, "hdnIdSerie=292&hdnFiltroSerie=T");
+    assert!(misturado.starts_with("HTTP/1.1 400 Bad Request"));
+    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=292&hdnFiltroSerie=U");
+    assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
+    assert!(escolhido.contains("id_serie=292"));
+
+    let nova_leitura = consultar(endereco, "GET", &selecao, "");
+    assert!(!nova_leitura.contains(">Parecer</a>"));
+    let arvore = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
+    assert!(!arvore.contains("Nos[1] = new infraArvoreNo"));
+    servidor.join().unwrap();
+}
