@@ -5,6 +5,7 @@ mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
+mod processo_barra;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 pub mod processo_envio;

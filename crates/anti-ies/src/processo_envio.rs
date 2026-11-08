@@ -317,11 +317,12 @@ fn arvore_do_processo(
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let situacao = literal_js(&situacao_da_raiz(processo));
+    let barra = literal_js(&super::processo_barra::acoes_do_processo(processo));
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
 Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
-Nos[0].acoes = '';
+Nos[0].acoes = '{barra}';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
 {nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
