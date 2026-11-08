@@ -149,11 +149,11 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
 
 ## Método: observar → contratar → RED → GREEN → validar
 
-1. **Observar.** Toda capacidade parte de comportamento real: cassettes,
-   capturas privadas ou experimento ao vivo numa instalação de
-   treinamento. Leia a tela pela **estrutura** (ids, campos, JS servido).
-   Não invente operação, campo ou regra que a tela não mostrou; uma
-   instalação não prova as outras.
+1. **Observar (cassette-first).** Para cada BDD, procure primeiro
+   cards/cassettes existentes e leia a estrutura observada. Não invente
+   o que já está gravado. Sem cassette, siga com hipótese testável.
+   Rede local bloqueada? Use [GitHub Actions](docs/cassettes.md),
+   não uma fixture sintética no lugar da observação disponível.
 2. **Contratar.** Contrato OKF da operação, erros tipados, shim compilável
    e [decisão por operação](docs/decisoes/unidade-listar-processos.md)
    (alternativas, evidência, trade-offs, revisão; o gate `check_design`
@@ -249,15 +249,13 @@ O que falta implementar e em que ordem está na
   BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
   (autorização do proprietário); nos demais comandos, vale o 🐘.
   **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
-  **Implementar → testar → aprender → corrigir.** 🦊 🦉 🐢 🐙 🦫
-  devem construir a vertical IES → SQLite efêmero → anti-IES → CLI.
-  **Não esperar cassette, REA nem prova externa para começar.**
-  Criar hipótese revisável, fixture sintética e testes como evidência
-  de funcionamento. 🦅 não veta por ausência de cassette; 🦡 evita
-  espera/churn; 🐘 distribui a fila. Respeitar WIP alheio e BDD da CLI.
-  **Três provas distintas:** paridade, cassettes, live (guia abaixo).
-  PASS sintético não significa compatibilidade SEI validada; corrigir
-  hipóteses quando surgirem capturas. Remover mocks só após equivalência.
+  **Cassette-first, não cassette-gated:** BDD → cards/ZIPs existentes →
+  SQLite → IES ↔ anti-IES ↔ CLI → confronto com a cassette. Sem rede
+  local, use o [workflow](.github/workflows/inspecionar-cassettes.yml)
+  via Actions/arquivo temporário na PR ([guia](docs/cassettes.md)).
+  Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
+  REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
+  por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
   **Engenharia reversa por evidências:** usar a skill oficial REA
   quando houver captura HAR, artefato ou runtime autorizado; o
   [guia REA](docs/anti-ies/rea-engenharia-reversa.md) distingue
@@ -283,10 +281,9 @@ O que falta implementar e em que ordem está na
     Baixe-o pelo GitHub (API de artifacts do run ou
     `gh run download`), confira SHA-256 e rode no sandbox:
     comandos offline, replay e ensaio ao vivo em treinamento.
-  - **Sandbox sem rede para o GitHub ou para o SEI:** rode o ensaio num
-    workflow temporário (`workflow_dispatch` ou `push` em
-    `codex/**`) que use esse binário e remova-o antes de a PR
-    sair de DRAFT.
+  - **Sandbox sem rede:** cassettes pelo workflow reutilizável
+    [inspecionar](.github/workflows/inspecionar-cassettes.yml);
+    live em treinamento por workflow temporário, removido antes do Ready.
 - **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
   verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
   sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
