@@ -243,9 +243,8 @@ pub fn controlar(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let detalhe = match iesei::detalhada_cassettes::ler(banco, instalacao, cenario) {
-        Ok(observacao) => observacao,
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(detalhe) = iesei::detalhada_cassettes::ler(banco, instalacao, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     if let Some(observacao) = detalhe {
         return controle_detalhado::html(&observacao).map_or_else(
