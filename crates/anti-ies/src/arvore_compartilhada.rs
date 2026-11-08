@@ -40,7 +40,7 @@ fn no_documento(
 ) -> String {
     let rotulo = js(&format!("{tipo} {numero}"));
     let numero = js(numero);
-    let assinatura = "d".repeat(64);
+    let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     let anexo = js(id_anexo);
     format!(
         r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{id_processo}","about:blank","ifrVisualizacao","{rotulo}","{rotulo}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
