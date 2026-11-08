@@ -2,6 +2,7 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::acesso_versao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
@@ -194,16 +195,14 @@ fn estado(com_documento: bool, versao_restrita: bool) -> (Connection, Instalacao
         .unwrap();
     }
     if versao_restrita {
-        // RED: estado sintético deliberadamente ignorado pelo anti-IES atual.
-        // A implementação substitui esta preparação SQL pelo modelo iesei.
-        banco.execute_batch(
-            "CREATE TABLE IF NOT EXISTS versao_inacessivel (
-                origem TEXT NOT NULL, cenario TEXT NOT NULL,
-                id_documento TEXT NOT NULL, versao INTEGER NOT NULL,
-                PRIMARY KEY (origem, cenario, id_documento, versao));
-             INSERT INTO versao_inacessivel VALUES
-                ('https://sei.test/sei', 'bdd-88-cli', '42', 1);",
-        ).unwrap();
+        acesso_versao::restringir(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            NonZeroU32::new(1).unwrap(),
+        )
+        .unwrap();
     }
     (banco, instalacao)
 }
@@ -431,4 +430,17 @@ fn bdd_88_03_cli_recusa_versao_sem_acesso_na_sessao() {
     assert_eq!(valor["documento"], DOC);
     assert!(valor["documentos"].is_null());
     assert!(!destino.join("0011519.v1.html").exists());
+
+    let humano = executar_com_restricao(
+        &pasta,
+        &["documento", DOC, "--versao", "1", "--sem-cache"],
+        6,
+        true,
+        true,
+    );
+    assert_eq!(humano.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&humano.stderr).contains("HTTP 403"),
+        "recusa humana sem HTTP 403"
+    );
 }
