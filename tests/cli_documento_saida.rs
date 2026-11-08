@@ -115,6 +115,8 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
     assert_eq!(previa["base_verificada"], false);
     assert_eq!(previa["escrita_remota"], false);
     assert_eq!(value["confirmado"], false);
+    assert!(value["assinaturas_remotas"].is_null());
+    assert!(value["aviso_assinaturas"].as_str().unwrap().contains("pode remover assinaturas"));
     assert!(!value.to_string().contains("<p>"));
     assert!(!pasta.join("ies.sqlite3").exists());
     let (codigo, value) = salvar_offline(&pasta, &["--listar-copias"]);
@@ -189,6 +191,7 @@ fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
     assert!(humano.contains("-<p>antigo</p>"), "{humano}");
     assert!(humano.contains("+<p>novo</p>"), "{humano}");
     assert!(humano.contains("base não verificada"), "{humano}");
+    assert!(humano.contains("pode remover assinaturas"), "{humano}");
     assert!(!pasta.join("ies.sqlite3").exists());
     assert_eq!(
         std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
