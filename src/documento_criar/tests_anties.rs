@@ -76,7 +76,7 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
 /// criador e releitura independente. HTML real recebido no loopback é
 /// interpretado pelos leitores da produção, sem confiar em markup fixo.
 #[test]
-fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
+fn iniciar_anti_ies_com_documento() -> (std::net::SocketAddr, std::thread::JoinHandle<()>) {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
@@ -112,6 +112,11 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
             atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
         }
     });
+    (endereco, servidor)
+}
+
+fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
+    let (endereco, servidor) = iniciar_anti_ies_com_documento();
     let consultar = |metodo: &str, alvo: &str, corpo: &str| {
         let mut fluxo = TcpStream::connect(endereco).unwrap();
         write!(
