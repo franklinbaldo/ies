@@ -74,7 +74,6 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
     servidor.join().unwrap();
 }
 
-
 #[test]
 fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
     // Apoio tecnico ao BDD: a releitura com o id do PDF selecionado
@@ -103,8 +102,7 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
         .unwrap();
         let temporario =
             externo::receber(&banco, &origem, "selecao", "7", "prova.pdf", 42).unwrap();
-        externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id)
-            .unwrap();
+        externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id).unwrap();
         let (mut conexao, _) = escuta.accept().unwrap();
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "selecao"))).unwrap();
     });
