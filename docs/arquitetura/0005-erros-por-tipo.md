@@ -27,9 +27,9 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
   Não crie wrappers para registrar etapas da pilha. Uma conversão só se
   justifica quando a assinatura exige ou quando acrescenta um fato ou
   decisão observável, preservando a causa original.
-- **Eliminar subcódigos.** Nas fatias migradas, Serde apresenta o próprio
-  tipo na fronteira. Não mantenha outra identidade textual em métodos,
-  atributos de nomes legados ou tabelas. `Causa` e o contrato antigo
+- **Eliminar subcódigos.** Quando uma saída JSON expõe a causa, Serde
+  apresenta o próprio tipo na fronteira. Não mantenha outra identidade
+  textual em métodos, atributos ou tabelas. `Causa` e o contrato antigo
   permanecem apenas nos consumidores ainda não migrados.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
@@ -37,8 +37,14 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 - **Sem "efeito incerto".** Uma escrita é descrita por fatos (`enviada`,
   `aplicada`) e pela causa exata; depois de uma falha, a operação lê de
   novo para reconciliar, sem repetir a escrita.
-- **Apresentação na fronteira.** O domínio propaga tipos Rust. A CLI
-  serializa com Serde ou apresenta a mensagem do tipo. Classificação e
+- **Serde sob demanda.** O domínio propaga `Result`, `Option` e `enum` sem
+  exigir derives de serialização. Derive `Serialize` apenas para um tipo
+  efetivamente escrito em JSON (CLI, arquivo ou protocolo); derive
+  `Deserialize` apenas para um tipo efetivamente lido. Tipos persistidos
+  nos dois sentidos podem precisar de ambos. Não serializar todo o
+  `Result<T, E>` automaticamente nem criar DTOs só para justificar derives.
+- **Apresentação na fronteira.** A CLI serializa apenas o dado público
+  necessário com Serde ou apresenta a mensagem do tipo. Classificação e
   testes de identidade usam variantes. Strings fixas de JSON ficam nos
   testes da fronteira, para conferir o formato emitido.
 
