@@ -1,6 +1,7 @@
 //! Árvore e tela de trabalho derivadas das versões no mesmo SQLite.
 //! Hipótese de integração sintética para #88; não realiza requisições ao SEI.
 use crate::{Estado, Resposta, despachar};
+use iesei::cancelamento_documento::Situacao;
 use iesei::documento_versoes::{self as versoes, DocumentoSimulado, ler};
 use iesei::documentos_simulados;
 use iesei::instalacao::Instalacao;
@@ -20,7 +21,7 @@ fn js(s: &str) -> String {
         .replace('<', "\\u003c")
 }
 
-fn arvore(d: &DocumentoSimulado) -> String {
+fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
     let p = &d.id_procedimento;
     let id = &d.id_documento;
     let nup = js(&d.numero_processo);
@@ -28,6 +29,22 @@ fn arvore(d: &DocumentoSimulado) -> String {
     let numero = &d.numero;
     let hash = "e".repeat(64);
     let hash_corpo = "f".repeat(64);
+    let (icone, dica, cancelar) = match situacao {
+        Situacao::Disponivel => (
+            "documento_interno",
+            "Documento interno".to_owned(),
+            format!(
+                "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>",
+                "a".repeat(64)
+            ),
+        ),
+        Situacao::Cancelado { motivo } => (
+            "documento_cancelado",
+            format!("Documento Cancelado: {motivo}"),
+            String::new(),
+        ),
+    };
+    let dica = js(&dica);
     format!(
         r#"<html><head><script>
 var Nos = new Array();
@@ -35,8 +52,8 @@ Nos[0] = new infraArvoreNo("PROCESSO","{p}",null,"controlador.php?acao=arvore_vi
 Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '';
-Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","about:blank","ifrVisualizacao","{rotulo}","Documento interno","svg/documento_interno.svg","svg/documento_interno.svg","svg/documento_interno.svg",true,false,null,null,"noVisitado","{numero}");
-Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>';
+Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
+Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}';
 Nos[1].src = 'controlador.php?acao=documento_visualizar&acao_origem=procedimento_visualizar&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash_corpo}';
 Nos[1].html = '';
 </script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
@@ -105,7 +122,20 @@ pub fn responder(
         return Resposta::nova(Estado::NaoEncontrado);
     }
     match acao {
-        Some("procedimento_visualizar") => html(arvore(&documento)),
+        Some("procedimento_visualizar") => {
+            let situacao = match crate::documento_cancelar::estado(
+                banco,
+                instalacao,
+                cenario,
+                &documento.id_documento,
+                &documento.id_procedimento,
+            ) {
+                Ok(Some(situacao)) => situacao,
+                Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+                Err(estado) => return Resposta::nova(estado),
+            };
+            html(arvore(&documento, &situacao))
+        }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
     }
