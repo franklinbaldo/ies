@@ -69,12 +69,23 @@ pub(crate) fn responder(
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
-            let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
-            match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
-                Ok(Some(_)) => documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
-                Ok(None) => documento_arvore::responder(metodo, alvo, banco, instalacao, cenario),
-                Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
-            }
+            // A pesquisa rápida devolve id_protocolo. Quando esse id também
+            // tem estado de tramitação, a tela deve seguir a unidade ativa,
+            // não a unidade antiga do cadastro documental.
+            processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(
+                || {
+                    let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
+                    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+                        Ok(Some(_)) => {
+                            documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
+                        }
+                        Ok(None) => {
+                            documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
+                        }
+                        Err(_) => Resposta::nova(crate::Estado::DadosInsuficientes),
+                    }
+                },
+            )
         }
         Some("documento_versao_listar" | "documento_visualizar") if eh_controlador_sei(alvo) => {
             documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
