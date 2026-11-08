@@ -29,14 +29,14 @@ fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &s
 
 fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
-    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291");
+    let escolhido = consultar(endereco, "POST", selecao, "hdnIdSerie=291");
     assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
     assert!(escolhido.contains(
         "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
     ));
-    let ausente = consultar(endereco, "POST", &selecao, "hdnIdSerie=999");
+    let ausente = consultar(endereco, "POST", selecao, "hdnIdSerie=999");
     assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
-    let repetido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291");
+    let repetido = consultar(endereco, "POST", selecao, "hdnIdSerie=291&hdnIdSerie=291");
     assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
 }
  
