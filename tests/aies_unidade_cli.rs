@@ -183,9 +183,11 @@ fn executar(visao: VisaoFixture, esperada: Option<&str>) -> Output {
                             visualizado: Some(true),
                             sigiloso: Some(false),
                         }],
-                    ).unwrap(),
+                    )
+                    .unwrap(),
                 },
-            ).unwrap();
+            )
+            .unwrap();
         }
         let mut tcp = aceitar(&servidor);
         atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
