@@ -216,7 +216,7 @@ fn id_de_processo_explicito_nao_pode_selecionar_conteudo_de_outro_processo() {
         segundo.id_procedimento = "8".into();
         segundo.numero_processo = "00001.000002/2026-02".into();
         segundo.numero = "0011520".into();
-        segundo.revisoes[0].html_corpo = "<p>Segundo processo</p>".into();
+        segundo.revisoes[1].html_corpo = "<p>Segundo processo</p>".into();
         guardar(&mut banco, "ensaio", &segundo).unwrap();
         for _ in 0..5 {
             let (mut conexao, _) = escuta.accept().unwrap();
