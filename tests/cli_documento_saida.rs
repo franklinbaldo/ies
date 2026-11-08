@@ -230,15 +230,27 @@ fn previa_89_01_exibe_html_com_atributos_comuns_sem_divulgar_link_assinado() {
         .unwrap();
     let humano = String::from_utf8(saida.stdout).unwrap();
     assert_eq!(saida.status.code(), Some(0), "{humano}");
-    assert!(humano.contains("-<p class=\"texto\" style=\"font-weight:bold\">Antes = 1?</p>"), "{humano}");
-    assert!(humano.contains("+<p class=\"texto\" style=\"font-weight:bold\">Depois = 2?</p>"), "{humano}");
+    assert!(
+        humano.contains("-<p class=\"texto\" style=\"font-weight:bold\">Antes = 1?</p>"),
+        "{humano}"
+    );
+    assert!(
+        humano.contains("+<p class=\"texto\" style=\"font-weight:bold\">Depois = 2?</p>"),
+        "{humano}"
+    );
     assert!(humano.contains("[linha omitida:"), "{humano}");
     assert!(!humano.contains("infra_hash"), "{humano}");
     assert!(!humano.contains("segredo"), "{humano}");
     assert!(!humano.contains("outro"), "{humano}");
     assert!(humano.contains("base não verificada"), "{humano}");
     assert!(!pasta.join("ies.sqlite3").exists());
-    assert_eq!(std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(), base);
-    assert_eq!(std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(), editada);
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
+        base
+    );
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v3.html")).unwrap(),
+        editada
+    );
     std::fs::remove_dir_all(pasta).unwrap();
 }
