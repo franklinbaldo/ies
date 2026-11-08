@@ -3,6 +3,7 @@ mod arvore_compartilhada;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
+pub mod documento_cancelar;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;
