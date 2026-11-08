@@ -46,13 +46,13 @@ mod tests_controle;
 #[cfg(test)]
 mod tests_documento;
 #[cfg(test)]
+mod tests_documento_antiies;
+#[cfg(test)]
 mod tests_documento_externo;
 #[cfg(test)]
 mod tests_documento_indice;
 #[cfg(test)]
 mod tests_documento_versoes;
-#[cfg(test)]
-mod tests_documento_antiies;
 #[cfg(test)]
 mod tests_fluxo;
 
