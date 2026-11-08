@@ -51,7 +51,7 @@ fn pedir(endereco: std::net::SocketAddr, metodo: &str, caminho: &str) -> String 
     let mut tcp = TcpStream::connect(endereco).unwrap();
     write!(
         tcp,
-        "{metodo} /sei/controlador.php?acao=procedimento_visualizar&{caminho} HTTP/1.1\r\nHost: sei.test\r\nConnection: close\r\n\r\n"
+        "{metodo} /sei/controlador.php?acao=procedimento_visualizar&{caminho} HTTP/1.1\r\nHost: sei.test\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     )
     .unwrap();
     tcp.shutdown(Shutdown::Write).unwrap();
