@@ -168,7 +168,11 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
     if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
         match feito.anotacao_depois {
             Some(false) => {}
-            Some(true) => return Err(C::AnotacoesNaoRemovidasAposEnvio { depois: feito.depois }),
+            Some(true) => {
+                return Err(C::AnotacoesNaoRemovidasAposEnvio {
+                    depois: feito.depois,
+                });
+            }
             None => {
                 return Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
                     depois: feito.depois,
