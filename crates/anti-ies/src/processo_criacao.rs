@@ -1,5 +1,5 @@
 //! Prévia de criação de processo no anti-IES, a partir de tipos do SQLite.
-//! Layout 4.0 observado nos cards da UnB; valores de ensaio são hipóteses.
+//! Layout 4.0 observado nos cards da `UnB`; valores de ensaio são hipóteses.
 //! O POST criador permanece indisponível até uma fatia com prova de estado.
 use crate::{Estado, Resposta, controlar, escapar, parametro_unico, protocolo_sintetico};
 use iesei::criacao_processo::{self, TipoDeProcesso};
