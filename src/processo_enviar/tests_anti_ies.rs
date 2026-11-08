@@ -313,11 +313,9 @@ fn leitor_ies_descobre_nova_tramitacao_depois_de_trocar_a_unidade_ativa() {
     let caminho_arvore = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10";
     let caminho_envio = "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10";
     let arvore = |banco: &Connection| {
-        anti_ies::processo_envio::navegacao(
-            "GET", caminho_arvore, banco, &origem, cenario,
-        )
-        .unwrap()
-        .corpo
+        anti_ies::processo_envio::navegacao("GET", caminho_arvore, banco, &origem, cenario)
+            .unwrap()
+            .corpo
     };
     assert!(
         crate::arvore_processo::ler_enviar_da_barra(&instalacao, &arvore(&banco), "10")
@@ -325,8 +323,12 @@ fn leitor_ies_descobre_nova_tramitacao_depois_de_trocar_a_unidade_ativa() {
             .is_some()
     );
     let primeiro = anti_ies::processo_envio::responder(
-        "POST", caminho_envio, "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
-        &banco, &origem, cenario,
+        "POST",
+        caminho_envio,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
+        &banco,
+        &origem,
+        cenario,
     );
     assert_eq!(primeiro.estado, anti_ies::Estado::Redirecionamento);
     guardar_controle(&mut banco, cenario, &controle("DESTINO")).unwrap();
@@ -349,12 +351,19 @@ fn leitor_ies_descobre_nova_tramitacao_depois_de_trocar_a_unidade_ativa() {
             .is_none()
     );
     let segundo = anti_ies::processo_envio::responder(
-        "POST", caminho_envio, "hdnIdProtocolos=10&hdnUnidades=3%B1ARQUIVO",
-        &banco, &origem, cenario,
+        "POST",
+        caminho_envio,
+        "hdnIdProtocolos=10&hdnUnidades=3%B1ARQUIVO",
+        &banco,
+        &origem,
+        cenario,
     );
     assert_eq!(segundo.estado, anti_ies::Estado::Redirecionamento);
     assert_eq!(
-        ler(&banco, &origem, cenario, "10").unwrap().unwrap().aberto_em,
+        ler(&banco, &origem, cenario, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
         ["ARQUIVO"]
     );
 }

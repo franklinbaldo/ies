@@ -43,6 +43,10 @@ fn requisitar(endereco: SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> St
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "um ciclo integrado cobre dois POSTs e nove pedidos HTTP no mesmo SQLite"
+)]
 fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
