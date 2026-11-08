@@ -10,7 +10,7 @@ fn id_da_rota<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     parametro_unico(alvo, nome).filter(|v| v.bytes().all(|b| b.is_ascii_digit()))
 }
 
-fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
+pub(crate) fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
     let mut campos = corpo.split('&').filter_map(|campo| campo.split_once('='));
     let valor = campos.find(|(n, _)| *n == nome)?.1;
     let existe_repetido = corpo
@@ -285,8 +285,12 @@ pub(crate) fn atender(
     ) {
         return Resposta::nova(Estado::NaoImplementado);
     }
-    let Some(id) = id_da_rota(alvo, "id_procedimento") else {
-        return Resposta::nova(Estado::RequisicaoInvalida);
+    let id_procedimento = id_da_rota(alvo, "id_procedimento");
+    let id_protocolo = id_da_rota(alvo, "id_protocolo");
+    let id = match (id_procedimento, id_protocolo) {
+        (Some(id), None) => id,
+        (None, Some(id)) if acao == "procedimento_trabalhar" => id,
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
     };
     match (acao, metodo) {
         ("procedimento_trabalhar" | "arvore_visualizar", "GET") => {

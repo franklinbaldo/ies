@@ -400,13 +400,27 @@ pub fn atender_http(
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
                     {
-                        documento_arvore::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
+                        let id = parametro_unico(&pedido.alvo, "id_protocolo").unwrap_or_default();
+                        match iesei::documentos_simulados::ler_processo(
+                            banco, instalacao, cenario, id,
+                        ) {
+                            Ok(Some(_)) => documentos::atender(
+                                &pedido.metodo,
+                                &pedido.alvo,
+                                &pedido.corpo,
+                                banco,
+                                instalacao,
+                                cenario,
+                            ),
+                            Ok(None) => documento_arvore::responder(
+                                &pedido.metodo,
+                                &pedido.alvo,
+                                banco,
+                                instalacao,
+                                cenario,
+                            ),
+                            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+                        }
                     }
                     Some("documento_versao_listar" | "documento_visualizar")
                         if eh_controlador_sei(&pedido.alvo) =>
