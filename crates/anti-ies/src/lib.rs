@@ -381,8 +381,12 @@ pub fn atender_http(
                     Some("retorno_programado_listar") => {
                         retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
                     }
-                    Some("documento_escolher_tipo" | "documento_gerar" | "arvore_visualizar")
-                        if eh_controlador_sei(&pedido.alvo) =>
+                    Some(
+                        "documento_escolher_tipo"
+                            | "documento_gerar"
+                            | "arvore_visualizar"
+                            | "procedimento_visualizar"
+                    ) if documentos::eh_rota_documentos(&pedido.alvo) =>
                     {
                         documentos::atender(
                             &pedido.metodo,
@@ -396,18 +400,6 @@ pub fn atender_http(
                     Some("procedimento_trabalhar")
                         if eh_controlador_sei(&pedido.alvo)
                             && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
-                    {
-                        documentos::atender(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            &pedido.corpo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("procedimento_visualizar")
-                        if documentos::eh_arvore_do_processo(&pedido.alvo) =>
                     {
                         documentos::atender(
                             &pedido.metodo,
