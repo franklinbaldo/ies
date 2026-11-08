@@ -75,7 +75,9 @@ fn lista_renderizada_pelo_anti_ies_e_consumida_pelo_seletor_do_ies() {
 /// BDD-246-02: uma leitura da árvore, navegação sem efeito, único POST
 /// criador e releitura independente. HTML real recebido no loopback é
 /// interpretado pelos leitores da produção, sem confiar em markup fixo.
-fn iniciar_anti_ies_com_documento(pedidos: usize) -> (std::net::SocketAddr, std::thread::JoinHandle<()>) {
+fn iniciar_anti_ies_com_documento(
+    pedidos: usize,
+) -> (std::net::SocketAddr, std::thread::JoinHandle<()>) {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
@@ -238,7 +240,10 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
     )
     .expect("o IES consegue derivar o POST do formulario de escolha");
     assert_eq!(escolha.corpo(), b"hdnIdSerie=291");
-    let alvo_escolha = escolha.url().strip_prefix("https://simulado.invalid").unwrap();
+    let alvo_escolha = escolha
+        .url()
+        .strip_prefix("https://simulado.invalid")
+        .unwrap();
     let redirect = solicitar(
         "POST",
         alvo_escolha,
@@ -252,7 +257,9 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
         .trim();
     let url_cadastro = super::cadastro_redirecionado(&origem, location, "10")
         .expect("o IES aceita o cadastro redirecionado como o mesmo processo");
-    let alvo_cadastro = url_cadastro.strip_prefix("https://simulado.invalid").unwrap();
+    let alvo_cadastro = url_cadastro
+        .strip_prefix("https://simulado.invalid")
+        .unwrap();
     let cadastro = solicitar("GET", alvo_cadastro, "");
     let (_, html_cadastro) = cadastro.split_once("\r\n\r\n").unwrap();
     let submissao = derivar_submissao(
