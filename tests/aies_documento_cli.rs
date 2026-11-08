@@ -147,7 +147,7 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado() -> (Connection, Instalacao) {
+fn estado(com_documento: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -162,7 +162,8 @@ fn estado() -> (Connection, Instalacao) {
         },
     )
     .unwrap();
-    documento_versoes::guardar(
+    if com_documento {
+        documento_versoes::guardar(
         &mut banco,
         CENARIO,
         &DocumentoSimulado {
@@ -189,12 +190,22 @@ fn estado() -> (Connection, Instalacao) {
                 },
             ],
         },
-    )
-    .unwrap();
+        )
+        .unwrap();
+    }
     (banco, instalacao)
 }
 
 fn executar(pasta: &Pasta, args: &[&str], requisicoes: usize) -> Output {
+    executar_com_estado(pasta, args, requisicoes, true)
+}
+
+fn executar_com_estado(
+    pasta: &Pasta,
+    args: &[&str],
+    requisicoes: usize,
+    com_documento: bool,
+) -> Output {
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -209,7 +220,7 @@ fn executar(pasta: &Pasta, args: &[&str], requisicoes: usize) -> Output {
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = servidor.local_addr().unwrap();
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado();
+        let (db, instalacao) = estado(com_documento);
         for _ in 0..requisicoes {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
@@ -344,4 +355,31 @@ fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
     assert_eq!(valor["documento"], DOC);
     assert_eq!(valor["subcodigo"], "versao_nao_observada");
     assert!(!pasta.0.join("0011519.v2.html").exists());
+}
+
+/// BDD-88-03: uma sessão funcional não concede acesso a um DOC ausente
+/// do estado compartilhado; a recusa vem da pesquisa HTTP do simulador.
+#[test]
+fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
+    let pasta = Pasta::nova();
+    let destino = pasta.0.join("saida");
+    fs::create_dir(&destino).unwrap();
+    let args = [
+        "--json",
+        "documento",
+        DOC,
+        "--versao",
+        "1",
+        "--saida",
+        destino.to_str().unwrap(),
+        "--sem-cache",
+    ];
+    // Controle conhecido, pesquisa rápida sem resultado: um GET e um POST
+    // local de leitura. Não há escrita modificadora nem acesso ao SEI.
+    let saida = executar_com_estado(&pasta, &args, 2, false);
+    assert_ne!(saida.status.code(), Some(0), "documento ausente virou sucesso");
+    let valor = json(&saida);
+    assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
+    assert!(valor["documentos"].is_null(), "publicou documento não observado: {valor}");
+    assert!(!destino.join("0011519.v1.html").exists());
 }
