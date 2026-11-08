@@ -134,6 +134,7 @@ fn preparar_banco() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+#[allow(clippy::too_many_lines)] // Bancada E2E reúne proxy TLS, servidor HTTP e processos reais.
 fn executar(incerteza: bool) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
