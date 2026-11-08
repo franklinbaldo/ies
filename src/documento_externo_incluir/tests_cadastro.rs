@@ -268,11 +268,8 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
     )
     .unwrap();
     let recibo = interpretar_resposta(200, &upload.corpo, "prova.pdf", pdf.len() as u64).unwrap();
-    assert!(
-        modelo::documentos(&banco, &origem, "ensaio", "7")
-            .unwrap()
-            .is_empty()
-    );
+    let antes = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
+    assert_eq!(antes, []);
 
     let url_cadastro =
         "https://sei.exemplo/sei/controlador.php?acao=documento_receber&id_procedimento=7";
