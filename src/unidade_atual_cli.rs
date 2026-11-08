@@ -9,6 +9,10 @@ pub(crate) fn unidade_validada(html: &str) -> Result<String, ErroCaixa> {
     crate::controle_reconhecido::unidade_do_controle(html)
 }
 
+fn dados_publicos_unidade(unidade: &str) -> serde_json::Value {
+    json!({"unidade_exibida": unidade, "origem": "controle_de_processos"})
+}
+
 pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
@@ -51,7 +55,7 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         );
     }
     if json_mode {
-        let mut valor = json!({"unidade_exibida": unidade, "origem": "controle_de_processos"});
+        let mut valor = dados_publicos_unidade(&unidade);
         relogin_cli::anotar_com_total(&mut valor, nota.as_ref());
         println!("{valor}");
     } else {
