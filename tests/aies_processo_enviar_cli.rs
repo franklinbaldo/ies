@@ -343,7 +343,8 @@ fn json(saida: &Output) -> Value {
 fn bdd_333_01_02_previa_nao_muta_e_confirmacao_unica_atualiza_sqlite() {
     let previa = args(false);
     let confirmacao = args(true);
-    let (saidas, pedidos, depois) = executar(&[&previa, &confirmacao], false, Some("Nota da origem"));
+    let (saidas, pedidos, depois) =
+        executar(&[&previa, &confirmacao], false, Some("Nota da origem"));
     assert_eq!(
         saidas[0].status.code(),
         Some(0),

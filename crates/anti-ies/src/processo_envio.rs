@@ -8,6 +8,9 @@ use iesei::processos::{
 use rusqlite::Connection;
 use std::fmt::Write;
 
+mod formulario;
+use formulario::pagina_de_envio;
+
 fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
     let mut valores = query
@@ -36,24 +39,6 @@ fn unidade_da_sessao(
         Ok(None) => Ok(processo.unidade_origem.clone()),
         Err(_) => Err(Estado::DadosInsuficientes),
     }
-}
-
-fn pagina_de_envio(processo: &ProcessoSimulado) -> String {
-    let mut pagina = format!(
-        "<html><head><script type='text/javascript'>\n         objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}');\n         return 'palavras_pesquisa='+document.getElementById('txtUnidade').value+'&id_orgao='+document.getElementById('selOrgao').value;\n         </script></head><body>",
-        "2".repeat(64)
-    );
-    write!(
-        pagina,
-        "<form id='frmAtividadeListar' method='post' action='controlador.php?acao=procedimento_enviar&acao_origem=procedimento_enviar&arvore=1&id_procedimento={}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}'>         <input type='hidden' name='hdnInfraTipoPagina' value='2'>         <button type='submit' name='sbmEnviar' value='Enviar'>Enviar</button>         <select id='selProcedimentos' name='selProcedimentos' multiple>         <option value='{}'>{} - Processo simulado</option></select>         <select id='selOrgao' name='selOrgao'>         <option value='null' selected>&nbsp;</option>         <option value='' selected>Todos</option></select>         <input type='text' id='txtUnidade' name='txtUnidade'>         <input type='hidden' name='hdnIdUnidade' value=''>         <select id='selUnidades' name='selUnidades' multiple></select>         <input type='checkbox' name='chkSinManterAberto'>         <input type='checkbox' name='chkSinRemoverAnotacoes'>         <input type='checkbox' name='chkSinEnviarEmailNotificacao'>         <input type='radio' name='rdoPrazo' value='1'>         <input type='text' name='txtPrazo' value=''>         <input type='radio' name='rdoPrazo' value='2'>         <input type='text' name='txtDias' value=''>         <input type='checkbox' name='chkSinDiasUteis'>         <input type='hidden' name='hdnIdProtocolos' value='{}'>         <input type='hidden' name='hdnIdAtividades' value='1'>         <input type='hidden' name='hdnUnidades' value=''>         </form></body></html>",
-        html(&processo.id),
-        "3".repeat(64),
-        html(&processo.id),
-        html(&processo.numero),
-        html(&processo.id),
-    )
-    .expect("formatação de String");
-    pagina
 }
 
 fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
