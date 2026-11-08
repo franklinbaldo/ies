@@ -210,3 +210,94 @@ fn bdd_332_02_leitor_ies_consume_cadastro_gerado_do_sqlite_do_anti_ies() {
             .contains(&"rdoNivelAcesso".to_owned())
     );
 }
+
+
+#[test]
+fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferivel() {
+    // Integra componentes reais do consumidor IES e do provedor anti-IES
+    // com estado SQLite compartilhado, sem rede externa nem credenciais.
+    use crate::documento_externo_incluir::{
+        cadastro_envio::preparar_cadastro_definitivo, recibo::interpretar_resposta,
+    };
+    use crate::formulario_web::{CodificacaoDaTela, TelaServida};
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::pdf_externo::{self as modelo, Processo, TipoExterno};
+    use rusqlite::Connection;
+
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    modelo::semear(
+        &banco,
+        &origem,
+        "ensaio",
+        &Processo {
+            id: "7".into(),
+            nup: "00001.000001/2026-01".into(),
+            unidade: "TESTE".into(),
+        },
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 200 * 1024 * 1024,
+        },
+    )
+    .unwrap();
+    let alvo = "/sei/controlador.php?acao=documento_receber&id_procedimento=7";
+    let recarregado = anti_ies::pdf_externo::atender(
+        "POST",
+        alvo,
+        b"hdnFlagDocumentoCadastro=1&selSerie=293",
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    assert_eq!(recarregado.estado, anti_ies::Estado::Ok);
+
+    let pdf = b"%PDF-1.7\nconteudo";
+    let previa = observar_cadastro(&recarregado.corpo, "Anexo", pdf.len() as u64).unwrap();
+    let multipart = b"--B\r\nContent-Disposition: form-data; name=\"filArquivo\"; filename=\"prova.pdf\"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.7\nconteudo\r\n--B--\r\n";
+    let upload = anti_ies::pdf_externo::atender(
+        "POST",
+        "/sei/controlador.php?acao=documento_upload_anexo&id_procedimento=7",
+        multipart,
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    let recibo = interpretar_resposta(200, &upload.corpo, "prova.pdf", pdf.len() as u64).unwrap();
+    assert!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap().is_empty());
+
+    let url_cadastro = "https://sei.exemplo/sei/controlador.php?acao=documento_receber&id_procedimento=7";
+    let tela = TelaServida {
+        url: url_cadastro,
+        html: &recarregado.corpo,
+        codificacao: CodificacaoDaTela::Utf8,
+    };
+    let submissao =
+        preparar_cadastro_definitivo(&origem, &tela, "TESTE", &previa, &recibo).unwrap();
+    let definitivo = anti_ies::pdf_externo::atender(
+        "POST",
+        alvo,
+        submissao.corpo(),
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    let documentos = modelo::documentos(&banco, &origem, "ensaio", "7").unwrap();
+    assert_eq!(documentos.len(), 1);
+    assert_eq!(documentos[0].tipo, "Anexo");
+    assert_eq!(documentos[0].nome, "prova.pdf");
+    // O IES não considera HTTP 200 genérico prova da autoria do cadastro:
+    // exige redirect ao documento recém-observado na árvore.
+    assert_eq!(definitivo.estado, anti_ies::Estado::Redirecionamento);
+    assert!(crate::documento_criar::redirecionamento_do_mesmo_controlador(
+        definitivo.localizacao.as_deref().unwrap(),
+        submissao.url(),
+        &documentos[0].id.to_string(),
+    ));
+}
