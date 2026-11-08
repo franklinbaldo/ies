@@ -405,7 +405,11 @@ fn bdd_246_01_cli_previa_sem_post_criador() {
 #[test]
 fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     let args = criar(true);
-    let (saidas, trilha, quantidade) = executar(&[&args], false);
+    let consultar = [
+        "--json", "processo", NUP, "--sem-andamentos",
+        "--sem-propriedades", "--sem-marcadores",
+    ];
+    let (saidas, trilha, quantidade) = executar(&[&args, &consultar], false);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -416,6 +420,13 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["numero_sei"], "1000002");
     assert_eq!(resultado["confirmado"], true);
+    assert_eq!(saidas[1].status.code(), Some(0), "leitura independente: {}",
+        String::from_utf8_lossy(&saidas[1].stdout));
+    let processo = json(&saidas[1]);
+    let arvore = processo["documentos"].as_array().expect("árvore da CLI publicada");
+    assert_eq!(arvore.len(), 2, "consulta independente preserva original e criado");
+    assert_eq!(arvore[0]["numero_sei"], "1000001");
+    assert_eq!(arvore[1]["numero_sei"], "1000002");
     assert_eq!(quantidade, 2, "original preservado + uma única criação");
     assert_eq!(
         trilha
