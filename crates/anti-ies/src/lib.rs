@@ -1,5 +1,6 @@
 //! Servidor experimental. O Controle R usa somente observações verificadas.
 pub mod documento_versoes;
+pub mod pdf_externo;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -270,8 +271,70 @@ pub fn controlar(
     }
 }
 
-/// Um atendimento HTTP real, com fonte optional e sem expor a sessão.
-/// O banco é aberto pelo servidor exclusivamente em modo de leitura.
+/// Pedido local de tamanho limitado; corpo em bytes porque PDF é binário.
+/// Não registra requisições, URLs nem cabeçalhos de sessão.
+fn ler_pedido(
+    fluxo: &mut TcpStream,
+) -> io::Result<Option<Result<(String, String, Vec<u8>), Estado>>> {
+    let mut leitor = BufReader::new(fluxo);
+    let mut linha = String::new();
+    if leitor.read_line(&mut linha)? == 0 {
+        return Ok(None);
+    }
+    if linha.len() > 4096 {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let mut partes = linha.split_ascii_whitespace();
+    let (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) =
+        (partes.next(), partes.next(), partes.next(), partes.next())
+    else {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    };
+    if !alvo.starts_with('/') || alvo.len() > 2048 {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let (metodo, alvo) = (metodo.to_owned(), alvo.to_owned());
+    let mut tamanho = None;
+    let mut fim_cabecalho = false;
+    for _ in 0..64 {
+        linha.clear();
+        if leitor.read_line(&mut linha)? == 0 || linha.len() > 4096 {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        }
+        if linha == "\r\n" || linha == "\n" {
+            fim_cabecalho = true;
+            break;
+        }
+        let Some((nome, valor)) = linha.split_once(':') else {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        };
+        if nome.eq_ignore_ascii_case("Transfer-Encoding") {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        }
+        if nome.eq_ignore_ascii_case("Content-Length") {
+            if tamanho.is_some() {
+                return Ok(Some(Err(Estado::RequisicaoInvalida)));
+            }
+            tamanho = valor.trim().parse::<usize>().ok();
+            if tamanho.is_none() {
+                return Ok(Some(Err(Estado::RequisicaoInvalida)));
+            }
+        }
+    }
+    if !fim_cabecalho || (metodo == "POST" && tamanho.is_none()) {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let tamanho = tamanho.unwrap_or_default();
+    if tamanho > 8 * 1024 * 1024 {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let mut corpo = vec![0; tamanho];
+    leitor.read_exact(&mut corpo)?;
+    Ok(Some(Ok((metodo, alvo, corpo))))
+}
+
+/// Um atendimento HTTP local com SQLite compartilhado entre requisições.
+/// Upload/cadastro simulados são mutações exclusivamente do banco derivado.
 ///
 /// # Errors
 /// Propaga falhas de I/O da conexão local.
@@ -279,38 +342,40 @@ pub fn atender_http(
     fluxo: &mut TcpStream,
     fonte: Option<(&Connection, &Instalacao, &str)>,
 ) -> io::Result<()> {
-    let mut primeira_linha = Vec::new();
-    let lidos = BufReader::new(&mut *fluxo)
-        .take(4096)
-        .read_until(b'\n', &mut primeira_linha)?;
-    if lidos == 0 {
+    let pedido = ler_pedido(fluxo)?;
+    let Some(pedido) = pedido else {
         return Ok(());
-    }
-    let resposta = if primeira_linha.ends_with(b"\n") {
-        let texto = std::str::from_utf8(&primeira_linha).unwrap_or_default();
-        let mut partes = texto.split_ascii_whitespace();
-        match (partes.next(), partes.next(), partes.next(), partes.next()) {
-            (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) => {
-                if let Some((banco, instalacao, cenario)) = fonte {
-                    if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
-                        retorno_programado(metodo, alvo, banco, instalacao, cenario)
-                    } else if matches!(
-                        parametro_unico(alvo, "acao"),
-                        Some("documento_versao_listar" | "documento_visualizar")
-                    ) {
-                        documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
-                    } else {
-                        controlar(metodo, alvo, banco, instalacao, cenario)
-                    }
-                } else {
-                    despachar(metodo, alvo)
-                }
-            }
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
-        }
-    } else {
-        Resposta::nova(Estado::RequisicaoInvalida)
     };
+    let resposta = match pedido {
+        Err(estado) => Resposta::nova(estado),
+        Ok((metodo, alvo, corpo)) => {
+            if let Some((banco, instalacao, cenario)) = fonte {
+                if eh_controlador_sei(&alvo) {
+                    if let Some(resposta) = pdf_externo::atender(
+                        &metodo, &alvo, &corpo, banco, instalacao, cenario,
+                    ) {
+                        return responder_http(fluxo, &resposta);
+                    }
+                }
+                if parametro_unico(&alvo, "acao") == Some("retorno_programado_listar") {
+                    retorno_programado(&metodo, &alvo, banco, instalacao, cenario)
+                } else if matches!(
+                    parametro_unico(&alvo, "acao"),
+                    Some("documento_versao_listar" | "documento_visualizar")
+                ) {
+                    documento_versoes::responder(&metodo, &alvo, banco, instalacao, cenario)
+                } else {
+                    controlar(&metodo, &alvo, banco, instalacao, cenario)
+                }
+            } else {
+                despachar(&metodo, &alvo)
+            }
+        }
+    };
+    responder_http(fluxo, &resposta)
+}
+
+fn responder_http(fluxo: &mut TcpStream, resposta: &Resposta) -> io::Result<()> {
     write!(
         fluxo,
         "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
