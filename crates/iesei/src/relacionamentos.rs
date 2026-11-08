@@ -94,8 +94,16 @@ pub fn registrar(
     if !existe(banco, origem, cenario, destino)? {
         return Err(Falha::ProcessoNaoObservado);
     }
+    // Uma relação é bilateral: não persistir a aresta inversa como novo vínculo.
     banco.execute(
-        "INSERT OR IGNORE INTO processo_relacao (origem, cenario, id_procedimento, id_destino) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT OR IGNORE INTO processo_relacao
+         (origem, cenario, id_procedimento, id_destino)
+         SELECT ?1, ?2, ?3, ?4
+         WHERE NOT EXISTS (
+             SELECT 1 FROM processo_relacao
+             WHERE origem=?1 AND cenario=?2
+               AND id_procedimento=?4 AND id_destino=?3
+         )",
         params![origem.url_base(), cenario, id, destino],
     )?;
     Ok(())
