@@ -3,6 +3,7 @@ mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_versoes;
+pub mod editor_documento;
 mod documentos;
 pub mod pesquisa_documento;
 use iesei::banco_cassettes::ler;
@@ -405,6 +406,12 @@ pub fn atender_http(
                             banco,
                             instalacao,
                             cenario,
+                        )
+                    }
+                    Some("documento_editar") if eh_controlador_sei(&pedido.alvo) => {
+                        editor_documento::responder(
+                            &pedido.metodo, &pedido.alvo, &pedido.corpo,
+                            banco, instalacao, cenario,
                         )
                     }
                     Some("documento_versao_listar" | "documento_visualizar")
