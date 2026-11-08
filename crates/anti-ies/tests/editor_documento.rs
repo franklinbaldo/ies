@@ -323,7 +323,6 @@ fn editor_preserva_secao_inalterada_em_documento_multissecao() {
     assert!(pagina.corpo.contains(editado));
 }
 
-
 #[test]
 fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
     // Fonte estrutural: docs/como-o-sei-funciona/editor-do-documento.md
@@ -344,7 +343,11 @@ fn editor_4_emula_formulario_observado_e_publica_versao_por_estado() {
     assert!(montagem.corpo.contains("acao=editor_salvar"));
     assert!(montagem.corpo.contains("name='txaEditor_1'"));
     assert!(montagem.corpo.contains("name='hdnVersao' value='2'"));
-    assert!(montagem.corpo.contains("name='hdnIgnorarNovaVersao' value='N'"));
+    assert!(
+        montagem
+            .corpo
+            .contains("name='hdnIgnorarNovaVersao' value='N'")
+    );
     let rota = "/sei/editor/editor_processar.php?acao=editor_salvar&id_documento=42";
     let edicao = "hdnVersao=2&hdnIgnorarNovaVersao=N&txaEditor_1=%3Cp%3Edepois%3C%2Fp%3E";
     let publicada = responder("POST", rota, edicao, &banco, &origem(), "ensaio");
