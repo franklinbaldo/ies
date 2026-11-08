@@ -97,7 +97,7 @@ fn arvore_publica_links_que_abrem_historico_e_conteudo_do_mesmo_documento() {
 }
 
 #[test]
-fn bdd_60_05_http_identidade_composta_repetida_recusa_sem_vazar_documento() {
+fn http_procedimento_repetido_recusa_sem_vazar_documento() {
     use std::io::{Read, Write};
     use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 

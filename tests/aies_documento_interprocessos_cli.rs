@@ -375,13 +375,23 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
             "--sem-cache",
         ],
     );
-    assert_ne!(
+    assert_eq!(
         saida.status.code(),
-        Some(0),
-        "documento alheio não pode ser lido"
+        Some(1),
+        "recusa de identidade, não falha genérica de sessão: stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
     );
     let valor = json(&saida);
+    assert_eq!(valor["codigo"], "fonte_invalida", "{valor}");
+    // ErroHtml::ausente da localização tipada pelo contexto --processo;
+    // preservar a causa já publicada, sem criar novo subcódigo.
+    assert_eq!(
+        valor["subcodigo"],
+        "numero_sei_ausente_da_arvore_do_processo",
+        "{valor}"
+    );
     assert_eq!(valor["documento"], DOC_B, "{valor}");
+    assert_eq!(valor["documentos_lidos_antes"], 0, "{valor}");
     assert!(valor.get("documentos").is_none(), "{valor}");
     assert!(
         trilha
