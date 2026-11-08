@@ -56,7 +56,7 @@ def detalhes_requisicao(req):
             return
         if isinstance(obj, dict):
             for chave, valor in obj.items():
-                if chave in ("acao", "action") and isinstance(valor, str):
+                if chave in ("acao", "action", "operation") and isinstance(valor, str):
                     if re.fullmatch(r"[a-zA-Z0-9_]+", valor):
                         acao = valor
                         return
