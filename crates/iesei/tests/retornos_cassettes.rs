@@ -31,7 +31,7 @@ fn reconstroi_meses_e_isola_instalacao_e_periodo() {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     // A migração 0004 acrescenta documentos simulados sem alterar retornos.
-    assert_eq!(versao, 7);
+    assert_eq!(versao, 8);
     let m = mes();
     assert!(
         ler(
