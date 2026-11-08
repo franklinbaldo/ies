@@ -173,3 +173,72 @@ pub fn ler(
         processos: tabela,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::banco_cassettes::{self, ControleResumido};
+
+    fn instalacao() -> Instalacao {
+        Instalacao::interpretar("https://sei.test/sei").unwrap()
+    }
+
+    fn resumo(instalacao: &Instalacao) -> ControleResumido {
+        ControleResumido {
+            instalacao: instalacao.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            recebidos: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::nova(Some(0), None, vec![]).unwrap(),
+        }
+    }
+
+    fn detalhe(instalacao: &Instalacao) -> ControleDetalhado {
+        ControleDetalhado {
+            instalacao: instalacao.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            processos: TabelaObservada::nova(
+                Some(150),
+                FaixaObservada::nova(101, 101),
+                vec![LinhaDetalhada {
+                    id: "901".to_owned(),
+                    numero: "000901/2026".to_owned(),
+                    visualizado: Some(true),
+                    sigiloso: Some(false),
+                }],
+            )
+            .unwrap(),
+        }
+    }
+
+    #[test]
+    fn alternar_visao_no_mesmo_estado_nao_mantem_snapshot_obsoleto() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        banco_cassettes::iniciar(&banco).unwrap();
+        let origem = instalacao();
+        banco_cassettes::guardar(&mut banco, "sessao", &resumo(&origem)).unwrap();
+
+        guardar(&mut banco, "sessao", &detalhe(&origem)).unwrap();
+        assert!(banco_cassettes::ler(&banco, &origem, "sessao").unwrap().is_none());
+        let atual = ler(&banco, &origem, "sessao").unwrap().unwrap();
+        assert_eq!(atual.processos.faixa_observada.unwrap().inicio(), 101);
+        assert_eq!(atual.processos.total_declarado, Some(150));
+
+        banco_cassettes::guardar(&mut banco, "sessao", &resumo(&origem)).unwrap();
+        assert!(ler(&banco, &origem, "sessao").unwrap().is_none());
+        assert!(banco_cassettes::ler(&banco, &origem, "sessao").unwrap().is_some());
+    }
+
+    #[test]
+    fn pagina_detalhada_sem_faixa_nao_vira_cobertura() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        banco_cassettes::iniciar(&banco).unwrap();
+        let origem = instalacao();
+        let mut incompleta = detalhe(&origem);
+        incompleta.processos.faixa_observada = None;
+        assert!(matches!(
+            guardar(&mut banco, "sessao", &incompleta),
+            Err(Falha::ObservacaoInvalida)
+        ));
+        assert!(ler(&banco, &origem, "sessao").unwrap().is_none());
+    }
+}
