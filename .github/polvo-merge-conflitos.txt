@@ -1,0 +1,5 @@
+crates/iesei/src/banco_cassettes.rs
+crates/iesei/src/documentos_simulados.rs
+crates/iesei/tests/banco_cassettes.rs
+crates/iesei/tests/retornos_cassettes.rs
+tests/aies_documento_cli.rs
