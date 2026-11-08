@@ -82,6 +82,24 @@ nem bancos derivados.
 
 ## Trabalho simultâneo e aceite
 
+**Responsabilidade transversal de toda a equipe, não um agente novo:**
+a cada comando/BDD assumido, seu implementador procura cassettes pertinentes
+e, quando a evidência permitir, fecha também a vertical no anti-IES.
+Não delegar o servidor a uma fila separada: quem altera o parser pode alterar
+os tipos `iesei`, a migração SQL, a renderização e o teste diferencial
+no **mesmo PR**. 🦅 revisa a correspondência à cassette e a ausência de
+resultados fictícios; 🦫 favorece tipos precisos e esquema coeso; 🦡
+remove duplicações **após** equivalência e desbloqueia integrações;
+🐘 prioriza cenários CLI e coordena reservas. Os demais implementadores
+seguem suas áreas — UX, processos, Web e documentos — e não disputam um
+mesmo arquivo ativo.
+
+Não exigir que cada correção interna ou capacidade sem cassette vire uma
+implementação artificial no anti-IES: sinalizar `PARCIAL/NOT_RUN`,
+preservar o avanço independente da CLI e registrar a lacuna no handoff.
+Uma cassette ausente não é motivo para inventar HTML. Não criar
+nova rotina, gate, pipeline ou suite paralela somente para esta divisão.
+
 Um agente pode corrigir o parser do IES, acrescentar `struct`/`enum`,
 nova migração SQL, renderização do anti-IES e o teste de CLI **na mesma
 PR**, desde que sejam partes necessárias de **uma única fatia observável**
