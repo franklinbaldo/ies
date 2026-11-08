@@ -24,7 +24,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0010_sessao_bloqueada.sql"),
     "\n",
-    include_str!("../migrations/0011_editor_documento.sql")
+    include_str!("../migrations/0011_editor_documento.sql"),
+    "\n",
+    include_str!("../migrations/0012_pdf_original.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -201,6 +201,51 @@ pub fn receber(
     })
 }
 
+/// Guarda os bytes reais do upload sintético sem produzir conteúdo fictício.
+/// # Errors
+/// Propaga a causa original do upload e do SQLite.
+pub fn receber_conteudo(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+    nome: &str,
+    bytes: &[u8],
+) -> Result<Temporario, Falha> {
+    let tamanho = u64::try_from(bytes.len()).map_err(|_| Falha::EntradaInvalida)?;
+    let temporario = receber(banco, origem, cenario, id_procedimento, nome, tamanho)?;
+    banco.execute(
+        "UPDATE externo_upload SET conteudo=?1 WHERE id=?2",
+        params![bytes, temporario.id],
+    )?;
+    Ok(temporario)
+}
+
+/// Consulta o original pelo id_anexo publicado na árvore de documentos.
+/// # Errors
+/// Preserva erros SQLite e recusa identidade inválida.
+pub fn conteudo_do_anexo(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_anexo: &str,
+) -> Result<Option<Vec<u8>>, Falha> {
+    if !id_valido(id_anexo) {
+        return Err(Falha::EntradaInvalida);
+    }
+    let id = id_anexo.parse::<i64>().map_err(|_| Falha::EntradaInvalida)?;
+    let conteudo: Option<Option<Vec<u8>>> = banco
+        .query_row(
+            "SELECT u.conteudo FROM externo_documento d
+             JOIN externo_upload u ON u.id=d.id_upload
+             WHERE d.id=?1 AND d.origem=?2 AND d.cenario=?3",
+            params![id, origem.url_base(), cenario],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(conteudo.flatten())
+}
+
 /// Um cadastro definitivo consome um recibo existente uma única vez.
 /// A atualização do número é atômica com a criação, sem documento fantasma.
 ///
