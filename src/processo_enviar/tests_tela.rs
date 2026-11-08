@@ -264,7 +264,6 @@ fn bdd_remover_anotacoes_deriva_checkbox_do_formulario_servido() {
     }
 }
 
-
 // Teste técnico do cenário CLI BDD-333-03 com HTML originado do SQLite.
 // A fonte do formulário é o anti-IES, não uma fixture HTML copiada.
 #[test]
