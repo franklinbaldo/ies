@@ -131,6 +131,13 @@ impl Instalacao {
         self.autoriza_rota(host, caminho, "controlador.php")
     }
 
+    /// POST do editor SEI 4: caminho estrito da mesma instalação, nunca
+    /// aceito como controlador genérico por outras operações.
+    #[must_use]
+    pub fn autoriza_editor_processar(&self, host: &str, caminho: &str) -> bool {
+        self.autoriza_rota(host, caminho, "editor/editor_processar.php")
+    }
+
     /// O `controlador_ajax.php` da mesma instalação: só as consultas que uma
     /// tela já servida declara (autocomplete da tela de envio).
     #[must_use]
@@ -187,6 +194,11 @@ mod tests {
         assert!(b.autoriza_controlador("SEI.EXEMPLO", "dois/sei/controlador.php"));
         assert!(!b.autoriza_controlador("outro.exemplo", "dois/sei/controlador.php"));
         assert!(b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador_ajax.php"));
+        assert!(b.autoriza_editor_processar("sei.exemplo", "dois/sei/editor/editor_processar.php"));
+        assert!(!b.autoriza_editor_processar("sei.exemplo", "um/sei/editor/editor_processar.php"));
+        assert!(
+            !b.autoriza_editor_processar("outro.exemplo", "dois/sei/editor/editor_processar.php")
+        );
         assert!(!b.autoriza_controlador_ajax("sei.exemplo", "dois/sei/controlador.php"));
         assert!(!b.autoriza_controlador("sei.exemplo", "dois/sei/controlador_ajax.php"));
         assert!(a.to_string().contains("4.1.5"));
