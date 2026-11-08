@@ -282,7 +282,7 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, Vec<u8>)> {
     }
 }
 
-/// GET binário pelo id_anexo realmente ligado ao cadastro definitivo.
+/// GET binário pelo `id_anexo` realmente ligado ao cadastro definitivo.
 /// Sem registro e sem bytes, não fornece arquivo fictício.
 pub(crate) fn baixar(
     metodo: &str,
