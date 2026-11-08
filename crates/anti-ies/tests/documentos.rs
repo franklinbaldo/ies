@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 
 const BASE: &str = "/sei/controlador.php";
-const NUMERO_PEDIDOS: usize = 13;
+const NUMERO_PEDIDOS: usize = 15;
 
 fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
     let mut fluxo = TcpStream::connect(servidor).expect("conectar loopback");
@@ -88,6 +88,11 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
     assert!(render1.contains("Despacho 1000001"));
+    let arvore_antes = consultar(endereco, "GET", &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"), "");
+    assert!(arvore_antes.starts_with("HTTP/1.1 200 OK"));
+    assert!(arvore_antes.contains("Nos[0] = new infraArvoreNo"));
+    assert!(arvore_antes.contains("Despacho 1000001"));
+    assert!(!arvore_antes.contains("Despacho 1000002"));
     assert!(!render1.contains("Despacho 1000002"));
     let lista = consultar(endereco, "GET", &selecao, "");
     assert!(lista.starts_with("HTTP/1.1 200 OK"));
@@ -100,7 +105,9 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(form.starts_with("HTTP/1.1 200 OK"));
     assert!(form.contains("frmDocumentoCadastro"));
     // O HTML servido deve permitir o mesmo POST que o anti-IES aceita.
-    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='2'"));
+    assert!(form.contains("name='hdnFlagDocumentoCadastro' value='1'"));
+    assert!(form.contains("id='btnSalvar' name='btnSalvar'"));
+    assert!(form.contains("onclick='confirmarDados()'"));
     let invalido = consultar(
         endereco,
         "POST",
@@ -128,6 +135,10 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
+    let arvore_depois = consultar(endereco, "GET", &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"), "");
+    assert!(arvore_depois.starts_with("HTTP/1.1 200 OK"));
+    assert!(arvore_depois.contains("Despacho 1000001"));
+    assert!(arvore_depois.contains("Despacho 1000002"));
     let metodo_errado = consultar(endereco, "PUT", &selecao, "");
     assert!(metodo_errado.starts_with("HTTP/1.1 405 Method Not Allowed"));
     let sem_nup = consultar(
