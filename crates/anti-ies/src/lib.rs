@@ -260,11 +260,7 @@ pub fn retorno_programado(
     let Ok(Some(mes)) = ler_retornos(banco, instalacao, cenario, inicio, fim) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo: html_de_retornos(&mes),
-    }
+    Resposta::html(html_de_retornos(&mes))
 }
 
 /// Atende somente um GET de Controle R observado no banco efêmero.
@@ -316,6 +312,7 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
     else {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     };
+    let (metodo, alvo) = (metodo.to_owned(), alvo.to_owned());
     if alvo.len() > 2048 || !alvo.starts_with('/') {
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     }
@@ -355,8 +352,8 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
         return Ok(Some(Err(Estado::RequisicaoInvalida)));
     };
     Ok(Some(Ok(PedidoHttp {
-        metodo: metodo.to_owned(),
-        alvo: alvo.to_owned(),
+        metodo,
+        alvo,
         corpo,
     })))
 }
