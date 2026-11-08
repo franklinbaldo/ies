@@ -4,32 +4,6 @@ title: "REA upstream — parte 3/4"
 description: "Trecho fiel da skill REA v61 upstream 25d3c7237ffeffc4f9e6ab87be2f83a643cf5cbb"
 ---
 
- facts, lossless integer registers, usedImages UUIDs, and
-  documented classification matches. Only `bug_type` `"309"` yields a crash
-  body; other types, including `"288"` stackshots, return no crash result.
-  Opened Mach-O and dSYM UUID joins remain unobserved. See the
-  [Apple IPS guide](https://github.com/morluto/rea/blob/main/docs/apple-ips.md).
-- Linux kernel module metadata: `inspect_kernel_module` with the explicit local
-  ELF32/ELF64 relocatable file. This built-in target-free inspection requires
-  no Linux host or `modinfo`. Preserve `.modinfo` key order and duplicate keys,
-  `__versions` CRC hex, section file ranges, and the appended signature
-  trailer's PKCS#7 SHA-256. A missing section is observed absence when section
-  names are known, not proof the module never carried that metadata.
-  `struct module` is not decoded. The signature is not validated. gzip, xz, and
-  zstd containers are unsupported; decompress into a separate file with an
-  external codec utility, then inspect the decompressed `ET_REL` image. See the
-  [kernel module guide](https://github.com/morluto/rea/blob/main/docs/kernel-modules.md).
-- CPython 3.7–3.13 `.pyc` header, nested marshal code objects and bytecode
-  identity: `inspect_python_pyc` with the explicit local file. This built-in
-  target-free inspection requires no Python installation. Preserve magic,
-  PEP 552 hash or mtime/size, nested names, and bytecode SHA-256. Bytecode is
-  not decompiled, and a decoded header does not prove the matching `.py` is
-  present. See the
-  [CPython pyc guide](https://github.com/morluto/rea/blob/main/docs/python-pyc.md).
-- Erlang BEAM IFF container: `inspect_erlang_beam` with the explicit local
-  `.beam` file. This built-in target-free inspection requires no Erlang
-  installation. Preserve chunk names, atom order, export/import/lambda tables,
-  and the Code header. For selected facts, prefer `detail: "summary"` plus a
   `beam` view (collection, names/indices, fields and paging), retaining the full
   Evidence. CLI summary requires `--evidence_output`. Missing table counts stay
   null; decoded empty tables count zero. Bytecode is not executed. See the
@@ -126,3 +100,83 @@ before abandoning deep analysis or repeating the same cold import. The default
 330 seconds can be changed for new startup attempts through
 `update_analysis_settings` using `ghidra.startup_timeout_ms`. Changing the
 server's launch environment instead requires a new REA process.
+
+## Work summary-first
+
+Start with the default result and use its inline Evidence and graph context.
+For a JavaScript application or ELF layout whose size is unknown or large,
+call `analyze_javascript_application` or `inspect_binary_layout` with
+`"detail": "summary"`, then inspect the retained `parent_evidence_id` with
+`inspect_analysis_view`. Over MCP, `analyze_function` is summary-first without
+a flag: its default reply is the summary, and the complete dossier stays
+retained under `parent_evidence_id` for facet paging. Pass that ID as a
+`retained-evidence` reference to `compare_functions`, or inside
+`match_native_functions` `left_observations`/`right_observations` or
+`build_call_path.functions`; request `"detail": "complete"` only when the
+dossier must travel inline.
+Use the same exact-reference form in other advertised logical Evidence inputs,
+including optional sources, arrays and nested sources across domains. Each
+source can independently be inline or retained; preserve its source identity,
+coverage, partial facts and unknowns. A summary or inspection page has its own
+Evidence ID: use `normalized_result.parent_evidence_id` when the consumer needs
+the complete source. For portable CLI follow-ups, commands advertising
+`--evidence-bundle` resolve references from that selected exported bundle.
+See [Evidence composition](references/evidence-workflows.md) for scope and
+recovery; file selectors are supported only where explicitly advertised.
+Page module identities and select the returned `node_id` before requesting an
+item; a single file path can represent several graph roles. Do not repeat an
+identical analysis or rejected call without a changed input or resolved blocker.
+Recheck session state when a lifecycle change makes that status useful.
+Make a focused follow-up only when the
+returned result leaves a specific question unanswered.
+
+If MCP reports `resource_constraint` with `details.resource: "transport"`, call
+`inspect_analysis_view` with its reported same-session Evidence reference for a
+summary, one section/module, or a stable page. Use `trace_application_feature`
+once a seed is known, or call `export_evidence_bundle` to write the complete
+session to a selected path. The analysis remains complete in the ledger; avoid
+repeating it merely to request the same oversized response. Complete CLI JSON
+output also streams without a single MCP frame.
+
+When the retained parent ID is unknown, use `get_evidence_bundle` with
+`detail: "summary"` and exact filters for operation, target SHA-256,
+analysis-profile digest or canonical procedure address. Select its returned
+Evidence ID for the next view instead of requesting the complete bundle. When
+that record has no supported view (for example an annotation), read it with
+`detail: "records"` and an `evidence_id` filter; `missing_evidence_links`
+names linked sources this session does not retain.
+`retention: "complete-record"` means the whole record is stored; native
+value-flow truncation and unknown metadata remain separate. For an exported
+portable bundle, use `rea inspect-evidence-bundle` with JSON containing `path`,
+`detail: "summary"` and the same `filters`. Reading that file still requires
+validating its full contents within the local memory budget.
+
+A client can also truncate a successful tool result without a REA transport
+error. Treat that preview as incomplete; use the retained parent ID for smaller
+views or export when the full record is needed. Do not parse the preview as
+canonical JSON or repeat the producer. For JavaScript, read the
+[module-view and trace recipes](references/javascript-applications.md) before
+drilling into a large graph; a broad bidirectional trace can expand unrelated
+containment relationships even after summary analysis.
+
+Every conclusion must distinguish observations, inferences, and unknowns. Cite
+Evidence IDs, preserve limitations and incomplete coverage, and never imply
+that static analysis observed execution. Runtime requests execute the declared
+target and lifecycle; do not broaden the target or action beyond those fields.
+
+Within the user's requested investigation, call available analysis tools
+directly. REA does not require permission grants or per-call approval flags.
+The agent client can independently require approval. Follow the declared request
+scope and the host's actual access requirements; use the recovery guide for an
+observed client-policy rejection.
+
+## Plan broader investigations
+
+For requests that span multiple features or subsystems, use a staged workflow:
+
+1. Turn the request into a checklist of questions and the evidence each answer
+   needs. Resolve target identity and constraints from the conversation and
+   workspace before asking for information again.
+2. Inspect the current REA session, artifact identity, saved analysis database,
+   bookmarks, and prior evidence. Reuse matching state; do not open duplicate
+   sessions or repeat identical analysis.
