@@ -153,5 +153,5 @@ fn executar_com_sessao_e_assinaturas(
     return s
 editar(arquivo, teste)
 
-git("add", *sorted(ESPERADOS), destino, origem)
+git("add", "-A")
 print("RESOLVIDOS_5: main 0009/0010 + editor 0011; BDD-88 e BDD-89")
