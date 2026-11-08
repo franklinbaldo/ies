@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use serde_json::Value;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -22,6 +22,7 @@ const ORIGEM: &str = "https://sei.test/sei";
 const NUP: &str = "00001.000001/2026-01";
 const CENARIO: &str = "bdd-246-cli";
 
+#[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
 use fixture_tls::{Pasta, identidade};
 
