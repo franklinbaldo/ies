@@ -2,7 +2,7 @@
 //! Oráculo: Todos #775 (`UnB` SEI 4), cassette de escrita `UnB`; a etapa não cadastra documento.
 //! Os testes exercitam respostas sintéticas; isto ainda não habilita `--confirmar`.
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReciboUpload {
     pub(crate) nome_upload: String,
     pub(crate) nome: String,
@@ -11,7 +11,7 @@ pub(crate) struct ReciboUpload {
     pub(crate) data_hora: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum FalhaUpload {
     PreparacaoMultipart(super::multipart::FalhaMultipart),
     Recusado {

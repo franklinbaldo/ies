@@ -3,7 +3,7 @@
 use crate::formulario_web::CodificacaoDaTela;
 use std::io::{Cursor, Read};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FalhaMultipart {
     NomeIncompativelComCharset,
     FronteiraInvalida,
