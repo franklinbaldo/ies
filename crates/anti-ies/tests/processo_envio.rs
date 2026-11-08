@@ -40,7 +40,7 @@ const ENDERECO: &str = "/sei/controlador.php?acao=procedimento_enviar&id_procedi
 fn previa_e_confirmacao_reconciliam_o_mesmo_estado_sqlite() {
     let mut banco = preparar();
     let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap();
-    let previa = responder("GET", ENDERECO, "", &mut banco, &origem(), "cenario-a");
+    let previa = responder("GET", ENDERECO, "", &banco, &origem(), "cenario-a");
     assert_eq!(previa.estado, Estado::Ok);
     assert!(previa.corpo.contains("frmAtividadeListar"));
     assert!(previa.corpo.contains("chkSinRemoverAnotacoes"));
@@ -53,7 +53,7 @@ fn previa_e_confirmacao_reconciliam_o_mesmo_estado_sqlite() {
         "POST",
         ENDERECO,
         "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinManterAberto=on&chkSinRemoverAnotacoes=on",
-        &mut banco,
+        &banco,
         &origem(),
         "cenario-a",
     );
@@ -77,7 +77,7 @@ fn envio_sem_manter_aberto_fecha_origem_e_preserva_anotacao() {
         "POST",
         ENDERECO,
         "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
-        &mut banco,
+        &banco,
         &origem(),
         "cenario-a",
     );
@@ -99,7 +99,7 @@ fn destino_invalido_e_duplicado_nao_modificam_o_banco() {
         "hdnIdProtocolos=99&hdnUnidades=2%B1DESTINO",
         "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&hdnUnidades=2%B1DESTINO",
     ] {
-        let r = responder("POST", ENDERECO, corpo, &mut banco, &origem(), "cenario-a");
+        let r = responder("POST", ENDERECO, corpo, &banco, &origem(), "cenario-a");
         assert_eq!(r.estado, Estado::RequisicaoInvalida, "{corpo}");
         assert_eq!(ler(&banco, &origem(), "cenario-a", "10").unwrap(), antes);
     }
@@ -112,7 +112,7 @@ fn mesmo_id_em_outro_cenario_nao_acessa_ou_muta_estado() {
         "POST",
         ENDERECO,
         "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
-        &mut banco,
+        &banco,
         &origem(),
         "outro-cenario",
     );

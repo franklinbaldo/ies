@@ -277,7 +277,7 @@ fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
     iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
     guardar(
-        &mut banco,
+        &banco,
         &origem,
         "teste-leitor",
         &ProcessoSimulado {
