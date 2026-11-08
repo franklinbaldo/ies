@@ -274,7 +274,8 @@ pub fn controlar(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo) || !alvo.ends_with("?acao=procedimento_controlar") {
+    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("procedimento_controlar")
+    {
         return despachar(metodo, alvo);
     }
     if metodo != "GET" {
