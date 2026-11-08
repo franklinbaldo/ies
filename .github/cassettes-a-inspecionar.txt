@@ -1,2 +1,0 @@
-cassettes/pen3/documento-juntar-previa-pen3--ec754357a3c7.md
-cassettes/unb/documento-escritas-unb--36a904749e20.md
