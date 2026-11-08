@@ -57,8 +57,8 @@ fn formulario(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) 
          Confirmo possível perda de assinaturas</label>\
          <button type='submit'>Salvar edição</button></form></body></html>",
         escapar(&documento.numero),
-        ultima.versao,
-        "e".repeat(64)
+        "e".repeat(64),
+        ultima.versao
     ))
 }
 
