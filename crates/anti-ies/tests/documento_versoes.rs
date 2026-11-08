@@ -198,3 +198,55 @@ fn duas_rotas_http_reais_compartilham_a_mesma_versao_no_banco() {
     assert!(!antiga.contains("Texto atual"));
     servidor.join().unwrap();
 }
+
+#[test]
+fn id_de_processo_explicito_nao_pode_selecionar_conteudo_de_outro_processo() {
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let primeiro = documento();
+        guardar(&mut banco, "ensaio", &primeiro).unwrap();
+        let mut segundo = primeiro.clone();
+        segundo.id_documento = "43".into();
+        segundo.id_procedimento = "8".into();
+        segundo.numero_processo = "00001.000002/2026-02".into();
+        segundo.numero = "0011520".into();
+        segundo.revisoes[0].html_corpo = "<p>Segundo processo</p>".into();
+        guardar(&mut banco, "ensaio", &segundo).unwrap();
+        for _ in 0..5 {
+            let (mut conexao, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem(), "ensaio"))).unwrap();
+        }
+    });
+    let pedir = |metodo: &str, documento: &str, processo: &str| -> String {
+        let mut conexao = TcpStream::connect(endereco).unwrap();
+        write!(
+            conexao,
+            "{metodo} /sei/controlador.php?acao=documento_visualizar&id_documento={documento}&id_procedimento={processo} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        )
+        .unwrap();
+        conexao.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        conexao.read_to_string(&mut resposta).unwrap();
+        resposta
+    };
+    let trocado_a = pedir("GET", "42", "8");
+    let trocado_b = pedir("GET", "43", "7");
+    assert!(trocado_a.starts_with("HTTP/1.1 404"), "{trocado_a}");
+    assert!(trocado_b.starts_with("HTTP/1.1 404"), "{trocado_b}");
+    assert!(!trocado_a.contains("Texto atual"));
+    assert!(!trocado_b.contains("Segundo processo"));
+    let certo_a = pedir("GET", "42", "7");
+    let certo_b = pedir("GET", "43", "8");
+    assert!(certo_a.starts_with("HTTP/1.1 200"), "{certo_a}");
+    assert!(certo_a.contains("Texto atual"));
+    assert!(certo_b.starts_with("HTTP/1.1 200"), "{certo_b}");
+    assert!(certo_b.contains("Segundo processo"));
+    assert!(pedir("POST", "42", "7").starts_with("HTTP/1.1 405"));
+    servidor.join().unwrap();
+}
