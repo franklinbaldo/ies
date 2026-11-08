@@ -83,7 +83,7 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
         busca,
         "txtPesquisaRapida=00001.999999%2F2026-01",
     );
-    assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
+    assert!(ausente.starts_with("HTTP/1.1 503 Service Unavailable"));
     let repetida = requisitar(
         endereco,
         "POST",

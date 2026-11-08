@@ -5,6 +5,8 @@ pub mod documento_arvore;
 pub mod documento_versoes;
 mod documentos;
 pub mod pesquisa_documento;
+pub mod processo_envio;
+mod rotas;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
 use iesei::retornos_cassettes::{Mes, Situacao, ler as ler_retornos};
@@ -331,32 +333,6 @@ fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Est
     })))
 }
 
-/// Resolve a entrada por protocolo no SQLite antes de escolher a tela.
-fn trabalho_por_protocolo(
-    pedido: &PedidoHttp,
-    banco: &Connection,
-    instalacao: &Instalacao,
-    cenario: &str,
-) -> Resposta {
-    let Some(id) = parametro_unico(&pedido.alvo, "id_protocolo") else {
-        return Resposta::nova(Estado::RequisicaoInvalida);
-    };
-    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
-        Ok(Some(_)) => documentos::atender(
-            &pedido.metodo,
-            &pedido.alvo,
-            &pedido.corpo,
-            banco,
-            instalacao,
-            cenario,
-        ),
-        Ok(None) => {
-            documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
-        }
-        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-    }
-}
-
 /// Atende a sessão HTTP local sequencialmente, com estado SQLite compartilhado.
 /// Um POST de criação é consumido uma única vez; nenhuma escrita remota existe.
 ///
@@ -373,74 +349,14 @@ pub fn atender_http(
         Err(estado) => Resposta::nova(estado),
         Ok(pedido) => {
             if let Some((banco, instalacao, cenario)) = fonte {
-                match parametro_unico(&pedido.alvo, "acao") {
-                    Some("retorno_programado_listar") => {
-                        retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
-                    }
-                    Some("protocolo_pesquisa_rapida") if eh_controlador_sei(&pedido.alvo) => {
-                        pesquisa_documento::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            &pedido.corpo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some(
-                        "documento_escolher_tipo"
-                        | "documento_gerar"
-                        | "arvore_visualizar"
-                        | "procedimento_visualizar",
-                    ) if documentos::eh_rota_documentos(&pedido.alvo) => documentos::atender(
-                        &pedido.metodo,
-                        &pedido.alvo,
-                        &pedido.corpo,
-                        banco,
-                        instalacao,
-                        cenario,
-                    ),
-                    Some("procedimento_trabalhar")
-                        if eh_controlador_sei(&pedido.alvo)
-                            && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
-                    {
-                        documentos::atender(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            &pedido.corpo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
-                        documento_arvore::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("procedimento_trabalhar")
-                        if eh_controlador_sei(&pedido.alvo)
-                            && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
-                    {
-                        trabalho_por_protocolo(&pedido, banco, instalacao, cenario)
-                    }
-                    Some("documento_versao_listar" | "documento_visualizar")
-                        if eh_controlador_sei(&pedido.alvo) =>
-                    {
-                        documento_versoes::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
-                }
+                rotas::responder(
+                    &pedido.metodo,
+                    &pedido.alvo,
+                    &pedido.corpo,
+                    banco,
+                    instalacao,
+                    cenario,
+                )
             } else {
                 despachar(&pedido.metodo, &pedido.alvo)
             }

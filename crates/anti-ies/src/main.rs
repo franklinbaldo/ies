@@ -1,9 +1,10 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
-use iesei::banco_cassettes::{ControleResumido, guardar, iniciar};
+use iesei::banco_cassettes::{ControleResumido, guardar as guardar_controle, iniciar};
+use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
-use iesei::observacao::{TabelaObservada, UnidadeExibida};
+use iesei::processos::{Destino, ProcessoSimulado, guardar};
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
 use std::time::Duration;
@@ -22,10 +23,8 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
             let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
                 .ok_or("origem sintética inválida")?;
             let cenario = "bdd-246".to_owned();
-            // O Controle precisa oferecer a pesquisa da CLI também no demo.
-            // Sem esta fotografia, o processo existe, mas a navegação
-            // ies documento criar --processo NUP terminaria em HTTP 503.
-            guardar(
+            // Controle R sintético permite pesquisar o NUP antes de criar.
+            guardar_controle(
                 &mut banco,
                 &cenario,
                 &ControleResumido {
@@ -50,6 +49,24 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 },
             )
             .map_err(|_| "falha ao preparar processo de demonstração")?;
+            guardar(
+                &mut banco,
+                &instalacao,
+                &cenario,
+                &ProcessoSimulado {
+                    id: "10".into(),
+                    numero: "00001.000001/2026-01".into(),
+                    unidade_origem: "UNIDADE TESTE".into(),
+                    aberto_em: vec!["UNIDADE TESTE".into()],
+                    anotacao_origem: Some("Nota de teste".into()),
+                    destinos: vec![Destino {
+                        id: "2".into(),
+                        sigla: "DESTINO".into(),
+                        descricao: "DESTINO - Unidade de testes".into(),
+                    }],
+                },
+            )
+            .map_err(|_| "falha ao preparar tramitação sintética")?;
             registrar_tipo(
                 &banco,
                 &instalacao,
@@ -74,7 +91,7 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
                 Instalacao::interpretar(&origem).ok_or("origem de cassette inválida")?;
             let banco = Connection::open_with_flags(
                 caminho,
-                OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NOFOLLOW,
+                OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NOFOLLOW,
             )?;
             Ok(Some((banco, instalacao, cenario)))
         }
