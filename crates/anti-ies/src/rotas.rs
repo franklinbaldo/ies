@@ -85,6 +85,9 @@ pub(crate) fn responder(
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("protocolo_pesquisar") if eh_controlador_sei(alvo) => {
+            pesquisa_documento::responder_pesquisa(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("protocolo_pesquisa_rapida") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
