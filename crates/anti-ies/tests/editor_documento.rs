@@ -1,4 +1,4 @@
-//! BDD-89-02/03/04: editor sintético versionado e releitura independente.
+//! Testes técnicos do editor sintético para os BDD-89-02/03/04 da CLI.
 use anti_ies::{Estado, editor_documento::responder};
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar, ler};
@@ -41,7 +41,7 @@ fn form(confirmar_assinaturas: bool) -> String {
     format!("versao_base=2&html_base=%3Cp%3Eantes%3C%2Fp%3E&html_editado=%3Cp%3Edepois%3C%2Fp%3E&confirmar_assinaturas={}", u8::from(confirmar_assinaturas))
 }
 #[test]
-fn bdd_89_02_versao_nova_e_releitura_do_conteudo() {
+fn versao_nova_exige_releitura_do_conteudo() {
     let banco = preparar(0);
     let previa = responder("GET", alvo(), "", &banco, &origem(), "ensaio");
     assert_eq!(previa.estado, Estado::Ok);
@@ -62,7 +62,7 @@ fn bdd_89_02_versao_nova_e_releitura_do_conteudo() {
     assert_eq!(doc.revisoes[0].html_corpo, "<p>antes</p>");
 }
 #[test]
-fn bdd_89_03_concorrencia_e_repeticao_nao_sobrescrevem() {
+fn concorrencia_e_repeticao_nao_sobrescrevem() {
     let banco = preparar(0);
     assert_eq!(responder("POST", alvo(), &form(false), &banco, &origem(), "ensaio").estado, Estado::Redirecionamento);
     assert_eq!(responder("POST", alvo(), &form(false), &banco, &origem(), "ensaio").estado, Estado::RequisicaoInvalida);
@@ -73,7 +73,7 @@ fn bdd_89_03_concorrencia_e_repeticao_nao_sobrescrevem() {
     assert_eq!(doc.revisoes[1].html_corpo, "<p>depois</p>");
 }
 #[test]
-fn bdd_89_04_editor_oferecido_aceita_assinado_com_consentimento() {
+fn editor_oferecido_aceita_assinado_com_consentimento() {
     let banco = preparar(2);
     let previa = responder("GET", alvo(), "", &banco, &origem(), "ensaio");
     assert_eq!(previa.estado, Estado::Ok);
