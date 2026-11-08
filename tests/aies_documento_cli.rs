@@ -150,7 +150,12 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
-fn estado(caminho: &Path, com_documento: bool, assinaturas: u32, versao_restrita: bool) -> (Connection, Instalacao) {
+fn estado(
+    caminho: &Path,
+    com_documento: bool,
+    assinaturas: u32,
+    versao_restrita: bool,
+) -> (Connection, Instalacao) {
     let novo = !caminho.exists();
     let mut banco = Connection::open(caminho).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -214,8 +219,13 @@ fn estado(caminho: &Path, com_documento: bool, assinaturas: u32, versao_restrita
     }
     if versao_restrita {
         acesso_versao::restringir(
-            &banco, &instalacao, CENARIO, "42", NonZeroU32::new(1).unwrap(),
-        ).unwrap();
+            &banco,
+            &instalacao,
+            CENARIO,
+            "42",
+            NonZeroU32::new(1).unwrap(),
+        )
+        .unwrap();
     }
     (banco, instalacao)
 }
@@ -240,7 +250,15 @@ fn executar_com_assinaturas(
     com_documento: bool,
     assinaturas: u32,
 ) -> Output {
-    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, false, false, assinaturas)
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        false,
+        false,
+        assinaturas,
+    )
 }
 
 fn executar_com_restricao(
@@ -250,7 +268,15 @@ fn executar_com_restricao(
     com_documento: bool,
     versao_restrita: bool,
 ) -> Output {
-    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, versao_restrita, false, 0)
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        false,
+        0,
+    )
 }
 
 fn executar_com_sessao(
@@ -261,7 +287,15 @@ fn executar_com_sessao(
     versao_restrita: bool,
     sessao_bloqueada: bool,
 ) -> Output {
-    executar_com_sessao_e_assinaturas(pasta, args, requisicoes, com_documento, versao_restrita, sessao_bloqueada, 0)
+    executar_com_sessao_e_assinaturas(
+        pasta,
+        args,
+        requisicoes,
+        com_documento,
+        versao_restrita,
+        sessao_bloqueada,
+        0,
+    )
 }
 
 fn executar_com_sessao_e_assinaturas(
