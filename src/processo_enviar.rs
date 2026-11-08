@@ -30,6 +30,8 @@ mod tests_fluxo;
 mod tests_reconciliacao;
 #[cfg(test)]
 mod tests_tela;
+#[cfg(test)]
+mod tests_anti_ies;
 
 pub(crate) use erro::ErroEnviar;
 pub(crate) use fluxo::enviar_processo;
