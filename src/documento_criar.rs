@@ -379,3 +379,7 @@ mod tests_scripts_inertes;
 #[cfg(test)]
 #[path = "documento_criar/tests_anties.rs"]
 mod tests_anties;
+
+#[cfg(test)]
+#[path = "documento_criar/tests_barra_tramitacao.rs"]
+mod tests_barra_tramitacao;
