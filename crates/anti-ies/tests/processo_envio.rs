@@ -125,3 +125,56 @@ fn mesmo_id_em_outro_cenario_nao_acessa_ou_muta_estado() {
         ["ORIGEM"]
     );
 }
+
+#[test]
+fn bdd_333_03_http_loopback_persiste_envio_e_releitura_independente() {
+    use anti_ies::atender_http;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    fn requisitar(endereco: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
+        let mut cliente = TcpStream::connect(endereco).unwrap();
+        write!(
+            cliente,
+            "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{corpo}",
+            corpo.len()
+        )
+        .unwrap();
+        cliente.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        cliente.read_to_string(&mut resposta).unwrap();
+        resposta
+    }
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let banco = preparar();
+    let servidor = std::thread::spawn(move || {
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem(), "cenario-a"))).unwrap();
+        }
+        ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap()
+    });
+    let anotacao = "/sei/controlador.php?acao=anotacao_registrar&id_procedimento=10";
+    let primeira = requisitar(endereco, "GET", anotacao, "");
+    assert!(primeira.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(primeira.contains("Anotação temporária"));
+
+    let envio = requisitar(
+        endereco,
+        "POST",
+        ENDERECO,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO&chkSinRemoverAnotacoes=on",
+    );
+    assert!(envio.starts_with("HTTP/1.1 302 Found\r\n"));
+    assert!(envio.contains("Location: controlador.php?acao=arvore_visualizar"));
+
+    let segunda = requisitar(endereco, "GET", anotacao, "");
+    assert!(segunda.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(!segunda.contains("Anotação temporária"));
+    assert!(segunda.contains("txaDescricao"));
+    let depois = servidor.join().unwrap();
+    assert_eq!(depois.aberto_em, ["DESTINO"]);
+    assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
+}
