@@ -135,7 +135,11 @@ fn preparar_banco() -> (Connection, Instalacao) {
 }
 
 #[allow(clippy::too_many_lines)] // Bancada E2E reúne proxy TLS, servidor HTTP e processos reais.
-fn executar(incerteza: bool, somente_previa: bool) -> (Vec<Output>, Vec<String>, usize) {
+fn executar(
+    incerteza: bool,
+    somente_previa: bool,
+    com_leitura: bool,
+) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -231,7 +235,18 @@ fn executar(incerteza: bool, somente_previa: bool) -> (Vec<Output>, Vec<String>,
         "--sem-propriedades",
         "--sem-marcadores",
     ];
-    let saidas = [&incluir[..], &consultar[..]]
+    let destino_arquivo = pasta.0.join("saida");
+    fs::create_dir(&destino_arquivo).unwrap();
+    let destino_str = destino_arquivo.to_str().unwrap();
+    let ler_pdf = [
+        "--json", "documento", "050000001", "--processo", NUP,
+        "--saida", destino_str, "--sem-cache",
+    ];
+    let mut comandos = vec![&incluir[..], &consultar[..]];
+    if com_leitura {
+        comandos.push(&ler_pdf);
+    }
+    let saidas = comandos
         .iter()
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -258,7 +273,8 @@ fn executar(incerteza: bool, somente_previa: bool) -> (Vec<Output>, Vec<String>,
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    (saidas, eventos, total)
+    let arquivo = fs::read(destino_arquivo.join("050000001.pdf")).ok();
+    (saidas, eventos, total, arquivo)
 }
 
 fn json(saida: &Output) -> Value {
@@ -273,7 +289,7 @@ fn json(saida: &Output) -> Value {
 
 #[test]
 fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
-    let (saidas, eventos, total) = executar(false, false);
+    let (saidas, eventos, total, _) = executar(false, false, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -319,7 +335,7 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 
 #[test]
 fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
-    let (saidas, eventos, total) = executar(true, false);
+    let (saidas, eventos, total, _) = executar(true, false, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(3),
@@ -353,7 +369,7 @@ fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
 /// mas nenhuma linha de upload nem documento definitivo pode surgir.
 #[test]
 fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
-    let (saidas, eventos, total) = executar(false, true);
+    let (saidas, eventos, total, _) = executar(false, true, false);
     assert_eq!(
         saidas[0].status.code(),
         Some(0),
@@ -391,5 +407,35 @@ fn bdd_332_02_binario_consulta_previa_sem_upload_ou_cadastro() {
             .any(|evento| evento.starts_with("POST documento_upload_anexo")
                 || evento == "POST documento_receber 302"),
         "prévia nunca envia o PDF nem cadastra documento: {eventos:?}"
+    );
+}
+
+#[test]
+fn bdd_60_03_cli_baixa_pdf_original_do_estado_compartilhado() {
+    // BDD-60-03 pré-escrito na #60: o mesmo PDF cadastrado deve ser lido
+    // pela CLI real e salvo byte a byte, sem transformar conteúdo em HTML.
+    let (saidas, eventos, documentos, arquivo) = executar(false, false, true);
+    assert_eq!(documentos, 1, "um único documento definitivo");
+    assert_eq!(
+        saidas[2].status.code(),
+        Some(0),
+        "saída={} stderr={} HTTP={eventos:?}",
+        String::from_utf8_lossy(&saidas[2].stdout),
+        String::from_utf8_lossy(&saidas[2].stderr),
+    );
+    assert_eq!(
+        arquivo.as_deref(),
+        Some(b"%PDF-1.4\n1 0 obj\n%%EOF\n".as_slice()),
+        "o arquivo salvo deve ser o PDF original enviado, sem conversão"
+    );
+    let lido = json(&saidas[2]);
+    assert_eq!(lido["documentos"][0]["numero"], "050000001");
+    assert_eq!(lido["documentos"][0]["fonte"], "documento_download_anexo");
+    assert_eq!(lido["documentos"][0]["anexo"]["mime"], "application/pdf");
+    assert_eq!(lido["documentos"][0]["arquivo"]["nome"], "050000001.pdf");
+    assert_eq!(
+        eventos.iter().filter(|e| e.as_str() == "GET documento_download_anexo 200").count(),
+        1,
+        "o link assinado deve ser seguido uma só vez"
     );
 }
