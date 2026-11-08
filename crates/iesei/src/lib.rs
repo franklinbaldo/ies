@@ -3,7 +3,6 @@ pub mod banco_cassettes;
 pub mod documento_versoes;
 pub mod instalacao;
 pub mod observacao;
-
+pub mod processos;
 pub mod retornos_cassettes;
 pub mod sqlite;
-pub mod processos;
