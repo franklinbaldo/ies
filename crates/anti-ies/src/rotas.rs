@@ -51,15 +51,17 @@ pub(crate) fn responder(
             metodo, alvo, banco, instalacao, cenario,
         )
         .unwrap_or_else(|| {
-            if let Some(id) = parametro_unico(alvo, "id_procedimento") {
-                match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
-                    Ok(Some(_)) => {
-                        return documentos::atender(
-                            metodo, alvo, corpo, banco, instalacao, cenario,
-                        );
+            if documentos::eh_rota_documentos(alvo) {
+                if let Some(id) = parametro_unico(alvo, "id_procedimento") {
+                    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+                        Ok(Some(_)) => {
+                            return documentos::atender(
+                                metodo, alvo, corpo, banco, instalacao, cenario,
+                            );
+                        }
+                        Ok(None) => {}
+                        Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
                     }
-                    Ok(None) => {}
-                    Err(_) => return Resposta::nova(crate::Estado::DadosInsuficientes),
                 }
             }
             documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
