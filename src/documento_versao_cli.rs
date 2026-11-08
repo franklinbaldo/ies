@@ -282,6 +282,24 @@ pub(crate) mod testes {
         std::fs::remove_dir_all(pasta).unwrap();
     }
 
+    // BDD-88-02: duas entradas do mesmo DOC/versao no lote nao podem
+    // fazer uma foto parcial antes de a divergencia ser percebida.
+    #[test]
+    fn bdd_88_02_fotos_divergentes_para_mesmo_nome_nao_gravam_parcial() {
+        let pasta = diretorio();
+        let primeira = com_foto("0011519", 2, HTML);
+        let segunda = com_foto("0011519", 2, &HTML.replace("<p>a</p>", "<p>outro</p>"));
+        assert_eq!(
+            gravar_fotos(&pasta, &[primeira, segunda]),
+            Err(ErroCopia::FotoDivergente)
+        );
+        assert!(
+            nomes(&pasta).is_empty(),
+            "o lote divergente nao deve deixar foto parcial"
+        );
+        std::fs::remove_dir_all(pasta).unwrap();
+    }
+
     #[test]
     fn campos_de_versao_e_do_arquivo() {
         let d = com_foto("0011519", 2, HTML);
