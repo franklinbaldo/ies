@@ -73,7 +73,7 @@ fn rodar_doc(
 fn ate_a_arvore(arvore: String) -> Vec<Resposta> {
     vec![
         ok(controle(&[("7", "OUTRO-1")])),
-        r302(&trabalhar_rapida(ID_DOC)),
+        r302(&trabalhar_rapida_documento(ID_DOC)),
         ok(tela_do_documento()),
         ok(arvore),
     ]
@@ -91,7 +91,7 @@ fn conteudo_pelo_controle_em_cinco_requisicoes_e_aprende_o_caminho() {
         [
             get(&url_controle()),
             post(&absoluta(&action_rapida()), CORPO_DOC),
-            get(&absoluta(&trabalhar_rapida(ID_DOC))),
+            get(&absoluta(&trabalhar_rapida_documento(ID_DOC))),
             get(&absoluta(&src_da_arvore_do_documento(ID, ID_DOC))),
             get(&url_conteudo()),
         ]
@@ -139,7 +139,7 @@ fn segundo_documento_usa_a_pesquisa_guardada_em_quatro() {
         &amb,
         DOC,
         vec![
-            r302(&trabalhar_rapida(ID_DOC)),
+            r302(&trabalhar_rapida_documento(ID_DOC)),
             ok(tela_do_documento()),
             ok(arvore_com(&src_visualizar(ID_DOC))),
             ok(conteudo(DOC)),
