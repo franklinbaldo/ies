@@ -30,7 +30,7 @@ O transporte de produção da CLI `ies` não é alterado.
 
 Sem variáveis de ambiente, o anti-IES inicializa um SQLite **somente em
 memória**, com esquema versionado em
-`crates/iesei/migrations/0003_documentos_simulados.sql`. Uma instalação
+`crates/iesei/migrations/0004_documentos_simulados.sql`. Uma instalação
 local de exemplo contém o processo `10`, unidade `UNIDADE TESTE` e
 tipo `Despacho` (série `291`). Teste a sequência:
 
@@ -82,8 +82,9 @@ essa prova adicional permanece na #355.
 ## Limites desta fatia
 
 - Listener **somente** em `127.0.0.1`, sem configuração de interface externa.
-- Transporte HTTP mínimo, sequencial e de desenvolvimento, que lê apenas a
-  primeira linha da requisição (máximo 4096 bytes). **Não usar em produção**.
+- Transporte HTTP mínimo, sequencial e de desenvolvimento, que lê a
+  linha inicial, cabeçalhos limitados e corpo de POST com `Content-Length`.
+  **Não usar em produção**.
 - Sem usuários, autenticação, cookies, JS, proxy ou acesso a instalações
   SEI; pode ler um banco **efêmero de testes**, nunca o índice operacional;
   não serve como substituto do servidor oficial.
