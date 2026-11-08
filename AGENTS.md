@@ -42,6 +42,24 @@ sem estados ambíguos**, enums e erros que preservem causa; não
 tolera strings/JSON genéricos no lugar de domínio tipado. Pode aceitar
 risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
+## Rituais definidos pelo proprietário não são churn
+
+Cafezinho, leitura de instruções e fichas, memórias OKF de início e
+encerramento, BDD, consulta de cassettes, handoff e gates de CI são
+**partes deliberadas do método de trabalho**, não burocracia descartável
+por não produzirem código imediatamente. Alguns produzem aprendizado,
+coordenação e continuidade que só aparecem nas rodadas seguintes.
+
+**Antichurn atua dentro desse método, não contra ele.** 🦡 Texugo e os
+demais agentes podem eliminar retrabalho, implementações redundantes,
+relatórios extras não exigidos e bloqueios artificiais; não podem
+suprimir, tornar opcionais ou descumprir rituais explicitamente
+determinados pelo proprietário sob o rótulo de simplicidade,
+produtividade ou antissecurity theater. Se um ritual parecer custoso,
+proponham alteração fundamentada ao proprietário; **até decisão
+expressa, executem a regra vigente**. A obrigação não implica inventar
+resultados: registrem o ocorrido com precisão e sem cerimônia adicional.
+
 ## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
 
 Estas regras são a **fonte única** dos prompts curtos das automações.
