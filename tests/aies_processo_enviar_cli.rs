@@ -280,8 +280,14 @@ fn executar(
                 let vistos: Vec<_> = formulario
                     .split('&')
                     .filter(|p| {
-                        ["hdnIdProtocolos=", "hdnUnidades=", "chkSinManterAberto=",
-                         "chkSinRemoverAnotacoes="].iter().any(|n| p.starts_with(n))
+                        [
+                            "hdnIdProtocolos=",
+                            "hdnUnidades=",
+                            "chkSinManterAberto=",
+                            "chkSinRemoverAnotacoes=",
+                        ]
+                        .iter()
+                        .any(|n| p.starts_with(n))
                     })
                     .collect();
                 eprintln!("BDD-333 campos de escrita sintética: {vistos:?}");
