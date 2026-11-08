@@ -557,3 +557,6 @@ mod remocao;
 
 #[path = "aies_processo_enviar_cli/duas_unidades.rs"]
 mod duas_unidades;
+
+#[path = "aies_processo_enviar_cli/unidade_trocada.rs"]
+mod unidade_trocada;
