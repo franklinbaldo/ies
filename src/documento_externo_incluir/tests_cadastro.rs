@@ -298,3 +298,76 @@ fn bdd_332_03_ies_interpreta_upload_e_cadastra_no_anti_ies_com_redirect_conferiv
         )
     );
 }
+
+#[test]
+fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
+    use crate::arvore_processo::ler_arvore;
+    use iesei::banco_cassettes::iniciar;
+    use iesei::documentos_simulados::{self as interno, Tipo};
+    use iesei::instalacao::Instalacao;
+    use iesei::pdf_externo::{self as externo, Processo, TipoExterno};
+    use rusqlite::Connection;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    externo::semear(
+        &banco,
+        &origem,
+        "caso",
+        &Processo {
+            id: "7".into(),
+            nup: "00001.000001/2026-01".into(),
+            unidade: "TESTE".into(),
+        },
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 100_000,
+        },
+    )
+    .unwrap();
+    interno::registrar_tipo(
+        &banco,
+        &origem,
+        "caso",
+        "7",
+        &Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        },
+    )
+    .unwrap();
+    interno::criar(&banco, &origem, "caso", "7", "291", "Primeiro").unwrap();
+    let temporario = externo::receber(&banco, &origem, "caso", "7", "prova.pdf", 42).unwrap();
+    externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
+
+    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = servidor.local_addr().unwrap();
+    let tarefa = std::thread::spawn(move || {
+        let (mut fluxo, _) = servidor.accept().unwrap();
+        anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, "caso"))).unwrap();
+    });
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    cliente.write_all(
+        b"GET /sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento= HTTP/1.1\r\nHost: localhost\r\n\r\n",
+    )
+    .unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    tarefa.join().unwrap();
+    assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
+    let (_, html) = resposta.split_once("\r\n\r\n").unwrap();
+    let arvore = ler_arvore(html, "00001.000001/2026-01", "7").unwrap();
+    assert_eq!(arvore.documentos.len(), 2);
+    assert!(arvore.documentos.iter().any(|d| d.rotulo == "Despacho 1000001"));
+    assert!(
+        arvore
+            .documentos
+            .iter()
+            .any(|d| d.rotulo == "Anexo 050000001")
+    );
+}
