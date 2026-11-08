@@ -27,6 +27,19 @@ fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &s
     resposta
 }
 
+fn conferir_arvore(endereco: std::net::SocketAddr, documento_novo: bool) {
+    let resposta = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
+    assert!(resposta.starts_with("HTTP/1.1 200 OK"));
+    assert!(resposta.contains("Nos[0] = new infraArvoreNo"));
+    assert!(resposta.contains("Despacho 1000001"));
+    assert_eq!(resposta.contains("Despacho 1000002"), documento_novo);
+}
+
 fn verificar_navegacao_da_serie(endereco: std::net::SocketAddr, selecao: &str) {
     // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
     let escolhido = consultar(endereco, "POST", selecao, "hdnIdSerie=291");
@@ -88,16 +101,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
     assert!(render1.contains("Despacho 1000001"));
-    let arvore_antes = consultar(
-        endereco,
-        "GET",
-        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
-        "",
-    );
-    assert!(arvore_antes.starts_with("HTTP/1.1 200 OK"));
-    assert!(arvore_antes.contains("Nos[0] = new infraArvoreNo"));
-    assert!(arvore_antes.contains("Despacho 1000001"));
-    assert!(!arvore_antes.contains("Despacho 1000002"));
+    conferir_arvore(endereco, false);
     assert!(!render1.contains("Despacho 1000002"));
     let lista = consultar(endereco, "GET", &selecao, "");
     assert!(lista.starts_with("HTTP/1.1 200 OK"));
@@ -140,15 +144,7 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
-    let arvore_depois = consultar(
-        endereco,
-        "GET",
-        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
-        "",
-    );
-    assert!(arvore_depois.starts_with("HTTP/1.1 200 OK"));
-    assert!(arvore_depois.contains("Despacho 1000001"));
-    assert!(arvore_depois.contains("Despacho 1000002"));
+    conferir_arvore(endereco, true);
     let metodo_errado = consultar(endereco, "PUT", &selecao, "");
     assert!(metodo_errado.starts_with("HTTP/1.1 405 Method Not Allowed"));
     let sem_nup = consultar(
