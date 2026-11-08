@@ -1,5 +1,6 @@
-//! Servidor experimental. O Controle R usa somente observações verificadas.
+//! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
 pub mod documento_versoes;
+mod documentos;
 use iesei::banco_cassettes::{ControleResumido, Linha, ler};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::TabelaObservada;
@@ -13,6 +14,7 @@ use std::net::TcpStream;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Estado {
     Ok,
+    Redirecionamento,
     RequisicaoInvalida,
     MetodoNaoPermitido,
     NaoEncontrado,
@@ -25,6 +27,7 @@ impl Estado {
     pub const fn codigo_http(self) -> u16 {
         match self {
             Self::Ok => 200,
+            Self::Redirecionamento => 302,
             Self::RequisicaoInvalida => 400,
             Self::MetodoNaoPermitido => 405,
             Self::NaoEncontrado => 404,
@@ -37,6 +40,7 @@ impl Estado {
     pub const fn motivo_http(self) -> &'static str {
         match self {
             Self::Ok => "OK",
+            Self::Redirecionamento => "Found",
             Self::RequisicaoInvalida => "Bad Request",
             Self::MetodoNaoPermitido => "Method Not Allowed",
             Self::NaoEncontrado => "Not Found",
@@ -52,6 +56,7 @@ pub struct Resposta {
     pub estado: Estado,
     pub tipo_conteudo: &'static str,
     pub corpo: String,
+    pub localizacao: Option<String>,
 }
 
 impl Resposta {
@@ -59,6 +64,7 @@ impl Resposta {
     pub fn nova(estado: Estado) -> Self {
         let corpo = match estado {
             Estado::Ok => r#"{"status":"ok","servidor":"anti-ies"}"#,
+            Estado::Redirecionamento => "",
             Estado::RequisicaoInvalida => r#"{"erro":"requisicao_invalida"}"#,
             Estado::MetodoNaoPermitido => r#"{"erro":"metodo_nao_permitido"}"#,
             Estado::NaoEncontrado => r#"{"erro":"rota_nao_encontrada"}"#,
@@ -69,11 +75,32 @@ impl Resposta {
             estado,
             tipo_conteudo: "application/json; charset=utf-8",
             corpo: corpo.to_owned(),
+            localizacao: None,
+        }
+    }
+
+    #[must_use]
+    pub fn html(corpo: String) -> Self {
+        Self {
+            estado: Estado::Ok,
+            tipo_conteudo: "text/html; charset=utf-8",
+            corpo,
+            localizacao: None,
+        }
+    }
+
+    #[must_use]
+    pub fn redirecionar(localizacao: String) -> Self {
+        Self {
+            estado: Estado::Redirecionamento,
+            tipo_conteudo: "text/html; charset=utf-8",
+            corpo: String::new(),
+            localizacao: Some(localizacao),
         }
     }
 }
 
-fn eh_controlador_sei(alvo: &str) -> bool {
+pub(crate) fn eh_controlador_sei(alvo: &str) -> bool {
     let caminho = alvo.split_once('?').map_or(alvo, |(caminho, _)| caminho);
     caminho.ends_with("/controlador.php")
 }
@@ -95,7 +122,7 @@ pub fn despachar(metodo: &str, alvo: &str) -> Resposta {
     Resposta::nova(estado)
 }
 
-fn escapar(texto: &str) -> String {
+pub(crate) fn escapar(texto: &str) -> String {
     texto
         .replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -195,7 +222,7 @@ fn html_de_retornos(mes: &Mes) -> String {
 }
 
 /// Valor único de parâmetro observado na URL; repetição não seleciona mês.
-fn parametro_unico<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
+pub(crate) fn parametro_unico<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
     let mut valores = query
         .split('&')
@@ -234,11 +261,7 @@ pub fn retorno_programado(
     let Ok(Some(mes)) = ler_retornos(banco, instalacao, cenario, inicio, fim) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo: html_de_retornos(&mes),
-    }
+    Resposta::html(html_de_retornos(&mes))
 }
 
 /// Atende somente um GET de Controle R observado no banco efêmero.
@@ -263,61 +286,154 @@ pub fn controlar(
     let Some(corpo) = controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    Resposta {
-        estado: Estado::Ok,
-        tipo_conteudo: "text/html; charset=utf-8",
-        corpo,
-    }
+    Resposta::html(corpo)
 }
 
-/// Um atendimento HTTP real, com fonte optional e sem expor a sessão.
-/// O banco é aberto pelo servidor exclusivamente em modo de leitura.
+/// Pedido HTTP local. Não preservar URL, headers nem corpo além do atendimento.
+struct PedidoHttp {
+    metodo: String,
+    alvo: String,
+    corpo: String,
+}
+
+/// Leitura limitada da requisição para suportar o POST do simulador.
+/// Sem cookies, proxy, streaming, chunked ou acesso à rede externa.
+fn ler_pedido(fluxo: &mut TcpStream) -> io::Result<Option<Result<PedidoHttp, Estado>>> {
+    let mut leitor = BufReader::new(fluxo);
+    let mut linha = String::new();
+    if leitor.read_line(&mut linha)? == 0 {
+        return Ok(None);
+    }
+    if linha.len() > 4096 || !linha.ends_with('\n') {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let mut campos = linha.split_ascii_whitespace();
+    let (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) =
+        (campos.next(), campos.next(), campos.next(), campos.next())
+    else {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    };
+    let (metodo, alvo) = (metodo.to_owned(), alvo.to_owned());
+    if alvo.len() > 2048 || !alvo.starts_with('/') {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let mut tamanho: Option<usize> = None;
+    let mut terminado = false;
+    for _ in 0..64 {
+        linha.clear();
+        if leitor.read_line(&mut linha)? == 0 || linha.len() > 4096 {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        }
+        if linha == "\r\n" || linha == "\n" {
+            terminado = true;
+            break;
+        }
+        let Some((nome, valor)) = linha.split_once(':') else {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        };
+        if nome.eq_ignore_ascii_case("Transfer-Encoding") {
+            return Ok(Some(Err(Estado::RequisicaoInvalida)));
+        }
+        if nome.eq_ignore_ascii_case("Content-Length") {
+            if tamanho.is_some() {
+                return Ok(Some(Err(Estado::RequisicaoInvalida)));
+            }
+            tamanho = valor.trim().parse::<usize>().ok();
+            if tamanho.is_none() {
+                return Ok(Some(Err(Estado::RequisicaoInvalida)));
+            }
+        }
+    }
+    if !terminado || tamanho.unwrap_or(0) > 8192 || (metodo == "POST" && tamanho.is_none()) {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    }
+    let mut corpo = vec![0; tamanho.unwrap_or(0)];
+    leitor.read_exact(&mut corpo)?;
+    let Ok(corpo) = String::from_utf8(corpo) else {
+        return Ok(Some(Err(Estado::RequisicaoInvalida)));
+    };
+    Ok(Some(Ok(PedidoHttp {
+        metodo,
+        alvo,
+        corpo,
+    })))
+}
+
+/// Atende a sessão HTTP local sequencialmente, com estado SQLite compartilhado.
+/// Um POST de criação é consumido uma única vez; nenhuma escrita remota existe.
 ///
 /// # Errors
-/// Propaga falhas de I/O da conexão local.
+/// Propaga falhas de I/O na conexão local.
 pub fn atender_http(
     fluxo: &mut TcpStream,
     fonte: Option<(&Connection, &Instalacao, &str)>,
 ) -> io::Result<()> {
-    let mut primeira_linha = Vec::new();
-    let lidos = BufReader::new(&mut *fluxo)
-        .take(4096)
-        .read_until(b'\n', &mut primeira_linha)?;
-    if lidos == 0 {
+    let Some(pedido) = ler_pedido(fluxo)? else {
         return Ok(());
-    }
-    let resposta = if primeira_linha.ends_with(b"\n") {
-        let texto = std::str::from_utf8(&primeira_linha).unwrap_or_default();
-        let mut partes = texto.split_ascii_whitespace();
-        match (partes.next(), partes.next(), partes.next(), partes.next()) {
-            (Some(metodo), Some(alvo), Some("HTTP/1.1" | "HTTP/1.0"), None) => {
-                if let Some((banco, instalacao, cenario)) = fonte {
-                    if parametro_unico(alvo, "acao") == Some("retorno_programado_listar") {
-                        retorno_programado(metodo, alvo, banco, instalacao, cenario)
-                    } else if matches!(
-                        parametro_unico(alvo, "acao"),
-                        Some("documento_versao_listar" | "documento_visualizar")
-                    ) {
-                        documento_versoes::responder(metodo, alvo, banco, instalacao, cenario)
-                    } else {
-                        controlar(metodo, alvo, banco, instalacao, cenario)
-                    }
-                } else {
-                    despachar(metodo, alvo)
-                }
-            }
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
-        }
-    } else {
-        Resposta::nova(Estado::RequisicaoInvalida)
     };
+    let resposta = match pedido {
+        Err(estado) => Resposta::nova(estado),
+        Ok(pedido) => {
+            if let Some((banco, instalacao, cenario)) = fonte {
+                match parametro_unico(&pedido.alvo, "acao") {
+                    Some("retorno_programado_listar") => {
+                        retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
+                    }
+                    Some("documento_escolher_tipo" | "documento_gerar" | "arvore_visualizar")
+                        if eh_controlador_sei(&pedido.alvo) =>
+                    {
+                        documentos::atender(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    Some("procedimento_trabalhar")
+                        if eh_controlador_sei(&pedido.alvo)
+                            && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
+                    {
+                        documentos::atender(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            &pedido.corpo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    Some("documento_versao_listar" | "documento_visualizar")
+                        if eh_controlador_sei(&pedido.alvo) =>
+                    {
+                        documento_versoes::responder(
+                            &pedido.metodo,
+                            &pedido.alvo,
+                            banco,
+                            instalacao,
+                            cenario,
+                        )
+                    }
+                    _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
+                }
+            } else {
+                despachar(&pedido.metodo, &pedido.alvo)
+            }
+        }
+    };
+    let location = resposta
+        .localizacao
+        .as_ref()
+        .map_or_else(String::new, |valor| format!("Location: {valor}\r\n"));
     write!(
         fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n{}",
         resposta.estado.codigo_http(),
         resposta.estado.motivo_http(),
         resposta.tipo_conteudo,
         resposta.corpo.len(),
+        location,
         resposta.corpo
     )?;
     fluxo.flush()

@@ -1,5 +1,7 @@
 //! Servidor local de compatibilidade. Fonte: SQLite efêmero de cassettes.
 use anti_ies::atender_http;
+use iesei::banco_cassettes::iniciar;
+use iesei::documentos_simulados::{Processo, Tipo, registrar_processo, registrar_tipo};
 use iesei::instalacao::Instalacao;
 use rusqlite::{Connection, OpenFlags};
 use std::net::TcpListener;
@@ -12,7 +14,37 @@ fn fonte_da_cassette() -> Result<Option<Fonte>, Box<dyn std::error::Error>> {
     let origem = std::env::var("ANTI_IES_CASSETTE_ORIGEM").ok();
     let cenario = std::env::var("ANTI_IES_CASSETTE_CENARIO").ok();
     match (caminho, origem, cenario) {
-        (None, None, None) => Ok(None),
+        (None, None, None) => {
+            // Cenário sintético de demonstração. Nunca abre SEI nem arquivo operacional.
+            let banco = Connection::open_in_memory()?;
+            iniciar(&banco)?;
+            let instalacao = Instalacao::interpretar("https://simulado.invalid/sei")
+                .ok_or("origem sintética inválida")?;
+            let cenario = "bdd-246".to_owned();
+            registrar_processo(
+                &banco,
+                &instalacao,
+                &cenario,
+                &Processo {
+                    id: "10".into(),
+                    nup: "00001.000001/2026-01".into(),
+                    unidade: "UNIDADE TESTE".into(),
+                },
+            )
+            .map_err(|_| "falha ao preparar processo de demonstração")?;
+            registrar_tipo(
+                &banco,
+                &instalacao,
+                &cenario,
+                "10",
+                &Tipo {
+                    id: "291".into(),
+                    nome: "Despacho".into(),
+                },
+            )
+            .map_err(|_| "falha ao preparar tipo de demonstração")?;
+            Ok(Some((banco, instalacao, cenario)))
+        }
         (Some(caminho), Some(origem), Some(cenario)) if !cenario.is_empty() => {
             // Nunca usar diretamente o índice operacional com URLs de sessão.
             if std::path::Path::new(&caminho).file_name()
