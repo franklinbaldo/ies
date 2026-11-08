@@ -81,7 +81,7 @@ fn trabalhar(d: &DocumentoSimulado) -> String {
     )
 }
 
-/// Diferencia id_documento ausente de identidade explícita repetida ou vazia.
+/// Diferencia `id_documento` ausente de identidade explícita repetida ou vazia.
 /// A árvore exclusivamente documental e a árvore mista aplicam a mesma regra.
 pub(crate) fn identidade_documental(
     alvo: &str,
