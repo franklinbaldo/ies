@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 
 const BASE: &str = "/sei/controlador.php";
-const NUMERO_PEDIDOS: usize = 10;
+const NUMERO_PEDIDOS: usize = 13;
 
 fn consultar(servidor: std::net::SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> String {
     let mut fluxo = TcpStream::connect(servidor).expect("conectar loopback");
@@ -79,6 +79,20 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let lista = consultar(endereco, "GET", &selecao, "");
     assert!(lista.starts_with("HTTP/1.1 200 OK"));
     assert!(lista.contains("tblSeries"));
+    assert!(lista.contains("frmDocumentoEscolherTipo"));
+    assert!(lista.contains("onclick='escolher(291)'"));
+    // Escolha por POST e apenas navegacao; criar exige outro POST no cadastro.
+    let escolhido = consultar(endereco, "POST", &selecao, "hdnIdSerie=291");
+    assert!(escolhido.starts_with("HTTP/1.1 302 Found"));
+    assert!(escolhido.contains(
+        "Location: controlador.php?acao=documento_gerar&id_procedimento=10&id_serie=291\r\n"
+    ));
+    let ausente = consultar(endereco, "POST", &selecao, "hdnIdSerie=999");
+    assert!(ausente.starts_with("HTTP/1.1 404 Not Found"));
+    let repetido = consultar(
+        endereco, "POST", &selecao, "hdnIdSerie=291&hdnIdSerie=291",
+    );
+    assert!(repetido.starts_with("HTTP/1.1 400 Bad Request"));
     assert!(lista.contains(">Despacho</a>") || lista.contains("Despacho</a>"));
     let form = consultar(endereco, "GET", &cadastro, "");
     assert!(form.starts_with("HTTP/1.1 200 OK"));
