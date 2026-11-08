@@ -11,6 +11,7 @@ pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
 pub mod processo_envio;
+mod processo_criacao;
 mod protocolo_sintetico;
 mod rotas;
 use iesei::banco_cassettes::ler;
