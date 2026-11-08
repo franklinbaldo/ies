@@ -141,8 +141,8 @@ fn bdd_246_cadastro_e_arvore_antes_depois_consumidos_pelo_ies() {
     );
     assert!(trabalho.starts_with("HTTP/1.1 200 OK"));
     let (_, html_trabalho) = trabalho.split_once("\r\n\r\n").unwrap();
-    let origem = crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei")
-        .unwrap();
+    let origem =
+        crate::instalacao::Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
     let tela =
         crate::arvore_processo::ler_tela_do_processo(&origem, html_trabalho, "10", Some("TESTE"))
             .unwrap();
