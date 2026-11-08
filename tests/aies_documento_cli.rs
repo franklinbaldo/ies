@@ -482,7 +482,10 @@ fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
     let base = fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap();
     let divergente = base.replace("Terceira redação", "Base local modificada");
     pasta.privado("0011519.v3.html", &divergente);
-    pasta.privado("0011519.v4.html", &divergente.replace("modificada", "editada"));
+    pasta.privado(
+        "0011519.v4.html",
+        &divergente.replace("modificada", "editada"),
+    );
     let resposta = executar(
         &pasta,
         &[
