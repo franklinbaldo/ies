@@ -207,17 +207,17 @@ fn menu_com_retornos(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<String, Estado> {
+) -> String {
     // O Controle válido continua legível mesmo se um mês sintético
     // desconhecido (ex.: "01"/"31") não oferecer calendário navegável.
     let Ok(observados) = iesei::retornos_cassettes::periodos(banco, instalacao, cenario) else {
-        return Ok(html);
+        return html;
     };
     if observados.is_empty() {
         return Ok(html);
     }
     let link = format!("<a href='{}'>Retorno Programado</a>", link_calendario());
-    Ok(html.replacen("</body>", &format!("{link}</body>"), 1))
+    html.replacen("</body>", &format!("{link}</body>"), 1)
 }
 
 fn calendario_html(atual: &PeriodoMensal, observados: &[PeriodoMensal]) -> String {
@@ -326,9 +326,8 @@ pub fn controlar(
     };
     if let Some(observacao) = detalhe {
         return controle_detalhado::html(&observacao)
-            .ok_or(Estado::DadosInsuficientes)
-            .and_then(|html| menu_com_retornos(html, banco, instalacao, cenario))
-            .map_or_else(Resposta::nova, Resposta::html);
+            .map(|html| menu_com_retornos(html, banco, instalacao, cenario))
+            .map_or_else(|| Resposta::nova(Estado::DadosInsuficientes), Resposta::html);
     }
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
@@ -340,7 +339,7 @@ pub fn controlar(
     let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    menu_com_retornos(corpo, banco, instalacao, cenario).map_or_else(Resposta::nova, Resposta::html)
+    Resposta::html(menu_com_retornos(corpo, banco, instalacao, cenario))
 }
 
 /// Pedido HTTP local. Não preservar URL, headers nem corpo além do atendimento.
