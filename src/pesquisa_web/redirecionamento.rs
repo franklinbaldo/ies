@@ -88,8 +88,8 @@ pub(crate) enum OrigemDoTrabalho<'a> {
     /// 302 da pesquisa rápida (cassettes de GO): `acao_origem=protocolo_pesquisa_rapida`
     /// e o id em `id_protocolo`.
     PesquisaRapida,
-    /// Busca rápida de número SEI: a cassette publica id_documento,
-    /// não o id_protocolo da consulta por NUP.
+    /// Busca rápida de número SEI: a cassette publica `id_documento`,
+    /// não o `id_protocolo` da consulta por NUP.
     PesquisaRapidaDocumento,
     /// 302 da entrada sem assinatura (ADR 0003): sem `acao_origem`, mesmo id;
     /// a URL pedida não tem unidade nem sistema para comparar.
