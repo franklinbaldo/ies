@@ -140,7 +140,10 @@ fn bdd_88_01_02_controle_pesquisa_arvore_historico_e_conteudo_em_loopback() {
         &format!("{BASE}?acao=protocolo_pesquisa_rapida"),
         "txtPesquisaRapida=0099999",
     );
-    assert!(ausente.starts_with("HTTP/1.1 404 Not Found"), "{ausente}");
+    assert!(
+        ausente.starts_with("HTTP/1.1 503 Service Unavailable"),
+        "{ausente}"
+    );
     let repetido = pedir(
         endereco,
         "POST",
@@ -169,6 +172,6 @@ fn bdd_88_03_pesquisa_nao_finge_sucesso_sem_snapshot_do_documento() {
             "vazio"
         )
         .estado,
-        anti_ies::Estado::NaoEncontrado
+        anti_ies::Estado::DadosInsuficientes
     );
 }
