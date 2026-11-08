@@ -75,7 +75,8 @@ pub(crate) fn responder(
             processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(
                 || {
                     let id = parametro_unico(alvo, "id_protocolo").expect("guard verificou id");
-                    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id) {
+                    match iesei::documentos_simulados::ler_processo(banco, instalacao, cenario, id)
+                    {
                         Ok(Some(_)) => {
                             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
                         }
