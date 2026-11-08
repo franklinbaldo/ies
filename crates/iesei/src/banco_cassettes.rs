@@ -12,7 +12,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0004_documentos_simulados.sql"),
     "\n",
-    include_str!("../migrations/0005_documento_processo.sql")
+    include_str!("../migrations/0005_documento_processo.sql"),
+    "\n",
+    include_str!("../migrations/0006_controle_detalhado.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -170,6 +172,15 @@ pub fn guardar(
             )?;
         }
     }
+    // Alternar R/D na sessão remove a visão anterior, sem snapshots concorrentes.
+    transacao.execute(
+        "DELETE FROM controle_detalhado_linha WHERE origem=?1 AND cenario=?2",
+        params![origem, cenario],
+    )?;
+    transacao.execute(
+        "DELETE FROM controle_detalhado WHERE origem=?1 AND cenario=?2",
+        params![origem, cenario],
+    )?;
     transacao.commit()?;
     Ok(())
 }
