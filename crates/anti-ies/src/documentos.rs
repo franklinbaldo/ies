@@ -97,6 +97,18 @@ pub(crate) fn eh_arvore_do_processo(alvo: &str) -> bool {
         && parametro_unico(alvo, "id_protocolo").is_none()
 }
 
+/// Rotas da criação: outras formas de procedimento_visualizar
+/// continuam pertencendo ao leitor de versões, sem colisão por nome.
+pub(crate) fn eh_rota_documentos(alvo: &str) -> bool {
+    match parametro_unico(alvo, "acao") {
+        Some("documento_escolher_tipo" | "documento_gerar" | "arvore_visualizar") => {
+            eh_controlador_sei(alvo)
+        }
+        Some("procedimento_visualizar") => eh_arvore_do_processo(alvo),
+        _ => false,
+    }
+}
+
 /// A árvore é projetada dos documentos persistidos, não de HTML congelado.
 /// A mesma leitura é usada antes e depois do POST criador da #246.
 fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
