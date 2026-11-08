@@ -64,14 +64,18 @@ fn unidade_recebente_nao_pode_remover_anotacao_da_origem_fechada() {
         "a recusa nao deve criar uma segunda tramitacao: {pedidos:?}",
     );
     assert!(
-        !pedidos.iter().any(|pedido| pedido == "POST anotacao_registrar"),
+        !pedidos
+            .iter()
+            .any(|pedido| pedido == "POST anotacao_registrar"),
         "sem escrita de anotacao: {pedidos:?}",
     );
     assert!(
         pedidos
             .iter()
             .any(|pedido| pedido == "POST unidade_auto_completar_envio_processo")
-            || pedidos.iter().any(|pedido| pedido == "GET procedimento_enviar"),
+            || pedidos
+                .iter()
+                .any(|pedido| pedido == "GET procedimento_enviar"),
         "a recusa deve decorrer da leitura da unidade recebente: {pedidos:?}",
     );
 }
