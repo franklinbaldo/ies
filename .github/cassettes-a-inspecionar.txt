@@ -1,3 +1,0 @@
-cassettes/unb/processo-enviar-retorno-unb--326217a6e111.md
-cassettes/unb/processo-escritas-unb--47c0acc994ac.md
-cassettes/ufrj/processo-escritas-ufrj--d21a20db9b10.md
