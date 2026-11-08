@@ -187,7 +187,7 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
         "id_procedimento=7&id_protocolo=8000000000001&id_protocolo=8000000000001",
     );
     assert!(
-        protocolo_ambiguo.starts_with("HTTP/1.1 400 Bad Request\\r\\n"),
+        protocolo_ambiguo.starts_with("HTTP/1.1 400 Bad Request\r\n"),
         "{protocolo_ambiguo}"
     );
     assert!(!protocolo_ambiguo.contains("050000001"));
