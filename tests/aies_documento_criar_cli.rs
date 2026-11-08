@@ -29,8 +29,12 @@ const CENARIO: &str = "bdd-246-cli";
 struct Pasta(PathBuf);
 impl Pasta {
     fn nova() -> Self {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let caminho = std::env::temp_dir().join(format!("aies-criar-{}-{nanos}", std::process::id()));
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let caminho =
+            std::env::temp_dir().join(format!("aies-criar-{}-{nanos}", std::process::id()));
         fs::create_dir(&caminho).unwrap();
         Self(caminho)
     }
@@ -51,17 +55,50 @@ fn identidade(pasta: &Path) -> (PathBuf, Identity) {
     let cert = pasta.join("ca.pem");
     let chave = pasta.join("chave.pem");
     let arquivo = pasta.join("cert.p12");
-    assert!(Command::new("openssl").args([
-        "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-sha256",
-        "-days", "1", "-subj", "/CN=sei.test", "-addext",
-        "subjectAltName=DNS:sei.test", "-keyout",
-    ]).arg(&chave).arg("-out").arg(&cert)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap().success());
-    assert!(Command::new("openssl").args([
-        "pkcs12", "-export", "-passout", "pass:teste", "-inkey",
-    ]).arg(&chave).arg("-in").arg(&cert).arg("-out").arg(&arquivo)
-        .stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap().success());
-    (cert, Identity::from_pkcs12(&fs::read(arquivo).unwrap(), "teste").unwrap())
+    assert!(
+        Command::new("openssl")
+            .args([
+                "req",
+                "-x509",
+                "-newkey",
+                "rsa:2048",
+                "-nodes",
+                "-sha256",
+                "-days",
+                "1",
+                "-subj",
+                "/CN=sei.test",
+                "-addext",
+                "subjectAltName=DNS:sei.test",
+                "-keyout",
+            ])
+            .arg(&chave)
+            .arg("-out")
+            .arg(&cert)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("openssl")
+            .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey",])
+            .arg(&chave)
+            .arg("-in")
+            .arg(&cert)
+            .arg("-out")
+            .arg(&arquivo)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    (
+        cert,
+        Identity::from_pkcs12(&fs::read(arquivo).unwrap(), "teste").unwrap(),
+    )
 }
 
 /// Aceita até o subprocesso terminar, sem esperar um número mágico de GETs.
@@ -70,8 +107,12 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
         match escuta.accept() {
             Ok((conexao, peer)) => {
                 assert!(peer.ip().is_loopback());
-                conexao.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                conexao.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                conexao
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                conexao
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return Some(conexao);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -100,11 +141,14 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
     let mut bytes = cabecalho(canal);
     let texto = std::str::from_utf8(&bytes).unwrap();
     let primeira = texto.lines().next().unwrap().to_owned();
-    let tamanho = texto.lines().find_map(|linha| {
-        let (nome, valor) = linha.split_once(':')?;
-        nome.eq_ignore_ascii_case("content-length")
-            .then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let tamanho = texto
+        .lines()
+        .find_map(|linha| {
+            let (nome, valor) = linha.split_once(':')?;
+            nome.eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000);
     let mut corpo = vec![0u8; tamanho];
     canal.read_exact(&mut corpo).unwrap();
@@ -115,16 +159,23 @@ fn pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
 /// O POST foi realmente aplicado pelo anti-IES, mas a resposta perde
 /// a prova de autoria: o IES não deve atribuir a si um documento concorrente.
 fn resposta_sem_prova_de_autoria(resposta: Vec<u8>) -> Vec<u8> {
-    let fim = resposta.windows(4).position(|parte| parte == b"\r\n\r\n").unwrap();
+    let fim = resposta
+        .windows(4)
+        .position(|parte| parte == b"\r\n\r\n")
+        .unwrap();
     let texto = std::str::from_utf8(&resposta[..fim]).unwrap();
     assert!(texto.starts_with("HTTP/1.1 302"));
-    let linhas = texto.lines().map(|linha| {
-        if linha.starts_with("Location: ") {
-            "Location: controlador.php?acao=procedimento_trabalhar&id_protocolo=10"
-        } else {
-            linha
-        }
-    }).collect::<Vec<_>>().join("\r\n");
+    let linhas = texto
+        .lines()
+        .map(|linha| {
+            if linha.starts_with("Location: ") {
+                "Location: controlador.php?acao=procedimento_trabalhar&id_protocolo=10"
+            } else {
+                linha
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\r\n");
     let mut alterado = format!("{linhas}\r\n\r\n").into_bytes();
     alterado.extend_from_slice(&resposta[fim + 4..]);
     alterado
@@ -134,22 +185,53 @@ fn preparar_banco() -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(&mut banco, CENARIO, &ControleResumido {
-        instalacao: origem.clone(),
-        unidade: UnidadeExibida::nova("TESTE").unwrap(),
-        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-    }).unwrap();
-    processos::guardar(&mut banco, &origem, CENARIO, &ProcessoSimulado {
-        id: "10".into(), numero: NUP.into(), unidade_origem: "TESTE".into(),
-        aberto_em: vec!["TESTE".into()], anotacao_origem: None, destinos: vec![],
-    }).unwrap();
-    documentos::registrar_processo(&banco, &origem, CENARIO, &Processo {
-        id: "10".into(), nup: NUP.into(), unidade: "TESTE".into(),
-    }).unwrap();
-    documentos::registrar_tipo(&banco, &origem, CENARIO, "10", &Tipo {
-        id: "291".into(), nome: "Despacho".into(),
-    }).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: origem.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    processos::guardar(
+        &mut banco,
+        &origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: NUP.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+    documentos::registrar_processo(
+        &banco,
+        &origem,
+        CENARIO,
+        &Processo {
+            id: "10".into(),
+            nup: NUP.into(),
+            unidade: "TESTE".into(),
+        },
+    )
+    .unwrap();
+    documentos::registrar_tipo(
+        &banco,
+        &origem,
+        CENARIO,
+        "10",
+        &Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        },
+    )
+    .unwrap();
     documentos::criar(&banco, &origem, CENARIO, "10", "291", "Anterior").unwrap();
     (banco, origem)
 }
@@ -159,9 +241,13 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
     let (cert, identity) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
-    let controle = pasta.privado("url", &format!(
-        "{ORIGEM}/controlador.php?acao=procedimento_controlar&{chave}={}", "a".repeat(64)
-    ));
+    let controle = pasta.privado(
+        "url",
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{chave}={}",
+            "a".repeat(64)
+        ),
+    );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
 
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -174,7 +260,9 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
         while let Some(mut cliente) = aceitar(&escuta, &parar_sim) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        documentos::documentos(&banco, &instalacao, CENARIO, "10").unwrap().len()
+        documentos::documentos(&banco, &instalacao, CENARIO, "10")
+            .unwrap()
+            .len()
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
@@ -186,12 +274,15 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
         let tls = TlsAcceptor::new(identity).unwrap();
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).expect("TLS exclusivamente de teste");
             let (bytes, primeira) = pedido(&mut canal);
             let metodo = primeira.split_whitespace().next().unwrap();
             let rota = primeira.split_whitespace().nth(1).unwrap();
-            let acao = rota.split('&').find_map(|p| p.strip_prefix("acao="))
+            let acao = rota
+                .split('&')
+                .find_map(|p| p.strip_prefix("acao="))
                 .or_else(|| rota.split('?').nth(1).and_then(|p| p.strip_prefix("acao=")))
                 .unwrap_or("desconhecida");
             registro.lock().unwrap().push(format!("{metodo} {acao}"));
@@ -208,24 +299,28 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
         }
     });
 
-    let resultados = comandos.iter().map(|args| {
-        Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(*args)
-            .env("IES_URL_CONTROLE_FILE", &controle)
-            .env("IES_COOKIE_FILE", &cookie)
-            .env("IES_ORIGEM_FILE", &origem)
-            .env("SSL_CERT_FILE", &cert)
-            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-            .env("HOME", &pasta.0)
-            .env_remove("HTTPS_PROXY")
-            .env_remove("all_proxy")
-            .env_remove("ALL_PROXY")
-            .env_remove("NO_PROXY")
-            .env_remove("no_proxy")
-            .env_remove("IES_CONFIG_FILE")
-            .env_remove("IES_CREDENCIAIS_FILE")
-            .output().expect("execução do binário real")
-    }).collect();
+    let resultados = comandos
+        .iter()
+        .map(|args| {
+            Command::new(env!("CARGO_BIN_EXE_ies"))
+                .args(*args)
+                .env("IES_URL_CONTROLE_FILE", &controle)
+                .env("IES_COOKIE_FILE", &cookie)
+                .env("IES_ORIGEM_FILE", &origem)
+                .env("SSL_CERT_FILE", &cert)
+                .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+                .env("HOME", &pasta.0)
+                .env_remove("HTTPS_PROXY")
+                .env_remove("all_proxy")
+                .env_remove("ALL_PROXY")
+                .env_remove("NO_PROXY")
+                .env_remove("no_proxy")
+                .env_remove("IES_CONFIG_FILE")
+                .env_remove("IES_CREDENCIAIS_FILE")
+                .output()
+                .expect("execução do binário real")
+        })
+        .collect();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let quantidade = simulador.join().unwrap();
@@ -235,8 +330,15 @@ fn executar(comandos: &[&[&str]], resposta_incerta: bool) -> (Vec<Output>, Vec<S
 
 fn criar(confirmar: bool) -> Vec<&'static str> {
     let mut args = vec![
-        "--json", "documento", "criar", "--processo", NUP,
-        "--tipo", "Despacho", "--nivel", "publico",
+        "--json",
+        "documento",
+        "criar",
+        "--processo",
+        NUP,
+        "--tipo",
+        "Despacho",
+        "--nivel",
+        "publico",
     ];
     if confirmar {
         args.push("--confirmar");
@@ -245,52 +347,89 @@ fn criar(confirmar: bool) -> Vec<&'static str> {
 }
 
 fn json(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|erro| panic!(
-        "JSON inválido: {erro}; status {:?}; stderr: {}",
-        output.status.code(), String::from_utf8_lossy(&output.stderr)
-    ))
+    serde_json::from_slice(&output.stdout).unwrap_or_else(|erro| {
+        panic!(
+            "JSON inválido: {erro}; status {:?}; stderr: {}",
+            output.status.code(),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })
 }
 
 #[test]
 fn bdd_246_01_cli_previa_sem_post_criador() {
     let args = criar(false);
     let (saidas, trilha, quantidade) = executar(&[&args], false);
-    assert_eq!(saidas[0].status.code(), Some(0), "{:?}: {trilha:?}",
-        String::from_utf8_lossy(&saidas[0].stderr));
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "{:?}: {trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["nup"], NUP);
     assert_eq!(resultado["tipo"], "Despacho");
     assert_eq!(resultado["nivel"], "publico");
     assert_eq!(resultado["confirmado"], false);
     assert_eq!(quantidade, 1);
-    assert_eq!(trilha.iter().filter(|p| *p == "POST documento_gerar").count(), 0);
+    assert_eq!(
+        trilha
+            .iter()
+            .filter(|p| *p == "POST documento_gerar")
+            .count(),
+        0
+    );
 }
 
 #[test]
 fn bdd_246_02_cli_confirma_um_post_e_releitura() {
     let args = criar(true);
     let (saidas, trilha, quantidade) = executar(&[&args], false);
-    assert_eq!(saidas[0].status.code(), Some(0),
-        "{}; {trilha:?}", String::from_utf8_lossy(&saidas[0].stderr));
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(0),
+        "{}; {trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["numero_sei"], "1000002");
     assert_eq!(resultado["confirmado"], true);
     assert_eq!(quantidade, 2, "original preservado + uma única criação");
-    assert_eq!(trilha.iter().filter(|p| *p == "POST documento_gerar").count(), 1);
-    assert!(trilha.iter().rposition(|p| p == "GET procedimento_visualizar")
-        > trilha.iter().position(|p| p == "POST documento_gerar"),
-        "releitura deve acontecer depois do único POST: {trilha:?}");
+    assert_eq!(
+        trilha
+            .iter()
+            .filter(|p| *p == "POST documento_gerar")
+            .count(),
+        1
+    );
+    assert!(
+        trilha
+            .iter()
+            .rposition(|p| p == "GET procedimento_visualizar")
+            > trilha.iter().position(|p| p == "POST documento_gerar"),
+        "releitura deve acontecer depois do único POST: {trilha:?}"
+    );
 }
 
 #[test]
 fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     let args = criar(true);
     let (saidas, trilha, quantidade) = executar(&[&args], true);
-    assert_eq!(saidas[0].status.code(), Some(3),
-        "{}; {trilha:?}", String::from_utf8_lossy(&saidas[0].stderr));
+    assert_eq!(
+        saidas[0].status.code(),
+        Some(3),
+        "{}; {trilha:?}",
+        String::from_utf8_lossy(&saidas[0].stderr)
+    );
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["codigo"], "efeito_incerto");
     assert_eq!(resultado["retentavel"], false);
     assert_eq!(quantidade, 2, "escrita pode ter ocorrido apesar do erro");
-    assert_eq!(trilha.iter().filter(|p| *p == "POST documento_gerar").count(), 1);
+    assert_eq!(
+        trilha
+            .iter()
+            .filter(|p| *p == "POST documento_gerar")
+            .count(),
+        1
+    );
 }
