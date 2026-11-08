@@ -356,7 +356,7 @@ fn responder_pedido(
     metodo: &str,
     alvo: &str,
     corpo: &str,
-    fonte: Option<(&mut Connection, &Instalacao, &str)>,
+    fonte: Option<(&Connection, &Instalacao, &str)>,
 ) -> Resposta {
     let Some((banco, instalacao, cenario)) = fonte else {
         return despachar(metodo, alvo);

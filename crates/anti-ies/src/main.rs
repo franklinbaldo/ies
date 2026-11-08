@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (Some(texto), None) => texto.parse::<u16>()?,
         _ => return Err("uso: anti-ies [porta]".into()),
     };
-    let mut fonte = fonte_da_cassette()?;
+    let fonte = fonte_da_cassette()?;
     let servidor = TcpListener::bind(("127.0.0.1", porta))?;
     eprintln!(
         "anti-IES experimental: http://{}/__anti_ies/health",
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fluxo.set_read_timeout(Some(Duration::from_secs(3)))?;
                 fluxo.set_write_timeout(Some(Duration::from_secs(3)))?;
                 let acesso = fonte
-                    .as_mut()
+                    .as_ref()
                     .map(|(banco, instalacao, cenario)| (banco, instalacao, cenario.as_str()));
                 if let Err(erro) = atender_http(&mut fluxo, acesso) {
                     // Não registrar a requisição: pode conter URL assinada.
@@ -101,7 +101,7 @@ mod tests {
                 .unwrap();
             }
             let acesso = (!matches!(tipo, BancoDoTeste::Nenhum)).then_some((
-                &mut banco,
+                &banco,
                 &instalacao,
                 "ensaio",
             ));

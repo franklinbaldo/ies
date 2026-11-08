@@ -119,7 +119,7 @@ pub fn responder(
     metodo: &str,
     alvo: &str,
     corpo: &str,
-    banco: &mut Connection,
+    banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {

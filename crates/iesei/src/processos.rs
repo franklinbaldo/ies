@@ -208,12 +208,12 @@ pub fn ler(
 /// Distingue processo ausente, origem já fechada, destino não oferecido,
 /// destino já aberto, anotação não observada e erro SQLite real.
 pub fn enviar(
-    banco: &mut Connection,
+    banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     pedido: PedidoEnvio<'_>,
 ) -> Result<ProcessoSimulado, Falha> {
-    let tx = banco.transaction()?;
+    let tx = banco.unchecked_transaction()?;
     let mut processo =
         ler(&tx, instalacao, cenario, pedido.id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
     if !processo.aberto_em.contains(&processo.unidade_origem) {
@@ -270,7 +270,7 @@ pub fn enviar(
 /// # Errors
 /// Preserva ausência da observação e erro SQLite.
 pub fn limpar_anotacao(
-    banco: &mut Connection,
+    banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
