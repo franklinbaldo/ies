@@ -247,3 +247,25 @@ fn corpo_legitimo_com_nome_de_parametro_e_editavel() {
     assert_eq!(documento.revisoes.len(), 2);
     assert_eq!(documento.revisoes[1].html_corpo, "<p>infra_hash</p>");
 }
+
+#[test]
+fn editor_aceita_limpar_o_corpo_e_preserva_a_versao_anterior() {
+    let banco = preparar(0);
+    let formulario =
+        "versao_base=2&html_base=%3Cp%3Eantes%3C%2Fp%3E&html_editado=&confirmar_assinaturas=0";
+    let resposta = responder("POST", alvo(), formulario, &banco, &origem(), "ensaio");
+    assert_eq!(resposta.estado, Estado::Redirecionamento);
+    let documento = ler(&banco, &origem(), "ensaio", "42").unwrap().unwrap();
+    assert_eq!(documento.revisoes.len(), 2);
+    assert_eq!(documento.revisoes[0].html_corpo, "<p>antes</p>");
+    assert_eq!(documento.revisoes[1].html_corpo, "");
+    let versao = anti_ies::documento_versoes::responder(
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=3",
+        &banco,
+        &origem(),
+        "ensaio",
+    );
+    assert_eq!(versao.estado, Estado::Ok);
+    assert!(versao.corpo.contains("<main id='corpoEditavel'></main>"));
+}
