@@ -88,7 +88,12 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     let render1 = consultar(endereco, "GET", &arvore, "");
     assert!(render1.starts_with("HTTP/1.1 200 OK"));
     assert!(render1.contains("Despacho 1000001"));
-    let arvore_antes = consultar(endereco, "GET", &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"), "");
+    let arvore_antes = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
     assert!(arvore_antes.starts_with("HTTP/1.1 200 OK"));
     assert!(arvore_antes.contains("Nos[0] = new infraArvoreNo"));
     assert!(arvore_antes.contains("Despacho 1000001"));
@@ -135,7 +140,12 @@ fn bdd_246_navegacao_post_unico_e_releitura_mantem_estado_compartilhado() {
     assert!(apos.starts_with("HTTP/1.1 200 OK"));
     assert!(apos.contains("Despacho 1000001"));
     assert!(apos.contains("Despacho 1000002"));
-    let arvore_depois = consultar(endereco, "GET", &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"), "");
+    let arvore_depois = consultar(
+        endereco,
+        "GET",
+        &format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10"),
+        "",
+    );
     assert!(arvore_depois.starts_with("HTTP/1.1 200 OK"));
     assert!(arvore_depois.contains("Despacho 1000001"));
     assert!(arvore_depois.contains("Despacho 1000002"));
