@@ -45,7 +45,11 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, "bdd-246"))).unwrap();
         }
-        assert!(sim::documentos(&banco, &origem, "bdd-246", "10").unwrap().is_empty());
+        assert!(
+            sim::documentos(&banco, &origem, "bdd-246", "10")
+                .unwrap()
+                .is_empty()
+        );
     });
     let busca = "/sei/controlador.php?acao=protocolo_pesquisa_rapida";
     let resultado = requisitar(

@@ -45,11 +45,11 @@ pub fn responder(
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
     match ids.as_slice() {
-            [] => Resposta::nova(Estado::NaoEncontrado),
-            [id] => Resposta::redirecionar(format!(
-                "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
-                "c".repeat(64)
-            )),
-            _ => Resposta::nova(Estado::RequisicaoInvalida),
+        [] => Resposta::nova(Estado::NaoEncontrado),
+        [id] => Resposta::redirecionar(format!(
+            "controlador.php?acao=procedimento_trabalhar&acao_origem=protocolo_pesquisa_rapida&id_protocolo={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+            "c".repeat(64)
+        )),
+        _ => Resposta::nova(Estado::RequisicaoInvalida),
     }
 }

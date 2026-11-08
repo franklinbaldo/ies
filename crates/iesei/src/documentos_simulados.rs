@@ -172,7 +172,9 @@ pub fn ids_por_nup(
          WHERE origem=?1 AND cenario=?2 AND nup=?3 ORDER BY id_procedimento",
     )?;
     consulta
-        .query_map(params![origem.url_base(), cenario, nup], |linha| linha.get(0))?
+        .query_map(params![origem.url_base(), cenario, nup], |linha| {
+            linha.get(0)
+        })?
         .collect()
 }
 
