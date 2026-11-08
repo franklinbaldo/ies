@@ -389,10 +389,19 @@ pub fn navegacao(
     if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
         return None;
     }
-    if unico(alvo, "id_documento").is_some() || unico(alvo, "id_protocolo").is_some() {
+    if unico(alvo, "id_documento").is_some() {
         return None;
     }
-    let id = unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
+    // A pesquisa rápida redireciona para id_protocolo, enquanto os links
+    // da árvore usam id_procedimento. Ambos identificam a mesma simulação.
+    let id = match (unico(alvo, "id_procedimento"), unico(alvo, "id_protocolo")) {
+        (Some(id), None) => id,
+        (None, Some(id)) if acao == "procedimento_trabalhar" => id,
+        _ => return None,
+    };
+    if !id.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
     let processo = match ler(banco, instalacao, cenario, id) {
         Ok(Some(processo)) => processo,
         Ok(None) => return None,
