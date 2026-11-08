@@ -147,8 +147,13 @@ pub fn responder(
         Ok(unidade) => unidade,
         Err(estado) => return Resposta::nova(estado),
     };
-    if acao == "procedimento_enviar" && !processo.aberto_em.contains(&unidade_atual)
-        || acao == "anotacao_registrar" && unidade_atual != processo.unidade_origem
+    // A anotacao continua legivel apos a saida da origem: o GET permite
+    // verificar a remocao por releitura independente. Um POST novo, porem,
+    // nao pode editar uma unidade que ja foi fechada pela tramitacao.
+    if (acao == "procedimento_enviar" && !processo.aberto_em.contains(&unidade_atual))
+        || (acao == "anotacao_registrar"
+            && (unidade_atual != processo.unidade_origem
+                || (metodo == "POST" && !processo.aberto_em.contains(&unidade_atual))))
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
