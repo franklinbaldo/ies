@@ -116,7 +116,12 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
     assert_eq!(previa["escrita_remota"], false);
     assert_eq!(value["confirmado"], false);
     assert!(value["assinaturas_remotas"].is_null());
-    assert!(value["aviso_assinaturas"].as_str().unwrap().contains("pode remover assinaturas"));
+    assert!(
+        value["aviso_assinaturas"]
+            .as_str()
+            .unwrap()
+            .contains("pode remover assinaturas")
+    );
     assert!(!value.to_string().contains("<p>"));
     assert!(!pasta.join("ies.sqlite3").exists());
     let (codigo, value) = salvar_offline(&pasta, &["--listar-copias"]);
