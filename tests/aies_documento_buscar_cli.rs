@@ -3,6 +3,7 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
@@ -11,6 +12,7 @@ use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::num::NonZeroU32;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -18,7 +20,8 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const ORIGEM: &str = "https://sei.test/sei";
-const CENARIO: &str = "bdd-61-03";
+const CENARIO: &str = "bdd-61";
+const TERMO_EXATO: &str = "0011519";
 const TERMO: &str = "SEM-REGISTRO-XYZ";
 
 struct Pasta(PathBuf);
@@ -145,7 +148,58 @@ fn encaminhar(canal: &mut impl Read, destino: &mut impl Write) {
     destino.flush().unwrap();
 }
 
+fn preparar_estado(banco: &mut Connection, instalacao: &Instalacao, documento_exato: bool) {
+    banco_cassettes::guardar(
+        banco,
+        CENARIO,
+        &ControleResumido {
+            instalacao: instalacao.clone(),
+            unidade: UnidadeExibida::nova("TESTE").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    if documento_exato {
+        // A identidade e as revisões já pertencem ao mesmo SQLite do anti-IES.
+        documento_versoes::guardar(
+            banco,
+            CENARIO,
+            &DocumentoSimulado {
+                instalacao: instalacao.clone(),
+                id_documento: "42".into(),
+                id_procedimento: "7".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: TERMO_EXATO.into(),
+                tipo: "Ofício".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "Usuário sintético".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "01/11/2026".into(),
+                    html_corpo: "<p>Conteúdo de teste</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+    } else {
+        // Zero explicitamente observado; ausência de registro seria desconhecido.
+        iesei::pesquisa_documento::registrar_sem_resultado(
+            banco,
+            instalacao,
+            CENARIO,
+            &UnidadeExibida::nova("TESTE").unwrap(),
+            TERMO,
+        )
+        .unwrap();
+    }
+}
+
 fn executar(pasta: &Pasta, args: &[&str]) -> Output {
+    executar_com_estado(pasta, args, false)
+}
+
+fn executar_com_estado(pasta: &Pasta, args: &[&str], documento_exato: bool) -> Output {
     let (cert, identity) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let url = pasta.privado(
@@ -162,26 +216,7 @@ fn executar(pasta: &Pasta, args: &[&str]) -> Output {
         let mut banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-        banco_cassettes::guardar(
-            &mut banco,
-            CENARIO,
-            &ControleResumido {
-                instalacao: instalacao.clone(),
-                unidade: UnidadeExibida::nova("TESTE").unwrap(),
-                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            },
-        )
-        .unwrap();
-        // O negativo é observado EXPLICITAMENTE no SQLite, não inferido da ausência.
-        iesei::pesquisa_documento::registrar_sem_resultado(
-            &banco,
-            &instalacao,
-            CENARIO,
-            &UnidadeExibida::nova("TESTE").unwrap(),
-            TERMO,
-        )
-        .unwrap();
+        preparar_estado(&mut banco, &instalacao, documento_exato);
         for _ in 0..3 {
             let mut tcp = aceitar(&servidor);
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
@@ -294,4 +329,31 @@ fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
         assert_eq!(erro["subcodigo"], causa);
         assert_eq!(erro["retentavel"], false);
     }
+}
+
+#[test]
+fn bdd_61_01_cli_documento_unico_por_numero_exato_sem_seguir_302() {
+    let pasta = Pasta::nova();
+    let saida = executar_com_estado(
+        &pasta,
+        &["--json", "documento", "buscar", TERMO_EXATO],
+        true,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let json: Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["resultado"], "documento_unico");
+    assert_eq!(json["termo"], TERMO_EXATO);
+    assert_eq!(json["unidade"], "TESTE");
+    assert_eq!(json["origem"], "web");
+    assert_eq!(json["requisicoes"], 3);
+    assert_eq!(json["documento"]["id"], "42");
+    assert_eq!(json["processo"]["id"], "7");
+    // O redirecionamento só fornece IDs internos; não inventar NUP ou SEI.
+    assert!(json["documento"].get("numero_sei").is_none());
+    assert!(json["processo"].get("numero").is_none());
 }
