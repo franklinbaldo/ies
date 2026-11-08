@@ -378,6 +378,15 @@ fn atender_documento(
     }
 }
 
+fn atender_com_fonte(
+    pedido: &PedidoHttp,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    match parametro_unico(&pedido.alvo, "acao") {        Some("retorno_programado_listar") => {            retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)        }        Some("documento_receber" | "documento_upload_anexo")            if eh_controlador_sei(&pedido.alvo) =>        {            pdf_externo::atender(                &pedido.metodo,                &pedido.alvo,                &pedido.corpo,                banco,                instalacao,                cenario,            )            .unwrap_or_else(|| Resposta::nova(Estado::NaoImplementado))        }        Some("documento_escolher_tipo") if eh_controlador_sei(&pedido.alvo) => {            pdf_externo::complementar_escolha(                atender_documento(&pedido, banco, instalacao, cenario),                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("arvore_visualizar" | "procedimento_trabalhar")            if eh_controlador_sei(&pedido.alvo)                && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>        {            pdf_externo::complementar_arvore(                atender_documento(&pedido, banco, instalacao, cenario),                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {            atender_documento(&pedido, banco, instalacao, cenario)        }        Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {            documento_arvore::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("procedimento_trabalhar")            if eh_controlador_sei(&pedido.alvo)                && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>        {            documento_arvore::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        Some("documento_versao_listar" | "documento_visualizar")            if eh_controlador_sei(&pedido.alvo) =>        {            documento_versoes::responder(                &pedido.metodo,                &pedido.alvo,                banco,                instalacao,                cenario,            )        }        _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),    }
+}
+
 /// Atende a sessão HTTP local sequencialmente, com estado SQLite compartilhado.
 /// Um POST de criação é consumido uma única vez; nenhuma escrita remota existe.
 ///
@@ -394,81 +403,7 @@ pub fn atender_http(
         Err(estado) => Resposta::nova(estado),
         Ok(pedido) => {
             if let Some((banco, instalacao, cenario)) = fonte {
-                match parametro_unico(&pedido.alvo, "acao") {
-                    Some("retorno_programado_listar") => {
-                        retorno_programado(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
-                    }
-                    Some("documento_receber" | "documento_upload_anexo")
-                        if eh_controlador_sei(&pedido.alvo) =>
-                    {
-                        pdf_externo::atender(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            &pedido.corpo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                        .unwrap_or_else(|| Resposta::nova(Estado::NaoImplementado))
-                    }
-                    Some("documento_escolher_tipo") if eh_controlador_sei(&pedido.alvo) => {
-                        pdf_externo::complementar_escolha(
-                            atender_documento(&pedido, banco, instalacao, cenario),
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("arvore_visualizar" | "procedimento_trabalhar")
-                        if eh_controlador_sei(&pedido.alvo)
-                            && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
-                    {
-                        pdf_externo::complementar_arvore(
-                            atender_documento(&pedido, banco, instalacao, cenario),
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {
-                        atender_documento(&pedido, banco, instalacao, cenario)
-                    }
-                    Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
-                        documento_arvore::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("procedimento_trabalhar")
-                        if eh_controlador_sei(&pedido.alvo)
-                            && parametro_unico(&pedido.alvo, "id_protocolo").is_some() =>
-                    {
-                        documento_arvore::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    Some("documento_versao_listar" | "documento_visualizar")
-                        if eh_controlador_sei(&pedido.alvo) =>
-                    {
-                        documento_versoes::responder(
-                            &pedido.metodo,
-                            &pedido.alvo,
-                            banco,
-                            instalacao,
-                            cenario,
-                        )
-                    }
-                    _ => controlar(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario),
-                }
+                atender_com_fonte(&pedido, banco, instalacao, cenario)
             } else {
                 despachar(&pedido.metodo, &pedido.alvo)
             }
