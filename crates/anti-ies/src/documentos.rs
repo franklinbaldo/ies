@@ -10,7 +10,7 @@ fn id_da_rota<'a>(alvo: &'a str, nome: &str) -> Option<&'a str> {
     parametro_unico(alvo, nome).filter(|v| v.bytes().all(|b| b.is_ascii_digit()))
 }
 
-fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
+pub(crate) fn campo_formulario_unico(corpo: &str, nome: &str) -> Option<String> {
     let mut campos = corpo.split('&').filter_map(|campo| campo.split_once('='));
     let valor = campos.find(|(n, _)| *n == nome)?.1;
     let existe_repetido = corpo
@@ -63,9 +63,13 @@ fn pagina_do_processo(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let mut html = format!(
-        "<html><body><span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
+        "<html><body><a id='lnkInfraUnidade' href='#'>{}</a>\
+         <iframe id='ifrArvore' name='ifrArvore' src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
+         <span id='numeroProcesso'>{}</span><span id='unidade'>{}</span>\
          <a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={}'>Incluir Documento</a>\
          <ul id='documentos'>",
+        escapar(&processo.unidade),
+        "e".repeat(64),
         escapar(&processo.nup),
         escapar(&processo.unidade),
         id,
@@ -85,25 +89,125 @@ fn pagina_do_processo(
     Resposta::html(html)
 }
 
-fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
+/// A árvore de processo não deve tomar a rota de versões de documento.
+pub(crate) fn eh_arvore_do_processo(alvo: &str) -> bool {
+    eh_controlador_sei(alvo)
+        && parametro_unico(alvo, "id_procedimento").is_some()
+        && parametro_unico(alvo, "id_documento").is_none()
+        && parametro_unico(alvo, "id_protocolo").is_none()
+}
+
+/// Rotas da criação: outras formas de `procedimento_visualizar`
+/// continuam pertencendo ao leitor de versões, sem colisão por nome.
+pub(crate) fn eh_rota_documentos(alvo: &str) -> bool {
+    match parametro_unico(alvo, "acao") {
+        Some("documento_escolher_tipo" | "documento_gerar" | "arvore_visualizar") => {
+            eh_controlador_sei(alvo)
+        }
+        Some("procedimento_visualizar") => eh_arvore_do_processo(alvo),
+        _ => false,
+    }
+}
+
+/// A árvore é projetada dos documentos persistidos, não de HTML congelado.
+/// A mesma leitura é usada antes e depois do POST criador da #246.
+fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
+    let Ok(Some(processo)) = modelo::ler_processo(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::NaoEncontrado);
+    };
+    let Ok(documentos) = modelo::documentos(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let mut html = String::from("<html><head><script>\nvar Nos = new Array();\n");
+    let nup = escapar_js(&processo.nup);
+    writeln!(
+        html,
+        "Nos[0] = new infraArvoreNo(\"PROCESSO\",\"{id}\",null,\
+         \"controlador.php?acao=arvore_visualizar&id_procedimento={id}\",\
+         \"ifrVisualizacao\",\"{nup}\",\"Processo simulado\",\
+         \"svg/processo.svg\",\"svg/processo.svg\",\"svg/processo.svg\",\
+         true,true,\"noVisitado\",null,\"noVisitado\",\"{nup}\");"
+    )
+    .expect("formatação String");
+    let link = format!(
+        "<a href=\"controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}\">Incluir Documento</a>",
+        "e".repeat(64)
+    );
+    let unidade_html = escapar(&processo.unidade);
+    let situacao = format!(
+        "Processo aberto somente na unidade <a alt=\"{unidade_html}\" title=\"{unidade_html}\" class=\"ancoraSigla\">{unidade_html}</a>.<br />"
+    );
+    writeln!(html, "Nos[0].acoes = '{}';", escapar_js(&link)).expect("formatação String");
+    html.push_str("Nos[0].src = '';\n");
+    writeln!(html, "Nos[0].html = '{}';", escapar_js(&situacao)).expect("formatação String");
+    for (indice, doc) in documentos.iter().enumerate() {
+        let indice = indice + 1;
+        let rotulo = escapar_js(&format!("{} {}", doc.tipo, doc.numero_sei));
+        let numero = escapar_js(&doc.numero_sei);
+        writeln!(
+            html,
+            "Nos[{indice}] = new infraArvoreNo(\"DOCUMENTO\",\"{}\",\"{id}\",\
+             \"about:blank\",\"ifrVisualizacao\",\"{rotulo}\",\"Documento interno\",\
+             \"svg/documento_interno.svg\",\"svg/documento_interno.svg\",\
+             \"svg/documento_interno.svg\",true,false,null,null,\"noVisitado\",\"{numero}\");",
+            doc.id
+        )
+        .expect("formatação String");
+        writeln!(html, "Nos[{indice}].acoes = '';").expect("formatação String");
+        writeln!(html, "Nos[{indice}].src = '';").expect("formatação String");
+        writeln!(html, "Nos[{indice}].html = '';").expect("formatação String");
+    }
+    html.push_str("</script></head><body><div id=\"divArvore\"></div></body></html>");
+    Resposta::html(html)
+}
+
+/// Conteúdo do literal JS publicado no simulador, sem executar o script.
+fn escapar_js(texto: &str) -> String {
+    texto
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+}
+
+fn pagina_da_lista(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    mostrar_todos: bool,
+) -> Resposta {
     let Ok(Some(_)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
     let Ok(tipos) = modelo::tipos(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    // POST de navegacao escolhe a serie, mas nao cadastra documento.
+    // A primeira tela simula a lista recente; o POST "Exibir todos" devolve
+    // a lista completa sem criar documento nem modificar o SQLite.
+    let tem_filtro = tipos.len() > 1;
+    let hash = "e".repeat(64); // Somente navegação sintética do simulador.
     let mut html = format!(
         "<html><head><script>function escolher(id) {{\
          document.getElementById('hdnIdSerie').value=id;\
          document.getElementById('frmDocumentoEscolherTipo').submit();\
+         }}function exibirSeries(tipo) {{\
+         document.getElementById('hdnFiltroSerie').value=tipo;\
+         document.getElementById('frmDocumentoEscolherTipo').submit();\
          }}</script></head><body>\
          <form id='frmDocumentoEscolherTipo' method='post' \
-         action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}'>\
-         <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>\
-         </form><table id='tblSeries'>"
+         action='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={hash}'>\
+         <input type='hidden' id='hdnIdSerie' name='hdnIdSerie' value=''>"
     );
-    for tipo in tipos {
+    if tem_filtro {
+        html.push_str("<input type='hidden' id='hdnFiltroSerie' name='hdnFiltroSerie' value='U'>");
+    }
+    html.push_str("</form><table id='tblSeries'>");
+    for tipo in tipos
+        .iter()
+        .take(if mostrar_todos { tipos.len() } else { 1 })
+    {
         write!(
             html,
             "<tr><td><a href='#' onclick='escolher({})'>{}</a></td></tr>",
@@ -112,7 +216,13 @@ fn pagina_da_lista(banco: &Connection, origem: &Instalacao, cenario: &str, id: &
         )
         .expect("formatação String");
     }
-    html.push_str("</table></body></html>");
+    html.push_str("</table>");
+    if tem_filtro && !mostrar_todos {
+        html.push_str(
+            "<a id='ancExibirSeries' href='#' onclick=\"exibirSeries('T')\">Exibir todos</a>",
+        );
+    }
+    html.push_str("</body></html>");
     Resposta::html(html)
 }
 
@@ -132,15 +242,19 @@ fn cadastro(
     let Some(tipo) = tipos.iter().find(|t| t.id == id_serie) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
+    let hash = "e".repeat(64); // Somente para a navegação no simulador.
     Resposta::html(format!(
-        "<html><body><label id='lblSerieTitulo'>{}</label>\
+        "<html><head><script>function confirmarDados() {{ submeter(); }}\
+         function submeter() {{ document.getElementById('hdnFlagDocumentoCadastro').value='2';\
+         document.getElementById('frmDocumentoCadastro').submit(); }}</script></head><body>\
+         <label id='lblSerieTitulo'>{}</label>\
          <form id='frmDocumentoCadastro' method='post' \
-         action='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={id_serie}'>\
+         action='controlador.php?acao=documento_gerar&amp;id_procedimento={id}&amp;id_serie={id_serie}&amp;infra_hash={hash}'>\
          <input type='hidden' name='hdnIdSerie' value='{id_serie}'>\
-         <input type='hidden' name='hdnFlagDocumentoCadastro' value='2'>\
+         <input type='hidden' name='hdnFlagDocumentoCadastro' value='1'>\
          <input type='radio' id='optPublico' name='rdoNivelAcesso' value='0'>\
          <input type='text' id='txtDescricao' name='txtDescricao'>\
-         <button type='submit'>Salvar</button></form></body></html>",
+         </form><button type='button' id='btnSalvar' name='btnSalvar' onclick='confirmarDados()'>Salvar</button></body></html>",
         escapar(&tipo.nome),
     ))
 }
@@ -166,19 +280,47 @@ pub(crate) fn atender(
         "documento_gerar"
             | "documento_escolher_tipo"
             | "procedimento_trabalhar"
+            | "procedimento_visualizar"
             | "arvore_visualizar"
     ) {
         return Resposta::nova(Estado::NaoImplementado);
     }
-    let Some(id) = id_da_rota(alvo, "id_procedimento") else {
-        return Resposta::nova(Estado::RequisicaoInvalida);
+    let id_procedimento = id_da_rota(alvo, "id_procedimento");
+    let id_protocolo = id_da_rota(alvo, "id_protocolo");
+    let id = match (id_procedimento, id_protocolo) {
+        (Some(id), None) => id,
+        (None, Some(id)) if acao == "procedimento_trabalhar" => id,
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
     };
     match (acao, metodo) {
         ("procedimento_trabalhar" | "arvore_visualizar", "GET") => {
             pagina_do_processo(banco, origem, cenario, id)
         }
-        ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id),
+        ("procedimento_visualizar", "GET") => pagina_da_arvore(banco, origem, cenario, id),
+        ("documento_escolher_tipo", "GET") => pagina_da_lista(banco, origem, cenario, id, false),
         ("documento_escolher_tipo", "POST") => {
+            // Um filtro T pede a lista inteira; a escolha de série continua
+            // sendo uma operação de navegação diferente da criação.
+            let filtro_presente = corpo
+                .split('&')
+                .filter_map(|campo| campo.split_once('='))
+                .any(|(nome, _)| nome == "hdnFiltroSerie");
+            let filtro = campo_formulario_unico(corpo, "hdnFiltroSerie");
+            if filtro_presente && filtro.is_none() {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            match filtro.as_deref() {
+                Some("T") => {
+                    if campo_formulario_unico(corpo, "hdnIdSerie")
+                        .is_some_and(|serie| !serie.is_empty())
+                    {
+                        return Resposta::nova(Estado::RequisicaoInvalida);
+                    }
+                    return pagina_da_lista(banco, origem, cenario, id, true);
+                }
+                None | Some("U") => {}
+                _ => return Resposta::nova(Estado::RequisicaoInvalida),
+            }
             let Some(serie) = campo_formulario_unico(corpo, "hdnIdSerie") else {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             };
@@ -191,7 +333,8 @@ pub(crate) fn atender(
                 return resposta;
             }
             Resposta::redirecionar(format!(
-                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}"
+                "controlador.php?acao=documento_gerar&id_procedimento={id}&id_serie={serie}&infra_hash={}",
+                "e".repeat(64)
             ))
         }
         ("documento_gerar", "GET") => {

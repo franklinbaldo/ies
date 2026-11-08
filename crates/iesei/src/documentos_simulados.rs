@@ -156,6 +156,28 @@ pub fn tipos(
     .collect()
 }
 
+/// Pesquisa NUP exato no estado compartilhado do simulador.
+/// Não cria processo nem resolve arbitrariamente números duplicados.
+///
+/// # Errors
+/// Propaga a falha original do SQLite.
+pub fn ids_por_nup(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    nup: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let mut consulta = banco.prepare(
+        "SELECT id_procedimento FROM sim_processo
+         WHERE origem=?1 AND cenario=?2 AND nup=?3 ORDER BY id_procedimento",
+    )?;
+    consulta
+        .query_map(params![origem.url_base(), cenario, nup], |linha| {
+            linha.get(0)
+        })?
+        .collect()
+}
+
 /// Fotografia independente dos documentos que existem no estado simulado.
 ///
 /// # Errors
