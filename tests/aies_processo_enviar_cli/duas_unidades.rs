@@ -27,7 +27,7 @@ fn envio_sucessivo_pela_cli_usa_unidade_ativa_e_mesmo_sqlite() {
         false,
         Some("Nota da origem"),
         false,
-        false,
+        EnsaioRemocao::Normal,
         Some("DESTINO"),
     );
     for (indice, saida) in saidas.iter().enumerate() {
@@ -106,7 +106,7 @@ fn unidade_recebente_nao_pode_remover_anotacao_da_origem_fechada() {
         false,
         Some("Nota da origem"),
         false,
-        false,
+        EnsaioRemocao::Normal,
         Some("DESTINO"),
     );
 

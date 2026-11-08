@@ -44,8 +44,9 @@ fn unidade_da_sessao(
 fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
     let texto = processo.anotacao_origem.as_deref()?;
     Some(format!(
-        "<html><body><form id='frmAnotacaoCadastro' method='post'          action='controlador.php?acao=anotacao_registrar&id_procedimento={}'>         <input type='hidden' name='hdnIdProtocolo' value='{}'>         <textarea id='txaDescricao' name='txaDescricao'>{}</textarea>         <button type='submit' name='sbmRegistrarAnotacao'>Salvar</button>         </form></body></html>",
+        "<html><body><form id='frmAnotacaoCadastro' method='post'          action='controlador.php?acao=anotacao_registrar&id_procedimento={}&infra_hash={}'>         <input type='hidden' name='hdnIdProtocolo' value='{}'>         <textarea id='txaDescricao' name='txaDescricao'>{}</textarea>         <button type='submit' name='sbmRegistrarAnotacao'>Salvar</button>         </form></body></html>",
         html(&processo.id),
+        "a".repeat(64),
         html(&processo.id),
         html(texto),
     ))
