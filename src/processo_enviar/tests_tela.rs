@@ -351,3 +351,71 @@ fn anti_ies_autocomplete_e_lido_pelo_parser_real_do_ies() {
     assert_eq!(escolhido.id_unidade, "2");
     assert_eq!(escolhido.sigla, "DESTINO");
 }
+
+/// BDD-333-04 (CLI processo enviar): a mesma árvore HTML simulada precisa
+/// atravessar o leitor real do IES antes e depois da transição SQLite.
+#[test]
+fn bdd_333_04_ies_interpreta_a_arvore_anti_ies_antes_e_depois_da_tramitacao() {
+    use crate::arvore_processo::{AbertoEm, ler_arvore};
+    use iesei::banco_cassettes::iniciar;
+    use iesei::instalacao::Instalacao;
+    use iesei::processos::{
+        Destino as DestinoSimulado, PedidoEnvio, ProcessoSimulado, enviar, guardar,
+    };
+    use rusqlite::Connection;
+
+    let mut db = Connection::open_in_memory().unwrap();
+    iniciar(&db).unwrap();
+    let instalacao = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    guardar(
+        &mut db,
+        &instalacao,
+        "bdd-333",
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "ORIGEM".into(),
+            aberto_em: vec!["ORIGEM".into()],
+            anotacao_origem: Some("Texto anterior".into()),
+            destinos: vec![DestinoSimulado {
+                id: "2".into(),
+                sigla: "DESTINO".into(),
+                descricao: "DESTINO - Teste".into(),
+            }],
+        },
+    )
+    .unwrap();
+
+    let ler_siglas = || {
+        let html = anti_ies::processo_envio::navegacao(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
+            &db,
+            &instalacao,
+            "bdd-333",
+        )
+        .expect("processo presente")
+        .corpo;
+        let arvore = ler_arvore(&html, "00001.000001/2026-01", "10").unwrap();
+        match arvore.aberto_em {
+            AbertoEm::Unidades(unidades) => {
+                unidades.into_iter().map(|u| u.sigla).collect::<Vec<_>>()
+            }
+            outro => panic!("situação não lida pelo IES: {outro:?}"),
+        }
+    };
+    assert_eq!(ler_siglas(), ["ORIGEM"]);
+    enviar(
+        &db,
+        &instalacao,
+        "bdd-333",
+        PedidoEnvio {
+            id: "10",
+            id_destino: "2",
+            manter_aberto: true,
+            remover_anotacoes: true,
+        },
+    )
+    .unwrap();
+    assert_eq!(ler_siglas(), ["ORIGEM", "DESTINO"]);
+}
