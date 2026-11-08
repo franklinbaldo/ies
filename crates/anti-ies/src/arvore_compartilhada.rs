@@ -5,7 +5,6 @@ use iesei::documentos_simulados as interno;
 use iesei::instalacao::Instalacao;
 use iesei::pdf_externo as externo;
 use rusqlite::Connection;
-use std::fmt::Write as _;
 
 fn js(valor: &str) -> String {
     valor
@@ -71,11 +70,10 @@ pub(crate) fn responder(
         }
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let selecionado = parametro_unico(alvo, "id_documento")
-        .or_else(|| parametro_unico(alvo, "id_protocolo"));
-    let original = selecionado.map(|_| {
-        documento_arvore::responder(metodo, alvo, banco, origem, cenario)
-    });
+    let selecionado =
+        parametro_unico(alvo, "id_documento").or_else(|| parametro_unico(alvo, "id_protocolo"));
+    let original =
+        selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
     if original
         .as_ref()
         .is_some_and(|resposta| resposta.estado != Estado::Ok)
