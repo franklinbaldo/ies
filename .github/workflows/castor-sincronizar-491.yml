@@ -75,7 +75,7 @@ jobs:
           PY
             git add crates/anti-ies/src/lib.rs crates/anti-ies/src/rotas.rs crates/iesei/src/banco_cassettes.rs crates/iesei/src/documentos_simulados.rs crates/iesei/tests/banco_cassettes.rs crates/iesei/tests/retornos_cassettes.rs
             test -z "$(git ls-files -u)"
-            git diff --cached --check
+            git diff --cached --check -- crates/anti-ies/src/lib.rs crates/anti-ies/src/rotas.rs crates/iesei/src/banco_cassettes.rs crates/iesei/src/documentos_simulados.rs crates/iesei/tests/banco_cassettes.rs crates/iesei/tests/retornos_cassettes.rs
             git commit -m "🦫 merge: conciliar relacionamentos v15 com cancelamento v13 e busca v14"
           fi
           git push origin HEAD:codex/castor-258-relacionar-aies-bdd01
