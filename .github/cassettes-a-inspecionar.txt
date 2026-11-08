@@ -1,2 +1,0 @@
-cassettes/go/documento-buscar-texto-go--724f88e4c47b.md
-cassettes/unb/documento-numero-e-busca-unb--f1b386d8e7bc.md
