@@ -331,9 +331,14 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
                     } else {
                         OrigemDoTrabalho::PesquisaRapida
                     };
-                    conferir_trabalho(r.localizacao(), r.url_do_envio(), &contexto.instalacao, origem)
-                        .map(Some)
-                        .map_err(E::Redirecionamento)
+                    conferir_trabalho(
+                        r.localizacao(),
+                        r.url_do_envio(),
+                        &contexto.instalacao,
+                        origem,
+                    )
+                    .map(Some)
+                    .map_err(E::Redirecionamento)
                 }
                 _ => Ok(None),
             },
