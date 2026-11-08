@@ -1,8 +1,7 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, controlar, documento_arvore, documento_versoes, documentos, editor_documento,
-    eh_controlador_sei,
-    parametro_unico, pesquisa_documento, processo_envio, retorno_programado,
+    eh_controlador_sei, parametro_unico, pesquisa_documento, processo_envio, retorno_programado,
 };
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
