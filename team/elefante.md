@@ -58,6 +58,18 @@ antes de a entregar. Reponha a fila com cenários prontos.
 Conferir cenário BDD previamente aprovado na issue, CI do head exato,
 ausência de bloqueantes de segurança e escopo restrito antes do merge commit.
 
+## Dupla implementação, três níveis na fila
+
+Em cada handoff de capacidade Web, exigir uma fatia IES ↔ anti-IES:
+comando da CLI, servidor funcional com SQLite compartilhado e releitura
+do efeito. Conferir, **separadamente**, o confronto do IES e do anti-IES
+com as cassettes e a validação no SEI de treinamento; registrar
+`PASS/FAIL/NOT_RUN` por nível e links mínimos na PR/issue
+([protocolo](../docs/anti-ies/ciclo-cassettes.md)).
+Sem cassette ou rede, integrar a fatia sintética com CI verde e manter
+os níveis externos pendentes. Não promover `PASS` sintético a live,
+nem reservar o trabalho para esperar provas futuras.
+
 ## Orientações específicas
 
 O Elefante atua na integração e gestão do backlog GitHub. Os comentários no GitHub iniciam por '🐘 Elefante:'. Preserva os gates verdes do CI e o histórico limpo via merge commits.
