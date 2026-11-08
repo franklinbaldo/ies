@@ -403,7 +403,7 @@ fn atender_com_fonte(
         }
         Some("documento_escolher_tipo") if eh_controlador_sei(&pedido.alvo) => {
             pdf_externo::complementar_escolha(
-                atender_documento(&pedido, banco, instalacao, cenario),
+                atender_documento(pedido, banco, instalacao, cenario),
                 &pedido.alvo,
                 banco,
                 instalacao,
@@ -415,7 +415,7 @@ fn atender_com_fonte(
                 && parametro_unico(&pedido.alvo, "id_procedimento").is_some() =>
         {
             pdf_externo::complementar_arvore(
-                atender_documento(&pedido, banco, instalacao, cenario),
+                atender_documento(pedido, banco, instalacao, cenario),
                 &pedido.alvo,
                 banco,
                 instalacao,
@@ -423,7 +423,7 @@ fn atender_com_fonte(
             )
         }
         Some("documento_gerar") if eh_controlador_sei(&pedido.alvo) => {
-            atender_documento(&pedido, banco, instalacao, cenario)
+            atender_documento(pedido, banco, instalacao, cenario)
         }
         Some("procedimento_visualizar") if eh_controlador_sei(&pedido.alvo) => {
             documento_arvore::responder(&pedido.metodo, &pedido.alvo, banco, instalacao, cenario)
