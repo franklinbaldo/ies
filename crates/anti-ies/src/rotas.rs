@@ -36,6 +36,11 @@ pub(crate) fn responder(
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_trabalhar")
+            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
+        {
+            documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_procedimento").is_some() =>
         {
             processo_envio::navegacao(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(

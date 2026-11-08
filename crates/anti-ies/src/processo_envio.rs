@@ -307,19 +307,22 @@ fn literal_js(texto: &str) -> String {
         .replace('\n', "\\n")
 }
 
-fn arvore_do_processo(processo: &ProcessoSimulado) -> String {
+fn arvore_do_processo(
+    processo: &ProcessoSimulado, banco: &Connection, instalacao: &Instalacao, cenario: &str,
+) -> Result<String, Estado> {
+    let nos = super::documento_arvore::nos_do_processo(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let situacao = literal_js(&situacao_da_raiz(processo));
-    format!(
+    Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
 Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
 Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
-</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
-    )
+{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+    ))
 }
 
 fn trabalho_do_processo(processo: &ProcessoSimulado) -> String {
@@ -351,6 +354,9 @@ pub fn navegacao(
     if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
         return None;
     }
+    if unico(alvo, "id_documento").is_some() || unico(alvo, "id_protocolo").is_some() {
+        return None;
+    }
     let id = unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))?;
     let processo = match ler(banco, instalacao, cenario, id) {
         Ok(Some(processo)) => processo,
@@ -360,9 +366,11 @@ pub fn navegacao(
     if metodo != "GET" {
         return Some(Resposta::nova(Estado::MetodoNaoPermitido));
     }
-    Some(resposta_html(if acao == "procedimento_trabalhar" {
-        trabalho_do_processo(&processo)
-    } else {
-        arvore_do_processo(&processo)
-    }))
+    if acao == "procedimento_trabalhar" {
+        return Some(resposta_html(trabalho_do_processo(&processo)));
+    }
+    Some(match arvore_do_processo(&processo, banco, instalacao, cenario) {
+        Ok(corpo) => resposta_html(corpo),
+        Err(estado) => Resposta::nova(estado),
+    })
 }

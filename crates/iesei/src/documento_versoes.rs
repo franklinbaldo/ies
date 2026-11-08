@@ -211,3 +211,21 @@ pub fn ids_por_numero(
     }
     Ok(encontrados)
 }
+
+/// Lista documentos versionados pertencentes a um processo no mesmo cenário.
+///
+/// # Errors
+/// Propaga a falha original do SQLite.
+pub fn ids_do_processo(
+    banco: &Connection, instalacao: &Instalacao, cenario: &str, id_procedimento: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let mut stmt = banco.prepare(
+        "SELECT id_documento FROM documento_simulado
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY id_documento",
+    )?;
+    let linhas = stmt.query_map(
+        params![instalacao.url_base(), cenario, id_procedimento],
+        |linha| linha.get::<_, String>(0),
+    )?;
+    linhas.collect()
+}
