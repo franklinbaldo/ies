@@ -16,10 +16,10 @@ use std::num::NonZeroU32;
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-60-06-cli";
@@ -110,7 +110,6 @@ fn cabecalho(canal: &mut impl Read) -> Vec<u8> {
     bytes
 }
 
-
 fn aceitar_ate(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     escuta.set_nonblocking(true).unwrap();
     loop {
@@ -137,20 +136,38 @@ fn estado(com_segundo: bool) -> (Connection, Instalacao) {
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
     banco_cassettes::guardar(
-        &mut banco, CENARIO,
+        &mut banco,
+        CENARIO,
         &ControleResumido {
             instalacao: origem.clone(),
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
         },
-    ).unwrap();
+    )
+    .unwrap();
     for (id, processo, nup, numero, corpo) in [
-        ("42", "7", NUP_A, DOC_A, "Conteudo exclusivo do primeiro processo"),
-        ("43", "8", NUP_B, DOC_B, "Conteudo exclusivo do segundo processo"),
-    ].into_iter().take(if com_segundo { 2 } else { 1 }) {
+        (
+            "42",
+            "7",
+            NUP_A,
+            DOC_A,
+            "Conteudo exclusivo do primeiro processo",
+        ),
+        (
+            "43",
+            "8",
+            NUP_B,
+            DOC_B,
+            "Conteudo exclusivo do segundo processo",
+        ),
+    ]
+    .into_iter()
+    .take(if com_segundo { 2 } else { 1 })
+    {
         documento_versoes::guardar(
-            &mut banco, CENARIO,
+            &mut banco,
+            CENARIO,
             &DocumentoSimulado {
                 instalacao: origem.clone(),
                 id_documento: id.into(),
@@ -166,7 +183,8 @@ fn estado(com_segundo: bool) -> (Connection, Instalacao) {
                     html_corpo: format!("<p>{corpo}</p>"),
                 }],
             },
-        ).unwrap();
+        )
+        .unwrap();
     }
     (banco, origem)
 }
@@ -175,7 +193,8 @@ fn acao_do_pedido(cab: &[u8]) -> String {
     let primeira = std::str::from_utf8(cab).unwrap().lines().next().unwrap();
     let metodo = primeira.split_whitespace().next().unwrap();
     let acao = primeira
-        .split("acao=").nth(1)
+        .split("acao=")
+        .nth(1)
         .and_then(|s| s.split(&['&', ' '][..]).next())
         .unwrap_or("sem_acao");
     format!("{metodo} {acao}")
@@ -216,17 +235,21 @@ fn executar(com_segundo: bool) -> (Output, Vec<String>) {
         let tls = TlsAcceptor::new(identidade).unwrap();
         while let Some(mut tcp) = aceitar_ate(&proxy, &parar_proxy) {
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).expect("TLS de teste");
             let mut destino = TcpStream::connect(endereco).unwrap();
             let cab = cabecalho(&mut canal);
             pedidos_proxy.lock().unwrap().push(acao_do_pedido(&cab));
             let texto = std::str::from_utf8(&cab).unwrap();
-            let tamanho = texto.lines().find_map(|l| {
-                let (nome, valor) = l.split_once(':')?;
-                nome.eq_ignore_ascii_case("content-length")
-                    .then(|| valor.trim().parse::<usize>().unwrap())
-            }).unwrap_or(0);
+            let tamanho = texto
+                .lines()
+                .find_map(|l| {
+                    let (nome, valor) = l.split_once(':')?;
+                    nome.eq_ignore_ascii_case("content-length")
+                        .then(|| valor.trim().parse::<usize>().unwrap())
+                })
+                .unwrap_or(0);
             assert!(tamanho < 64_000);
             destino.write_all(&cab).unwrap();
             let mut corpo = vec![0; tamanho];
@@ -255,7 +278,8 @@ fn executar(com_segundo: bool) -> (Output, Vec<String>) {
         .env_remove("no_proxy")
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
-        .output().expect("binário ies");
+        .output()
+        .expect("binário ies");
     parar.store(true, Ordering::Release);
     tunel.join().expect("proxy TLS");
     simulador.join().expect("anti-IES SQLite");
@@ -265,22 +289,41 @@ fn executar(com_segundo: bool) -> (Output, Vec<String>) {
 
 fn json(saida: &Output) -> Value {
     serde_json::from_slice(&saida.stdout).unwrap_or_else(|e| {
-        panic!("JSON inválido: {e}; exit={:?}; stderr={}", saida.status.code(),
-            String::from_utf8_lossy(&saida.stderr))
+        panic!(
+            "JSON inválido: {e}; exit={:?}; stderr={}",
+            saida.status.code(),
+            String::from_utf8_lossy(&saida.stderr)
+        )
     })
 }
 
 #[test]
 fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
     let (saida, trilha) = executar(true);
-    assert_eq!(saida.status.code(), Some(0),
-        "stderr={} trilha={trilha:?}", String::from_utf8_lossy(&saida.stderr));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let valor = json(&saida);
     let documentos = valor["documentos"].as_array().expect("lista de documentos");
     assert_eq!(documentos.len(), 2, "{valor}");
     for (doc, numero, nup, exclusivo, alheio) in [
-        (&documentos[0], DOC_A, NUP_A, "primeiro processo", "segundo processo"),
-        (&documentos[1], DOC_B, NUP_B, "segundo processo", "primeiro processo"),
+        (
+            &documentos[0],
+            DOC_A,
+            NUP_A,
+            "primeiro processo",
+            "segundo processo",
+        ),
+        (
+            &documentos[1],
+            DOC_B,
+            NUP_B,
+            "segundo processo",
+            "primeiro processo",
+        ),
     ] {
         assert_eq!(doc["numero"], numero);
         assert_eq!(doc["processo"]["nup"], nup);
@@ -288,19 +331,33 @@ fn bdd_60_06_lote_interprocessos_preserva_identidades_e_conteudos() {
         assert!(!doc["texto"].as_str().unwrap().contains(alheio), "{doc}");
     }
     assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
-    assert!(trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
-        "não há escrita, apenas navegação permitida: {trilha:?}");
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "não há escrita, apenas navegação permitida: {trilha:?}"
+    );
 }
 
 #[test]
 fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
     let (saida, trilha) = executar(false);
-    assert_ne!(saida.status.code(), Some(0),
-        "não pode usar o conteúdo de A como B");
+    assert_ne!(
+        saida.status.code(),
+        Some(0),
+        "não pode usar o conteúdo de A como B"
+    );
     let valor = json(&saida);
     assert_eq!(valor["documento"], DOC_B, "{valor}");
     assert_eq!(valor["documentos_lidos_antes"], 1, "{valor}");
-    assert!(valor.get("documentos").is_none(), "não publicar lote parcial: {valor}");
-    assert!(trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
-        "a falha não autoriza escrita: {trilha:?}");
+    assert!(
+        valor.get("documentos").is_none(),
+        "não publicar lote parcial: {valor}"
+    );
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "a falha não autoriza escrita: {trilha:?}"
+    );
 }
