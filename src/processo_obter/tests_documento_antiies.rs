@@ -79,7 +79,7 @@ fn conferir_foto_local(resultado: &super::DocumentoObtido) {
             .as_nanos()
     ));
     std::fs::create_dir(&pasta).unwrap();
-    let lote = std::slice::from_ref(&resultado);
+    let lote = std::slice::from_ref(resultado);
     let primeira = crate::documento_versao_cli::gravar_fotos(&pasta, lote).unwrap();
     assert!(primeira[0].as_ref().unwrap().gravado);
     let destino = pasta.join("0000101.v1.html");
