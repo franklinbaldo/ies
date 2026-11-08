@@ -239,6 +239,7 @@ mod tests {
                 .id,
             "22"
         );
+    }
     #[test]
     fn identificar_prioriza_nup_literal_antes_de_equivalencia() {
         let mut db = Connection::open_in_memory().unwrap();
@@ -260,12 +261,23 @@ mod tests {
             )
             .unwrap();
         }
-        assert_eq!(identificar(&db, &origem, "caso", "AB-C").unwrap().unwrap().id, "10");
-        assert_eq!(identificar(&db, &origem, "caso", "A-BC").unwrap().unwrap().id, "22");
+        assert_eq!(
+            identificar(&db, &origem, "caso", "AB-C")
+                .unwrap()
+                .unwrap()
+                .id,
+            "10"
+        );
+        assert_eq!(
+            identificar(&db, &origem, "caso", "A-BC")
+                .unwrap()
+                .unwrap()
+                .id,
+            "22"
+        );
         assert!(matches!(
             identificar(&db, &origem, "caso", "ABC"),
             Err(Falha::DestinoAmbiguo)
         ));
-    }
     }
 }
