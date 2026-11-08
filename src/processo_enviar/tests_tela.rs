@@ -298,7 +298,7 @@ fn anti_ies_gera_formulario_que_o_leitor_ies_compreende() {
         "GET",
         "/sei/controlador.php?acao=procedimento_enviar&id_procedimento=10",
         "",
-        &mut banco,
+        &banco,
         &origem,
         "teste-leitor",
     );

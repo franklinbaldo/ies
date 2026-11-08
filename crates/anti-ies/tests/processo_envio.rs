@@ -180,7 +180,7 @@ fn bdd_333_03_http_loopback_persiste_envio_e_releitura_independente() {
 }
 
 #[test]
-fn bdd_333_05_autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
+fn autocomplete_do_sqlite_recusa_destino_ausente_sem_escrever() {
     let banco = preparar();
     let antes = ler(&banco, &origem(), "cenario-a", "10").unwrap();
     let alvo = "/sei/controlador_ajax.php?acao_ajax=unidade_auto_completar_envio_processo";
