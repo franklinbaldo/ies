@@ -154,9 +154,12 @@ fn pdf_do_multipart(corpo: &[u8]) -> Option<(String, u64)> {
         return None;
     }
     let nome = cabecalho.split("filename=\"").nth(1)?.split('"').next()?;
-    if nome.is_empty() || nome.contains(['\r', '\n']) || !std::path::Path::new(nome)
+    if nome.is_empty()
+        || nome.contains(['\r', '\n'])
+        || !std::path::Path::new(nome)
             .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+    {
         return None;
     }
     let restante = &corpo[separador + 4..];
