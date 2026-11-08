@@ -8,6 +8,7 @@ pub mod documentos_simulados;
 pub mod editor_documento;
 pub mod instalacao;
 pub mod observacao;
+pub mod pesquisa_documento;
 pub mod pdf_externo;
 pub mod processos;
 pub mod retornos_cassettes;
