@@ -39,7 +39,7 @@ pub(crate) fn controle_html(controle: &ControleResumido) -> Option<String> {
     // Assinaturas aqui sao placeholders locais, nunca tokens de SEI.
     let formulario = format!(
         r#"<form id="frmProtocoloPesquisaRapida" method="post" action="controlador.php?acao=protocolo_pesquisa_rapida&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}"><input type="text" id="txtPesquisaRapida" name="txtPesquisaRapida" /><img src="svg/pesquisa_rapida.svg" onclick="document.getElementById('frmProtocoloPesquisaRapida').submit();" /></form>"#,
-        "b".repeat(64)
+        crate::protocolo_sintetico::INFRA_HASH
     );
     let mut html = format!(
         "<html><body>{formulario}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",

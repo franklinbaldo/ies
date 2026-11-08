@@ -107,6 +107,8 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
     assert!(depois.contains("Despacho"));
     assert!(depois.contains("Nos[2] = new infraArvoreNo(\"DOCUMENTO\""));
     assert!(depois.contains("Anexo 050000001"));
+    // A árvore do PDF usa o mesmo token emulado da barra e do Controle R.
+    assert!(depois.contains(&format!("infra_hash={}", "4".repeat(64))));
 }
 
 #[test]

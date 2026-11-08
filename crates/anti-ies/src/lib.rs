@@ -11,6 +11,7 @@ pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
 pub mod processo_envio;
+mod protocolo_sintetico;
 mod rotas;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
@@ -215,7 +216,7 @@ fn html_de_retornos(mes: &Mes) -> String {
 fn link_calendario() -> String {
     format!(
         "controlador.php?acao=retorno_programado_listar&amp;infra_hash={}",
-        "b".repeat(64)
+        protocolo_sintetico::INFRA_HASH
     )
 }
 
