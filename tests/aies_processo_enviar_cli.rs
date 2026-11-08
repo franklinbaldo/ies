@@ -242,11 +242,18 @@ fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
             unidade_origem: "ORIGEM".into(),
             aberto_em: vec!["ORIGEM".into()],
             anotacao_origem: anotacao.map(str::to_owned),
-            destinos: vec![Destino {
-                id: "2".into(),
-                sigla: "DESTINO".into(),
-                descricao: "DESTINO - Unidade de teste".into(),
-            }],
+            destinos: vec![
+                Destino {
+                    id: "2".into(),
+                    sigla: "DESTINO".into(),
+                    descricao: "DESTINO - Unidade de teste".into(),
+                },
+                Destino {
+                    id: "3".into(),
+                    sigla: "ARQUIVO".into(),
+                    descricao: "ARQUIVO - Unidade de teste".into(),
+                },
+            ],
         },
     )
     .unwrap();
@@ -269,6 +276,21 @@ fn executar_com_ensaio_local(
     ensaio_local: bool,
     omitir_remocao_no_post: bool,
 ) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
+    executar_com_troca_de_unidade(
+        comandos, falhar_releitura, anotacao, ensaio_local, omitir_remocao_no_post, false,
+    )
+}
+
+/// No ensaio de duas CLI, troca a unidade ativa entre os subprocessos,
+/// preservando o mesmo banco SQLite e sem alterar o fluxo de cada comando.
+fn executar_com_troca_de_unidade(
+    comandos: &[&[&str]],
+    falhar_releitura: bool,
+    anotacao: Option<&'static str>,
+    ensaio_local: bool,
+    omitir_remocao_no_post: bool,
+    trocar_apos_primeiro: bool,
+) -> (Vec<Output>, Vec<String>, ProcessoSimulado) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -286,13 +308,31 @@ fn executar_com_ensaio_local(
     let destino = escuta.local_addr().unwrap();
     let parar = Arc::new(AtomicBool::new(false));
     let parar_sim = Arc::clone(&parar);
+    let trocar = Arc::new(AtomicBool::new(false));
+    let trocar_sim = Arc::clone(&trocar);
     let simulador = thread::spawn(move || {
-        let (banco, instalacao) = preparar_banco(anotacao);
+        let (mut banco, instalacao) = preparar_banco(anotacao);
         let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
         assert_eq!(antes.aberto_em, ["ORIGEM"]);
         while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
+            if trocar_sim.swap(false, Ordering::SeqCst) {
+                // Verificação antes da segunda escrita: o primeiro envio
+                // fechou ORIGEM, mas ainda não transferiu o processo a ARQUIVO.
+                let intermediario = processos::ler(&banco, &instalacao, CENARIO, "10")
+                    .unwrap().unwrap();
+                assert_eq!(intermediario.aberto_em, ["DESTINO"]);
+                banco_cassettes::guardar(
+                    &mut banco, CENARIO,
+                    &ControleResumido {
+                        instalacao: instalacao.clone(),
+                        unidade: UnidadeExibida::nova("DESTINO").unwrap(),
+                        recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                        gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                    },
+                ).unwrap();
+            }
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
         processos::ler(&banco, &instalacao, CENARIO, "10")
@@ -337,7 +377,11 @@ fn executar_com_ensaio_local(
     });
     let saidas = comandos
         .iter()
-        .map(|args| {
+        .enumerate()
+        .map(|(indice, args)| {
+            if trocar_apos_primeiro && indice == 1 {
+                trocar.store(true, Ordering::SeqCst);
+            }
             let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
             if ensaio_local {
                 comando.env("IES_ANTI_IES_TESTE", "1");
@@ -469,3 +513,6 @@ fn bdd_333_02_efeito_incerto_depois_do_post_nao_repete_escrita() {
 
 #[path = "aies_processo_enviar_cli/remocao.rs"]
 mod remocao;
+
+#[path = "aies_processo_enviar_cli/duas_unidades.rs"]
+mod duas_unidades;
