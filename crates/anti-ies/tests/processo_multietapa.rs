@@ -45,7 +45,7 @@ fn requisitar(endereco: SocketAddr, metodo: &str, alvo: &str, corpo: &str) -> St
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "um ciclo integrado cobre dois POSTs e nove pedidos HTTP no mesmo SQLite"
+    reason = "duas tramitações e uma tentativa recusada em dez pedidos HTTP no mesmo SQLite"
 )]
 fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -80,7 +80,7 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
         )
         .unwrap();
         controlar(&mut banco, &instalacao, "ORIGEM");
-        for requisicao in 1..=9 {
+        for requisicao in 1..=10 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
             if requisicao == 3 {
@@ -94,6 +94,13 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
                 controlar(&mut banco, &instalacao, "DESTINO");
             }
             if requisicao == 7 {
+                let estado = ler(&banco, &instalacao, CENARIO, "10")
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(estado.aberto_em, ["DESTINO"]);
+                assert_eq!(estado.anotacao_origem.as_deref(), Some("Nota da origem"));
+            }
+            if requisicao == 8 {
                 assert_eq!(
                     ler(&banco, &instalacao, CENARIO, "10")
                         .unwrap()
@@ -140,6 +147,16 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
         !formulario.contains("chkSinRemoverAnotacoes"),
         "a anotacao da ORIGEM fechada nao pode ser oferecida para remocao em DESTINO"
     );
+
+    // Um POST antigo tentando limpar a anotação da ORIGEM na unidade
+    // DESTINO não pode alterar nenhuma das duas transições do processo.
+    let indevido = requisitar(
+        endereco,
+        "POST",
+        ENVIO,
+        "hdnIdProtocolos=10&hdnUnidades=3%B1ARQUIVO&chkSinRemoverAnotacoes=on",
+    );
+    assert!(indevido.starts_with("HTTP/1.1 400 Bad Request"));
 
     let segundo = requisitar(
         endereco,
