@@ -31,6 +31,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git checkout --detach 51cde317a5833653151c6472370d9031013efd49
+          git checkout --detach fdddc64df775364964e5797be5cc13c971c0c198
           cargo +1.99.1 test --locked -p iesei --test relacionamentos_simetria
           cargo +1.99.1 fmt --all -- --check
