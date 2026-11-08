@@ -318,6 +318,9 @@ pub fn limpar_anotacao(
     id: &str,
 ) -> Result<(), Falha> {
     let processo = ler(banco, instalacao, cenario, id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
+    if !processo.aberto_em.contains(&processo.unidade_origem) {
+        return Err(Falha::OrigemNaoAberta);
+    }
     if processo.anotacao_origem.is_none() {
         return Err(Falha::AnotacaoNaoObservada);
     }
