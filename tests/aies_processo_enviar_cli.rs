@@ -274,6 +274,17 @@ fn executar(
                 resposta
             };
             if metodo == "POST" && acao == "procedimento_enviar" {
+                // Só valores de controles sintéticos, nunca headers, URL ou cookie.
+                let inicio = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+                let formulario = std::str::from_utf8(&bytes[inicio..]).unwrap();
+                let vistos: Vec<_> = formulario
+                    .split('&')
+                    .filter(|p| {
+                        ["hdnIdProtocolos=", "hdnUnidades=", "chkSinManterAberto=",
+                         "chkSinRemoverAnotacoes="].iter().any(|n| p.starts_with(n))
+                    })
+                    .collect();
+                eprintln!("BDD-333 campos de escrita sintética: {vistos:?}");
                 enviado = true;
             }
             capturada.lock().unwrap().push(format!("{metodo} {acao}"));
