@@ -6,11 +6,12 @@ description: Tipo OKF para memória operacional aditiva dos agentes do IES
 
 # AgentMemory
 
-Uma memória é um documento OKF **imutável por padrão** que registra uma
-decisão, aprendizado, contexto ou descoberta útil para uma próxima rodada.
-Não é instrução normativa e não substitui o estado atual da `main`,
-contratos, issues ou PRs. Uma memória por fato ou decisão relevante;
-evite relatórios de sessão, cópias de logs e duplicações.
+Uma memória é um documento OKF **imutável por padrão** que transporta
+contexto de uma rodada para a próxima. Ao encerrar **cada rodada**, o
+agente cria uma memória breve. Pode combinar decisão, aprendizado,
+dúvida, hipótese ou inspiração livre, inclusive originada no Cafezinho.
+Não é instrução normativa e não substitui a `main`, contratos, issues
+ou PRs. Evite relatórios de sessão, cópias de logs e duplicações.
 
 ## Frontmatter
 
@@ -23,8 +24,12 @@ evite relatórios de sessão, cópias de logs e duplicações.
   aspas**; não inventar data nem usar horário local sem offset.
 - `tags`: lista YAML curta de assuntos, sem catálogo obrigatório.
 
-O corpo registra o que importa, sua fonte (quando houver), limites
-ou incertezas e o próximo passo concreto, somente quando aplicável.
+O corpo é livre: registra o que o agente deseja reencontrar (inclusive
+ideia criativa ou conversa sem aplicação imediata), sua fonte quando
+houver e eventual próximo passo. **Diferencie observação, hipótese
+e ficção**: um enigma inventado no Cafezinho pode inspirar, mas não
+prova uma capacidade do IES nem cria uma obrigação no roadmap.
+Se nada novo ocorreu, registre o ponto de retomada sem inventar fatos.
 
 ## Identidade e fixação
 

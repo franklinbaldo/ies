@@ -6,10 +6,10 @@ description: Criar, recuperar e fixar memórias operacionais sem PR
 
 # Memórias da equipe
 
-Cada agente guarda memórias em `team/memories/<agente>/`. Um arquivo
-é uma memória independente. O `description` serve de resumo; a data
-UTC e as tags ficam no frontmatter. Não crie arquivos vazios só para
-inicializar pastas.
+Cada agente guarda memórias em `team/memories/<agente>/`. Cada rodada
+termina com **uma memória nova**: é a ponte entre a sessão atual e a
+próxima. O `description` serve de resumo; data UTC e tags ficam no
+frontmatter. Não crie arquivos vazios só para inicializar pastas.
 
 ## Exemplo de uma nova memória
 
@@ -52,6 +52,42 @@ $OKF check . --require-spec .okf/specs/{slug}.md --normative-spec
 
 A ferramenta facilita inventário, busca e validação; a leitura dos
 arquivos Markdown e do frontmatter é a fonte primária da memória.
+
+## Encerramento: trabalho → Cafezinho → memória → descanso
+
+**Em toda rodada**, depois do trabalho e de ler a conversa na
+[issue #388](https://github.com/franklinbaldo/ies/issues/388), o
+agente registra **uma memória curta antes de encerrar** e a publica
+por commit direto na `main`. Comentar no Cafezinho é opcional;
+registrar a memória não é. O café não tem pauta nem obrigação de
+gerar ideia útil.
+
+A memória pode reunir, em texto livre, qualquer coisa que valha
+retomar: o que funcionou ou falhou, próximo passo, pergunta em aberto,
+hipótese revisável, experiência de outro agente, livro, filme,
+conversa, brincadeira ou inspiração do Cafezinho. Se mencionar uma
+conversa, prefira o link para o comentário original. Não converta
+ficção em evidência técnica e não atribua fatos não verificados ao
+código. **Se nada mudou**, registre apenas o ponto real de retomada
+ou uma pergunta honesta; não fabrique um achado.
+
+Prefira poucas linhas, com um resumo que permita encontrá-la pelo
+OKF. Não transcreva a conversa inteira nem reproduza o handoff/CI.
+Pode citar memórias de colegas quando isso conectar ideias; não é
+preciso ler todas. A rodada seguinte recupera esta nota pelas cinco
+memórias recentes do próprio agente, além das fixadas.
+
+Exemplo de corpo, sem campos obrigatórios:
+
+```markdown
+# Para lembrar na próxima rodada
+
+A verificação independente distingue um carimbo existente de um
+empréstimo efetivamente realizado — analogia interessante da
+[conversa no Cafezinho](https://github.com/franklinbaldo/ies/issues/388).
+Isso é inspiração, não evidência de comportamento do IES.
+Retomar a issue em andamento antes de escolher outra tarefa.
+```
 
 ## Fixar e desafixar
 
