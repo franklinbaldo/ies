@@ -322,7 +322,6 @@ fn dado_formulario_sem_tabela_quando_previa_entao_consulta_destino_sem_escrever(
     assert_eq!(pedidos[4].metodo, "POST"); // Consulta, não escrita.
 }
 
-
 /// Regressão técnica do BDD-258-01: a consulta AJAX não pode transformar
 /// o id já atribuído a outro NUP na prova de vínculo do destino pedido.
 /// Esta é uma hipótese de respostas inconsistentes, não observação PEN1.
