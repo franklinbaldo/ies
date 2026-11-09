@@ -17,7 +17,9 @@ fn executar_e_reler(remover: bool, esperado: Option<&str>) {
     assert_eq!(resposta["alterado"], true);
     assert_eq!(resposta["usuario_atual"], "aluno1");
     assert_eq!(resposta["usuario_pedido"], serde_json::json!(esperado));
-    assert_eq!(resposta["requisicoes"], 7);
+    // A confirmação reabre a árvore integralmente; as dez tentativas
+    // pertencem à primeira CLI, antes da segunda consulta de prova.
+    assert_eq!(resposta["requisicoes"], 10);
 
     let post_de_atribuicao = eventos
         .iter()
