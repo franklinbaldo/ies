@@ -6,7 +6,7 @@ use super::{
     confirmacao::FotoProcesso,
     escolha::{EscolhaExterna, escolher_externo, identificar_tipo},
 };
-use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::arvore_processo::endereco::conferir_endereco_com_identidade_repetida;
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario,
     ErroSubmissaoFormulario, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -131,8 +131,14 @@ fn conferir_destino(
 ) -> Result<String, ErroPreviaExterna> {
     let base = format!("{}/", instalacao.url_base());
     let relativo = location.strip_prefix(&base).unwrap_or(location);
-    conferir_endereco_relativo(instalacao, relativo, "documento_receber", id_procedimento)
-        .map_err(|_| ErroPreviaExterna::LinkNaoConferido)
+    // SEI 4.0.9 (UnB) repete id_procedimento no link Externo da lista.
+    conferir_endereco_com_identidade_repetida(
+        instalacao,
+        relativo,
+        "documento_receber",
+        id_procedimento,
+    )
+    .map_err(|_| ErroPreviaExterna::LinkNaoConferido)
 }
 
 /// Lê a árvore, escolhe Externo, recarrega o tipo e confere o cadastro do PDF.
