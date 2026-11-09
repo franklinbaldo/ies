@@ -310,7 +310,6 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
     );
 }
 
-
 #[test]
 fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
     // BDD-264-02/03 ainda pendentes: sem validação live, nem o binário
@@ -344,7 +343,14 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
         );
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar"])
+        .args([
+            "processo",
+            "atribuir",
+            NUP,
+            "--usuario",
+            "aluno2",
+            "--confirmar",
+        ])
         .env("IES_ORIGEM_FILE", "/arquivo/inexistente/ies-origem")
         .env("IES_COOKIE_FILE", "/arquivo/inexistente/ies-cookie")
         .env("IES_URL_CONTROLE_FILE", "/arquivo/inexistente/ies-url")
@@ -353,7 +359,10 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
     let erro = String::from_utf8(saida.stderr).unwrap();
-    assert!(erro.contains("prévia"), "mensagem humana sem orientação: {erro}");
+    assert!(
+        erro.contains("prévia"),
+        "mensagem humana sem orientação: {erro}"
+    );
 }
 
 
@@ -374,7 +383,7 @@ fn remover_previa_cli_real_json_nao_altera_anti_ies() {
     assert_eq!(valor["valor_da_opcao"], "null");
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
-    assert_eq!(valor["requisicoes"], eventos.len());
+    assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
     assert_eq!(eventos.len(), 5, "{eventos:?}");
     assert_eq!(
         eventos
