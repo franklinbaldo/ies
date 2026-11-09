@@ -431,8 +431,7 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
     assert!(
         trilha
             .iter()
-            .all(|pedido| pedido.starts_with("GET ")
-                || pedido == "POST protocolo_pesquisa_rapida"),
+            .all(|pedido| pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"),
         "recusa não autoriza POST mutador: {trilha:?}"
     );
 }
