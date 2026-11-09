@@ -143,10 +143,12 @@ fn remover_localmente(endereco: std::net::SocketAddr) {
     );
 }
 
-fn executar(
+fn executar_com(
     vinculo_inicial: bool,
     post_local: bool,
     remover_local: bool,
+    confirmar: Option<bool>,
+    resposta_sem_aceite: bool,
 ) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
@@ -220,14 +222,21 @@ fn executar(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
+            // O backend pode ter gravado; a confirmação sem aceite não é sucesso.
+            if resposta_sem_aceite && evento == "POST procedimento_relacionar" {
+                resposta = b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 7\r\nConnection: close\r\n\r\n<html/>".to_vec();
+            }
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
         }
     });
     let mut argumentos = vec!["--json", "processo", "relacionar", NUP, "--com", DESTINO];
-    if remover_local {
+    if remover_local || confirmar == Some(true) {
         argumentos.push("--remover");
+    }
+    if confirmar.is_some() {
+        argumentos.push("--confirmar");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
@@ -252,6 +261,17 @@ fn executar(
     let trilha = eventos.lock().unwrap().clone();
     (saida, trilha, total)
 }
+
+fn executar(
+    vinculo_inicial: bool,
+    post_local: bool,
+    remover_local: bool,
+) -> (Output, Vec<String>, usize) {
+    executar_com(vinculo_inicial, post_local, remover_local, None, false)
+}
+
+#[path = "aies_relacionar_cli/confirmacao.rs"]
+mod confirmacao;
 
 #[test]
 fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
