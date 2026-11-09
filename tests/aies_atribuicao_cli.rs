@@ -365,7 +365,6 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
     );
 }
 
-
 #[test]
 fn remover_previa_cli_real_json_nao_altera_anti_ies() {
     let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true, true);
