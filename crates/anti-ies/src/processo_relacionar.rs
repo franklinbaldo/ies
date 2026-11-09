@@ -31,6 +31,29 @@ pub(crate) fn responder(
     let Ok(Some(vinculos)) = relacionamentos::listar(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if parametro_unico(alvo, "acao") == Some("procedimento_excluir_relacionamento") {
+        if metodo != "POST" {
+            return Resposta::nova(Estado::MetodoNaoPermitido);
+        }
+        let Some(id_destino) = campo_formulario_unico(corpo, "hdnInfraItemId") else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if id_destino.is_empty()
+            || !id_destino.bytes().all(|b| b.is_ascii_digit())
+            || !vinculos.iter().any(|r| r.id == id_destino)
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match relacionamentos::remover(banco, origem, cenario, id, &id_destino) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
+            )),
+            Err(relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
     if metodo == "POST" {
         // A identidade oferecida pela consulta tem de coincidir com o id
         // submetido: o navegador não escolhe um processo só pelo campo oculto.
@@ -72,13 +95,23 @@ pub(crate) fn responder(
     for vinculo in vinculos {
         write!(
             linhas,
-            "<tr><td><a href=\"controlador.php?acao=procedimento_trabalhar&amp;id_procedimento={}&amp;infra_hash={assinatura}\">{}</a></td></tr>",
-            escapar(&vinculo.id), escapar(&vinculo.numero),
+            "<tr><td><a href=\"controlador.php?acao=procedimento_trabalhar&amp;id_procedimento={}&amp;infra_hash={assinatura}\">{}</a></td><td><a href=\"#ID-{}\" onclick=\"acaoRemover('{}');\">Remover</a></td></tr>",
+            escapar(&vinculo.id),
+            escapar(&vinculo.numero),
+            escapar(&vinculo.id),
+            escapar(&vinculo.id),
         ).expect("String");
     }
     Resposta::html(format!(
         r#"<html><head><script>
 objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={assinatura}');
+function acaoRemover(id){{
+  if (confirm("Confirma exclusão do relacionamento?")){{
+    document.getElementById('hdnInfraItemId').value=id;
+    document.getElementById('frmProcedimentoListarRelacionamentos').action='controlador.php?acao=procedimento_excluir_relacionamento&acao_origem=procedimento_relacionar&arvore=1&id_procedimento={id}&infra_hash={assinatura}';
+    document.getElementById('frmProcedimentoListarRelacionamentos').submit();
+  }}
+}}
 </script></head><body>
 <form id="frmProcedimentoListarRelacionamentos" method="post" action="controlador.php?acao=procedimento_relacionar&id_procedimento={id}&infra_hash={assinatura}">
 <input type="text" id="txtProtocolo" name="txtProtocolo" value=""/>
