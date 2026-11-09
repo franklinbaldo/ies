@@ -1,6 +1,7 @@
 //! Histórico e visualização de versões gerados pelo mesmo estado SQLite.
 use crate::{Estado, Resposta, despachar};
 use iesei::acesso_versao::{self, AcessoVersao};
+use iesei::cancelamento_documento::Situacao;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, ler};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -129,6 +130,23 @@ pub fn responder(
     }
     if acao == "documento_versao_listar" {
         return resposta_html(historico(&documento));
+    }
+    // A URL pode ter sido publicada antes do cancelamento. O estado
+    // atualizado no SQLite prevalece sobre qualquer href anteriormente
+    // observado: nao servir corpo cancelado, nem versao historica.
+    match crate::documento_cancelar::estado(
+        banco,
+        instalacao,
+        cenario,
+        &documento.id_documento,
+        &documento.id_procedimento,
+    ) {
+        Ok(Some(Situacao::Disponivel)) => {}
+        Ok(Some(Situacao::Cancelado { .. })) => {
+            return Resposta::nova(Estado::AcessoNegado);
+        }
+        Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+        Err(estado) => return Resposta::nova(estado),
     }
     let versao = versao_pedida.or_else(|| documento.revisoes.iter().map(|r| r.versao.get()).max());
     let Some(versao) = versao else {

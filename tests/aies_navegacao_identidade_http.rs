@@ -47,17 +47,21 @@ fn estado() -> (Connection, Instalacao) {
     (banco, origem)
 }
 
-fn pedir(endereco: std::net::SocketAddr, metodo: &str, caminho: &str) -> String {
+fn pedir_rota(endereco: std::net::SocketAddr, metodo: &str, acao: &str, caminho: &str) -> String {
     let mut tcp = TcpStream::connect(endereco).unwrap();
     write!(
         tcp,
-        "{metodo} /sei/controlador.php?acao=procedimento_visualizar&{caminho} HTTP/1.1\r\nHost: sei.test\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        "{metodo} /sei/controlador.php?acao={acao}&{caminho} HTTP/1.1\r\nHost: sei.test\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     )
     .unwrap();
     tcp.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
     tcp.read_to_string(&mut resposta).unwrap();
     resposta
+}
+
+fn pedir(endereco: std::net::SocketAddr, metodo: &str, caminho: &str) -> String {
+    pedir_rota(endereco, metodo, "procedimento_visualizar", caminho)
 }
 
 #[test]
@@ -212,4 +216,69 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
     let (id, numero) = atendimento.join().unwrap();
     assert_eq!(id, "8000000000001");
     assert_eq!(numero, "050000001");
+}
+
+#[test]
+fn http_url_observada_antes_do_cancelamento_nao_serve_corpo_depois() {
+    use iesei::cancelamento_documento::{self, Aplicacao, Situacao};
+
+    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = servidor.local_addr().unwrap();
+    let atendimento = thread::spawn(move || {
+        let (banco, origem) = estado();
+        for indice in 0..4 {
+            let (mut tcp, cliente) = servidor.accept().unwrap();
+            assert!(cliente.ip().is_loopback());
+            atender_http(&mut tcp, Some((&banco, &origem, CENARIO))).unwrap();
+            if indice == 0 {
+                // A URL foi observada antes do cancelamento: testa-se o replay
+                // da mesma URL depois de uma transicao real no SQLite.
+                assert_eq!(
+                    cancelamento_documento::aplicar(
+                        &banco,
+                        &origem,
+                        CENARIO,
+                        "42",
+                        "7",
+                        "Cancelamento local"
+                    )
+                    .unwrap(),
+                    Aplicacao::Aplicada
+                );
+            }
+        }
+        assert_eq!(
+            cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap(),
+            Some(Situacao::Cancelado {
+                motivo: "Cancelamento local".into()
+            })
+        );
+    });
+
+    let alvo = "id_documento=42&id_procedimento=7";
+    let antes = pedir_rota(endereco, "GET", "documento_visualizar", alvo);
+    assert!(antes.starts_with("HTTP/1.1 200 OK\r\n"), "{antes}");
+    assert!(antes.contains("Corpo do primeiro"));
+
+    // A fonte de um link ja observado nao pode publicar novamente o corpo
+    // cancelado; omitir src na arvore, sozinho, nao fecha essa transicao.
+    let depois = pedir_rota(endereco, "GET", "documento_visualizar", alvo);
+    assert!(depois.starts_with("HTTP/1.1 403 Forbidden\r\n"), "{depois}");
+    assert!(!depois.contains("Corpo do primeiro"));
+
+    let outro = pedir_rota(
+        endereco,
+        "GET",
+        "documento_visualizar",
+        "id_documento=43&id_procedimento=7",
+    );
+    assert!(outro.starts_with("HTTP/1.1 200 OK\r\n"), "{outro}");
+    assert!(outro.contains("Corpo do segundo"));
+
+    let metodo = pedir_rota(endereco, "POST", "documento_visualizar", alvo);
+    assert!(
+        metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+        "{metodo}"
+    );
+    atendimento.join().unwrap();
 }
