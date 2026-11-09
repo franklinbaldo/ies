@@ -1,5 +1,5 @@
 //! BDD-60-05: identidade muda entre a árvore e o GET do conteúdo.
-//! Hipótese sintética, não observada na cassette original UnB.
+//! Hipótese sintética, não observada na cassette original `UnB`.
 use super::*;
 
 #[test]
