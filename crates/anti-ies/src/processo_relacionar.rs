@@ -9,6 +9,35 @@ use iesei::relacionamentos;
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
+/// Uma exclusão retira somente a aresta observada, sem inventar destino.
+fn responder_remocao(
+    corpo: &str,
+    id: &str,
+    vinculos: &[relacionamentos::Relacionamento],
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let Some(id_destino) = campo_formulario_unico(corpo, "hdnInfraItemId") else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if id_destino.is_empty()
+        || !id_destino.bytes().all(|b| b.is_ascii_digit())
+        || !vinculos.iter().any(|r| r.id == id_destino)
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    match relacionamentos::remover(banco, origem, cenario, id, &id_destino) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
+        )),
+        Err(
+            relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado,
+        ) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -35,24 +64,7 @@ pub(crate) fn responder(
         if metodo != "POST" {
             return Resposta::nova(Estado::MetodoNaoPermitido);
         }
-        let Some(id_destino) = campo_formulario_unico(corpo, "hdnInfraItemId") else {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        };
-        if id_destino.is_empty()
-            || !id_destino.bytes().all(|b| b.is_ascii_digit())
-            || !vinculos.iter().any(|r| r.id == id_destino)
-        {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        }
-        return match relacionamentos::remover(banco, origem, cenario, id, &id_destino) {
-            Ok(()) => Resposta::redirecionar(format!(
-                "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
-            )),
-            Err(
-                relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado,
-            ) => Resposta::nova(Estado::RequisicaoInvalida),
-            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
-        };
+        return responder_remocao(corpo, id, &vinculos, banco, origem, cenario);
     }
     if metodo == "POST" {
         // A identidade oferecida pela consulta tem de coincidir com o id
