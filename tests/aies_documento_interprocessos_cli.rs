@@ -3,7 +3,7 @@
 #![cfg(unix)]
 #[path = "support/documento_interprocessos.rs"]
 mod apoio;
-use apoio::{DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_sem_src, json};
+use apoio::{DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_cancelado, executar_sem_src, json};
 use serde_json::Value;
 
 #[test]
@@ -252,6 +252,44 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
             .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "somente leitura no transporte: {trilha:?}"
     );
+}
+
+// BDD-60-05: cancelar no SQLite deve retirar a oferta de conteúdo
+// da árvore sem permitir que --ocultar-inacessiveis masque cancelamento.
+#[test]
+fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
+    for ocultar in [false, true] {
+        let mut args = vec![
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--sem-cache",
+        ];
+        if ocultar {
+            args.push("--ocultar-inacessiveis");
+        }
+        let (saida, trilha) = executar_cancelado(&args);
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "cancelamento não é documento legível nem omissão: stderr={} trilha={trilha:?}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let erro = json(&saida);
+        assert_eq!(erro["subcodigo"], "documento_cancelado_sem_conteudo_na_arvore", "{erro}");
+        assert_eq!(erro["documento"], DOC_A, "{erro}");
+        assert!(erro.get("documentos").is_none(), "{erro}");
+        assert!(
+            !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+            "sem link não se requisita conteúdo cancelado: {trilha:?}"
+        );
+        assert!(
+            trilha.iter().all(|pedido| pedido.starts_with("GET ")),
+            "consulta explícita ao processo, sem POST ou retry: {trilha:?}"
+        );
+    }
 }
 
 // BDD-60-01: o contexto NUP explícito deve selecionar o nó e o conteúdo
