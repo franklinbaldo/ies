@@ -7,10 +7,22 @@ const PROCESSO_CIENCIA: &str = "00001.000001/2026-01";
 #[test]
 fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let pasta = Pasta::nova();
-    let args = ["--json", "documento", "--processo", PROCESSO_CIENCIA, "ciente", DOC];
+    let args = [
+        "--json",
+        "documento",
+        "--processo",
+        PROCESSO_CIENCIA,
+        "ciente",
+        DOC,
+    ];
     let previa = executar(&pasta, &args, 3);
-    assert_eq!(previa.status.code(), Some(0), "prévia: stdout={} stderr={}",
-        String::from_utf8_lossy(&previa.stdout), String::from_utf8_lossy(&previa.stderr));
+    assert_eq!(
+        previa.status.code(),
+        Some(0),
+        "prévia: stdout={} stderr={}",
+        String::from_utf8_lossy(&previa.stdout),
+        String::from_utf8_lossy(&previa.stderr)
+    );
     let antes = json(&previa);
     assert_eq!(antes["confirmado"], false);
     assert_eq!(antes["verificado"], false);
@@ -22,10 +34,26 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(qtde, 0, "prévia não grava ciência");
     drop(banco);
 
-    let confirmado = executar(&pasta,
-        &["--json", "documento", "--processo", PROCESSO_CIENCIA, "ciente", DOC, "--confirmar"], 7);
-    assert_eq!(confirmado.status.code(), Some(0), "confirmar: stdout={} stderr={}",
-        String::from_utf8_lossy(&confirmado.stdout), String::from_utf8_lossy(&confirmado.stderr));
+    let confirmado = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            "--processo",
+            PROCESSO_CIENCIA,
+            "ciente",
+            DOC,
+            "--confirmar",
+        ],
+        7,
+    );
+    assert_eq!(
+        confirmado.status.code(),
+        Some(0),
+        "confirmar: stdout={} stderr={}",
+        String::from_utf8_lossy(&confirmado.stdout),
+        String::from_utf8_lossy(&confirmado.stderr)
+    );
     let feito = json(&confirmado);
     assert_eq!(feito["confirmado"], true);
     assert_eq!(feito["verificado"], true);
@@ -39,8 +67,13 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let registros: Vec<String> = {
         let mut query = banco.prepare("SELECT id_atividade FROM ciencia_documental WHERE origem=?1 AND cenario=?2 AND id_documento='42' AND id_procedimento='7'").unwrap();
-        query.query_map(rusqlite::params![ORIGEM, CENARIO], |r| r.get::<_, String>(0)).unwrap()
-            .map(Result::unwrap).collect()
+        query
+            .query_map(rusqlite::params![ORIGEM, CENARIO], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap()
+            .map(Result::unwrap)
+            .collect()
     };
     assert_eq!(registros, vec![atividade.to_owned()]);
 }
