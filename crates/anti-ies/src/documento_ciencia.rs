@@ -101,8 +101,8 @@ pub(crate) fn responder(
     if metodo != "GET" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let Some(documento) = parametro_unico(alvo, "id_documento")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    let Some(documento) =
+        parametro_unico(alvo, "id_documento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
