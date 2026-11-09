@@ -111,8 +111,8 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id_observado.to_owned(),
-        id_procedimento: "7".to_owned(),
-        numero_processo: "00001.000001/2026-01".to_owned(),
+        id_procedimento: processo_observado.clone(),
+        numero_processo: nup_observado.clone(),
         numero: identidade.numero.clone(),
         tipo: identidade.tipo.clone(),
         revisoes: vec![Revisao {
@@ -146,7 +146,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         );
     });
     let url = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=7"
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}"
     );
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
@@ -176,7 +176,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         endereco,
         "GET",
         &format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=8"
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}0"
         ),
     );
     assert!(
@@ -272,8 +272,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.to_owned(),
-        id_procedimento: "7".to_owned(),
-        numero_processo: "00001.000001/2026-01".to_owned(),
+        id_procedimento: processo_observado.clone(),
+        numero_processo: nup_observado.clone(),
         numero: numero.as_str().to_owned(),
         tipo: tipo_observado,
         revisoes,
@@ -306,7 +306,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     });
 
     let url = format!(
-        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento=7"
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo_observado}"
     );
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
@@ -332,7 +332,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     // Não se pode servir versão N inexistente como se fosse a mais recente.
     let ausente = atual.checked_add(1).unwrap();
     let visualizacao = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento=7&versao={ausente}"
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo_observado}&versao={ausente}"
     );
     assert!(pedir(endereco, "GET", &visualizacao).starts_with("HTTP/1.1 404"));
     assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
