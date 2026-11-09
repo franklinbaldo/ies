@@ -47,15 +47,32 @@ pub(crate) struct PedidoDoCancelamento<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoDaVerificacao {
+    Previa,
+    Cancelado { falha_do_envio: Option<F> },
+}
+
+impl ResultadoDaVerificacao {
+    pub(crate) fn cancelado(&self) -> bool {
+        matches!(self, Self::Cancelado { .. })
+    }
+
+    pub(crate) fn falha_do_envio(&self) -> Option<&F> {
+        match self {
+            Self::Previa => None,
+            Self::Cancelado { falha_do_envio } => falha_do_envio.as_ref(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DocumentoCancelado {
     pub(crate) numero: String,
     pub(crate) id_documento: String,
     pub(crate) processo: ProcessoNaArvore,
     pub(crate) unidade: Option<String>,
     pub(crate) motivo: String,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
-    pub(crate) reconciliado_por: Option<F>,
+    pub(crate) resultado: ResultadoDaVerificacao,
     pub(crate) requisicoes: u8,
 }
 
@@ -126,9 +143,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         processo: aberto.processo,
         unidade: aberto.unidade,
         motivo: motivo.to_owned(),
-        confirmado: pedido.confirmar,
-        alterado: false,
-        reconciliado_por: None,
+        resultado: ResultadoDaVerificacao::Previa,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
@@ -171,8 +186,9 @@ fn reconciliar<V: EnvioDoProcesso>(
             cancelado: Some(true),
             motivo: Some(ref lido),
         } if lido == &feito.motivo => {
-            feito.alterado = true;
-            feito.reconciliado_por = falha;
+            feito.resultado = ResultadoDaVerificacao::Cancelado {
+                falha_do_envio: falha,
+            };
             Ok(feito)
         }
         Ver::Lida {

@@ -139,7 +139,10 @@ fn previa_abre_arvore_e_tela_em_quatro_gets_sem_post() {
     let feito = resultado.unwrap();
     assert_eq!(pedidos, pedidos_previa());
     assert_eq!(feito.requisicoes, 4);
-    assert!(!feito.alterado && !feito.confirmado);
+    assert!(matches!(
+        feito.resultado,
+        super::ResultadoDaVerificacao::Previa
+    ));
     assert_eq!(feito.motivo, MOTIVO);
 }
 
@@ -154,7 +157,7 @@ fn confirmar_envia_um_post_e_prova_cancelamento_pela_arvore_nova() {
     esperados.push(get(&url_arvore()));
     assert_eq!(pedidos, esperados);
     assert_eq!(feito.requisicoes, 6);
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por.is_none());
+    assert!(feito.resultado.cancelado() && feito.resultado.falha_do_envio().is_none());
 }
 
 #[test]
@@ -163,7 +166,7 @@ fn servidor_falha_depois_do_post_mas_arvore_confirma_sem_retry() {
     respostas.extend([Err(FalhaTransporte::Rede), ok(arvore_cancelada())]);
     let (resultado, pedidos) = executar(true, respostas);
     let feito = resultado.unwrap();
-    assert!(feito.alterado && feito.reconciliado_por.is_some());
+    assert!(feito.resultado.cancelado() && feito.resultado.falha_do_envio().is_some());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 6);
 }
