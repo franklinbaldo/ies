@@ -114,6 +114,16 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertEqual(json.loads(self.registro.read_text())["atribuicao_relida"], "")
         self.assertEqual(len(self.chamadas), 5)
 
+    def test_releitura_nao_observada_permanece_nula_no_registro(self):
+        dados = roteiro()
+        dados[1] = 3, {"requisicoes": 6, "atribuicao_relida": None}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertIn("atribuicao_relida", relatorio)
+        self.assertIsNone(relatorio["atribuicao_relida"])
+        self.assertNotEqual(relatorio["residuo"], "sem_atribuicao")
+        self.assertEqual(len(self.chamadas), 2)
+
     def test_post_inconclusivo_nao_publica_valor_alheio_ou_dado_nao_tipado(self):
         for valor in ("https://example.invalid/segredo", ["aluno2"]):
             with self.subTest(valor=valor):
