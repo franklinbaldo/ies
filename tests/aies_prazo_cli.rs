@@ -288,8 +288,7 @@ fn bdd_272_01_cli_real_le_tres_estados_sem_escrita() {
 
 #[test]
 fn bdd_272_02_cli_real_previsualiza_dias_sem_post_e_sem_mutacao() {
-    let (saida, pedidos, estado_final) =
-        executar_com_argumentos("sem", &["--dias", "15"]);
+    let (saida, pedidos, estado_final) = executar_com_argumentos("sem", &["--dias", "15"]);
     assert_eq!(
         saida.status.code(),
         Some(0),
