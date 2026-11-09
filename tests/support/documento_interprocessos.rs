@@ -186,7 +186,7 @@ fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
 }
 
 /// A árvore já foi publicada; a origem altera o título antes do GET do
-/// conteúdo. Hipótese de corrida sintética, não transição capturada na UnB.
+/// conteúdo. Hipótese de corrida sintética, não transição capturada na `UnB`.
 fn trocar_titulo_antes_de_servir_corpo(
     tcp: &TcpStream,
     banco: &Connection,
@@ -231,6 +231,42 @@ fn revogar_antes_de_servir_corpo(
     true
 }
 
+/// Confere diretamente no SQLite o efeito da transição local ensaiada.
+fn conferir_estado_apos_cli(
+    modo: EstadoExtra,
+    transicao: bool,
+    db: &Connection,
+    instalacao: &Instalacao,
+) {
+    if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
+        assert!(transicao, "CLI não tentou seguir a URL antes oferecida");
+        assert!(matches!(
+            cancelamento_documento::consultar(&db, &instalacao, CENARIO, "42", "7"),
+            Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
+        ));
+    }
+    if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
+        assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
+        let observado: String = db
+            .query_row(
+                "SELECT numero FROM documento_simulado
+             WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
+                rusqlite::params![instalacao.url_base(), CENARIO],
+                |linha| linha.get(0),
+            )
+            .unwrap();
+        assert_eq!(observado, DOC_B, "a transição persiste no SQLite");
+        assert_eq!(
+            documento_versoes::ler(&db, &instalacao, CENARIO, "43")
+                .unwrap()
+                .unwrap()
+                .numero,
+            DOC_B,
+            "o segundo documento não foi alterado"
+        );
+    }
+}
+
 fn executar_com_estado(
     com_segundo: bool,
     modo: EstadoExtra,
@@ -271,33 +307,7 @@ fn executar_com_estado(
             }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
-        if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
-            assert!(transicao, "CLI não tentou seguir a URL antes oferecida");
-            assert!(matches!(
-                cancelamento_documento::consultar(&db, &instalacao, CENARIO, "42", "7"),
-                Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
-            ));
-        }
-        if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
-            assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
-            let observado: String = db
-                .query_row(
-                    "SELECT numero FROM documento_simulado
-                 WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
-                    rusqlite::params![instalacao.url_base(), CENARIO],
-                    |linha| linha.get(0),
-                )
-                .unwrap();
-            assert_eq!(observado, DOC_B, "a transição persiste no SQLite");
-            assert_eq!(
-                documento_versoes::ler(&db, &instalacao, CENARIO, "43")
-                    .unwrap()
-                    .unwrap()
-                    .numero,
-                DOC_B,
-                "o segundo documento não foi alterado"
-            );
-        }
+        conferir_estado_apos_cli(modo, transicao, &db, &instalacao);
     });
     let pedidos = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos_proxy = Arc::clone(&pedidos);
