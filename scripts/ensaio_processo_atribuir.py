@@ -30,8 +30,6 @@ def registrar_estado_relido_incerto(relatorio: dict, resposta: dict, usuario: st
     Aceita apenas o usuário pedido, ausência explicitamente observada ou
     observação nula; nunca publica texto de resposta arbitrário no registro.
     """
-    if resposta.get("subcodigo") != "efeito_incerto_na_atribuicao":
-        return
     if "atribuicao_relida" not in resposta:
         return
     relida = resposta["atribuicao_relida"]
