@@ -26,7 +26,10 @@ pub fn consultar(
     processo: &str,
 ) -> rusqlite::Result<Option<Estado>> {
     let existe: bool = banco.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sim_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3)",
+        "SELECT EXISTS(SELECT 1 FROM sim_processo base
+             JOIN processo_simulado sim ON sim.origem=base.origem AND sim.cenario=base.cenario
+                 AND sim.id_procedimento=base.id_procedimento
+             WHERE base.origem=?1 AND base.cenario=?2 AND base.id_procedimento=?3)",
         params![origem.url_base(), cenario, processo], |r| r.get(0),
     )?;
     if !existe {
@@ -99,8 +102,10 @@ pub fn registrar(
                 )
             ), 42456) AS TEXT),
             (SELECT usuario FROM sessao_usuario WHERE origem=?1 AND cenario=?2)
-         FROM sim_processo
-         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3
+         FROM sim_processo base JOIN processo_simulado sim
+           ON sim.origem=base.origem AND sim.cenario=base.cenario
+            AND sim.id_procedimento=base.id_procedimento
+         WHERE base.origem=?1 AND base.cenario=?2 AND base.id_procedimento=?3
          ON CONFLICT(origem, cenario, id_procedimento) DO NOTHING",
         params![origem.url_base(), cenario, processo],
     )?;

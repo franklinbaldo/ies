@@ -78,12 +78,13 @@ pub(crate) fn responder(
         },
         Some("protocolo_ciencia_listar") => match modelo::consultar(banco, origem, cenario, id) {
             Ok(Some(Ciencia::Registrada { id_atividade })) => {
-                match modelo::lista_invisivel(banco, origem, cenario, id) {
-                    Ok(true) => return Resposta::html(
-                        "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr></table></html>".to_owned()
-                    ),
-                    Ok(false) => {}
-                    Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                let Ok(invisivel) = modelo::lista_invisivel(banco, origem, cenario, id) else {
+                    return Resposta::nova(Estado::DadosInsuficientes);
+                };
+                if invisivel {
+                    return Resposta::html(
+                        "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr></table></html>".to_owned(),
+                    );
                 }
                 let usuario = match modelo::usuario_da_ciencia(banco, origem, cenario, id) {
                     Ok(usuario) => usuario,
@@ -97,9 +98,10 @@ pub(crate) fn responder(
                     "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}'/></td>{nome}</tr></table></html>"
                 ))
             }
-            Ok(Some(Ciencia::Pendente)) => Resposta::nova(Estado::DadosInsuficientes),
+            Ok(Some(Ciencia::Pendente)) | Err(_) => {
+                Resposta::nova(Estado::DadosInsuficientes)
+            }
             Ok(None) => Resposta::nova(Estado::NaoEncontrado),
-            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         },
         _ => Resposta::nova(Estado::NaoEncontrado),
     }

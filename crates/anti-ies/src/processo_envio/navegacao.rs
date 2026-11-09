@@ -81,7 +81,6 @@ fn arvore_do_processo(
     let ciencia = iesei::ciencia_processo::consultar(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .ok_or(Estado::DadosInsuficientes)?;
-    let ciencia_pendente = matches!(ciencia, iesei::ciencia_processo::Estado::Pendente);
     let lista_ciencia = if let iesei::ciencia_processo::Estado::Registrada { .. } = ciencia {
         format!(
             "NosAcoes[31] = new infraArvoreAcao(\"CIENCIAS\",\"C\",\"{id}\",\"controlador.php?acao=protocolo_ciencia_listar&id_procedimento={id}&infra_hash={}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
@@ -96,7 +95,7 @@ fn arvore_do_processo(
         relacionados,
         atribuicao.is_some(),
         prazo_observado,
-        ciencia_pendente,
+        &ciencia,
     ));
     Ok(format!(
         r#"<html><head><script>
