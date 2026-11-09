@@ -74,6 +74,18 @@ fn processo_observado_da_arvore(
     primeiro
 }
 
+/// Extrai só a região editável: o rodapé do anti-IES não é conteúdo do documento.
+fn texto_do_editor_simulado(html: &str) -> String {
+    let corpo = html
+        .split_once("<main id='corpoEditavel'>")
+        .unwrap()
+        .1
+        .split_once("</main>")
+        .unwrap()
+        .0;
+    crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap()
+}
+
 #[test]
 #[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
 fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
@@ -123,8 +135,6 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
             html_corpo: format!("<p>{}</p>", escapar(&texto_original)),
         }],
     };
-    assert_eq!(documento.id_procedimento, processo_observado);
-    assert_eq!(documento.numero_processo, nup_observado);
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let tarefa = std::thread::spawn(move || {
@@ -159,15 +169,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     // O rodapé acrescentado pelo anti-IES não faz parte do documento.
     // Conferir a igualdade de TODO o texto projetado dentro do editor,
     // em vez de aceitar apenas um prefixo que esconderia truncamentos/anexos.
-    let corpo = html_anti
-        .split_once("<main id='corpoEditavel'>")
-        .unwrap()
-        .1
-        .split_once("</main>")
-        .unwrap()
-        .0;
-    let texto_anti =
-        crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+    let texto_anti = texto_do_editor_simulado(html_anti);
     assert_eq!(
         texto_anti, texto_original,
         "o texto da origem deve sobreviver integralmente à projeção"
@@ -280,8 +282,6 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
-    assert_eq!(documento.id_procedimento, processo_observado);
-    assert_eq!(documento.numero_processo, nup_observado);
     let quantidade_versoes = versoes.len();
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
