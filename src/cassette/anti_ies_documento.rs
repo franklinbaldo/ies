@@ -102,10 +102,21 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         identidade_anti, identidade,
         "número/tipo vêm da fonte original"
     );
-    let texto_anti = crate::documento_web::texto_do_corpo(html_anti).unwrap();
-    assert!(
-        texto_anti.starts_with(&texto_original),
-        "o texto original deve sobreviver ao transporte e renderização"
+    // O rodapé acrescentado pelo anti-IES não faz parte do documento.
+    // Conferir a igualdade de TODO o texto projetado dentro do editor,
+    // em vez de aceitar apenas um prefixo que esconderia truncamentos/anexos.
+    let corpo = html_anti
+        .split_once("<main id='corpoEditavel'>")
+        .unwrap()
+        .1
+        .split_once("</main>")
+        .unwrap()
+        .0;
+    let texto_anti =
+        crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+    assert_eq!(
+        texto_anti, texto_original,
+        "o texto da origem deve sobreviver integralmente à projeção"
     );
     let cruzado = pedir(
         endereco,
@@ -117,5 +128,112 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         "identidade de outro processo"
     );
     assert!(pedir(endereco, "POST", url).starts_with("HTTP/1.1 405"));
+    tarefa.join().unwrap();
+}
+
+#[test]
+#[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
+    // Confronto separado: as versões, os usuários, unidades e datas vêm
+    // da lista original. O corpo de versões não capturadas é hipótese
+    // descartável exigida pelo modelo, NUNCA uma observação da cassette.
+    let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let card = raiz.join("cassettes/unb/liberacoes-e-versoes-leitura-unb--a781b0fbca8f.md");
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
+        std::path::PathBuf::from,
+    );
+    let zip = ZipDoAcervo::ler(&cache.join("lote-9497057d512230ff.zip")).unwrap();
+    let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
+    let instalacao = gravacao::instalacao(&captura.json).unwrap();
+    let originais: Vec<_> = gravacao::respostas(&captura.json)
+        .into_iter()
+        .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
+        .collect();
+    assert_eq!(originais.len(), 1, "usar somente o histórico gravado");
+    let ids = gravacao::parametro(originais[0].item, "id_documento");
+    let id = ids.first().copied().expect("id_documento na requisição");
+    assert!(
+        ids.iter().all(|valor| *valor == id),
+        "a identidade da requisição deve ser inequívoca"
+    );
+    let html_original = html_da_resposta(originais[0].item).unwrap();
+    let numero = crate::documento::NumeroDocumento::novo("0011519").unwrap();
+    let historico_original =
+        crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
+    let atual = historico_original.atual().expect("histórico não vazio").numero();
+    let mut revisoes = Vec::new();
+    let mut versoes = Vec::new();
+    for n in 1..=atual {
+        let versao = crate::documento_versoes::VersaoDocumento::nova(n).unwrap();
+        if let Ok(entrada) = historico_original.selecionar(versao) {
+            versoes.push(n);
+            revisoes.push(Revisao {
+                versao: NonZeroU32::new(n).unwrap(),
+                usuario: entrada.usuario.clone(),
+                unidade: entrada.unidade.clone(),
+                modificacao: entrada.modificacao.clone(),
+                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
+            });
+        }
+    }
+    assert_eq!(revisoes.len(), historico_original.len());
+
+    let documento = DocumentoSimulado {
+        instalacao: instalacao.clone(),
+        id_documento: id.to_owned(),
+        id_procedimento: "7".to_owned(),
+        numero_processo: "00001.000001/2026-01".to_owned(),
+        numero: numero.as_str().to_owned(),
+        tipo: "Tipo não observado".to_owned(),
+        revisoes,
+    };
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-historico", &documento).unwrap();
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-historico")))
+                .unwrap();
+        }
+        assert_eq!(
+            banco
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .unwrap() as usize,
+            versoes.len(),
+            "leitura de histórico e recusas preservam o SQLite"
+        );
+    });
+
+    let url = format!(
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento=7"
+    );
+    let resposta = pedir(endereco, "GET", &url);
+    let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
+    assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
+    let historico_anti =
+        crate::documento_versoes::interpretar_historico(html_anti, &numero, id, None).unwrap();
+    assert_eq!(historico_anti.len(), historico_original.len());
+    assert_eq!(historico_anti.atual(), historico_original.atual());
+    for n in &versoes {
+        let versao = crate::documento_versoes::VersaoDocumento::nova(*n).unwrap();
+        let esperado = historico_original.selecionar(versao).unwrap();
+        let observado = historico_anti.selecionar(versao).unwrap();
+        assert_eq!(
+            (&observado.usuario, &observado.unidade, &observado.modificacao),
+            (&esperado.usuario, &esperado.unidade, &esperado.modificacao),
+            "metadados da versão {n} vêm da cassette, não da fixture"
+        );
+    }
+    // Não se pode servir versão N inexistente como se fosse a mais recente.
+    let ausente = atual.checked_add(1).unwrap();
+    let visualizacao = format!(
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento=7&versao={ausente}"
+    );
+    assert!(pedir(endereco, "GET", &visualizacao).starts_with("HTTP/1.1 404"));
+    assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
 }
