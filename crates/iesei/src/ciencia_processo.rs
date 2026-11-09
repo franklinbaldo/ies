@@ -92,7 +92,7 @@ pub fn registrar(
     let inseridos = banco.execute(
         "INSERT INTO ciencia_processo
            (origem, cenario, id_procedimento, id_atividade, usuario)
-         SELECT origem, cenario, id_procedimento,
+         SELECT base.origem, base.cenario, base.id_procedimento,
             CAST(1 + COALESCE((
                 SELECT MAX(id) FROM (
                     SELECT CAST(id_atividade AS INTEGER) AS id FROM ciencia_documental
