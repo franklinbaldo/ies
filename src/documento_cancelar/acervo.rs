@@ -59,7 +59,12 @@ fn id_unico(item: &serde_json::Value, nome: &str) -> Option<String> {
 
 /// Campos de identidade vieram da URL de resposta gravada; as demais
 /// colunas são dados mínimos da bancada e NÃO afirmam origem na cassette.
-fn servir_no_anti_ies(base: &str, id_proc: &str, id_doc: &str) -> String {
+/// A bancada isola a identidade observada da cassette e os demais dados hipotéticos.
+fn preparar_estado_anti_ies(
+    base: &str,
+    id_proc: &str,
+    id_doc: &str,
+) -> (Connection, Instalacao, String) {
     let origem = Instalacao::interpretar(base).expect("instalação da URL gravada");
     let mut banco = Connection::open_in_memory().expect("SQLite efêmero");
     iniciar(&banco).expect("esquema do banco derivado");
@@ -91,6 +96,11 @@ fn servir_no_anti_ies(base: &str, id_proc: &str, id_doc: &str) -> String {
     let alvo = format!(
         "{caminho}/controlador.php?acao=documento_cancelar&id_procedimento={id_proc}&id_documento={id_doc}"
     );
+    (banco, origem, alvo)
+}
+
+fn servir_no_anti_ies(base: &str, id_proc: &str, id_doc: &str) -> String {
+    let (banco, origem, alvo) = preparar_estado_anti_ies(base, id_proc, id_doc);
     let resposta =
         anti_ies::documento_cancelar::responder("GET", &alvo, "", &banco, &origem, "replay-273");
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
@@ -197,4 +207,100 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
     );
     assert!(forms_reais > 0, "nenhum GET de cancelamento registrado");
     assert!(comparados > 0, "nenhuma tela pôde ser confrontada");
+}
+
+/// A captura registra o redirecionamento e uma leitura posterior, mas não
+/// preserva o motivo enviado. O efeito real não pode ser inferido daí.
+/// O simulador usa motivo sintético apenas para verificar seu próprio SQLite.
+#[test]
+#[ignore = "acervo #273: exige ZIPs GO/UFRJ conferidos, executar em runner com cache público"]
+fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
+    let raiz = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").expect("HOME")).join(".cache/ies"),
+        PathBuf::from,
+    );
+    let cards = [
+        "cassettes/go/documento-mover-cancelar-go--a152c0306b45.md",
+        "cassettes/ufrj/documento-mover-cancelar-ufrj--de1301eb5634.md",
+    ];
+    let mut confrontos = 0usize;
+    for nome in cards {
+        let card = raiz.join(nome);
+        let zip = archive_filename(&card).expect("origem no card");
+        let zip = ZipDoAcervo::ler(&cache.join(zip)).expect("ZIP do acervo");
+        let conferida = conferir_cassette_ate(&card, &zip, 120_000_000)
+            .expect("SHA-1 do ZIP, SHA-256 do membro, schema e host");
+        let respostas = gravacao::respostas(&conferida.json);
+        let posts: Vec<_> = respostas
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| item.operacao == "documento_cancelar" && item.metodo == "POST")
+            .collect();
+        let [(indice, original)] = posts.as_slice() else {
+            panic!("esperado um POST de cancelamento no card {nome}");
+        };
+        assert_eq!(original.status, 302, "resposta original de {nome}");
+        let id_proc = gravacao::id_procedimento(original.item).expect("processo original");
+        let id_doc = id_unico(original.item, "id_documento").expect("documento original");
+        let enviado = original.item["response"]["url"]
+            .as_str()
+            .expect("URL do POST gravado");
+        let (base, _) = enviado.split_once("/controlador.php").expect("controlador");
+        let loc_original = gravacao::localizacao(original.item).expect("Location gravado");
+        assert!(
+            super::fluxo::localizacao_aceita(loc_original, enviado, &id_proc, &id_doc),
+            "leitor IES deve reconhecer o 302 original de {}",
+            conferida.instalacao
+        );
+        let depois = respostas.get(indice + 1).expect("leitura após o POST");
+        assert_eq!(
+            (depois.metodo, depois.operacao, depois.status),
+            ("GET", "procedimento_visualizar", 200),
+            "a captura deve registrar leitura após o 302 em {nome}"
+        );
+
+        // A mesma identidade entra no modelo: o motivo NÃO veio do POST gravado.
+        let (banco, origem, alvo) = preparar_estado_anti_ies(base, &id_proc, &id_doc);
+        let formulario = "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=hipotese%20sintetica";
+        let simulado = anti_ies::documento_cancelar::responder(
+            "POST",
+            &alvo,
+            formulario,
+            &banco,
+            &origem,
+            "replay-273",
+        );
+        assert_eq!(u64::from(simulado.estado.codigo_http()), original.status);
+        let loc_simulado = simulado.localizacao.expect("Location sintético");
+        assert!(
+            super::fluxo::localizacao_aceita(&loc_simulado, enviado, &id_proc, &id_doc),
+            "leitor IES deve reconhecer separadamente o 302 do anti-IES"
+        );
+        assert!(matches!(
+            iesei::cancelamento_documento::consultar(
+                &banco,
+                &origem,
+                "replay-273",
+                &id_doc,
+                &id_proc
+            )
+            .expect("SQLite do anti-IES"),
+            Some(iesei::cancelamento_documento::Situacao::Cancelado { .. })
+        ));
+        let repetido = anti_ies::documento_cancelar::responder(
+            "POST",
+            &alvo,
+            formulario,
+            &banco,
+            &origem,
+            "replay-273",
+        );
+        assert_eq!(repetido.estado, anti_ies::Estado::MetodoNaoPermitido);
+        confrontos += 1;
+    }
+    assert_eq!(confrontos, 2);
+    println!(
+        "documento cancelar: POST/302 original e simulado reconhecidos independentemente em {confrontos} instalações; estado posterior do SEI NÃO comprovado"
+    );
 }
