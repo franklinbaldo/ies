@@ -86,9 +86,8 @@ pub(crate) fn responder(
                         "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr></table></html>".to_owned(),
                     );
                 }
-                let usuario = match modelo::usuario_da_ciencia(banco, origem, cenario, id) {
-                    Ok(usuario) => usuario,
-                    Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                let Ok(usuario) = modelo::usuario_da_ciencia(banco, origem, cenario, id) else {
+                    return Resposta::nova(Estado::DadosInsuficientes);
                 };
                 let nome = usuario.as_deref().map_or_else(
                     || String::from("<td></td>"),
