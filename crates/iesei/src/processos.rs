@@ -28,7 +28,10 @@ impl ProcessoSimulado {
     #[must_use]
     pub fn pode_incluir_documento(&self, unidade_atual: &str) -> bool {
         unidade_atual == self.unidade_origem
-            && self.aberto_em.iter().any(|unidade| unidade == unidade_atual)
+            && self
+                .aberto_em
+                .iter()
+                .any(|unidade| unidade == unidade_atual)
     }
 }
 
