@@ -90,7 +90,7 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     let Ok(Some(processo)) = modelo::ler_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::NaoEncontrado);
     };
-    let Ok(documentos) = modelo::documentos(banco, origem, cenario, id) else {
+    let Ok(nos) = crate::documento_arvore::nos_do_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let mut html = String::from("<html><head><script>\nvar Nos = new Array();\n");
@@ -115,23 +115,7 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     writeln!(html, "Nos[0].acoes = '{}';", escapar_js(&link)).expect("formatação String");
     html.push_str("Nos[0].src = '';\n");
     writeln!(html, "Nos[0].html = '{}';", escapar_js(&situacao)).expect("formatação String");
-    for (indice, doc) in documentos.iter().enumerate() {
-        let indice = indice + 1;
-        let rotulo = escapar_js(&format!("{} {}", doc.tipo, doc.numero_sei));
-        let numero = escapar_js(&doc.numero_sei);
-        writeln!(
-            html,
-            "Nos[{indice}] = new infraArvoreNo(\"DOCUMENTO\",\"{}\",\"{id}\",\
-             \"about:blank\",\"ifrVisualizacao\",\"{rotulo}\",\"Documento interno\",\
-             \"svg/documento_interno.svg\",\"svg/documento_interno.svg\",\
-             \"svg/documento_interno.svg\",true,false,null,null,\"noVisitado\",\"{numero}\");",
-            doc.id
-        )
-        .expect("formatação String");
-        writeln!(html, "Nos[{indice}].acoes = '';").expect("formatação String");
-        writeln!(html, "Nos[{indice}].src = '';").expect("formatação String");
-        writeln!(html, "Nos[{indice}].html = '';").expect("formatação String");
-    }
+    html.push_str(&nos);
     html.push_str("</script></head><body><div id=\"divArvore\"></div></body></html>");
     Resposta::html(html)
 }

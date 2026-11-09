@@ -258,7 +258,11 @@ pub fn criar(
         return Err(Falha::EntradaInvalida);
     }
     conferir_abertura(banco, origem, cenario, id_procedimento)?;
-    let quantidade = banco.execute(
+    // Criação e cancelamento precisam compartilhar a identidade documental.
+    // Apenas a identidade é conhecida aqui: não fabricar revisão, autor ou HTML.
+    // A transação impede que um cadastro apareça numa árvore e falte na outra.
+    let transacao = banco.unchecked_transaction()?;
+    let quantidade = transacao.execute(
         "INSERT INTO sim_documento (origem, cenario, id_procedimento, id_serie, descricao, nivel)
          SELECT origem, cenario, id_procedimento, id_serie, ?5, 0
          FROM sim_tipo WHERE origem=?1 AND cenario=?2
@@ -274,16 +278,31 @@ pub fn criar(
     if quantidade != 1 {
         return Err(Falha::TipoIndisponivel);
     }
-    let id = banco.last_insert_rowid();
-    let tipo: String = banco.query_row(
+    let id = transacao.last_insert_rowid();
+    let numero_sei = format!("{:07}", 1_000_000 + id);
+    let tipo: String = transacao.query_row(
         "SELECT nome FROM sim_tipo WHERE origem=?1 AND cenario=?2
          AND id_procedimento=?3 AND id_serie=?4",
         params![origem.url_base(), cenario, id_procedimento, id_serie],
         |r| r.get(0),
     )?;
+    transacao.execute(
+        "INSERT INTO documento_simulado
+            (origem, cenario, id_documento, id_procedimento, numero, tipo)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            origem.url_base(),
+            cenario,
+            id.to_string(),
+            id_procedimento,
+            numero_sei,
+            tipo,
+        ],
+    )?;
+    transacao.commit()?;
     Ok(Documento {
         id,
-        numero_sei: format!("{:07}", 1_000_000 + id),
+        numero_sei,
         tipo,
         descricao: descricao.to_owned(),
     })

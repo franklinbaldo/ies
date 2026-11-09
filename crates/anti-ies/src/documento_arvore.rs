@@ -187,9 +187,14 @@ pub(crate) fn nos_do_processo(
     let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let mut nos = String::new();
-    let mut vistos = Vec::new();
     let mut indice = 1;
     for id in ids {
+        // Documentos recém-criados têm identidade, mas ainda não têm revisão.
+        // A projeção da tabela de criação é a fonte desses nós, sem inventar
+        // uma versão só para permitir o cancelamento.
+        if internos.iter().any(|d| d.id.to_string() == id) {
+            continue;
+        }
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
@@ -206,13 +211,12 @@ pub(crate) fn nos_do_processo(
             &situacao,
         ));
         indice += 1;
-        vistos.push(id);
     }
     for documento in internos {
         let id = documento.id.to_string();
-        if vistos.contains(&id) {
-            continue;
-        }
+        let situacao =
+            crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
+                .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -220,7 +224,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero_sei,
             &documento.tipo,
             false,
-            &Situacao::Disponivel,
+            &situacao,
         ));
         indice += 1;
     }
@@ -248,6 +252,14 @@ fn no_de_documento(
     let processo = js(processo);
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
+    let cancelar = if matches!(situacao, Situacao::Disponivel) {
+        format!(
+            "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>",
+            crate::protocolo_sintetico::INFRA_HASH
+        )
+    } else {
+        String::new()
+    };
     let mut no = format!(
         r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 "#
@@ -263,14 +275,17 @@ fn no_de_documento(
         };
         write!(
             no,
-            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>';
+            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>{cancelar}';
 Nos[{indice}].src = '{src}';
 "#
         )
         .expect("formatação de String");
     } else {
-        write!(no, "Nos[{indice}].acoes = '';\nNos[{indice}].src = '';\n")
-            .expect("formatação de String");
+        write!(
+            no,
+            "Nos[{indice}].acoes = '{cancelar}';\nNos[{indice}].src = '';\n"
+        )
+        .expect("formatação de String");
     }
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
     no
