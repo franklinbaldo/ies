@@ -66,7 +66,6 @@ fn origem_de_treinamento(origem: &str) -> bool {
             | "https://sei.orgao4.tramita.processoeletronico.gov.br/sei"
     )
 }
-}
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
 /// Fatos de diagnóstico da prévia são publicados sem extrapolar uma unidade
