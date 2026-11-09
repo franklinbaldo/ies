@@ -254,7 +254,8 @@ fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
             conferida.instalacao
         );
         let depois = respostas.get(indice + 1).expect("leitura após o POST");
-        assert_eq!((depois.metodo, depois.operacao, depois.status),
+        assert_eq!(
+            (depois.metodo, depois.operacao, depois.status),
             ("GET", "procedimento_visualizar", 200),
             "a captura deve registrar leitura após o 302 em {nome}"
         );
@@ -263,7 +264,12 @@ fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
         let (banco, origem, alvo) = preparar_estado_anti_ies(base, &id_proc, &id_doc);
         let formulario = "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=hipotese%20sintetica";
         let simulado = anti_ies::documento_cancelar::responder(
-            "POST", &alvo, formulario, &banco, &origem, "replay-273"
+            "POST",
+            &alvo,
+            formulario,
+            &banco,
+            &origem,
+            "replay-273",
         );
         assert_eq!(simulado.estado.codigo_http(), original.status as u16);
         let loc_simulado = simulado.localizacao.expect("Location sintético");
@@ -273,12 +279,22 @@ fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
         );
         assert!(matches!(
             iesei::cancelamento_documento::consultar(
-                &banco, &origem, "replay-273", &id_doc, &id_proc
-            ).expect("SQLite do anti-IES"),
+                &banco,
+                &origem,
+                "replay-273",
+                &id_doc,
+                &id_proc
+            )
+            .expect("SQLite do anti-IES"),
             Some(iesei::cancelamento_documento::Situacao::Cancelado { .. })
         ));
         let repetido = anti_ies::documento_cancelar::responder(
-            "POST", &alvo, formulario, &banco, &origem, "replay-273"
+            "POST",
+            &alvo,
+            formulario,
+            &banco,
+            &origem,
+            "replay-273",
         );
         assert_eq!(repetido.estado, anti_ies::Estado::MetodoNaoPermitido);
         confrontos += 1;
