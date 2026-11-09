@@ -119,7 +119,9 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
         "",
     );
     assert!(caixa_origem.contains(NUP));
-    assert!(requisitar(endereco, "GET", ARVORE, "").contains("Enviar"));
+    let arvore_origem = requisitar(endereco, "GET", ARVORE, "");
+    assert!(arvore_origem.contains("Enviar"));
+    assert!(arvore_origem.contains("Incluir Documento"));
 
     let primeiro = requisitar(
         endereco,
@@ -136,8 +138,10 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
         "",
     );
     assert!(trabalho.contains("id='lnkInfraUnidade'>DESTINO</a>"));
+    assert!(!trabalho.contains("Incluir Documento"));
     let arvore_destino = requisitar(endereco, "GET", ARVORE, "");
     assert!(arvore_destino.contains("Enviar"));
+    assert!(!arvore_destino.contains("Incluir Documento"));
     assert!(!arvore_destino.contains("Anotações"));
     let formulario = requisitar(endereco, "GET", ENVIO, "");
     assert!(formulario.contains("frmAtividadeListar"));
