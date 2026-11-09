@@ -118,10 +118,13 @@ pub fn ler(
     let Some(login_atual) = login_atual else {
         return Ok(None);
     };
+    // A ordem do menu é observável na cassette. A PK por ID não representa
+    // a posição da opção: a tabela SQLite efêmera conserva a ordem de
+    // inserção transacional através do rowid.
     let mut stmt = banco.prepare(
         "SELECT id_usuario, login, nome FROM processo_atribuicao_opcao
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
-         ORDER BY id_usuario",
+         ORDER BY rowid",
     )?;
     let usuarios = stmt
         .query_map(params![origem.url_base(), cenario, id, unidade], |r| {
