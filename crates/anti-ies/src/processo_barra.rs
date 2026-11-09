@@ -1,5 +1,6 @@
 //! Ações da barra do processo, derivadas da unidade e anotação no SQLite.
 //! Links assinados aqui são estritamente sintéticos; não há credencial.
+use iesei::ciencia_processo::Estado as Ciencia;
 use iesei::processos::ProcessoSimulado;
 use std::fmt::Write as _;
 
@@ -10,6 +11,7 @@ pub(crate) fn acoes_do_processo(
     relacionamentos_observados: bool,
     atribuicao_observada: bool,
     prazo_observado: bool,
+    ciencia: &Ciencia,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
@@ -31,6 +33,10 @@ pub(crate) fn acoes_do_processo(
             r#"<a href="controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Incluir Documento</a>"#
         )
         .expect("formatação de String");
+    }
+    if matches!(ciencia, Ciencia::Pendente) && processo.aberto_em.iter().any(|u| u == unidade_atual)
+    {
+        links.push_str(r##"<a href="#" onclick="cienciaProcesso();" title="Ciência">Ciência</a>"##);
     }
     if atribuicao_observada && processo.aberto_em.iter().any(|u| u == unidade_atual) {
         write!(

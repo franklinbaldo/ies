@@ -78,21 +78,34 @@ fn arvore_do_processo(
     let prazo_observado = iesei::prazos::ler(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .is_some();
+    let ciencia = iesei::ciencia_processo::consultar(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .ok_or(Estado::DadosInsuficientes)?;
+    let lista_ciencia = if let iesei::ciencia_processo::Estado::Registrada { .. } = ciencia {
+        format!(
+            "NosAcoes[31] = new infraArvoreAcao(\"CIENCIAS\",\"C\",\"{id}\",\"controlador.php?acao=protocolo_ciencia_listar&id_procedimento={id}&infra_hash={}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
+            crate::protocolo_sintetico::INFRA_HASH
+        )
+    } else {
+        String::new()
+    };
     let barra = literal_js(&crate::processo_barra::acoes_do_processo(
         processo,
         unidade_atual,
         relacionados,
         atribuicao.is_some(),
         prazo_observado,
+        &ciencia,
     ));
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
-Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
+Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}&infra_hash={}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
 Nos[0].acoes = '{barra}';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
-{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+{lista_ciencia}{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#,
+        crate::protocolo_sintetico::INFRA_HASH
     ))
 }
 

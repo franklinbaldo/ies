@@ -459,3 +459,6 @@ mod testes_cancelamento;
 
 #[path = "aies_documento_cli/testes_ciencia.rs"]
 mod testes_ciencia;
+
+#[path = "aies_documento_cli/testes_ciencia_processo.rs"]
+mod testes_ciencia_processo;
