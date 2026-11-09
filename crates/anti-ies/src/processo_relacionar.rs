@@ -1,6 +1,6 @@
 //! Prévia do formulário de relacionamentos, derivada do SQLite versionado.
 //! Imita a forma PEN1 apenas como hipótese sintética; sem escrita remota.
-use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
+use crate::{Estado, Resposta, documentos::campo_formulario_unico, eh_controlador_sei, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::relacionamentos;
 use rusqlite::Connection;
@@ -9,6 +9,7 @@ use std::fmt::Write as _;
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     origem: &Instalacao,
     cenario: &str,
@@ -16,7 +17,7 @@ pub(crate) fn responder(
     if !eh_controlador_sei(alvo) {
         return Resposta::nova(Estado::NaoEncontrado);
     }
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -27,6 +28,34 @@ pub(crate) fn responder(
     let Ok(Some(vinculos)) = relacionamentos::listar(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if metodo == "POST" {
+        // A identidade oferecida pela consulta tem de coincidir com o id
+        // submetido: o navegador não escolhe um processo só pelo campo oculto.
+        let (Some(id_destino), Some(numero), Some(_tipo), Some(_botao)) = (
+            campo_formulario_unico(corpo, "hdnIdProtocolo"),
+            campo_formulario_unico(corpo, "txtProtocolo"),
+            campo_formulario_unico(corpo, "txtIdentificacaoProtocolo"),
+            campo_formulario_unico(corpo, "sbmAdicionar"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if !id_destino.bytes().all(|b| b.is_ascii_digit()) || id_destino.is_empty() || id_destino == id {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        let Ok(Some(destino)) = relacionamentos::identificar(banco, origem, cenario, &numero) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        };
+        if destino.id != id_destino || vinculos.iter().any(|r| r.id == id_destino) {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match relacionamentos::registrar(banco, origem, cenario, id, &id_destino) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
+            )),
+            Err(relacionamentos::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
     let assinatura = "b".repeat(64);
     let mut linhas = String::new();
     for vinculo in vinculos {
