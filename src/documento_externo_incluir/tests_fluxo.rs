@@ -313,3 +313,35 @@ fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
     assert!(!upload_tentado);
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
 }
+
+#[test]
+fn link_externo_da_unb_com_id_procedimento_repetido_e_aceito_sem_reconstruir() {
+    // Forma da cassette documento-incluir-unb (SEI 4.0.9, interação 13):
+    // o link Externo de documento_escolher_tipo repete id_procedimento.
+    // Ensaio live de 09/11/2026 recusava este link (link_externo_nao_conferido).
+    let instalacao = Instalacao::interpretar(a::ORIGEM).unwrap();
+    let href = format!(
+        "controlador.php?acao=documento_receber&acao_origem=documento_escolher_tipo&acao_retorno=documento_escolher_tipo&id_procedimento=10&id_serie=-1&arvore=1&id_procedimento=10&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={}",
+        "f".repeat(64)
+    );
+    assert_eq!(
+        conferir_destino(&instalacao, &href, "10").ok(),
+        Some(format!("{}/{href}", a::ORIGEM))
+    );
+    for recusado in [
+        href.replacen(
+            "&arvore=1&id_procedimento=10&",
+            "&arvore=1&id_procedimento=11&",
+            1,
+        ),
+        href.replacen("&arvore=1&", "&id_procedimento=10&arvore=1&", 1),
+    ] {
+        assert!(
+            matches!(
+                conferir_destino(&instalacao, &recusado, "10"),
+                Err(ErroPreviaExterna::LinkNaoConferido)
+            ),
+            "{recusado}"
+        );
+    }
+}

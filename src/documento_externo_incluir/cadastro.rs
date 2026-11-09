@@ -225,12 +225,11 @@ pub(crate) fn observar_cadastro(
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("option") {
             continue;
         }
-        let nome = tag
-            .inner_text(dom.parser())
+        // Texto de <option>: `&nbsp;` e entidades Latin-1 servidas pela UnB.
+        let nome = crate::entidades_html::decodificar_texto(&tag.inner_text(dom.parser()))
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = crate::formulario_web::decodificar_atributo(&nome).ok_or(erro)?;
         if nome != tipo || atributo_presente(tag, "disabled").map_err(|_| erro)? {
             continue;
         }

@@ -1,5 +1,6 @@
 //! Escolha do documento externo na lista e do tipo no cadastro inicial (#332).
 //! Os links e opções provêm das telas do Todos (`UnB` SEI 4/PEN3 SEI 5).
+use crate::entidades_html::decodificar_texto;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
@@ -147,12 +148,13 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
         {
             continue;
         }
-        let texto = tag
-            .inner_text(dom.parser())
+        // Texto de <option> é texto, não atributo: a UnB serve `&nbsp;`
+        // na opção vazia, que o decodificador de atributo não conhece.
+        let texto = decodificar_texto(&tag.inner_text(dom.parser()))
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        if decodificar_atributo(&texto).ok_or(E::ForaDaForma)? != tipo {
+        if texto != tipo {
             continue;
         }
         let id = valor_do_atributo(tag, "value")
