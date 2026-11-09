@@ -4,6 +4,32 @@ use super::*;
 use iesei::acesso_sessao;
 use iesei::acesso_versao::{self, AcessoVersao};
 
+/// Executa no SQLite uma transição local antes de responder ao pedido HTTP.
+/// Nenhum estado é alterado sem que a requisição esperada seja observada.
+pub(super) fn aplicar_transicao(
+    modo: EstadoExtra,
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    match modo {
+        EstadoExtra::RevogadoAoVisualizar => {
+            revogar_antes_de_servir_corpo(tcp, banco, instalacao)
+        }
+        EstadoExtra::TituloTrocadoAoVisualizar => {
+            trocar_titulo_antes_de_servir_corpo(tcp, banco, instalacao)
+        }
+        EstadoExtra::SessaoRevogadaAoVisualizar => {
+            revogar_sessao_antes_de_servir_corpo(tcp, banco, instalacao)
+        }
+        EstadoExtra::VersaoRevogadaAoVisualizar => {
+            revogar_versao_antes_de_servir_corpo(tcp, banco, instalacao)
+        }
+        EstadoExtra::CanceladoAntesDaLista => cancelar_antes_de_servir_lista(tcp, banco, instalacao),
+        _ => false,
+    }
+}
+
 /// Espia apenas a primeira linha sem consumir a requisição HTTP original.
 fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
     let mut inicio = [0_u8; 1024];
@@ -98,7 +124,7 @@ pub(super) fn revogar_versao_antes_de_servir_corpo(
 }
 
 /// Um histórico já anunciado na árvore pode deixar de ser acessível quando
-/// o documento é cancelado. A corrida é sintética, não capturada na UnB.
+/// o documento é cancelado. A corrida é sintética, não capturada na `UnB`.
 pub(super) fn cancelar_antes_de_servir_lista(
     tcp: &TcpStream,
     banco: &Connection,
