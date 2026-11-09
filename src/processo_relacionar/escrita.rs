@@ -192,6 +192,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
     id_destino: &str,
     nup_destino: &str,
     tipo_destino: &str,
+    relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
 ) -> Result<(), E> {
     let codificacao = codificacao_da_tela(mime).ok_or(E::Estrutura(
@@ -246,10 +247,15 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
     }
     let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
-    if !linhas
+    let destino_confirmado = linhas
         .iter()
-        .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino))
-    {
+        .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino));
+    let anteriores_preservados = relacionados_antes.iter().all(|anterior| {
+        linhas.iter().any(|atual| {
+            atual.id == anterior.id && super::mesmo_protocolo(&atual.nup, &anterior.nup)
+        })
+    });
+    if !destino_confirmado || !anteriores_preservados {
         return Err(E::EfeitoIncerto(None));
     }
     Ok(())
