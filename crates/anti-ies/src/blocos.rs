@@ -133,10 +133,10 @@ pub(crate) fn responder(
         };
         // Nao aceitar um POST apontando simultaneamente para duas paginas.
         for campo in ["selInfraPaginacaoSuperior", "selInfraPaginacaoInferior"] {
-            if let Some(valor) = crate::documentos::campo_formulario_unico(corpo, campo) {
-                if valor.parse::<usize>() != Ok(indice) {
-                    return Resposta::nova(Estado::RequisicaoInvalida);
-                }
+            if let Some(valor) = crate::documentos::campo_formulario_unico(corpo, campo)
+                && valor.parse::<usize>() != Ok(indice)
+            {
+                return Resposta::nova(Estado::RequisicaoInvalida);
             }
         }
         numero_pagina

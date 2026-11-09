@@ -280,7 +280,7 @@ mod tests {
         let mut banco = Connection::open_in_memory().unwrap();
         crate::banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
-        let pagina = |inicio, numero| Pagina {
+        let pagina = |inicio: usize, numero: usize| Pagina {
             tipo: Tipo::Interno,
             total: 4,
             faixa: Some((inicio, inicio + 1)),

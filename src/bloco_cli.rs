@@ -106,8 +106,9 @@ fn ler_via<V: EnvioDoControle>(
             return Err(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente));
         }
         conferir_indice_da_pagina(&html, "1")?;
-        let codificacao = codificacao
-            .ok_or_else(|| FalhaLeitura::Html(ErroHtml::valor("charset_dos_blocos_invalido")))?;
+        let codificacao = codificacao.ok_or(FalhaLeitura::Bloco(
+            ErroBloco::PaginaDeBlocosNaoImplementada,
+        ))?;
         let indice = "1";
         let tela = TelaServida {
             url: &url_lista,
