@@ -93,7 +93,8 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
     let Ok(nos) = crate::documento_arvore::nos_do_processo(banco, origem, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let mut html = String::from("<html><head><script>\nvar Nos = new Array();\n");
+    let mut html =
+        String::from("<html><head><script>\nvar Nos = new Array();\nvar NosAcoes = new Array();\n");
     let nup = escapar_js(&processo.nup);
     writeln!(
         html,
