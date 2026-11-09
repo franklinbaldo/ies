@@ -270,7 +270,7 @@ fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     }
 
     match modo {
-        EstadoExtra::Nenhum => {}
+        EstadoExtra::Nenhum | EstadoExtra::RevogadoAoVisualizar => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(
@@ -287,7 +287,6 @@ fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
             );
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
-        EstadoExtra::RevogadoAoVisualizar => {}
     }
     (banco, origem)
 }
@@ -328,6 +327,34 @@ pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<Str
     executar_com_estado(true, EstadoExtra::RevogadoAoVisualizar, args)
 }
 
+/// Simula a revogação do href já publicado entre a árvore e a resposta
+/// documental. O peek não consome bytes: o servidor recebe o HTTP original.
+fn revogar_antes_de_servir_corpo(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    let mut inicio = [0_u8; 1024];
+    let tamanho = tcp.peek(&mut inicio).unwrap();
+    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
+    if !linha.starts_with("GET ") || !linha.contains("acao=documento_visualizar") {
+        return false;
+    }
+    assert_eq!(
+        cancelamento_documento::aplicar(
+            banco,
+            instalacao,
+            CENARIO,
+            "42",
+            "7",
+            "Revogado entre leituras"
+        )
+        .unwrap(),
+        Aplicacao::Aplicada
+    );
+    true
+}
+
 fn executar_com_estado(
     com_segundo: bool,
     modo: EstadoExtra,
@@ -356,27 +383,7 @@ fn executar_com_estado(
         let mut revogado = false;
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
             if matches!(modo, EstadoExtra::RevogadoAoVisualizar) && !revogado {
-                // peek não consome o pedido: o handler segue recebendo HTTP real.
-                // A transição ocorre depois da árvore e imediatamente antes
-                // do GET da URL de corpo previamente publicada.
-                let mut inicio = [0_u8; 1024];
-                let tamanho = tcp.peek(&mut inicio).unwrap();
-                let linha = String::from_utf8_lossy(&inicio[..tamanho]);
-                if linha.starts_with("GET ") && linha.contains("acao=documento_visualizar") {
-                    assert_eq!(
-                        cancelamento_documento::aplicar(
-                            &db,
-                            &instalacao,
-                            CENARIO,
-                            "42",
-                            "7",
-                            "Revogado entre leituras"
-                        )
-                        .unwrap(),
-                        Aplicacao::Aplicada
-                    );
-                    revogado = true;
-                }
+                revogado = revogar_antes_de_servir_corpo(&tcp, &db, &instalacao);
             }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
