@@ -162,7 +162,12 @@ fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
     assert_eq!(sem_conteudo.numero_sei, "1000001");
 }
 
-fn estado(com_segundo: bool, sem_src: bool, cancelado: bool, duplicado: bool) -> (Connection, Instalacao) {
+fn estado(
+    com_segundo: bool,
+    sem_src: bool,
+    cancelado: bool,
+    duplicado: bool,
+) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
