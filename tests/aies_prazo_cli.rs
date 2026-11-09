@@ -389,7 +389,6 @@ fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
     );
 }
 
-
 #[test]
 fn bdd_272_03_previa_de_exclusao_nao_altera_prazo() {
     let (saida, pedidos, estado_final) = executar_com_argumentos("data", &["--excluir"]);
