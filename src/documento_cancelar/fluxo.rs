@@ -190,7 +190,7 @@ fn reconciliar<V: EnvioDoProcesso>(
 
 /// Antes do envio, mesmo que `derivar_submissao` tenha validado a ação,
 /// confere as duas identidades nela e exige um textarea editável único.
-fn conferir_formulario(
+pub(super) fn conferir_formulario(
     instalacao: &Instalacao,
     tela: &TelaServida<'_>,
     processo: &str,
