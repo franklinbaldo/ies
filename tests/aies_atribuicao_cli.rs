@@ -141,7 +141,7 @@ fn banco() -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar(json: bool) -> (Output, Vec<String>, usize) {
+fn executar(json: bool) -> (Output, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -168,11 +168,17 @@ fn executar(json: bool) -> (Output, Vec<String>, usize) {
         while let Some(mut canal) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut canal, Some((&db, &origem, CENARIO))).unwrap();
         }
-        processos::ler(&db, &origem, CENARIO, "10")
-            .unwrap()
-            .unwrap()
-            .aberto_em
-            .len()
+        (
+            processos::ler(&db, &origem, CENARIO, "10")
+                .unwrap()
+                .unwrap()
+                .aberto_em
+                .len(),
+            atribuicoes::ler(&db, &origem, CENARIO, "10", "TESTE")
+                .unwrap()
+                .unwrap()
+                .login_atual,
+        )
     });
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
@@ -219,14 +225,14 @@ fn executar(json: bool) -> (Output, Vec<String>, usize) {
         .unwrap();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
-    let total = servidor.join().unwrap();
+    let (total, atribuicao_final) = servidor.join().unwrap();
     let trilha = eventos.lock().unwrap().clone();
-    (saida, trilha, total)
+    (saida, trilha, total, atribuicao_final)
 }
 
 #[test]
 fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
-    let (saida, eventos, unidades_abertas) = executar(true);
+    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -267,7 +273,7 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
 
 #[test]
 fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
-    let (saida, eventos, unidades_abertas) = executar(false);
+    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -288,4 +294,5 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
         ["POST protocolo_pesquisa_rapida"]
     );
     assert_eq!(unidades_abertas, 1);
+    assert_eq!(atribuicao_final, "aluno1", "prévia não grava atribuição no SQLite");
 }
