@@ -366,9 +366,9 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
 }
 
 #[test]
-fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
-    // BDD-264-02/03 ainda pendentes: sem validação live, nem o binário
-    // consegue confirmar. O usuário precisa entender o próximo passo.
+fn confirmar_publico_sem_sessao_recusa_sem_rede() {
+    // Sem arquivos privados, o comando falha sem acessar a rede, mesmo
+    // com confirmação pedida e antes de existir qualquer requisição.
     // Arquivos privados inexistentes: qualquer tentativa de sessão falha.
     for escolha in [["--usuario", "aluno2"], ["--remover", ""]] {
         let mut argumentos = vec!["--json", "processo", "atribuir", NUP];
@@ -388,14 +388,8 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
             .unwrap();
         assert_eq!(saida.status.code(), Some(1));
         let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-        assert_eq!(
-            json["subcodigo"],
-            "escrita_de_atribuicao_ainda_nao_verificada"
-        );
-        assert!(
-            json["erro"].as_str().unwrap_or("").contains("prévia"),
-            "a recusa precisa explicar a alternativa sem escrita: {json}"
-        );
+        assert!(json["erro"].is_string(), "recusa deve ser pública: {json}");
+        assert!(json["subcodigo"].is_string(), "recusa tipada: {json}");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
@@ -414,10 +408,7 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
     let erro = String::from_utf8(saida.stderr).unwrap();
-    assert!(
-        erro.contains("prévia"),
-        "mensagem humana sem orientação: {erro}"
-    );
+    assert!(erro.contains("IES:"), "recusa humana ausente: {erro}");
 }
 
 #[test]
