@@ -24,7 +24,6 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-272-01-prazo";
 const PEDIDO: &str = "00001.000001/2026-01";
 
-
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
         match escuta.accept() {
@@ -133,12 +132,14 @@ fn estado(caso: &str) -> (Connection, Instalacao) {
         "concluido" => (None, true),
         _ => panic!("caso não previsto"),
     };
-    banco.execute(
-        "INSERT INTO prazo_processo
+    banco
+        .execute(
+            "INSERT INTO prazo_processo
          (origem, cenario, id_procedimento, vence_em, concluido)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![instalacao.url_base(), CENARIO, "10", data, concluido],
-    ).unwrap();
+            rusqlite::params![instalacao.url_base(), CENARIO, "10", data, concluido],
+        )
+        .unwrap();
     (banco, instalacao)
 }
 
@@ -169,12 +170,14 @@ fn executar(caso: &str) -> (Output, Vec<String>, (Option<String>, bool)) {
         while let Some(mut cliente) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        banco.query_row(
-            "SELECT vence_em, concluido FROM prazo_processo
+        banco
+            .query_row(
+                "SELECT vence_em, concluido FROM prazo_processo
              WHERE origem=?1 AND cenario=?2 AND id_procedimento='10'",
-            rusqlite::params![instalacao.url_base(), CENARIO],
-            |linha| Ok((linha.get(0)?, linha.get(1)?)),
-        ).unwrap()
+                rusqlite::params![instalacao.url_base(), CENARIO],
+                |linha| Ok((linha.get(0)?, linha.get(1)?)),
+            )
+            .unwrap()
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let registro = Arc::clone(&trilha);
@@ -199,12 +202,7 @@ fn executar(caso: &str) -> (Output, Vec<String>, (Option<String>, bool)) {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "--json",
-            "processo",
-            "prazo",
-            PEDIDO,
-        ])
+.args(["--json", "processo", "prazo", PEDIDO])
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
