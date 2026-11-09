@@ -28,8 +28,7 @@ fn bdd_60_05_cli_recusa_versao_de_documento_cancelado_sem_consultar_historico() 
         let erro = json(&saida);
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert_eq!(
-            erro["subcodigo"],
-            "documento_cancelado_sem_conteudo_na_arvore",
+            erro["subcodigo"], "documento_cancelado_sem_conteudo_na_arvore",
             "{erro}"
         );
         assert!(erro.get("documentos").is_none(), "{erro}");
@@ -41,8 +40,7 @@ fn bdd_60_05_cli_recusa_versao_de_documento_cancelado_sem_consultar_historico() 
         );
         assert!(
             !trilha.iter().any(|pedido| {
-                pedido == "GET documento_versao_listar"
-                    || pedido == "GET documento_visualizar"
+                pedido == "GET documento_versao_listar" || pedido == "GET documento_visualizar"
             }),
             "não acessar histórico nem corpo cancelados: {trilha:?}"
         );
