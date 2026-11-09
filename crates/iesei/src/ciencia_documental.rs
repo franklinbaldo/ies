@@ -49,7 +49,6 @@ pub fn consultar(
     })))
 }
 
-
 /// Consulta a identidade proprietária de um documento antes de um GET de ciência.
 /// O SEI 4.0 pode publicar a URL da ciência sem `id_procedimento`.
 ///
