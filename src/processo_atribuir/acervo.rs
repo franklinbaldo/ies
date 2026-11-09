@@ -125,9 +125,8 @@ fn post_historico_sem_id_decimal_unico(item: &Value) -> bool {
             .collect::<Vec<_>>()
     };
     let ids = ocorrencias("id_procedimento");
-    let id_unico_decimal = ids.len() == 1
-        && !ids[0].is_empty()
-        && ids[0].bytes().all(|c| c.is_ascii_digit());
+    let id_unico_decimal =
+        ids.len() == 1 && !ids[0].is_empty() && ids[0].bytes().all(|c| c.is_ascii_digit());
     ocorrencias("acao") == ["arvore_visualizar"]
         && ocorrencias("acao_origem") == ["procedimento_atribuicao_cadastrar"]
         && !id_unico_decimal
