@@ -1,5 +1,5 @@
 //! BDD-60-05: documento cancelado entre a oferta do histórico e seu GET.
-//! Hipótese sintética; as cassettes UnB não registram esta corrida.
+//! Hipótese sintética; as cassettes `UnB` não registram esta corrida.
 use super::*;
 
 #[test]
