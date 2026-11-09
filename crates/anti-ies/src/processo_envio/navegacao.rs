@@ -6,6 +6,26 @@ use super::{
 };
 use rusqlite::Connection;
 
+/// Renderização da hipótese sintética de pasta declarada, mas não carregada.
+/// Os cards UnB mostram PASTA/AGUARDE e abertura bem-sucedida; a ausência
+/// de ABRIR_PASTAS é cenário de falha, não transição observada na cassette.
+fn no_pasta_pendente(pasta: &iesei::pastas_incompletas::PastaPendente, id: &str) -> String {
+    let indice = pasta.indice;
+    let protocolo = &pasta.protocolo_declarado;
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    let pagina_hash = "5".repeat(32);
+    format!(
+        r#"var Pastas = [];
+Pastas[{indice}] = [];
+Pastas[{indice}]['link'] = 'controlador.php?acao=procedimento_paginar&id_procedimento={id}&no_pai=PASTA{indice}&pagina_hash={pagina_hash}&infra_hash={hash}';
+Pastas[{indice}]['protocolos'] = '{protocolo}';
+Nos[1] = new infraArvoreNo("PASTA","PASTA{indice}","{id}","javascript:abrirFecharPasta('PASTA{indice}');",null,"I","Pasta {indice}",null,"svg/processo_aberto.svg","svg/processo_fechado.svg",false,true,null,null,null);
+Nos[1].carregado = false;
+Nos[2] = new infraArvoreNo("AGUARDE","AGUARDE{indice}","PASTA{indice}",null,null,"Aguarde...","Aguarde...","/infra_css/svg/aguarde.svg",null,null,false,true,null,null,null);
+"#
+    )
+}
+
 /// Projeta abertura de unidades na forma do nó raiz interpretada pelo IES.
 /// Hipótese local revisável, com estado derivado exclusivamente do SQLite.
 fn situacao_da_raiz(
@@ -65,6 +85,15 @@ fn arvore_do_processo(
 ) -> Result<String, Estado> {
     let nos = crate::documento_arvore::nos_do_processo(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
+    let pendente = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    let nos = match pendente {
+        None => nos,
+        Some(pasta) if nos.is_empty() => no_pasta_pendente(&pasta, id),
+        // Ainda não modelamos combinação de documentos cadastrados e
+        // pasta incompleta. Recusar é melhor que duplicar Nos[1].
+        Some(_) => return Err(Estado::DadosInsuficientes),
+    };
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
