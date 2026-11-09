@@ -36,8 +36,7 @@ fn criar_depois_versionar_mantem_um_no_sem_revisao_inventada() {
         },
     )
     .unwrap();
-    let criado =
-        documentos_simulados::criar(&banco, &origem, cenario, "10", "291", "").unwrap();
+    let criado = documentos_simulados::criar(&banco, &origem, cenario, "10", "291", "").unwrap();
     let sem_revisao = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
     assert_eq!(sem_revisao.matches("new infraArvoreNo").count(), 1);
     assert_eq!(sem_revisao.matches("Versões").count(), 0);
