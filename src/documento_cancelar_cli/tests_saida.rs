@@ -1,6 +1,7 @@
 //! Equivalência do JSON público sem construir Value na produção.
 use super::*;
 use crate::arvore_processo::ProcessoNaArvore;
+use crate::documento_cancelar::ResultadoDaVerificacao;
 
 fn exemplo() -> DocumentoCancelado {
     DocumentoCancelado {
@@ -13,9 +14,7 @@ fn exemplo() -> DocumentoCancelado {
         },
         unidade: Some("TESTE".into()),
         motivo: "Motivo observado".into(),
-        confirmado: false,
-        alterado: false,
-        reconciliado_por: None,
+        resultado: ResultadoDaVerificacao::Previa,
         requisicoes: 4,
     }
 }
@@ -42,9 +41,9 @@ fn previa_igual_ao_contrato_legado() {
 #[test]
 fn reconciliacao_mantem_causa_http_e_status() {
     let mut feito = exemplo();
-    feito.confirmado = true;
-    feito.alterado = true;
-    feito.reconciliado_por = Some(FalhaDoCancelamento::RedirecionamentoNaoReconhecido);
+    feito.resultado = ResultadoDaVerificacao::Cancelado {
+        falha_do_envio: Some(FalhaDoCancelamento::RedirecionamentoNaoReconhecido),
+    };
     conferir_mesmos_bytes(&feito);
     let json = serde_json::to_value(resultado_cancelamento(&feito)).unwrap();
     assert_eq!(json["falha_do_envio"]["status_http"], 302);
@@ -77,10 +76,10 @@ fn falha_sem_detalhes_nao_cria_linhas_artificiais() {
 #[test]
 fn bdd_273_02_cancelamento_conferido_sem_falha_do_post_informa_releitura() {
     let mut feito = exemplo();
-    feito.confirmado = true;
-    feito.alterado = true;
     // A releitura da árvore confirmou o efeito; nenhum erro de envio ocorreu.
-    feito.reconciliado_por = None;
+    feito.resultado = ResultadoDaVerificacao::Cancelado {
+        falha_do_envio: None,
+    };
     let json = serde_json::to_value(resultado_cancelamento(&feito)).unwrap();
     assert_eq!(json["confirmado"], true);
     assert_eq!(json["alterado"], true);
