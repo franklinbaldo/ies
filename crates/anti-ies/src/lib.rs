@@ -9,6 +9,7 @@ mod documentos;
 pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
+mod processo_atribuicao;
 mod processo_barra;
 pub mod processo_envio;
 mod processo_relacionar;
