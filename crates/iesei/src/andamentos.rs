@@ -1,7 +1,7 @@
 //! Estado observado do histórico de processo no SQLite efêmero.
 //! Ausência de observação não significa histórico vazio.
 use crate::instalacao::Instalacao;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Linha {
@@ -56,9 +56,22 @@ pub fn guardar(
     if cenario.is_empty() || !valido(id, historico) {
         return Err(Falha::DadoInvalido);
     }
+    let tx = banco.transaction()?;
+    substituir(&tx, instalacao, cenario, id, historico)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Reutiliza a mesma escrita atômica para ingestão e para um andamento novo.
+fn substituir(
+    tx: &Transaction<'_>,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    historico: &Historico,
+) -> Result<(), Falha> {
     let origem = instalacao.url_base();
     let total = i64::try_from(historico.total_declarado).map_err(|_| Falha::DadoInvalido)?;
-    let tx = banco.transaction()?;
     tx.execute(
         "INSERT INTO andamento_historico (origem, cenario, id_procedimento, total_declarado)
          VALUES (?1, ?2, ?3, ?4)
@@ -88,6 +101,36 @@ pub fn guardar(
             ],
         )?;
     }
+    Ok(())
+}
+/// Acrescenta um andamento a uma observação existente, sem perder a cauda.
+///
+/// O estado do banco muda em uma única transação. Dados não observados não
+/// são tratados como histórico vazio e valores inválidos não são gravados.
+///
+/// # Errors
+/// Preserva causas SQLite ou recusa estado/linha sem observação válida.
+pub fn acrescentar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    linha: Linha,
+) -> Result<(), Falha> {
+    if cenario.is_empty() || id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(Falha::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    let mut historico = ler(&tx, instalacao, cenario, id)?.ok_or(Falha::DadoInvalido)?;
+    historico.total_declarado = historico
+        .total_declarado
+        .checked_add(1)
+        .ok_or(Falha::DadoInvalido)?;
+    historico.linhas.insert(0, linha);
+    if !valido(id, &historico) {
+        return Err(Falha::DadoInvalido);
+    }
+    substituir(&tx, instalacao, cenario, id, &historico)?;
     tx.commit()?;
     Ok(())
 }
