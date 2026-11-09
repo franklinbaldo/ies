@@ -1,4 +1,4 @@
-//! BDD-259-01: prévia da CLI real contra HTTPS local, anti-IES e SQLite.
+//! BDD-259-01/02/03: CLI real, HTTPS local e estado SQLite compartilhado.
 //! Hipótese sintética, não prova paridade com uma instalação SEI.
 #![cfg(unix)]
 use anti_ies::atender_http;
@@ -11,7 +11,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -140,8 +140,7 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-#[test]
-fn bdd_259_01_previa_nao_escreve_no_historico() {
+fn executar(args: &[&str], negar_releitura: bool) -> (Output, Vec<String>, Historico) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -176,6 +175,7 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     let sinal = Arc::clone(&parar);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(tls_id).unwrap();
+        let mut apos_post = false;
         while let Some(mut tcp) = aceitar(&proxy, &sinal) {
             let (connect, _) = pedido_http(&mut tcp);
             assert!(connect.starts_with(b"CONNECT"));
@@ -188,13 +188,19 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            if negar_releitura && apos_post && evento.starts_with("GET ") {
+                resposta = b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+            }
+            if evento == "POST procedimento_atualizar_andamento" {
+                apos_post = true;
+            }
             pedidos.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "andamento", NUP, "--texto", TEXTO])
+        .args(args)
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -213,10 +219,17 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
+    let eventos = trilha.lock().unwrap().clone();
+    (saida, eventos, persistido)
+}
+
+#[test]
+fn bdd_259_01_previa_nao_escreve_no_historico() {
+    let (saida, pedidos, persistido) =
+        executar(&["--json", "processo", "andamento", NUP, "--texto", TEXTO], false);
     assert_eq!(persistido.total_declarado, 1);
     assert_eq!(persistido.linhas.len(), 1);
     assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
-    let pedidos = trilha.lock().unwrap();
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -231,15 +244,59 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     assert_eq!(json["alterado"], false);
     assert_eq!(json["total_antes"], 1);
     assert_eq!(json["total_depois"], serde_json::Value::Null);
-    assert!(
-        pedidos
-            .iter()
-            .any(|p| p == "GET procedimento_consultar_historico")
-    );
-    assert!(
-        pedidos
-            .iter()
-            .any(|p| p == "GET procedimento_atualizar_andamento")
-    );
+    assert!(pedidos.iter().any(|p| p == "GET procedimento_consultar_historico"));
+    assert!(pedidos.iter().any(|p| p == "GET procedimento_atualizar_andamento"));
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+}
+
+#[test]
+fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
+    let (saida, pedidos, persistido) = executar(
+        &["--json", "processo", "andamento", NUP, "--texto", TEXTO, "--confirmar"],
+        false,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(resultado["confirmado"], true);
+    assert_eq!(resultado["texto"], TEXTO);
+    assert_eq!(resultado["total_antes"], 1);
+    assert_eq!(resultado["total_depois"], 2);
+    assert_eq!(persistido.total_declarado, 2);
+    assert_eq!(persistido.linhas.len(), 2);
+    assert_eq!(persistido.linhas[0].descricao, TEXTO);
+    assert_eq!(persistido.linhas[1].descricao, "Andamento anterior");
+    assert_eq!(
+        pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
+        1
+    );
+    assert_eq!(pedidos.last().map(String::as_str), Some("GET procedimento_consultar_historico"));
+}
+
+#[test]
+fn bdd_259_03_releitura_indisponivel_sai_tres_sem_retry() {
+    let (saida, pedidos, persistido) = executar(
+        &["--json", "processo", "andamento", NUP, "--texto", TEXTO, "--confirmar"],
+        true,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(3),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(resultado["codigo"], "efeito_incerto");
+    assert!(resultado["erro"].as_str().unwrap().contains("confira o histórico"));
+    assert_eq!(persistido.total_declarado, 2); // efeito ocorreu no SQLite, mas não foi comprovado pela CLI
+    assert_eq!(
+        pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
+        1
+    );
 }
