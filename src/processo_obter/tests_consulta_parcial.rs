@@ -187,7 +187,7 @@ fn bdd_342_02_pasta_com_pai_divergente_nao_pode_ser_tratada_como_lista_incomplet
     );
 }
 
-fn com_documento_movido(html: String, indice: usize) -> String {
+fn com_documento_movido(html: &str, indice: usize) -> String {
     let marcador = "  if (Nos.length){";
     assert!(html.contains(marcador));
     let no = no_movido(indice, "31-41", ID, "0000103");
@@ -210,11 +210,11 @@ fn bdd_342_01_lista_incompleta_nao_divulga_movidos_nem_ensina_destino() {
     );
     let casos = [
         (
-            com_documento_movido(pasta_incompleta_pela_metade(), 4),
+            com_documento_movido(&pasta_incompleta_pela_metade(), 4),
             ErroArvore::PastaCarregadaPelaMetade,
         ),
         (
-            com_documento_movido(pasta_nao_aberta, 3),
+            com_documento_movido(&pasta_nao_aberta, 3),
             ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir,
         ),
     ];
@@ -228,9 +228,10 @@ fn bdd_342_01_lista_incompleta_nao_divulga_movidos_nem_ensina_destino() {
         assert_eq!(aberto.requisicoes, 3);
         assert!(!aberto.arvore.documentos_incluidos);
         assert_eq!(aberto.arvore.aviso_leitura_parcial, Some(motivo));
-        assert!(aberto.arvore.documentos.is_empty());
-        assert!(
-            aberto.arvore.documentos_movidos.is_empty(),
+        assert_eq!(aberto.arvore.documentos, []);
+        assert_eq!(
+            aberto.arvore.documentos_movidos,
+            [],
             "a lista omitida não pode deixar movidos reutilizáveis no domínio"
         );
         assert!(
