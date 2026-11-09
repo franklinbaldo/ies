@@ -418,7 +418,10 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
         "documento_visualizar",
         "id_documento=42&id_protocolo=42&id_procedimento=7",
     );
-    assert!(concordante.starts_with("HTTP/1.1 200 OK\r\n"), "{concordante}");
+    assert!(
+        concordante.starts_with("HTTP/1.1 200 OK\r\n"),
+        "{concordante}"
+    );
     assert!(concordante.contains("Corpo do primeiro"));
     atendimento.join().unwrap();
 }
