@@ -150,7 +150,7 @@ fn http_procedimento_repetido_recusa_sem_vazar_documento() {
 
 /// BDD-60-05: a identidade continua legível quando a unidade ativa não
 /// tem o processo aberto. A lista some da árvore, não o documento atual.
-/// Cassette UnB observa ausência do link depois de concluir o processo;
+/// Cassette `UnB` observa ausência do link depois de concluir o processo;
 /// o estado da unidade deste ensaio é uma hipótese funcional no SQLite.
 #[test]
 fn arvore_sem_lista_na_unidade_fechada_mantem_conteudo_e_reabre_sem_mutar_documento() {
