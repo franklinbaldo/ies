@@ -434,7 +434,6 @@ fn bdd_60_02_cli_versao_e_foto_no_processo_informado() {
     assert!(!destino.0.join("0011519.v2.html").exists());
 }
 
-
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
