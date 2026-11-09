@@ -9,7 +9,7 @@ use rusqlite::Connection;
 pub(crate) fn barra(ciencia: &Ciencia) -> &'static str {
     match ciencia {
         Ciencia::Pendente => {
-            r#"<a href="#" onclick="cienciaDocumento();" title="Ciência">Ciência</a>"#
+            r##"<a href="#" onclick="cienciaDocumento();" title="Ciência">Ciência</a>"##
         }
         Ciencia::Registrada { .. } => "",
     }
