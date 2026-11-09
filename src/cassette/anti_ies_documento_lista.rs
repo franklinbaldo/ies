@@ -204,7 +204,9 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
                             .replace('>', "&gt;")
                     )
                 } else {
-                    String::new()
+                    // Campo obrigatório no modelo: placeholder estrutural,
+                    // não o corpo histórico que a cassette não registrou.
+                    "<p></p>".to_owned()
                 },
             })
         })
