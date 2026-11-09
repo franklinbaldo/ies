@@ -200,11 +200,7 @@ pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
 
 #[path = "documento_interprocessos_transicoes.rs"]
 mod transicoes;
-use transicoes::{
-    cancelar_antes_de_servir_lista, conferir_estado_apos_cli, revogar_antes_de_servir_corpo,
-    revogar_sessao_antes_de_servir_corpo, revogar_versao_antes_de_servir_corpo,
-    trocar_titulo_antes_de_servir_corpo,
-};
+use transicoes::{aplicar_transicao, conferir_estado_apos_cli};
 
 fn executar_com_estado(
     com_segundo: bool,
@@ -234,24 +230,7 @@ fn executar_com_estado(
         let mut transicao = false;
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
             if !transicao {
-                transicao = match modo {
-                    EstadoExtra::RevogadoAoVisualizar => {
-                        revogar_antes_de_servir_corpo(&tcp, &db, &instalacao)
-                    }
-                    EstadoExtra::TituloTrocadoAoVisualizar => {
-                        trocar_titulo_antes_de_servir_corpo(&tcp, &db, &instalacao)
-                    }
-                    EstadoExtra::SessaoRevogadaAoVisualizar => {
-                        revogar_sessao_antes_de_servir_corpo(&tcp, &db, &instalacao)
-                    }
-                    EstadoExtra::VersaoRevogadaAoVisualizar => {
-                        revogar_versao_antes_de_servir_corpo(&tcp, &db, &instalacao)
-                    }
-                    EstadoExtra::CanceladoAntesDaLista => {
-                        cancelar_antes_de_servir_lista(&tcp, &db, &instalacao)
-                    }
-                    _ => false,
-                };
+                transicao = aplicar_transicao(modo, &tcp, &db, &instalacao);
             }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
