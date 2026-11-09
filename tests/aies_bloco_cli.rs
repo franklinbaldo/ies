@@ -280,7 +280,8 @@ fn iniciar_tunel(
     })
 }
 
-fn executar(interno: bool, detalhe: bool) -> (Output, Vec<String>) {
+fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
+    let detalhe = numero == Some("2195");
     let esperados = if interno || detalhe { 3usize } else { 2usize };
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
@@ -323,8 +324,8 @@ fn executar(interno: bool, detalhe: bool) -> (Output, Vec<String>) {
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let argumentos: Vec<&str> = if detalhe {
-        vec!["--json", "bloco", "2195"]
+    let argumentos: Vec<&str> = if let Some(numero) = numero {
+        vec!["--json", "bloco", numero]
     } else if interno {
         vec![
             "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
@@ -388,7 +389,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false, false);
+    let (saida, pedidos) = executar(false, None);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -423,7 +424,7 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true, false);
+    let (saida, pedidos) = executar(true, None);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -454,7 +455,7 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
 /// Expectativas definidas independentemente do HTML gerado pelo simulador.
 #[test]
 fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
-    let (saida, pedidos) = executar(false, true);
+    let (saida, pedidos) = executar(false, Some("2195"));
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -483,4 +484,17 @@ fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
     assert_eq!(itens[1]["anotacoes"], "");
     assert!(!valor.to_string().contains("infra_hash"));
     assert!(!valor.to_string().contains("PHPSESSID"));
+}
+
+/// O numero nao visto nesta pagina nao pode virar inexistencia global.
+#[test]
+fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
+    let (saida, pedidos) = executar(false, Some("9999"));
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(pedidos.len(), 2);
+    let valor = json(&saida);
+    assert_eq!(valor["codigo"], "fonte_invalida");
+    assert_eq!(valor["subcodigo"], "bloco_nao_encontrado_na_pagina");
+    assert!(valor["erro"].as_str().unwrap().contains("página"));
+    assert!(!valor.to_string().contains("infra_hash"));
 }
