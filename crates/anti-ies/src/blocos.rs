@@ -21,8 +21,13 @@ pub(crate) fn acrescentar_menu(
     for tipo in [Tipo::Assinatura, Tipo::Interno, Tipo::Reuniao] {
         match blocos::ler(banco, instalacao, cenario, tipo) {
             Ok(Some(_)) => {
-                write!(links, "<a href='controlador.php?acao={}&amp;infra_hash={HASH}'>Blocos {}</a>",
-                    tipo.acao(), tipo.nome()).expect("escrever em String");
+                write!(
+                    links,
+                    "<a href='controlador.php?acao={}&amp;infra_hash={HASH}'>Blocos {}</a>",
+                    tipo.acao(),
+                    tipo.nome()
+                )
+                .expect("escrever em String");
             }
             Ok(None) => {}
             Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
@@ -37,11 +42,19 @@ pub(crate) fn acrescentar_menu(
 fn html(pagina: &Pagina) -> String {
     let mut saida = String::from("<html><body><table id='tblBlocos'>");
     if let Some((inicio, fim)) = pagina.faixa {
-        write!(saida, "<caption>Lista de Blocos ({} registros - {inicio} a {fim}):</caption>",
-            pagina.total).expect("escrever em String");
+        write!(
+            saida,
+            "<caption>Lista de Blocos ({} registros - {inicio} a {fim}):</caption>",
+            pagina.total
+        )
+        .expect("escrever em String");
     } else {
-        write!(saida, "<caption>Lista de Blocos ({} registros):</caption>",
-            pagina.total).expect("escrever em String");
+        write!(
+            saida,
+            "<caption>Lista de Blocos ({} registros):</caption>",
+            pagina.total
+        )
+        .expect("escrever em String");
     }
     saida.push_str("<tr><th></th><th>Número</th><th>Estado</th><th>Descrição</th></tr>");
     for linha in &pagina.linhas {
