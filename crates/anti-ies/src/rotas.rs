@@ -113,9 +113,7 @@ pub(crate) fn responder(
         Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
             processo_criacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("procedimento_alterar" | "procedimento_consultar")
-            if eh_controlador_sei(alvo) =>
-        {
+        Some("procedimento_alterar" | "procedimento_consultar") if eh_controlador_sei(alvo) => {
             processo_criacao::propriedades(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
