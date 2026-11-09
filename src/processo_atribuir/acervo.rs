@@ -198,9 +198,10 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
 
         let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let endereco = escuta.local_addr().unwrap();
+        let origem_servidor = origem.clone();
         let servidor = std::thread::spawn(move || {
             let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, CENARIO))).unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &origem_servidor, CENARIO))).unwrap();
         });
         let mut cliente = TcpStream::connect(endereco).unwrap();
         write!(
