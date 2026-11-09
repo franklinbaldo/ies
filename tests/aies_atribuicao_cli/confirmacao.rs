@@ -56,3 +56,24 @@ fn bdd_264_02_confirmar_atribuicao_e_reler_pela_cli_real() {
 fn bdd_264_03_confirmar_remocao_e_reler_pela_cli_real() {
     executar_e_reler(true, None);
 }
+
+#[test]
+fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
+    let pasta = Pasta::nova();
+    let origem = pasta.privado("origem", "https://sei.producao.exemplo/sei");
+    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    let url = pasta.privado("url", "https://sei.producao.exemplo/sei/controlador.php?acao=procedimento_controlar");
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["--json", "processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar"])
+        .env("IES_URL_CONTROLE_FILE", url)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .env("HOME", &pasta.0)
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_CREDENCIAIS_FILE")
+        .output()
+        .unwrap();
+    assert_eq!(saida.status.code(), Some(1));
+    let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(resultado["subcodigo"], "escrita_de_atribuicao_ainda_nao_verificada");
+}
