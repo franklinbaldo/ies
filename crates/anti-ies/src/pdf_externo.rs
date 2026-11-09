@@ -21,6 +21,7 @@ fn falha(causa: &Falha) -> Resposta {
         Falha::ProcessoNaoAbertoNaUnidade
         | Falha::TipoAusente
         | Falha::UploadAusente
+        | Falha::UploadSemConteudoRecuperavel
         | Falha::LimiteExcedido
         | Falha::EntradaInvalida => erro(Estado::RequisicaoInvalida),
     }
