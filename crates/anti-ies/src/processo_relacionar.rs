@@ -125,3 +125,88 @@ pub(crate) fn consulta(
         corpo_binario: None,
     }
 }
+
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use crate::rotas;
+    use iesei::banco_cassettes::iniciar;
+    use iesei::processos::{ProcessoSimulado, guardar};
+
+    fn cenario() -> (Connection, Instalacao) {
+        let mut db = Connection::open_in_memory().unwrap();
+        iniciar(&db).unwrap();
+        let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        for (id, numero) in [("10", "P-01"), ("22", "P-02")] {
+            guardar(
+                &mut db,
+                &origem,
+                "caso",
+                &ProcessoSimulado {
+                    id: id.into(),
+                    numero: numero.into(),
+                    unidade_origem: "TESTE".into(),
+                    aberto_em: vec!["TESTE".into()],
+                    anotacao_origem: None,
+                    destinos: vec![],
+                },
+            )
+            .unwrap();
+            relacionamentos::observar(&db, &origem, "caso", id).unwrap();
+        }
+        (db, origem)
+    }
+
+    /// Apoio ao BDD-258-02: o POST sintético só é aceito quando uma
+    /// nova GET, inclusive pelo processo inverso, lê o vínculo no SQLite.
+    #[test]
+    fn adicionar_post_reler_bilateralmente_e_preservar_estado() {
+        let (db, origem) = cenario();
+        let url = "/sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10";
+        let inicial = rotas::responder("GET", url, b"", &db, &origem, "caso");
+        assert_eq!(inicial.estado, Estado::Ok);
+        assert!(!inicial.corpo.contains("P-02</a>"));
+
+        let resposta = rotas::responder(
+            "POST",
+            url,
+            b"hdnIdProtocolo=22&txtProtocolo=P-02&txtIdentificacaoProtocolo=&sbmAdicionar=Adicionar",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert_eq!(resposta.estado, Estado::Redirecionamento);
+        assert!(resposta.localizacao.as_deref().is_some_and(|s| s.contains("resultado=1")));
+        let depois = rotas::responder("GET", url, b"", &db, &origem, "caso");
+        assert_eq!(depois.estado, Estado::Ok);
+        assert!(depois.corpo.contains("P-02</a>"));
+        let inverso = rotas::responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_relacionar&id_procedimento=22",
+            b"",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert!(inverso.corpo.contains("P-01</a>"));
+        assert_eq!(relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().len(), 1);
+        assert_eq!(relacionamentos::listar(&db, &origem, "caso", "22").unwrap().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn adicionar_recusa_identidade_que_nao_corresponde_ao_nup() {
+        let (db, origem) = cenario();
+        let url = "/sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10";
+        let resposta = rotas::responder(
+            "POST",
+            url,
+            b"hdnIdProtocolo=22&txtProtocolo=P-03&txtIdentificacaoProtocolo=&sbmAdicionar=Adicionar",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
+        assert!(relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().is_empty());
+    }
+}
