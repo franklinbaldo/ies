@@ -365,7 +365,12 @@ fn executar_com_estado(
                 if linha.starts_with("GET ") && linha.contains("acao=documento_visualizar") {
                     assert_eq!(
                         cancelamento_documento::aplicar(
-                            &db, &instalacao, CENARIO, "42", "7", "Revogado entre leituras"
+                            &db,
+                            &instalacao,
+                            CENARIO,
+                            "42",
+                            "7",
+                            "Revogado entre leituras"
                         )
                         .unwrap(),
                         Aplicacao::Aplicada
