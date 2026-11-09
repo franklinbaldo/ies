@@ -139,7 +139,7 @@ fn executar() -> (Output, Vec<String>, (String, String)) {
     let controle = pasta.privado(
         "url",
         &format!(
-            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{chave}={}",
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_sistema=100000100&infra_unidade_atual=110000001&{chave}={}",
             "a".repeat(64)
         ),
     );
