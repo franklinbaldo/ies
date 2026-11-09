@@ -140,7 +140,7 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-fn executar(args: &[&str], negar_releitura: bool) -> (Output, Vec<String>, Historico) {
+fn executar(args: &[&str], negar_releitura: bool) -> (Output, Option<Output>, Vec<String>, Historico) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -199,36 +199,42 @@ fn executar(args: &[&str], negar_releitura: bool) -> (Output, Vec<String>, Histo
             canal.flush().unwrap();
         }
     });
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(args)
-        .env("IES_URL_CONTROLE_FILE", controle)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta_proxy}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .unwrap();
+    let executar_cli = |argumentos: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(argumentos)
+            .env("IES_URL_CONTROLE_FILE", &controle)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{porta_proxy}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .unwrap()
+    };
+    let saida = executar_cli(args);
+    let releitura = (args.contains(&"--confirmar") && !negar_releitura)
+        .then(|| executar_cli(&["--json", "processo", NUP, "--andamentos-completos"]));
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let eventos = trilha.lock().unwrap().clone();
-    (saida, eventos, persistido)
+    (saida, releitura, eventos, persistido)
 }
 
 #[test]
 fn bdd_259_01_previa_nao_escreve_no_historico() {
-    let (saida, pedidos, persistido) = executar(
+    let (saida, releitura, pedidos, persistido) = executar(
         &["--json", "processo", "andamento", NUP, "--texto", TEXTO],
         false,
     );
+    assert!(releitura.is_none());
     assert_eq!(persistido.total_declarado, 1);
     assert_eq!(persistido.linhas.len(), 1);
     assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
@@ -261,7 +267,7 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
 
 #[test]
 fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
-    let (saida, pedidos, persistido) = executar(
+    let (saida, releitura, pedidos, persistido) = executar(
         &[
             "--json",
             "processo",
@@ -285,6 +291,23 @@ fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
     assert_eq!(resultado["texto"], TEXTO);
     assert_eq!(resultado["total_antes"], 1);
     assert_eq!(resultado["total_depois"], 2);
+    let releitura = releitura.expect("segunda CLI lê o mesmo SQLite após a confirmação");
+    assert_eq!(
+        releitura.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&releitura.stdout),
+        String::from_utf8_lossy(&releitura.stderr)
+    );
+    let consultado: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
+    assert_eq!(consultado["andamentos"]["total_declarado"], 2);
+    let textos: Vec<_> = consultado["andamentos"]["itens"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|linha| linha["descricao"].as_str().unwrap().split_whitespace().collect::<Vec<_>>().join(" "))
+        .collect();
+    assert_eq!(textos, ["Registro novo", "Andamento anterior"]);
     assert_eq!(persistido.total_declarado, 2);
     assert_eq!(persistido.linhas.len(), 2);
     assert_eq!(persistido.linhas[0].descricao, TEXTO);
@@ -296,15 +319,16 @@ fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
             .count(),
         1
     );
-    assert_eq!(
-        pedidos.last().map(String::as_str),
-        Some("GET procedimento_consultar_historico")
-    );
+    let post = pedidos
+        .iter()
+        .position(|p| p == "POST procedimento_atualizar_andamento")
+        .unwrap();
+    assert!(pedidos[post + 1..].iter().any(|p| p == "GET procedimento_consultar_historico"));
 }
 
 #[test]
 fn bdd_259_03_releitura_indisponivel_sai_tres_sem_retry() {
-    let (saida, pedidos, persistido) = executar(
+    let (saida, releitura, pedidos, persistido) = executar(
         &[
             "--json",
             "processo",
@@ -331,6 +355,7 @@ fn bdd_259_03_releitura_indisponivel_sai_tres_sem_retry() {
             .unwrap()
             .contains("confira o histórico")
     );
+    assert!(releitura.is_none());
     assert_eq!(persistido.total_declarado, 2); // efeito ocorreu no SQLite, mas não foi comprovado pela CLI
     assert_eq!(
         pedidos
