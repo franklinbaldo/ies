@@ -3,7 +3,7 @@
 #![cfg(unix)]
 #[path = "support/documento_interprocessos.rs"]
 mod apoio;
-use apoio::{executar, executar_sem_src, json, DOC_A, DOC_B, NUP_A, NUP_B};
+use apoio::{DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_sem_src, json};
 use serde_json::Value;
 
 #[test]
@@ -194,7 +194,12 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
     // a ausência observada e não usa o corpo legível de DOC_A.
     const SEM_SRC: &str = "1000001";
     let (saida, trilha) = executar_sem_src(&[
-        "--json", "documento", SEM_SRC, "--processo", NUP_A, "--sem-cache",
+        "--json",
+        "documento",
+        SEM_SRC,
+        "--processo",
+        NUP_A,
+        "--sem-cache",
     ]);
     assert_eq!(
         saida.status.code(),
@@ -210,15 +215,23 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
     );
     assert!(recusado.get("documentos").is_none(), "{recusado}");
     assert!(
-        trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "a recusa não provoca escrita: {trilha:?}"
     );
 
     // Com --ocultar-inacessiveis, o mesmo SQLite tem uma leitura válida.
     // Só o documento com src comprovado é apresentado, sem fallback.
     let (saida, trilha) = executar_sem_src(&[
-        "--json", "documento", DOC_A, SEM_SRC, "--processo", NUP_A,
-        "--ocultar-inacessiveis", "--sem-cache",
+        "--json",
+        "documento",
+        DOC_A,
+        SEM_SRC,
+        "--processo",
+        NUP_A,
+        "--ocultar-inacessiveis",
+        "--sem-cache",
     ]);
     assert_eq!(
         saida.status.code(),
@@ -234,7 +247,9 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
     assert_eq!(valor["documentos_omitidos"], 1, "{valor}");
     assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
     assert!(
-        trilha.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "somente leitura no transporte: {trilha:?}"
     );
 }
