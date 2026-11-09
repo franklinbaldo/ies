@@ -304,7 +304,6 @@ fn parametros_repetidos_na_visualizacao_recusam_sem_entregar_documento() {
     servidor.join().unwrap();
 }
 
-
 /// BDD-60-05 (apoio HTTP): o histórico não pode continuar oferecendo links
 /// de conteúdo depois do cancelamento no mesmo SQLite. A cassette GO
 /// registra o cancelamento, mas não a consulta ao histórico depois dele:
@@ -361,7 +360,9 @@ fn historico_antigo_de_documento_cancelado_nao_oferece_versoes() {
     assert!(disponivel.contains("documento_visualizar"), "{disponivel}");
     let cancelar = "/sei/controlador.php?acao=documento_cancelar&id_procedimento=7&id_documento=42";
     let confirmado = pedir(
-        endereco, "POST", cancelar,
+        endereco,
+        "POST",
+        cancelar,
         "hdnInfraTipoPagina=2&sbmSalvar=Salvar&txaMotivo=Obsoleto",
     );
     assert!(confirmado.starts_with("HTTP/1.1 302"), "{confirmado}");
@@ -370,15 +371,20 @@ fn historico_antigo_de_documento_cancelado_nao_oferece_versoes() {
     assert!(antigo.starts_with("HTTP/1.1 403"), "{antigo}");
     assert!(!antigo.contains("documento_visualizar"), "{antigo}");
     let versao = pedir(
-        endereco, "GET",
-        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1", "",
+        endereco,
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1",
+        "",
     );
     assert!(versao.starts_with("HTTP/1.1 403"), "{versao}");
 
     let outro = "/sei/controlador.php?acao=documento_versao_listar&id_documento=43";
     let nao_afetado = pedir(endereco, "GET", outro, "");
     assert!(nao_afetado.starts_with("HTTP/1.1 200"), "{nao_afetado}");
-    assert!(nao_afetado.contains("documento_visualizar"), "{nao_afetado}");
+    assert!(
+        nao_afetado.contains("documento_visualizar"),
+        "{nao_afetado}"
+    );
     let metodo = pedir(endereco, "POST", outro, "");
     assert!(metodo.starts_with("HTTP/1.1 405"), "{metodo}");
     assert!(pedir(endereco, "GET", outro, "").starts_with("HTTP/1.1 200"));
