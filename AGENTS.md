@@ -83,6 +83,9 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
 7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
    mas não redigir BDD próprio para implementá-los. 🐘 especifica os
    cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
+   **Experimento de ferramenta** (lib, gate, medição, instrumentação)
+   só vira issue com **dono e problema medido** que ele resolve; sem
+   isso, fica como nota em memória OKF ou conversa no Cafezinho.
 8. **Cafezinho permanente e livre:** a convivência do time acontece na
    issue aberta com as etiquetas `cafezinho` e `conversa`
    ([Cafezinho #388](https://github.com/franklinbaldo/ies/issues/388)).
@@ -242,61 +245,14 @@ O que falta implementar e em que ordem está na
   com frontmatter OKF (`contracts/cli.md` → `contracts/cli/*.md`,
   `docs/erros-tipados.md` → `docs/erros-tipados/*.md`). Não encolha
   texto, tabela ou código para caber; não espere o gate falhar.
-- **Dupla implementação IES ↔ anti-IES:** a **mesma PR** pode alterar
-  `src/**`, `crates/iesei/**`, `crates/anti-ies/**` e seus testes,
-  inclusive criar tipos e evoluir o esquema SQLite, **sem exigir
-  cassette prévia: implementar e testar a capacidade já é progresso**.
-  É exceção à divisão rígida por prefixos, não licença para editar
-  branch ou arquivos com dono ativo sem coordenação. Fluxo, shape
-  versionado, SQLite efêmero e critérios: [ciclo anti-IES](docs/anti-ies/ciclo-cassettes.md).
-  BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
-  (autorização do proprietário); nos demais comandos, vale o 🐘.
-  **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
-  **Cassette-first, não cassette-gated:** BDD → cards/ZIPs existentes →
-  SQLite → IES ↔ anti-IES ↔ CLI → confronto com a cassette. Sem rede
-  local, use o [workflow](.github/workflows/inspecionar-cassettes.yml)
-  via Actions/arquivo temporário na PR ([guia](docs/cassettes.md)).
-  Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
-  REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
-  por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
-  **REA / emulação seletiva:** efeitos no SQLite; HTML, URLs,
-  formulários e tokens são projeções sintéticas. Dispensar mecanismos
-  internos não observáveis; separar fatos, hipóteses e desconhecidos.
-  REA em HAR/artefato/runtime autorizado; não substitui Rust nem
-  cria gate ([guia](docs/anti-ies/rea-engenharia-reversa.md),
-  #495–#497).
+- **Partes extraídas**, normativas como esta seção:
+  [mecânica do repositório](docs/mecanica-do-repositorio.md) — dupla
+  implementação IES ↔ anti-IES, CI completo como compilador sob demanda
+  (RED, binário, sandbox sem rede) e integração de fatias WIP.
 - Nos demais trabalhos paralelos, edite só os arquivos do seu prefixo;
   os dos outros você lê. Peça compartilhada exige mudança mínima na
   sua PR e explicação, sem tocar em branch alheio.
 - `xtask` só tem verificadores de infraestrutura, sem dependências.
-- **Sem Rust no sandbox, o CI completo é o compilador sob demanda.**
-  O [CI rápido](.github/workflows/ci-rapido.yml) roda apenas
-  pre-commit em atualizações de PR; o [CI completo](.github/workflows/ci.yml)
-  roda ao passar a PR de Draft para Ready for review (ou manualmente
-  para diagnóstico). Não executar 7 jobs e 3 wheels a cada commit;
-  consulte a [política de CI](docs/ci.md).
-  - **RED:** faça push dos testes novos antes do código. Acione a
-    suíte completa por transição Draft → Ready (volte a Draft se
-    necessário); o hook "Suíte Rust" mostra os testes falhos.
-    Registre o run e a contagem. Não declare RED sem executá-lo.
-  - **Binário:** o job "binário ies" do CI completo publica o artifact
-    `ies-linux-x86_64-<sha>` (`ies` em release e `ies.sha256`,
-    7 dias), compilado no ubuntu-22.04 (glibc ≥ 2.35, libssl3).
-    Baixe-o pelo GitHub (API de artifacts do run ou
-    `gh run download`), confira SHA-256 e rode no sandbox:
-    comandos offline, replay e ensaio ao vivo em treinamento.
-  - **Sandbox sem rede:** cassettes pelo workflow reutilizável
-    [inspecionar](.github/workflows/inspecionar-cassettes.yml);
-    live em treinamento por workflow temporário, removido antes do Ready.
-- **Fatia WIP entra na `main`.** Ao fim da sessão, a fatia com gates
-  verdes é integrada e a PR fecha; a issue segue aberta, e a próxima
-  sessão abre PR nova a partir da `main`. Testes **novos** da fatia que
-  ainda não passam levam `#[ignore = "wip #<issue>: <o que falta>"]`; a
-  sessão seguinte começa tirando os da sua issue. O hook `wip-ignores`
-  recusa `#[ignore]` sem motivo, `wip` sem issue e teste que já passava
-  na base marcado como pendente. Rustfmt, Clippy, OKF e os demais gates
-  não têm pendência: passam sempre. Escrita incompleta fica fechada
-  (`--confirmar` recusa antes da rede).
 - Antes de qualquer PR:
   `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`
   (o [CI completo](.github/workflows/ci.yml) reproduz os mesmos gates
