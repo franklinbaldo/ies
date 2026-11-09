@@ -5,6 +5,7 @@ use super::{
     unidade_da_sessao,
 };
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 /// Renderização da hipótese sintética de pasta declarada, mas não carregada.
 /// Os cards `UnB` mostram `PASTA`/`AGUARDE` e abertura bem-sucedida; a ausência
@@ -122,14 +123,38 @@ fn arvore_do_processo(
     } else {
         String::new()
     };
-    let barra = literal_js(&crate::processo_barra::acoes_do_processo(
+    let historico_observado = iesei::andamentos::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .is_some();
+    let mut acoes = crate::processo_barra::acoes_do_processo(
         processo,
         unidade_atual,
         relacionados,
         atribuicao.is_some(),
         prazo_observado,
         &ciencia,
-    ));
+    );
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    let pode_atualizar = historico_observado
+        && processo
+            .aberto_em
+            .iter()
+            .any(|unidade| unidade == unidade_atual);
+    if pode_atualizar {
+        write!(
+            acoes,
+            r#"<a href="controlador.php?acao=procedimento_atualizar_andamento&amp;acao_origem=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}">Atualizar Andamento</a>"#
+        )
+        .expect("formatação String");
+    }
+    let barra = literal_js(&acoes);
+    let link_historico = if historico_observado {
+        format!(
+            r##"<div id="divConsultarAndamento"><a href="#" onclick="consultarAndamento('controlador.php?acao=procedimento_consultar_historico&amp;acao_origem=arvore_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}');">Consultar Andamento</a></div>"##
+        )
+    } else {
+        String::new()
+    };
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
@@ -137,7 +162,7 @@ Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_v
 Nos[0].acoes = '{barra}';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
-{lista_ciencia}{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#,
+{lista_ciencia}{nos}</script></head><body><div id="divArvore"></div>{link_historico}<form id="frmArvore"></form></body></html>"#,
         crate::protocolo_sintetico::INFRA_HASH
     ))
 }

@@ -25,7 +25,9 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 
 ## Evidência
 
-[Cassette UnB](../../cassettes/unb/processo-andamento-registrar-unb--111df7e25e1e.md), [observação](../../docs/como-o-sei-funciona/registro-de-andamento.md), [decisão](../../docs/decisoes/processo-andamento.md). Faltam teste integrado de transporte/orçamento, replay e validação ao vivo; PR deve continuar Draft.
+[Cassette UnB](../../cassettes/unb/processo-andamento-registrar-unb--111df7e25e1e.md), [cassette GO](../../cassettes/go/processo-andamento-registrar-go--3d46a9421f08.md), [observação](../../docs/como-o-sei-funciona/registro-de-andamento.md), [decisão](../../docs/decisoes/processo-andamento.md).
+
+**BDD-259-01:** teste `tests/aies_andamento_cli.rs` executa o binário `ies` real por HTTPS loopback contra o anti-IES e SQLite efêmero, exige a prévia com o texto original e confirma em releitura independente do SQLite que o histórico permaneceu intacto. É **PASS sintético**, sem POST. Inspeção via GitHub Actions verificou SHA-1/SHA-256 e estrutura dos cards UnB/GO (50 interações); isso **não constitui** confronto semântico independente, replay da CLI nem validação live. **BDD-259-02/03** seguem pendentes, com confirmação pública bloqueada antes da rede.
 
 ## Subcódigos próprios
 

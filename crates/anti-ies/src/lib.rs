@@ -12,6 +12,7 @@ pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod prazo_processo;
+mod processo_andamento;
 mod processo_atribuicao;
 mod processo_barra;
 mod processo_ciencia;
