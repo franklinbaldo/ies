@@ -162,6 +162,7 @@ fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
     assert_eq!(sem_conteudo.numero_sei, "1000001");
 }
 
+#[derive(Clone, Copy)]
 enum EstadoExtra {
     Nenhum,
     SemSrc,
