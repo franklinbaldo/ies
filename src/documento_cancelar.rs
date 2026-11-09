@@ -6,10 +6,10 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
-mod erro;
-mod fluxo;
 #[cfg(test)]
 mod acervo;
+mod erro;
+mod fluxo;
 #[cfg(test)]
 mod tests_fluxo;
 
