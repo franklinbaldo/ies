@@ -3,7 +3,7 @@ use clap::Subcommand;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum DocumentoAcao {
-    /// Inspeção local ou prévia Web de PDF externo; escrita ainda bloqueada.
+    /// Inclui PDF externo: inspeção local, prévia Web (--consultar-sei) ou gravação (--confirmar).
     IncluirExterno {
         #[arg(long, required = true, value_name = "NUP")]
         processo: String,
@@ -14,7 +14,7 @@ pub(crate) enum DocumentoAcao {
         /// Consulta a lista e o cadastro externo no SEI (sem upload nem escrita).
         #[arg(long)]
         consultar_sei: bool,
-        /// Escrita remota ainda bloqueada antes de abrir sessão/rede
+        /// Envia o PDF e cadastra o documento, uma única vez, com releitura independente
         #[arg(long)]
         confirmar: bool,
     },

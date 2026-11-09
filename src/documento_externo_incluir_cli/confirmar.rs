@@ -1,5 +1,5 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
-//! A rotina de chamada permanece fechada até ensaio real em TREINAMENTO.
+//! Validada ao vivo na `UnB` de treinamento (09/11/2026, saída 0).
 use crate::Cli;
 use crate::documento_externo_incluir::{
     PdfLocal,
@@ -21,22 +21,15 @@ pub(super) fn executar(
     tipo: &str,
     pdf: &PdfLocal,
     caminho_pdf: &Path,
-    ensaio_treinamento: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // O marker opt-in, sozinho, não autoriza tocar em instalações reais.
-        // Exigir origem reservada e proxy exclusivamente na máquina local
-        // antes da primeira requisição, inclusive GET; ou, no ensaio live
-        // autorizado, a origem exata da UnB de treinamento.
-        let proxy_local =
-            std::env::var("https_proxy").is_ok_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
-        let bancada = sessao.origem == "https://sei.test/sei" && proxy_local;
-        let treinamento = ensaio_treinamento && origem_unb_de_treinamento(sessao.origem);
-        if !bancada && !treinamento {
+        // Limite inviolável do AGENTS.md: só treinamento/homologação.
+        // Conferido antes da primeira requisição, inclusive GET.
+        if !origem_de_treinamento(sessao.origem) {
             return super::recusa(
                 cli.json,
-                &super::FalhaInclusaoExterna::CadastroNaoValidado,
-                "ensaio de confirmação somente em sei.test com proxy loopback ou na UnB de treinamento",
+                &super::FalhaInclusaoExterna::OrigemForaDoTreinamento,
+                "a origem da sessão não é instalação pública de treinamento",
                 1,
             );
         }
@@ -105,11 +98,24 @@ pub(super) fn executar(
     })
 }
 
-/// Identidade exata da instalação de treinamento em que o oráculo Todos
-/// observou o cadastro externo (SEI 4); hosts semelhantes não passam.
-fn origem_unb_de_treinamento(origem: &str) -> bool {
+/// Instalações públicas de treinamento e homologação
+/// (`docs/interfaces/credenciais-de-treinamento.md`) e a bancada reservada
+/// `sei.test` do anti-IES. Comparação exata da URL base: hosts parecidos,
+/// outro caminho ou `http` não passam.
+const ORIGENS_DE_TREINAMENTO: [&str; 8] = [
+    "https://sei.treinamento.unb.br/sei",
+    "https://sei.orgao1.tramita.processoeletronico.gov.br/sei",
+    "https://sei.orgao2.tramita.processoeletronico.gov.br/sei",
+    "https://sei.orgao3.tramita.processoeletronico.gov.br/sei",
+    "https://sei.orgao4.tramita.processoeletronico.gov.br/sei",
+    "https://teste.sei.tic.ufrj.br/sei",
+    "https://seitreinamento.go.gov.br/sei",
+    "https://sei.test/sei",
+];
+
+fn origem_de_treinamento(origem: &str) -> bool {
     crate::instalacao::Instalacao::interpretar(origem)
-        .is_some_and(|instalacao| instalacao.url_base() == "https://sei.treinamento.unb.br/sei")
+        .is_some_and(|instalacao| ORIGENS_DE_TREINAMENTO.contains(&instalacao.url_base().as_str()))
 }
 
 fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
@@ -144,18 +150,22 @@ mod tests {
     }
 
     #[test]
-    fn ensaio_live_aceita_somente_a_origem_exata_da_unb_de_treinamento() {
-        assert!(origem_unb_de_treinamento(
-            "https://sei.treinamento.unb.br/sei"
-        ));
-        for outra in [
+    fn confirmar_aceita_so_instalacoes_de_treinamento_e_a_bancada() {
+        for origem in ORIGENS_DE_TREINAMENTO {
+            assert!(origem_de_treinamento(origem), "{origem}");
+        }
+        for producao_ou_parecida in [
             "https://sei.unb.br/sei",
             "https://sei.treinamento.unb.br.exemplo/sei",
             "https://sei.treinamento.unb.br/outro",
             "http://sei.treinamento.unb.br/sei",
-            "https://sei.test/sei",
+            "https://sei.go.gov.br/sei",
+            "https://sei.exemplo.gov.br/sei",
         ] {
-            assert!(!origem_unb_de_treinamento(outra), "{outra}");
+            assert!(
+                !origem_de_treinamento(producao_ou_parecida),
+                "{producao_ou_parecida}"
+            );
         }
     }
 
