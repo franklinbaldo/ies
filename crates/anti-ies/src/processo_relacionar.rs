@@ -102,6 +102,11 @@ pub(crate) fn responder(
             Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
+    renderizar_formulario(id, &vinculos)
+}
+
+/// Projeta a lista observada no formulário PEN1; lista vazia não inventa tabela.
+fn renderizar_formulario(id: &str, vinculos: &[relacionamentos::Relacionamento]) -> Resposta {
     let assinatura = "b".repeat(64);
     let tem_vinculos = !vinculos.is_empty();
     let mut linhas = String::new();
