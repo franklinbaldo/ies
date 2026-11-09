@@ -224,10 +224,20 @@ fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
     let origem = origem();
     let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "legado.pdf", 42).unwrap();
     let resultado = modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id);
-    assert!(
-        resultado.is_err(),
-        "metadados sem bytes não são PDF recuperável"
-    );
+    assert!(matches!(
+        resultado,
+        Err(modelo::Falha::UploadSemConteudoRecuperavel)
+    ));
+    let cadastro = anti_ies::pdf_externo::atender(
+        "POST",
+        "/sei/controlador.php?acao=documento_receber&id_procedimento=7",
+        b"selSerie=293&hdnFlagDocumentoCadastro=2&hdnAnexos=upload-1%C2%B1legado.pdf",
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    assert_eq!(cadastro.estado, anti_ies::Estado::RequisicaoInvalida);
     assert!(
         modelo::documentos(&banco, &origem, "ensaio", "7")
             .unwrap()
@@ -311,7 +321,15 @@ fn bdd_332_04_releitura_sqlite_indisponivel_nao_vira_processo_inexistente() {
     iniciar(&banco).unwrap();
     semear(&banco);
     let origem = origem();
-    let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "prova.pdf", 42).unwrap();
+    let recibo = modelo::receber_conteudo(
+        &banco,
+        &origem,
+        "ensaio",
+        "7",
+        "prova.pdf",
+        b"%PDF-1.7\nconteudo",
+    )
+    .unwrap();
     modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id).unwrap();
     banco.execute_batch("DROP TABLE sim_processo").unwrap();
     let resposta = anti_ies::pdf_externo::atender(
@@ -349,7 +367,7 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
         )
         .unwrap();
         interno::criar(&banco, &origem, "ensaio", "7", "291", "Interno").unwrap();
-        let temporario = modelo::receber(&banco, &origem, "ensaio", "7", "anexo.pdf", 45).unwrap();
+        let temporario = modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "anexo.pdf", b"%PDF-1.7\nconteudo").unwrap();
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", temporario.id).unwrap();
         for _ in 0..2 {
             let (mut fluxo, _) = escuta.accept().unwrap();
