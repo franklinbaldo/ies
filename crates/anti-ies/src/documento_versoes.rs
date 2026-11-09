@@ -128,12 +128,9 @@ pub fn responder(
         Err(estado) => return Resposta::nova(estado),
         _ => {}
     }
-    if acao == "documento_versao_listar" {
-        return resposta_html(historico(&documento));
-    }
-    // A URL pode ter sido publicada antes do cancelamento. O estado
-    // atualizado no SQLite prevalece sobre qualquer href anteriormente
-    // observado: nao servir corpo cancelado, nem versao historica.
+    // URLs de conteudo e de historico podem ter sido publicadas antes do
+    // cancelamento. Consultar o mesmo SQLite antes de servir versoes ou
+    // oferecer links de visualizacao que ja nao estao acessiveis.
     match crate::documento_cancelar::estado(
         banco,
         instalacao,
@@ -147,6 +144,9 @@ pub fn responder(
         }
         Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
         Err(estado) => return Resposta::nova(estado),
+    }
+    if acao == "documento_versao_listar" {
+        return resposta_html(historico(&documento));
     }
     let versao = versao_pedida.or_else(|| documento.revisoes.iter().map(|r| r.versao.get()).max());
     let Some(versao) = versao else {
