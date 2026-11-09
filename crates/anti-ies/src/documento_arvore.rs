@@ -187,14 +187,9 @@ pub(crate) fn nos_do_processo(
     let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let mut nos = String::new();
+    let mut vistos = Vec::new();
     let mut indice = 1;
     for id in ids {
-        // Documentos recém-criados têm identidade, mas ainda não têm revisão.
-        // A projeção da tabela de criação é a fonte desses nós, sem inventar
-        // uma versão só para permitir o cancelamento.
-        if internos.iter().any(|d| d.id.to_string() == id) {
-            continue;
-        }
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
@@ -211,9 +206,13 @@ pub(crate) fn nos_do_processo(
             &situacao,
         ));
         indice += 1;
+        vistos.push(id);
     }
     for documento in internos {
         let id = documento.id.to_string();
+        if vistos.contains(&id) {
+            continue;
+        }
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
