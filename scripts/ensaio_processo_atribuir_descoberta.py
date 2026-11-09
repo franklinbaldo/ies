@@ -9,7 +9,25 @@ import subprocess
 import time
 
 from ensaio_processo_atribuir import atribuicao_da_unidade, quantidade
-from ensaio_processo_criar import chamar_ies, nup_possivel_publicavel
+from ensaio_processo_criar import (chamar_ies, codigo_tipado_publicavel,
+                                  nup_possivel_publicavel)
+
+def falha_de_leitura(codigo: int | None, resposta: dict, requisicoes: list[int | None],
+                     consultas: int | None = None) -> tuple[int, dict]:
+    """Conservar somente diagnóstico publicável, sem repetir a leitura."""
+    relatorio = {"estado": "LEITURA_FAIL", "requisicoes": requisicoes}
+    if consultas is not None:
+        relatorio["consultas_processos"] = consultas
+    if type(codigo) is int:
+        relatorio["saida_cli"] = codigo
+    subcodigo = codigo_tipado_publicavel(resposta.get("subcodigo"))
+    if subcodigo is not None:
+        relatorio["subcodigo"] = subcodigo
+    status = resposta.get("status_http")
+    if type(status) is int and 100 <= status <= 599:
+        relatorio["status_http"] = status
+    return 1, relatorio
+
 
 def descobrir_candidato(*, ies: str, origem: str, executar=chamar_ies,
                         pausa=time.sleep, limite: int = 3) -> tuple[int, dict]:
@@ -24,14 +42,14 @@ def descobrir_candidato(*, ies: str, origem: str, executar=chamar_ies,
     try:
         codigo, caixa = executar(ies, comandos)
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        return 1, {"estado": "LEITURA_FAIL", "requisicoes": [None]}
+        return falha_de_leitura(None, {}, [None])
     requisicoes = [quantidade(caixa)]
     unidade = caixa.get("unidade")
     processos = caixa.get("processos")
     if (codigo != 0 or caixa.get("categoria") != "recebidos"
             or type(unidade) is not str or not unidade
             or type(processos) is not list):
-        return 1, {"estado": "LEITURA_FAIL", "requisicoes": requisicoes}
+        return falha_de_leitura(codigo, caixa, requisicoes)
 
     examinados: set[str] = set()
     consultas = 0
@@ -52,13 +70,11 @@ def descobrir_candidato(*, ies: str, origem: str, executar=chamar_ies,
         try:
             codigo, lido = executar(ies, argumentos)
         except (OSError, subprocess.TimeoutExpired, ValueError):
-            return 1, {"estado": "LEITURA_FAIL", "consultas_processos": consultas + 1,
-                       "requisicoes": requisicoes + [None]}
+            return falha_de_leitura(None, {}, requisicoes + [None], consultas + 1)
         consultas += 1
         requisicoes.append(quantidade(lido))
         if codigo != 0 or quantidade(lido) is None:
-            return 1, {"estado": "LEITURA_FAIL", "consultas_processos": consultas,
-                       "requisicoes": requisicoes}
+            return falha_de_leitura(codigo, lido, requisicoes, consultas)
         if (lido.get("numero") == nup
                 and lido.get("id_procedimento") == identificador
                 and atribuicao_da_unidade(lido, unidade) == ""):
