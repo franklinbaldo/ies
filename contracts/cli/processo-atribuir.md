@@ -79,7 +79,7 @@ mudança no intervalo. A leitura nova ainda registra
 `atribuicao_relida` no JSON (`null` = não observada, texto vazio =
 remoção observada), como **possível resíduo e não prova de autoria**.
 O erro original do envio fica preservado no erro tipado, sem retry.
-A mensagem humana e o campo `mensagem` do JSON orientam **não repetir a
+A mensagem humana e o campo `erro` do JSON orientam **não repetir a
 confirmação de efeito incerto**, mesmo quando a releitura mostra o estado
 pedido. Consulte o processo para verificar o possível resíduo, não para
 transformar a tentativa inconclusiva em autorização de retry. O 302
