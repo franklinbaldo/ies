@@ -2,8 +2,8 @@
 //! Evidência exclusivamente sintética; não afirma compatibilidade SEI real.
 #![cfg(unix)]
 use anti_ies::atender_http;
-use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::atribuicoes::{self, Observacao, Usuario};
+use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
@@ -102,24 +102,42 @@ fn banco() -> (Connection, Instalacao) {
     )
     .unwrap();
     processos::guardar(
-        &mut db, &origem, CENARIO,
+        &mut db,
+        &origem,
+        CENARIO,
         &ProcessoSimulado {
-            id: "10".into(), numero: NUP.into(),
+            id: "10".into(),
+            numero: NUP.into(),
             unidade_origem: "TESTE".into(),
             aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None, destinos: vec![],
+            anotacao_origem: None,
+            destinos: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
     atribuicoes::registrar(
-        &mut db, &origem, CENARIO, "10", "TESTE",
+        &mut db,
+        &origem,
+        CENARIO,
+        "10",
+        "TESTE",
         &Observacao {
             login_atual: "aluno1".into(),
             usuarios: vec![
-                Usuario { id: "7".into(), login: "aluno1".into(), nome: "Pessoa 1".into() },
-                Usuario { id: "8".into(), login: "aluno2".into(), nome: "Pessoa 2".into() },
+                Usuario {
+                    id: "7".into(),
+                    login: "aluno1".into(),
+                    nome: "Pessoa 1".into(),
+                },
+                Usuario {
+                    id: "8".into(),
+                    login: "aluno2".into(),
+                    nome: "Pessoa 2".into(),
+                },
             ],
         },
-    ).unwrap();
+    )
+    .unwrap();
     (db, origem)
 }
 
@@ -150,7 +168,11 @@ fn executar(json: bool) -> (Output, Vec<String>, usize) {
         while let Some(mut canal) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut canal, Some((&db, &origem, CENARIO))).unwrap();
         }
-        processos::ler(&db, &origem, CENARIO, "10").unwrap().unwrap().aberto_em.len()
+        processos::ler(&db, &origem, CENARIO, "10")
+            .unwrap()
+            .unwrap()
+            .aberto_em
+            .len()
     });
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
@@ -175,7 +197,11 @@ fn executar(json: bool) -> (Output, Vec<String>, usize) {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(if json { vec!["--json", "processo", "atribuir", NUP, "--usuario", "aluno2"] } else { vec!["processo", "atribuir", NUP, "--usuario", "aluno2"] })
+        .args(if json {
+            vec!["--json", "processo", "atribuir", NUP, "--usuario", "aluno2"]
+        } else {
+            vec!["processo", "atribuir", NUP, "--usuario", "aluno2"]
+        })
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -201,8 +227,13 @@ fn executar(json: bool) -> (Output, Vec<String>, usize) {
 #[test]
 fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
     let (saida, eventos, unidades_abertas) = executar(true);
-    assert_eq!(saida.status.code(), Some(0), "stderr={} stdout={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr), String::from_utf8_lossy(&saida.stdout));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(valor["nup"], NUP);
     assert_eq!(valor["unidade"], "TESTE");
@@ -212,20 +243,49 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
     assert_eq!(valor["alterado"], false);
     assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
     assert_eq!(eventos.len(), 5, "{eventos:?}");
-    assert_eq!(eventos.iter().filter(|e| e.as_str() == "GET procedimento_atribuicao_cadastrar").count(), 1);
-    assert_eq!(eventos.iter().filter(|e| e.starts_with("POST ")).map(String::as_str).collect::<Vec<_>>(), ["POST protocolo_pesquisa_rapida"], "nenhum POST de atribuição: {eventos:?}");
-    assert_eq!(unidades_abertas, 1, "bancada não altera unidades do processo");
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET procedimento_atribuicao_cadastrar")
+            .count(),
+        1
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.starts_with("POST "))
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["POST protocolo_pesquisa_rapida"],
+        "nenhum POST de atribuição: {eventos:?}"
+    );
+    assert_eq!(
+        unidades_abertas, 1,
+        "bancada não altera unidades do processo"
+    );
 }
 
 #[test]
 fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
     let (saida, eventos, unidades_abertas) = executar(false);
-    assert_eq!(saida.status.code(), Some(0), "stderr={} stdout={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr), String::from_utf8_lossy(&saida.stdout));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
     let texto = String::from_utf8(saida.stdout).unwrap();
     assert!(texto.contains("Atribuição atual: aluno1"), "{texto}");
     assert!(texto.contains("Atribuir a aluno2"), "{texto}");
     assert_eq!(eventos.len(), 5);
-    assert_eq!(eventos.iter().filter(|e| e.starts_with("POST ")).map(String::as_str).collect::<Vec<_>>(), ["POST protocolo_pesquisa_rapida"]);
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.starts_with("POST "))
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["POST protocolo_pesquisa_rapida"]
+    );
     assert_eq!(unidades_abertas, 1);
 }
