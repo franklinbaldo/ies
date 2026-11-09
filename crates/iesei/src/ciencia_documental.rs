@@ -51,7 +51,7 @@ pub fn consultar(
 
 
 /// Consulta a identidade proprietária de um documento antes de um GET de ciência.
-/// O SEI 4.0 pode publicar a URL da ciência sem id_procedimento.
+/// O SEI 4.0 pode publicar a URL da ciência sem `id_procedimento`.
 ///
 /// # Errors
 /// Propaga falhas de SQLite.
@@ -61,13 +61,14 @@ pub fn processo_do_documento(
     cenario: &str,
     documento: &str,
 ) -> rusqlite::Result<Option<String>> {
-    banco.query_row(
-        "SELECT id_procedimento FROM documento_simulado
+    banco
+        .query_row(
+            "SELECT id_procedimento FROM documento_simulado
          WHERE origem=?1 AND cenario=?2 AND id_documento=?3",
-        params![origem.url_base(), cenario, documento],
-        |row| row.get(0),
-    )
-    .optional()
+            params![origem.url_base(), cenario, documento],
+            |row| row.get(0),
+        )
+        .optional()
 }
 
 /// Um GET potencialmente mutador registra no máximo uma atividade por documento.
