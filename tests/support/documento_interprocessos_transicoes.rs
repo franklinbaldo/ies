@@ -13,9 +13,7 @@ pub(super) fn aplicar_transicao(
     instalacao: &Instalacao,
 ) -> bool {
     match modo {
-        EstadoExtra::RevogadoAoVisualizar => {
-            revogar_antes_de_servir_corpo(tcp, banco, instalacao)
-        }
+        EstadoExtra::RevogadoAoVisualizar => revogar_antes_de_servir_corpo(tcp, banco, instalacao),
         EstadoExtra::TituloTrocadoAoVisualizar => {
             trocar_titulo_antes_de_servir_corpo(tcp, banco, instalacao)
         }
@@ -25,7 +23,9 @@ pub(super) fn aplicar_transicao(
         EstadoExtra::VersaoRevogadaAoVisualizar => {
             revogar_versao_antes_de_servir_corpo(tcp, banco, instalacao)
         }
-        EstadoExtra::CanceladoAntesDaLista => cancelar_antes_de_servir_lista(tcp, banco, instalacao),
+        EstadoExtra::CanceladoAntesDaLista => {
+            cancelar_antes_de_servir_lista(tcp, banco, instalacao)
+        }
         _ => false,
     }
 }
