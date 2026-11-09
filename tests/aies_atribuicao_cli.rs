@@ -303,3 +303,49 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
         "prévia não grava atribuição no SQLite"
     );
 }
+
+
+#[test]
+fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
+    // BDD-264-02/03 ainda pendentes: sem validação live, nem o binário
+    // consegue confirmar. O usuário precisa entender o próximo passo.
+    // Arquivos privados inexistentes: qualquer tentativa de sessão falha.
+    for escolha in [["--usuario", "aluno2"], ["--remover", ""]] {
+        let mut argumentos = vec!["--json", "processo", "atribuir", NUP];
+        if escolha[0] == "--remover" {
+            argumentos.push("--remover");
+        } else {
+            argumentos.extend(["--usuario", "aluno2"]);
+        }
+        argumentos.push("--confirmar");
+        let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(&argumentos)
+            .env("IES_ORIGEM_FILE", "/arquivo/inexistente/ies-origem")
+            .env("IES_COOKIE_FILE", "/arquivo/inexistente/ies-cookie")
+            .env("IES_URL_CONTROLE_FILE", "/arquivo/inexistente/ies-url")
+            .env("HOME", "/arquivo/inexistente/ies-home")
+            .output()
+            .unwrap();
+        assert_eq!(saida.status.code(), Some(1));
+        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+        assert_eq!(
+            json["subcodigo"],
+            "escrita_de_atribuicao_ainda_nao_verificada"
+        );
+        assert!(
+            json["mensagem"].as_str().unwrap_or("").contains("prévia"),
+            "a recusa precisa explicar a alternativa sem escrita: {json}"
+        );
+    }
+    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args(["processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar"])
+        .env("IES_ORIGEM_FILE", "/arquivo/inexistente/ies-origem")
+        .env("IES_COOKIE_FILE", "/arquivo/inexistente/ies-cookie")
+        .env("IES_URL_CONTROLE_FILE", "/arquivo/inexistente/ies-url")
+        .env("HOME", "/arquivo/inexistente/ies-home")
+        .output()
+        .unwrap();
+    assert_eq!(saida.status.code(), Some(1));
+    let erro = String::from_utf8(saida.stderr).unwrap();
+    assert!(erro.contains("prévia"), "mensagem humana sem orientação: {erro}");
+}
