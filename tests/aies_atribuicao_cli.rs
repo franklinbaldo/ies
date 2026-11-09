@@ -257,7 +257,12 @@ fn executar_cenario_com_resposta(
     if confirmar {
         argumentos.push("--confirmar");
     }
-    let arquivos = [url.as_path(), cookie.as_path(), origem.as_path(), cert.as_path()];
+    let arquivos = [
+        url.as_path(),
+        cookie.as_path(),
+        origem.as_path(),
+        cert.as_path(),
+    ];
     let saida = executar_cli(arquivos, &pasta, porta, &argumentos);
     let releitura = confirmar.then(|| {
         executar_cli(
