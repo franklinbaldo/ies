@@ -1,5 +1,5 @@
 //! Formulário de prazo baseado em estado SQLite tipado e explicitamente observado.
-//! Apenas GET de leitura/ prévia; POST permanece bloqueado no binário IES.
+//! POST sintético modifica somente o SQLite efêmero; nenhuma escrita externa.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::prazos::{self, EstadoDoPrazo};
@@ -9,11 +9,12 @@ use rusqlite::Connection;
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     if parametro_unico(alvo, "acao") != Some("controle_prazo_definir") {
@@ -27,10 +28,14 @@ pub(crate) fn responder(
     let Ok(Some(estado)) = prazos::ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let (radio_data, radio_concluido, data) = match estado {
-        EstadoDoPrazo::SemPrazo => ("", "", String::new()),
-        EstadoDoPrazo::Data(data) => (" checked", "", escapar(&data)),
-        EstadoDoPrazo::Concluido => ("", " checked", String::new()),
+    if metodo == "POST" {
+        return gravar_prazo(corpo, banco, instalacao, cenario, id);
+    }
+    let (radio_data, radio_dias, radio_concluido, data, dias) = match estado {
+        EstadoDoPrazo::SemPrazo => ("", "", "", String::new(), String::new()),
+        EstadoDoPrazo::Data(data) => (" checked", "", "", escapar(&data), String::new()),
+        EstadoDoPrazo::Dias(dias) => ("", " checked", "", String::new(), dias.to_string()),
+        EstadoDoPrazo::Concluido => ("", "", " checked", String::new(), String::new()),
     };
     let id = escapar(id);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
@@ -42,11 +47,76 @@ pub(crate) fn responder(
          <input type='hidden' name='hdnIdProcedimentos' value='{id}'>\
          <input type='radio' name='rdoPrazo' value='1'{radio_data}>\
          <input type='text' name='txtPrazo' value='{data}'>\
-         <input type='radio' name='rdoPrazo' value='2'>\
-         <input type='text' name='txtDias' value=''>\
+         <input type='radio' name='rdoPrazo' value='2'{radio_dias}>\
+         <input type='text' name='txtDias' value='{dias}'>\
          <input type='radio' name='rdoPrazo' value='3'{radio_concluido}>\
          <input type='checkbox' name='chkSinDiasUteis' value='on'>\
          <button type='submit' name='sbmDefinirControlePrazo'>Salvar</button>\
          </form></body></html>"
     ))
+}
+
+/// A escrita é uma hipótese sintética, não uma reprodução do POST do SEI.
+/// O formulário deve pertencer ao processo e conter um pedido único.
+fn gravar_prazo(
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> Resposta {
+    let pedido = (
+        campo_unico(corpo, "hdnIdProcedimentos"),
+        campo_unico(corpo, "rdoPrazo"),
+        campo_unico(corpo, "txtPrazo"),
+        campo_unico(corpo, "txtDias"),
+    );
+    let (Some(processo), Some(opcao), Some(data), Some(dias)) = pedido else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if processo != id {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let pedido = match (opcao.as_str(), data.is_empty(), dias.is_empty()) {
+        ("1", false, true) => EstadoDoPrazo::Data(data),
+        ("2", true, false) => {
+            let Some(dias) = dias.parse::<u16>().ok().filter(|n| (1..=999).contains(n)) else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            EstadoDoPrazo::Dias(dias)
+        }
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
+    };
+    match prazos::guardar(banco, instalacao, cenario, id, &pedido) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=controle_prazo_definir&resultado=1&id_procedimento={id}"
+        )),
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+fn campo_unico(corpo: &str, campo: &str) -> Option<String> {
+    let mut valores = corpo
+        .split('&')
+        .filter_map(|parte| parte.split_once('='))
+        .filter(|(nome, _)| *nome == campo)
+        .map(|(_, valor)| valor);
+    let valor = valores.next()?;
+    if valores.next().is_some() {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    let mut entrada = valor.as_bytes().iter().copied();
+    while let Some(byte) = entrada.next() {
+        match byte {
+            b'+' => bytes.push(b' '),
+            b'%' => {
+                let alto = char::from(entrada.next()?).to_digit(16)?;
+                let baixo = char::from(entrada.next()?).to_digit(16)?;
+                bytes.push(u8::try_from(alto * 16 + baixo).ok()?);
+            }
+            outro => bytes.push(outro),
+        }
+    }
+    String::from_utf8(bytes).ok()
 }
