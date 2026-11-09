@@ -250,6 +250,12 @@ mod testes {
         let url = "/sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10";
         let inicial = rotas::responder("GET", url, b"", &db, &origem, "caso");
         assert_eq!(inicial.estado, Estado::Ok);
+        // Cassette PEN1: a lista observada vazia oferece o formulário,
+        // mas não publica a tabela nem o campo de remoção.
+        assert!(inicial.corpo.contains("frmProcedimentoListarRelacionamentos"));
+        assert!(inicial.corpo.contains("hdnIdProtocolo"));
+        assert!(!inicial.corpo.contains("Lista de Processos Relacionados"));
+        assert!(!inicial.corpo.contains("hdnInfraItemId"));
         assert!(!inicial.corpo.contains("P-02</a>"));
 
         let resposta = rotas::responder(
@@ -269,6 +275,8 @@ mod testes {
         );
         let depois = rotas::responder("GET", url, b"", &db, &origem, "caso");
         assert_eq!(depois.estado, Estado::Ok);
+        assert!(depois.corpo.contains("Lista de Processos Relacionados"));
+        assert!(depois.corpo.contains("hdnInfraItemId"));
         assert!(depois.corpo.contains("P-02</a>"));
         let inverso = rotas::responder(
             "GET",

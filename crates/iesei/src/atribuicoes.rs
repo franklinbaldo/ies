@@ -137,3 +137,69 @@ pub fn ler(
         usuarios,
     }))
 }
+
+/// Consome uma única seleção oferecida no formulário já observado.
+/// A transição é uma atualização atômica da identidade (origem, cenário,
+/// processo, unidade) no SQLite efêmero, nunca uma chamada ao SEI.
+/// "null" remove apenas uma atribuição efetivamente observada.
+///
+/// # Errors
+/// Distingue ausência de observação de seleção inválida/no-op.
+pub fn aplicar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    selecao: &str,
+) -> Result<(), Falha> {
+    let tx = banco.unchecked_transaction()?;
+    let observado = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    let aberto: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM processo_abertura
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
+        params![origem.url_base(), cenario, id, unidade],
+        |linha| linha.get(0),
+    )?;
+    if !aberto {
+        return Err(Falha::ProcessoNaoObservado);
+    }
+    let novo = if selecao == "null" {
+        ""
+    } else {
+        let mut encontrados = observado.usuarios.iter().filter(|u| u.id == selecao);
+        let escolhido = encontrados.next().ok_or(Falha::DadoInvalido)?;
+        if encontrados.next().is_some()
+            || observado
+                .usuarios
+                .iter()
+                .filter(|u| u.login == escolhido.login)
+                .count()
+                != 1
+        {
+            return Err(Falha::DadoInvalido);
+        }
+        escolhido.login.as_str()
+    };
+    if novo == observado.login_atual {
+        return Err(Falha::DadoInvalido);
+    }
+    let alteradas = tx.execute(
+        "UPDATE processo_atribuicao_observada SET login_atual=?5
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
+         AND login_atual=?6",
+        params![
+            origem.url_base(),
+            cenario,
+            id,
+            unidade,
+            novo,
+            observado.login_atual
+        ],
+    )?;
+    if alteradas != 1 {
+        return Err(Falha::ProcessoNaoObservado);
+    }
+    tx.commit()?;
+    Ok(())
+}
