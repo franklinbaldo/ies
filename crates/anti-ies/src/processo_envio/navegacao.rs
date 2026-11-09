@@ -7,8 +7,8 @@ use super::{
 use rusqlite::Connection;
 
 /// Renderização da hipótese sintética de pasta declarada, mas não carregada.
-/// Os cards UnB mostram PASTA/AGUARDE e abertura bem-sucedida; a ausência
-/// de ABRIR_PASTAS é cenário de falha, não transição observada na cassette.
+/// Os cards `UnB` mostram `PASTA`/`AGUARDE` e abertura bem-sucedida; a ausência
+/// de `ABRIR_PASTAS` é cenário de falha, não transição observada na cassette.
 fn no_pasta_pendente(pasta: &iesei::pastas_incompletas::PastaPendente, id: &str) -> String {
     let indice = pasta.indice;
     let protocolo = &pasta.protocolo_declarado;
