@@ -8,6 +8,7 @@ pub(crate) fn acoes_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
     relacionamentos_observados: bool,
+    atribuicao_observada: bool,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
@@ -25,6 +26,13 @@ pub(crate) fn acoes_do_processo(
         write!(
             links,
             r#"<a href="controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Incluir Documento</a>"#
+        )
+        .expect("formatação de String");
+    }
+    if atribuicao_observada && processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        write!(
+            links,
+            r#"<a href="controlador.php?acao=procedimento_atribuicao_cadastrar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Atribuir Processo</a>"#
         )
         .expect("formatação de String");
     }
