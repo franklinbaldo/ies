@@ -1,6 +1,7 @@
 //! #60 BDD-60-06: lote de documentos de processos distintos pelo binário real.
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 use anti_ies::atender_http;
+use iesei::acesso_versao::{self, AcessoVersao};
 use iesei::acesso_sessao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::cancelamento_documento::{self, Aplicacao};
@@ -183,6 +184,11 @@ pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
     executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
 }
 
+/// A lista já ofereceu a versão 1, mas o acesso muda antes do GET do corpo.
+pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::VersaoRevogadaAoVisualizar, args)
+}
+
 /// Espia apenas a primeira linha sem consumir a requisição HTTP original.
 fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
     let mut inicio = [0_u8; 1024];
@@ -250,6 +256,32 @@ fn revogar_sessao_antes_de_servir_corpo(
     true
 }
 
+/// Revoga somente a versão 1 após a publicação da lista de versões.
+/// A revisão 2 permanece disponível. Esta corrida é hipótese sintética.
+fn revogar_versao_antes_de_servir_corpo(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    if !eh_get_de_conteudo(tcp) {
+        return false;
+    }
+    let mut inicio = [0_u8; 1024];
+    let tamanho = tcp.peek(&mut inicio).unwrap();
+    if !String::from_utf8_lossy(&inicio[..tamanho]).contains("versao=1") {
+        return false;
+    }
+    acesso_versao::restringir(
+        banco,
+        instalacao,
+        CENARIO,
+        "42",
+        NonZeroU32::new(1).unwrap(),
+    )
+    .unwrap();
+    true
+}
+
 /// Confere diretamente no SQLite o efeito da transição local ensaiada.
 fn conferir_estado_apos_cli(
     modo: EstadoExtra,
@@ -277,6 +309,24 @@ fn conferir_estado_apos_cli(
             cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7").unwrap(),
             Some(cancelamento_documento::Situacao::Disponivel),
             "negação global de sessão não cancela o documento"
+        );
+    }
+    if matches!(modo, EstadoExtra::VersaoRevogadaAoVisualizar) {
+        assert!(transicao, "CLI não buscou a versão 1 após o histórico");
+        assert_eq!(
+            acesso_versao::consultar(
+                db, instalacao, CENARIO, "42", NonZeroU32::new(1).unwrap()
+            )
+            .unwrap(),
+            AcessoVersao::Recusado
+        );
+        assert_eq!(
+            acesso_versao::consultar(
+                db, instalacao, CENARIO, "42", NonZeroU32::new(2).unwrap()
+            )
+            .unwrap(),
+            AcessoVersao::Acessivel,
+            "a revogação da versão 1 não afeta a revisão 2"
         );
     }
     if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
@@ -338,6 +388,9 @@ fn executar_com_estado(
                     }
                     EstadoExtra::SessaoRevogadaAoVisualizar => {
                         revogar_sessao_antes_de_servir_corpo(&tcp, &db, &instalacao)
+                    }
+                    EstadoExtra::VersaoRevogadaAoVisualizar => {
+                        revogar_versao_antes_de_servir_corpo(&tcp, &db, &instalacao)
                     }
                     _ => false,
                 };
