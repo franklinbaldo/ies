@@ -396,7 +396,11 @@ pub(crate) fn ler_arvore_com_modo(
         documentos_incluidos: conferencia.documentos_incluidos,
         aviso_leitura_parcial: conferencia.aviso_leitura_parcial,
         anexados,
-        documentos_movidos,
+        documentos_movidos: if conferencia.documentos_incluidos {
+            documentos_movidos
+        } else {
+            Vec::new()
+        },
         anexado_a: None,
         aberto_em: situacao::ler_aberto_em(html),
     })
