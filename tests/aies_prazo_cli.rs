@@ -151,6 +151,14 @@ fn executar_com_argumentos(
     caso: &str,
     extras: &[&str],
 ) -> (Output, Vec<String>, (Option<String>, bool)) {
+    executar_com_resposta(caso, extras, false)
+}
+
+fn executar_com_resposta(
+    caso: &str,
+    extras: &[&str],
+    negar_aceite: bool,
+) -> (Output, Vec<String>, (Option<String>, bool)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -203,6 +211,11 @@ fn executar_com_argumentos(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
+            if negar_aceite && evento == "POST controle_prazo_definir" {
+                // O SQLite já persistiu o efeito, mas a rede nega o aceite.
+                // Uma confirmação insegura não pode declarar sucesso nem refazer POST.
+                resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+            }
             registro.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -300,4 +313,26 @@ fn bdd_272_02_cli_real_confirma_data_por_post_unico_e_releitura() {
         "a releitura independente precisa ocorrer depois do POST: {pedidos:?}"
     );
     assert_eq!(json["requisicoes"], pedidos.len());
+}
+
+#[test]
+fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
+    let (saida, pedidos, estado_final) =
+        executar_com_resposta("sem", &["--ate", "20/11/2026", "--confirmar"], true);
+    assert_eq!(
+        saida.status.code(),
+        Some(3),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["retentavel"], false);
+    assert_eq!(estado_final, (Some("20/11/2026".into()), false));
+    assert_eq!(
+        pedidos.iter().filter(|p| p == &"POST controle_prazo_definir").count(),
+        1,
+        "não repetir o envio inconclusivo: {pedidos:?}"
+    );
 }
