@@ -211,7 +211,7 @@ fn executar_com_resposta(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            if negar_aceite && evento == "POST controle_prazo_definir" {
+            if negar_aceite && evento.starts_with("POST controle_prazo_") {
                 // O SQLite já persistiu o efeito, mas a rede nega o aceite.
                 // Uma confirmação insegura não pode declarar sucesso nem refazer POST.
                 resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
@@ -392,8 +392,7 @@ fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
 
 #[test]
 fn bdd_272_03_previa_de_exclusao_nao_altera_prazo() {
-    let (saida, pedidos, estado_final) =
-        executar_com_argumentos("data", &["--excluir"]);
+    let (saida, pedidos, estado_final) = executar_com_argumentos("data", &["--excluir"]);
     assert_eq!(
         saida.status.code(),
         Some(0),
