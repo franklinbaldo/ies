@@ -367,7 +367,15 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
         )
         .unwrap();
         interno::criar(&banco, &origem, "ensaio", "7", "291", "Interno").unwrap();
-        let temporario = modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "anexo.pdf", b"%PDF-1.7\nconteudo").unwrap();
+        let temporario = modelo::receber_conteudo(
+            &banco,
+            &origem,
+            "ensaio",
+            "7",
+            "anexo.pdf",
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", temporario.id).unwrap();
         for _ in 0..2 {
             let (mut fluxo, _) = escuta.accept().unwrap();
