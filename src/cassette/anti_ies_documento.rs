@@ -52,6 +52,12 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         1,
         "não inventar resposta ausente na cassette"
     );
+    let ids = gravacao::parametro(originais[0].item, "id_documento");
+    let id_observado = ids.first().copied().expect("id_documento observado no GET");
+    assert!(
+        ids.iter().all(|valor| *valor == id_observado),
+        "o GET original deve apontar para um único documento"
+    );
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
@@ -59,7 +65,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
-        id_documento: "42".to_owned(),
+        id_documento: id_observado.to_owned(),
         id_procedimento: "7".to_owned(),
         numero_processo: "00001.000001/2026-01".to_owned(),
         numero: identidade.numero.clone(),
@@ -92,9 +98,10 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
             "GET e POST recusado não modificam o SQLite"
         );
     });
-    let url =
-        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&id_procedimento=7";
-    let resposta = pedir(endereco, "GET", url);
+    let url = format!(
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=7"
+    );
+    let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let identidade_anti = crate::documento_web::identidade_do_titulo(html_anti).unwrap();
@@ -121,13 +128,15 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let cruzado = pedir(
         endereco,
         "GET",
-        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&id_procedimento=8",
+        &format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=8"
+        ),
     );
     assert!(
         cruzado.starts_with("HTTP/1.1 404"),
         "identidade de outro processo"
     );
-    assert!(pedir(endereco, "POST", url).starts_with("HTTP/1.1 405"));
+    assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
 }
 

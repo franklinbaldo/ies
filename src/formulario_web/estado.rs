@@ -48,4 +48,6 @@ pub(crate) enum EstadoDoProcesso {
     AnotacaoNaUnidade,
     /// Vínculo entre processos, incluindo sua remoção.
     RelacionamentosDoProcesso,
+    /// Data de vencimento do controle de prazo.
+    ControleDePrazo,
 }
