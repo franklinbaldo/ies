@@ -86,3 +86,122 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
         .collect();
     assert_eq!(registros_depois, vec![atividade.to_owned()]);
 }
+
+
+/// O BDD-271-02 requer identidade documental: a ciência de um documento
+/// não autoriza atribuir sua atividade ao outro documento do mesmo processo.
+/// Ensaio sintético; não observa usuário de uma sessão real nem prova SEI.
+#[test]
+fn bdd_271_02_ciencias_de_documentos_distintos_nao_se_confundem() {
+    const OUTRO_DOC: &str = "0011520";
+    let pasta = Pasta::nova();
+    // Inicializa o SQLite pela mesma CLI que será exercitada no ensaio.
+    let previa = executar(&pasta, &["--json", "documento", "ciente", DOC], 4);
+    assert_eq!(previa.status.code(), Some(0));
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let mut banco = Connection::open(&caminho).unwrap();
+    documento_versoes::guardar(
+        &mut banco,
+        CENARIO,
+        &DocumentoSimulado {
+            instalacao: Instalacao::interpretar(ORIGEM).unwrap(),
+            id_documento: "43".into(),
+            id_procedimento: "7".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: OUTRO_DOC.into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Teste".into(),
+                unidade: "TESTE".into(),
+                modificacao: "09/11/2026".into(),
+                html_corpo: "<p>Segundo documento sintético</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+    drop(banco);
+
+    let primeira = executar(
+        &pasta,
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
+        11,
+    );
+    assert_eq!(
+        primeira.status.code(),
+        Some(0),
+        "primeiro: stdout={} stderr={}",
+        String::from_utf8_lossy(&primeira.stdout),
+        String::from_utf8_lossy(&primeira.stderr)
+    );
+    let primeira = json(&primeira);
+    assert_eq!(primeira["verificado"], true);
+    let atividade_primeira = primeira["id_atividade"].as_str().unwrap().to_owned();
+
+    // A atividade recém-registrada no documento 42 NÃO aparece no 43.
+    let banco = Connection::open(&caminho).unwrap();
+    let pendente: i64 = banco
+        .query_row(
+            "SELECT COUNT(*) FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 AND id_documento='43'",
+            rusqlite::params![ORIGEM, CENARIO],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(pendente, 0);
+    drop(banco);
+    let previa_outro = executar(
+        &pasta,
+        &["--json", "documento", "ciente", OUTRO_DOC],
+        4,
+    );
+    assert_eq!(
+        previa_outro.status.code(),
+        Some(0),
+        "outro documento: {}",
+        String::from_utf8_lossy(&previa_outro.stderr)
+    );
+    assert_eq!(json(&previa_outro)["verificado"], false);
+
+    // Uma confirmação própria precisa criar uma segunda atividade no mesmo
+    // processo, lida da lista CD43 e registrada separadamente no SQLite.
+    let segunda = executar(
+        &pasta,
+        &["--json", "documento", "ciente", OUTRO_DOC, "--confirmar"],
+        11,
+    );
+    assert_eq!(
+        segunda.status.code(),
+        Some(0),
+        "segundo: stdout={} stderr={}",
+        String::from_utf8_lossy(&segunda.stdout),
+        String::from_utf8_lossy(&segunda.stderr)
+    );
+    let segunda = json(&segunda);
+    assert_eq!(segunda["id_documento"], "43");
+    assert_eq!(segunda["processo"]["id"], "7");
+    assert_eq!(segunda["verificado"], true);
+    let atividade_segunda = segunda["id_atividade"].as_str().unwrap();
+    assert_ne!(atividade_primeira, atividade_segunda);
+
+    let banco = Connection::open(&caminho).unwrap();
+    let pares: Vec<(String, String)> = banco
+        .prepare(
+            "SELECT id_documento, id_atividade FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 ORDER BY id_documento",
+        )
+        .unwrap()
+        .query_map(rusqlite::params![ORIGEM, CENARIO], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(
+        pares,
+        vec![
+            ("42".into(), atividade_primeira),
+            ("43".into(), atividade_segunda.to_owned())
+        ]
+    );
+}
