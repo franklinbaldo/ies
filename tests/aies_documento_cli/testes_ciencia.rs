@@ -235,6 +235,8 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
     );
     let resultado = json(&confirmado);
     assert_eq!(resultado["verificado"], true);
+    // O usuário deve vir da Lista de Ciências relida pela CLI, não apenas do SQL.
+    assert_eq!(resultado["usuario"], "agente-de-teste");
     let id = resultado["id_atividade"].as_str().unwrap();
     let banco = Connection::open(&caminho).unwrap();
     let (atividade, usuario): (String, Option<String>) = banco
