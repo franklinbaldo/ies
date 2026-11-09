@@ -85,7 +85,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, format!("{evento} {acao}"))
 }
 
-fn estado() -> (Connection, Instalacao) {
+fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -120,7 +120,7 @@ fn estado() -> (Connection, Instalacao) {
         CENARIO,
         &ProcessoSimulado {
             id: "10".into(),
-            numero: ALHEIO.into(),
+            numero: (if com_pasta_incompleta { PEDIDO } else { ALHEIO }).into(),
             unidade_origem: "TESTE".into(),
             aberto_em: vec!["TESTE".into()],
             anotacao_origem: None,
@@ -128,10 +128,21 @@ fn estado() -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+    if com_pasta_incompleta {
+        // RED: a migration ainda não existe. A forma sintética será
+        // derivada do SQLite, não de uma página HTML congelada.
+        banco.execute(
+            "INSERT INTO sim_pasta_pendente
+             (origem, cenario, id_procedimento, indice, protocolo_declarado)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![instalacao.url_base(), CENARIO, "10", 1, 900],
+        )
+        .unwrap();
+    }
     (banco, instalacao)
 }
 
-fn executar() -> (Output, Vec<String>, (String, String)) {
+fn executar(com_pasta_incompleta: bool) -> (Output, Vec<String>, (String, String)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -153,7 +164,7 @@ fn executar() -> (Output, Vec<String>, (String, String)) {
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado();
+        let (banco, instalacao) = estado(com_pasta_incompleta);
         while let Some(mut cliente) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -220,7 +231,7 @@ fn executar() -> (Output, Vec<String>, (String, String)) {
 
 #[test]
 fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
-    let (saida, pedidos, (controle, arvore)) = executar();
+    let (saida, pedidos, (controle, arvore)) = executar(false);
     assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, ALHEIO));
     assert_eq!(
         saida.status.code(),
@@ -248,4 +259,41 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
     let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_ne!(saida_json["numero"], ALHEIO);
     assert_ne!(saida_json["documentos_incluidos"], false);
+}
+
+/// BDD-342-01: o processo e seu NUP são comprovados, mas a lista documental não.
+/// PASTA+AGUARDE sem ação ABRIR_PASTAS é hipótese sintética de falha,
+/// distinta das capturas UnB em que abrir as pastas teve sucesso.
+#[test]
+fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
+    let (saida, pedidos, (controle, arvore)) = executar(true);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["numero"], PEDIDO);
+    assert_eq!(valor["id_procedimento"], "10");
+    assert_eq!(valor["documentos_incluidos"], false);
+    assert_eq!(valor["documentos"], serde_json::json!([]));
+    assert_eq!(valor["documentos_movidos"], serde_json::json!([]));
+    assert_eq!(valor["pastas"], serde_json::json!([]));
+    assert!(
+        valor["aviso_leitura_parcial"]
+            .as_str()
+            .is_some_and(|aviso| aviso.contains("leitura parcial")),
+        "a saída deve distinguir lista desconhecida de lista comprovada vazia: {valor}"
+    );
+    assert!(
+        pedidos.iter().any(|evento| evento == "GET procedimento_visualizar"),
+        "a CLI precisa consultar a árvore do anti-IES: {pedidos:?}"
+    );
+    assert!(
+        pedidos.iter().all(|evento| evento.starts_with("GET ")),
+        "consulta informativa nunca executa POST: {pedidos:?}"
+    );
 }
