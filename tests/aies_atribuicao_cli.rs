@@ -408,3 +408,29 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
     assert_eq!(eventos.len(), 5);
     assert_eq!(atribuicao_final, "aluno1");
 }
+
+#[test]
+fn previa_remover_reflete_atribuicao_aplicada_antes_por_post_local() {
+    // A mutação preparatória é externa à CLI, mas apenas no SQLite efêmero.
+    // O comando público continua sendo uma prévia sem escrita.
+    let (saida, eventos, _, atribuicao_final) = executar(true, true);
+    assert_eq!(saida.status.code(), Some(0));
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["usuario_atual"], "aluno2");
+    assert!(json["usuario_pedido"].is_null());
+    assert_eq!(json["confirmado"], false);
+    assert_eq!(eventos.len(), 5);
+    assert_eq!(atribuicao_final, "aluno2");
+}
+
+#[test]
+fn previa_atribuir_reflete_remocao_aplicada_antes_por_post_local() {
+    let (saida, eventos, _, atribuicao_final) = executar(true, false);
+    assert_eq!(saida.status.code(), Some(0));
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["usuario_atual"], "");
+    assert_eq!(json["usuario_pedido"], "aluno2");
+    assert_eq!(json["confirmado"], false);
+    assert_eq!(eventos.len(), 5);
+    assert_eq!(atribuicao_final, "");
+}
