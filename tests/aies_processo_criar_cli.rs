@@ -254,3 +254,45 @@ fn bdd_245_01_previa_por_cli_real_sem_mutacao_sqlite() {
     assert_eq!(contagens, (0, 0), "prévia não pode criar processo");
     assert_eq!(tipos, 1, "tabela de escolha persiste sem ser alterada");
 }
+
+#[test]
+fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
+    let (saida, pedidos, contagens, tipos) = executar(&[
+        "--json",
+        "processo",
+        "criar",
+        "--tipo",
+        TIPO,
+        "--especificacao",
+        "Cadastro causal de ensaio",
+        "--confirmar",
+    ]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(resultado["confirmado"], true);
+    assert_eq!(resultado["tipo"], TIPO);
+    assert_eq!(resultado["nivel"], "publico");
+    assert_eq!(resultado["especificacao"], "Cadastro causal de ensaio");
+    assert!(resultado["nup"].as_str().is_some_and(|nup| !nup.is_empty()));
+    assert_eq!(resultado["requisicoes"], 7);
+    assert_eq!(
+        pedidos,
+        vec![
+            "GET procedimento_controlar 200",
+            "GET procedimento_escolher_tipo 200",
+            "GET procedimento_gerar 200",
+            "POST procedimento_gerar 302",
+            "GET procedimento_trabalhar 200",
+            "GET procedimento_visualizar 200",
+            "GET procedimento_alterar 200",
+        ],
+    );
+    assert_eq!(contagens, (0, 1), "um único processo antes/depois");
+    assert_eq!(tipos, 1, "cadastro de tipos permanece");
+}
