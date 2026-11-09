@@ -331,7 +331,10 @@ fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
     assert_eq!(json["retentavel"], false);
     assert_eq!(estado_final, (Some("20/11/2026".into()), false));
     assert_eq!(
-        pedidos.iter().filter(|p| p == &"POST controle_prazo_definir").count(),
+        pedidos
+            .iter()
+            .filter(|p| p == &"POST controle_prazo_definir")
+            .count(),
         1,
         "não repetir o envio inconclusivo: {pedidos:?}"
     );
