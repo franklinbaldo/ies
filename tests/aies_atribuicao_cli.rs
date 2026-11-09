@@ -3,6 +3,7 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::atribuicoes::{self, Observacao, Usuario};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
@@ -107,6 +108,16 @@ fn banco() -> (Connection, Instalacao) {
             unidade_origem: "TESTE".into(),
             aberto_em: vec!["TESTE".into()],
             anotacao_origem: None, destinos: vec![],
+        },
+    ).unwrap();
+    atribuicoes::registrar(
+        &mut db, &origem, CENARIO, "10", "TESTE",
+        &Observacao {
+            login_atual: "aluno1".into(),
+            usuarios: vec![
+                Usuario { id: "7".into(), login: "aluno1".into(), nome: "Pessoa 1".into() },
+                Usuario { id: "8".into(), login: "aluno2".into(), nome: "Pessoa 2".into() },
+            ],
         },
     ).unwrap();
     (db, origem)
