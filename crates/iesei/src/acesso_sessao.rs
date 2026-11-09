@@ -21,6 +21,26 @@ pub fn bloquear(banco: &Connection, origem: &Instalacao, cenario: &str) -> rusql
     Ok(())
 }
 
+/// Registra a identidade conhecida de um usuário de ensaio por origem/cenário.
+/// Não interpreta cookie, não lê login real e não infere autoria da revisão.
+/// Mudar esta identidade em um ensaio não modifica autorias já registradas.
+///
+/// # Errors
+/// Propaga a causa do SQLite; nome vazio é recusado pelo esquema.
+pub fn identificar_usuario(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    usuario: &str,
+) -> rusqlite::Result<()> {
+    banco.execute(
+        "INSERT INTO sessao_usuario (origem, cenario, usuario) VALUES (?1, ?2, ?3)
+         ON CONFLICT(origem, cenario) DO UPDATE SET usuario=excluded.usuario",
+        params![origem.url_base(), cenario, usuario],
+    )?;
+    Ok(())
+}
+
 /// Uma sessão só é recusada quando há negativa explícita no SQLite.
 /// Ausência dessa negativa não é comprovação de permissão em SEI real.
 ///
