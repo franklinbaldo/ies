@@ -173,7 +173,7 @@ fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
     // Hipótese mínima para BDD-60-05: dois nós com mesmo número SEI
     // e IDs distintos no mesmo processo, sem qualquer corpo substituto.
     documento_versoes::guardar(
-        &mut banco,
+        banco,
         CENARIO,
         &DocumentoSimulado {
             instalacao: origem.clone(),
