@@ -11,6 +11,8 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::num::NonZeroU32;
 
+include!("anti_ies_documento_fontes.rs");
+
 fn escapar(texto: &str) -> String {
     texto
         .replace('&', "&amp;")
@@ -29,49 +31,6 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     let mut resposta = String::new();
     tcp.read_to_string(&mut resposta).unwrap();
     resposta
-}
-
-/// Cruza a identidade do GET de conteúdo com uma árvore registrada na
-/// mesma cassette. Sem a árvore, não se atribui um NUP ao documento.
-fn processo_observado_da_arvore(
-    json: &serde_json::Value,
-    id_documento: &str,
-    numero: &str,
-) -> (String, String) {
-    let mut vistos = Vec::new();
-    for resposta in gravacao::respostas(json) {
-        if resposta.operacao != "procedimento_visualizar"
-            || resposta.metodo != "GET"
-            || resposta.status != 200
-        {
-            continue;
-        }
-        let Some(id) = gravacao::id_procedimento(resposta.item) else {
-            continue;
-        };
-        let Ok(html) = html_da_resposta(resposta.item) else {
-            continue;
-        };
-        let Some(nup) = crate::arvore_processo::nup_declarado_na_arvore(&html) else {
-            continue;
-        };
-        let Ok(arvore) = crate::arvore_processo::ler_arvore(&html, &nup, &id) else {
-            continue;
-        };
-        if arvore
-            .documentos
-            .iter()
-            .any(|doc| doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero))
-        {
-            vistos.push((id, nup));
-        }
-    }
-    let primeiro = vistos
-        .first()
-        .expect("árvore original liga DOC ao processo")
-        .clone();
-    assert!(vistos.iter().all(|identidade| identidade == &primeiro));
-    primeiro
 }
 
 /// Extrai só a região editável: o rodapé do anti-IES não é conteúdo do documento.
@@ -220,48 +179,6 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     );
     assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
-}
-
-/// Reconstrói apenas versões/metadados observados, sem inventar corpo histórico.
-fn revisoes_da_cassette(
-    historico: &crate::documento_versoes::HistoricoDocumento,
-) -> (Vec<Revisao>, Vec<u32>) {
-    let atual = historico.atual().expect("histórico não vazio").numero();
-    let mut revisoes = Vec::new();
-    let mut versoes = Vec::new();
-    for n in 1..=atual {
-        let versao = crate::documento_versoes::VersaoDocumento::nova(n).unwrap();
-        if let Ok(entrada) = historico.selecionar(versao) {
-            versoes.push(n);
-            revisoes.push(Revisao {
-                versao: NonZeroU32::new(n).unwrap(),
-                usuario: entrada.usuario.clone(),
-                unidade: entrada.unidade.clone(),
-                modificacao: entrada.modificacao.clone(),
-                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
-            });
-        }
-    }
-    assert_eq!(revisoes.len(), historico.len());
-    (revisoes, versoes)
-}
-
-/// O número e o tipo da mesma identidade vêm do conteúdo gravado, não da fixture.
-fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (String, String) {
-    let conteudos: Vec<_> = gravacao::respostas(json)
-        .into_iter()
-        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
-        .collect();
-    assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
-    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
-    assert!(
-        !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
-        "histórico e conteúdo precisam referir o mesmo id_documento"
-    );
-    let identidade =
-        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
-            .unwrap();
-    (identidade.numero, identidade.tipo)
 }
 
 #[test]
