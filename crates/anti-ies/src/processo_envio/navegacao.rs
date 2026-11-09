@@ -75,8 +75,7 @@ fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> Str
     // já oferecida antes da tramitação. A unidade fechada não a publica.
     // A inclusão em unidade de destino exige a capacidade documental
     // correspondente, ainda não simulada fora da origem.
-    let incluir = if processo.pode_incluir_documento(unidade_atual)
-    {
+    let incluir = if processo.pode_incluir_documento(unidade_atual) {
         format!(
             "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
             crate::protocolo_sintetico::INFRA_HASH
