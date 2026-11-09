@@ -102,7 +102,12 @@ pub fn guardar_na_pagina(
     let transacao = banco.transaction()?;
     transacao.execute(
         "DELETE FROM sim_bloco_linha WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=?4",
-        params![instalacao.url_base(), cenario, pagina.tipo.nome(), numero_pagina],
+        params![
+            instalacao.url_base(),
+            cenario,
+            pagina.tipo.nome(),
+            numero_pagina
+        ],
     )?;
     transacao.execute(
         "INSERT INTO sim_bloco_pagina(origem,cenario,tipo,pagina,total,inicio,fim)
@@ -188,13 +193,16 @@ pub fn ler_pagina(
          WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=?4 ORDER BY posicao",
     )?;
     let linhas = consulta
-        .query_map(params![instalacao.url_base(), cenario, tipo.nome(), numero_pagina], |r| {
-            Ok(Linha {
-                numero: r.get(0)?,
-                estado: r.get(1)?,
-                descricao: r.get(2)?,
-            })
-        })?
+        .query_map(
+            params![instalacao.url_base(), cenario, tipo.nome(), numero_pagina],
+            |r| {
+                Ok(Linha {
+                    numero: r.get(0)?,
+                    estado: r.get(1)?,
+                    descricao: r.get(2)?,
+                })
+            },
+        )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let pagina = Pagina {
         tipo,
@@ -208,20 +216,23 @@ pub fn ler_pagina(
     Ok(Some(pagina))
 }
 
-
 /// Indices de paginas realmente registradas para este tipo/cenario.
 /// # Errors
 /// Propaga falhas SQLite.
 pub fn paginas_observadas(
-    banco: &Connection, instalacao: &Instalacao, cenario: &str, tipo: Tipo,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    tipo: Tipo,
 ) -> rusqlite::Result<Vec<usize>> {
     let mut consulta = banco.prepare(
         "SELECT pagina FROM sim_bloco_pagina WHERE origem=?1 AND cenario=?2 AND tipo=?3 ORDER BY pagina",
     )?;
-    let registros = consulta.query_map(params![instalacao.url_base(), cenario, tipo.nome()], |r| {
-        let n: i64 = r.get(0)?;
-        usize::try_from(n).map_err(|_| rusqlite::Error::InvalidQuery)
-    })?;
+    let registros =
+        consulta.query_map(params![instalacao.url_base(), cenario, tipo.nome()], |r| {
+            let n: i64 = r.get(0)?;
+            usize::try_from(n).map_err(|_| rusqlite::Error::InvalidQuery)
+        })?;
     registros.collect()
 }
 
@@ -273,22 +284,43 @@ mod tests {
             tipo: Tipo::Interno,
             total: 4,
             faixa: Some((inicio, inicio + 1)),
-            linhas: [numero, numero + 1].into_iter().map(|n| Linha {
-                numero: n.to_string(), estado: "Gerado".into(), descricao: "Teste".into()
-            }).collect(),
+            linhas: [numero, numero + 1]
+                .into_iter()
+                .map(|n| Linha {
+                    numero: n.to_string(),
+                    estado: "Gerado".into(),
+                    descricao: "Teste".into(),
+                })
+                .collect(),
         };
         let primeira = pagina(1, 1001);
         let segunda = pagina(3, 1003);
         guardar_na_pagina(&mut banco, &instalacao, "um", 1, &primeira).unwrap();
         guardar_na_pagina(&mut banco, &instalacao, "um", 2, &segunda).unwrap();
         guardar_na_pagina(&mut banco, &instalacao, "um", 2, &segunda).unwrap();
-        assert_eq!(paginas_observadas(&banco, &instalacao, "um", Tipo::Interno).unwrap(), vec![1, 2]);
-        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(), Some(primeira));
-        assert_eq!(ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 2).unwrap(), Some(segunda));
-        assert_eq!(ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 3).unwrap(), None);
+        assert_eq!(
+            paginas_observadas(&banco, &instalacao, "um", Tipo::Interno).unwrap(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(),
+            Some(primeira)
+        );
+        assert_eq!(
+            ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 2).unwrap(),
+            Some(segunda)
+        );
+        assert_eq!(
+            ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 3).unwrap(),
+            None
+        );
         assert!(ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 0).is_err());
         assert!(guardar_na_pagina(&mut banco, &instalacao, "um", 0, &pagina(1, 1001)).is_err());
-        assert!(paginas_observadas(&banco, &instalacao, "outro", Tipo::Interno).unwrap().is_empty());
+        assert!(
+            paginas_observadas(&banco, &instalacao, "outro", Tipo::Interno)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

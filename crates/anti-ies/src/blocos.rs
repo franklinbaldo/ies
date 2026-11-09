@@ -45,8 +45,11 @@ fn paginador(saida: &mut String, nome: &str, pagina: usize, observadas: &[usize]
         // A Infra publica indice zero-based, enquanto a CLI publica 1-based.
         let indice = numero - 1;
         let selecionada = if numero == pagina { " selected" } else { "" };
-        write!(saida, "<option value='{indice}'{selecionada}>{numero}</option>")
-            .expect("String");
+        write!(
+            saida,
+            "<option value='{indice}'{selecionada}>{numero}</option>"
+        )
+        .expect("String");
     }
     saida.push_str("</select>");
 }
@@ -56,13 +59,26 @@ fn html(pagina: &Pagina, numero_pagina: usize, observadas: &[usize]) -> String {
         "<html><body><form id='frmBlocoLista' method='post' action='controlador.php?acao={}&amp;infra_hash={HASH}'>",
         pagina.tipo.acao()
     );
-    write!(saida, "<input type='hidden' name='hdnInfraTipoPagina' value='1'>\
+    write!(
+        saida,
+        "<input type='hidden' name='hdnInfraTipoPagina' value='1'>\
         <input type='hidden' name='hdnInfraPaginaAtual' value='{}'>",
         numero_pagina - 1,
-    ).expect("String");
+    )
+    .expect("String");
     if observadas.len() > 1 {
-        paginador(&mut saida, "selInfraPaginacaoSuperior", numero_pagina, observadas);
-        paginador(&mut saida, "selInfraPaginacaoInferior", numero_pagina, observadas);
+        paginador(
+            &mut saida,
+            "selInfraPaginacaoSuperior",
+            numero_pagina,
+            observadas,
+        );
+        paginador(
+            &mut saida,
+            "selInfraPaginacaoInferior",
+            numero_pagina,
+            observadas,
+        );
     }
     saida.push_str("<table id='tblBlocos'>");
     if let Some((inicio, fim)) = pagina.faixa {

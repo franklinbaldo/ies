@@ -150,28 +150,54 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
     )
     .unwrap();
     if interno {
-        blocos::guardar_na_pagina(banco, instalacao, CENARIO, 1, &Pagina {
-            tipo: Tipo::Interno,
-            total: 4,
-            faixa: Some((1, 2)),
-            linhas: vec![
-                LinhaBloco { numero: "3001".into(), estado: "Gerado".into(),
-                    descricao: "Primeiro interno".into() },
-                LinhaBloco { numero: "3002".into(), estado: "Gerado".into(),
-                    descricao: "Segundo interno".into() },
-            ],
-        }).unwrap();
-        blocos::guardar_na_pagina(banco, instalacao, CENARIO, 2, &Pagina {
-            tipo: Tipo::Interno,
-            total: 4,
-            faixa: Some((3, 4)),
-            linhas: vec![
-                LinhaBloco { numero: "3003".into(), estado: "Disponibilizado".into(),
-                    descricao: "Terceiro interno".into() },
-                LinhaBloco { numero: "3004".into(), estado: "Gerado".into(),
-                    descricao: "Quarto interno".into() },
-            ],
-        }).unwrap();
+        blocos::guardar_na_pagina(
+            banco,
+            instalacao,
+            CENARIO,
+            1,
+            &Pagina {
+                tipo: Tipo::Interno,
+                total: 4,
+                faixa: Some((1, 2)),
+                linhas: vec![
+                    LinhaBloco {
+                        numero: "3001".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Primeiro interno".into(),
+                    },
+                    LinhaBloco {
+                        numero: "3002".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Segundo interno".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
+        blocos::guardar_na_pagina(
+            banco,
+            instalacao,
+            CENARIO,
+            2,
+            &Pagina {
+                tipo: Tipo::Interno,
+                total: 4,
+                faixa: Some((3, 4)),
+                linhas: vec![
+                    LinhaBloco {
+                        numero: "3003".into(),
+                        estado: "Disponibilizado".into(),
+                        descricao: "Terceiro interno".into(),
+                    },
+                    LinhaBloco {
+                        numero: "3004".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Quarto interno".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
     }
 }
 
@@ -227,15 +253,22 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
             let mut canal = tls.accept(tcp).expect("handshake TLS de teste");
             let mut pedido = cabecalho(&mut canal);
             let cabecalhos = String::from_utf8_lossy(&pedido);
-            assert!(cabecalhos.starts_with("GET /sei/controlador.php?")
-                || cabecalhos.starts_with("POST /sei/controlador.php?"));
+            assert!(
+                cabecalhos.starts_with("GET /sei/controlador.php?")
+                    || cabecalhos.starts_with("POST /sei/controlador.php?")
+            );
             alvos.push(cabecalhos.lines().next().unwrap().to_owned());
             if alvos.last().is_some_and(|linha| linha.starts_with("POST ")) {
-                let tamanho = cabecalhos.lines().find_map(|linha| {
-                    linha.split_once(':').and_then(|(nome, v)|
-                        nome.eq_ignore_ascii_case("content-length")
-                            .then(|| v.trim().parse::<usize>().ok()).flatten())
-                }).expect("Content-Length do POST");
+                let tamanho = cabecalhos
+                    .lines()
+                    .find_map(|linha| {
+                        linha.split_once(':').and_then(|(nome, v)| {
+                            nome.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    })
+                    .expect("Content-Length do POST");
                 assert!(tamanho < 16_384);
                 let mut corpo = vec![0u8; tamanho];
                 canal.read_exact(&mut corpo).unwrap();
@@ -253,7 +286,9 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     });
 
     let argumentos: Vec<&str> = if interno {
-        vec!["--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2"]
+        vec![
+            "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
+        ]
     } else {
         vec!["--json", "bloco", "listar", "--tipo", "assinatura"]
     };
@@ -278,10 +313,19 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     simulador.join().expect("GET anti-IES");
     assert_eq!(pedidos.len(), esperados);
     assert_eq!(pedidos.iter().filter(|p| p.starts_with("GET ")).count(), 2);
-    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), usize::from(interno));
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+        usize::from(interno)
+    );
     assert!(pedidos[0].contains("acao=procedimento_controlar"));
-    assert!(pedidos[1].contains(if interno {"acao=bloco_interno_listar"} else {"acao=bloco_assinatura_listar"}));
-    if interno { assert!(pedidos[2].contains("acao=bloco_interno_listar")); }
+    assert!(pedidos[1].contains(if interno {
+        "acao=bloco_interno_listar"
+    } else {
+        "acao=bloco_assinatura_listar"
+    }));
+    if interno {
+        assert!(pedidos[2].contains("acao=bloco_interno_listar"));
+    }
     (saida, pedidos)
 }
 fn json(saida: &Output) -> Value {
@@ -333,10 +377,13 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
     let (saida, pedidos) = executar(true);
-    assert_eq!(saida.status.code(), Some(0),
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
         "stdout={} stderr={}",
         String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr));
+        String::from_utf8_lossy(&saida.stderr)
+    );
     assert_eq!(pedidos.len(), 3);
     let valor = json(&saida);
     assert_eq!(valor["unidade"], "TESTE");

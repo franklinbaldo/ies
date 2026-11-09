@@ -5,12 +5,11 @@ use crate::bloco_detalhe::{self};
 use crate::configuracao;
 use crate::controle_reconhecido;
 use crate::erro_html::ErroHtml;
+use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
-    ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida,
-    derivar_submissao, enviar_submissao_via,
+    ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::erro_web::ErroCaixa;
 use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::transporte::{self, FalhaTransporte};
@@ -96,39 +95,51 @@ fn ler_via<V: EnvioDoControle>(
     if pagina == Some(2) && tipo == TipoBloco::Interno {
         // GO: a segunda página é obtida por um único POST ao formulário da
         // lista, sem navegar por páginas intermediárias ou restaurar a tela.
-        let primeira = lista.lista.faixa_observada.as_ref().ok_or(
-            FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente)
-        )?;
+        let primeira = lista
+            .lista
+            .faixa_observada
+            .as_ref()
+            .ok_or(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente))?;
         let total = lista.lista.total_declarado;
         let fim_primeira = primeira.fim;
         if primeira.inicio != 1 || primeira.fim == total {
             return Err(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente));
         }
         conferir_indice_da_pagina(&html, "1")?;
-        let codificacao = codificacao.ok_or_else(||
-            FalhaLeitura::Html(ErroHtml::valor("charset_dos_blocos_invalido")))?;
+        let codificacao = codificacao
+            .ok_or_else(|| FalhaLeitura::Html(ErroHtml::valor("charset_dos_blocos_invalido")))?;
         let indice = "1";
-        let tela = TelaServida { url: &url_lista, html: &html, codificacao };
+        let tela = TelaServida {
+            url: &url_lista,
+            html: &html,
+            codificacao,
+        };
         let submissao = derivar_submissao(
             &PAGINAR_BLOCOS,
             &controle.instalacao,
             &tela,
             "",
-            &[("hdnInfraPaginaAtual", indice),
-              ("selInfraPaginacaoSuperior", indice),
-              ("selInfraPaginacaoInferior", indice)],
-        ).map_err(FalhaLeitura::Submissao)?;
+            &[
+                ("hdnInfraPaginaAtual", indice),
+                ("selInfraPaginacaoSuperior", indice),
+                ("selInfraPaginacaoInferior", indice),
+            ],
+        )
+        .map_err(FalhaLeitura::Submissao)?;
         requisicoes += 1;
         let resposta = enviar_submissao_via(submissao, sessao.cookie(), |post, cookie| {
             envio.post(post, cookie)
-        }).map_err(FalhaLeitura::Submissao)?;
+        })
+        .map_err(FalhaLeitura::Submissao)?;
         let RespostaDoEnvio::Html(html) = resposta else {
             return Err(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente));
         };
         lista = bloco::ler_lista(&html, tipo)?;
-        let faixa = lista.lista.faixa_observada.as_ref().ok_or(
-            FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente)
-        )?;
+        let faixa = lista
+            .lista
+            .faixa_observada
+            .as_ref()
+            .ok_or(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente))?;
         if lista.lista.total_declarado != total
             || faixa.inicio != fim_primeira + 1
             || faixa.fim > total

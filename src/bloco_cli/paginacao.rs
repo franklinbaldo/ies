@@ -2,8 +2,8 @@
 use super::FalhaLeitura;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
-    OperacaoDeFormulario, ResultadoDoEnvio,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
+    ResultadoDoEnvio,
 };
 
 /// Navegação observada na cassette GO bloco-interno-ciclo, passo 11 GET
@@ -32,20 +32,41 @@ pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), 
     let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")
         .map_err(FalhaLeitura::Submissao)?;
     let mut achados = 0;
-    for no in form.query_selector(dom.parser(), "select").into_iter().flatten() {
-        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or_else(ilegivel)?;
-        if valor_do_atributo(tag, "name").map_err(|_| ilegivel())?.as_deref()
-            != Some("selInfraPaginacaoSuperior") { continue; }
+    for no in form
+        .query_selector(dom.parser(), "select")
+        .into_iter()
+        .flatten()
+    {
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or_else(ilegivel)?;
+        if valor_do_atributo(tag, "name")
+            .map_err(|_| ilegivel())?
+            .as_deref()
+            != Some("selInfraPaginacaoSuperior")
+        {
+            continue;
+        }
         achados += 1;
-        let opcoes = tag.query_selector(dom.parser(), "option").ok_or_else(ilegivel)?;
-        let valores = opcoes.filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
+        let opcoes = tag
+            .query_selector(dom.parser(), "option")
+            .ok_or_else(ilegivel)?;
+        let valores = opcoes
+            .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
             .map(|o| valor_do_atributo(o, "value").map_err(|_| ilegivel()))
             .collect::<Result<Vec<_>, _>>()?;
-        if valores.iter().filter(|v| v.as_deref() == Some(indice)).count() != 1 {
+        if valores
+            .iter()
+            .filter(|v| v.as_deref() == Some(indice))
+            .count()
+            != 1
+        {
             return Err(ilegivel());
         }
     }
-    if achados != 1 { return Err(ilegivel()); }
+    if achados != 1 {
+        return Err(ilegivel());
+    }
     Ok(())
 }
-
