@@ -371,11 +371,13 @@ fn arvore_do_processo(
     let nos = super::documento_arvore::nos_do_processo(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
     let numero = literal_js(&processo.numero);
-    let atribuicao = iesei::atribuicoes::ler(
-        banco, instalacao, cenario, id, unidade_atual,
-    )
-    .map_err(|_| Estado::DadosInsuficientes)?;
-    let situacao = literal_js(&situacao_da_raiz(processo, unidade_atual, atribuicao.as_ref()));
+    let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    let situacao = literal_js(&situacao_da_raiz(
+        processo,
+        unidade_atual,
+        atribuicao.as_ref(),
+    ));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let barra = literal_js(&super::processo_barra::acoes_do_processo(
