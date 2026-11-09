@@ -174,3 +174,55 @@ pub fn ler(
     }
     Ok(Some(pagina))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pagina_persiste_sem_inferir_totalidade_e_sem_contaminar_cenarios() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        crate::banco_cassettes::iniciar(&banco).unwrap();
+        let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let pagina = Pagina {
+            tipo: Tipo::Assinatura,
+            total: 11,
+            faixa: Some((5, 6)),
+            linhas: vec![
+                Linha {
+                    numero: "2195".into(),
+                    estado: "Gerado".into(),
+                    descricao: "Teste A".into(),
+                },
+                Linha {
+                    numero: "2196".into(),
+                    estado: "Disponibilizado".into(),
+                    descricao: "Teste B".into(),
+                },
+            ],
+        };
+        guardar(&mut banco, &instalacao, "um", &pagina).unwrap();
+        guardar(&mut banco, &instalacao, "um", &pagina).unwrap();
+        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), Some(pagina));
+        assert_eq!(ler(&banco, &instalacao, "outro", Tipo::Assinatura).unwrap(), None);
+        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(), None);
+    }
+
+    #[test]
+    fn vazio_observado_e_ausencia_de_observacao_sao_estados_distintos() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        crate::banco_cassettes::iniciar(&banco).unwrap();
+        let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let vazio = Pagina { tipo: Tipo::Assinatura, total: 0, faixa: None, linhas: vec![] };
+        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), None);
+        guardar(&mut banco, &instalacao, "um", &vazio).unwrap();
+        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), Some(vazio));
+        let nao_conferido = Pagina {
+            tipo: Tipo::Assinatura,
+            total: 10,
+            faixa: Some((2, 4)),
+            linhas: vec![],
+        };
+        assert!(guardar(&mut banco, &instalacao, "um", &nao_conferido).is_err());
+    }
+}
