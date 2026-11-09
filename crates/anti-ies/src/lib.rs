@@ -357,7 +357,8 @@ pub fn controlar(
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Ok(projetado) = iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot.clone())
+    let Ok(projetado) =
+        iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot.clone())
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
