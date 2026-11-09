@@ -141,7 +141,7 @@ fn estado() -> (Connection, Instalacao) {
 }
 
 #[test]
-fn bdd_259_01_previa_nao_escreve_no_historico() {
+fn executar(confirmar: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -194,7 +194,13 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "andamento", NUP, "--texto", TEXTO])
+        .args({
+            let mut argumentos = vec!["--json", "processo", "andamento", NUP, "--texto", TEXTO];
+            if confirmar {
+                argumentos.push("--confirmar");
+            }
+            argumentos
+        })
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -213,9 +219,10 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
-    assert_eq!(persistido.total_declarado, 1);
-    assert_eq!(persistido.linhas.len(), 1);
-    assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
+    assert_eq!(persistido.total_declarado, if confirmar { 2 } else { 1 });
+    assert_eq!(persistido.linhas.len(), if confirmar { 2 } else { 1 });
+    assert_eq!(persistido.linhas[0].descricao, if confirmar { "  Registro novo  " } else { "Andamento anterior" });
+    assert_eq!(persistido.linhas.last().unwrap().descricao, "Andamento anterior");
     let pedidos = trilha.lock().unwrap();
     assert_eq!(
         saida.status.code(),
@@ -227,10 +234,10 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["numero"], NUP);
     assert_eq!(json["texto"], TEXTO);
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
+    assert_eq!(json["confirmado"], confirmar);
+    assert_eq!(json["alterado"], confirmar);
     assert_eq!(json["total_antes"], 1);
-    assert_eq!(json["total_depois"], serde_json::Value::Null);
+    assert_eq!(json["total_depois"], if confirmar { serde_json::json!(2) } else { serde_json::Value::Null });
     assert!(
         pedidos
             .iter()
@@ -241,5 +248,20 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
             .iter()
             .any(|p| p == "GET procedimento_atualizar_andamento")
     );
-    assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    if confirmar {
+        assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1, "{pedidos:?}");
+        assert_eq!(pedidos.last().map(String::as_str), Some("GET procedimento_consultar_historico"));
+    } else {
+        assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    }
+}
+
+#[test]
+fn bdd_259_01_previa_nao_escreve_no_historico() {
+    executar(false);
+}
+
+#[test]
+fn bdd_259_02_confirmacao_unica_com_releitura_da_cli() {
+    executar(true);
 }
