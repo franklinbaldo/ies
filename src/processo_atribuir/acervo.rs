@@ -231,8 +231,9 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
             "formulário observado não foi oferecido pelo anti-IES em {instalacao}"
         );
         let obtido = super::ler_tela(corpo, &id).expect("projeção HTTP do anti-IES");
-        assert_eq!(
-            obtido.usuarios, esperado.usuarios,
+        // Falhas não devem imprimir os nomes da cassette nos logs do CI.
+        assert!(
+            obtido.usuarios == esperado.usuarios,
             "opções e rótulos divergem da cassette original em {instalacao}"
         );
         confrontados += 1;
