@@ -1,7 +1,9 @@
 //! Uma operação de escrita por confirmação, sem redirecionamento seguido,
 //! sem retry e com uma leitura nova para verificar o estado do processo.
 //! O formulário e a função são extraídos da mesma geração da sessão.
-use super::{Acao, ErroSobrestamento as E, PedidoDaMudanca, Previa, preparar_com_acao, tela};
+use super::{
+    Acao, ErroSobrestamento as E, EstadoDaMudanca, PedidoDaMudanca, Previa, preparar_com_acao, tela,
+};
 use crate::arvore_processo::{AbertoEm, ler_endereco_de_retomar};
 use crate::formulario_web::{
     RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
@@ -123,9 +125,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     if !aplicado {
         return Err(E::EscritaNaoAplicada);
     }
-    previa.confirmado = true;
-    previa.alterado = true;
-    previa.reconciliado_por_leitura = true;
+    previa.estado = EstadoDaMudanca::Aplicada;
     Ok(previa)
 }
 

@@ -86,7 +86,7 @@ fn sobrestar_um_post_verifica_sobrestamento_por_leitura_nova() {
         respostas_sobrestar(r302(&volta_a_arvore()), ok(sobrestado())),
     );
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     assert_eq!(pedidos, pedidos_sobrestar());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -100,7 +100,7 @@ fn sobrestar_preserva_espacos_e_quebra_de_linha_no_post_unico() {
         respostas_sobrestar(r302(&volta_a_arvore()), ok(sobrestado())),
     );
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     let mut esperados = pedidos_da_abertura();
     esperados.extend([
@@ -177,7 +177,7 @@ fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
     ]);
     let (r, pedidos) = rodar(Acao::Retomar, None, true, respostas);
     let feito = r.unwrap();
-    assert!(feito.confirmado && feito.alterado && feito.reconciliado_por_leitura);
+    assert!(feito.estado.aplicada() && feito.estado.aplicada() && feito.estado.aplicada());
     assert_eq!(feito.requisicoes, 6);
     let mut esperados = pedidos_da_abertura();
     esperados.extend([get(&links().1), get(&url_retomar()), get(&url_arvore())]);

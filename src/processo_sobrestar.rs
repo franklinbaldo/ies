@@ -48,9 +48,19 @@ pub(crate) struct Previa {
     pub(crate) unidade: String,
     pub(crate) acao: Acao,
     pub(crate) requisicoes: u8,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
-    pub(crate) reconciliado_por_leitura: bool,
+    pub(crate) estado: EstadoDaMudanca,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDaMudanca {
+    Previa,
+    Aplicada,
+}
+
+impl EstadoDaMudanca {
+    pub(crate) fn aplicada(self) -> bool {
+        matches!(self, Self::Aplicada)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -201,9 +211,7 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
             unidade: atual,
             acao,
             requisicoes: aberto.requisicoes,
-            confirmado: false,
-            alterado: false,
-            reconciliado_por_leitura: false,
+            estado: EstadoDaMudanca::Previa,
         },
         endereco,
     ))
