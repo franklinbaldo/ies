@@ -31,6 +31,61 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     resposta
 }
 
+/// Cruza a identidade do GET de conteúdo com uma árvore registrada na
+/// mesma cassette. Sem a árvore, não se atribui um NUP ao documento.
+fn processo_observado_da_arvore(
+    json: &serde_json::Value,
+    id_documento: &str,
+    numero: &str,
+) -> (String, String) {
+    let mut vistos = Vec::new();
+    for resposta in gravacao::respostas(json) {
+        if resposta.operacao != "procedimento_visualizar"
+            || resposta.metodo != "GET"
+            || resposta.status != 200
+        {
+            continue;
+        }
+        let Some(id) = gravacao::id_procedimento(resposta.item) else {
+            continue;
+        };
+        let Ok(html) = html_da_resposta(resposta.item) else {
+            continue;
+        };
+        let Some(nup) = crate::arvore_processo::nup_declarado_na_arvore(&html) else {
+            continue;
+        };
+        let Ok(arvore) = crate::arvore_processo::ler_arvore(&html, &nup, &id) else {
+            continue;
+        };
+        if arvore
+            .documentos
+            .iter()
+            .any(|doc| doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero))
+        {
+            vistos.push((id, nup));
+        }
+    }
+    let primeiro = vistos
+        .first()
+        .expect("árvore original liga DOC ao processo")
+        .clone();
+    assert!(vistos.iter().all(|identidade| identidade == &primeiro));
+    primeiro
+}
+
+/// Extrai só a região editável: o rodapé do anti-IES não é conteúdo do documento.
+fn texto_do_editor_simulado(html: &str) -> String {
+    let corpo = html
+        .split_once("<main id='corpoEditavel'>")
+        .unwrap()
+        .1
+        .split_once("</main>")
+        .unwrap()
+        .0;
+    crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap()
+}
+
 #[test]
 #[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
 fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
@@ -62,12 +117,14 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
     assert!(!texto_original.contains("infra_hash"));
+    let (processo_observado, nup_observado) =
+        processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id_observado.to_owned(),
-        id_procedimento: "7".to_owned(),
-        numero_processo: "00001.000001/2026-01".to_owned(),
+        id_procedimento: processo_observado.clone(),
+        numero_processo: nup_observado.clone(),
         numero: identidade.numero.clone(),
         tipo: identidade.tipo.clone(),
         revisoes: vec![Revisao {
@@ -99,7 +156,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         );
     });
     let url = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=7"
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}"
     );
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
@@ -112,15 +169,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     // O rodapé acrescentado pelo anti-IES não faz parte do documento.
     // Conferir a igualdade de TODO o texto projetado dentro do editor,
     // em vez de aceitar apenas um prefixo que esconderia truncamentos/anexos.
-    let corpo = html_anti
-        .split_once("<main id='corpoEditavel'>")
-        .unwrap()
-        .1
-        .split_once("</main>")
-        .unwrap()
-        .0;
-    let texto_anti =
-        crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+    let texto_anti = texto_do_editor_simulado(html_anti);
     assert_eq!(
         texto_anti, texto_original,
         "o texto da origem deve sobreviver integralmente à projeção"
@@ -129,7 +178,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         endereco,
         "GET",
         &format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=8"
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}0"
         ),
     );
     assert!(
@@ -210,6 +259,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     );
     // A lista original não traz número SEI. Cruzamos o GET de conteúdo.
     let (numero_observado, tipo_observado) = identidade_do_conteudo_observado(&captura.json, id);
+    let (processo_observado, nup_observado) =
+        processo_observado_da_arvore(&captura.json, id, &numero_observado);
     let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let historico_original =
@@ -223,8 +274,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.to_owned(),
-        id_procedimento: "7".to_owned(),
-        numero_processo: "00001.000001/2026-01".to_owned(),
+        id_procedimento: processo_observado.clone(),
+        numero_processo: nup_observado.clone(),
         numero: numero.as_str().to_owned(),
         tipo: tipo_observado,
         revisoes,
@@ -255,7 +306,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     });
 
     let url = format!(
-        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento=7"
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo_observado}"
     );
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
@@ -281,7 +332,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     // Não se pode servir versão N inexistente como se fosse a mais recente.
     let ausente = atual.checked_add(1).unwrap();
     let visualizacao = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento=7&versao={ausente}"
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo_observado}&versao={ausente}"
     );
     assert!(pedir(endereco, "GET", &visualizacao).starts_with("HTTP/1.1 404"));
     assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
