@@ -159,9 +159,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
     // Um id removido não prova a remoção do NUP: a relação pode ter
     // reaparecido sob outro id, ou outra relação pode ter sido perdida.
-    let destino_permanece = linhas.iter().any(|linha| {
-        linha.id == id_alvo || super::mesmo_protocolo(&linha.nup, &alvo.nup)
-    });
+    let destino_permanece = linhas
+        .iter()
+        .any(|linha| linha.id == id_alvo || super::mesmo_protocolo(&linha.nup, &alvo.nup));
     let outras_preservadas = relacionados_antes
         .iter()
         .filter(|relacao| relacao.id != id_alvo)
