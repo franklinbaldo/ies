@@ -233,8 +233,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero,
             &documento.tipo,
             true,
-            &situacao,
-            &ciencia,
+            (&situacao, &ciencia),
         ));
         indice += 1;
         vistos.push(id);
@@ -256,8 +255,7 @@ pub(crate) fn nos_do_processo(
             &documento.numero_sei,
             &documento.tipo,
             false,
-            &situacao,
-            &ciencia,
+            (&situacao, &ciencia),
         ));
         indice += 1;
     }
@@ -271,8 +269,7 @@ fn no_de_documento(
     numero: &str,
     tipo: &str,
     versoes: bool,
-    situacao: &Situacao,
-    ciencia: &Ciencia,
+    (situacao, ciencia): (&Situacao, &Ciencia),
 ) -> String {
     let (icone, dica) = match situacao {
         Situacao::Disponivel => ("documento_interno", "Documento interno".to_owned()),
