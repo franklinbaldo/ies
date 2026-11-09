@@ -160,6 +160,13 @@ jobs:
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_conteudo_documento_compara_leitores_por_http: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_conteudo_documento_compara_leitores_por_http -- --ignored --nocapture --test-threads=1
 
+      - name: Confrontar a barra UnB antes/depois da conclusão com HTTP anti-IES
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_unb_arvore_concluida_retira_link_de_versoes_no_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_arvore_concluida_retira_link_de_versoes_no_http -- --ignored --nocapture --test-threads=1
+
       - name: Cassette UnB histórico -> SQLite -> HTTP -> leitor real
         shell: bash
         run: |
