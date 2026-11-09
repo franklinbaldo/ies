@@ -65,7 +65,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
-        id_documento: "42".to_owned(),
+        id_documento: id_observado.to_owned(),
         id_procedimento: "7".to_owned(),
         numero_processo: "00001.000001/2026-01".to_owned(),
         numero: identidade.numero.clone(),
@@ -128,7 +128,9 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let cruzado = pedir(
         endereco,
         "GET",
-        &format!("/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=8"),
+        &format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento=8"
+        ),
     );
     assert!(
         cruzado.starts_with("HTTP/1.1 404"),
