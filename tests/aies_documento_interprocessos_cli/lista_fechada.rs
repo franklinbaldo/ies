@@ -1,5 +1,5 @@
 //! BDD-60-05: processo fora da unidade da sessão não oferece histórico.
-//! A cassette UnB registra a barra sem lista após conclusão; o ensaio
+//! A cassette `UnB` registra a barra sem lista após conclusão; o ensaio
 //! de unidade diferente é uma hipótese funcional alimentada por SQLite.
 use super::*;
 
