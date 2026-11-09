@@ -1,12 +1,12 @@
 //! Histórico e prévia de registro de andamento como projeções do SQLite.
 //! Escrita sintética limitada ao backend local: sem rede externa.
+use crate::prazo_processo::campo_unico;
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::andamentos::{self, Historico, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::processos;
 use rusqlite::Connection;
 use std::fmt::Write as _;
-use crate::prazo_processo::campo_unico;
 
 fn pagina_historico(numero: &str, historico: &Historico) -> Resposta {
     let total = historico.total_declarado;
