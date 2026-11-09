@@ -8,7 +8,7 @@ scope: prévia Web e confirmação CLI restrita à UnB de treinamento com POST �
 selected_strategy: usuario-exato-da-lista-e-arvore-como-fonte
 alternatives: usuario-exato-da-lista-e-arvore-como-fonte,substring,html-sem-conferencia,rest-wssei
 evidence_level: pagina-real-todos-323eb01-testes-sinteticos
-live_validation: not-run
+live_validation: inconclusive-unb-2026-11-09
 ---
 
 # Atribuir processo — fatia de leitura (Refs #264)
@@ -89,9 +89,10 @@ reproduziu o falso sucesso na atribuição e na remoção (**2 FAIL novos,
 (saída 3), sem retry, até existir aceite observado para HTML 200.
 Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
 em atribuição quanto em remoção, e as regressões de concorrência exigem
-a mesma contagem exata. A CLI pública `--confirmar` continua recusada antes da sessão
-porque **o ensaio da escrita ao vivo ainda não foi executado**; o replay
-específico offline já é obrigatório no CI.
+a mesma contagem exata. A confirmação pela CLI está restrita à origem exata da UnB de treinamento;
+o ensaio ao vivo de 09/11/2026 terminou com efeito incerto (saída 3)
+e possível resíduo, sem comprovação causal. O replay específico offline
+continua obrigatório no CI.
 Não confundir a cobertura sintética com autorização para enviar.
 
 
@@ -106,7 +107,8 @@ envelhecido. Na atribuição, a projeção de erro usa status e mensagem
 saneada da releitura quando a tentativa de POST não publicou HTTP.
 Alternativa rejeitada: repetir a abertura por outra rota após 503,
 porque violaria o orçamento de uma verificação e obscureceria o diagnóstico.
-A escrita pública permanece fechada; o ensaio ao vivo continua NOT_RUN.
+A escrita permanece fechada nas origens não autorizadas; na UnB de treinamento,
+o POST único de 09/11/2026 produziu saída 3 e não autoriza inferir sucesso.
 
 ## Evidências verificáveis
 
@@ -125,11 +127,12 @@ derivado; não comprovam POST nem efeito no SEI.
 
 ## Limitações e revisão
 
-`--confirmar` ainda recusa `escrita_de_atribuicao_ainda_nao_verificada`
-antes de abrir sessão. O fluxo injetável possui testes de POST único,
+`--confirmar` recusa `escrita_de_atribuicao_ainda_nao_verificada`
+antes de qualquer rede em origens diferentes da UnB de treinamento.
+O fluxo injetável possui testes de POST único,
 releitura e saída 3. Prévia em duas instalações de treinamento já
-comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão será revista
-após validar o POST e sua reversão por leitura em treinamento. O RED observou 4 testes falhando,
+comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão segue provisória: a confirmação ao vivo teve efeito incerto,
+e a remoção em treinamento ainda não foi executada. O RED observou 4 testes falhando,
 1.689 aprovados no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454).
 
 ## Controles efetivamente acionáveis (06/11/2026)
@@ -157,7 +160,13 @@ O E2E da PR #547 executa a CLI real por HTTPS em **loopback** contra o
 anti-IES e o SQLite efêmero, depois invoca outra vez `ies processo NUP`
 na mesma bancada para observar a alteração ou remoção. Sua execução
 sintética não autoriza afirmar paridade dos efeitos de POST das cassettes
-nem sucesso em treinamento externo. A confirmação remota segue
-**NOT_RUN** até um ensaio específico com prévia, POST único, segunda
-consulta e registro de resíduo, sem retry. A ampliação para outras
+nem sucesso em treinamento externo. A confirmação remota recebeu em 09/11/2026 um ensaio controlado na UnB,
+com prévia válida, POST único, saída 3 e estado posterior observado, mas
+sem prova causal. A remoção remota segue **NOT_RUN**. A ampliação para outras
 instalações depende de observação e revisão independentes.
+
+## Evidência que altera a decisão (09/11/2026)
+
+O [relatório de treinamento da #264](../validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md) registra uma confirmação pela CLI Rust, na origem UnB de treinamento, após duas prévias válidas. O POST foi único; a releitura encontrou `aluno2`, mas a CLI devolveu **saída 3** por falta de prova causal da alteração. A [PR #605](https://github.com/franklinbaldo/ies/pull/605) foi integrada com [CI oficial 7/7](https://github.com/franklinbaldo/ies/actions/runs/42703581460).
+
+**Decisão preservada:** não declarar sucesso pela mera coincidência entre estado pedido e estado relido. Não repetir o POST incerto, não alegar resíduo limpo e não realizar remoção como suposta prova retroativa. A compatibilidade sintética IES↔anti-IES↔SQLite permaneceu PASS anterior; as respostas 302 dos POSTs históricos não trazem o ID decimal singular exigido para confirmação estrita, de modo que o confronto causal com cassette permanece pendente. Nenhum teste live de remoção foi executado.
