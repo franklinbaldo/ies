@@ -30,7 +30,9 @@ fn forma(html: &str) -> Option<Forma> {
         return None;
     };
     let tag = form.get(dom.parser())?.as_tag()?;
-    let post = valor_do_atributo(tag, "method").ok()?.is_some_and(|m| m.eq_ignore_ascii_case("post"));
+    let post = valor_do_atributo(tag, "method")
+        .ok()?
+        .is_some_and(|m| m.eq_ignore_ascii_case("post"));
     let contar = |elemento: &str, nome: &str| {
         dom.query_selector(elemento)
             .into_iter()
@@ -81,13 +83,16 @@ fn servir_no_anti_ies(base: &str, id_proc: &str, id_doc: &str) -> String {
         },
     )
     .expect("estado mínimo para a oferta de cancelamento");
-    let caminho = base.strip_prefix("https://").expect("HTTPS")
+    let caminho = base
+        .strip_prefix("https://")
+        .expect("HTTPS")
         .split_once('/')
         .map_or(String::new(), |(_, caminho)| format!("/{caminho}"));
-    let alvo = format!("{caminho}/controlador.php?acao=documento_cancelar&id_procedimento={id_proc}&id_documento={id_doc}");
-    let resposta = anti_ies::documento_cancelar::responder(
-        "GET", &alvo, "", &banco, &origem, "replay-273",
+    let alvo = format!(
+        "{caminho}/controlador.php?acao=documento_cancelar&id_procedimento={id_proc}&id_documento={id_doc}"
     );
+    let resposta =
+        anti_ies::documento_cancelar::responder("GET", &alvo, "", &banco, &origem, "replay-273");
     assert_eq!(resposta.estado, anti_ies::Estado::Ok);
     resposta.corpo
 }
@@ -144,7 +149,11 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
                 continue;
             };
             let origem = Instalacao::interpretar(base).expect("base do controlador");
-            let tela = TelaServida { url, html: &html, codificacao };
+            let tela = TelaServida {
+                url,
+                html: &html,
+                codificacao,
+            };
             assert!(
                 super::fluxo::conferir_formulario(&origem, &tela, &id_proc, &id_doc).is_ok(),
                 "o leitor IES recusou formulário real na instalação {}",
