@@ -53,6 +53,7 @@ fn bdd_271_01_processo_ciencia_previa_unica_e_lista_distinta() {
     assert_eq!(saida["numero"], NUP_CIENTE);
     assert_eq!(saida["id_procedimento"], "7");
     assert_eq!(saida["requisicoes"], 7);
+    assert_eq!(saida["usuario"], "agente-de-teste");
     let atividade = saida["id_atividade"].as_str().expect("atividade confirmada");
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let (id, usuario): (String, Option<String>) = banco.query_row(
