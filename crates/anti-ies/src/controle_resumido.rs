@@ -31,9 +31,10 @@ fn tabela_html(
         write!(destino, "<tr id='P{id_linha}'><td><a class='{classe}'").ok()?;
         // O Controle originalmente observado permite projetar o link;
         // uma linha criada apenas pelo SQLite ainda não o comprova.
-        if observadas.iter().any(|observada| {
-            observada.id == linha.id && observada.numero == linha.numero
-        }) {
+        if observadas
+            .iter()
+            .any(|observada| observada.id == linha.id && observada.numero == linha.numero)
+        {
             write!(
                 destino,
                 " href='controlador.php?acao=procedimento_trabalhar&amp;acao_origem=procedimento_controlar&amp;acao_retorno=procedimento_controlar&amp;id_procedimento={id_linha}&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={}'",
@@ -47,7 +48,10 @@ fn tabela_html(
     Some(())
 }
 
-pub(crate) fn controle_html(controle: &ControleResumido, original: &ControleResumido) -> Option<String> {
+pub(crate) fn controle_html(
+    controle: &ControleResumido,
+    original: &ControleResumido,
+) -> Option<String> {
     // A pesquisa e o unico POST da leitura de documento, sem criar objeto.
     // Assinaturas aqui sao placeholders locais, nunca tokens de SEI.
     let formulario = format!(
@@ -63,8 +67,18 @@ pub(crate) fn controle_html(controle: &ControleResumido, original: &ControleResu
         "<html><body>{formulario}{menu_pesquisa}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
         escapar(controle.unidade.as_str())
     );
-    tabela_html("tblProcessosRecebidos", &controle.recebidos, &original.recebidos.linhas, &mut html)?;
-    tabela_html("tblProcessosGerados", &controle.gerados, &original.gerados.linhas, &mut html)?;
+    tabela_html(
+        "tblProcessosRecebidos",
+        &controle.recebidos,
+        &original.recebidos.linhas,
+        &mut html,
+    )?;
+    tabela_html(
+        "tblProcessosGerados",
+        &controle.gerados,
+        &original.gerados.linhas,
+        &mut html,
+    )?;
     html.push_str("</body></html>");
     Some(html)
 }
