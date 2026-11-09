@@ -116,7 +116,10 @@ fn quantidade(banco: &Connection) -> i64 {
         .unwrap()
 }
 
-fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
+fn executar_com_releitura(
+    args: &[&str],
+    reler: bool,
+) -> (Output, Option<Output>, Vec<String>, (i64, i64), usize) {
     let pasta = Pasta::nova();
     let (cert, identidade) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -192,27 +195,49 @@ fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
         }
     });
 
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(args)
-        .env("IES_URL_CONTROLE_FILE", &controle)
-        .env("IES_COOKIE_FILE", &cookie)
-        .env("IES_ORIGEM_FILE", &origem)
-        .env("SSL_CERT_FILE", &cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .unwrap();
+    let executar_cli = |argumentos: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(argumentos)
+            .env("IES_URL_CONTROLE_FILE", &controle)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .unwrap()
+    };
+    let saida = executar_cli(args);
+    let leitura = if reler && saida.status.success() {
+        let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+        let nup = resultado["nup"].as_str().unwrap();
+        Some(executar_cli(&[
+            "--json",
+            "processo",
+            nup,
+            "--sem-documentos",
+            "--sem-andamentos",
+            "--sem-marcadores",
+        ]))
+    } else {
+        None
+    };
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let (contagens, tipos) = simulador.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
+    (saida, leitura, pedidos, contagens, tipos)
+}
+
+fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
+    let (saida, _, pedidos, contagens, tipos) = executar_com_releitura(args, false);
     (saida, pedidos, contagens, tipos)
 }
 
@@ -257,7 +282,7 @@ fn bdd_245_01_previa_por_cli_real_sem_mutacao_sqlite() {
 
 #[test]
 fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
-    let (saida, pedidos, contagens, tipos) = executar(&[
+    let (saida, leitura, pedidos, contagens, tipos) = executar_com_releitura(&[
         "--json",
         "processo",
         "criar",
@@ -266,7 +291,7 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
         "--especificacao",
         "Cadastro causal de ensaio",
         "--confirmar",
-    ]);
+    ], true);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -282,8 +307,8 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
     assert!(resultado["nup"].as_str().is_some_and(|nup| !nup.is_empty()));
     assert_eq!(resultado["requisicoes"], 7);
     assert_eq!(
-        pedidos,
-        vec![
+        &pedidos[..7],
+        &[
             "GET procedimento_controlar 200",
             "GET procedimento_escolher_tipo 200",
             "GET procedimento_gerar 200",
@@ -293,6 +318,24 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
             "GET procedimento_alterar 200",
         ],
     );
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST procedimento_gerar ")).count(),
+        1,
+        "a consulta independente nunca repete a escrita",
+    );
+    let leitura = leitura.expect("a criação foi confirmada");
+    assert_eq!(
+        leitura.status.code(),
+        Some(0),
+        "consulta do NUP stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&leitura.stdout),
+        String::from_utf8_lossy(&leitura.stderr),
+    );
+    let confirmado: serde_json::Value = serde_json::from_slice(&leitura.stdout).unwrap();
+    assert_eq!(confirmado["numero"], resultado["nup"]);
+    assert_eq!(confirmado["propriedades"]["tipo"], TIPO);
+    assert_eq!(confirmado["propriedades"]["especificacao"], "Cadastro causal de ensaio");
+    assert_eq!(confirmado["propriedades"]["nivel_de_acesso"], "publico");
     assert_eq!(contagens, (0, 1), "um único processo antes/depois");
     assert_eq!(tipos, 1, "cadastro de tipos permanece");
 }
