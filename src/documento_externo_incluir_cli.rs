@@ -22,6 +22,12 @@ fn ensaio_local_habilitado() -> bool {
     std::env::var("IES_ANTI_IES_TESTE").as_deref() == Ok("1")
 }
 
+// Ensaio live autorizado da #332: opt-in explícito por variável; a origem
+// exata de treinamento é exigida depois, ao ler a sessão, antes da rede.
+fn ensaio_treinamento_habilitado() -> bool {
+    std::env::var("IES_ENSAIO_TREINAMENTO").as_deref() == Ok("332")
+}
+
 #[derive(Debug, Serialize)]
 enum FalhaTipoExterno {
     Vazio,
@@ -111,13 +117,14 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     };
     // Não habilita escrita em SEI: somente a bancada isolada pode
     // exercitar a confirmação já existente.
-    if *confirmar && ensaio_local_habilitado() {
+    if *confirmar && (ensaio_local_habilitado() || ensaio_treinamento_habilitado()) {
         return Some(confirmar_remoto::executar(
             cli,
             &processo,
             tipo,
             &pdf,
             Path::new(arquivo),
+            ensaio_treinamento_habilitado(),
         ));
     }
     if *confirmar {

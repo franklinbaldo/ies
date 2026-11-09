@@ -21,18 +21,22 @@ pub(super) fn executar(
     tipo: &str,
     pdf: &PdfLocal,
     caminho_pdf: &Path,
+    ensaio_treinamento: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
         // O marker opt-in, sozinho, não autoriza tocar em instalações reais.
         // Exigir origem reservada e proxy exclusivamente na máquina local
-        // antes da primeira requisição, inclusive GET.
+        // antes da primeira requisição, inclusive GET; ou, no ensaio live
+        // autorizado, a origem exata da UnB de treinamento.
         let proxy_local =
             std::env::var("https_proxy").is_ok_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
-        if sessao.origem != "https://sei.test/sei" || !proxy_local {
+        let bancada = sessao.origem == "https://sei.test/sei" && proxy_local;
+        let treinamento = ensaio_treinamento && origem_unb_de_treinamento(sessao.origem);
+        if !bancada && !treinamento {
             return super::recusa(
                 cli.json,
                 &super::FalhaInclusaoExterna::CadastroNaoValidado,
-                "ensaio de confirmação somente em sei.test com proxy loopback",
+                "ensaio de confirmação somente em sei.test com proxy loopback ou na UnB de treinamento",
                 1,
             );
         }
@@ -101,6 +105,13 @@ pub(super) fn executar(
     })
 }
 
+/// Identidade exata da instalação de treinamento em que o oráculo Todos
+/// observou o cadastro externo (SEI 4); hosts semelhantes não passam.
+fn origem_unb_de_treinamento(origem: &str) -> bool {
+    crate::instalacao::Instalacao::interpretar(origem)
+        .is_some_and(|instalacao| instalacao.url_base() == "https://sei.treinamento.unb.br/sei")
+}
+
 fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
     json!({
         "confirmado": false,
@@ -130,6 +141,22 @@ mod tests {
         assert_eq!(resultado["cadastro_tentado"], true);
         assert_eq!(resultado["temporario_possivel"], true);
         assert_eq!(resultado["retentavel"], false);
+    }
+
+    #[test]
+    fn ensaio_live_aceita_somente_a_origem_exata_da_unb_de_treinamento() {
+        assert!(origem_unb_de_treinamento(
+            "https://sei.treinamento.unb.br/sei"
+        ));
+        for outra in [
+            "https://sei.unb.br/sei",
+            "https://sei.treinamento.unb.br.exemplo/sei",
+            "https://sei.treinamento.unb.br/outro",
+            "http://sei.treinamento.unb.br/sei",
+            "https://sei.test/sei",
+        ] {
+            assert!(!origem_unb_de_treinamento(outra), "{outra}");
+        }
     }
 
     #[test]
