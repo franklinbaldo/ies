@@ -28,6 +28,102 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     resposta
 }
 
+fn barras_observadas(
+    respostas: Vec<gravacao::Resposta<'_>>,
+    instalacao: &iesei::instalacao::Instalacao,
+    id: &str,
+    numero: &str,
+) -> Vec<(usize, String, String, bool)> {
+    let mut barras = Vec::new();
+    for resposta in respostas {
+        if resposta.operacao != "procedimento_visualizar"
+            || resposta.metodo != "GET"
+            || resposta.status != 200
+        {
+            continue;
+        }
+        let Some(processo) = gravacao::id_procedimento(resposta.item) else {
+            continue;
+        };
+        let Ok(html) = html_da_resposta(resposta.item) else {
+            continue;
+        };
+        let Some(nup) = nup_declarado_na_arvore(&html) else {
+            continue;
+        };
+        let Ok(arvore) = ler_arvore(&html, &nup, &processo) else {
+            continue;
+        };
+        if !arvore
+            .documentos
+            .iter()
+            .any(|d| d.id == id && d.numero_sei.as_deref() == Some(numero))
+        {
+            continue;
+        }
+        let barra = ler_barra_do_documento(instalacao, &html, id, &processo).unwrap();
+        barras.push((resposta.passo, processo, nup, barra.versoes.is_some()));
+    }
+    barras
+}
+
+fn servir_barra(
+    documento: DocumentoSimulado,
+    instalacao: iesei::instalacao::Instalacao,
+    id_processo: String,
+    nup: String,
+) -> (SocketAddr, std::thread::JoinHandle<()>) {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-lista", &documento).unwrap();
+        banco_cassettes::guardar(
+            &mut banco,
+            "cassette-lista",
+            &ControleResumido {
+                instalacao: instalacao.clone(),
+                unidade: UnidadeExibida::nova("TESTE").unwrap(),
+                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            },
+        )
+        .unwrap();
+        let mut processo = ProcessoSimulado {
+            id: id_processo,
+            numero: nup,
+            unidade_origem: "TESTE".to_owned(),
+            aberto_em: vec!["TESTE".to_owned()],
+            anotacao_origem: None,
+            destinos: vec![],
+        };
+        processos::guardar(&mut banco, &instalacao, "cassette-lista", &processo).unwrap();
+        for passo in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-lista")))
+                .unwrap();
+            if passo == 0 {
+                processo.aberto_em.clear();
+                processos::guardar(&mut banco, &instalacao, "cassette-lista", &processo).unwrap();
+            }
+        }
+        assert!(
+            processos::ler(&banco, &instalacao, "cassette-lista", &processo.id)
+                .unwrap()
+                .unwrap()
+                .aberto_em
+                .is_empty()
+        );
+        assert_eq!(
+            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    });
+    (endereco, tarefa)
+}
+
 #[test]
 #[ignore = "ZIP UnB verificado no IES_ACERVO_CACHE; confronto offline no CI"]
 fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
@@ -66,38 +162,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("conclusão registrada")
         .passo;
 
-    // Comparar a mesma identidade, lida pelo parser produtivo, nos
-    // snapshots anteriores e posteriores ao passo de conclusão capturado.
-    let mut barras = Vec::new();
-    for resposta in respostas {
-        if resposta.operacao != "procedimento_visualizar"
-            || resposta.metodo != "GET"
-            || resposta.status != 200
-        {
-            continue;
-        }
-        let Some(processo) = gravacao::id_procedimento(resposta.item) else {
-            continue;
-        };
-        let Ok(html) = html_da_resposta(resposta.item) else {
-            continue;
-        };
-        let Some(nup) = nup_declarado_na_arvore(&html) else {
-            continue;
-        };
-        let Ok(arvore) = ler_arvore(&html, &nup, &processo) else {
-            continue;
-        };
-        if !arvore
-            .documentos
-            .iter()
-            .any(|d| d.id == id && d.numero_sei.as_deref() == Some(&identidade.numero))
-        {
-            continue;
-        }
-        let barra = ler_barra_do_documento(&instalacao, &html, &id, &processo).unwrap();
-        barras.push((resposta.passo, processo, nup, barra.versoes.is_some()));
-    }
+    let barras = barras_observadas(respostas, &instalacao, &id, &identidade.numero);
     let antes = barras
         .iter()
         .find(|(passo, _, _, oferecida)| *passo < conclusao && *oferecida)
@@ -105,7 +170,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
     let depois = barras
         .iter()
         .find(|(passo, processo, nup, oferecida)| {
-            *passo > conclusao && !oferecida && processo == &antes.1 && nup == &antes.2
+            *passo > conclusao && !*oferecida && processo == &antes.1 && nup == &antes.2
         })
         .expect("após conclusão, mesma identidade sem link de versões");
     assert!(antes.0 < conclusao && depois.0 > conclusao);
@@ -128,61 +193,12 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             ),
         }],
     };
-    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = escuta.local_addr().unwrap();
-    let id_processo = antes.1.clone();
-    let nup = antes.2.clone();
-    let instalacao_servidor = instalacao.clone();
-    let tarefa = std::thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        guardar(&mut banco, "cassette-lista", &documento).unwrap();
-        banco_cassettes::guardar(
-            &mut banco,
-            "cassette-lista",
-            &ControleResumido {
-                instalacao: instalacao_servidor.clone(),
-                unidade: UnidadeExibida::nova("TESTE").unwrap(),
-                recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-                gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            },
-        )
-        .unwrap();
-        let mut processo = ProcessoSimulado {
-            id: id_processo,
-            numero: nup,
-            unidade_origem: "TESTE".to_owned(),
-            aberto_em: vec!["TESTE".to_owned()],
-            anotacao_origem: None,
-            destinos: vec![],
-        };
-        processos::guardar(&mut banco, &instalacao_servidor, "cassette-lista", &processo).unwrap();
-        for passo in 0..3 {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(
-                &mut fluxo,
-                Some((&banco, &instalacao_servidor, "cassette-lista")),
-            )
-            .unwrap();
-            if passo == 0 {
-                processo.aberto_em.clear();
-                processos::guardar(&mut banco, &instalacao_servidor, "cassette-lista", &processo)
-                    .unwrap();
-            }
-        }
-        assert!(
-            processos::ler(&banco, &instalacao_servidor, "cassette-lista", &processo.id)
-                .unwrap()
-                .unwrap()
-                .aberto_em
-                .is_empty()
-        );
-        assert_eq!(
-            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-    });
+    let (endereco, tarefa) = servir_barra(
+        documento,
+        instalacao.clone(),
+        antes.1.clone(),
+        antes.2.clone(),
+    );
     let alvo = format!(
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento={}&id_documento={id}",
         antes.1
