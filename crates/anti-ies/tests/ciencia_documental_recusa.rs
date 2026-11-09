@@ -51,6 +51,13 @@ fn segunda_ciencia_devolve_validacao_infra_200_sem_nova_atividade() {
             },
         )
         .unwrap();
+        iesei::acesso_sessao::identificar_usuario(
+            &banco,
+            &origem,
+            "bdd-271",
+            "agente-de-teste",
+        )
+        .unwrap();
         for _ in 0..3 {
             let (mut tcp, _) = listener.accept().unwrap();
             atender_http(&mut tcp, Some((&banco, &origem, "bdd-271"))).unwrap();
@@ -79,5 +86,6 @@ fn segunda_ciencia_devolve_validacao_infra_200_sem_nova_atividade() {
     );
     assert!(lista.starts_with("HTTP/1.1 200 OK"), "{lista}");
     assert!(lista.contains("value='42457'"), "{lista}");
+    assert!(lista.contains("agente-de-teste"), "{lista}");
     servidor.join().unwrap();
 }
