@@ -125,6 +125,24 @@ fn banco(vinculo_inicial: bool) -> (Connection, Instalacao) {
     (db, origem)
 }
 
+/// Um POST sintético em loopback, separado da execução da CLI real.
+fn remover_localmente(endereco: std::net::SocketAddr) {
+    let corpo = "hdnInfraItemId=22";
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    let pedido = format!(
+        "POST /sei/controlador.php?acao=procedimento_excluir_relacionamento&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
+        corpo.len()
+    );
+    cliente.write_all(pedido.as_bytes()).unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    assert!(
+        resposta.starts_with("HTTP/1.1 302 Found"),
+        "exclusão local deve responder 302: {resposta}"
+    );
+}
+
 fn executar(
     vinculo_inicial: bool,
     post_local: bool,
@@ -183,20 +201,7 @@ fn executar(
     }
     if remover_local {
         assert!(vinculo_inicial && !post_local);
-        let corpo = "hdnInfraItemId=22";
-        let mut cliente = TcpStream::connect(endereco).unwrap();
-        let pedido = format!(
-            "POST /sei/controlador.php?acao=procedimento_excluir_relacionamento&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
-            corpo.len()
-        );
-        cliente.write_all(pedido.as_bytes()).unwrap();
-        cliente.shutdown(Shutdown::Write).unwrap();
-        let mut resposta = String::new();
-        cliente.read_to_string(&mut resposta).unwrap();
-        assert!(
-            resposta.starts_with("HTTP/1.1 302 Found"),
-            "exclusão local deve responder 302: {resposta}"
-        );
+        remover_localmente(endereco);
     }
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
