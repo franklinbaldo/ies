@@ -45,7 +45,10 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(feito["id_documento"], "42");
     assert_eq!(feito["processo"]["id"], "7");
     assert_eq!(feito["requisicoes"], 11);
-    assert!(feito["usuario"].is_null(), "sem identidade de sessão não se inventa nome");
+    assert!(
+        feito["usuario"].is_null(),
+        "sem identidade de sessão não se inventa nome"
+    );
     let atividade = feito["id_atividade"].as_str().expect("atividade observada");
 
     // Oráculo independente da árvore e do leitor HTML: estado gravado no SQLite.
