@@ -1,8 +1,0 @@
-cassettes/unb/processo-atribuir-unb--bf0d4327d7d9.md
-cassettes/go/processo-atribuir-go--19e840b0f21d.md
-cassettes/ufrj/processo-atribuir-ufrj--1a475842e831.md
-cassettes/pen1/processo-atribuir-pen1--4f92a0df534c.md
-cassettes/pen2/processo-atribuir-pen2--7a3d210e81ef.md
-cassettes/pen3/processo-atribuir-pen3--e3f00544e746.md
-cassettes/pen4/processo-atribuir-pen4--918cdfc8237b.md
-# inspeção de resposta POST, somente metadados saneados
