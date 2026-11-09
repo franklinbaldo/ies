@@ -291,7 +291,7 @@ pub fn autocompletar(
 }
 
 /// Decodifica o corpo de consulta form-urlencoded, inclusive escape percentual.
-fn decodificar_formulario(texto: &str) -> Option<String> {
+pub(crate) fn decodificar_formulario(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::with_capacity(bytes.len());
     let mut posicao = 0;
@@ -358,11 +358,23 @@ fn arvore_do_processo(
     let situacao = literal_js(&situacao_da_raiz(processo));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
-    let barra = literal_js(&super::processo_barra::acoes_do_processo(
+    let mut acoes = super::processo_barra::acoes_do_processo(
         processo,
         unidade_atual,
         relacionados,
-    ));
+    );
+    if iesei::criacao_processo::ler_criado(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .is_some()
+    {
+        write!(
+            acoes,
+            r#"<a href="controlador.php?acao=procedimento_alterar&amp;id_procedimento={id}&amp;infra_hash={}">Alterar Processo</a>"#,
+            crate::protocolo_sintetico::INFRA_HASH,
+        )
+        .expect("formatacao de String");
+    }
+    let barra = literal_js(&acoes);
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
