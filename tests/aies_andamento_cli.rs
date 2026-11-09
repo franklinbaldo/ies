@@ -222,12 +222,26 @@ fn executar(confirmar: bool) {
     verificar(confirmar, &saida, &persistido, &pedidos);
 }
 
-fn verificar(confirmar: bool, saida: &std::process::Output, persistido: &Historico, pedidos: &[String]) {
+fn verificar(
+    confirmar: bool,
+    saida: &std::process::Output,
+    persistido: &Historico,
+    pedidos: &[String],
+) {
     assert_eq!(persistido.total_declarado, if confirmar { 2 } else { 1 });
     assert_eq!(persistido.linhas.len(), if confirmar { 2 } else { 1 });
-    assert_eq!(persistido.linhas[0].descricao, if confirmar { TEXTO } else { "Andamento anterior" });
-    assert_eq!(persistido.linhas.last().unwrap().descricao, "Andamento anterior");
-    let pedidos = pedidos;
+    assert_eq!(
+        persistido.linhas[0].descricao,
+        if confirmar {
+            TEXTO
+        } else {
+            "Andamento anterior"
+        }
+    );
+    assert_eq!(
+        persistido.linhas.last().unwrap().descricao,
+        "Andamento anterior"
+    );
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -241,7 +255,14 @@ fn verificar(confirmar: bool, saida: &std::process::Output, persistido: &Histori
     assert_eq!(json["confirmado"], confirmar);
     assert_eq!(json["alterado"], confirmar);
     assert_eq!(json["total_antes"], 1);
-    assert_eq!(json["total_depois"], if confirmar { serde_json::json!(2) } else { serde_json::Value::Null });
+    assert_eq!(
+        json["total_depois"],
+        if confirmar {
+            serde_json::json!(2)
+        } else {
+            serde_json::Value::Null
+        }
+    );
     assert!(
         pedidos
             .iter()
@@ -253,8 +274,15 @@ fn verificar(confirmar: bool, saida: &std::process::Output, persistido: &Histori
             .any(|p| p == "GET procedimento_atualizar_andamento")
     );
     if confirmar {
-        assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1, "{pedidos:?}");
-        assert_eq!(pedidos.last().map(String::as_str), Some("GET procedimento_consultar_historico"));
+        assert_eq!(
+            pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+            1,
+            "{pedidos:?}"
+        );
+        assert_eq!(
+            pedidos.last().map(String::as_str),
+            Some("GET procedimento_consultar_historico")
+        );
     } else {
         assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
     }
