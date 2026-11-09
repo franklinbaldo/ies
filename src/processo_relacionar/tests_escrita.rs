@@ -273,7 +273,6 @@ fn dado_302_aceito_mas_releitura_sem_vinculo_entao_efeito_incerto() {
     assert_eq!(pedidos[6].metodo, "GET");
 }
 
-
 /// Regressão auxiliar ao BDD-258-03: a ausência do antigo id não basta
 /// quando o mesmo NUP reaparece na releitura com um id novo.
 #[test]
