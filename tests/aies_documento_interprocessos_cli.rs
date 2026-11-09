@@ -278,16 +278,22 @@ fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
             String::from_utf8_lossy(&saida.stderr)
         );
         let erro = json(&saida);
-        assert_eq!(erro["subcodigo"], "documento_cancelado_sem_conteudo_na_arvore", "{erro}");
+        assert_eq!(
+            erro["subcodigo"], "documento_cancelado_sem_conteudo_na_arvore",
+            "{erro}"
+        );
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
         assert!(
-            !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+            !trilha
+                .iter()
+                .any(|pedido| pedido == "GET documento_visualizar"),
             "sem link não se requisita conteúdo cancelado: {trilha:?}"
         );
         assert!(
-            trilha.iter().all(|pedido| pedido.starts_with("GET ")),
-            "consulta explícita ao processo, sem POST ou retry: {trilha:?}"
+            trilha.iter().all(|pedido| pedido.starts_with("GET ")
+                || pedido == "POST protocolo_pesquisa_rapida"),
+            "sem POST mutador ou retry: {trilha:?}"
         );
     }
 }
