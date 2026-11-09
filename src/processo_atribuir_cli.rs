@@ -1,5 +1,5 @@
 //! Prévia Web de atribuição por login exato; confirmação apenas nas
-//! instalações públicas de treinamento conhecidas e com releitura.
+//! instalação de treinamento UnB com efeito verificado por releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
@@ -29,7 +29,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => com_sessao(cli, |sessao, indice| {
             // Nunca executar a confirmação em produção: a origem precisa
-            // coincidir com uma instalação pública de treinamento conhecida.
+            // coincidir com a instalação UnB de treinamento observada.
             if *confirmar && !origem_de_treinamento(sessao.origem) {
                 return publicar_falha(cli.json, &ErroProcessoAtribuir::EscritaAindaNaoVerificada);
             }
@@ -55,16 +55,9 @@ fn origem_de_treinamento(origem: &str) -> bool {
     let Some(instalacao) = crate::instalacao::Instalacao::interpretar(origem) else {
         return false;
     };
-    matches!(
-        instalacao.url_base().as_str(),
-        "https://sei.treinamento.unb.br/sei"
-            | "https://seitreinamento.go.gov.br/sei"
-            | "https://teste.sei.tic.ufrj.br/sei"
-            | "https://sei.orgao1.tramita.processoeletronico.gov.br/sei"
-            | "https://sei.orgao2.tramita.processoeletronico.gov.br/sei"
-            | "https://sei.orgao3.tramita.processoeletronico.gov.br/sei"
-            | "https://sei.orgao4.tramita.processoeletronico.gov.br/sei"
-    )
+    // Primeiro ensaio apenas na UnB, única origem dessa fatia com
+    // destino de aceite documentado pelo oráculo Todos.
+    instalacao.url_base() == "https://sei.treinamento.unb.br/sei"
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
