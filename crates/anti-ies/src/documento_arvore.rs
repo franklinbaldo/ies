@@ -2,6 +2,7 @@
 //! Hipótese de integração sintética para #88; não realiza requisições ao SEI.
 use crate::{Estado, Resposta, despachar};
 use iesei::cancelamento_documento::Situacao;
+use iesei::ciencia_documental::Estado as Ciencia;
 use iesei::documento_versoes::{self as versoes, DocumentoSimulado, ler};
 use iesei::documentos_simulados;
 use iesei::instalacao::Instalacao;
@@ -21,7 +22,7 @@ fn js(s: &str) -> String {
         .replace('<', "\\u003c")
 }
 
-fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
+fn arvore(d: &DocumentoSimulado, situacao: &Situacao, ciencia: &Ciencia) -> String {
     let p = &d.id_procedimento;
     let id = &d.id_documento;
     let nup = js(&d.numero_processo);
@@ -45,6 +46,12 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
         ),
     };
     let dica = js(&dica);
+    let ciencia_acao = crate::documento_ciencia::barra(ciencia);
+    let lista_ciencia = crate::documento_ciencia::acao_da_lista(9, id, p, ciencia);
+    let tela = format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}",
+        crate::protocolo_sintetico::INFRA_HASH
+    );
     // Um documento cancelado segue identificável, mas não publica conteúdo.
     let src = match situacao {
         Situacao::Disponivel => format!(
@@ -59,11 +66,11 @@ Nos[0] = new infraArvoreNo("PROCESSO","{p}",null,"controlador.php?acao=arvore_vi
 Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '';
-Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
-Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}';
+Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
+Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}{ciencia_acao}';
 Nos[1].src = '{src}';
 Nos[1].html = '';
-</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+{lista_ciencia}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
     )
 }
 
@@ -176,7 +183,18 @@ pub fn responder(
                 Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
                 Err(estado) => return Resposta::nova(estado),
             };
-            html(arvore(&documento, &situacao))
+            let ciencia = match crate::documento_ciencia::estado(
+                banco,
+                instalacao,
+                cenario,
+                &documento.id_documento,
+                &documento.id_procedimento,
+            ) {
+                Ok(Some(ciencia)) => ciencia,
+                Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
+                Err(estado) => return Resposta::nova(estado),
+            };
+            html(arvore(&documento, &situacao, &ciencia))
         }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
@@ -205,6 +223,10 @@ pub(crate) fn nos_do_processo(
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(
+            banco, instalacao, cenario, &id, processo,
+        )?
+        .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -213,6 +235,7 @@ pub(crate) fn nos_do_processo(
             &documento.tipo,
             true,
             &situacao,
+            &ciencia,
         ));
         indice += 1;
         vistos.push(id);
@@ -225,6 +248,10 @@ pub(crate) fn nos_do_processo(
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(
+            banco, instalacao, cenario, &id, processo,
+        )?
+        .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -233,6 +260,7 @@ pub(crate) fn nos_do_processo(
             &documento.tipo,
             false,
             &situacao,
+            &ciencia,
         ));
         indice += 1;
     }
@@ -247,6 +275,7 @@ fn no_de_documento(
     tipo: &str,
     versoes: bool,
     situacao: &Situacao,
+    ciencia: &Ciencia,
 ) -> String {
     let (icone, dica) = match situacao {
         Situacao::Disponivel => ("documento_interno", "Documento interno".to_owned()),
@@ -260,6 +289,12 @@ fn no_de_documento(
     let processo = js(processo);
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
+    let ciencia_acao = crate::documento_ciencia::barra(ciencia);
+    let lista_ciencia = crate::documento_ciencia::acao_da_lista(indice + 9, &id, &processo, ciencia);
+    let tela = format!(
+        "controlador.php?acao=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}",
+        crate::protocolo_sintetico::INFRA_HASH
+    );
     let cancelar = if matches!(situacao, Situacao::Disponivel) {
         format!(
             "<a href=\"controlador.php?acao=documento_cancelar&acao_origem=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}\">Cancelar Documento</a>",
@@ -269,7 +304,7 @@ fn no_de_documento(
         String::new()
     };
     let mut no = format!(
-        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
+        r#"Nos[{indice}] = new infraArvoreNo("DOCUMENTO","{id}","{processo}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 "#
     );
     if versoes {
@@ -283,7 +318,7 @@ fn no_de_documento(
         };
         write!(
             no,
-            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>{cancelar}';
+            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>{cancelar}{ciencia_acao}';
 Nos[{indice}].src = '{src}';
 "#
         )
@@ -291,144 +326,15 @@ Nos[{indice}].src = '{src}';
     } else {
         write!(
             no,
-            "Nos[{indice}].acoes = '{cancelar}';\nNos[{indice}].src = '';\n"
+            "Nos[{indice}].acoes = '{cancelar}{ciencia_acao}';\nNos[{indice}].src = '';\n"
         )
         .expect("formatação de String");
     }
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
+    no.push_str(&lista_ciencia);
     no
 }
 
 #[cfg(test)]
-mod testes_cancelamento_arvore_mista {
-    use super::*;
-    use iesei::banco_cassettes::iniciar;
-    use iesei::cancelamento_documento::{Aplicacao, aplicar};
-    use iesei::documento_versoes::Revisao;
-    use std::num::NonZeroU32;
-
-    /// Um documento recém-criado mantém um nó único quando ganha revisão.
-    /// A presença de uma identidade no SQLite não equivale a uma revisão.
-    #[test]
-    fn criar_depois_versionar_mantem_um_no_sem_revisao_inventada() {
-        use iesei::documentos_simulados::{self, Processo, Tipo};
-
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
-        let cenario = "criar-depois-versionar";
-        documentos_simulados::registrar_processo(
-            &banco,
-            &origem,
-            cenario,
-            &Processo {
-                id: "10".into(),
-                nup: "00001.000001/2026-01".into(),
-                unidade: "ORIGEM".into(),
-            },
-        )
-        .unwrap();
-        documentos_simulados::registrar_tipo(
-            &banco,
-            &origem,
-            cenario,
-            "10",
-            &Tipo {
-                id: "291".into(),
-                nome: "Despacho".into(),
-            },
-        )
-        .unwrap();
-        let criado =
-            documentos_simulados::criar(&banco, &origem, cenario, "10", "291", "").unwrap();
-        let sem_revisao = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(sem_revisao.matches("new infraArvoreNo").count(), 1);
-        assert_eq!(sem_revisao.matches("Versões").count(), 0);
-        assert!(sem_revisao.contains("Cancelar Documento"));
-
-        versoes::guardar(
-            &mut banco,
-            cenario,
-            &DocumentoSimulado {
-                instalacao: origem.clone(),
-                id_documento: criado.id.to_string(),
-                id_procedimento: "10".into(),
-                numero_processo: "00001.000001/2026-01".into(),
-                numero: criado.numero_sei,
-                tipo: criado.tipo,
-                revisoes: vec![Revisao {
-                    versao: NonZeroU32::new(1).unwrap(),
-                    usuario: "TESTE".into(),
-                    unidade: "ORIGEM".into(),
-                    modificacao: "09/11/2026".into(),
-                    html_corpo: "<p>Conteúdo sintético</p>".into(),
-                }],
-            },
-        )
-        .unwrap();
-        let com_revisao = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(com_revisao.matches("new infraArvoreNo").count(), 1);
-        assert_eq!(com_revisao.matches("Versões").count(), 1);
-        assert_eq!(com_revisao.matches("Cancelar Documento").count(), 1);
-    }
-
-    /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
-    /// cancelamento persistido, sem perder os outros documentos.
-    #[test]
-    fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
-        let cenario = "bdd-273";
-        for (id, numero) in [("42", "0011519"), ("43", "0011520")] {
-            versoes::guardar(
-                &mut banco,
-                cenario,
-                &DocumentoSimulado {
-                    instalacao: origem.clone(),
-                    id_documento: id.into(),
-                    id_procedimento: "10".into(),
-                    numero_processo: "00001.000001/2026-01".into(),
-                    numero: numero.into(),
-                    tipo: "Despacho".into(),
-                    revisoes: vec![Revisao {
-                        versao: NonZeroU32::new(1).unwrap(),
-                        usuario: "Teste".into(),
-                        unidade: "ORIGEM".into(),
-                        modificacao: "08/11/2026".into(),
-                        html_corpo: "<p>Original</p>".into(),
-                    }],
-                },
-            )
-            .unwrap();
-        }
-        let antes = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(antes.matches("documento_cancelado.svg").count(), 0);
-        assert_eq!(
-            aplicar(
-                &banco,
-                &origem,
-                cenario,
-                "42",
-                "10",
-                "Motivo do cancelamento"
-            )
-            .unwrap(),
-            Aplicacao::Aplicada
-        );
-        let depois = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
-        assert_eq!(depois.matches("documento_cancelado.svg").count(), 3);
-        assert_eq!(depois.matches("documento_interno.svg").count(), 3);
-        assert!(depois.contains("Motivo do cancelamento"));
-        assert!(depois.contains("0011519"));
-        assert!(depois.contains("0011520"));
-        let individual = responder(
-            "GET",
-            "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
-            &banco,
-            &origem,
-            cenario,
-        );
-        assert!(individual.corpo.contains("documento_cancelado.svg"));
-    }
-}
+#[path = "documento_arvore/testes_cancelamento_arvore_mista.rs"]
+mod testes_cancelamento_arvore_mista;
