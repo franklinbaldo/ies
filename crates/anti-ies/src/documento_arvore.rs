@@ -224,10 +224,8 @@ pub(crate) fn nos_do_processo(
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
-        let ciencia = crate::documento_ciencia::estado(
-            banco, instalacao, cenario, &id, processo,
-        )?
-        .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(banco, instalacao, cenario, &id, processo)?
+            .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -249,10 +247,8 @@ pub(crate) fn nos_do_processo(
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
-        let ciencia = crate::documento_ciencia::estado(
-            banco, instalacao, cenario, &id, processo,
-        )?
-        .ok_or(Estado::DadosInsuficientes)?;
+        let ciencia = crate::documento_ciencia::estado(banco, instalacao, cenario, &id, processo)?
+            .ok_or(Estado::DadosInsuficientes)?;
         nos.push_str(&no_de_documento(
             indice,
             processo,
@@ -291,7 +287,8 @@ fn no_de_documento(
     let numero = js(numero);
     let rotulo = js(&format!("{tipo} {numero}"));
     let ciencia_acao = crate::documento_ciencia::barra(ciencia);
-    let lista_ciencia = crate::documento_ciencia::acao_da_lista(indice + 9, &id, &processo, ciencia);
+    let lista_ciencia =
+        crate::documento_ciencia::acao_da_lista(indice + 9, &id, &processo, ciencia);
     let tela = format!(
         "controlador.php?acao=arvore_visualizar&id_procedimento={processo}&id_documento={id}&infra_hash={}",
         crate::protocolo_sintetico::INFRA_HASH
