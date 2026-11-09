@@ -15,6 +15,7 @@ pub mod observacao;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 pub mod processos;
+pub mod prazos;
 pub mod relacionamentos;
 pub mod retornos_cassettes;
 pub mod sqlite;
