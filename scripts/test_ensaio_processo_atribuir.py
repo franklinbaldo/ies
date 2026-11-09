@@ -92,6 +92,51 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertEqual(relatorio["requisicoes"], [4, 6])
         self.assertTrue(self.registro.exists())
 
+    def test_post_inconclusivo_conserva_atribuicao_relida_sem_declarar_sucesso(self):
+        dados = roteiro()
+        dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                       "requisicoes": 6, "atribuicao_relida": USUARIO}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_atribuicao")
+        self.assertEqual(relatorio["atribuicao_relida"], USUARIO)
+        self.assertEqual(json.loads(self.registro.read_text())["atribuicao_relida"], USUARIO)
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_remocao_inconclusiva_conserva_ausencia_observada_sem_sucesso(self):
+        dados = roteiro()
+        dados[4] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                       "requisicoes": 6, "atribuicao_relida": ""}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertEqual(relatorio["residuo"], "possivel_remocao")
+        self.assertEqual(relatorio["atribuicao_relida"], "")
+        self.assertEqual(json.loads(self.registro.read_text())["atribuicao_relida"], "")
+        self.assertEqual(len(self.chamadas), 5)
+
+    def test_releitura_nao_observada_permanece_nula_no_registro(self):
+        dados = roteiro()
+        dados[1] = 3, {"requisicoes": 6, "atribuicao_relida": None}
+        codigo, relatorio = self.rodar(dados)
+        self.assertEqual((codigo, relatorio["estado"]), (3, "EFEITO_INCERTO"))
+        self.assertIn("atribuicao_relida", relatorio)
+        self.assertIsNone(relatorio["atribuicao_relida"])
+        self.assertNotEqual(relatorio["residuo"], "sem_atribuicao")
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_post_inconclusivo_nao_publica_valor_alheio_ou_dado_nao_tipado(self):
+        for valor in ("https://example.invalid/segredo", ["aluno2"]):
+            with self.subTest(valor=valor):
+                dados = roteiro()
+                dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao",
+                               "requisicoes": 6, "atribuicao_relida": valor}
+                codigo, relatorio = self.rodar(dados)
+                self.assertEqual(codigo, 3)
+                self.assertNotIn("atribuicao_relida", relatorio)
+                self.assertNotIn("example.invalid", self.registro.read_text())
+                self.registro.unlink()
+                self.chamadas.clear()
+
     def test_releitura_de_outro_processo_nao_autoriza_remover(self):
         dados = roteiro()
         dados[2][1]["numero"] = "outro"
