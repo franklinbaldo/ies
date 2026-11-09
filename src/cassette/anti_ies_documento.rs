@@ -1,4 +1,4 @@
-//! Contraste parcial com conteúdo original da cassette UnB (#60).
+//! Contraste parcial com conteúdo original da cassette `UnB` (#60).
 //! O leitor do IES estabelece identidade/texto; o anti-IES projeta um
 //! documento do SQLite e os mesmos leitores conferem a resposta HTTP.
 //! A versão, o ID e o autor do simulador são sintéticos, não observações.
