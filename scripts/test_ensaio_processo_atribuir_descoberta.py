@@ -1,7 +1,7 @@
 """Testes tecnicos da descoberta somente-leitura do ensaio #264, sem SEI."""
 import unittest
 
-import ensaio_processo_atribuir as raposa
+import ensaio_processo_atribuir_descoberta as raposa
 
 
 ORIGEM = "https://sei.treinamento.unb.br/sei"
