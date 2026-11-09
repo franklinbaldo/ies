@@ -1,5 +1,5 @@
-//! Prévia Web de atribuição por login exato; confirmação pública fechada
-//! até a validação em treinamento, com recusa que orienta a prévia segura.
+//! Prévia Web de atribuição por login exato; confirmação apenas nas
+//! instalações públicas de treinamento conhecidas e com releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
@@ -27,27 +27,45 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         return None;
     };
     Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => {
-            if *confirmar {
-                // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
-                publicar_falha(cli.json, &ErroProcessoAtribuir::EscritaAindaNaoVerificada)
-            } else {
-                com_sessao(cli, |sessao, indice| {
-                    let pedido = PedidoDaAtribuicao {
-                        nup: &nup,
-                        unidade: cli.unidade.as_deref(),
-                        usuario: if *remover { None } else { usuario.as_deref() },
-                        confirmar: false,
-                    };
-                    match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                        Ok(feito) => publicar_previa(cli.json, &feito),
-                        Err(erro) => publicar_falha(cli.json, &erro),
-                    }
-                })
+        Ok(nup) => com_sessao(cli, |sessao, indice| {
+            // Nunca executar a confirmação em produção: a origem precisa
+            // coincidir com uma instalação pública de treinamento conhecida.
+            if *confirmar && !origem_de_treinamento(sessao.origem) {
+                return publicar_falha(cli.json, &ErroProcessoAtribuir::EscritaAindaNaoVerificada);
             }
-        }
+            let pedido = PedidoDaAtribuicao {
+                nup: &nup,
+                unidade: cli.unidade.as_deref(),
+                usuario: if *remover { None } else { usuario.as_deref() },
+                confirmar: *confirmar,
+            };
+            match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
+                Ok(feito) => publicar_previa(cli.json, &feito),
+                Err(erro) => publicar_falha(cli.json, &erro),
+            }
+        }),
         Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
     })
+}
+
+/// A escrita exige identidade exata de uma instalação de treinamento.
+/// Nomes de host semelhantes, outros caminhos e origens desconhecidas
+/// não recebem autorização pela simples existência de uma sessão.
+fn origem_de_treinamento(origem: &str) -> bool {
+    let Some(instalacao) = crate::instalacao::Instalacao::interpretar(origem) else {
+        return false;
+    };
+    matches!(
+        instalacao.url_base().as_str(),
+        "https://sei.treinamento.unb.br/sei"
+            | "https://seitreinamento.go.gov.br/sei"
+            | "https://teste.sei.tic.ufrj.br/sei"
+            | "https://sei.orgao1.tramita.processoeletronico.gov.br/sei"
+            | "https://sei.orgao2.tramita.processoeletronico.gov.br/sei"
+            | "https://sei.orgao3.tramita.processoeletronico.gov.br/sei"
+            | "https://sei.orgao4.tramita.processoeletronico.gov.br/sei"
+    )
+}
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
