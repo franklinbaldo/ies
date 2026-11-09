@@ -22,10 +22,13 @@ fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) 
             (true, true) => "processoVisualizadoSigiloso",
             (false, true) => "processoNaoVisualizadoSigiloso",
         };
+        // A identidade da linha é navegável na forma observada do Controle R.
+        // Sem href, a CLI abandona o ID observado e tenta outra pesquisa.
+        let id_linha = escapar(&linha.id);
         write!(
             destino,
-            "<tr id='P{}'><td><a class='{classe}'>{}</a></td></tr>",
-            escapar(&linha.id),
+            "<tr id='P{id_linha}'><td><a class='{classe}' href='controlador.php?acao=procedimento_trabalhar&amp;acao_origem=procedimento_controlar&amp;acao_retorno=procedimento_controlar&amp;id_procedimento={id_linha}&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={}'>{}</a></td></tr>",
+            crate::protocolo_sintetico::INFRA_HASH,
             escapar(&linha.numero)
         )
         .ok()?;
