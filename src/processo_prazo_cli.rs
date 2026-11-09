@@ -45,7 +45,11 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     };
     // Confirmação implementada somente no binário debug para a origem
     // reservada .test. Release e pedidos fora desta fatia não abrem sessão.
-    if *confirmar && (!cfg!(debug_assertions) || !matches!(pedido, PedidoDePrazo::Ate(_))) {
+    if *confirmar
+        && (!cfg!(debug_assertions)
+            || !matches!(pedido, PedidoDePrazo::Ate(_))
+            || !origem_local_sintetica())
+    {
         return Some(recusar(
             cli.json,
             "escrita_de_prazo_ainda_nao_disponivel",
@@ -69,6 +73,17 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
         }
         previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
     }))
+}
+
+/// Habilitação adicional antes de carregar a sessão: o binário debug não
+/// deve permitir confirmação baseada apenas em configuração externa.
+/// A leitura definitiva da origem continua no carregador da sessão.
+fn origem_local_sintetica() -> bool {
+    std::env::var_os("IES_CONFIG_FILE").is_none()
+        && std::env::var("IES_ORIGEM_FILE")
+            .ok()
+            .and_then(|caminho| std::fs::read_to_string(caminho).ok())
+            .is_some_and(|origem| origem.trim() == "https://sei.test/sei")
 }
 
 fn uso(json_mode: bool, subcodigo: &str) -> ExitCode {
