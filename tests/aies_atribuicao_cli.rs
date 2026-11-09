@@ -338,7 +338,7 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
             "escrita_de_atribuicao_ainda_nao_verificada"
         );
         assert!(
-            json["mensagem"].as_str().unwrap_or("").contains("prévia"),
+            json["erro"].as_str().unwrap_or("").contains("prévia"),
             "a recusa precisa explicar a alternativa sem escrita: {json}"
         );
     }
