@@ -156,7 +156,7 @@ pub fn listar(
         .collect()
 }
 
-/// Retira o prazo ativo, preservando a observacao explicita SemPrazo.
+/// Retira o prazo ativo, preservando a observacao explicita `SemPrazo`.
 /// Identidade/escopo devem ter sido conferidos na lista da unidade.
 ///
 /// # Errors

@@ -38,10 +38,15 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
         .flatten()
         .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
     {
-        let bruto = crate::html_atributos::valor_do_atributo(ancora, "href")
+        let Some(bruto) = crate::html_atributos::valor_do_atributo(ancora, "href")
             .ok()
-            .flatten()?;
-        let href = crate::formulario_web::decodificar_atributo(&bruto)?;
+            .flatten()
+        else {
+            continue;
+        };
+        let Some(href) = crate::formulario_web::decodificar_atributo(&bruto) else {
+            continue;
+        };
         if !href
             .split(['?', '&'])
             .any(|parte| parte == "acao=controle_prazo_listar")
