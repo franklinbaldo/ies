@@ -37,9 +37,8 @@ pub(crate) fn usuario_da_atividade_na_lista(
                 .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
                 .enumerate()
                 .find_map(|(indice, cabecalho)| {
-                    let titulo = crate::entidades_html::decodificar_texto(
-                        &cabecalho.inner_text(parser),
-                    );
+                    let titulo =
+                        crate::entidades_html::decodificar_texto(&cabecalho.inner_text(parser));
                     titulo
                         .trim()
                         .eq_ignore_ascii_case("usuário")
@@ -101,7 +100,9 @@ mod tests {
             <tr><td><input type='checkbox' name='chkInfraItem' value='42'></td><td>TESTE</td><td>Agente &amp; Cia</td></tr>
             </table>";
         assert_eq!(
-            usuario_da_atividade_na_lista(html, "42").unwrap().as_deref(),
+            usuario_da_atividade_na_lista(html, "42")
+                .unwrap()
+                .as_deref(),
             Some("Agente & Cia")
         );
     }
