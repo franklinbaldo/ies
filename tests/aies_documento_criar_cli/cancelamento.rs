@@ -39,8 +39,10 @@ fn bdd_273_02_criar_documento_e_cancelar_o_mesmo_id_com_releitura() {
     ];
     // Os cinco comandos compartilham a mesma identidade e o mesmo SQLite.
     // A última consulta é posterior à recusa do segundo cancelamento.
-    let (saidas, trilha, quantidade) =
-        executar(&[&criar, &cancelar, &consultar, &repetir, &consultar], false);
+    let (saidas, trilha, quantidade) = executar(
+        &[&criar, &cancelar, &consultar, &repetir, &consultar],
+        false,
+    );
     for indice in [0, 1, 2, 4] {
         assert_eq!(
             saidas[indice].status.code(),
@@ -86,7 +88,10 @@ fn bdd_273_02_criar_documento_e_cancelar_o_mesmo_id_com_releitura() {
         String::from_utf8_lossy(&saidas[3].stderr)
     );
     assert_eq!(json(&saidas[3])["subcodigo"], "documento_ja_cancelado");
-    assert_eq!(quantidade, 2, "cancelamento não elimina nem duplica documento");
+    assert_eq!(
+        quantidade, 2,
+        "cancelamento não elimina nem duplica documento"
+    );
     assert_eq!(
         trilha
             .iter()
