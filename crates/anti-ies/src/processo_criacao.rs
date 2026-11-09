@@ -216,7 +216,7 @@ pub(crate) fn responder(
             }
         }
         ("POST", Some("procedimento_gerar")) => confirmar(corpo, banco, instalacao, cenario),
-        ("GET", _) | ("POST", _) => Resposta::nova(Estado::NaoImplementado),
+        ("GET" | "POST", _) => Resposta::nova(Estado::NaoImplementado),
         _ => Resposta::nova(Estado::MetodoNaoPermitido),
     }
 }
