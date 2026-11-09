@@ -201,7 +201,6 @@ fn bdd_271_02_ciencias_de_documentos_distintos_nao_se_confundem() {
     );
 }
 
-
 /// BDD-271-02, lacuna de autoria: a revisão ("Ana"/"Bia") não prova
 /// quem praticou a ciência. A identidade desta sessão é explicitamente
 /// preparada no SQLite sintético e não deriva de cookie ou credencial.
@@ -213,13 +212,14 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
     let caminho = pasta.0.join("anti-ies.sqlite3");
     let banco = Connection::open(&caminho).unwrap();
     // DML de uma sessão conhecida, nunca DDL de fixture no teste.
-    // RED: a tabela de identidade da sessão ainda não existe.
-    banco.execute(
-        "INSERT INTO sessao_usuario (origem, cenario, usuario)
+    // O CI RED anterior confirmou a ausência da tabela (PR #571).
+    banco
+        .execute(
+            "INSERT INTO sessao_usuario (origem, cenario, usuario)
          VALUES (?1, ?2, ?3)",
-        rusqlite::params![ORIGEM, CENARIO, "agente-de-teste"],
-    )
-    .unwrap();
+            rusqlite::params![ORIGEM, CENARIO, "agente-de-teste"],
+        )
+        .unwrap();
     drop(banco);
 
     let confirmado = executar(
@@ -247,5 +247,9 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
         .unwrap();
     assert_eq!(atividade, id);
     assert_eq!(usuario.as_deref(), Some("agente-de-teste"));
-    assert_ne!(usuario.as_deref(), Some("Bia"), "autor da revisão não é autor da ciência");
+    assert_ne!(
+        usuario.as_deref(),
+        Some("Bia"),
+        "autor da revisão não é autor da ciência"
+    );
 }
