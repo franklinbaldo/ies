@@ -278,8 +278,7 @@ fn verificar<V: EnvioDoProcesso>(
         .map_err(|_| "releitura_da_lista_de_ciencias_falhou")?;
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|_| "resposta_da_lista_de_ciencias_nao_lida")?;
-    let presente = atividade_na_lista(&html, atividade)
-        .map_err(super::ErroCiencia::subcodigo)?;
+    let presente = atividade_na_lista(&html, atividade).map_err(super::ErroCiencia::subcodigo)?;
     let usuario = if presente {
         super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
             .map_err(super::ErroCiencia::subcodigo)?

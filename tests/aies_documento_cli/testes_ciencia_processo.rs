@@ -5,7 +5,6 @@ use iesei::processos::{self, ProcessoSimulado};
 
 const NUP_CIENTE: &str = "00001.000001/2026-01";
 
-
 // Bancada de número variável de pedidos: não confunde orçamento sintético
 // com número fixado pelo teste. Guarda somente método/ação, nunca URL/cookie.
 fn aceitar_ate_parar(
@@ -42,16 +41,22 @@ fn encaminhar_com_trilha(
     let texto = std::str::from_utf8(&cab).unwrap();
     let linha = texto.lines().next().unwrap();
     let metodo = linha.split_whitespace().next().unwrap();
-    let acao = linha.split_whitespace().nth(1).unwrap()
+    let acao = linha
+        .split_whitespace()
+        .nth(1)
+        .unwrap()
         .split('&')
         .find_map(|parte| parte.strip_prefix("acao="))
         .map_or("sem_acao", |parte| parte.split(['&', '#']).next().unwrap());
     trilha.lock().unwrap().push(format!("{metodo} {acao}"));
-    let tamanho = texto.lines().find_map(|linha| {
-        let (nome, valor) = linha.split_once(':')?;
-        nome.eq_ignore_ascii_case("content-length")
-            .then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let tamanho = texto
+        .lines()
+        .find_map(|linha| {
+            let (nome, valor) = linha.split_once(':')?;
+            nome.eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000);
     destino.write_all(&cab).unwrap();
     let mut corpo = vec![0; tamanho];
@@ -95,7 +100,8 @@ fn executar_ciencia_processo(pasta: &Pasta, args: &[&str]) -> (Output, Vec<Strin
         let tls = TlsAcceptor::new(identidade).unwrap();
         while let Some(mut tcp) = aceitar_ate_parar(&proxy, &parar_proxy) {
             assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).expect("TLS efemero");
             let mut destino = TcpStream::connect(endereco).unwrap();
             encaminhar_com_trilha(&mut canal, &mut destino, &capturada);
@@ -149,7 +155,8 @@ fn preparar_processo(pasta: &Pasta) {
             anotacao_origem: None,
             destinos: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
     banco.execute(
         "INSERT INTO sessao_usuario (origem, cenario, usuario) VALUES (?1, ?2, 'agente-de-teste')",
         rusqlite::params![ORIGEM, CENARIO],
@@ -160,42 +167,83 @@ fn preparar_processo(pasta: &Pasta) {
 fn bdd_271_01_processo_ciencia_previa_unica_e_lista_distinta() {
     let pasta = Pasta::nova();
     preparar_processo(&pasta);
-    let (previa, pedidos_previos) = executar_ciencia_processo(&pasta, &["--json", "processo", "ciente", NUP_CIENTE]);
-    assert_eq!(previa.status.code(), Some(0), "previa stdout={} stderr={}",
-        String::from_utf8_lossy(&previa.stdout), String::from_utf8_lossy(&previa.stderr));
+    let (previa, pedidos_previos) =
+        executar_ciencia_processo(&pasta, &["--json", "processo", "ciente", NUP_CIENTE]);
+    assert_eq!(
+        previa.status.code(),
+        Some(0),
+        "previa stdout={} stderr={}",
+        String::from_utf8_lossy(&previa.stdout),
+        String::from_utf8_lossy(&previa.stderr)
+    );
     assert_eq!(json(&previa)["verificado"], false);
-    assert!(!pedidos_previos.iter().any(|p| p == "GET procedimento_ciencia"));
+    assert!(
+        !pedidos_previos
+            .iter()
+            .any(|p| p == "GET procedimento_ciencia")
+    );
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
-    let antes: i64 = banco.query_row("SELECT COUNT(*) FROM ciencia_processo", [], |r| r.get(0)).unwrap();
+    let antes: i64 = banco
+        .query_row("SELECT COUNT(*) FROM ciencia_processo", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(antes, 0, "previa nao escreve");
     drop(banco);
 
     // Tres GETs de abertura, um da tela, um mutador, nova arvore e uma Lista.
-    let (resultado, pedidos_confirmacao) = executar_ciencia_processo(&pasta,
-        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"]);
-    assert_eq!(resultado.status.code(), Some(0), "confirmacao stdout={} stderr={}",
-        String::from_utf8_lossy(&resultado.stdout), String::from_utf8_lossy(&resultado.stderr));
+    let (resultado, pedidos_confirmacao) = executar_ciencia_processo(
+        &pasta,
+        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"],
+    );
+    assert_eq!(
+        resultado.status.code(),
+        Some(0),
+        "confirmacao stdout={} stderr={}",
+        String::from_utf8_lossy(&resultado.stdout),
+        String::from_utf8_lossy(&resultado.stderr)
+    );
     let saida = json(&resultado);
     assert_eq!(saida["verificado"], true);
     assert_eq!(saida["numero"], NUP_CIENTE);
     assert_eq!(saida["id_procedimento"], "7");
     assert_eq!(saida["requisicoes"], pedidos_confirmacao.len());
-    assert_eq!(pedidos_confirmacao.iter().filter(|p| *p == "GET procedimento_ciencia").count(), 1);
-    assert_eq!(pedidos_confirmacao.iter().filter(|p| *p == "GET protocolo_ciencia_listar").count(), 1);
+    assert_eq!(
+        pedidos_confirmacao
+            .iter()
+            .filter(|p| *p == "GET procedimento_ciencia")
+            .count(),
+        1
+    );
+    assert_eq!(
+        pedidos_confirmacao
+            .iter()
+            .filter(|p| *p == "GET protocolo_ciencia_listar")
+            .count(),
+        1
+    );
     assert_eq!(saida["usuario"], "agente-de-teste");
-    let atividade = saida["id_atividade"].as_str().expect("atividade confirmada");
+    let atividade = saida["id_atividade"]
+        .as_str()
+        .expect("atividade confirmada");
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let (id, usuario): (String, Option<String>) = banco.query_row(
         "SELECT id_atividade, usuario FROM ciencia_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento='7'",
         rusqlite::params![ORIGEM,CENARIO], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
     assert_eq!(id, atividade);
     assert_eq!(usuario.as_deref(), Some("agente-de-teste"));
-    let documentos: i64 = banco.query_row("SELECT COUNT(*) FROM ciencia_documental", [], |r| r.get(0)).unwrap();
+    let documentos: i64 = banco
+        .query_row("SELECT COUNT(*) FROM ciencia_documental", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(documentos, 0, "ciencia de processo nao e de documento");
     drop(banco);
-    let (repeticao, pedidos_repeticao) = executar_ciencia_processo(&pasta,
-        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"]);
-    assert!(!pedidos_repeticao.iter().any(|p| p == "GET procedimento_ciencia"));
+    let (repeticao, pedidos_repeticao) = executar_ciencia_processo(
+        &pasta,
+        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"],
+    );
+    assert!(
+        !pedidos_repeticao
+            .iter()
+            .any(|p| p == "GET procedimento_ciencia")
+    );
     assert_eq!(repeticao.status.code(), Some(1), "sem segundo GET mutador");
 }
 
@@ -208,24 +256,49 @@ fn bdd_271_03_processo_lista_invisivel_e_efeito_incerto_sem_retry() {
         "INSERT INTO ciencia_processo_lista_invisivel (origem,cenario,id_procedimento) VALUES (?1,?2,'7')",
         rusqlite::params![ORIGEM,CENARIO]).unwrap();
     drop(banco);
-    let (resultado, pedidos_confirmacao) = executar_ciencia_processo(&pasta,
-        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"]);
-    assert_eq!(resultado.status.code(), Some(3), "stdout={} stderr={}",
-        String::from_utf8_lossy(&resultado.stdout), String::from_utf8_lossy(&resultado.stderr));
+    let (resultado, pedidos_confirmacao) = executar_ciencia_processo(
+        &pasta,
+        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"],
+    );
+    assert_eq!(
+        resultado.status.code(),
+        Some(3),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&resultado.stdout),
+        String::from_utf8_lossy(&resultado.stderr)
+    );
     let saida = json(&resultado);
     assert_eq!(saida["codigo"], "efeito_incerto");
     assert_eq!(saida["retentavel"], false);
     assert_eq!(saida["requisicoes"], pedidos_confirmacao.len());
-    assert_eq!(pedidos_confirmacao.iter().filter(|p| *p == "GET procedimento_ciencia").count(), 1);
-    assert_eq!(pedidos_confirmacao.iter().filter(|p| *p == "GET protocolo_ciencia_listar").count(), 1);
+    assert_eq!(
+        pedidos_confirmacao
+            .iter()
+            .filter(|p| *p == "GET procedimento_ciencia")
+            .count(),
+        1
+    );
+    assert_eq!(
+        pedidos_confirmacao
+            .iter()
+            .filter(|p| *p == "GET protocolo_ciencia_listar")
+            .count(),
+        1
+    );
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let atividade: String = banco.query_row(
         "SELECT id_atividade FROM ciencia_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento='7'",
         rusqlite::params![ORIGEM,CENARIO], |r| r.get(0)).unwrap();
     drop(banco);
-    let (repeticao, pedidos_repeticao) = executar_ciencia_processo(&pasta,
-        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"]);
-    assert!(!pedidos_repeticao.iter().any(|p| p == "GET procedimento_ciencia"));
+    let (repeticao, pedidos_repeticao) = executar_ciencia_processo(
+        &pasta,
+        &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"],
+    );
+    assert!(
+        !pedidos_repeticao
+            .iter()
+            .any(|p| p == "GET procedimento_ciencia")
+    );
     assert_eq!(repeticao.status.code(), Some(1));
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let atividades: Vec<String> = banco.prepare(

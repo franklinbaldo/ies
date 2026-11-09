@@ -20,7 +20,10 @@ pub enum Resultado {
 /// # Errors
 /// Propaga a falha SQLite original.
 pub fn consultar(
-    banco: &Connection, origem: &Instalacao, cenario: &str, processo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    processo: &str,
 ) -> rusqlite::Result<Option<Estado>> {
     let existe: bool = banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM sim_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3)",
@@ -33,7 +36,9 @@ pub fn consultar(
         "SELECT id_atividade FROM ciencia_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
         params![origem.url_base(), cenario, processo], |r| r.get(0),
     ).optional()?;
-    Ok(Some(atividade.map_or(Estado::Pendente, |id_atividade| Estado::Registrada { id_atividade })))
+    Ok(Some(atividade.map_or(Estado::Pendente, |id_atividade| {
+        Estado::Registrada { id_atividade }
+    })))
 }
 
 /// Configuração sintética de visibilidade eventual, não evidência do SEI.
@@ -41,12 +46,16 @@ pub fn consultar(
 /// # Errors
 /// Propaga erros SQL.
 pub fn lista_invisivel(
-    banco: &Connection, origem: &Instalacao, cenario: &str, processo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    processo: &str,
 ) -> rusqlite::Result<bool> {
     banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM ciencia_processo_lista_invisivel
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3)",
-        params![origem.url_base(), cenario, processo], |r| r.get(0),
+        params![origem.url_base(), cenario, processo],
+        |r| r.get(0),
     )
 }
 
@@ -55,7 +64,10 @@ pub fn lista_invisivel(
 /// # Errors
 /// Propaga erros SQL.
 pub fn usuario_da_ciencia(
-    banco: &Connection, origem: &Instalacao, cenario: &str, processo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    processo: &str,
 ) -> rusqlite::Result<Option<String>> {
     banco.query_row(
         "SELECT usuario FROM ciencia_processo WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
@@ -68,7 +80,10 @@ pub fn usuario_da_ciencia(
 /// # Errors
 /// Preserva erros SQLite; não há retry.
 pub fn registrar(
-    banco: &Connection, origem: &Instalacao, cenario: &str, processo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    processo: &str,
 ) -> rusqlite::Result<Resultado> {
     let inseridos = banco.execute(
         "INSERT INTO ciencia_processo
@@ -90,7 +105,9 @@ pub fn registrar(
         params![origem.url_base(), cenario, processo],
     )?;
     if inseridos == 1 {
-        let Some(Estado::Registrada { id_atividade }) = consultar(banco, origem, cenario, processo)? else {
+        let Some(Estado::Registrada { id_atividade }) =
+            consultar(banco, origem, cenario, processo)?
+        else {
             unreachable!("atividade recém-gravada deve ser consultável");
         };
         return Ok(Resultado::Registrada { id_atividade });

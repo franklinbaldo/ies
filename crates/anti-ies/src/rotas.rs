@@ -2,8 +2,8 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
-    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_atribuicao, processo_ciencia,
-    processo_criacao, processo_envio, processo_relacionar, retorno_programado,
+    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_atribuicao,
+    processo_ciencia, processo_criacao, processo_envio, processo_relacionar, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -155,14 +155,14 @@ pub(crate) fn responder(
             processo_ciencia::tela(metodo, alvo, banco, instalacao, cenario)
                 .or_else(|| documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
                 .unwrap_or_else(|| {
-                pdf_externo::complementar_arvore(
-                    documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
-                    alvo,
-                    banco,
-                    instalacao,
-                    cenario,
-                )
-            })
+                    pdf_externo::complementar_arvore(
+                        documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+                        alvo,
+                        banco,
+                        instalacao,
+                        cenario,
+                    )
+                })
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
@@ -187,8 +187,9 @@ pub(crate) fn responder(
         Some("procedimento_ciencia") if eh_controlador_sei(alvo) => {
             processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
         }
-        Some("protocolo_ciencia_listar") if eh_controlador_sei(alvo)
-            && parametro_unico(alvo, "id_documento").is_none() => {
+        Some("protocolo_ciencia_listar")
+            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_none() =>
+        {
             processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_ciencia" | "protocolo_ciencia_listar") if eh_controlador_sei(alvo) => {

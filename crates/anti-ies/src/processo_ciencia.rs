@@ -6,10 +6,16 @@ use rusqlite::Connection;
 
 /// Tela da função de ciência, separada do GET mutador.
 pub(crate) fn tela(
-    metodo: &str, alvo: &str, banco: &Connection, origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Option<Resposta> {
-    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("arvore_visualizar")
-        || parametro_unico(alvo, "id_documento").is_some() {
+    if !eh_controlador_sei(alvo)
+        || parametro_unico(alvo, "acao") != Some("arvore_visualizar")
+        || parametro_unico(alvo, "id_documento").is_some()
+    {
         return None;
     }
     let id = parametro_unico(alvo, "id_procedimento")?;
@@ -39,7 +45,11 @@ pub(crate) fn tela(
 
 /// Consulta ou grava uma atividade no processo. A lista C nunca é a CD.
 pub(crate) fn responder(
-    metodo: &str, alvo: &str, banco: &Connection, origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
     if !eh_controlador_sei(alvo) {
         return Resposta::nova(Estado::NaoEncontrado);
