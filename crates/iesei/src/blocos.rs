@@ -75,9 +75,23 @@ pub fn guardar(
     cenario: &str,
     pagina: &Pagina,
 ) -> rusqlite::Result<()> {
-    if cenario.is_empty() || !valido(pagina) {
+    guardar_na_pagina(banco, instalacao, cenario, 1, pagina)
+}
+
+/// Persiste uma pagina observada sem apagar as demais.
+/// # Errors
+/// Recusa pagina zero, dados incoerentes e erros SQLite.
+pub fn guardar_na_pagina(
+    banco: &mut Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    numero_pagina: usize,
+    pagina: &Pagina,
+) -> rusqlite::Result<()> {
+    if cenario.is_empty() || numero_pagina == 0 || !valido(pagina) {
         return Err(rusqlite::Error::InvalidQuery);
     }
+    let numero_pagina = i64::try_from(numero_pagina).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let total = i64::try_from(pagina.total).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let (inicio, fim) = pagina.faixa.map_or((None, None), |(i, f)| {
         (i64::try_from(i).ok(), i64::try_from(f).ok())
@@ -87,18 +101,24 @@ pub fn guardar(
     }
     let transacao = banco.transaction()?;
     transacao.execute(
-        "DELETE FROM sim_bloco_linha WHERE origem=?1 AND cenario=?2 AND tipo=?3",
-        params![instalacao.url_base(), cenario, pagina.tipo.nome()],
+        "DELETE FROM sim_bloco_linha WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=?4",
+        params![
+            instalacao.url_base(),
+            cenario,
+            pagina.tipo.nome(),
+            numero_pagina
+        ],
     )?;
     transacao.execute(
-        "INSERT INTO sim_bloco_pagina(origem,cenario,tipo,total,inicio,fim)
-         VALUES(?1,?2,?3,?4,?5,?6)
-         ON CONFLICT(origem,cenario,tipo) DO UPDATE SET
+        "INSERT INTO sim_bloco_pagina(origem,cenario,tipo,pagina,total,inicio,fim)
+         VALUES(?1,?2,?3,?4,?5,?6,?7)
+         ON CONFLICT(origem,cenario,tipo,pagina) DO UPDATE SET
          total=excluded.total,inicio=excluded.inicio,fim=excluded.fim",
         params![
             instalacao.url_base(),
             cenario,
             pagina.tipo.nome(),
+            numero_pagina,
             total,
             inicio,
             fim
@@ -106,12 +126,13 @@ pub fn guardar(
     )?;
     for (posicao, linha) in pagina.linhas.iter().enumerate() {
         transacao.execute(
-            "INSERT INTO sim_bloco_linha(origem,cenario,tipo,posicao,numero,estado,descricao)
-             VALUES(?1,?2,?3,?4,?5,?6,?7)",
+            "INSERT INTO sim_bloco_linha(origem,cenario,tipo,pagina,posicao,numero,estado,descricao)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
             params![
                 instalacao.url_base(),
                 cenario,
                 pagina.tipo.nome(),
+                numero_pagina,
                 i64::try_from(posicao).map_err(|_| rusqlite::Error::InvalidQuery)?,
                 linha.numero,
                 linha.estado,
@@ -130,11 +151,28 @@ pub fn ler(
     cenario: &str,
     tipo: Tipo,
 ) -> rusqlite::Result<Option<Pagina>> {
+    ler_pagina(banco, instalacao, cenario, tipo, 1)
+}
+
+/// Lê somente a pagina solicitada e observada; ausente nao significa vazia.
+/// # Errors
+/// Propaga erros SQLite e recusa indices nao representaveis.
+pub fn ler_pagina(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    tipo: Tipo,
+    numero_pagina: usize,
+) -> rusqlite::Result<Option<Pagina>> {
+    if numero_pagina == 0 {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let numero_pagina = i64::try_from(numero_pagina).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let linha: Option<(i64, Option<i64>, Option<i64>)> = banco
         .query_row(
             "SELECT total,inicio,fim FROM sim_bloco_pagina
-         WHERE origem=?1 AND cenario=?2 AND tipo=?3",
-            params![instalacao.url_base(), cenario, tipo.nome()],
+         WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=?4",
+            params![instalacao.url_base(), cenario, tipo.nome(), numero_pagina],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?;
@@ -152,16 +190,19 @@ pub fn ler(
     };
     let mut consulta = banco.prepare(
         "SELECT numero,estado,descricao FROM sim_bloco_linha
-         WHERE origem=?1 AND cenario=?2 AND tipo=?3 ORDER BY posicao",
+         WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND pagina=?4 ORDER BY posicao",
     )?;
     let linhas = consulta
-        .query_map(params![instalacao.url_base(), cenario, tipo.nome()], |r| {
-            Ok(Linha {
-                numero: r.get(0)?,
-                estado: r.get(1)?,
-                descricao: r.get(2)?,
-            })
-        })?
+        .query_map(
+            params![instalacao.url_base(), cenario, tipo.nome(), numero_pagina],
+            |r| {
+                Ok(Linha {
+                    numero: r.get(0)?,
+                    estado: r.get(1)?,
+                    descricao: r.get(2)?,
+                })
+            },
+        )?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let pagina = Pagina {
         tipo,
@@ -173,6 +214,26 @@ pub fn ler(
         return Err(rusqlite::Error::InvalidQuery);
     }
     Ok(Some(pagina))
+}
+
+/// Indices de paginas realmente registradas para este tipo/cenario.
+/// # Errors
+/// Propaga falhas SQLite.
+pub fn paginas_observadas(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    tipo: Tipo,
+) -> rusqlite::Result<Vec<usize>> {
+    let mut consulta = banco.prepare(
+        "SELECT pagina FROM sim_bloco_pagina WHERE origem=?1 AND cenario=?2 AND tipo=?3 ORDER BY pagina",
+    )?;
+    let registros =
+        consulta.query_map(params![instalacao.url_base(), cenario, tipo.nome()], |r| {
+            let n: i64 = r.get(0)?;
+            usize::try_from(n).map_err(|_| rusqlite::Error::InvalidQuery)
+        })?;
+    registros.collect()
 }
 
 #[cfg(test)]
@@ -212,6 +273,54 @@ mod tests {
             None
         );
         assert_eq!(ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(), None);
+    }
+
+    #[test]
+    fn duas_paginas_distintas_e_pagina_ausente_nao_e_vazia() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        crate::banco_cassettes::iniciar(&banco).unwrap();
+        let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
+        let pagina = |inicio: usize, numero: usize| Pagina {
+            tipo: Tipo::Interno,
+            total: 4,
+            faixa: Some((inicio, inicio + 1)),
+            linhas: [numero, numero + 1]
+                .into_iter()
+                .map(|n| Linha {
+                    numero: n.to_string(),
+                    estado: "Gerado".into(),
+                    descricao: "Teste".into(),
+                })
+                .collect(),
+        };
+        let primeira = pagina(1, 1001);
+        let segunda = pagina(3, 1003);
+        guardar_na_pagina(&mut banco, &instalacao, "um", 1, &primeira).unwrap();
+        guardar_na_pagina(&mut banco, &instalacao, "um", 2, &segunda).unwrap();
+        guardar_na_pagina(&mut banco, &instalacao, "um", 2, &segunda).unwrap();
+        assert_eq!(
+            paginas_observadas(&banco, &instalacao, "um", Tipo::Interno).unwrap(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(),
+            Some(primeira)
+        );
+        assert_eq!(
+            ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 2).unwrap(),
+            Some(segunda)
+        );
+        assert_eq!(
+            ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 3).unwrap(),
+            None
+        );
+        assert!(ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 0).is_err());
+        assert!(guardar_na_pagina(&mut banco, &instalacao, "um", 0, &pagina(1, 1001)).is_err());
+        assert!(
+            paginas_observadas(&banco, &instalacao, "outro", Tipo::Interno)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
