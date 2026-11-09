@@ -67,7 +67,15 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
         "a".repeat(64),
     ));
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar"])
+        .args([
+            "--json",
+            "processo",
+            "atribuir",
+            NUP,
+            "--usuario",
+            "aluno2",
+            "--confirmar",
+        ])
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -78,5 +86,8 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
     let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(resultado["subcodigo"], "escrita_de_atribuicao_ainda_nao_verificada");
+    assert_eq!(
+        resultado["subcodigo"],
+        "escrita_de_atribuicao_ainda_nao_verificada"
+    );
 }
