@@ -333,3 +333,81 @@ fn http_url_observada_antes_do_cancelamento_nao_serve_corpo_depois() {
     );
     atendimento.join().unwrap();
 }
+
+
+#[test]
+fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
+    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = servidor.local_addr().unwrap();
+    let atendimento = thread::spawn(move || {
+        let (banco, origem) = estado();
+        for _ in 0..6 {
+            let (mut tcp, cliente) = servidor.accept().unwrap();
+            assert!(cliente.ip().is_loopback());
+            atender_http(&mut tcp, Some((&banco, &origem, CENARIO))).unwrap();
+        }
+        // A recusa de leitura nao modifica o mesmo estado SQLite.
+        assert_eq!(
+            documento_versoes::ler(&banco, &origem, CENARIO, "42")
+                .unwrap()
+                .unwrap()
+                .numero,
+            "0011519"
+        );
+    });
+
+    // Os dois identificadores existem, mas designam documentos diferentes.
+    // Nenhuma URL com identidade contraditoria pode servir o corpo ou
+    // publicar links de versoes do primeiro como fallback.
+    for acao in ["documento_versao_listar", "documento_visualizar"] {
+        let resposta = pedir_rota(
+            endereco,
+            "GET",
+            acao,
+            "id_documento=42&id_protocolo=43&id_procedimento=7",
+        );
+        assert!(
+            resposta.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+            "{acao}: {resposta}"
+        );
+        assert!(!resposta.contains("Corpo do primeiro"));
+        assert!(!resposta.contains("Lista de Versões"));
+    }
+
+    let historico = pedir_rota(
+        endereco,
+        "GET",
+        "documento_versao_listar",
+        "id_documento=42&id_procedimento=7",
+    );
+    assert!(historico.starts_with("HTTP/1.1 200 OK\r\n"), "{historico}");
+    assert!(historico.contains("Lista de Versões"));
+
+    let conteudo = pedir_rota(
+        endereco,
+        "GET",
+        "documento_visualizar",
+        "id_documento=42&id_procedimento=7",
+    );
+    assert!(conteudo.starts_with("HTTP/1.1 200 OK\r\n"), "{conteudo}");
+    assert!(conteudo.contains("Corpo do primeiro"));
+    assert!(!conteudo.contains("Corpo do segundo"));
+
+    let metodo = pedir_rota(
+        endereco,
+        "POST",
+        "documento_versao_listar",
+        "id_documento=42&id_procedimento=7",
+    );
+    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{metodo}");
+
+    let repetido = pedir_rota(
+        endereco,
+        "GET",
+        "documento_visualizar",
+        "id_documento=42&id_procedimento=7&id_documento=42",
+    );
+    assert!(repetido.starts_with("HTTP/1.1 200 OK\r\n"), "{repetido}");
+    assert!(repetido.contains("Corpo do primeiro"));
+    atendimento.join().unwrap();
+}
