@@ -1,4 +1,4 @@
--- 0017: atribuição observada por unidade e opções oferecidas da tela.
+-- 0018: atribuição observada por unidade e opções oferecidas da tela.
 -- Registro explícito distingue ausência de observação de atribuição vazia.
 CREATE TABLE processo_atribuicao_observada (
     origem TEXT NOT NULL,
@@ -22,4 +22,4 @@ CREATE TABLE processo_atribuicao_opcao (
     FOREIGN KEY (origem, cenario, id_procedimento, unidade)
         REFERENCES processo_atribuicao_observada(origem, cenario, id_procedimento, unidade)
 ) STRICT;
-PRAGMA user_version = 17;
+PRAGMA user_version = 18;

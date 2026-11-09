@@ -4,6 +4,7 @@ pub mod acesso_versao;
 pub mod atribuicoes;
 pub mod banco_cassettes;
 pub mod cancelamento_documento;
+pub mod criacao_processo;
 pub mod detalhada_cassettes;
 pub mod documento_versoes;
 pub mod documentos_simulados;
