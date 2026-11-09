@@ -13,6 +13,7 @@ pub mod documentos_simulados;
 pub mod editor_documento;
 pub mod instalacao;
 pub mod observacao;
+pub mod pastas_incompletas;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 pub mod prazos;
