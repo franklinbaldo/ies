@@ -137,7 +137,7 @@ jobs:
         run: cargo +1.99.1 test --locked --bin ies processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo -- --ignored --exact --nocapture --test-threads=1
 
       - name: Exercitar ensaio único de atribuição sem acessar o SEI
-        run: PYTHONPATH=scripts python3 -m unittest scripts.test_ensaio_processo_atribuir -v
+        run: PYTHONPATH=scripts python3 -m unittest scripts.test_ensaio_processo_atribuir scripts.test_ensaio_processo_atribuir_persistencia -v
 
       - name: Cassette UnB -> SQLite efêmero -> anti-IES -> leitor da CLI
         shell: bash
