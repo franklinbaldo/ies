@@ -69,6 +69,27 @@ fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
     .unwrap();
 }
 
+/// A revisão 2 existe apenas no ensaio da recusa após a lista publicada.
+fn revisoes_para(id: &str, modo: EstadoExtra, corpo: &str) -> Vec<Revisao> {
+    let mut revisoes = vec![Revisao {
+        versao: NonZeroU32::new(1).unwrap(),
+        usuario: "TESTE".into(),
+        unidade: "TESTE".into(),
+        modificacao: "01/11/2026".into(),
+        html_corpo: format!("<p>{corpo}</p>"),
+    }];
+    if id == "42" && matches!(modo, EstadoExtra::VersaoRevogadaAoVisualizar) {
+        revisoes.push(Revisao {
+            versao: NonZeroU32::new(2).unwrap(),
+            usuario: "TESTE".into(),
+            unidade: "TESTE".into(),
+            modificacao: "02/11/2026".into(),
+            html_corpo: "<p>Segunda versao ainda acessivel</p>".into(),
+        });
+    }
+    revisoes
+}
+
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -130,25 +151,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
                 numero_processo: nup.into(),
                 numero: numero.into(),
                 tipo: "Despacho".into(),
-                revisoes: {
-                    let mut revisoes = vec![Revisao {
-                        versao: NonZeroU32::new(1).unwrap(),
-                        usuario: "TESTE".into(),
-                        unidade: "TESTE".into(),
-                        modificacao: "01/11/2026".into(),
-                        html_corpo: format!("<p>{corpo}</p>"),
-                    }];
-                    if id == "42" && matches!(modo, EstadoExtra::VersaoRevogadaAoVisualizar) {
-                        revisoes.push(Revisao {
-                            versao: NonZeroU32::new(2).unwrap(),
-                            usuario: "TESTE".into(),
-                            unidade: "TESTE".into(),
-                            modificacao: "02/11/2026".into(),
-                            html_corpo: "<p>Segunda versao ainda acessivel</p>".into(),
-                        });
-                    }
-                    revisoes
-                },
+                revisoes: revisoes_para(id, modo, corpo),
             },
         )
         .unwrap();
