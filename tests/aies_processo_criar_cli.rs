@@ -282,16 +282,19 @@ fn bdd_245_01_previa_por_cli_real_sem_mutacao_sqlite() {
 
 #[test]
 fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
-    let (saida, leitura, pedidos, contagens, tipos) = executar_com_releitura(&[
-        "--json",
-        "processo",
-        "criar",
-        "--tipo",
-        TIPO,
-        "--especificacao",
-        "Cadastro causal de ensaio",
-        "--confirmar",
-    ], true);
+    let (saida, leitura, pedidos, contagens, tipos) = executar_com_releitura(
+        &[
+            "--json",
+            "processo",
+            "criar",
+            "--tipo",
+            TIPO,
+            "--especificacao",
+            "Cadastro causal de ensaio",
+            "--confirmar",
+        ],
+        true,
+    );
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -319,7 +322,10 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
         ],
     );
     assert_eq!(
-        pedidos.iter().filter(|p| p.starts_with("POST procedimento_gerar ")).count(),
+        pedidos
+            .iter()
+            .filter(|p| p.starts_with("POST procedimento_gerar "))
+            .count(),
         1,
         "a consulta independente nunca repete a escrita",
     );
@@ -334,7 +340,10 @@ fn bdd_245_02_criacao_unica_e_releitura_independente_via_cli_real() {
     let confirmado: serde_json::Value = serde_json::from_slice(&leitura.stdout).unwrap();
     assert_eq!(confirmado["numero"], resultado["nup"]);
     assert_eq!(confirmado["propriedades"]["tipo"], TIPO);
-    assert_eq!(confirmado["propriedades"]["especificacao"], "Cadastro causal de ensaio");
+    assert_eq!(
+        confirmado["propriedades"]["especificacao"],
+        "Cadastro causal de ensaio"
+    );
     assert_eq!(confirmado["propriedades"]["nivel_de_acesso"], "publico");
     assert_eq!(contagens, (0, 1), "um único processo antes/depois");
     assert_eq!(tipos, 1, "cadastro de tipos permanece");
