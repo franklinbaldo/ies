@@ -1,7 +1,7 @@
 //! Contraste parcial com conteúdo original da cassette `UnB` (#60).
 //! O leitor do IES estabelece identidade/texto; o anti-IES projeta um
 //! documento do SQLite e os mesmos leitores conferem a resposta HTTP.
-//! A versão, o ID e o autor do simulador são sintéticos, não observações.
+//! Processo e revisão simulados não são evidência de paridade externa.
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use iesei::banco_cassettes::iniciar;
@@ -190,8 +190,24 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         ids.iter().all(|valor| *valor == id),
         "a identidade da requisição deve ser inequívoca"
     );
+    // A lista original não traz o número SEI no título. A identidade
+    // vem do GET de conteúdo gravado na MESMA cassette, não da fixture.
+    let conteudos: Vec<_> = gravacao::respostas(&captura.json)
+        .into_iter()
+        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
+        .collect();
+    assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
+    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
+    assert!(
+        !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
+        "histórico e conteúdo precisam referir o mesmo id_documento"
+    );
+    let identidade = crate::documento_web::identidade_do_titulo(
+        &html_da_resposta(conteudos[0].item).unwrap(),
+    )
+    .unwrap();
+    let numero = crate::documento::NumeroDocumento::novo(&identidade.numero).unwrap();
     let html_original = html_da_resposta(originais[0].item).unwrap();
-    let numero = crate::documento::NumeroDocumento::novo("0011519").unwrap();
     let historico_original =
         crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
     let atual = historico_original
@@ -206,7 +222,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         id_procedimento: "7".to_owned(),
         numero_processo: "00001.000001/2026-01".to_owned(),
         numero: numero.as_str().to_owned(),
-        tipo: "Tipo não observado".to_owned(),
+        tipo: identidade.tipo,
         revisoes,
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
