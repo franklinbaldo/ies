@@ -84,15 +84,16 @@ pub fn ler(
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .optional()?;
-    linha.map(|(indice, protocolo_declarado)| {
-        let pasta = PastaPendente {
-            indice: u32::try_from(indice).map_err(|_| Falha::DadoInvalido)?,
-            protocolo_declarado,
-        };
-        if !valida(&pasta, id_procedimento, cenario) {
-            return Err(Falha::DadoInvalido);
-        }
-        Ok(pasta)
-    })
-    .transpose()
+    linha
+        .map(|(indice, protocolo_declarado)| {
+            let pasta = PastaPendente {
+                indice: u32::try_from(indice).map_err(|_| Falha::DadoInvalido)?,
+                protocolo_declarado,
+            };
+            if !valida(&pasta, id_procedimento, cenario) {
+                return Err(Falha::DadoInvalido);
+            }
+            Ok(pasta)
+        })
+        .transpose()
 }
