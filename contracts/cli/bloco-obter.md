@@ -14,7 +14,9 @@ exato publicado pela linha. A ação `rel_bloco_protocolo_listar` e
 `infra_hash` hexadecimal único, sem outro host, fragmento ou JS.
 
 Orçamento: **3 GET, zero POST**, sem retry, sem redirect seguido.
-O detalhe apresenta `bloco.numero`, `bloco.tipo`,
+O estado em `bloco.estado` provém da linha exata da lista que ofereceu o link,
+não é inferido a partir dos itens do detalhe. O detalhe apresenta
+`bloco.numero`, `bloco.tipo`,
 `total_declarado`, `faixa_observada` e os `itens` da
 `tblProtocolosBlocos`. Os campos Processo e Anotações devem existir;
 Documento é exigido em blocos de assinatura. Campo ausente observado
