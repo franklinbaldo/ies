@@ -58,13 +58,18 @@ fn processo_observado_da_arvore(
         let Ok(arvore) = crate::arvore_processo::ler_arvore(&html, &nup, &id) else {
             continue;
         };
-        if arvore.documentos.iter().any(|doc| {
-            doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero)
-        }) {
+        if arvore
+            .documentos
+            .iter()
+            .any(|doc| doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero))
+        {
             vistos.push((id, nup));
         }
     }
-    let primeiro = vistos.first().expect("árvore original liga DOC ao processo").clone();
+    let primeiro = vistos
+        .first()
+        .expect("árvore original liga DOC ao processo")
+        .clone();
     assert!(vistos.iter().all(|identidade| identidade == &primeiro));
     primeiro
 }
