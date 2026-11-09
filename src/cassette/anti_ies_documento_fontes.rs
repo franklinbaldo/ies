@@ -1,5 +1,5 @@
-//! Proveniência dos GETs e metadados do mesmo documento na cassette UnB.
-//! Extração incluída no módulo pai para manter os filtros de replay do CI.
+// Proveniência dos GETs e metadados do mesmo documento na cassette UnB.
+// Extração incluída no módulo pai para manter os filtros de replay do CI.
 
 /// Cruza a identidade do GET de conteúdo com uma árvore registrada na
 /// mesma cassette. Sem a árvore, não se atribui um NUP ao documento.
