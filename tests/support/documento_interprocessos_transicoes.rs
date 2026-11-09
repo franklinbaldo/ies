@@ -97,6 +97,34 @@ pub(super) fn revogar_versao_antes_de_servir_corpo(
     true
 }
 
+/// Um histórico já anunciado na árvore pode deixar de ser acessível quando
+/// o documento é cancelado. A corrida é sintética, não capturada na UnB.
+pub(super) fn cancelar_antes_de_servir_lista(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    let mut inicio = [0_u8; 1024];
+    let tamanho = tcp.peek(&mut inicio).unwrap();
+    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
+    if !linha.starts_with("GET ") || !linha.contains("acao=documento_versao_listar") {
+        return false;
+    }
+    assert_eq!(
+        cancelamento_documento::aplicar(
+            banco,
+            instalacao,
+            CENARIO,
+            "42",
+            "7",
+            "Cancelamento entre árvore e histórico"
+        )
+        .unwrap(),
+        Aplicacao::Aplicada
+    );
+    true
+}
+
 /// Confere diretamente no SQLite o efeito da transição local ensaiada.
 pub(super) fn conferir_estado_apos_cli(
     modo: EstadoExtra,
@@ -110,6 +138,21 @@ pub(super) fn conferir_estado_apos_cli(
             cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7"),
             Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
         ));
+    }
+    if matches!(modo, EstadoExtra::CanceladoAntesDaLista) {
+        assert!(
+            transicao,
+            "a CLI deveria requisitar o histórico já oferecido"
+        );
+        assert!(matches!(
+            cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7"),
+            Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
+        ));
+        assert_eq!(
+            cancelamento_documento::consultar(db, instalacao, CENARIO, "43", "8").unwrap(),
+            Some(cancelamento_documento::Situacao::Disponivel),
+            "o cancelamento não afeta o documento de outro processo"
+        );
     }
     if matches!(modo, EstadoExtra::SessaoRevogadaAoVisualizar) {
         assert!(
