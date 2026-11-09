@@ -131,6 +131,31 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     tarefa.join().unwrap();
 }
 
+
+/// Reconstrói apenas versões/metadados observados, sem inventar corpo histórico.
+fn revisoes_da_cassette(
+    historico: &crate::documento_versoes::HistoricoDocumento,
+) -> (Vec<Revisao>, Vec<u32>) {
+    let atual = historico.atual().expect("histórico não vazio").numero();
+    let mut revisoes = Vec::new();
+    let mut versoes = Vec::new();
+    for n in 1..=atual {
+        let versao = crate::documento_versoes::VersaoDocumento::nova(n).unwrap();
+        if let Ok(entrada) = historico.selecionar(versao) {
+            versoes.push(n);
+            revisoes.push(Revisao {
+                versao: NonZeroU32::new(n).unwrap(),
+                usuario: entrada.usuario.clone(),
+                unidade: entrada.unidade.clone(),
+                modificacao: entrada.modificacao.clone(),
+                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
+            });
+        }
+    }
+    assert_eq!(revisoes.len(), historico.len());
+    (revisoes, versoes)
+}
+
 #[test]
 #[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
 fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
@@ -165,22 +190,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         .atual()
         .expect("histórico não vazio")
         .numero();
-    let mut revisoes = Vec::new();
-    let mut versoes = Vec::new();
-    for n in 1..=atual {
-        let versao = crate::documento_versoes::VersaoDocumento::nova(n).unwrap();
-        if let Ok(entrada) = historico_original.selecionar(versao) {
-            versoes.push(n);
-            revisoes.push(Revisao {
-                versao: NonZeroU32::new(n).unwrap(),
-                usuario: entrada.usuario.clone(),
-                unidade: entrada.unidade.clone(),
-                modificacao: entrada.modificacao.clone(),
-                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
-            });
-        }
-    }
-    assert_eq!(revisoes.len(), historico_original.len());
+    let (revisoes, versoes) = revisoes_da_cassette(&historico_original);
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
