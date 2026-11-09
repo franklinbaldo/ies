@@ -96,7 +96,6 @@ pub fn ler(
         .transpose()
 }
 
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LinhaDePrazo {
     pub id_procedimento: String,

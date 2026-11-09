@@ -42,7 +42,10 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
             .ok()
             .flatten()?;
         let href = crate::formulario_web::decodificar_atributo(&bruto)?;
-        if !href.split(['?', '&']).any(|parte| parte == "acao=controle_prazo_listar") {
+        if !href
+            .split(['?', '&'])
+            .any(|parte| parte == "acao=controle_prazo_listar")
+        {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {
@@ -81,8 +84,8 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
         .flatten()
         .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
     {
-        let Some(acao) = crate::html_atributos::valor_do_atributo(ancora, "onclick")
-            .map_err(|_| ())?
+        let Some(acao) =
+            crate::html_atributos::valor_do_atributo(ancora, "onclick").map_err(|_| ())?
         else {
             continue;
         };
@@ -92,7 +95,10 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
         let Some((id, numero)) = resto.split_once("','") else {
             return Err(());
         };
-        let Some(numero) = numero.strip_suffix("');").or_else(|| numero.strip_suffix("')")) else {
+        let Some(numero) = numero
+            .strip_suffix("');")
+            .or_else(|| numero.strip_suffix("')"))
+        else {
             return Err(());
         };
         if numero != nup {
@@ -131,10 +137,18 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or_else(|| recusar(json_mode, "tela_de_prazo_nao_observada", "origem invalida"))?;
     let codificacao = codificacao_da_tela(&dados.mime).ok_or_else(|| {
-        recusar(json_mode, "tela_de_prazo_nao_observada", "charset da lista nao observado")
+        recusar(
+            json_mode,
+            "tela_de_prazo_nao_observada",
+            "charset da lista nao observado",
+        )
     })?;
     let url_declarada = action_de_exclusao(&dados.html_lista).ok_or_else(|| {
-        recusar(json_mode, "tela_de_prazo_nao_observada", "a lista nao publicou a acao de exclusao")
+        recusar(
+            json_mode,
+            "tela_de_prazo_nao_observada",
+            "a lista nao publicou a acao de exclusao",
+        )
     })?;
     let servida = TelaServida {
         url: &dados.link_lista,
@@ -165,7 +179,11 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         if enviou {
             efeito_incerto(json_mode, Some(&erro))
         } else {
-            recusar(json_mode, erro.subcodigo(), "envio de exclusao nao preparado")
+            recusar(
+                json_mode,
+                erro.subcodigo(),
+                "envio de exclusao nao preparado",
+            )
         }
     })?;
     match resposta {
@@ -176,8 +194,8 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
             }) => {}
         _ => return Err(efeito_incerto(json_mode, None)),
     }
-    let (lista_nova, _) = obter_tela(rede, cookie, &dados.link_lista)
-        .map_err(|_| efeito_incerto(json_mode, None))?;
+    let (lista_nova, _) =
+        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| efeito_incerto(json_mode, None))?;
     if id_na_lista(&lista_nova, "").is_err()
         || id_na_lista(&lista_nova, &dados.id_procedimento).is_err()
     {
@@ -189,8 +207,8 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         return Err(efeito_incerto(json_mode, None));
     }
     // O GET do formulario de definicao e testemunha independente da lista.
-    let (formulario, _) = obter_tela(rede, cookie, &dados.link_prazo)
-        .map_err(|_| efeito_incerto(json_mode, None))?;
+    let (formulario, _) =
+        obter_tela(rede, cookie, &dados.link_prazo).map_err(|_| efeito_incerto(json_mode, None))?;
     let prazo = ler_tela(&formulario, &dados.id_procedimento)
         .map_err(|_| efeito_incerto(json_mode, None))?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
@@ -251,8 +269,7 @@ pub(super) fn executar(
             "controle da unidade nao publicou lista de prazos",
         );
     };
-    let (html_lista, mime) = match consultar_formulario(&mut rede, &cookie, &link_lista, cli.json)
-    {
+    let (html_lista, mime) = match consultar_formulario(&mut rede, &cookie, &link_lista, cli.json) {
         Ok(tela) => tela,
         Err(erro) => return erro,
     };
@@ -299,9 +316,15 @@ pub(super) fn executar(
     if cli.json {
         println!("{resultado}");
     } else if confirmar {
-        println!("Prazo do processo {} excluido e verificado por leitura.", nup.as_str());
+        println!(
+            "Prazo do processo {} excluido e verificado por leitura.",
+            nup.as_str()
+        );
     } else {
-        println!("Previa: excluir o controle de prazo de {}. Sem escrita.", nup.as_str());
+        println!(
+            "Previa: excluir o controle de prazo de {}. Sem escrita.",
+            nup.as_str()
+        );
     }
     ExitCode::SUCCESS
 }

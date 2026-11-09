@@ -121,12 +121,7 @@ fn campo_unico(corpo: &str, campo: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
-
-fn unidade_da_lista(
-    banco: &Connection,
-    instalacao: &Instalacao,
-    cenario: &str,
-) -> Option<String> {
+fn unidade_da_lista(banco: &Connection, instalacao: &Instalacao, cenario: &str) -> Option<String> {
     iesei::banco_cassettes::ler(banco, instalacao, cenario)
         .ok()
         .flatten()
@@ -154,7 +149,9 @@ pub(crate) fn acrescentar_menu(
         let link = format!(
             "<a href='controlador.php?acao=controle_prazo_listar&amp;infra_hash={assinatura}'>Controle de Prazos</a>"
         );
-        resposta.corpo = resposta.corpo.replacen("</body>", &format!("{link}</body>"), 1);
+        resposta.corpo = resposta
+            .corpo
+            .replacen("</body>", &format!("{link}</body>"), 1);
     }
     resposta
 }
