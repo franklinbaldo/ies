@@ -47,7 +47,7 @@ fn valido(id: &str, historico: &Historico) -> bool {
 /// # Errors
 /// Preserva a causa SQLite ou recusa observação inconsistente.
 pub fn guardar(
-    banco: &mut Connection,
+    banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
@@ -58,7 +58,7 @@ pub fn guardar(
     }
     let origem = instalacao.url_base();
     let total = i64::try_from(historico.total_declarado).map_err(|_| Falha::DadoInvalido)?;
-    let tx = banco.transaction()?;
+    let tx = banco.unchecked_transaction()?;
     tx.execute(
         "INSERT INTO andamento_historico (origem, cenario, id_procedimento, total_declarado)
          VALUES (?1, ?2, ?3, ?4)
@@ -90,6 +90,29 @@ pub fn guardar(
     }
     tx.commit()?;
     Ok(())
+}
+
+/// Acrescenta uma linha ao histórico observado, preservando todas as anteriores.
+/// O simulador é sequencial e a linha nova explicita metadados sintéticos.
+///
+/// # Errors
+/// Propaga causas SQLite ou recusa observação incoerente.
+pub fn acrescentar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    linha: Linha,
+) -> Result<(), Falha> {
+    let Some(mut historico) = ler(banco, instalacao, cenario, id)? else {
+        return Err(Falha::DadoInvalido);
+    };
+    historico.total_declarado = historico
+        .total_declarado
+        .checked_add(1)
+        .ok_or(Falha::DadoInvalido)?;
+    historico.linhas.insert(0, linha);
+    guardar(banco, instalacao, cenario, id, &historico)
 }
 
 /// Reconstrói somente a observação presente e validada.
