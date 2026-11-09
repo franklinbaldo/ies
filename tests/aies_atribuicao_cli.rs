@@ -141,7 +141,7 @@ fn banco() -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar(json: bool) -> (Output, Vec<String>, usize, String) {
+fn executar(json: bool, remover: bool) -> (Output, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -202,12 +202,18 @@ fn executar(json: bool) -> (Output, Vec<String>, usize, String) {
             canal.flush().unwrap();
         }
     });
+    let mut argumentos = Vec::new();
+    if json {
+        argumentos.push("--json");
+    }
+    argumentos.extend(["processo", "atribuir", NUP]);
+    if remover {
+        argumentos.push("--remover");
+    } else {
+        argumentos.extend(["--usuario", "aluno2"]);
+    }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(if json {
-            vec!["--json", "processo", "atribuir", NUP, "--usuario", "aluno2"]
-        } else {
-            vec!["processo", "atribuir", NUP, "--usuario", "aluno2"]
-        })
+        .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -232,7 +238,7 @@ fn executar(json: bool) -> (Output, Vec<String>, usize, String) {
 
 #[test]
 fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
-    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true);
+    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -277,7 +283,7 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
 
 #[test]
 fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
-    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(false);
+    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(false, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -348,4 +354,49 @@ fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
     assert_eq!(saida.status.code(), Some(1));
     let erro = String::from_utf8(saida.stderr).unwrap();
     assert!(erro.contains("prévia"), "mensagem humana sem orientação: {erro}");
+}
+
+
+#[test]
+fn remover_previa_cli_real_json_nao_altera_anti_ies() {
+    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["usuario_atual"], "aluno1");
+    assert!(valor["usuario_pedido"].is_null());
+    assert_eq!(valor["remover"], true);
+    assert_eq!(valor["valor_da_opcao"], "null");
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(valor["alterado"], false);
+    assert_eq!(valor["requisicoes"], eventos.len());
+    assert_eq!(eventos.len(), 5, "{eventos:?}");
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.starts_with("POST "))
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["POST protocolo_pesquisa_rapida"],
+        "a prévia não deve remover atribuição: {eventos:?}"
+    );
+    assert_eq!(unidades_abertas, 1);
+    assert_eq!(atribuicao_final, "aluno1");
+}
+
+#[test]
+fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
+    let (saida, eventos, _, atribuicao_final) = executar(false, true);
+    assert_eq!(saida.status.code(), Some(0));
+    let texto = String::from_utf8(saida.stdout).unwrap();
+    assert!(texto.contains("Atribuição atual: aluno1."), "{texto}");
+    assert!(texto.contains("Remover a atribuição observada."), "{texto}");
+    assert!(!texto.contains("Remoção confirmada"), "{texto}");
+    assert_eq!(eventos.len(), 5);
+    assert_eq!(atribuicao_final, "aluno1");
 }
