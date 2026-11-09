@@ -65,8 +65,12 @@ mostra. Não confundir ausência de prova com ausência de efeito.
 Erros HTML de origem, de duplicidade e atributos têm causa
 `ErroHtml` tipada; erros de transporte conservam a causa original.
 A saída JSON publica documento, processo, unidade se observada,
-`confirmado`, `verificado`, `id_atividade` (`null` quando não observada)
-e número de requisições. Nunca imprime cookies, senhas ou URLs assinadas.
+`confirmado`, `verificado`, `id_atividade` (`null` quando não observada),
+`usuario` (nome da coluna explícita «Usuário» da mesma linha da atividade na
+Lista de Ciências relida, ou `null` se não publicado) e número de requisições.
+A ausência de cabeçalho não autoriza inferir o autor de outra coluna,
+revisão ou documento. A atividade continua sendo a prova da escrita;
+a autoria exibida não prova identidade autenticada fora da sessão. Nunca imprime cookies, senhas ou URLs assinadas.
 
 ## Evidência e pendências
 
