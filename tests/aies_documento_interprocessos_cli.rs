@@ -254,7 +254,6 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
     );
 }
 
-
 // BDD-60-01: o contexto NUP explícito deve selecionar o nó e o conteúdo
 // do mesmo documento. O teste executa o binário real via TLS/anti-IES/SQLite,
 // não apenas o parser de uma árvore sintética isolada.
@@ -368,7 +367,10 @@ fn bdd_60_02_cli_versao_e_foto_no_processo_informado() {
         "Conteudo editado localmente",
         1,
     );
-    assert_ne!(editado, html, "a revisão simulada não contém o corpo esperado");
+    assert_ne!(
+        editado, html,
+        "a revisão simulada não contém o corpo esperado"
+    );
     std::fs::write(&foto, &editado).expect("edição de teste");
     let (segunda, trilha) = executar(true, &args);
     assert_eq!(
