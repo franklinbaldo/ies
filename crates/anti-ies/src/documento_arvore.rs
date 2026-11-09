@@ -22,7 +22,35 @@ fn js(s: &str) -> String {
         .replace('<', "\\u003c")
 }
 
-fn arvore(d: &DocumentoSimulado, situacao: &Situacao, ciencia: &Ciencia) -> String {
+/// A barra documental só oferece a lista quando a unidade da sessão tem
+/// o processo aberto. Sem estado explícito de tramitação, preservar a
+/// oferta anterior, sem inferir fechamento de um snapshot ausente.
+fn lista_visivel(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+) -> Result<bool, Estado> {
+    let Some(processo) = iesei::processos::ler(banco, instalacao, cenario, id_procedimento)
+        .map_err(|_| Estado::DadosInsuficientes)?
+    else {
+        return Ok(true);
+    };
+    let unidade = iesei::banco_cassettes::ler(banco, instalacao, cenario)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .map_or_else(
+            || processo.unidade_origem.clone(),
+            |controle| controle.unidade.as_str().to_owned(),
+        );
+    Ok(processo.aberto_em.contains(&unidade))
+}
+
+fn arvore(
+    d: &DocumentoSimulado,
+    situacao: &Situacao,
+    ciencia: &Ciencia,
+    lista_visivel: bool,
+) -> String {
     let p = &d.id_procedimento;
     let id = &d.id_documento;
     let nup = js(&d.numero_processo);
@@ -48,6 +76,13 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao, ciencia: &Ciencia) -> Stri
     let dica = js(&dica);
     let ciencia_acao = crate::documento_ciencia::barra(ciencia);
     let lista_ciencia = crate::documento_ciencia::acao_da_lista(9, id, p, ciencia);
+    let link_lista = if lista_visivel {
+        format!(
+            "<a href=\"controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"455\"><img title=\"Versões do Documento\"/></a>"
+        )
+    } else {
+        String::new()
+    };
     let tela = format!(
         "controlador.php?acao=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}",
         crate::protocolo_sintetico::INFRA_HASH
@@ -68,7 +103,7 @@ Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '';
 Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
-Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}{ciencia_acao}';
+Nos[1].acoes = '{link_lista}{cancelar}{ciencia_acao}';
 Nos[1].src = '{src}';
 Nos[1].html = '';
 {lista_ciencia}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
@@ -195,7 +230,12 @@ pub fn responder(
                 Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
                 Err(estado) => return Resposta::nova(estado),
             };
-            html(arvore(&documento, &situacao, &ciencia))
+            let lista = match lista_visivel(banco, instalacao, cenario, &documento.id_procedimento)
+            {
+                Ok(lista) => lista,
+                Err(estado) => return Resposta::nova(estado),
+            };
+            html(arvore(&documento, &situacao, &ciencia, lista))
         }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
@@ -210,6 +250,7 @@ pub(crate) fn nos_do_processo(
     cenario: &str,
     processo: &str,
 ) -> Result<String, Estado> {
+    let lista = lista_visivel(banco, instalacao, cenario, processo)?;
     let ids = versoes::ids_do_processo(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
@@ -232,7 +273,7 @@ pub(crate) fn nos_do_processo(
             &id,
             &documento.numero,
             &documento.tipo,
-            true,
+            (true, lista),
             (&situacao, &ciencia),
         ));
         indice += 1;
@@ -254,7 +295,7 @@ pub(crate) fn nos_do_processo(
             &id,
             &documento.numero_sei,
             &documento.tipo,
-            false,
+            (false, lista),
             (&situacao, &ciencia),
         ));
         indice += 1;
@@ -268,7 +309,7 @@ fn no_de_documento(
     id: &str,
     numero: &str,
     tipo: &str,
-    versoes: bool,
+    (versoes, lista_visivel): (bool, bool),
     (situacao, ciencia): (&Situacao, &Ciencia),
 ) -> String {
     let (icone, dica) = match situacao {
@@ -304,6 +345,13 @@ fn no_de_documento(
     );
     if versoes {
         let hash = "e".repeat(64);
+        let link_lista = if lista_visivel {
+            format!(
+                "<a href=\"controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}\">Versões</a>"
+            )
+        } else {
+            String::new()
+        };
         let hash_corpo = "f".repeat(64);
         let src = match situacao {
             Situacao::Disponivel => format!(
@@ -313,9 +361,7 @@ fn no_de_documento(
         };
         write!(
             no,
-            r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>{cancelar}{ciencia_acao}';
-Nos[{indice}].src = '{src}';
-"#
+            "Nos[{indice}].acoes = '{link_lista}{cancelar}{ciencia_acao}';\nNos[{indice}].src = '{src}';\n"
         )
         .expect("formatação de String");
     } else {

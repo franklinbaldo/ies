@@ -42,6 +42,7 @@ pub(super) enum EstadoExtra {
     TituloTrocadoAoVisualizar,
     SessaoRevogadaAoVisualizar,
     VersaoRevogadaAoVisualizar,
+    SemListaNaUnidade,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -116,7 +117,11 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
             id: "7".into(),
             numero: NUP_A.into(),
             unidade_origem: "TESTE".into(),
-            aberto_em: vec!["TESTE".into()],
+            aberto_em: if matches!(modo, EstadoExtra::SemListaNaUnidade) {
+                vec!["OUTRA".into()]
+            } else {
+                vec!["TESTE".into()]
+            },
             anotacao_origem: None,
             destinos: vec![],
         },
@@ -162,7 +167,8 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         | EstadoExtra::RevogadoAoVisualizar
         | EstadoExtra::TituloTrocadoAoVisualizar
         | EstadoExtra::SessaoRevogadaAoVisualizar
-        | EstadoExtra::VersaoRevogadaAoVisualizar => {}
+        | EstadoExtra::VersaoRevogadaAoVisualizar
+        | EstadoExtra::SemListaNaUnidade => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(

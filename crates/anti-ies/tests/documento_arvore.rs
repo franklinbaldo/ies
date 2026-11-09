@@ -147,3 +147,70 @@ fn http_procedimento_repetido_recusa_sem_vazar_documento() {
     assert!(resposta.contains("0011519"));
     servidor.join().unwrap();
 }
+
+/// BDD-60-05: a identidade continua legível quando a unidade ativa não
+/// tem o processo aberto. A lista some da árvore, não o documento atual.
+/// Cassette `UnB` observa ausência do link depois de concluir o processo;
+/// o estado da unidade deste ensaio é uma hipótese funcional no SQLite.
+#[test]
+fn arvore_sem_lista_na_unidade_fechada_mantem_conteudo_e_reabre_sem_mutar_documento() {
+    use iesei::banco_cassettes::{self, ControleResumido, Linha};
+    use iesei::observacao::{TabelaObservada, UnidadeExibida};
+    use iesei::processos::{self, ProcessoSimulado};
+
+    let mut banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    guardar(&mut banco, "ensaio", &documento()).unwrap();
+    banco_cassettes::guardar(
+        &mut banco,
+        "ensaio",
+        &ControleResumido {
+            instalacao: origem(),
+            unidade: UnidadeExibida::nova("PPI").unwrap(),
+            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
+        },
+    )
+    .unwrap();
+    let mut processo = ProcessoSimulado {
+        id: "7".into(),
+        numero: "00001.000001/2026-01".into(),
+        unidade_origem: "PPI".into(),
+        aberto_em: vec!["OUTRA".into()],
+        anotacao_origem: None,
+        destinos: vec![],
+    };
+    processos::guardar(&mut banco, &origem(), "ensaio", &processo).unwrap();
+    let url = "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=42";
+    let fechada = documento_arvore::responder("GET", url, &banco, &origem(), "ensaio");
+    assert_eq!(fechada.estado, Estado::Ok);
+    assert!(!fechada.corpo.contains("documento_versao_listar"));
+    assert!(fechada.corpo.contains("documento_visualizar"));
+    let atual = documento_versoes::responder(
+        "GET",
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42",
+        &banco,
+        &origem(),
+        "ensaio",
+    );
+    assert_eq!(atual.estado, Estado::Ok);
+    assert!(atual.corpo.contains("Terceira redação"));
+    assert_eq!(
+        documento_arvore::responder("POST", url, &banco, &origem(), "ensaio").estado,
+        Estado::MetodoNaoPermitido
+    );
+    assert_eq!(
+        processos::ler(&banco, &origem(), "ensaio", "7")
+            .unwrap()
+            .unwrap()
+            .aberto_em,
+        vec!["OUTRA"]
+    );
+
+    processo.aberto_em.push("PPI".into());
+    processos::guardar(&mut banco, &origem(), "ensaio", &processo).unwrap();
+    let reaberta = documento_arvore::responder("GET", url, &banco, &origem(), "ensaio");
+    assert_eq!(reaberta.estado, Estado::Ok);
+    assert!(reaberta.corpo.contains("documento_versao_listar"));
+    assert!(reaberta.corpo.contains("documento_visualizar"));
+}
