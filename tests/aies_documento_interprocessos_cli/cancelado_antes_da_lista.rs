@@ -45,7 +45,9 @@ fn bdd_60_05_cli_recusa_historico_cancelado_apos_arvore_sem_fallback() {
             "uma consulta do histórico oferecido, sem retry: {trilha:?}"
         );
         assert!(
-            !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+            !trilha
+                .iter()
+                .any(|pedido| pedido == "GET documento_visualizar"),
             "a recusa da lista impede buscar qualquer versão: {trilha:?}"
         );
         assert!(
