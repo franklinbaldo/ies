@@ -4,7 +4,7 @@ title: Andamento do processo com POST único e prova por histórico
 operation: processo.andamento
 implementation: partial
 status: adopted-for-scope
-scope: ies processo andamento NUP --texto T somente em prévia Web (abertura, histórico e GET do formulário, sem POST); --confirmar recusa antes da sessão nesta fatia
+scope: ies processo andamento NUP --texto T em prévia e confirmação apenas em debug anti-IES local; binário de distribuição recusa antes da rede
 selected_strategy: web-formulario-servido-com-releitura
 alternatives: web-formulario-servido-com-releitura,web-sem-conferencia,rest-wssei
 evidence_level: todos-unb-e-cassettes-de-treinamento
@@ -35,9 +35,9 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 - [Contrato](../../contracts/cli/processo-andamento.md)
 - [Evidências da matriz](../../contracts/evidencias/processo-andamento.md)
 - [Teste da trava de escrita](../../tests/cli_processo_andamento.rs)
-- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. Os dois testes da confirmação estão `wip #259`.
+- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. BDD-259-02/03 têm testes ativos em `tests/aies_andamento_cli.rs` e precisam de CI verde no SHA de integração.
 
 ## Limitações e revisão
 
-Nesta fatia, `--confirmar` recusa `escrita_de_andamento_ainda_fechada` antes de abrir a sessão: a confirmação sintética ainda termina em efeito incerto. 
-A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
+Nesta fatia, `--confirmar` é permitido somente em binário debug e origem sintética reservada `https://sei.test/sei`; release e outras origens recusam antes da rede. A confirmação sintética confronta o SQLite em nova invocação da CLI e usa saída 3 quando a releitura falha. Essa hipótese não prova comportamento ao vivo. 
+A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. O teste integrado de transporte por HTTPS local inclui POST, releitura completa e falha da resposta posterior. O confronto semântico independente com corpos originais de cassette e a validação real na UnB ainda não foram executados. Nenhum POST remoto foi executado.
