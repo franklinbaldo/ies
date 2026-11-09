@@ -210,8 +210,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
             banco
                 .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
                     .get::<_, i64>(0))
-                .unwrap() as usize,
-            quantidade_versoes,
+                .unwrap(),
+            i64::try_from(quantidade_versoes).unwrap(),
             "leitura de histórico e recusas preservam o SQLite"
         );
     });
