@@ -117,7 +117,7 @@ pub(crate) fn responder(
             processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("controle_prazo_definir") if eh_controlador_sei(alvo) => {
-            prazo_processo::responder(metodo, alvo, banco, instalacao, cenario)
+            prazo_processo::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_relacionar" | "procedimento_excluir_relacionamento")
             if eh_controlador_sei(alvo) =>
