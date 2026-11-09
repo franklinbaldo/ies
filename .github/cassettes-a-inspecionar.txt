@@ -1,2 +1,0 @@
-cassettes/unb/processo-prazo-unb--48614e412f28.md
-cassettes/go/processo-prazo-go--4d9b8462dae9.md
