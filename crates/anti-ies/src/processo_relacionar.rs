@@ -48,9 +48,9 @@ pub(crate) fn responder(
             Ok(()) => Resposta::redirecionar(format!(
                 "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
             )),
-            Err(relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado) => {
-                Resposta::nova(Estado::RequisicaoInvalida)
-            }
+            Err(
+                relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::RequisicaoInvalida),
             Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
@@ -346,16 +346,29 @@ mod testes {
             "caso",
         );
         assert_eq!(resposta.estado, Estado::Redirecionamento);
-        assert!(resposta.localizacao.as_deref().is_some_and(|l| l.contains("resultado=1")));
-        let origem_apos = relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap();
+        assert!(
+            resposta
+                .localizacao
+                .as_deref()
+                .is_some_and(|l| l.contains("resultado=1"))
+        );
+        let origem_apos = relacionamentos::listar(&db, &origem, "caso", "10")
+            .unwrap()
+            .unwrap();
         assert_eq!(origem_apos.len(), 1);
         assert_eq!(origem_apos[0].id, "33");
         assert_eq!(
-            relacionamentos::listar(&db, &origem, "caso", "22").unwrap().unwrap().len(),
+            relacionamentos::listar(&db, &origem, "caso", "22")
+                .unwrap()
+                .unwrap()
+                .len(),
             0
         );
         assert_eq!(
-            relacionamentos::listar(&db, &origem, "caso", "33").unwrap().unwrap()[0].id,
+            relacionamentos::listar(&db, &origem, "caso", "33")
+                .unwrap()
+                .unwrap()[0]
+                .id,
             "10"
         );
     }
@@ -374,7 +387,10 @@ mod testes {
         );
         assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
         assert_eq!(
-            relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().len(),
+            relacionamentos::listar(&db, &origem, "caso", "10")
+                .unwrap()
+                .unwrap()
+                .len(),
             1
         );
     }
