@@ -259,7 +259,6 @@ fn publicar_previa(
     ExitCode::SUCCESS
 }
 
-
 const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "controle_prazo_definir",
     formulario: "frmControlePrazoCadastro",
@@ -331,15 +330,12 @@ fn confirmar_data<V: EnvioDoProcesso>(
         codificacao,
     };
     let campos = campos_do_pedido(pedido);
-    let valores: Vec<_> = campos.iter().map(|(nome, valor)| (*nome, valor.as_str())).collect();
-    let submissao = derivar_submissao(
-        &DEFINIR_PRAZO,
-        &instalacao,
-        &servida,
-        "",
-        &valores,
-    )
-    .map_err(FalhaConfirmacao::Formulario)?;
+    let valores: Vec<_> = campos
+        .iter()
+        .map(|(nome, valor)| (*nome, valor.as_str()))
+        .collect();
+    let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, &servida, "", &valores)
+        .map_err(FalhaConfirmacao::Formulario)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -359,8 +355,8 @@ fn confirmar_data<V: EnvioDoProcesso>(
                 .is_some_and(|local| aceite_confirmacao(local, redir.url_do_envio(), id)) => {}
         _ => return Err(FalhaConfirmacao::EfeitoIncerto(None)),
     }
-    let (nova, _) = obter_tela(rede, cookie, link)
-        .map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
+    let (nova, _) =
+        obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
     let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
     if verificada.estado != EstadoDoPrazo::Data(data.clone()) {
         return Err(FalhaConfirmacao::EfeitoIncerto(None));
@@ -369,7 +365,8 @@ fn confirmar_data<V: EnvioDoProcesso>(
 }
 
 fn efeito_incerto(json_mode: bool, causa: Option<&ErroSubmissaoFormulario>) -> ExitCode {
-    let mensagem = "O POST pode ter produzido efeito, mas a releitura não confirmou; não repita a operação";
+    let mensagem =
+        "O POST pode ter produzido efeito, mas a releitura não confirmou; não repita a operação";
     if json_mode {
         let mut resposta = json!({
             "codigo": "efeito_incerto",
