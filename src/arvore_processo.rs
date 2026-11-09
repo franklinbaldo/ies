@@ -292,6 +292,15 @@ pub(crate) fn ler_arvore_parcial(
     ler_arvore_com_modo(html, nup_pedido, id_aberto, true)
 }
 
+/// Um documento movido pertence à lista documental, que pode ser não confiável.
+fn filtrar_movidos(incluidos: bool, movidos: Vec<DocumentoMovido>) -> Vec<DocumentoMovido> {
+    if incluidos {
+        movidos
+    } else {
+        Vec::new()
+    }
+}
+
 pub(crate) fn ler_arvore_com_modo(
     html: &str,
     nup_pedido: &str,
@@ -396,11 +405,7 @@ pub(crate) fn ler_arvore_com_modo(
         documentos_incluidos: conferencia.documentos_incluidos,
         aviso_leitura_parcial: conferencia.aviso_leitura_parcial,
         anexados,
-        documentos_movidos: if conferencia.documentos_incluidos {
-            documentos_movidos
-        } else {
-            Vec::new()
-        },
+        documentos_movidos: filtrar_movidos(conferencia.documentos_incluidos, documentos_movidos),
         anexado_a: None,
         aberto_em: situacao::ler_aberto_em(html),
     })
