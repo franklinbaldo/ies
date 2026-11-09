@@ -45,11 +45,13 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let instalacao = gravacao::instalacao(&captura.json).unwrap();
     let originais: Vec<_> = gravacao::respostas(&captura.json)
         .into_iter()
-        .filter(|r| {
-            r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200
-        })
+        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
         .collect();
-    assert_eq!(originais.len(), 1, "não inventar resposta ausente na cassette");
+    assert_eq!(
+        originais.len(),
+        1,
+        "não inventar resposta ausente na cassette"
+    );
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
@@ -78,26 +80,28 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
         for _ in 0..3 {
             let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(
-                &mut fluxo,
-                Some((&banco, &instalacao, "cassette-conteudo")),
-            )
-            .unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
+                .unwrap();
         }
         assert_eq!(
             banco
-                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
+                    .get::<_, i64>(0))
                 .unwrap(),
             1,
             "GET e POST recusado não modificam o SQLite"
         );
     });
-    let url = "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&id_procedimento=7";
+    let url =
+        "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&id_procedimento=7";
     let resposta = pedir(endereco, "GET", url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let identidade_anti = crate::documento_web::identidade_do_titulo(html_anti).unwrap();
-    assert_eq!(identidade_anti, identidade, "número/tipo vêm da fonte original");
+    assert_eq!(
+        identidade_anti, identidade,
+        "número/tipo vêm da fonte original"
+    );
     let texto_anti = crate::documento_web::texto_do_corpo(html_anti).unwrap();
     assert!(
         texto_anti.starts_with(&texto_original),
@@ -108,7 +112,10 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         "GET",
         "/sei/controlador.php?acao=documento_visualizar&id_documento=42&versao=1&id_procedimento=8",
     );
-    assert!(cruzado.starts_with("HTTP/1.1 404"), "identidade de outro processo");
+    assert!(
+        cruzado.starts_with("HTTP/1.1 404"),
+        "identidade de outro processo"
+    );
     assert!(pedir(endereco, "POST", url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
 }
