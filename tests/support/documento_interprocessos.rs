@@ -162,7 +162,40 @@ fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
     assert_eq!(sem_conteudo.numero_sei, "1000001");
 }
 
-fn estado(com_segundo: bool, sem_src: bool, cancelado: bool) -> (Connection, Instalacao) {
+#[derive(Clone, Copy)]
+enum EstadoExtra {
+    Nenhum,
+    SemSrc,
+    Cancelado,
+    NumeroRepetido,
+}
+
+fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
+    // Hipótese mínima para BDD-60-05: dois nós com mesmo número SEI
+    // e IDs distintos no mesmo processo, sem qualquer corpo substituto.
+    documento_versoes::guardar(
+        banco,
+        CENARIO,
+        &DocumentoSimulado {
+            instalacao: origem.clone(),
+            id_documento: "44".into(),
+            id_procedimento: "7".into(),
+            numero_processo: NUP_A.into(),
+            numero: DOC_A.into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "TESTE".into(),
+                unidade: "TESTE".into(),
+                modificacao: "01/11/2026".into(),
+                html_corpo: "<p>Outro corpo que não pode substituir DOC_A</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+}
+
+fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
@@ -235,22 +268,24 @@ fn estado(com_segundo: bool, sem_src: bool, cancelado: bool) -> (Connection, Ins
         .unwrap();
     }
 
-    if sem_src {
-        semear_documento_sem_src(&banco, &origem);
-    }
-    if cancelado {
-        assert_eq!(
-            cancelamento_documento::aplicar(
-                &banco,
-                &origem,
-                CENARIO,
-                "42",
-                "7",
-                "Motivo sintético"
-            )
-            .unwrap(),
-            Aplicacao::Aplicada
-        );
+    match modo {
+        EstadoExtra::Nenhum => {}
+        EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
+        EstadoExtra::Cancelado => {
+            assert_eq!(
+                cancelamento_documento::aplicar(
+                    &banco,
+                    &origem,
+                    CENARIO,
+                    "42",
+                    "7",
+                    "Motivo sintético"
+                )
+                .unwrap(),
+                Aplicacao::Aplicada
+            );
+        }
+        EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
     }
     (banco, origem)
 }
@@ -270,21 +305,24 @@ fn acao_do_pedido(cab: &[u8]) -> String {
 /// A saída do subprocesso encerra os dois ouvintes sem assumir número fixo
 /// de leituras: um segundo DOC pode ou não reutilizar ação de pesquisa.
 pub(super) fn executar(com_segundo: bool, args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(com_segundo, false, false, args)
+    executar_com_estado(com_segundo, EstadoExtra::Nenhum, args)
 }
 
 pub(super) fn executar_sem_src(args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(true, true, false, args)
+    executar_com_estado(true, EstadoExtra::SemSrc, args)
 }
 
 pub(super) fn executar_cancelado(args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(true, false, true, args)
+    executar_com_estado(true, EstadoExtra::Cancelado, args)
+}
+
+pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
 fn executar_com_estado(
     com_segundo: bool,
-    sem_src: bool,
-    cancelado: bool,
+    modo: EstadoExtra,
     args: &[&str],
 ) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
@@ -306,7 +344,7 @@ fn executar_com_estado(
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_segundo, sem_src, cancelado);
+        let (db, instalacao) = estado(com_segundo, modo);
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
