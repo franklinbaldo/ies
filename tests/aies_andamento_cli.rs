@@ -225,8 +225,10 @@ fn executar(args: &[&str], negar_releitura: bool) -> (Output, Vec<String>, Histo
 
 #[test]
 fn bdd_259_01_previa_nao_escreve_no_historico() {
-    let (saida, pedidos, persistido) =
-        executar(&["--json", "processo", "andamento", NUP, "--texto", TEXTO], false);
+    let (saida, pedidos, persistido) = executar(
+        &["--json", "processo", "andamento", NUP, "--texto", TEXTO],
+        false,
+    );
     assert_eq!(persistido.total_declarado, 1);
     assert_eq!(persistido.linhas.len(), 1);
     assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
@@ -244,15 +246,31 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     assert_eq!(json["alterado"], false);
     assert_eq!(json["total_antes"], 1);
     assert_eq!(json["total_depois"], serde_json::Value::Null);
-    assert!(pedidos.iter().any(|p| p == "GET procedimento_consultar_historico"));
-    assert!(pedidos.iter().any(|p| p == "GET procedimento_atualizar_andamento"));
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET procedimento_consultar_historico")
+    );
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET procedimento_atualizar_andamento")
+    );
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
 }
 
 #[test]
 fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
     let (saida, pedidos, persistido) = executar(
-        &["--json", "processo", "andamento", NUP, "--texto", TEXTO, "--confirmar"],
+        &[
+            "--json",
+            "processo",
+            "andamento",
+            NUP,
+            "--texto",
+            TEXTO,
+            "--confirmar",
+        ],
         false,
     );
     assert_eq!(
@@ -272,16 +290,30 @@ fn bdd_259_02_confirmacao_unica_e_releitura_preservam_historico() {
     assert_eq!(persistido.linhas[0].descricao, TEXTO);
     assert_eq!(persistido.linhas[1].descricao, "Andamento anterior");
     assert_eq!(
-        pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
+        pedidos
+            .iter()
+            .filter(|p| p.as_str() == "POST procedimento_atualizar_andamento")
+            .count(),
         1
     );
-    assert_eq!(pedidos.last().map(String::as_str), Some("GET procedimento_consultar_historico"));
+    assert_eq!(
+        pedidos.last().map(String::as_str),
+        Some("GET procedimento_consultar_historico")
+    );
 }
 
 #[test]
 fn bdd_259_03_releitura_indisponivel_sai_tres_sem_retry() {
     let (saida, pedidos, persistido) = executar(
-        &["--json", "processo", "andamento", NUP, "--texto", TEXTO, "--confirmar"],
+        &[
+            "--json",
+            "processo",
+            "andamento",
+            NUP,
+            "--texto",
+            TEXTO,
+            "--confirmar",
+        ],
         true,
     );
     assert_eq!(
@@ -293,10 +325,18 @@ fn bdd_259_03_releitura_indisponivel_sai_tres_sem_retry() {
     );
     let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(resultado["codigo"], "efeito_incerto");
-    assert!(resultado["erro"].as_str().unwrap().contains("confira o histórico"));
+    assert!(
+        resultado["erro"]
+            .as_str()
+            .unwrap()
+            .contains("confira o histórico")
+    );
     assert_eq!(persistido.total_declarado, 2); // efeito ocorreu no SQLite, mas não foi comprovado pela CLI
     assert_eq!(
-        pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
+        pedidos
+            .iter()
+            .filter(|p| p.as_str() == "POST procedimento_atualizar_andamento")
+            .count(),
         1
     );
 }
