@@ -211,9 +211,9 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
     assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
-    assert_eq!(eventos.len(), 4, "{eventos:?}");
+    assert_eq!(eventos.len(), 5, "{eventos:?}");
     assert_eq!(eventos.iter().filter(|e| e.as_str() == "GET procedimento_atribuicao_cadastrar").count(), 1);
-    assert!(eventos.iter().all(|e| e.starts_with("GET ")), "prévia não envia POST: {eventos:?}");
+    assert_eq!(eventos.iter().filter(|e| e.starts_with("POST ")).map(String::as_str).collect::<Vec<_>>(), ["POST protocolo_pesquisa_rapida"], "nenhum POST de atribuição: {eventos:?}");
     assert_eq!(unidades_abertas, 1, "bancada não altera unidades do processo");
 }
 
@@ -225,7 +225,7 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
     let texto = String::from_utf8(saida.stdout).unwrap();
     assert!(texto.contains("Atribuição atual: aluno1"), "{texto}");
     assert!(texto.contains("Atribuir a aluno2"), "{texto}");
-    assert_eq!(eventos.len(), 4);
-    assert!(eventos.iter().all(|e| e.starts_with("GET ")));
+    assert_eq!(eventos.len(), 5);
+    assert_eq!(eventos.iter().filter(|e| e.starts_with("POST ")).map(String::as_str).collect::<Vec<_>>(), ["POST protocolo_pesquisa_rapida"]);
     assert_eq!(unidades_abertas, 1);
 }
