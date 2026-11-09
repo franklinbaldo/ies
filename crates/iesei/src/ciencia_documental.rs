@@ -70,6 +70,31 @@ pub fn processo_do_documento(
         .optional()
 }
 
+/// A autoria só é conhecida quando o cenário recebeu uma identidade de sessão
+/// explícita. Nunca é deduzida da revisão do documento.
+/// Ausência de atividade e atividade sem usuário conhecido têm o mesmo valor
+/// de apresentação (None), sem inventar o responsável.
+///
+/// # Errors
+/// Preserva falhas do SQLite.
+pub fn usuario_da_ciencia(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    documento: &str,
+    processo: &str,
+) -> rusqlite::Result<Option<String>> {
+    banco
+        .query_row(
+            "SELECT usuario FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND id_procedimento=?4",
+            params![origem.url_base(), cenario, documento, processo],
+            |r| r.get::<_, Option<String>>(0),
+        )
+        .optional()
+        .map(Option::flatten)
+}
+
 /// Um GET potencialmente mutador registra no máximo uma atividade por documento.
 /// A atividade deriva do banco efêmero e jamais de uma URL assinada.
 ///
@@ -84,12 +109,13 @@ pub fn registrar(
 ) -> rusqlite::Result<Resultado> {
     let inseridos = banco.execute(
         "INSERT INTO ciencia_documental
-         (origem, cenario, id_documento, id_procedimento, id_atividade)
+         (origem, cenario, id_documento, id_procedimento, id_atividade, usuario)
          SELECT origem, cenario, id_documento, id_procedimento,
             CAST(1 + COALESCE((
                 SELECT MAX(CAST(id_atividade AS INTEGER)) FROM ciencia_documental
                 WHERE origem=?1 AND cenario=?2
-            ), 42456) AS TEXT)
+            ), 42456) AS TEXT),
+            (SELECT usuario FROM sessao_usuario WHERE origem=?1 AND cenario=?2)
          FROM documento_simulado
          WHERE origem=?1 AND cenario=?2 AND id_documento=?3 AND id_procedimento=?4
          ON CONFLICT(origem, cenario, id_documento) DO NOTHING",
@@ -160,6 +186,11 @@ mod tests {
         assert_eq!(
             registrar(&banco, &origem, "ciencia", "42", "7").unwrap(),
             Resultado::JaRegistrada
+        );
+        assert_eq!(
+            usuario_da_ciencia(&banco, &origem, "ciencia", "42", "7").unwrap(),
+            None,
+            "sem identidade explícita de sessão não há autoria inventada"
         );
         assert_eq!(
             consultar(&banco, &origem, "outro", "42", "7").unwrap(),
