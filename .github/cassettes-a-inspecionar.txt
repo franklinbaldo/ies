@@ -1,2 +1,0 @@
-cassettes/unb/processo-ciente-unb--b015a0ad02cc.md
-cassettes/ufrj/processo-ciente-ufrj--ee52fd50cb9f.md
