@@ -173,6 +173,26 @@ fn controles_completos(
         .all(|nome| vistos.contains(*nome))
 }
 
+/// Interpreta o valor observado do formulário sem inventar uma data para dias.
+fn estado_dos_controles(
+    marcada: Option<&str>,
+    data: String,
+    dias: &str,
+) -> Result<EstadoDoPrazo, ErroPrazo> {
+    match marcada {
+        Some("1") if data_valida(&data) => Ok(EstadoDoPrazo::Data(data)),
+        Some("2") => dias
+            .parse::<u16>()
+            .ok()
+            .filter(|n| (1..=999).contains(n))
+            .map(EstadoDoPrazo::Dias)
+            .ok_or(ErroPrazo::TelaNaoObservada),
+        Some("3") => Ok(EstadoDoPrazo::Concluido),
+        None => Ok(EstadoDoPrazo::SemPrazo),
+        _ => Err(ErroPrazo::TelaNaoObservada),
+    }
+}
+
 /// Confere os nomes e tipos publicados na tela antes de derivar qualquer escrita.
 fn ler_controles_da_tela(
     form: &tl::HTMLTag<'_>,
@@ -265,18 +285,7 @@ fn ler_controles_da_tela(
     if !id_conferido || botoes != 1 || !controles_completos(&radios, &vistos) {
         return Err(E::TelaNaoObservada);
     }
-    let estado = match marcada.as_deref() {
-        Some("1") if data_valida(&data) => EstadoDoPrazo::Data(data),
-        Some("2") => EstadoDoPrazo::Dias(
-            dias.parse::<u16>()
-                .ok()
-                .filter(|n| (1..=999).contains(n))
-                .ok_or(E::TelaNaoObservada)?,
-        ),
-        Some("3") => EstadoDoPrazo::Concluido,
-        None => EstadoDoPrazo::SemPrazo,
-        _ => return Err(E::TelaNaoObservada),
-    };
+    let estado = estado_dos_controles(marcada.as_deref(), data, &dias)?;
     Ok(TelaDoPrazo {
         estado,
         valor_dos_uteis,
