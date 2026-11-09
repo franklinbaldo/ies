@@ -265,7 +265,10 @@ fn conferir_estado_apos_cli(
         ));
     }
     if matches!(modo, EstadoExtra::SessaoRevogadaAoVisualizar) {
-        assert!(transicao, "CLI não tentou consultar o corpo depois da árvore");
+        assert!(
+            transicao,
+            "CLI não tentou consultar o corpo depois da árvore"
+        );
         assert_eq!(
             acesso_sessao::consultar(db, instalacao, CENARIO).unwrap(),
             acesso_sessao::AcessoSessao::Recusado
