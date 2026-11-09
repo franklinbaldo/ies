@@ -201,6 +201,56 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
     }
 }
 
+fn iniciar_tunel(
+    proxy: TcpListener,
+    identidade: Identity,
+    endereco: std::net::SocketAddr,
+    esperados: usize,
+) -> thread::JoinHandle<Vec<String>> {
+    thread::spawn(move || {
+        let tls = TlsAcceptor::new(identidade).unwrap();
+        let mut alvos = Vec::new();
+        for _ in 0..esperados {
+            let mut tcp = aceitar(&proxy);
+            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
+            let mut canal = tls.accept(tcp).expect("handshake TLS de teste");
+            let mut pedido = cabecalho(&mut canal);
+            let cabecalhos = String::from_utf8_lossy(&pedido);
+            assert!(
+                cabecalhos.starts_with("GET /sei/controlador.php?")
+                    || cabecalhos.starts_with("POST /sei/controlador.php?")
+            );
+            alvos.push(cabecalhos.lines().next().unwrap().to_owned());
+            if alvos.last().is_some_and(|linha| linha.starts_with("POST ")) {
+                let tamanho = cabecalhos
+                    .lines()
+                    .find_map(|linha| {
+                        linha.split_once(':').and_then(|(nome, v)| {
+                            nome.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    })
+                    .expect("Content-Length do POST");
+                assert!(tamanho < 16_384);
+                let mut corpo = vec![0u8; tamanho];
+                canal.read_exact(&mut corpo).unwrap();
+                pedido.extend_from_slice(&corpo);
+            }
+            let mut destino = TcpStream::connect(endereco).unwrap();
+            destino.write_all(&pedido).unwrap();
+            destino.shutdown(Shutdown::Write).unwrap();
+            let mut resposta = Vec::new();
+            destino.read_to_end(&mut resposta).unwrap();
+            canal.write_all(&resposta).unwrap();
+            canal.flush().unwrap();
+        }
+        alvos
+    })
+}
+
 fn executar(interno: bool) -> (Output, Vec<String>) {
     let esperados = if interno { 3usize } else { 2usize };
     let pasta = Pasta::nova();
@@ -242,48 +292,7 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
 
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
-    let tunel = thread::spawn(move || {
-        let tls = TlsAcceptor::new(identidade).unwrap();
-        let mut alvos = Vec::new();
-        for _ in 0..esperados {
-            let mut tcp = aceitar(&proxy);
-            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).expect("handshake TLS de teste");
-            let mut pedido = cabecalho(&mut canal);
-            let cabecalhos = String::from_utf8_lossy(&pedido);
-            assert!(
-                cabecalhos.starts_with("GET /sei/controlador.php?")
-                    || cabecalhos.starts_with("POST /sei/controlador.php?")
-            );
-            alvos.push(cabecalhos.lines().next().unwrap().to_owned());
-            if alvos.last().is_some_and(|linha| linha.starts_with("POST ")) {
-                let tamanho = cabecalhos
-                    .lines()
-                    .find_map(|linha| {
-                        linha.split_once(':').and_then(|(nome, v)| {
-                            nome.eq_ignore_ascii_case("content-length")
-                                .then(|| v.trim().parse::<usize>().ok())
-                                .flatten()
-                        })
-                    })
-                    .expect("Content-Length do POST");
-                assert!(tamanho < 16_384);
-                let mut corpo = vec![0u8; tamanho];
-                canal.read_exact(&mut corpo).unwrap();
-                pedido.extend_from_slice(&corpo);
-            }
-            let mut destino = TcpStream::connect(endereco).unwrap();
-            destino.write_all(&pedido).unwrap();
-            destino.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            destino.read_to_end(&mut resposta).unwrap();
-            canal.write_all(&resposta).unwrap();
-            canal.flush().unwrap();
-        }
-        alvos
-    });
+    let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
     let argumentos: Vec<&str> = if interno {
         vec![
