@@ -239,3 +239,66 @@ pub fn ids_do_processo(
     )?;
     linhas.collect()
 }
+
+#[cfg(test)]
+mod testes_criacao {
+    use super::*;
+    use crate::banco_cassettes::iniciar;
+    use crate::documentos_simulados::{self, Processo, Tipo};
+
+    #[test]
+    fn criado_nao_inventa_revisao_mas_passa_a_ser_versionado_apos_edicao() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let cena = "criar-depois-editar";
+        documentos_simulados::registrar_processo(
+            &banco,
+            &origem,
+            cena,
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        documentos_simulados::registrar_tipo(
+            &banco,
+            &origem,
+            cena,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        let criado = documentos_simulados::criar(&banco, &origem, cena, "10", "291", "").unwrap();
+        assert_eq!(ids_do_processo(&banco, &origem, cena, "10").unwrap(), []);
+        guardar(
+            &mut banco,
+            cena,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: criado.id.to_string(),
+                id_procedimento: "10".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: criado.numero_sei,
+                tipo: criado.tipo,
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "09/11/2026".into(),
+                    html_corpo: "<p>Conteúdo sintético</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            ids_do_processo(&banco, &origem, cena, "10").unwrap(),
+            vec![criado.id.to_string()]
+        );
+    }
+}
