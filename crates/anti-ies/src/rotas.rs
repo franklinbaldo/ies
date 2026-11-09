@@ -116,7 +116,9 @@ pub(crate) fn responder(
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
             processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
+        Some("procedimento_relacionar" | "procedimento_excluir_relacionamento")
+            if eh_controlador_sei(alvo) =>
+        {
             processo_relacionar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {

@@ -125,7 +125,29 @@ fn banco(vinculo_inicial: bool) -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar(vinculo_inicial: bool, post_local: bool) -> (Output, Vec<String>, usize) {
+/// Um POST sintético em loopback, separado da execução da CLI real.
+fn remover_localmente(endereco: std::net::SocketAddr) {
+    let corpo = "hdnInfraItemId=22";
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    let pedido = format!(
+        "POST /sei/controlador.php?acao=procedimento_excluir_relacionamento&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
+        corpo.len()
+    );
+    cliente.write_all(pedido.as_bytes()).unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    assert!(
+        resposta.starts_with("HTTP/1.1 302 Found"),
+        "exclusão local deve responder 302: {resposta}"
+    );
+}
+
+fn executar(
+    vinculo_inicial: bool,
+    post_local: bool,
+    remover_local: bool,
+) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -177,6 +199,10 @@ fn executar(vinculo_inicial: bool, post_local: bool) -> (Output, Vec<String>, us
             "POST sintético deve ter aceite: {resposta}"
         );
     }
+    if remover_local {
+        assert!(vinculo_inicial && !post_local);
+        remover_localmente(endereco);
+    }
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
     let parar_proxy = Arc::clone(&parar);
@@ -199,8 +225,12 @@ fn executar(vinculo_inicial: bool, post_local: bool) -> (Output, Vec<String>, us
             canal.flush().unwrap();
         }
     });
+    let mut argumentos = vec!["--json", "processo", "relacionar", NUP, "--com", DESTINO];
+    if remover_local {
+        argumentos.push("--remover");
+    }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "relacionar", NUP, "--com", DESTINO])
+        .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -225,7 +255,7 @@ fn executar(vinculo_inicial: bool, post_local: bool) -> (Output, Vec<String>, us
 
 #[test]
 fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
-    let (saida, eventos, relacionados) = executar(false, false);
+    let (saida, eventos, relacionados) = executar(false, false, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -269,7 +299,7 @@ fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
 
 #[test]
 fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
-    let (saida, eventos, relacionados) = executar(true, false);
+    let (saida, eventos, relacionados) = executar(true, false, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -315,7 +345,7 @@ fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
 /// Não é a confirmação pela CLI, que permanece bloqueada antes da rede.
 #[test]
 fn bdd_258_02_parcial_post_local_e_previa_cli_enxergam_a_mesma_relacao() {
-    let (saida, eventos, relacionados) = executar(false, true);
+    let (saida, eventos, relacionados) = executar(false, true, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -339,5 +369,37 @@ fn bdd_258_02_parcial_post_local_e_previa_cli_enxergam_a_mesma_relacao() {
             .iter()
             .all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"),
         "a CLI lê o vínculo criado no simulador, mas não o recria: {eventos:?}"
+    );
+}
+
+/// Apoio a BDD-258-03: após exclusão HTTP exclusivamente local no
+/// simulador, a CLI real relê o SQLite e constata ausência bilateral.
+/// Isto não é confirmação pela própria CLI, ainda bloqueada.
+#[test]
+fn bdd_258_03_parcial_exclusao_local_e_previa_cli_observam_ausencia() {
+    let (saida, eventos, relacionados) = executar(true, false, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} http={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["remover"], true);
+    assert_eq!(valor["sem_efeito"], true);
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(relacionados, 0, "o SQLite deixou de registrar a aresta");
+    assert!(
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida")
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET procedimento_relacionar")
+            .count(),
+        1
     );
 }
