@@ -250,3 +250,95 @@ fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
     assert!(!arvore.contains("Nos[1] = new infraArvoreNo"));
     servidor.join().unwrap();
 }
+
+
+/// #246/#496: a acao de incluir documento pertence ao estado de abertura,
+/// nao ao HTML da arvore. Uma tramitacao muda ambas as projecoes.
+#[test]
+fn bdd_246_acao_documental_reflete_tramitacao_no_mesmo_sqlite() {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let cenario = "bdd-246-envio";
+        iesei::processos::guardar(
+            &mut banco,
+            &origem,
+            cenario,
+            &iesei::processos::ProcessoSimulado {
+                id: "10".into(),
+                numero: "00001.000001/2026-01".into(),
+                unidade_origem: "ORIGEM".into(),
+                aberto_em: vec!["ORIGEM".into()],
+                anotacao_origem: None,
+                destinos: vec![iesei::processos::Destino {
+                    id: "2".into(),
+                    sigla: "DESTINO".into(),
+                    descricao: "Unidade destino".into(),
+                }],
+            },
+        )
+        .unwrap();
+        sim::registrar_tipo(
+            &banco,
+            &origem,
+            cenario,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        let documento = sim::criar(&banco, &origem, cenario, "10", "291", "Existente").unwrap();
+        assert_eq!(documento.numero_sei, "1000001");
+        for _ in 0..7 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            atender_http(&mut fluxo, Some((&banco, &origem, cenario))).unwrap();
+        }
+        assert_eq!(sim::documentos(&banco, &origem, cenario, "10").unwrap().len(), 1);
+        let estado = iesei::processos::ler(&banco, &origem, cenario, "10")
+            .unwrap()
+            .unwrap();
+        assert_eq!(estado.aberto_em, ["DESTINO"]);
+    });
+    let trabalho = format!("{BASE}?acao=procedimento_trabalhar&id_procedimento=10");
+    let arvore = format!("{BASE}?acao=procedimento_visualizar&id_procedimento=10");
+    let selecao = format!("{BASE}?acao=documento_escolher_tipo&id_procedimento=10");
+    let cadastro = format!("{BASE}?acao=documento_gerar&id_procedimento=10&id_serie=291");
+    let envio = format!("{BASE}?acao=procedimento_enviar&id_procedimento=10");
+
+    for alvo in [&trabalho, &arvore] {
+        let antes = consultar(endereco, "GET", alvo, "");
+        assert!(antes.starts_with("HTTP/1.1 200 OK"));
+        assert!(antes.contains("Incluir Documento"));
+        assert!(antes.contains("Despacho 1000001"));
+    }
+    let enviado = consultar(
+        endereco,
+        "POST",
+        &envio,
+        "hdnIdProtocolos=10&hdnUnidades=2%B1DESTINO",
+    );
+    assert!(enviado.starts_with("HTTP/1.1 302 Found"));
+
+    for alvo in [&trabalho, &arvore] {
+        let depois = consultar(endereco, "GET", alvo, "");
+        assert!(depois.starts_with("HTTP/1.1 200 OK"));
+        assert!(!depois.contains("Incluir Documento"), "{depois}");
+        assert!(!depois.contains("acao=documento_escolher_tipo"), "{depois}");
+        assert!(depois.contains("Despacho 1000001"));
+    }
+    let lista = consultar(endereco, "GET", &selecao, "");
+    assert!(lista.starts_with("HTTP/1.1 400 Bad Request"));
+    let gravacao = consultar(
+        endereco,
+        "POST",
+        &cadastro,
+        "hdnIdSerie=291&hdnFlagDocumentoCadastro=2&rdoNivelAcesso=0&txtDescricao=Negado",
+    );
+    assert!(gravacao.starts_with("HTTP/1.1 400 Bad Request"));
+    servidor.join().unwrap();
+}
