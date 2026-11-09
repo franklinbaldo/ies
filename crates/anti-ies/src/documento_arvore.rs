@@ -273,8 +273,7 @@ pub(crate) fn nos_do_processo(
             &id,
             &documento.numero,
             &documento.tipo,
-            true,
-            lista,
+            (true, lista),
             (&situacao, &ciencia),
         ));
         indice += 1;
@@ -296,8 +295,7 @@ pub(crate) fn nos_do_processo(
             &id,
             &documento.numero_sei,
             &documento.tipo,
-            false,
-            lista,
+            (false, lista),
             (&situacao, &ciencia),
         ));
         indice += 1;
@@ -311,8 +309,7 @@ fn no_de_documento(
     id: &str,
     numero: &str,
     tipo: &str,
-    versoes: bool,
-    lista_visivel: bool,
+    (versoes, lista_visivel): (bool, bool),
     (situacao, ciencia): (&Situacao, &Ciencia),
 ) -> String {
     let (icone, dica) = match situacao {
@@ -364,9 +361,7 @@ fn no_de_documento(
         };
         write!(
             no,
-            r#"Nos[{indice}].acoes = '{link_lista}{cancelar}{ciencia_acao}';
-Nos[{indice}].src = '{src}';
-"#
+            "Nos[{indice}].acoes = '{link_lista}{cancelar}{ciencia_acao}';\nNos[{indice}].src = '{src}';\n"
         )
         .expect("formatação de String");
     } else {
