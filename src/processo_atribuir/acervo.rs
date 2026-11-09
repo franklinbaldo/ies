@@ -351,11 +351,11 @@ fn replay_de_processo_atribuir_no_acervo() {
     );
     let _ = writeln!(
         saida,
-        "{formularios_confrontados} formulários GET confrontados independentemente com o anti-IES por HTTP local (identidade, opções e rótulos).\\n"
+        "{formularios_confrontados} formulários GET confrontados independentemente com o anti-IES por HTTP local (identidade, opções e rótulos).\n"
     );
     let _ = writeln!(
         saida,
-        "{posts_historicos_sem_id} POSTs históricos: HTTP 302, arvore_visualizar, acao_origem correta, sem id_procedimento na Location. A resposta 302 do anti-IES inclui ID sintético: **divergência de forma**, não paridade nem prova de efeito.\\n"
+        "{posts_historicos_sem_id} POSTs históricos: HTTP 302, arvore_visualizar, acao_origem correta, sem id_procedimento na Location. A resposta 302 do anti-IES inclui ID sintético: **divergência de forma**, não paridade nem prova de efeito.\n"
     );
     tabela(
         &mut saida,
