@@ -23,6 +23,8 @@ pub(crate) fn acoes_do_processo(
             r#"<a href="controlador.php?acao=procedimento_enviar&amp;acao_origem=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_hash={assinatura}">Enviar</a>"#
         )
         .expect("formatação de String");
+    }
+    if processo.pode_incluir_documento(unidade_atual) {
         write!(
             links,
             r#"<a href="controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Incluir Documento</a>"#

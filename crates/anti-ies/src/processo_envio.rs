@@ -8,10 +8,10 @@ use iesei::processos::{
 use rusqlite::Connection;
 use std::fmt::Write;
 
-mod arvore;
 mod formulario;
-use arvore::arvore_do_processo;
+mod navegacao;
 use formulario::pagina_de_envio;
+pub use navegacao::navegacao;
 
 fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;
@@ -311,93 +311,4 @@ fn decodificar_formulario(texto: &str) -> Option<String> {
         posicao += 1;
     }
     String::from_utf8(saida).ok()
-}
-
-fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
-    let id = &processo.id;
-    // A pesquisa por id_protocolo não pode perder a ação documental
-    // já oferecida antes da tramitação. A unidade fechada não a publica.
-    // A inclusão em unidade de destino exige a capacidade documental
-    // correspondente, ainda não simulada fora da origem.
-    let incluir = if unidade_atual == processo.unidade_origem
-        && processo.aberto_em.iter().any(|u| u == unidade_atual)
-    {
-        format!(
-            "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
-            "e".repeat(64)
-        )
-    } else {
-        String::new()
-    };
-    format!(
-        "<html><head><title>SEI - Processo</title></head><body>\
-         <a id='lnkInfraUnidade'>{}</a>\
-         <iframe id='ifrArvore' name='ifrArvore' \
-         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
-         <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
-         {incluir}</body></html>",
-        html(unidade_atual),
-        "e".repeat(64)
-    )
-}
-
-/// Consulta a árvore ou a tela de trabalho sem efeito; ausência do processo
-/// delega à rota de documentos existente do mesmo cenário.
-#[must_use]
-pub fn navegacao(
-    metodo: &str,
-    alvo: &str,
-    banco: &Connection,
-    instalacao: &Instalacao,
-    cenario: &str,
-) -> Option<Resposta> {
-    if !super::eh_controlador_sei(alvo) {
-        return None;
-    }
-    let acao = unico(alvo, "acao")?;
-    if !matches!(acao, "procedimento_trabalhar" | "procedimento_visualizar") {
-        return None;
-    }
-    // Mesmo sem PDF, uma seleção documental repetida não é a árvore sem seleção.
-    // Valida também a tela de trabalho antes de escolher o processo do SQLite.
-    if let Err(estado) = crate::documento_arvore::identidade_documental(alvo, true) {
-        return Some(Resposta::nova(estado));
-    }
-    if unico(alvo, "id_documento").is_some() {
-        return None;
-    }
-    // A pesquisa rápida redireciona para id_protocolo, enquanto os links
-    // da árvore usam id_procedimento. Ambos identificam a mesma simulação.
-    let id = match (unico(alvo, "id_procedimento"), unico(alvo, "id_protocolo")) {
-        (Some(id), None) => id,
-        (None, Some(id)) if acao == "procedimento_trabalhar" => id,
-        _ => return None,
-    };
-    if !id.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let processo = match ler(banco, instalacao, cenario, id) {
-        Ok(Some(processo)) => processo,
-        Ok(None) => return None,
-        Err(_) => return Some(Resposta::nova(Estado::DadosInsuficientes)),
-    };
-    if metodo != "GET" {
-        return Some(Resposta::nova(Estado::MetodoNaoPermitido));
-    }
-    let unidade_atual = match unidade_da_sessao(banco, instalacao, cenario, &processo) {
-        Ok(unidade) => unidade,
-        Err(estado) => return Some(Resposta::nova(estado)),
-    };
-    if acao == "procedimento_trabalhar" {
-        return Some(resposta_html(trabalho_do_processo(
-            &processo,
-            &unidade_atual,
-        )));
-    }
-    Some(
-        match arvore_do_processo(&processo, &unidade_atual, banco, instalacao, cenario) {
-            Ok(corpo) => resposta_html(corpo),
-            Err(estado) => Resposta::nova(estado),
-        },
-    )
 }

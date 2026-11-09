@@ -73,7 +73,7 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             esperada(
                 Some("documento_cancelado"),
                 Some(true),
-                Some("enviado em duplicidade")
+                Some(" enviado em duplicidade ")
             ),
             "Documento Cancelado:  enviado em duplicidade "
         )
