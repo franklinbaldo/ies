@@ -132,164 +132,9 @@ fn aceitar_ate(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     }
 }
 
-fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
-    // Hipotese minima no SQLite: identidade publicada, mas sem link de conteudo.
-    use iesei::documentos_simulados::{self as internos, Processo, Tipo};
-    internos::registrar_processo(
-        banco,
-        origem,
-        CENARIO,
-        &Processo {
-            id: "7".into(),
-            nup: NUP_A.into(),
-            unidade: "TESTE".into(),
-        },
-    )
-    .unwrap();
-    internos::registrar_tipo(
-        banco,
-        origem,
-        CENARIO,
-        "7",
-        &Tipo {
-            id: "291".into(),
-            nome: "Despacho".into(),
-        },
-    )
-    .unwrap();
-    let sem_conteudo =
-        internos::criar(banco, origem, CENARIO, "7", "291", "Metadados sem conteudo").unwrap();
-    assert_eq!(sem_conteudo.numero_sei, "1000001");
-}
-
-#[derive(Clone, Copy)]
-enum EstadoExtra {
-    Nenhum,
-    SemSrc,
-    Cancelado,
-    NumeroRepetido,
-    RevogadoAoVisualizar,
-}
-
-fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
-    // Hipótese mínima para BDD-60-05: dois nós com mesmo número SEI
-    // e IDs distintos no mesmo processo, sem qualquer corpo substituto.
-    documento_versoes::guardar(
-        banco,
-        CENARIO,
-        &DocumentoSimulado {
-            instalacao: origem.clone(),
-            id_documento: "44".into(),
-            id_procedimento: "7".into(),
-            numero_processo: NUP_A.into(),
-            numero: DOC_A.into(),
-            tipo: "Despacho".into(),
-            revisoes: vec![Revisao {
-                versao: NonZeroU32::new(1).unwrap(),
-                usuario: "TESTE".into(),
-                unidade: "TESTE".into(),
-                modificacao: "01/11/2026".into(),
-                html_corpo: "<p>Outro corpo que não pode substituir DOC_A</p>".into(),
-            }],
-        },
-    )
-    .unwrap();
-}
-
-fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(
-        &mut banco,
-        CENARIO,
-        &ControleResumido {
-            instalacao: origem.clone(),
-            unidade: UnidadeExibida::nova("TESTE").unwrap(),
-            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        },
-    )
-    .unwrap();
-    // O NUP da recusa precisa ser navegável: sem processo cadastrado o
-    // anti-IES devolve 503 na pesquisa e testa apenas transporte, não
-    // o BDD-60-05. A árvore mantém somente DOC_A sob NUP_A.
-    processos::guardar(
-        &mut banco,
-        &origem,
-        CENARIO,
-        &ProcessoSimulado {
-            id: "7".into(),
-            numero: NUP_A.into(),
-            unidade_origem: "TESTE".into(),
-            aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None,
-            destinos: vec![],
-        },
-    )
-    .unwrap();
-    for (id, processo, nup, numero, corpo) in [
-        (
-            "42",
-            "7",
-            NUP_A,
-            DOC_A,
-            "Conteudo exclusivo do primeiro processo",
-        ),
-        (
-            "43",
-            "8",
-            NUP_B,
-            DOC_B,
-            "Conteudo exclusivo do segundo processo",
-        ),
-    ]
-    .into_iter()
-    .take(if com_segundo { 2 } else { 1 })
-    {
-        documento_versoes::guardar(
-            &mut banco,
-            CENARIO,
-            &DocumentoSimulado {
-                instalacao: origem.clone(),
-                id_documento: id.into(),
-                id_procedimento: processo.into(),
-                numero_processo: nup.into(),
-                numero: numero.into(),
-                tipo: "Despacho".into(),
-                revisoes: vec![Revisao {
-                    versao: NonZeroU32::new(1).unwrap(),
-                    usuario: "TESTE".into(),
-                    unidade: "TESTE".into(),
-                    modificacao: "01/11/2026".into(),
-                    html_corpo: format!("<p>{corpo}</p>"),
-                }],
-            },
-        )
-        .unwrap();
-    }
-
-    match modo {
-        EstadoExtra::Nenhum | EstadoExtra::RevogadoAoVisualizar => {}
-        EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
-        EstadoExtra::Cancelado => {
-            assert_eq!(
-                cancelamento_documento::aplicar(
-                    &banco,
-                    &origem,
-                    CENARIO,
-                    "42",
-                    "7",
-                    "Motivo sintético"
-                )
-                .unwrap(),
-                Aplicacao::Aplicada
-            );
-        }
-        EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
-    }
-    (banco, origem)
-}
+#[path = "documento_interprocessos_estado.rs"]
+mod estado_simulado;
+use estado_simulado::{EstadoExtra, estado};
 
 fn acao_do_pedido(cab: &[u8]) -> String {
     let primeira = std::str::from_utf8(cab).unwrap().lines().next().unwrap();
@@ -327,6 +172,40 @@ pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<Str
     executar_com_estado(true, EstadoExtra::RevogadoAoVisualizar, args)
 }
 
+/// A identidade no título do GET diverge da árvore previamente lida.
+pub(super) fn executar_titulo_trocado(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::TituloTrocadoAoVisualizar, args)
+}
+
+/// Espia apenas a primeira linha sem consumir a requisição HTTP original.
+fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
+    let mut inicio = [0_u8; 1024];
+    let tamanho = tcp.peek(&mut inicio).unwrap();
+    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
+    linha.starts_with("GET ") && linha.contains("acao=documento_visualizar")
+}
+
+/// A árvore já foi publicada; a origem altera o título antes do GET do
+/// conteúdo. Hipótese de corrida sintética, não transição capturada na `UnB`.
+fn trocar_titulo_antes_de_servir_corpo(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    if !eh_get_de_conteudo(tcp) {
+        return false;
+    }
+    let alterados = banco
+        .execute(
+            "UPDATE documento_simulado SET numero=?1
+             WHERE origem=?2 AND cenario=?3 AND id_documento=?4 AND numero=?5",
+            rusqlite::params![DOC_B, instalacao.url_base(), CENARIO, "42", DOC_A],
+        )
+        .unwrap();
+    assert_eq!(alterados, 1, "a hipótese altera a identidade do documento");
+    true
+}
+
 /// Simula a revogação do href já publicado entre a árvore e a resposta
 /// documental. O peek não consome bytes: o servidor recebe o HTTP original.
 fn revogar_antes_de_servir_corpo(
@@ -334,10 +213,7 @@ fn revogar_antes_de_servir_corpo(
     banco: &Connection,
     instalacao: &Instalacao,
 ) -> bool {
-    let mut inicio = [0_u8; 1024];
-    let tamanho = tcp.peek(&mut inicio).unwrap();
-    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
-    if !linha.starts_with("GET ") || !linha.contains("acao=documento_visualizar") {
+    if !eh_get_de_conteudo(tcp) {
         return false;
     }
     assert_eq!(
@@ -353,6 +229,42 @@ fn revogar_antes_de_servir_corpo(
         Aplicacao::Aplicada
     );
     true
+}
+
+/// Confere diretamente no SQLite o efeito da transição local ensaiada.
+fn conferir_estado_apos_cli(
+    modo: EstadoExtra,
+    transicao: bool,
+    db: &Connection,
+    instalacao: &Instalacao,
+) {
+    if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
+        assert!(transicao, "CLI não tentou seguir a URL antes oferecida");
+        assert!(matches!(
+            cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7"),
+            Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
+        ));
+    }
+    if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
+        assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
+        let observado: String = db
+            .query_row(
+                "SELECT numero FROM documento_simulado
+             WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
+                rusqlite::params![instalacao.url_base(), CENARIO],
+                |linha| linha.get(0),
+            )
+            .unwrap();
+        assert_eq!(observado, DOC_B, "a transição persiste no SQLite");
+        assert_eq!(
+            documento_versoes::ler(db, instalacao, CENARIO, "43")
+                .unwrap()
+                .unwrap()
+                .numero,
+            DOC_B,
+            "o segundo documento não foi alterado"
+        );
+    }
 }
 
 fn executar_com_estado(
@@ -380,20 +292,22 @@ fn executar_com_estado(
     let parar_servidor = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
         let (db, instalacao) = estado(com_segundo, modo);
-        let mut revogado = false;
+        let mut transicao = false;
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
-            if matches!(modo, EstadoExtra::RevogadoAoVisualizar) && !revogado {
-                revogado = revogar_antes_de_servir_corpo(&tcp, &db, &instalacao);
+            if !transicao {
+                transicao = match modo {
+                    EstadoExtra::RevogadoAoVisualizar => {
+                        revogar_antes_de_servir_corpo(&tcp, &db, &instalacao)
+                    }
+                    EstadoExtra::TituloTrocadoAoVisualizar => {
+                        trocar_titulo_antes_de_servir_corpo(&tcp, &db, &instalacao)
+                    }
+                    _ => false,
+                };
             }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
-        if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
-            assert!(revogado, "CLI não tentou seguir a URL antes oferecida");
-            assert!(matches!(
-                cancelamento_documento::consultar(&db, &instalacao, CENARIO, "42", "7"),
-                Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
-            ));
-        }
+        conferir_estado_apos_cli(modo, transicao, &db, &instalacao);
     });
     let pedidos = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos_proxy = Arc::clone(&pedidos);

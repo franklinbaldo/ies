@@ -349,6 +349,9 @@ fn bdd_60_01_cli_leitura_com_processo_preserva_identidade_e_corpo() {
 #[path = "aies_documento_interprocessos_cli/fotos.rs"]
 mod fotos;
 
+#[path = "aies_documento_interprocessos_cli/titulo_trocado.rs"]
+mod titulo_trocado;
+
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
