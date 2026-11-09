@@ -218,7 +218,6 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     Ok(())
 }
 
-
 fn publicar_exclusao(
     cli: &Cli,
     nup: &NumeroProcesso,
