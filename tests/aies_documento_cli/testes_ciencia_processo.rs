@@ -45,9 +45,12 @@ fn encaminhar_com_trilha(
         .split_whitespace()
         .nth(1)
         .unwrap()
+        .split_once('?')
+        .map(|(_, consulta)| consulta)
+        .unwrap_or_default()
         .split('&')
         .find_map(|parte| parte.strip_prefix("acao="))
-        .map_or("sem_acao", |parte| parte.split(['&', '#']).next().unwrap());
+        .unwrap_or("sem_acao");
     trilha.lock().unwrap().push(format!("{metodo} {acao}"));
     let tamanho = texto
         .lines()
