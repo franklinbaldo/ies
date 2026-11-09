@@ -198,7 +198,10 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
                 html_corpo: if n == ultima {
                     format!(
                         "<p>{}</p>",
-                        texto.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+                        texto
+                            .replace('&', "&amp;")
+                            .replace('<', "&lt;")
+                            .replace('>', "&gt;")
                     )
                 } else {
                     String::new()
@@ -263,8 +266,16 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
                 };
                 let projetada = simulado.selecionar(versao).unwrap();
                 assert_eq!(
-                    (&projetada.usuario, &projetada.unidade, &projetada.modificacao),
-                    (&observada.usuario, &observada.unidade, &observada.modificacao)
+                    (
+                        &projetada.usuario,
+                        &projetada.unidade,
+                        &projetada.modificacao
+                    ),
+                    (
+                        &observada.usuario,
+                        &observada.unidade,
+                        &observada.modificacao
+                    )
                 );
             }
         }
