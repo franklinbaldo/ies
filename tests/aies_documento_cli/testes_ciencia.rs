@@ -15,7 +15,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
         "ciente",
         DOC,
     ];
-    let previa = executar(&pasta, &args, 3);
+    let previa = executar(&pasta, &args, 2);
     assert_eq!(
         previa.status.code(),
         Some(0),
@@ -26,7 +26,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let antes = json(&previa);
     assert_eq!(antes["confirmado"], false);
     assert_eq!(antes["verificado"], false);
-    assert_eq!(antes["requisicoes"], 3);
+    assert_eq!(antes["requisicoes"], 2);
 
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let qtde: i64 = banco.query_row("SELECT COUNT(*) FROM ciencia_documental WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
