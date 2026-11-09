@@ -131,6 +131,44 @@ fn aceitar_ate(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     }
 }
 
+
+fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
+    // Hipotese minima no SQLite: identidade publicada, mas sem link de conteudo.
+    use iesei::documentos_simulados::{self as internos, Processo, Tipo};
+    internos::registrar_processo(
+        banco,
+        origem,
+        CENARIO,
+        &Processo {
+            id: "7".into(),
+            nup: NUP_A.into(),
+            unidade: "TESTE".into(),
+        },
+    )
+    .unwrap();
+    internos::registrar_tipo(
+        banco,
+        origem,
+        CENARIO,
+        "7",
+        &Tipo {
+            id: "291".into(),
+            nome: "Despacho".into(),
+        },
+    )
+    .unwrap();
+    let sem_conteudo = internos::criar(
+        banco,
+        origem,
+        CENARIO,
+        "7",
+        "291",
+        "Metadados sem conteudo",
+    )
+    .unwrap();
+    assert_eq!(sem_conteudo.numero_sei, "1000001");
+}
+
 fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -204,42 +242,8 @@ fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
         .unwrap();
     }
 
-    // Documento criado no mesmo processo, mas com src ausente:
-    // sua identidade existe na árvore; o conteúdo nunca foi publicado.
     if sem_src {
-        use iesei::documentos_simulados::{self as internos, Processo, Tipo};
-        internos::registrar_processo(
-            &banco,
-            &origem,
-            CENARIO,
-            &Processo {
-                id: "7".into(),
-                nup: NUP_A.into(),
-                unidade: "TESTE".into(),
-            },
-        )
-        .unwrap();
-        internos::registrar_tipo(
-            &banco,
-            &origem,
-            CENARIO,
-            "7",
-            &Tipo {
-                id: "291".into(),
-                nome: "Despacho".into(),
-            },
-        )
-        .unwrap();
-        let sem_conteudo = internos::criar(
-            &banco,
-            &origem,
-            CENARIO,
-            "7",
-            "291",
-            "Metadados sem conteudo",
-        )
-        .unwrap();
-        assert_eq!(sem_conteudo.numero_sei, "1000001");
+        semear_documento_sem_src(&banco, &origem);
     }
     (banco, origem)
 }
