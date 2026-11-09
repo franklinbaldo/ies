@@ -85,5 +85,4 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
         .map(Result::unwrap)
         .collect();
     assert_eq!(registros_depois, vec![atividade.to_owned()]);
-
 }
