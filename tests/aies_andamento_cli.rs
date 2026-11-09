@@ -218,11 +218,16 @@ fn executar(confirmar: bool) {
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
+    let pedidos = trilha.lock().unwrap();
+    verificar(confirmar, &saida, &persistido, &pedidos);
+}
+
+fn verificar(confirmar: bool, saida: &std::process::Output, persistido: &Historico, pedidos: &[String]) {
     assert_eq!(persistido.total_declarado, if confirmar { 2 } else { 1 });
     assert_eq!(persistido.linhas.len(), if confirmar { 2 } else { 1 });
     assert_eq!(persistido.linhas[0].descricao, if confirmar { TEXTO } else { "Andamento anterior" });
     assert_eq!(persistido.linhas.last().unwrap().descricao, "Andamento anterior");
-    let pedidos = trilha.lock().unwrap();
+    let pedidos = pedidos;
     assert_eq!(
         saida.status.code(),
         Some(0),
