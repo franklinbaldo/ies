@@ -82,7 +82,6 @@ pub(crate) fn responder(
     Resposta::html(html)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,7 +243,9 @@ mod tests {
     fn nao_inventa_atribuicao_se_ausente_observacao_ou_unidade() {
         let (banco, origem) = fixture();
         banco
-            .execute_batch("DELETE FROM processo_atribuicao_opcao; DELETE FROM processo_atribuicao_observada;")
+            .execute_batch(
+                "DELETE FROM processo_atribuicao_opcao; DELETE FROM processo_atribuicao_observada;",
+            )
             .unwrap();
         assert_eq!(
             post(&banco, &origem, ATRIBUIR).estado,
