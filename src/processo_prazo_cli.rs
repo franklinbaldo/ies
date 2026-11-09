@@ -107,6 +107,33 @@ fn recusar(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     saida_erro::erro_fonte_http(json_mode, subcodigo, mensagem, None)
 }
 
+/// Preserva as causas do GET de formulário sem duplicar tratamento na CLI.
+fn consultar_formulario<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    cookie: &str,
+    link: &str,
+    json_mode: bool,
+) -> Result<(String, String), ExitCode> {
+    obter_tela(rede, cookie, link).map_err(|falha| match falha {
+        FalhaDaTela::Transporte(erro) => saida_erro::erro_fonte_http(
+            json_mode,
+            erro.subcodigo(),
+            erro.mensagem(),
+            erro.status_http(),
+        ),
+        FalhaDaTela::Redirecionada => recusar(
+            json_mode,
+            "tela_de_prazo_redirecionada",
+            "a tela de prazo redirecionou inesperadamente",
+        ),
+        FalhaDaTela::SessaoEncerrada => recusar(
+            json_mode,
+            "sessao_encerrada_ao_ler_prazo",
+            "a tela de prazo devolveu o login",
+        ),
+    })
+}
+
 fn previsualizar(
     cli: &Cli,
     nup: &NumeroProcesso,
@@ -157,30 +184,9 @@ fn previsualizar(
             );
         }
     };
-    let (html, mime) = match obter_tela(&mut rede, &cookie, &link) {
+    let (html, mime) = match consultar_formulario(&mut rede, &cookie, &link, cli.json) {
         Ok(tela) => tela,
-        Err(FalhaDaTela::Transporte(erro)) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
-        }
-        Err(FalhaDaTela::Redirecionada) => {
-            return recusar(
-                cli.json,
-                "tela_de_prazo_redirecionada",
-                "a tela de prazo redirecionou inesperadamente",
-            );
-        }
-        Err(FalhaDaTela::SessaoEncerrada) => {
-            return recusar(
-                cli.json,
-                "sessao_encerrada_ao_ler_prazo",
-                "a tela de prazo devolveu o login",
-            );
-        }
+        Err(erro) => return erro,
     };
     let tela = match ler_tela(&html, &aberto.arvore.processo.id) {
         Ok(tela) => tela,
