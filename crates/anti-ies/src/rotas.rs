@@ -142,6 +142,11 @@ pub(crate) fn responder(
         Some("protocolo_pesquisa_rapida") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("bloco_assinatura_listar" | "bloco_interno_listar" | "bloco_reuniao_listar")
+            if eh_controlador_sei(alvo) =>
+        {
+            crate::blocos::responder(metodo, alvo, banco, instalacao, cenario)
+        }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
         }

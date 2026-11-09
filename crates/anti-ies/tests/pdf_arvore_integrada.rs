@@ -114,7 +114,7 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
     assert!(depois.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(depois.contains("Despacho"));
     assert!(depois.contains("Nos[2] = new infraArvoreNo(\"DOCUMENTO\""));
-    assert!(depois.contains("Anexo 050000001"));
+    assert!(depois.contains("Anexo (050000001)"));
     // A árvore do PDF usa o mesmo token emulado da barra e do Controle R.
     assert!(depois.contains(&format!("infra_hash={}", "4".repeat(64))));
 }
@@ -164,7 +164,7 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
     );
     assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(resposta.contains("Nos[1] = new infraArvoreNo(\"DOCUMENTO\""));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     servidor.join().unwrap();
 }
 
@@ -248,7 +248,7 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
     assert!(resposta.contains("Oficio 2000003"));
     assert!(resposta.contains("documento_versao_listar"));
     assert!(resposta.contains("Despacho 1000001"));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     assert_eq!(
         resposta.matches("new infraArvoreNo(\"DOCUMENTO\"").count(),
         3
@@ -316,7 +316,7 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
     );
     let resposta = pedir(endereco, &alvo);
     assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"));
-    assert!(resposta.contains("Anexo 050000001"));
+    assert!(resposta.contains("Anexo (050000001)"));
     assert!(resposta.contains("Nos[0].acoes = '"));
     assert!(resposta.contains("procedimento_enviar"));
     assert!(resposta.contains("anotacao_registrar"));
