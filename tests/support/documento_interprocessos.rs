@@ -182,6 +182,12 @@ pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
     executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
 }
 
+/// O processo existe e o documento continua legível, mas a unidade
+/// ativa não está no conjunto de unidades em que o processo está aberto.
+pub(super) fn executar_sem_lista_na_unidade(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SemListaNaUnidade, args)
+}
+
 /// A lista já ofereceu a versão 1, mas o acesso muda antes do GET do corpo.
 pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::VersaoRevogadaAoVisualizar, args)
