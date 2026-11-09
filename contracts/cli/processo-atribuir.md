@@ -93,7 +93,10 @@ treinamento UnB `https://sei.treinamento.unb.br/sei`**, cuja resposta
 recebe `escrita_de_atribuicao_ainda_nao_verificada` **antes de qualquer
 requisição de rede**. A origem precisa ser idêntica, não apenas um host
 parecido. A CLI chama o mesmo fluxo tipado de POST único e verificação por
-nova leitura. O ensaio de 09/11/2026 em treinamento resultou em **efeito incerto (saída 3)** após um único POST. A releitura observou o login solicitado, mas não demonstrou que o POST provocou a alteração. O PASS sintético não comprova causalidade no SEI.
+nova leitura. O ensaio de 09/11/2026 em treinamento resultou em
+**efeito incerto (saída 3)** após um único POST. A releitura observou o
+login solicitado, mas não demonstrou que o POST provocou a alteração.
+O PASS sintético não comprova causalidade no SEI.
 
 O fluxo de escrita injetável utiliza o formulário servido como fonte do
 payload, exatamente um POST sem retry e uma árvore nova para verificação.
@@ -120,6 +123,7 @@ RED da regressão de `principal` sem identidade: [CI 42204843683](https://github
 [Decisão](../../docs/decisoes/processo-atribuir.md),
 [casos no Todos](https://github.com/franklinbaldo/todos/blob/323eb01/tests/test_ciclo_atribuir_010.py),
 [cassette UnB](../../cassettes/unb/processo-atribuir-unb--bf0d4327d7d9.md).
+
 ## Atualização de evidência externa — UnB, 09/11/2026
 
 O [ensaio da CLI real](../../docs/validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md), incorporado na [PR #605](https://github.com/franklinbaldo/ies/pull/605), executou login (6 requisições), descoberta de processo elegível, uma prévia independente (3 requisições) e uma segunda prévia antes da confirmação (3 requisições). Ambas as prévias passaram sem POST. A confirmação realizou **um único POST**, terminou com **saída 3** após 5 requisições e publicou `atribuicao_relida=aluno2`. A operação inversa não foi chamada.
