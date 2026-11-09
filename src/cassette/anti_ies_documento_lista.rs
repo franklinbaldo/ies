@@ -1,9 +1,7 @@
 //! BDD-60-05: a oferta da lista de versões antes/depois da conclusão
 //! é confrontada com a barra original UnB, não apenas com a CLI sintética.
 //! A relação entre abertura por unidade e oferta é hipótese do anti-IES.
-use crate::arvore_processo::{
-    ler_arvore, ler_barra_do_documento, nup_declarado_na_arvore,
-};
+use crate::arvore_processo::{ler_arvore, ler_barra_do_documento, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use iesei::banco_cassettes::{self, ControleResumido, Linha, iniciar};
@@ -116,7 +114,9 @@ fn servir_barra(
                 .is_empty()
         );
         assert_eq!(
-            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+            banco
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
+                    .get::<_, i64>(0))
                 .unwrap(),
             1
         );
@@ -189,7 +189,10 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             modificacao: "09/11/2026".to_owned(),
             html_corpo: format!(
                 "<p>{}</p>",
-                texto.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+                texto
+                    .replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
             ),
         }],
     };
@@ -210,7 +213,11 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         let arvore = ler_arvore(html, &antes.2, &antes.1).unwrap();
         assert!(arvore.documentos.iter().any(|doc| doc.id == id));
         let barra = ler_barra_do_documento(&instalacao, html, &id, &antes.1).unwrap();
-        assert_eq!(barra.versoes.is_some(), esperado, "barra original versus HTTP simulado");
+        assert_eq!(
+            barra.versoes.is_some(),
+            esperado,
+            "barra original versus HTTP simulado"
+        );
     }
     assert!(pedir(endereco, "POST", &alvo).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
