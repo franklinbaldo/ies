@@ -3,7 +3,7 @@ import json
 import unittest
 
 from ensaio_processo_atribuir import ensaiar
-from scripts.test_ensaio_processo_atribuir import BaseEnsaio, NUP, ORIGEM, USUARIO, roteiro
+from test_ensaio_processo_atribuir import BaseEnsaio, NUP, ORIGEM, USUARIO, roteiro
 
 
 class EnsaioPersistencia(BaseEnsaio, unittest.TestCase):
