@@ -456,3 +456,6 @@ mod positivos;
 
 #[path = "aies_documento_cli/testes_cancelamento.rs"]
 mod testes_cancelamento;
+
+#[path = "aies_documento_cli/testes_ciencia.rs"]
+mod testes_ciencia;
