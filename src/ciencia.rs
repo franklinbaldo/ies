@@ -10,6 +10,7 @@
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod documento;
 mod fluxo;
+mod lista_autoria;
 pub(crate) use documento::{
     CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
 };
