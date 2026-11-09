@@ -316,7 +316,7 @@ fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
             |linha| linha.get(0),
         )
         .unwrap();
-    assert!(!atividade.is_empty());
+    assert_eq!(atividade, "42457", "a escrita chegou ao SQLite");
     drop(banco);
 
     // Outra invocação (não um retry automático) encontra o botão ausente,
