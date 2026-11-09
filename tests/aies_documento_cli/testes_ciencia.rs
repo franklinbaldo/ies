@@ -273,12 +273,13 @@ fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
     // O documento continua gravável; somente a lista relida omite sua atividade.
     let caminho = pasta.0.join("anti-ies.sqlite3");
     let banco = Connection::open(&caminho).unwrap();
-    banco.execute(
-        "INSERT INTO ciencia_documental_lista_invisivel
+    banco
+        .execute(
+            "INSERT INTO ciencia_documental_lista_invisivel
          (origem, cenario, id_documento) VALUES (?1, ?2, '42')",
-        rusqlite::params![ORIGEM, CENARIO],
-    )
-    .unwrap();
+            rusqlite::params![ORIGEM, CENARIO],
+        )
+        .unwrap();
     drop(banco);
 
     // O mesmo orçamento de 11 GETs do aceite verificável: o mutador é
@@ -299,7 +300,12 @@ fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
     assert_eq!(saida["codigo"], "efeito_incerto");
     assert_eq!(saida["retentavel"], false);
     assert_eq!(saida["requisicoes"], 11);
-    assert!(saida["erro"].as_str().unwrap().contains("Lista de Ciências"));
+    assert!(
+        saida["erro"]
+            .as_str()
+            .unwrap()
+            .contains("Lista de Ciências")
+    );
 
     let banco = Connection::open(&caminho).unwrap();
     let atividade: String = banco
