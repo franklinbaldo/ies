@@ -114,7 +114,7 @@ pub(crate) fn responder(
             processo_criacao::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
-            processo_atribuicao::responder(metodo, alvo, banco, instalacao, cenario)
+            processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
             processo_relacionar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
