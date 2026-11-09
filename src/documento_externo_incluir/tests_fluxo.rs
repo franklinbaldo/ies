@@ -111,8 +111,15 @@ fn dado_cadastro_minimo_quando_consulto_sei_entao_projeto_campo_visivel_no_resul
     assert_eq!(previa.campos_oferecidos, ["selSerie"]);
 }
 
-#[test]
-fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
+fn confirmar_com_upload_recusado(
+    identidade: &str,
+) -> (
+    Result<
+        super::super::fluxo_confirmar::InclusaoComprovada,
+        super::super::fluxo_confirmar::ErroConfirmacaoExterna,
+    >,
+    Vec<a::Pedido>,
+) {
     // Cenário BDD-332-04 previamente especificado na issue: nunca repetir upload.
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore());
@@ -120,9 +127,9 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
     respostas.push(a::ok(cadastro("1", false)));
     respostas.push(a::ok(cadastro("1", true).replace(
         "infra_hash=FICTICIO",
-        &format!("infra_hash={}", "b".repeat(64)),
+        &format!("infra_hash={}{identidade}", "b".repeat(64)),
     )));
-    let (resultado, pedidos) = a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+    a::rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
         let pdf = PdfLocal {
             nome: "prova.pdf".into(),
             tamanho_bytes: 68,
@@ -142,21 +149,45 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
                 })
             },
         )
-    });
-    assert!(matches!(
-        resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-                super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
+    })
+}
+
+#[test]
+fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
+    for identidade in ["", "&id_procedimento=10"] {
+        let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
+        assert!(matches!(
+            resultado,
+            Err(
+                super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
+                    super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
+                )
             )
-        )
-    ));
-    assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
-    assert!(
-        pedidos
-            .iter()
-            .all(|p| !p.url.contains("documento_upload_anexo"))
-    );
+        ));
+        assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+        assert!(
+            pedidos
+                .iter()
+                .all(|p| !p.url.contains("documento_upload_anexo"))
+        );
+    }
+}
+
+#[test]
+fn destino_de_outro_processo_ou_ambiguo_recusa_antes_do_upload() {
+    for identidade in [
+        "&id_procedimento=99",
+        "&id_procedimento=10&id_procedimento=10",
+    ] {
+        let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
+        assert!(matches!(
+            resultado,
+            Err(
+                super::super::fluxo_confirmar::ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado
+            )
+        ));
+        assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
+    }
 }
 
 #[test]

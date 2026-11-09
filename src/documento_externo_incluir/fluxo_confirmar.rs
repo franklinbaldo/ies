@@ -81,6 +81,7 @@ impl ErroConfirmacaoExterna {
 fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
+    processo: &str,
 ) -> Result<String, ErroConfirmacaoExterna> {
     let erro = || ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado;
     let consulta = relativo.strip_prefix("controlador.php?").ok_or_else(erro)?;
@@ -89,6 +90,7 @@ fn conferir_upload(
     }
     let mut acao = 0;
     let mut hash = 0;
+    let mut processo_informado = false;
     for par in consulta.split('&') {
         let (chave, valor) = par.split_once('=').ok_or_else(erro)?;
         conferir_chave_de_consulta(chave).map_err(|_| erro())?;
@@ -98,7 +100,10 @@ fn conferir_upload(
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hash += 1;
             }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(erro()),
+            "id_procedimento" if valor == processo && !processo_informado => {
+                processo_informado = true;
+            }
+            "acao" | "infra_hash" | "acao_ajax" | "id_procedimento" => return Err(erro()),
             _ => {}
         }
     }
@@ -219,7 +224,11 @@ where
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado)?;
-    let destino = conferir_upload(&instalacao, preparado.cadastro.plano.url_upload())?;
+    let destino = conferir_upload(
+        &instalacao,
+        preparado.cadastro.plano.url_upload(),
+        &preparado.foto_antes.id,
+    )?;
     let tela = TelaServida {
         url: &preparado.url_cadastro,
         html: &preparado.html_cadastro,

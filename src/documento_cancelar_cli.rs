@@ -63,7 +63,7 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
                         eprintln!("IES: falha ao emitir JSON: {erro}");
                         return std::process::ExitCode::from(1);
                     }
-                } else if feito.alterado {
+                } else if feito.resultado.cancelado() {
                     println!(
                         "Documento {} cancelado e conferido pela árvore. Requisições: {}.",
                         feito.numero, feito.requisicoes
@@ -166,11 +166,11 @@ struct ResultadoCancelamento<'a> {
 
 fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'_> {
     ResultadoCancelamento {
-        alterado: feito.alterado,
-        confirmado: feito.confirmado,
+        alterado: feito.resultado.cancelado(),
+        confirmado: feito.resultado.cancelado(),
         falha_do_envio: feito
-            .reconciliado_por
-            .as_ref()
+            .resultado
+            .falha_do_envio()
             .map(|f| crate::saida_erro::FalhaPublica::nova(f.subcodigo(), f.status_http())),
         id_documento: &feito.id_documento,
         motivo: &feito.motivo,
@@ -180,7 +180,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
             id: &feito.processo.id,
             nup: &feito.processo.nup,
         },
-        reconciliado_por_leitura: feito.alterado,
+        reconciliado_por_leitura: feito.resultado.cancelado(),
         requisicoes: feito.requisicoes,
         unidade: feito.unidade.as_deref(),
     }
@@ -194,11 +194,11 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
         "processo":{"nup":feito.processo.nup,"id":feito.processo.id},
         "unidade":feito.unidade,
         "motivo":feito.motivo,
-        "origem":"web", "confirmado":feito.confirmado,"alterado":feito.alterado,
+        "origem":"web", "confirmado":feito.resultado.cancelado(),"alterado":feito.resultado.cancelado(),
         "requisicoes":feito.requisicoes,
-        "reconciliado_por_leitura":feito.alterado
+        "reconciliado_por_leitura":feito.resultado.cancelado()
     });
-    if let (Some(f), Some(obj)) = (&feito.reconciliado_por, valor.as_object_mut()) {
+    if let (Some(f), Some(obj)) = (feito.resultado.falha_do_envio(), valor.as_object_mut()) {
         obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
     }
     valor
