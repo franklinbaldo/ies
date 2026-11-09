@@ -316,6 +316,36 @@ fn bdd_272_02_cli_real_confirma_data_por_post_unico_e_releitura() {
 }
 
 #[test]
+fn bdd_272_02_cli_real_confirma_dias_por_post_unico_e_releitura() {
+    let (saida, pedidos, _estado_final) =
+        executar_com_argumentos("sem", &["--dias", "15", "--confirmar"]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["confirmado"], true);
+    assert_eq!(json["solicitado"]["dias"], 15);
+    assert_eq!(json["atual"]["tipo"], "dias");
+    assert_eq!(json["atual"]["dias"], 15);
+    let escrita = pedidos
+        .iter()
+        .position(|p| p == "POST controle_prazo_definir")
+        .unwrap();
+    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
+    assert!(
+        pedidos[escrita + 1..]
+            .iter()
+            .any(|p| p == "GET controle_prazo_definir"),
+        "confirmar dias exige leitura nova: {pedidos:?}"
+    );
+    assert_eq!(json["requisicoes"], pedidos.len());
+}
+
+#[test]
 fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
     let (saida, pedidos, estado_final) =
         executar_com_resposta("sem", &["--ate", "20/11/2026", "--confirmar"], true);
