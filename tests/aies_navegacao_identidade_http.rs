@@ -160,7 +160,6 @@ fn verificar_selecao_mista_de_protocolo(endereco: std::net::SocketAddr) {
         "{concordante}"
     );
     assert!(concordante.contains("050000001"));
-
 }
 
 #[test]
