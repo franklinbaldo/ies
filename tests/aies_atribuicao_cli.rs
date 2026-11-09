@@ -178,8 +178,8 @@ fn responder_local(
     if resposta_post == RespostaPost::Recusa403
         && evento == "POST procedimento_atribuicao_cadastrar"
     {
-        resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-            .to_vec();
+        resposta =
+            b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
     }
     resposta
 }
@@ -192,7 +192,13 @@ fn executar_cenario(
     escolha_previa: Option<&str>,
     confirmar: bool,
 ) -> (Output, Option<Output>, Vec<String>, usize, String) {
-    executar_cenario_com_resposta(json, remover, escolha_previa, confirmar, RespostaPost::Original)
+    executar_cenario_com_resposta(
+        json,
+        remover,
+        escolha_previa,
+        confirmar,
+        RespostaPost::Original,
+    )
 }
 
 fn executar_cenario_com_resposta(
