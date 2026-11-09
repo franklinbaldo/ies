@@ -361,6 +361,9 @@ mod versao_revogada;
 #[path = "aies_documento_interprocessos_cli/lista_fechada.rs"]
 mod lista_fechada;
 
+#[path = "aies_documento_interprocessos_cli/cancelado_antes_da_lista.rs"]
+mod cancelado_antes_da_lista;
+
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
