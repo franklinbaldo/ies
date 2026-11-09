@@ -280,16 +280,20 @@ fn executar_com_estado(
         }
         if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
             assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
-            let observado: String = db.query_row(
-                "SELECT numero FROM documento_simulado
+            let observado: String = db
+                .query_row(
+                    "SELECT numero FROM documento_simulado
                  WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
-                rusqlite::params![instalacao.url_base(), CENARIO],
-                |linha| linha.get(0),
-            ).unwrap();
+                    rusqlite::params![instalacao.url_base(), CENARIO],
+                    |linha| linha.get(0),
+                )
+                .unwrap();
             assert_eq!(observado, DOC_B, "a transição persiste no SQLite");
             assert_eq!(
                 documento_versoes::ler(&db, &instalacao, CENARIO, "43")
-                    .unwrap().unwrap().numero,
+                    .unwrap()
+                    .unwrap()
+                    .numero,
                 DOC_B,
                 "o segundo documento não foi alterado"
             );
