@@ -1,6 +1,7 @@
 //! #60 BDD-60-06: lote de documentos de processos distintos pelo binário real.
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 use anti_ies::atender_http;
+use iesei::acesso_sessao;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::cancelamento_documento::{self, Aplicacao};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
@@ -177,6 +178,11 @@ pub(super) fn executar_titulo_trocado(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::TituloTrocadoAoVisualizar, args)
 }
 
+/// A árvore era legível, mas a sessão é revogada antes do GET documental.
+pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
+}
+
 /// Espia apenas a primeira linha sem consumir a requisição HTTP original.
 fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
     let mut inicio = [0_u8; 1024];
@@ -231,6 +237,19 @@ fn revogar_antes_de_servir_corpo(
     true
 }
 
+/// Revogação global da sessão depois de publicada a árvore, sem alterar DOC.
+fn revogar_sessao_antes_de_servir_corpo(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    if !eh_get_de_conteudo(tcp) {
+        return false;
+    }
+    acesso_sessao::bloquear(banco, instalacao, CENARIO).unwrap();
+    true
+}
+
 /// Confere diretamente no SQLite o efeito da transição local ensaiada.
 fn conferir_estado_apos_cli(
     modo: EstadoExtra,
@@ -244,6 +263,18 @@ fn conferir_estado_apos_cli(
             cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7"),
             Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
         ));
+    }
+    if matches!(modo, EstadoExtra::SessaoRevogadaAoVisualizar) {
+        assert!(transicao, "CLI não tentou consultar o corpo depois da árvore");
+        assert_eq!(
+            acesso_sessao::consultar(db, instalacao, CENARIO).unwrap(),
+            acesso_sessao::AcessoSessao::Recusado
+        );
+        assert_eq!(
+            cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7").unwrap(),
+            Some(cancelamento_documento::Situacao::Disponivel),
+            "negação global de sessão não cancela o documento"
+        );
     }
     if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
         assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
@@ -301,6 +332,9 @@ fn executar_com_estado(
                     }
                     EstadoExtra::TituloTrocadoAoVisualizar => {
                         trocar_titulo_antes_de_servir_corpo(&tcp, &db, &instalacao)
+                    }
+                    EstadoExtra::SessaoRevogadaAoVisualizar => {
+                        revogar_sessao_antes_de_servir_corpo(&tcp, &db, &instalacao)
                     }
                     _ => false,
                 };
