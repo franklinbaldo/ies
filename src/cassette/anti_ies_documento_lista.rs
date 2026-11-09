@@ -5,7 +5,7 @@ use crate::arvore_processo::{ler_arvore, ler_barra_do_documento, nup_declarado_n
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::documento::NumeroDocumento;
-use crate::documento_versoes::{VersaoDocumento, interpretar_historico};
+use crate::documento_versoes::{HistoricoDocumento, VersaoDocumento, interpretar_historico};
 use iesei::banco_cassettes::{self, ControleResumido, Linha, iniciar};
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -127,6 +127,74 @@ fn servir_barra(
     (endereco, tarefa)
 }
 
+fn revisoes_observadas(historico: &HistoricoDocumento, texto: &str) -> Vec<Revisao> {
+    let ultima = historico.atual().unwrap().numero();
+    let revisoes: Vec<_> = (1..=ultima)
+        .filter_map(|n| {
+            let entrada = historico.selecionar(VersaoDocumento::nova(n).unwrap()).ok()?;
+            Some(Revisao {
+                versao: NonZeroU32::new(n).unwrap(),
+                usuario: entrada.usuario.clone(),
+                unidade: entrada.unidade.clone(),
+                modificacao: entrada.modificacao.clone(),
+                html_corpo: if n == ultima {
+                    format!(
+                        "<p>{}</p>",
+                        texto
+                            .replace('&', "&amp;")
+                            .replace('<', "&lt;")
+                            .replace('>', "&gt;")
+                    )
+                } else {
+                    // Campo obrigatório no modelo, nunca um corpo histórico observado.
+                    "<p></p>".to_owned()
+                },
+            })
+        })
+        .collect();
+    assert_eq!(revisoes.len(), historico.len());
+    revisoes
+}
+
+// O GET original e a resposta do anti-IES passam pelo mesmo leitor do IES.
+fn confrontar_historico_http(
+    endereco: SocketAddr,
+    id: &str,
+    processo: &str,
+    numero: &NumeroDocumento,
+    original: &HistoricoDocumento,
+) {
+    let alvo = format!(
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}"
+    );
+    let resposta = pedir(endereco, "GET", &alvo);
+    let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
+    assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
+    let simulado = interpretar_historico(html, numero, id, Some(original.len()))
+        .expect("leitor real do IES no histórico HTTP simulado");
+    assert_eq!(simulado.atual(), original.atual());
+    for n in 1..=original.atual().unwrap().numero() {
+        let versao = VersaoDocumento::nova(n).unwrap();
+        let Ok(observada) = original.selecionar(versao) else {
+            assert!(simulado.selecionar(versao).is_err());
+            continue;
+        };
+        let projetada = simulado.selecionar(versao).unwrap();
+        assert_eq!(
+            (
+                &projetada.usuario,
+                &projetada.unidade,
+                &projetada.modificacao
+            ),
+            (
+                &observada.usuario,
+                &observada.unidade,
+                &observada.modificacao
+            )
+        );
+    }
+}
+
 #[test]
 #[ignore = "ZIP UnB verificado no IES_ACERVO_CACHE; confronto offline no CI"]
 fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
@@ -184,34 +252,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
     // apresenta neste confronto, que examina somente a lista de metadados.
     let numero = NumeroDocumento::novo(&identidade.numero).unwrap();
     let original_historico = interpretar_historico(&html_historico, &numero, &id, None).unwrap();
-    let ultima = original_historico.atual().unwrap().numero();
-    let revisoes: Vec<_> = (1..=ultima)
-        .filter_map(|n| {
-            let entrada = original_historico
-                .selecionar(VersaoDocumento::nova(n).unwrap())
-                .ok()?;
-            Some(Revisao {
-                versao: NonZeroU32::new(n).unwrap(),
-                usuario: entrada.usuario.clone(),
-                unidade: entrada.unidade.clone(),
-                modificacao: entrada.modificacao.clone(),
-                html_corpo: if n == ultima {
-                    format!(
-                        "<p>{}</p>",
-                        texto
-                            .replace('&', "&amp;")
-                            .replace('<', "&lt;")
-                            .replace('>', "&gt;")
-                    )
-                } else {
-                    // Campo obrigatório no modelo: placeholder estrutural,
-                    // não o corpo histórico que a cassette não registrou.
-                    "<p></p>".to_owned()
-                },
-            })
-        })
-        .collect();
-    assert_eq!(revisoes.len(), original_historico.len());
+    let revisoes = revisoes_observadas(&original_historico, &texto);
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -247,39 +288,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             "barra original versus HTTP simulado"
         );
         if esperado {
-            // Segundo GET da mesma sessão: confronto INDEPENDENTE dos
-            // metadados lidos na cassette e dos renderizados do SQLite.
-            let alvo_historico = format!(
-                "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={}",
-                antes.1
-            );
-            let http_historico = pedir(endereco, "GET", &alvo_historico);
-            let (cabecalho, html) = http_historico.split_once("\r\n\r\n").unwrap();
-            assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-            let simulado = interpretar_historico(html, &numero, &id, Some(revisoes_esperadas))
-                .expect("leitor real do IES no histórico HTTP simulado");
-            assert_eq!(simulado.len(), original_historico.len());
-            assert_eq!(simulado.atual(), original_historico.atual());
-            for n in 1..=ultima {
-                let versao = VersaoDocumento::nova(n).unwrap();
-                let Ok(observada) = original_historico.selecionar(versao) else {
-                    assert!(simulado.selecionar(versao).is_err());
-                    continue;
-                };
-                let projetada = simulado.selecionar(versao).unwrap();
-                assert_eq!(
-                    (
-                        &projetada.usuario,
-                        &projetada.unidade,
-                        &projetada.modificacao
-                    ),
-                    (
-                        &observada.usuario,
-                        &observada.unidade,
-                        &observada.modificacao
-                    )
-                );
-            }
+            confrontar_historico_http(endereco, &id, &antes.1, &numero, &original_historico);
         }
     }
     assert!(pedir(endereco, "POST", &alvo).starts_with("HTTP/1.1 405"));
