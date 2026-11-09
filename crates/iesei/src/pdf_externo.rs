@@ -170,6 +170,18 @@ pub fn receber(
     nome: &str,
     tamanho: u64,
 ) -> Result<Temporario, Falha> {
+    inserir_upload(banco, origem, cenario, id_procedimento, nome, tamanho, None)
+}
+
+fn inserir_upload(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+    nome: &str,
+    tamanho: u64,
+    conteudo: Option<&[u8]>,
+) -> Result<Temporario, Falha> {
     if !texto_valido(nome) || tamanho == 0 {
         return Err(Falha::EntradaInvalida);
     }
@@ -184,14 +196,15 @@ pub fn receber(
         return Err(Falha::LimiteExcedido);
     }
     banco.execute(
-        "INSERT INTO externo_upload (origem, cenario, id_procedimento, nome, tamanho)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO externo_upload (origem, cenario, id_procedimento, nome, tamanho, conteudo)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             origem.url_base(),
             cenario,
             id_procedimento,
             nome,
-            numero(tamanho)?
+            numero(tamanho)?,
+            conteudo
         ],
     )?;
     Ok(Temporario {
@@ -213,12 +226,15 @@ pub fn receber_conteudo(
     bytes: &[u8],
 ) -> Result<Temporario, Falha> {
     let tamanho = u64::try_from(bytes.len()).map_err(|_| Falha::EntradaInvalida)?;
-    let temporario = receber(banco, origem, cenario, id_procedimento, nome, tamanho)?;
-    banco.execute(
-        "UPDATE externo_upload SET conteudo=?1 WHERE id=?2",
-        params![bytes, temporario.id],
-    )?;
-    Ok(temporario)
+    inserir_upload(
+        banco,
+        origem,
+        cenario,
+        id_procedimento,
+        nome,
+        tamanho,
+        Some(bytes),
+    )
 }
 
 /// Consulta o original pelo `id_anexo` publicado na árvore de documentos.

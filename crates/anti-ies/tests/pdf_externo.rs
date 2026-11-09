@@ -348,3 +348,25 @@ fn bdd_332_03_arvore_compartilhada_mostra_documentos_interno_e_externo() {
     assert!(arvore.contains("anexo.pdf"));
     servidor.join().unwrap();
 }
+
+#[test]
+fn falha_ao_persistir_os_bytes_nao_deixa_upload_parcial() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    semear(&banco);
+    // Injeta uma falha de persistência no segundo BLOB, em INSERT ou UPDATE.
+    banco
+        .execute_batch("CREATE UNIQUE INDEX falha_no_blob ON externo_upload(conteudo)")
+        .unwrap();
+    let origem = origem();
+    let bytes = b"%PDF-1.7";
+    modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "primeiro.pdf", bytes).unwrap();
+    assert!(matches!(
+        modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "segundo.pdf", bytes),
+        Err(modelo::Falha::Sqlite(_))
+    ));
+    let uploads: i64 = banco
+        .query_row("SELECT count(*) FROM externo_upload", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(uploads, 1);
+}
