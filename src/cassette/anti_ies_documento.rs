@@ -190,6 +190,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
+    let quantidade_versoes = versoes.len();
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
@@ -203,7 +204,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
             banco
                 .query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
                 .unwrap() as usize,
-            versoes.len(),
+            quantidade_versoes,
             "leitura de histórico e recusas preservam o SQLite"
         );
     });
