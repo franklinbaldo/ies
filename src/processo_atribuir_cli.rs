@@ -1,5 +1,5 @@
-//! Prévia Web de atribuição por login exato; escrita bloqueada até a
-//! sequência POST único e releitura estar coberta por teste de transporte.
+//! Prévia Web de atribuição por login exato; confirmação pública fechada
+//! até a validação em treinamento, com recusa que orienta a prévia segura.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
@@ -30,10 +30,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         Ok(nup) => {
             if *confirmar {
                 // Segurança: a escrita incompleta é recusada antes de abrir sessão ou rede.
-                falhar(
-                    cli.json,
-                    ErroProcessoAtribuir::EscritaAindaNaoVerificada.subcodigo(),
-                )
+                publicar_falha(cli.json, &ErroProcessoAtribuir::EscritaAindaNaoVerificada)
             } else {
                 com_sessao(cli, |sessao, indice| {
                     let pedido = PedidoDaAtribuicao {
@@ -51,23 +48,6 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         }
         Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
     })
-}
-
-/// A trava de escrita ainda é recusada sem sessão, preservando o contrato.
-fn falhar(json_mode: bool, subcodigo: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "atribuicao_recusada",
-                "subcodigo": subcodigo,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: atribuição recusada [{subcodigo}]");
-    }
-    ExitCode::from(1)
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
@@ -141,22 +121,43 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
     })
 }
 
+/// O texto depende do mesmo estado tipado que os dois campos JSON.
+/// Uma alteração já comprovada não pode ser apresentada como mera prévia.
+pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
+    let titulo = match (feito.estado, feito.usuario_pedido.as_ref()) {
+        (EstadoDaAtribuicao::Previa, _) => "Prévia",
+        (EstadoDaAtribuicao::AlteracaoConfirmada, Some(_)) => "Atribuição confirmada",
+        (EstadoDaAtribuicao::AlteracaoConfirmada, None) => "Remoção confirmada",
+    };
+    let mut linhas = vec![format!(
+        "{titulo}: processo {}, unidade {}.",
+        feito.nup, feito.unidade
+    )];
+    let atual = if feito.usuario_atual.is_empty() {
+        "nenhuma"
+    } else {
+        &feito.usuario_atual
+    };
+    if feito.estado == EstadoDaAtribuicao::Previa {
+        linhas.push(format!("Atribuição atual: {atual}."));
+        match &feito.usuario_pedido {
+            Some(login) => linhas.push(format!("Atribuir a {login}; opção verificada na tela.")),
+            None => linhas.push("Remover a atribuição observada.".to_owned()),
+        }
+    } else {
+        linhas.push(format!("Atribuição anterior: {atual}."));
+        let nova = feito.usuario_pedido.as_deref().unwrap_or("nenhuma");
+        linhas.push(format!("Atribuição agora: {nova}."));
+    }
+    linhas.push(format!("Requisições: {}.", feito.requisicoes));
+    linhas.join("\n")
+}
+
 fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
     if json_mode {
         println!("{}", json_da_previa(feito));
     } else {
-        println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
-        if feito.usuario_atual.is_empty() {
-            println!("Atribuição atual: nenhuma.");
-        } else {
-            println!("Atribuição atual: {}.", feito.usuario_atual);
-        }
-        if let Some(login) = &feito.usuario_pedido {
-            println!("Atribuir a {login}; opção verificada na tela.");
-        } else {
-            println!("Remover a atribuição observada.");
-        }
-        println!("Requisições: {}", feito.requisicoes);
+        println!("{}", texto_humano(feito));
     }
     ExitCode::SUCCESS
 }
