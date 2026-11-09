@@ -3,7 +3,10 @@
 #![cfg(unix)]
 #[path = "support/documento_interprocessos.rs"]
 mod apoio;
-use apoio::{DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_cancelado, executar_sem_src, json};
+use apoio::{
+    DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_cancelado, executar_numero_repetido,
+    executar_sem_src, json,
+};
 use serde_json::Value;
 
 #[test]
@@ -429,4 +432,46 @@ fn bdd_60_02_cli_versao_e_foto_no_processo_informado() {
     assert_eq!(erro["subcodigo"], "foto_local_divergente", "{erro}");
     assert_eq!(std::fs::read_to_string(&foto).unwrap(), editado);
     assert!(!destino.0.join("0011519.v2.html").exists());
+}
+
+
+// BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
+// não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
+#[test]
+fn bdd_60_05_cli_numero_repetido_na_arvore_recusa_sem_fallback() {
+    for ocultar in [false, true] {
+        let mut args = vec![
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--sem-cache",
+        ];
+        if ocultar {
+            args.push("--ocultar-inacessiveis");
+        }
+        let (saida, trilha) = executar_numero_repetido(&args);
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "ambiguidade não pode escolher corpo: stderr={} trilha={trilha:?}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let erro = json(&saida);
+        assert_eq!(erro["subcodigo"], "numero_sei_repetido_na_arvore", "{erro}");
+        assert_eq!(erro["documento"], DOC_A, "{erro}");
+        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
+        assert!(erro.get("documentos").is_none(), "{erro}");
+        assert!(
+            !trilha.iter().any(|p| p == "GET documento_visualizar"),
+            "a recusa deve ocorrer antes de baixar qualquer corpo: {trilha:?}"
+        );
+        assert!(
+            trilha
+                .iter()
+                .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+            "sem escrita ou retry na falha: {trilha:?}"
+        );
+    }
 }
