@@ -40,11 +40,10 @@ pub fn guardar(
     let (vence_em, concluido, dias): (Option<&str>, bool, Option<i64>) = match estado {
         EstadoDoPrazo::SemPrazo => (None, false, None),
         EstadoDoPrazo::Data(data) if !data.is_empty() => (Some(data), false, None),
-        EstadoDoPrazo::Data(_) => return Err(Falha::EstadoInvalido),
         EstadoDoPrazo::Dias(dias) if (1..=999).contains(dias) => {
             (None, false, Some(i64::from(*dias)))
         }
-        EstadoDoPrazo::Dias(_) => return Err(Falha::EstadoInvalido),
+        EstadoDoPrazo::Data(_) | EstadoDoPrazo::Dias(_) => return Err(Falha::EstadoInvalido),
         EstadoDoPrazo::Concluido => (None, true, None),
     };
     banco.execute(
@@ -54,7 +53,14 @@ pub fn guardar(
          ON CONFLICT(origem, cenario, id_procedimento) DO UPDATE SET
          vence_em=excluded.vence_em, concluido=excluded.concluido,
          dias=excluded.dias",
-        params![instalacao.url_base(), cenario, id, vence_em, concluido, dias],
+        params![
+            instalacao.url_base(),
+            cenario,
+            id,
+            vence_em,
+            concluido,
+            dias
+        ],
     )?;
     Ok(())
 }
