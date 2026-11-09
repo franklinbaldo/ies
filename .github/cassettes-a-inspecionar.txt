@@ -1,2 +1,0 @@
-cassettes/unb/processo-atribuir-unb--bf0d4327d7d9.md
-cassettes/go/processo-atribuir-go--19e840b0f21d.md
