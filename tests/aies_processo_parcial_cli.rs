@@ -175,7 +175,7 @@ fn executar() -> (Output, Vec<String>, (String, String)) {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = pedido_http(&mut tcp);
-            assert!(connect.starts_with("CONNECT"));
+            assert!(connect.starts_with(b"CONNECT"));
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
