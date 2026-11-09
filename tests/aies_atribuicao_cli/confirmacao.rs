@@ -116,3 +116,65 @@ fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     let novo: serde_json::Value = serde_json::from_slice(&consulta.stdout).unwrap();
     assert_eq!(novo["aberto_em"][0]["atribuido_a"]["sigla"], "aluno2");
 }
+
+#[test]
+fn bdd_264_02_03_302_historico_informa_estado_relido_sem_falsa_confirmacao() {
+    for (remover, esperado) in [(false, "aluno2"), (true, "")] {
+        let (escrita, releitura, eventos, _, estado) =
+            executar_cenario_com_resposta(false, remover, None, true, RespostaPost::Historico302);
+        assert_eq!(escrita.status.code(), Some(3));
+        let texto = String::from_utf8_lossy(&escrita.stderr);
+        let estado_publicado = if esperado.is_empty() {
+            "nenhuma"
+        } else {
+            esperado
+        };
+        assert!(
+            texto.contains(&format!(
+                "Estado relido: {estado_publicado} (não comprova o efeito deste POST)."
+            )),
+            "a CLI humana deve mostrar o resíduo sem declarar autoria: {texto}"
+        );
+        assert!(!texto.contains("Atribuição confirmada"));
+        assert!(!texto.contains("Remoção confirmada"));
+        assert_eq!(
+            eventos
+                .iter()
+                .filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar")
+                .count(),
+            1,
+            "um único POST, sem retry: {eventos:?}"
+        );
+        assert_eq!(estado, esperado);
+        let nova = releitura.expect("nova invocação ies processo NUP");
+        assert_eq!(nova.status.code(), Some(0));
+        let processo: serde_json::Value = serde_json::from_slice(&nova.stdout).unwrap();
+        let atribuido = &processo["aberto_em"][0]["atribuido_a"];
+        if esperado.is_empty() {
+            assert!(atribuido.is_null());
+        } else {
+            assert_eq!(atribuido["sigla"], esperado);
+        }
+    }
+}
+
+#[test]
+fn bdd_264_02_03_302_historico_preserva_erro_json_e_orcamento() {
+    for (remover, esperado) in [(false, "aluno2"), (true, "")] {
+        let (escrita, _, eventos, _, estado) =
+            executar_cenario_com_resposta(true, remover, None, true, RespostaPost::Historico302);
+        assert_eq!(escrita.status.code(), Some(3));
+        let json: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
+        assert_eq!(json["subcodigo"], "efeito_incerto_na_atribuicao");
+        assert_eq!(json["atribuicao_relida"], esperado);
+        assert_eq!(json["requisicoes"], 10);
+        assert_eq!(estado, esperado);
+        assert_eq!(
+            eventos
+                .iter()
+                .filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar")
+                .count(),
+            1
+        );
+    }
+}
