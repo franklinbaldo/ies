@@ -310,7 +310,6 @@ fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
     );
 }
 
-
 /// Apoio a BDD-258-02: um POST local anti-IES altera SQLite e a CLI real,
 /// em outra conexão TLS, observa o vínculo sem executar outro POST mutador.
 /// Não é a confirmação pela CLI, que permanece bloqueada antes da rede.
@@ -336,8 +335,9 @@ fn bdd_258_02_parcial_post_local_e_previa_cli_enxergam_a_mesma_relacao() {
         1
     );
     assert!(
-        eventos.iter().all(|e| e.starts_with("GET ")
-            || e == "POST protocolo_pesquisa_rapida"),
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"),
         "a CLI lê o vínculo criado no simulador, mas não o recria: {eventos:?}"
     );
 }
