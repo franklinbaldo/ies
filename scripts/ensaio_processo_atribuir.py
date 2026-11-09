@@ -74,6 +74,8 @@ def atribuicao_da_unidade(resposta: dict, unidade: str) -> str | None:
     return None
 
 
+
+
 def sincronizar_diretorio(pasta: Path) -> None:
     """Persistir a entrada de nome do registro, não só seus bytes.
 
@@ -282,6 +284,8 @@ def main() -> int:
     parser.add_argument("--usuario")
     parser.add_argument("--preflight", action="store_true",
                         help="confere a origem e não abre rede")
+    parser.add_argument("--descobrir", action="store_true",
+                        help="le apenas recebidos e ate 3 processos; nunca escreve")
     args = parser.parse_args()
     try:
         permitidas = origens_de_treinamento(
@@ -295,6 +299,9 @@ def main() -> int:
     else:
         if args.preflight:
             codigo, relatorio = 0, {"estado": "PREFLIGHT_PASS", "origem": origem}
+        elif args.descobrir:
+            from ensaio_processo_atribuir_descoberta import descobrir_candidato
+            codigo, relatorio = descobrir_candidato(ies=args.ies, origem=origem)
         elif args.registro is None or args.nup is None or args.usuario is None:
             codigo, relatorio = 2, {"estado": "BLOQUEADO", "motivo": "argumentos_ausentes"}
         else:
