@@ -215,14 +215,14 @@ fn executar(confirmar: bool) {
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
         .unwrap();
-    let segunda = confirmar.then(|| segunda_leitura(&pasta, &controle, &cookie, &origem, &cert, porta_proxy));
+    let segunda =
+        confirmar.then(|| segunda_leitura(&pasta, &controle, &cookie, &origem, &cert, porta_proxy));
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap();
     verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
 }
-
 
 fn segunda_leitura(
     pasta: &Pasta,
@@ -234,8 +234,13 @@ fn segunda_leitura(
 ) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "--json", "processo", NUP, "--andamentos-completos", "--sem-documentos",
-            "--sem-propriedades", "--sem-marcadores",
+            "--json",
+            "processo",
+            NUP,
+            "--andamentos-completos",
+            "--sem-documentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
         ])
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
@@ -308,7 +313,10 @@ fn verificar(
     );
     if confirmar {
         assert_eq!(
-            pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
+            pedidos
+                .iter()
+                .filter(|p| p.as_str() == "POST procedimento_atualizar_andamento")
+                .count(),
             1,
             "{pedidos:?}"
         );
@@ -330,7 +338,11 @@ fn verificar(
         let itens = resultado["andamentos"]["itens"].as_array().unwrap();
         assert_eq!(itens.len(), 2);
         assert_eq!(
-            itens[0]["descricao"].as_str().unwrap().split_whitespace().collect::<Vec<_>>(),
+            itens[0]["descricao"]
+                .as_str()
+                .unwrap()
+                .split_whitespace()
+                .collect::<Vec<_>>(),
             TEXTO.split_whitespace().collect::<Vec<_>>(),
         );
         assert_eq!(itens[1]["descricao"], "Andamento anterior");
