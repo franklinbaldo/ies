@@ -30,7 +30,7 @@ fn previa_remover_reflete_atribuicao_aplicada_antes_por_post_local() {
     assert_eq!(json["usuario_atual"], "aluno2");
     assert!(json["usuario_pedido"].is_null());
     assert_eq!(json["confirmado"], false);
-    assert_eq!(eventos.len(), 4);
+    assert_eq!(eventos.len(), 5);
     assert_eq!(atribuicao_final, "aluno2");
 }
 
@@ -42,6 +42,6 @@ fn previa_atribuir_reflete_remocao_aplicada_antes_por_post_local() {
     assert_eq!(json["usuario_atual"], "");
     assert_eq!(json["usuario_pedido"], "aluno2");
     assert_eq!(json["confirmado"], false);
-    assert_eq!(eventos.len(), 4);
+    assert_eq!(eventos.len(), 5);
     assert_eq!(atribuicao_final, "");
 }

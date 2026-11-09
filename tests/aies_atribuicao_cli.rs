@@ -215,7 +215,7 @@ fn executar_cenario_com_resposta(
     let url = pasta.privado(
         "url",
         &format!(
-            "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_sistema=100000100&infra_unidade_atual=110000001&{hash_chave}={}",
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash_chave}={}",
             "a".repeat(64),
         ),
     );
