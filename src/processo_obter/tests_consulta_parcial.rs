@@ -7,6 +7,10 @@ use super::tests_apoio::{
 };
 use super::*;
 use crate::arvore_processo::tests::NUP;
+use crate::arvore_processo::tests_movidos::{
+    ID_DESTINO, NUP_DESTINO, href_do_destino, html_do_movido, no_movido,
+};
+
 use crate::arvore_processo::tests_pastas::{
     ID, No, acoes_das_pastas, arvore_em_pastas, declaracoes, url_abrir,
 };
@@ -181,4 +185,64 @@ fn bdd_342_02_pasta_com_pai_divergente_nao_pode_ser_tratada_como_lista_incomplet
         ler_arvore_parcial(&html, NUP, ID),
         Err(ErroArvore::PastaComPaiDiferenteDoProcesso)
     );
+}
+
+fn com_documento_movido(html: &str, indice: usize) -> String {
+    let marcador = "  if (Nos.length){";
+    assert!(html.contains(marcador));
+    let no = no_movido(indice, "31-41", ID, "0000103");
+    let destino = html_do_movido(&href_do_destino(ID_DESTINO, "31"), NUP_DESTINO);
+    html.replacen(
+        marcador,
+        &format!("{no}\nNos[{indice}].acoes = '';\nNos[{indice}].html = '{destino}';\n{marcador}"),
+        1,
+    )
+}
+
+/// Regressão técnica do BDD-342-01: campos omitidos na CLI não podem
+/// continuar ensinando vínculos de documentos ao índice operacional.
+#[test]
+fn bdd_342_01_lista_incompleta_nao_divulga_movidos_nem_ensina_destino() {
+    let pasta_nao_aberta = arvore_em_pastas(
+        &declaracoes(&[(1, &["900", "901"])]),
+        &[No::Processo, No::Pasta(1, false), No::Aguarde(1)],
+        "",
+    );
+    let casos = [
+        (
+            com_documento_movido(&pasta_incompleta_pela_metade(), 4),
+            ErroArvore::PastaCarregadaPelaMetade,
+        ),
+        (
+            com_documento_movido(&pasta_nao_aberta, 3),
+            ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir,
+        ),
+    ];
+    for (html, motivo) in casos {
+        let amb = ambiente();
+        let aberto = rodar_informativo(
+            &amb,
+            vec![ok(controle(&[(ID, NUP)])), ok(trabalhar(ID)), ok(html)],
+        )
+        .expect("a identidade continua comprovada, só a lista está incompleta");
+        assert_eq!(aberto.requisicoes, 3);
+        assert!(!aberto.arvore.documentos_incluidos);
+        assert_eq!(aberto.arvore.aviso_leitura_parcial, Some(motivo));
+        assert_eq!(aberto.arvore.documentos, []);
+        assert_eq!(
+            aberto.arvore.documentos_movidos,
+            [],
+            "a lista omitida não pode deixar movidos reutilizáveis no domínio"
+        );
+        assert!(
+            amb.indice
+                .id_por_nup(&super::tests_apoio::instalacao(), NUP_DESTINO)
+                .is_none(),
+            "não aprender destino a partir de lista documental incompleta"
+        );
+        let nup = NumeroProcesso::novo(NUP).unwrap();
+        let saida = json_do_processo(&nup, &aberto, false);
+        assert_eq!(saida["documentos_movidos"], json!([]));
+        assert_eq!(saida["documentos_incluidos"], json!(false));
+    }
 }
