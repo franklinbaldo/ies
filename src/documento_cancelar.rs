@@ -9,6 +9,8 @@ use crate::instalacao::Instalacao;
 mod erro;
 mod fluxo;
 #[cfg(test)]
+mod acervo;
+#[cfg(test)]
 mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
