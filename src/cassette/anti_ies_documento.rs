@@ -33,6 +33,35 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     resposta
 }
 
+/// Serve a revisão observada e confere que GET e POST recusado não a alteram.
+fn servir_conteudo_observado(
+    documento: DocumentoSimulado,
+    instalacao: iesei::instalacao::Instalacao,
+) -> (SocketAddr, std::thread::JoinHandle<()>) {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
+                .unwrap();
+        }
+        assert_eq!(
+            banco
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1,
+            "GET e POST recusado não modificam o SQLite"
+        );
+    });
+
+    (endereco, tarefa)
+}
+
 /// Extrai só a região editável: o rodapé do anti-IES não é conteúdo do documento.
 fn texto_do_editor_simulado(html: &str) -> String {
     let corpo = html
@@ -96,26 +125,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         tipo: identidade.tipo.clone(),
         revisoes: vec![revisao],
     };
-    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = escuta.local_addr().unwrap();
-    let tarefa = std::thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
-        for _ in 0..3 {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
-                .unwrap();
-        }
-        assert_eq!(
-            banco
-                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
-                    .get::<_, i64>(0))
-                .unwrap(),
-            1,
-            "GET e POST recusado não modificam o SQLite"
-        );
-    });
+    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao);
     let url = format!(
         "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao={numero_versao}&id_procedimento={processo_observado}"
     );
@@ -127,7 +137,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         crate::rodape_do_documento::versao_do_rodape(html_anti)
             .map(crate::documento_versoes::VersaoDocumento::numero),
         Some(numero_versao),
-        "o anti-IES precisa devolver a versão observada, não a revisão 1 inventada"
+        "o anti-IES precisa devolver a versão observada, não uma revisão suposta"
     );
     assert_eq!(
         identidade_anti, identidade,
