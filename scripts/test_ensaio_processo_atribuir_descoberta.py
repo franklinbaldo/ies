@@ -84,6 +84,47 @@ class DescobertaSemEscrita(unittest.TestCase):
         self.assertEqual(len(chamadas), 2)
         self.assertNotIn("nup", resumo)
 
+    def test_erro_na_caixa_preserva_causa_tipadada_sem_texto_livre(self):
+        codigo, resumo, chamadas, _ = self.rodar([(
+            1, {"subcodigo": "pagina_de_login_recebida_no_controle",
+                "status_http": 403, "requisicoes": 2,
+                "mensagem_do_servidor": "https://example.invalid/sessao"}
+        )])
+        self.assertEqual((codigo, resumo["estado"]), (1, "LEITURA_FAIL"))
+        self.assertEqual(resumo["saida_cli"], 1)
+        self.assertEqual(resumo["subcodigo"], "pagina_de_login_recebida_no_controle")
+        self.assertEqual(resumo["status_http"], 403)
+        self.assertEqual(resumo["requisicoes"], [2])
+        self.assertEqual(len(chamadas), 1)
+        self.assertNotIn("example.invalid", str(resumo))
+
+    def test_erro_no_processo_preserva_causa_tipadada_sem_texto_livre(self):
+        codigo, resumo, chamadas, _ = self.rodar([
+            (0, caixa()),
+            (1, {"subcodigo": "bloqueio_de_seguranca_da_instalacao",
+                 "status_http": 403, "requisicoes": 2,
+                 "mensagem_do_servidor": "https://example.invalid/sessao"}),
+        ])
+        self.assertEqual((codigo, resumo["estado"]), (1, "LEITURA_FAIL"))
+        self.assertEqual(resumo["saida_cli"], 1)
+        self.assertEqual(resumo["subcodigo"], "bloqueio_de_seguranca_da_instalacao")
+        self.assertEqual(resumo["status_http"], 403)
+        self.assertEqual(resumo["consultas_processos"], 1)
+        self.assertEqual(len(chamadas), 2)
+        self.assertNotIn("example.invalid", str(resumo))
+
+    def test_diagnostico_de_leitura_descarta_campos_arbitrarios(self):
+        codigo, resumo, chamadas, _ = self.rodar([(
+            1, {"subcodigo": "https://example.invalid/sessao",
+                "status_http": "403 https://example.invalid", "requisicoes": None,
+                "mensagem_do_servidor": "https://example.invalid/sessao"}
+        )])
+        self.assertEqual((codigo, resumo["estado"]), (1, "LEITURA_FAIL"))
+        self.assertNotIn("subcodigo", resumo)
+        self.assertNotIn("status_http", resumo)
+        self.assertNotIn("example.invalid", str(resumo))
+        self.assertEqual(len(chamadas), 1)
+
     def test_limita_observacoes_sem_paginar_ou_presumir_inexistencia(self):
         lista = caixa()
         lista["processos"] = [
