@@ -31,6 +31,44 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     resposta
 }
 
+/// Cruza a identidade do GET de conteúdo com uma árvore registrada na
+/// mesma cassette. Sem a árvore, não se atribui um NUP ao documento.
+fn processo_observado_da_arvore(
+    json: &serde_json::Value,
+    id_documento: &str,
+    numero: &str,
+) -> (String, String) {
+    let mut vistos = Vec::new();
+    for resposta in gravacao::respostas(json) {
+        if resposta.operacao != "procedimento_visualizar"
+            || resposta.metodo != "GET"
+            || resposta.status != 200
+        {
+            continue;
+        }
+        let Some(id) = gravacao::id_procedimento(resposta.item) else {
+            continue;
+        };
+        let Ok(html) = html_da_resposta(resposta.item) else {
+            continue;
+        };
+        let Some(nup) = crate::arvore_processo::nup_declarado_na_arvore(&html) else {
+            continue;
+        };
+        let Ok(arvore) = crate::arvore_processo::ler_arvore(&html, &nup, &id) else {
+            continue;
+        };
+        if arvore.documentos.iter().any(|doc| {
+            doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero)
+        }) {
+            vistos.push((id, nup));
+        }
+    }
+    let primeiro = vistos.first().expect("árvore original liga DOC ao processo").clone();
+    assert!(vistos.iter().all(|identidade| identidade == &primeiro));
+    primeiro
+}
+
 #[test]
 #[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
 fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
@@ -62,6 +100,8 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
     assert!(!texto_original.contains("infra_hash"));
+    let (processo_observado, nup_observado) =
+        processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -78,6 +118,8 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
             html_corpo: format!("<p>{}</p>", escapar(&texto_original)),
         }],
     };
+    assert_eq!(documento.id_procedimento, processo_observado);
+    assert_eq!(documento.numero_processo, nup_observado);
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let tarefa = std::thread::spawn(move || {
@@ -210,6 +252,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     );
     // A lista original não traz número SEI. Cruzamos o GET de conteúdo.
     let (numero_observado, tipo_observado) = identidade_do_conteudo_observado(&captura.json, id);
+    let (processo_observado, nup_observado) =
+        processo_observado_da_arvore(&captura.json, id, &numero_observado);
     let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let historico_original =
@@ -231,6 +275,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
+    assert_eq!(documento.id_procedimento, processo_observado);
+    assert_eq!(documento.numero_processo, nup_observado);
     let quantidade_versoes = versoes.len();
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
