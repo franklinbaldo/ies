@@ -196,14 +196,9 @@ pub(crate) fn nos_do_processo(
     let internos = documentos_simulados::documentos(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let mut nos = String::new();
+    let mut vistos = Vec::new();
     let mut indice = 1;
     for id in ids {
-        // Documentos recém-criados têm identidade, mas ainda não têm revisão.
-        // A projeção da tabela de criação é a fonte desses nós, sem inventar
-        // uma versão só para permitir o cancelamento.
-        if internos.iter().any(|d| d.id.to_string() == id) {
-            continue;
-        }
         let documento = versoes::ler(banco, instalacao, cenario, &id)
             .map_err(|_| Estado::DadosInsuficientes)?
             .ok_or(Estado::DadosInsuficientes)?;
@@ -220,9 +215,13 @@ pub(crate) fn nos_do_processo(
             &situacao,
         ));
         indice += 1;
+        vistos.push(id);
     }
     for documento in internos {
         let id = documento.id.to_string();
+        if vistos.contains(&id) {
+            continue;
+        }
         let situacao =
             crate::documento_cancelar::estado(banco, instalacao, cenario, &id, processo)?
                 .ok_or(Estado::DadosInsuficientes)?;
@@ -307,6 +306,71 @@ mod testes_cancelamento_arvore_mista {
     use iesei::cancelamento_documento::{Aplicacao, aplicar};
     use iesei::documento_versoes::Revisao;
     use std::num::NonZeroU32;
+
+    /// Um documento recém-criado mantém um nó único quando ganha revisão.
+    /// A presença de uma identidade no SQLite não equivale a uma revisão.
+    #[test]
+    fn criar_depois_versionar_mantem_um_no_sem_revisao_inventada() {
+        use iesei::documentos_simulados::{self, Processo, Tipo};
+
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+        let cenario = "criar-depois-versionar";
+        documentos_simulados::registrar_processo(
+            &banco,
+            &origem,
+            cenario,
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "ORIGEM".into(),
+            },
+        )
+        .unwrap();
+        documentos_simulados::registrar_tipo(
+            &banco,
+            &origem,
+            cenario,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        let criado =
+            documentos_simulados::criar(&banco, &origem, cenario, "10", "291", "").unwrap();
+        let sem_revisao = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(sem_revisao.matches("new infraArvoreNo").count(), 1);
+        assert_eq!(sem_revisao.matches("Versões").count(), 0);
+        assert!(sem_revisao.contains("Cancelar Documento"));
+
+        versoes::guardar(
+            &mut banco,
+            cenario,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: criado.id.to_string(),
+                id_procedimento: "10".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: criado.numero_sei,
+                tipo: criado.tipo,
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "ORIGEM".into(),
+                    modificacao: "09/11/2026".into(),
+                    html_corpo: "<p>Conteúdo sintético</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        let com_revisao = nos_do_processo(&banco, &origem, cenario, "10").unwrap();
+        assert_eq!(com_revisao.matches("new infraArvoreNo").count(), 1);
+        assert_eq!(com_revisao.matches("Versões").count(), 1);
+        assert_eq!(com_revisao.matches("Cancelar Documento").count(), 1);
+    }
 
     /// Regressao tecnica do BDD-273-02: as duas arvores leem o mesmo
     /// cancelamento persistido, sem perder os outros documentos.

@@ -212,7 +212,8 @@ pub fn ids_por_numero(
     Ok(encontrados)
 }
 
-/// Lista documentos versionados pertencentes a um processo no mesmo cenário.
+/// Lista documentos com revisão existente no processo e cenário.
+/// A identidade de um documento recém-criado não inventa versão nem corpo.
 ///
 /// # Errors
 /// Propaga a falha original do SQLite.
@@ -223,12 +224,82 @@ pub fn ids_do_processo(
     id_procedimento: &str,
 ) -> rusqlite::Result<Vec<String>> {
     let mut stmt = banco.prepare(
-        "SELECT id_documento FROM documento_simulado
-         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY id_documento",
+        "SELECT d.id_documento FROM documento_simulado d
+         WHERE d.origem=?1 AND d.cenario=?2 AND d.id_procedimento=?3
+         AND EXISTS(
+             SELECT 1 FROM documento_revisao r
+             WHERE r.origem=d.origem AND r.cenario=d.cenario
+               AND r.id_documento=d.id_documento
+         )
+         ORDER BY d.id_documento",
     )?;
     let linhas = stmt.query_map(
         params![instalacao.url_base(), cenario, id_procedimento],
         |linha| linha.get::<_, String>(0),
     )?;
     linhas.collect()
+}
+
+#[cfg(test)]
+mod testes_criacao {
+    use super::*;
+    use crate::banco_cassettes::iniciar;
+    use crate::documentos_simulados::{self, Processo, Tipo};
+
+    #[test]
+    fn criado_nao_inventa_revisao_mas_passa_a_ser_versionado_apos_edicao() {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let cena = "criar-depois-editar";
+        documentos_simulados::registrar_processo(
+            &banco,
+            &origem,
+            cena,
+            &Processo {
+                id: "10".into(),
+                nup: "00001.000001/2026-01".into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        documentos_simulados::registrar_tipo(
+            &banco,
+            &origem,
+            cena,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        let criado = documentos_simulados::criar(&banco, &origem, cena, "10", "291", "").unwrap();
+        let ids_versionados = ids_do_processo(&banco, &origem, cena, "10").unwrap();
+        assert_eq!(ids_versionados, Vec::<String>::new());
+        guardar(
+            &mut banco,
+            cena,
+            &DocumentoSimulado {
+                instalacao: origem.clone(),
+                id_documento: criado.id.to_string(),
+                id_procedimento: "10".into(),
+                numero_processo: "00001.000001/2026-01".into(),
+                numero: criado.numero_sei,
+                tipo: criado.tipo,
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "09/11/2026".into(),
+                    html_corpo: "<p>Conteúdo sintético</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            ids_do_processo(&banco, &origem, cena, "10").unwrap(),
+            vec![criado.id.to_string()]
+        );
+    }
 }
