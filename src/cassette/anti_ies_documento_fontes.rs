@@ -86,3 +86,45 @@ fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (Stri
     (identidade.numero, identidade.tipo)
 }
 
+
+/// A única versão cujo corpo foi capturado recebe metadados do histórico
+/// original. Nenhuma linha da lista autoriza inventar corpos anteriores.
+fn revisao_do_conteudo_observado(
+    json: &serde_json::Value,
+    id: &str,
+    numero: &str,
+    html_conteudo: &str,
+    texto: &str,
+) -> Revisao {
+    let historicos: Vec<_> = gravacao::respostas(json)
+        .into_iter()
+        .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
+        .collect();
+    assert_eq!(historicos.len(), 1, "histórico da mesma cassette UnB");
+    let ids = gravacao::parametro(historicos[0].item, "id_documento");
+    assert!(
+        !ids.is_empty() && ids.iter().all(|valor| *valor == id),
+        "histórico e corpo devem pertencer ao mesmo documento"
+    );
+    let numero = crate::documento::NumeroDocumento::novo(numero).unwrap();
+    let html_historico = html_da_resposta(historicos[0].item).unwrap();
+    let lista = crate::documento_versoes::interpretar_historico(
+        &html_historico,
+        &numero,
+        id,
+        None,
+    )
+    .unwrap();
+    let versao = crate::rodape_do_documento::versao_do_rodape(html_conteudo)
+        .expect("rodapé de versão do GET original");
+    let metadados = lista
+        .selecionar(versao)
+        .expect("mesma versão do corpo na lista original");
+    Revisao {
+        versao: NonZeroU32::new(versao.numero()).unwrap(),
+        usuario: metadados.usuario.clone(),
+        unidade: metadados.unidade.clone(),
+        modificacao: metadados.modificacao.clone(),
+        html_corpo: format!("<p>{}</p>", escapar(texto)),
+    }
+}
