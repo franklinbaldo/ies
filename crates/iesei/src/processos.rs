@@ -22,6 +22,16 @@ pub struct ProcessoSimulado {
     pub destinos: Vec<Destino>,
 }
 
+impl ProcessoSimulado {
+    /// A inclusão documental ainda é oferecida somente na origem aberta.
+    /// A unidade de destino pode tramitar, mas não criar documento neste cenário.
+    #[must_use]
+    pub fn pode_incluir_documento(&self, unidade_atual: &str) -> bool {
+        unidade_atual == self.unidade_origem
+            && self.aberto_em.iter().any(|unidade| unidade == unidade_atual)
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct PedidoEnvio<'a> {
     pub id: &'a str,
