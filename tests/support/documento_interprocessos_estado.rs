@@ -41,6 +41,7 @@ pub(super) enum EstadoExtra {
     RevogadoAoVisualizar,
     TituloTrocadoAoVisualizar,
     SessaoRevogadaAoVisualizar,
+    VersaoRevogadaAoVisualizar,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -129,13 +130,25 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
                 numero_processo: nup.into(),
                 numero: numero.into(),
                 tipo: "Despacho".into(),
-                revisoes: vec![Revisao {
-                    versao: NonZeroU32::new(1).unwrap(),
-                    usuario: "TESTE".into(),
-                    unidade: "TESTE".into(),
-                    modificacao: "01/11/2026".into(),
-                    html_corpo: format!("<p>{corpo}</p>"),
-                }],
+                revisoes: {
+                    let mut revisoes = vec![Revisao {
+                        versao: NonZeroU32::new(1).unwrap(),
+                        usuario: "TESTE".into(),
+                        unidade: "TESTE".into(),
+                        modificacao: "01/11/2026".into(),
+                        html_corpo: format!("<p>{corpo}</p>"),
+                    }];
+                    if id == "42" && matches!(modo, EstadoExtra::VersaoRevogadaAoVisualizar) {
+                        revisoes.push(Revisao {
+                            versao: NonZeroU32::new(2).unwrap(),
+                            usuario: "TESTE".into(),
+                            unidade: "TESTE".into(),
+                            modificacao: "02/11/2026".into(),
+                            html_corpo: "<p>Segunda versao ainda acessivel</p>".into(),
+                        });
+                    }
+                    revisoes
+                },
             },
         )
         .unwrap();
@@ -145,7 +158,8 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         EstadoExtra::Nenhum
         | EstadoExtra::RevogadoAoVisualizar
         | EstadoExtra::TituloTrocadoAoVisualizar
-        | EstadoExtra::SessaoRevogadaAoVisualizar => {}
+        | EstadoExtra::SessaoRevogadaAoVisualizar
+        | EstadoExtra::VersaoRevogadaAoVisualizar => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(
