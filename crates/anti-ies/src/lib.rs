@@ -15,6 +15,7 @@ mod processo_barra;
 mod processo_criacao;
 pub mod processo_envio;
 mod processo_relacionar;
+mod prazo_processo;
 mod protocolo_sintetico;
 mod rotas;
 use iesei::banco_cassettes::ler;
