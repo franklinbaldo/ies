@@ -157,6 +157,13 @@ jobs:
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_conteudo_documento_compara_leitores_por_http: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_conteudo_documento_compara_leitores_por_http -- --ignored --nocapture --test-threads=1
 
+      - name: Cassette UnB histórico -> SQLite -> HTTP -> leitor real
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_historico_preserva_versoes_e_metadados_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_unb_historico_preserva_versoes_e_metadados_por_http -- --ignored --nocapture --test-threads=1
+
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas
     # respostas gravadas: nunca requisita a instalação do SEI.
