@@ -131,13 +131,14 @@ fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
     if com_pasta_incompleta {
         // RED: a migration ainda não existe. A forma sintética será
         // derivada do SQLite, não de uma página HTML congelada.
-        banco.execute(
-            "INSERT INTO sim_pasta_pendente
+        banco
+            .execute(
+                "INSERT INTO sim_pasta_pendente
              (origem, cenario, id_procedimento, indice, protocolo_declarado)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![instalacao.url_base(), CENARIO, "10", 1, 900],
-        )
-        .unwrap();
+                rusqlite::params![instalacao.url_base(), CENARIO, "10", 1, 900],
+            )
+            .unwrap();
     }
     (banco, instalacao)
 }
@@ -289,7 +290,9 @@ fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
         "a saída deve distinguir lista desconhecida de lista comprovada vazia: {valor}"
     );
     assert!(
-        pedidos.iter().any(|evento| evento == "GET procedimento_visualizar"),
+        pedidos
+            .iter()
+            .any(|evento| evento == "GET procedimento_visualizar"),
         "a CLI precisa consultar a árvore do anti-IES: {pedidos:?}"
     );
     assert!(
