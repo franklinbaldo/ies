@@ -37,19 +37,18 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             "Texto do andamento deve conter entre 1 e 500 caracteres",
         ));
     }
-    if *confirmar {
-        // Fatia WIP (#259): a confirmação sintética ainda não fecha; recusa
-        // antes de abrir sessão ou rede.
-        let e = Erro::EscritaAindaFechada;
-        return Some(publicar_valor_da_falha(
-            cli.json,
-            &json_base_da_falha("fonte_invalida", e.subcodigo(), e.mensagem(), None),
-            e.saida(),
-        ));
+    // Escrita disponível exclusivamente para ensaio local debug.
+    // Release e qualquer outra origem recusam antes de carregar a sessão.
+    if *confirmar && (!cfg!(debug_assertions) || !origem_local_sintetica()) {
+        return Some(escrita_fechada(cli.json));
     }
     Some(com_sessao(
         cli,
-        |sessao, indice| match processo_andamento_registrar::registrar(
+        |sessao, indice| {
+            if *confirmar && sessao.origem != "https://sei.test/sei" {
+                return escrita_fechada(cli.json);
+            }
+            match processo_andamento_registrar::registrar(
             sessao,
             &numero,
             texto,
@@ -104,6 +103,7 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 ),
                 e.saida(),
             ),
+            }
         },
     ))
 }
@@ -121,4 +121,23 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
         eprintln!("IES: {mensagem} [{subcodigo}]");
     }
     ExitCode::from(2)
+}
+
+/// O marcador de origem local não equivale a uma autorização de escrita
+/// em qualquer SEI: a sessão é conferida novamente após ser carregada.
+fn origem_local_sintetica() -> bool {
+    std::env::var_os("IES_CONFIG_FILE").is_none()
+        && std::env::var("IES_ORIGEM_FILE")
+            .ok()
+            .and_then(|caminho| std::fs::read_to_string(caminho).ok())
+            .is_some_and(|origem| origem.trim() == "https://sei.test/sei")
+}
+
+fn escrita_fechada(json_mode: bool) -> ExitCode {
+    let erro = Erro::EscritaAindaFechada;
+    publicar_valor_da_falha(
+        json_mode,
+        &json_base_da_falha("fonte_invalida", erro.subcodigo(), erro.mensagem(), None),
+        erro.saida(),
+    )
 }
