@@ -20,8 +20,9 @@ use std::time::Duration;
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
 use fixture_tls::{Pasta, identidade};
+use std::path::Path;
 
-const ORIGEM: &str = "https://sei.test/sei";
+const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
 const CENARIO: &str = "bdd-264-01-cli";
 const NUP: &str = "00001.000001/2026-01";
 
@@ -150,8 +151,65 @@ fn executar_apos_post_local(
     remover: bool,
     escolha_previa: Option<&str>,
 ) -> (Output, Vec<String>, usize, String) {
+    let (saida, _, eventos, unidades, final_atribuicao) =
+        executar_cenario(json, remover, escolha_previa, false);
+    (saida, eventos, unidades, final_atribuicao)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RespostaPost {
+    Original,
+    Recusa403,
+}
+
+// O backend persiste antes de a bancada substituir o aceite por recusa.
+// Assim, o teste distingue estado final de prova causal do próprio POST.
+fn responder_local(
+    endereco: std::net::SocketAddr,
+    pedido: &[u8],
+    evento: &str,
+    resposta_post: RespostaPost,
+) -> Vec<u8> {
+    let mut backend = TcpStream::connect(endereco).unwrap();
+    backend.write_all(pedido).unwrap();
+    backend.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = Vec::new();
+    backend.read_to_end(&mut resposta).unwrap();
+    if resposta_post == RespostaPost::Recusa403
+        && evento == "POST procedimento_atribuicao_cadastrar"
+    {
+        resposta =
+            b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+    }
+    resposta
+}
+
+// Uma bancada e a mesma sessão em duas invocações: escrita e releitura
+// independente por 'ies processo NUP', sem qualquer rede externa.
+fn executar_cenario(
+    json: bool,
+    remover: bool,
+    escolha_previa: Option<&str>,
+    confirmar: bool,
+) -> (Output, Option<Output>, Vec<String>, usize, String) {
+    executar_cenario_com_resposta(
+        json,
+        remover,
+        escolha_previa,
+        confirmar,
+        RespostaPost::Original,
+    )
+}
+
+fn executar_cenario_com_resposta(
+    json: bool,
+    remover: bool,
+    escolha_previa: Option<&str>,
+    confirmar: bool,
+    resposta_post: RespostaPost,
+) -> (Output, Option<Output>, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) = identidade(&pasta.0);
+    let (cert, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
     let url = pasta.privado(
@@ -198,16 +256,12 @@ fn executar_apos_post_local(
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = pedido(&mut tcp);
-            assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+            assert!(connect.starts_with(b"CONNECT sei.treinamento.unb.br:443 HTTP/1.1\r\n"));
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = pedido(&mut canal);
-            let mut backend = TcpStream::connect(endereco).unwrap();
-            backend.write_all(&bytes).unwrap();
-            backend.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            backend.read_to_end(&mut resposta).unwrap();
+            let resposta = responder_local(endereco, &bytes, &evento, resposta_post);
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -223,7 +277,43 @@ fn executar_apos_post_local(
     } else {
         argumentos.extend(["--usuario", "aluno2"]);
     }
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+    if confirmar {
+        argumentos.push("--confirmar");
+    }
+    let arquivos = [
+        url.as_path(),
+        cookie.as_path(),
+        origem.as_path(),
+        cert.as_path(),
+    ];
+    let saida = executar_cli(arquivos, &pasta, porta, &argumentos);
+    let releitura = confirmar.then(|| {
+        executar_cli(
+            arquivos,
+            &pasta,
+            porta,
+            &[
+                "--json",
+                "processo",
+                NUP,
+                "--sem-andamentos",
+                "--sem-propriedades",
+                "--sem-marcadores",
+                "--sem-documentos",
+            ],
+        )
+    });
+    parar.store(true, Ordering::SeqCst);
+    tunel.join().unwrap();
+    let (total, atribuicao_final) = servidor.join().unwrap();
+    let trilha = eventos.lock().unwrap().clone();
+    (saida, releitura, trilha, total, atribuicao_final)
+}
+
+// A mesma sessão privada serve às duas invocações independentes da CLI.
+fn executar_cli(arquivos: [&Path; 4], pasta: &Pasta, porta: u16, argumentos: &[&str]) -> Output {
+    let [url, cookie, origem, cert] = arquivos;
+    Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
@@ -239,186 +329,14 @@ fn executar_apos_post_local(
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
-        .unwrap();
-    parar.store(true, Ordering::SeqCst);
-    tunel.join().unwrap();
-    let (total, atribuicao_final) = servidor.join().unwrap();
-    let trilha = eventos.lock().unwrap().clone();
-    (saida, trilha, total, atribuicao_final)
+        .unwrap()
 }
 
-#[test]
-fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
-    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true, false);
-    assert_eq!(
-        saida.status.code(),
-        Some(0),
-        "stderr={} stdout={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr),
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(valor["nup"], NUP);
-    assert_eq!(valor["unidade"], "TESTE");
-    assert_eq!(valor["usuario_atual"], "aluno1");
-    assert_eq!(valor["usuario_pedido"], "aluno2");
-    assert_eq!(valor["confirmado"], false);
-    assert_eq!(valor["alterado"], false);
-    assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
-    assert_eq!(eventos.len(), 5, "{eventos:?}");
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| e.as_str() == "GET procedimento_atribuicao_cadastrar")
-            .count(),
-        1
-    );
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| e.starts_with("POST "))
-            .map(String::as_str)
-            .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"],
-        "nenhum POST de atribuição: {eventos:?}"
-    );
-    assert_eq!(
-        unidades_abertas, 1,
-        "bancada não altera unidades do processo"
-    );
-    assert_eq!(
-        atribuicao_final, "aluno1",
-        "prévia não grava atribuição no SQLite"
-    );
-}
-
-#[test]
-fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
-    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(false, false);
-    assert_eq!(
-        saida.status.code(),
-        Some(0),
-        "stderr={} stdout={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr),
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let texto = String::from_utf8(saida.stdout).unwrap();
-    assert!(texto.contains("Atribuição atual: aluno1"), "{texto}");
-    assert!(texto.contains("Atribuir a aluno2"), "{texto}");
-    assert_eq!(eventos.len(), 5);
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| e.starts_with("POST "))
-            .map(String::as_str)
-            .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"]
-    );
-    assert_eq!(unidades_abertas, 1);
-    assert_eq!(
-        atribuicao_final, "aluno1",
-        "prévia não grava atribuição no SQLite"
-    );
-}
-
-#[test]
-fn confirmar_publico_recusa_sem_sessao_e_orienta_a_previa() {
-    // BDD-264-02/03 ainda pendentes: sem validação live, nem o binário
-    // consegue confirmar. O usuário precisa entender o próximo passo.
-    // Arquivos privados inexistentes: qualquer tentativa de sessão falha.
-    for escolha in [["--usuario", "aluno2"], ["--remover", ""]] {
-        let mut argumentos = vec!["--json", "processo", "atribuir", NUP];
-        if escolha[0] == "--remover" {
-            argumentos.push("--remover");
-        } else {
-            argumentos.extend(["--usuario", "aluno2"]);
-        }
-        argumentos.push("--confirmar");
-        let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args(&argumentos)
-            .env("IES_ORIGEM_FILE", "/arquivo/inexistente/ies-origem")
-            .env("IES_COOKIE_FILE", "/arquivo/inexistente/ies-cookie")
-            .env("IES_URL_CONTROLE_FILE", "/arquivo/inexistente/ies-url")
-            .env("HOME", "/arquivo/inexistente/ies-home")
-            .output()
-            .unwrap();
-        assert_eq!(saida.status.code(), Some(1));
-        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-        assert_eq!(
-            json["subcodigo"],
-            "escrita_de_atribuicao_ainda_nao_verificada"
-        );
-        assert!(
-            json["erro"].as_str().unwrap_or("").contains("prévia"),
-            "a recusa precisa explicar a alternativa sem escrita: {json}"
-        );
-    }
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "processo",
-            "atribuir",
-            NUP,
-            "--usuario",
-            "aluno2",
-            "--confirmar",
-        ])
-        .env("IES_ORIGEM_FILE", "/arquivo/inexistente/ies-origem")
-        .env("IES_COOKIE_FILE", "/arquivo/inexistente/ies-cookie")
-        .env("IES_URL_CONTROLE_FILE", "/arquivo/inexistente/ies-url")
-        .env("HOME", "/arquivo/inexistente/ies-home")
-        .output()
-        .unwrap();
-    assert_eq!(saida.status.code(), Some(1));
-    let erro = String::from_utf8(saida.stderr).unwrap();
-    assert!(
-        erro.contains("prévia"),
-        "mensagem humana sem orientação: {erro}"
-    );
-}
-
-#[test]
-fn remover_previa_cli_real_json_nao_altera_anti_ies() {
-    let (saida, eventos, unidades_abertas, atribuicao_final) = executar(true, true);
-    assert_eq!(
-        saida.status.code(),
-        Some(0),
-        "stderr={} stdout={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr),
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(valor["usuario_atual"], "aluno1");
-    assert!(valor["usuario_pedido"].is_null());
-    assert_eq!(valor["remover"], true);
-    assert_eq!(valor["valor_da_opcao"], "null");
-    assert_eq!(valor["confirmado"], false);
-    assert_eq!(valor["alterado"], false);
-    assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
-    assert_eq!(eventos.len(), 5, "{eventos:?}");
-    assert_eq!(
-        eventos
-            .iter()
-            .filter(|e| e.starts_with("POST "))
-            .map(String::as_str)
-            .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"],
-        "a prévia não deve remover atribuição: {eventos:?}"
-    );
-    assert_eq!(unidades_abertas, 1);
-    assert_eq!(atribuicao_final, "aluno1");
-}
-
-#[test]
-fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
-    let (saida, eventos, _, atribuicao_final) = executar(false, true);
-    assert_eq!(saida.status.code(), Some(0));
-    let texto = String::from_utf8(saida.stdout).unwrap();
-    assert!(texto.contains("Atribuição atual: aluno1."), "{texto}");
-    assert!(texto.contains("Remover a atribuição observada."), "{texto}");
-    assert!(!texto.contains("Remoção confirmada"), "{texto}");
-    assert_eq!(eventos.len(), 5);
-    assert_eq!(atribuicao_final, "aluno1");
-}
+#[path = "aies_atribuicao_cli/previas.rs"]
+mod previas;
 
 #[path = "aies_atribuicao_cli/estado_pos_post.rs"]
 mod estado_pos_post;
+
+#[path = "aies_atribuicao_cli/confirmacao.rs"]
+mod confirmacao;

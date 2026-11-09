@@ -195,7 +195,7 @@ fn executar_com_cena(
     duplicar_tipo: bool,
 ) -> (Vec<Output>, Vec<String>, usize) {
     let pasta = Pasta::nova();
-    let (cert, identity) = identidade(&pasta.0);
+    let (cert, identity) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
     let controle = pasta.privado(
