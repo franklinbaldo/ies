@@ -102,22 +102,11 @@ fn campos_do_formulario(corpo: &str) -> Option<Vec<(String, String)>> {
         .collect()
 }
 
-fn confirmar(
-    corpo: &str,
-    banco: &Connection,
-    instalacao: &Instalacao,
-    cenario: &str,
-) -> Resposta {
+fn confirmar(corpo: &str, banco: &Connection, instalacao: &Instalacao, cenario: &str) -> Resposta {
     let Some(campos) = campos_do_formulario(corpo) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    let (
-        Some(id_tipo),
-        Some(especificacao),
-        Some("2"),
-        Some("0"),
-        Some(assunto),
-    ) = (
+    let (Some(id_tipo), Some(especificacao), Some("2"), Some("0"), Some(assunto)) = (
         campo_unico(&campos, "hdnIdTipoProcedimento"),
         campo_unico(&campos, "txtDescricao"),
         campo_unico(&campos, "hdnFlagProcedimentoCadastro"),
@@ -126,9 +115,7 @@ fn confirmar(
     ) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if campo_unico(&campos, "hdnInteressadosProcedimento")
-        .is_some_and(|valor| !valor.is_empty())
-    {
+    if campo_unico(&campos, "hdnInteressadosProcedimento").is_some_and(|valor| !valor.is_empty()) {
         // Resolucao de interessados nao faz parte desta fatia.
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
@@ -149,12 +136,8 @@ fn confirmar(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento={}",
             criado.id_procedimento
         )),
-        Err(criacao_processo::Falha::DadoInvalido) => {
-            Resposta::nova(Estado::RequisicaoInvalida)
-        }
-        Err(criacao_processo::Falha::Sqlite(_)) => {
-            Resposta::nova(Estado::DadosInsuficientes)
-        }
+        Err(criacao_processo::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(criacao_processo::Falha::Sqlite(_)) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 
