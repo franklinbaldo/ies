@@ -240,8 +240,15 @@ fn estado(com_segundo: bool, sem_src: bool, cancelado: bool) -> (Connection, Ins
     }
     if cancelado {
         assert_eq!(
-            cancelamento_documento::aplicar(&banco, &origem, CENARIO, "42", "7", "Motivo sintético")
-                .unwrap(),
+            cancelamento_documento::aplicar(
+                &banco,
+                &origem,
+                CENARIO,
+                "42",
+                "7",
+                "Motivo sintético"
+            )
+            .unwrap(),
             Aplicacao::Aplicada
         );
     }
