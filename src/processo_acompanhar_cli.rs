@@ -62,9 +62,9 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
                 "grupo": plano.grupo,
                 "observacao": plano.observacao,
                 "id_acompanhamento": plano.id_de_remocao,
-                "ja_estava": plano.ja_estava,
-                "confirmado": plano.confirmado,
-                "alterado": plano.alterado,
+                "ja_estava": plano.estado.ja_estava(),
+                "confirmado": plano.estado.confirmado(),
+                "alterado": plano.estado.alterado(),
                 "origem": "web",
                 "requisicoes": plano.requisicoes,
             })
@@ -72,7 +72,7 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
     } else {
         println!(
             "{} — processo {} (unidade {})",
-            if plano.confirmado {
+            if plano.estado.confirmado() {
                 "Confirmação"
             } else {
                 "Prévia"
@@ -80,18 +80,18 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             plano.numero,
             plano.unidade
         );
-        if plano.ja_estava {
+        if plano.estado.ja_estava() {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
         } else if plano.operacao == "deixar" {
             println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
-        } else if plano.alterado {
+        } else if plano.estado.alterado() {
             println!("Incluído acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         } else {
             println!("Incluiria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
         }
-        if plano.alterado {
+        if plano.estado.alterado() {
             if let Some(id) = &plano.id_de_remocao {
                 println!("ID observado na releitura: {id}");
             }
