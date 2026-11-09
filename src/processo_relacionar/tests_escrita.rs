@@ -272,3 +272,73 @@ fn dado_302_aceito_mas_releitura_sem_vinculo_entao_efeito_incerto() {
     assert_eq!(pedidos[5].metodo, "POST");
     assert_eq!(pedidos[6].metodo, "GET");
 }
+
+/// Regressão auxiliar ao BDD-258-03: a ausência do antigo id não basta
+/// quando o mesmo NUP reaparece na releitura com um id novo.
+#[test]
+fn releitura_remocao_nao_confirma_mesmo_nup_em_outro_id() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina(true)));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    let novo_id = pagina(true)
+        .replace("id_procedimento=22&", "id_procedimento=23&")
+        .replace("acaoRemover('22')", "acaoRemover('23')");
+    respostas.push(ok(novo_id));
+    let (resultado, pedidos) = executar(respostas);
+    assert!(
+        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        "mesmo NUP ainda relacionado: {resultado:?}"
+    );
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos[4].metodo, "POST");
+    assert_eq!(pedidos[5].metodo, "GET");
+}
+
+fn pagina_com_outro_vinculo(com_alvo: bool) -> String {
+    let hash = "a".repeat(64);
+    let outra_linha = format!(
+        r##"<tr><td><a href="controlador.php?acao=procedimento_trabalhar&id_procedimento=33&infra_hash={hash}">99999.000003/2026-01</a></td><td><a href="#ID-33" onclick="acaoRemover('33');">Remover</a></td></tr>"##
+    );
+    pagina(com_alvo).replace("</table>", &format!("{outra_linha}</table>"))
+}
+
+/// Regressão auxiliar ao BDD-258-03: uma exclusão não pode ser marcada
+/// concluída se a releitura também perdeu um vínculo não solicitado.
+#[test]
+fn releitura_remocao_preserva_relacao_nao_solicitada() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_com_outro_vinculo(true)));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina(false)));
+    let (resultado, pedidos) = executar(respostas);
+    assert!(
+        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        "outro vínculo desapareceu junto: {resultado:?}"
+    );
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos[4].metodo, "POST");
+    assert_eq!(pedidos[5].metodo, "GET");
+}
+
+/// Caso positivo da mesma fatia: o vínculo pedido some, o vínculo
+/// vizinho segue publicado e não há mais de um POST mutador.
+#[test]
+fn releitura_remocao_com_outro_vinculo_preservado_confirma() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_com_outro_vinculo(true)));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina_com_outro_vinculo(false)));
+    let (resultado, pedidos) = executar(respostas);
+    let previa = resultado.expect("remover só o vínculo pedido pode ser confirmado");
+    assert_eq!(previa.resultado, super::ResultadoRelacionar::Confirmado);
+    assert_eq!(previa.requisicoes, 6);
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos[4].metodo, "POST");
+    assert_eq!(pedidos[5].metodo, "GET");
+}

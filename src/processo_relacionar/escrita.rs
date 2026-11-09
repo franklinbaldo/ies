@@ -98,8 +98,13 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     html: &str,
     mime: &str,
     id_alvo: &str,
+    relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
 ) -> Result<(), E> {
+    let alvo = relacionados_antes
+        .iter()
+        .find(|relacao| relacao.id == id_alvo)
+        .ok_or(E::Estrutura("destino_a_remover_sem_identificador"))?;
     let codificacao = codificacao_da_tela(mime).ok_or(E::Estrutura(
         "charset_da_tela_de_relacionamentos_nao_suportado",
     ))?;
@@ -152,7 +157,20 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     }
     let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
-    if linhas.iter().any(|linha| linha.id == id_alvo) {
+    // Um id removido não prova a remoção do NUP: a relação pode ter
+    // reaparecido sob outro id, ou outra relação pode ter sido perdida.
+    let destino_permanece = linhas
+        .iter()
+        .any(|linha| linha.id == id_alvo || super::mesmo_protocolo(&linha.nup, &alvo.nup));
+    let outras_preservadas = relacionados_antes
+        .iter()
+        .filter(|relacao| relacao.id != id_alvo)
+        .all(|relacao| {
+            linhas.iter().any(|linha| {
+                linha.id == relacao.id && super::mesmo_protocolo(&linha.nup, &relacao.nup)
+            })
+        });
+    if destino_permanece || !outras_preservadas {
         return Err(E::EfeitoIncerto(None));
     }
     Ok(())
