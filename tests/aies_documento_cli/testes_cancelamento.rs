@@ -150,9 +150,7 @@ fn bdd_273_02_motivo_opaco_sobrevive_previa_post_e_sqlite() {
 
     let pasta = Pasta::nova();
     let motivo = "  Revisão\nnecessária & conferência=1 + \"literal\"  ";
-    let args = [
-        "--json", "documento", "cancelar", DOC, "--motivo", motivo,
-    ];
+    let args = ["--json", "documento", "cancelar", DOC, "--motivo", motivo];
     let previa = executar(&pasta, &args, 5);
     assert_eq!(
         previa.status.code(),
@@ -175,7 +173,12 @@ fn bdd_273_02_motivo_opaco_sobrevive_previa_post_e_sqlite() {
     let confirmado = executar(
         &pasta,
         &[
-            "--json", "documento", "cancelar", DOC, "--motivo", motivo,
+            "--json",
+            "documento",
+            "cancelar",
+            DOC,
+            "--motivo",
+            motivo,
             "--confirmar",
         ],
         10,
@@ -195,6 +198,8 @@ fn bdd_273_02_motivo_opaco_sobrevive_previa_post_e_sqlite() {
     let banco = Connection::open(&caminho).unwrap();
     assert_eq!(
         cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap(),
-        Some(Situacao::Cancelado { motivo: motivo.into() })
+        Some(Situacao::Cancelado {
+            motivo: motivo.into()
+        })
     );
 }
