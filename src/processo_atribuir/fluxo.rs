@@ -135,7 +135,7 @@ impl ErroProcessoAtribuir {
             }
             Self::OrigemNaoAutorizada => "a origem da sessão não é autorizada",
             Self::EscritaAindaNaoVerificada => {
-                "a atribuição confirmada ainda não tem releitura de prova"
+                "a confirmação ainda não está habilitada; execute sem --confirmar para consultar a prévia"
             }
             Self::Preparacao(ErroAtribuir::AtribuicaoJaAplicada) => {
                 "a atribuição solicitada já está aplicada"
