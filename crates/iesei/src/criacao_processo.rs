@@ -148,8 +148,7 @@ pub fn criar(
         return Err(Falha::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?
-        .ok_or(Falha::DadoInvalido)?;
+    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(Falha::DadoInvalido)?;
     let origem = instalacao.url_base();
     tx.execute(
         "INSERT INTO processo_criado
@@ -247,12 +246,20 @@ mod tests {
             assunto: "Assunto de Ensaio".to_owned(),
         };
         registrar(&banco, &origem, "cenario", &tipo).unwrap();
-        assert!(ler_criado(&banco, &origem, "cenario", "91").unwrap().is_none());
+        assert!(
+            ler_criado(&banco, &origem, "cenario", "91")
+                .unwrap()
+                .is_none()
+        );
         let novo = criar(&banco, &origem, "cenario", "12", "Nova origem", "U1").unwrap();
         assert_eq!(novo.tipo, tipo);
-        assert_eq!(ler_criado(&banco, &origem, "cenario", &novo.id_procedimento).unwrap(), Some(novo.clone()));
+        assert_eq!(
+            ler_criado(&banco, &origem, "cenario", &novo.id_procedimento).unwrap(),
+            Some(novo.clone())
+        );
         let processo = crate::processos::ler(&banco, &origem, "cenario", &novo.id_procedimento)
-            .unwrap().unwrap();
+            .unwrap()
+            .unwrap();
         assert_eq!(processo.numero, novo.nup);
         assert_eq!(processo.aberto_em, ["U1"]);
         assert!(matches!(
@@ -260,7 +267,10 @@ mod tests {
             Err(Falha::DadoInvalido)
         ));
         assert_eq!(
-            banco.query_row("SELECT COUNT(*) FROM sim_processo", [], |r| r.get::<_, i64>(0)).unwrap(),
+            banco
+                .query_row("SELECT COUNT(*) FROM sim_processo", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
             1
         );
     }
