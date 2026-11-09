@@ -253,3 +253,132 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
         "somente leitura no transporte: {trilha:?}"
     );
 }
+
+
+// BDD-60-01: o contexto NUP explícito deve selecionar o nó e o conteúdo
+// do mesmo documento. O teste executa o binário real via TLS/anti-IES/SQLite,
+// não apenas o parser de uma árvore sintética isolada.
+#[test]
+fn bdd_60_01_cli_leitura_com_processo_preserva_identidade_e_corpo() {
+    let (saida, trilha) = executar(
+        true,
+        &[
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--sem-cache",
+        ],
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor = json(&saida);
+    let documentos = valor["documentos"].as_array().expect("lote de documentos");
+    assert_eq!(documentos.len(), 1, "{valor}");
+    let documento = &documentos[0];
+    assert_eq!(documento["numero"], DOC_A);
+    assert_eq!(documento["id_documento"], "42");
+    assert_eq!(documento["processo"]["nup"], NUP_A);
+    assert_eq!(documento["processo"]["id"], "7");
+    assert_eq!(documento["fonte"], "documento_visualizar");
+    let corpo = documento["texto"].as_str().expect("corpo do documento");
+    assert!(corpo.contains("primeiro processo"), "{documento}");
+    assert!(!corpo.contains("segundo processo"), "{documento}");
+    assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
+    assert!(
+        trilha
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "navegação sem escrita: {trilha:?}"
+    );
+}
+
+struct FotoTemporaria(std::path::PathBuf);
+
+impl FotoTemporaria {
+    fn nova() -> Self {
+        let nome = format!(
+            "ies-bdd60-foto-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("relógio")
+                .as_nanos()
+        );
+        let pasta = std::env::temp_dir().join(nome);
+        std::fs::create_dir(&pasta).expect("diretório da foto");
+        Self(pasta)
+    }
+}
+
+impl Drop for FotoTemporaria {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+// BDD-60-02: --processo + --versao deve servir a revisão pedida,
+// fotografá-la e não substituir edição local divergente na releitura.
+#[test]
+fn bdd_60_02_cli_versao_e_foto_no_processo_informado() {
+    let destino = FotoTemporaria::nova();
+    let dir = destino.0.to_str().expect("destino UTF-8");
+    let args = [
+        "--json",
+        "documento",
+        DOC_A,
+        "--processo",
+        NUP_A,
+        "--versao",
+        "1",
+        "--saida",
+        dir,
+        "--sem-cache",
+    ];
+    let (primeira, trilha) = executar(true, &args);
+    assert_eq!(
+        primeira.status.code(),
+        Some(0),
+        "stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&primeira.stderr)
+    );
+    let valor = json(&primeira);
+    let doc = &valor["documentos"][0];
+    assert_eq!(doc["numero"], DOC_A);
+    assert_eq!(doc["processo"]["nup"], NUP_A);
+    assert_eq!(doc["versao"], 1);
+    assert_eq!(doc["arquivo"]["nome"], "0011519.v1.html");
+    assert_eq!(doc["arquivo"]["gravado"], true);
+    assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
+    let foto = destino.0.join("0011519.v1.html");
+    let html = std::fs::read_to_string(&foto).expect("foto da versão histórica");
+    assert!(html.contains("primeiro processo"), "{html}");
+    assert!(!html.contains("segundo processo"), "{html}");
+    assert!(!destino.0.join("0011519.v2.html").exists());
+
+    // A divergência é só no corpo: título e rodapé mantêm identidade
+    // e versão coerentes, exigindo comparação com a leitura do servidor.
+    let editado = html.replacen(
+        "Conteudo exclusivo do primeiro processo",
+        "Conteudo editado localmente",
+        1,
+    );
+    assert_ne!(editado, html, "a revisão simulada não contém o corpo esperado");
+    std::fs::write(&foto, &editado).expect("edição de teste");
+    let (segunda, trilha) = executar(true, &args);
+    assert_eq!(
+        segunda.status.code(),
+        Some(1),
+        "foto divergente não pode ser substituída: stderr={} trilha={trilha:?}",
+        String::from_utf8_lossy(&segunda.stderr)
+    );
+    let erro = json(&segunda);
+    assert_eq!(erro["subcodigo"], "foto_local_divergente", "{erro}");
+    assert_eq!(std::fs::read_to_string(&foto).unwrap(), editado);
+    assert!(!destino.0.join("0011519.v2.html").exists());
+}
