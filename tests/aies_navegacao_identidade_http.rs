@@ -132,6 +132,37 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
     atendimento.join().unwrap();
 }
 
+fn verificar_selecao_mista_de_protocolo(endereco: std::net::SocketAddr) {
+    // BDD-60-05: com PDF cadastrado, id_documento e id_protocolo
+    // conflitantes não autorizam devolver a árvore nem conteúdo alternativo.
+    let conflitante = pedir(
+        endereco,
+        "GET",
+        "id_procedimento=7&id_documento=8000000000001&id_protocolo=42",
+    );
+    assert!(
+        conflitante.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{conflitante}"
+    );
+    assert!(
+        !conflitante.contains("050000001"),
+        "uma seleção conflitante não publica o anexo"
+    );
+
+    // Dois campos concordantes continuam aceitos, como na árvore individual.
+    let concordante = pedir(
+        endereco,
+        "GET",
+        "id_procedimento=7&id_documento=8000000000001&id_protocolo=8000000000001",
+    );
+    assert!(
+        concordante.starts_with("HTTP/1.1 200 OK\r\n"),
+        "{concordante}"
+    );
+    assert!(concordante.contains("050000001"));
+
+}
+
 #[test]
 fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
     use iesei::pdf_externo::{self, Processo, TipoExterno};
@@ -215,33 +246,7 @@ fn http_arvore_mista_recusa_id_documento_repetido_sem_vazar_pdf() {
     );
     assert!(!protocolo_ambiguo.contains("050000001"));
 
-    // BDD-60-05: com PDF cadastrado, id_documento e id_protocolo
-    // conflitantes não autorizam devolver a árvore nem conteúdo alternativo.
-    let conflitante = pedir(
-        endereco,
-        "GET",
-        "id_procedimento=7&id_documento=8000000000001&id_protocolo=42",
-    );
-    assert!(
-        conflitante.starts_with("HTTP/1.1 400 Bad Request\r\n"),
-        "{conflitante}"
-    );
-    assert!(
-        !conflitante.contains("050000001"),
-        "uma seleção conflitante não publica o anexo"
-    );
-
-    // Dois campos concordantes continuam aceitos, como na árvore individual.
-    let concordante = pedir(
-        endereco,
-        "GET",
-        "id_procedimento=7&id_documento=8000000000001&id_protocolo=8000000000001",
-    );
-    assert!(
-        concordante.starts_with("HTTP/1.1 200 OK\r\n"),
-        "{concordante}"
-    );
-    assert!(concordante.contains("050000001"));
+    verificar_selecao_mista_de_protocolo(endereco);
 
     let metodo = pedir(
         endereco,
