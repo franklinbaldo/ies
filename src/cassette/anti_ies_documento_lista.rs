@@ -1,5 +1,5 @@
 //! BDD-60-05: a oferta da lista de versões antes/depois da conclusão
-//! é confrontada com a barra original UnB, não apenas com a CLI sintética.
+//! é confrontada com a barra original `UnB`, não apenas com a CLI sintética.
 //! A relação entre abertura por unidade e oferta é hipótese do anti-IES.
 use crate::arvore_processo::{ler_arvore, ler_barra_do_documento, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao;
@@ -106,12 +106,12 @@ fn servir_barra(
                 processos::guardar(&mut banco, &instalacao, "cassette-lista", &processo).unwrap();
             }
         }
-        assert!(
+        assert_eq!(
             processos::ler(&banco, &instalacao, "cassette-lista", &processo.id)
                 .unwrap()
                 .unwrap()
-                .aberto_em
-                .is_empty()
+                .aberto_em,
+            Vec::<String>::new()
         );
         assert_eq!(
             banco
