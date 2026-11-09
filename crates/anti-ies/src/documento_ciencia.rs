@@ -136,9 +136,23 @@ pub(crate) fn responder(
                 return Resposta::nova(Estado::RequisicaoInvalida);
             };
             match estado(banco, origem, cenario, documento, processo) {
-                Ok(Some(Ciencia::Registrada { id_atividade })) => Resposta::html(format!(
-                    "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}' /></td></tr></table></html>"
-                )),
+                Ok(Some(Ciencia::Registrada { id_atividade })) => {
+                    let usuario = match modelo::usuario_da_ciencia(
+                        banco, origem, cenario, documento, processo,
+                    ) {
+                        Ok(usuario) => usuario,
+                        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                    };
+                    // A lista só nomeia o autor quando a sessão sintética
+                    // o identificou. Revisores do documento não são autores
+                    // inferidos da ciência.
+                    let autoria = usuario.as_deref().map_or_else(String::new, |nome| {
+                        format!("<td>{}</td>", crate::escapar(nome))
+                    });
+                    Resposta::html(format!(
+                        "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}' /></td>{autoria}</tr></table></html>"
+                    ))
+                },
                 Ok(Some(Ciencia::Pendente)) => Resposta::nova(Estado::DadosInsuficientes),
                 Ok(None) => Resposta::nova(Estado::NaoEncontrado),
                 Err(erro) => Resposta::nova(erro),
