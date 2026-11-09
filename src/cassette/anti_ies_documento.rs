@@ -78,33 +78,14 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     assert!(!texto_original.contains("infra_hash"));
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
-    // A mesma cassette tem o histórico correspondente. Não atribuir
-    // revisão 1 ou autor/data sintéticos ao corpo efetivamente observado.
-    let historicos: Vec<_> = gravacao::respostas(&captura.json)
-        .into_iter()
-        .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
-        .collect();
-    assert_eq!(historicos.len(), 1, "histórico da mesma cassette UnB");
-    let ids_historico = gravacao::parametro(historicos[0].item, "id_documento");
-    assert!(
-        !ids_historico.is_empty() && ids_historico.iter().all(|id| *id == id_observado),
-        "histórico e corpo devem pertencer ao mesmo documento"
-    );
-    let numero = crate::documento::NumeroDocumento::novo(&identidade.numero).unwrap();
-    let html_historico = html_da_resposta(historicos[0].item).unwrap();
-    let lista = crate::documento_versoes::interpretar_historico(
-        &html_historico,
-        &numero,
+    let revisao = revisao_do_conteudo_observado(
+        &captura.json,
         id_observado,
-        None,
-    )
-    .unwrap();
-    let versao_observada = crate::rodape_do_documento::versao_do_rodape(&html_original)
-        .expect("rodapé de versão do GET original");
-    let metadados = lista
-        .selecionar(versao_observada)
-        .expect("mesma versão do corpo na lista original");
-    let numero_versao = versao_observada.numero();
+        &identidade.numero,
+        &html_original,
+        &texto_original,
+    );
+    let numero_versao = revisao.versao.get();
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -113,13 +94,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         numero_processo: nup_observado.clone(),
         numero: identidade.numero.clone(),
         tipo: identidade.tipo.clone(),
-        revisoes: vec![Revisao {
-            versao: NonZeroU32::new(numero_versao).unwrap(),
-            usuario: metadados.usuario.clone(),
-            unidade: metadados.unidade.clone(),
-            modificacao: metadados.modificacao.clone(),
-            html_corpo: format!("<p>{}</p>", escapar(&texto_original)),
-        }],
+        revisoes: vec![revisao],
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
@@ -149,8 +124,9 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let identidade_anti = crate::documento_web::identidade_do_titulo(html_anti).unwrap();
     assert_eq!(
-        crate::rodape_do_documento::versao_do_rodape(html_anti),
-        Some(versao_observada),
+        crate::rodape_do_documento::versao_do_rodape(html_anti)
+            .map(crate::documento_versoes::VersaoDocumento::numero),
+        Some(numero_versao),
         "o anti-IES precisa devolver a versão observada, não a revisão 1 inventada"
     );
     assert_eq!(
