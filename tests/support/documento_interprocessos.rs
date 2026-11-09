@@ -192,7 +192,6 @@ fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
         },
     )
     .unwrap();
-
 }
 
 fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
