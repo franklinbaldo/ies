@@ -155,8 +155,7 @@ pub fn aplicar(
     selecao: &str,
 ) -> Result<(), Falha> {
     let tx = banco.unchecked_transaction()?;
-    let observado = ler(&tx, origem, cenario, id, unidade)?
-        .ok_or(Falha::ProcessoNaoObservado)?;
+    let observado = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
     let aberto: bool = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_abertura
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
@@ -172,7 +171,12 @@ pub fn aplicar(
         let mut encontrados = observado.usuarios.iter().filter(|u| u.id == selecao);
         let escolhido = encontrados.next().ok_or(Falha::DadoInvalido)?;
         if encontrados.next().is_some()
-            || observado.usuarios.iter().filter(|u| u.login == escolhido.login).count() != 1
+            || observado
+                .usuarios
+                .iter()
+                .filter(|u| u.login == escolhido.login)
+                .count()
+                != 1
         {
             return Err(Falha::DadoInvalido);
         }
@@ -185,7 +189,14 @@ pub fn aplicar(
         "UPDATE processo_atribuicao_observada SET login_atual=?5
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
          AND login_atual=?6",
-        params![origem.url_base(), cenario, id, unidade, novo, observado.login_atual],
+        params![
+            origem.url_base(),
+            cenario,
+            id,
+            unidade,
+            novo,
+            observado.login_atual
+        ],
     )?;
     if alteradas != 1 {
         return Err(Falha::ProcessoNaoObservado);
