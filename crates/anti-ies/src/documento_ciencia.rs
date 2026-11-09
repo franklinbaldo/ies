@@ -120,7 +120,11 @@ pub(crate) fn responder(
                 Ok(Resultado::Registrada { id_atividade }) => Resposta::html(format!(
                     "<html><head><script>function inicializar(){{ atualizarArvore(         'controlador.php?acao=procedimento_visualizar&id_procedimento={processo}&id_documento={documento}&documento_visualizar_ciencias=1&id_atividade={id_atividade}#ID-{id_atividade}'); }}</script></head></html>"
                 )),
-                Ok(Resultado::JaRegistrada) => Resposta::nova(Estado::MetodoNaoPermitido),
+                Ok(Resultado::JaRegistrada) => Resposta::html(
+                    "<html><body><textarea id='txaInfraValidacao' style='display:none'>\
+                     Usuário já deu ciência neste documento.</textarea></body></html>"
+                        .to_owned(),
+                ),
                 Ok(Resultado::DocumentoNaoEncontrado) => Resposta::nova(Estado::NaoEncontrado),
                 Err(_) => Resposta::nova(Estado::DadosInsuficientes),
             }
