@@ -10,7 +10,10 @@ fn confirmacao_injetavel_exibe_sucesso_sem_chamar_de_previa() {
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let feito = resultado.unwrap();
     let texto = crate::processo_atribuir_cli::texto_humano(&feito);
-    assert!(texto.starts_with("Atribuição confirmada: processo "), "{texto}");
+    assert!(
+        texto.starts_with("Atribuição confirmada: processo "),
+        "{texto}"
+    );
     assert!(texto.contains("Atribuição anterior: aluno20."), "{texto}");
     assert!(texto.contains("Atribuição agora: aluno2."), "{texto}");
     assert!(texto.contains("Requisições: 6."), "{texto}");
@@ -30,7 +33,10 @@ fn remocao_injetavel_distingue_ausencia_verificada_de_previa() {
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let feito = resultado.unwrap();
     let texto = crate::processo_atribuir_cli::texto_humano(&feito);
-    assert!(texto.starts_with("Remoção confirmada: processo "), "{texto}");
+    assert!(
+        texto.starts_with("Remoção confirmada: processo "),
+        "{texto}"
+    );
     assert!(texto.contains("Atribuição anterior: aluno20."), "{texto}");
     assert!(texto.contains("Atribuição agora: nenhuma."), "{texto}");
     assert!(texto.contains("Requisições: 6."), "{texto}");
@@ -49,7 +55,10 @@ fn previa_nao_promete_escrita_nem_no_texto_nem_no_json() {
     let texto = crate::processo_atribuir_cli::texto_humano(&feito);
     assert!(texto.starts_with("Prévia: processo "), "{texto}");
     assert!(texto.contains("Atribuição atual: aluno20."), "{texto}");
-    assert!(texto.contains("Atribuir a aluno2; opção verificada na tela."), "{texto}");
+    assert!(
+        texto.contains("Atribuir a aluno2; opção verificada na tela."),
+        "{texto}"
+    );
     assert!(!texto.contains("confirmada"), "{texto}");
     let json = crate::processo_atribuir_cli::json_da_previa(&feito);
     assert_eq!(json["confirmado"], false);
