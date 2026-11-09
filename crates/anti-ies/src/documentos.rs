@@ -84,21 +84,6 @@ pub(crate) fn eh_rota_documentos(alvo: &str) -> bool {
     }
 }
 
-/// A oferta do comando documental depende somente da abertura no SQLite,
-/// inclusive depois de uma tramitação. Nenhum token ou HTML é persistido.
-fn inclusao_disponivel(
-    banco: &Connection,
-    origem: &Instalacao,
-    cenario: &str,
-    id: &str,
-) -> Result<bool, Falha> {
-    match modelo::conferir_abertura(banco, origem, cenario, id) {
-        Ok(()) => Ok(true),
-        Err(Falha::ProcessoNaoAbertoNaUnidade) => Ok(false),
-        Err(falha) => Err(falha),
-    }
-}
-
 /// A árvore é projetada dos documentos persistidos, não de HTML congelado.
 /// A mesma leitura é usada antes e depois do POST criador da #246.
 fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: &str) -> Resposta {
@@ -119,28 +104,14 @@ fn pagina_da_arvore(banco: &Connection, origem: &Instalacao, cenario: &str, id: 
          true,true,\"noVisitado\",null,\"noVisitado\",\"{nup}\");"
     )
     .expect("formatação String");
-    let disponivel = match inclusao_disponivel(banco, origem, cenario, id) {
-        Ok(disponivel) => disponivel,
-        Err(falha) => return erros_de_modelo(&falha),
-    };
-    let link = if disponivel {
-        format!(
-            "<a href=\"controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}\">Incluir Documento</a>",
-            crate::protocolo_sintetico::INFRA_HASH
-        )
-    } else {
-        String::new()
-    };
+    let link = format!(
+        "<a href=\"controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}\">Incluir Documento</a>",
+        crate::protocolo_sintetico::INFRA_HASH
+    );
     let unidade_html = escapar(&processo.unidade);
-    let situacao = if disponivel {
-        format!(
-            "Processo aberto somente na unidade <a alt=\"{unidade_html}\" title=\"{unidade_html}\" class=\"ancoraSigla\">{unidade_html}</a>.<br />"
-        )
-    } else {
-        format!(
-            "Processo não aberto na unidade <a alt=\"{unidade_html}\" title=\"{unidade_html}\" class=\"ancoraSigla\">{unidade_html}</a>.<br />"
-        )
-    };
+    let situacao = format!(
+        "Processo aberto somente na unidade <a alt=\"{unidade_html}\" title=\"{unidade_html}\" class=\"ancoraSigla\">{unidade_html}</a>.<br />"
+    );
     writeln!(html, "Nos[0].acoes = '{}';", escapar_js(&link)).expect("formatação String");
     html.push_str("Nos[0].src = '';\n");
     writeln!(html, "Nos[0].html = '{}';", escapar_js(&situacao)).expect("formatação String");
