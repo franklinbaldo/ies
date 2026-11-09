@@ -54,7 +54,7 @@ fn literal_js(texto: &str) -> String {
         .replace('\n', "\\n")
 }
 
-fn arvore_do_processo(
+pub(super) fn arvore_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
     banco: &Connection,
