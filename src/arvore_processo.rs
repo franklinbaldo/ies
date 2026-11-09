@@ -294,11 +294,7 @@ pub(crate) fn ler_arvore_parcial(
 
 /// Um documento movido pertence à lista documental, que pode ser não confiável.
 fn filtrar_movidos(incluidos: bool, movidos: Vec<DocumentoMovido>) -> Vec<DocumentoMovido> {
-    if incluidos {
-        movidos
-    } else {
-        Vec::new()
-    }
+    if incluidos { movidos } else { Vec::new() }
 }
 
 pub(crate) fn ler_arvore_com_modo(
