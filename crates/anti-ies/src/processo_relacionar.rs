@@ -1,6 +1,9 @@
 //! Prévia do formulário de relacionamentos, derivada do SQLite versionado.
 //! Imita a forma PEN1 apenas como hipótese sintética; sem escrita remota.
-use crate::{Estado, Resposta, documentos::campo_formulario_unico, eh_controlador_sei, escapar, parametro_unico};
+use crate::{
+    Estado, Resposta, documentos::campo_formulario_unico, eh_controlador_sei, escapar,
+    parametro_unico,
+};
 use iesei::instalacao::Instalacao;
 use iesei::relacionamentos;
 use rusqlite::Connection;
@@ -39,7 +42,10 @@ pub(crate) fn responder(
         ) else {
             return Resposta::nova(Estado::RequisicaoInvalida);
         };
-        if !id_destino.bytes().all(|b| b.is_ascii_digit()) || id_destino.is_empty() || id_destino == id {
+        if !id_destino.bytes().all(|b| b.is_ascii_digit())
+            || id_destino.is_empty()
+            || id_destino == id
+        {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
         let destino = match relacionamentos::identificar(banco, origem, cenario, &numero) {
