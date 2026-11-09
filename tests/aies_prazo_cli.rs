@@ -147,7 +147,10 @@ fn executar(caso: &str) -> (Output, Vec<String>, (Option<String>, bool)) {
     executar_com_argumentos(caso, &[])
 }
 
-fn executar_com_argumentos(caso: &str, extras: &[&str]) -> (Output, Vec<String>, (Option<String>, bool)) {
+fn executar_com_argumentos(
+    caso: &str,
+    extras: &[&str],
+) -> (Output, Vec<String>, (Option<String>, bool)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -272,10 +275,8 @@ fn bdd_272_01_cli_real_le_tres_estados_sem_escrita() {
 
 #[test]
 fn bdd_272_02_cli_real_confirma_data_por_post_unico_e_releitura() {
-    let (saida, pedidos, estado_final) = executar_com_argumentos(
-        "sem",
-        &["--ate", "20/11/2026", "--confirmar"],
-    );
+    let (saida, pedidos, estado_final) =
+        executar_com_argumentos("sem", &["--ate", "20/11/2026", "--confirmar"]);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -287,10 +288,15 @@ fn bdd_272_02_cli_real_confirma_data_por_post_unico_e_releitura() {
     assert_eq!(json["confirmado"], true);
     assert_eq!(json["solicitado"]["ate"], "20/11/2026");
     assert_eq!(estado_final, (Some("20/11/2026".into()), false));
-    let escrita = pedidos.iter().position(|p| p == "POST controle_prazo_definir").unwrap();
+    let escrita = pedidos
+        .iter()
+        .position(|p| p == "POST controle_prazo_definir")
+        .unwrap();
     assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
     assert!(
-        pedidos[escrita+1..].iter().any(|p| p == "GET controle_prazo_definir"),
+        pedidos[escrita + 1..]
+            .iter()
+            .any(|p| p == "GET controle_prazo_definir"),
         "a releitura independente precisa ocorrer depois do POST: {pedidos:?}"
     );
     assert_eq!(json["requisicoes"], pedidos.len());
