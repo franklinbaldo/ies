@@ -275,7 +275,7 @@ mod testes_criacao {
         )
         .unwrap();
         let criado = documentos_simulados::criar(&banco, &origem, cena, "10", "291", "").unwrap();
-        assert_eq!(ids_do_processo(&banco, &origem, cena, "10").unwrap(), []);
+        assert!(ids_do_processo(&banco, &origem, cena, "10").unwrap().is_empty());
         guardar(
             &mut banco,
             cena,
