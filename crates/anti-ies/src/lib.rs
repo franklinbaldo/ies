@@ -1,5 +1,6 @@
 //! Servidor experimental. Leitura de cassettes e hipótese de documento simulado.
 mod arvore_compartilhada;
+mod blocos;
 mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
