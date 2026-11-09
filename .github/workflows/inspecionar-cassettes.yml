@@ -27,17 +27,3 @@ jobs:
         env:
           CASSETTE_CARDS: ${{ inputs.cards }}
         run: python3 scripts/inspecionar_cassettes.py
-      # TEMPORARIO #273: replay offline sem SEI; remover antes do Ready.
-      - name: Confronto Rust do 302 GO UFRJ
-        shell: bash
-        env:
-          IES_ACERVO_CACHE: ${{ runner.temp }}/acervo-273
-        run: |
-          set -euo pipefail
-          rustup toolchain install 1.99.1 --profile minimal
-          mkdir -p "$IES_ACERVO_CACHE"
-          curl -fLsS --retry 0 --max-time 240 -o "$IES_ACERVO_CACHE/todos-sei-cassettes-go.zip" "https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-go.zip"
-          echo "42a08cd3714bb863d136ed98e517221510a31982  $IES_ACERVO_CACHE/todos-sei-cassettes-go.zip" | sha1sum -c
-          curl -fLsS --retry 0 --max-time 240 -o "$IES_ACERVO_CACHE/lote-0350d4efa37710c9.zip" "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-0350d4efa37710c9.zip"
-          echo "c95d0ad385617615974fad4c98137fcf3fa1b164  $IES_ACERVO_CACHE/lote-0350d4efa37710c9.zip" | sha1sum -c
-          cargo +1.99.1 test --locked --bin ies replay_independente_redirecionamento_cancelamento_go_ufrj -- --ignored --nocapture --test-threads=1
