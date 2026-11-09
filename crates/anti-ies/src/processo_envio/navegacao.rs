@@ -100,11 +100,12 @@ fn arvore_do_processo(
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
-Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
+Nos[0] = new infraArvoreNo("PROCESSO","{id}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={id}&infra_hash={}","ifrVisualizacao","{numero}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{numero}");
 Nos[0].acoes = '{barra}';
 Nos[0].src = '';
 Nos[0].html = '{situacao}';
-{lista_ciencia}{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
+{lista_ciencia}{nos}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#,
+        crate::protocolo_sintetico::INFRA_HASH
     ))
 }
 
