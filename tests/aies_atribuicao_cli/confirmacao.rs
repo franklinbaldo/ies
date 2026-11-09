@@ -103,7 +103,7 @@ fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     assert_eq!(erro["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(erro["atribuicao_relida"], "aluno2");
     assert_eq!(
-        erro["mensagem"],
+        erro["erro"],
         "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo"
     );
     assert_eq!(
