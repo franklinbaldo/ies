@@ -233,6 +233,25 @@ jobs:
       - name: Replay with real readers and verified cassette members
         run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
 
+      # 🐙 Temporário na PR #530: confronto offline dos GETs de cancelamento.
+      # Remover antes do Ready final; não é gate permanente.
+      - name: Baixar ZIP público UFRJ e verificar SHA-1 (#273 temporário)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 0 --max-time 240 \
+            --output "$HOME/.cache/ies/lote-0350d4efa37710c9.zip" \
+            https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-0350d4efa37710c9.zip
+          echo "c95d0ad385617615974fad4c98137fcf3fa1b164  $HOME/.cache/ies/lote-0350d4efa37710c9.zip" | sha1sum --check
+
+      - name: Confronto independente GET GO/UFRJ com anti-IES (#273 temporário)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored |
+            grep -F 'documento_cancelar::acervo::replay_independente_formulario_documento_cancelar_go_ufrj: test'
+          cargo +1.99.1 test --locked --bin ies documento_cancelar::acervo::replay_independente_formulario_documento_cancelar_go_ufrj -- --ignored --exact --nocapture --test-threads=1
+
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
     # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
