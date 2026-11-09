@@ -83,6 +83,11 @@ pub(crate) fn responder(
         Ok(protocolo) => protocolo,
         Err(estado) => return Resposta::nova(estado),
     };
+    // Campos distintos não podem escolher silenciosamente o primeiro,
+    // mesmo quando a árvore é composta com um PDF registrado no SQLite.
+    if documento.is_some() && protocolo.is_some() && documento != protocolo {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
     let selecionado = documento.or(protocolo);
     let original =
         selecionado.map(|_| documento_arvore::responder(metodo, alvo, banco, origem, cenario));
