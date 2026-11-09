@@ -30,7 +30,8 @@ pub fn consultar(
              JOIN processo_simulado sim ON sim.origem=base.origem AND sim.cenario=base.cenario
                  AND sim.id_procedimento=base.id_procedimento
              WHERE base.origem=?1 AND base.cenario=?2 AND base.id_procedimento=?3)",
-        params![origem.url_base(), cenario, processo], |r| r.get(0),
+        params![origem.url_base(), cenario, processo],
+        |r| r.get(0),
     )?;
     if !existe {
         return Ok(None);
