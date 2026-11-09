@@ -156,6 +156,34 @@ fn executar_apos_post_local(
     (saida, eventos, unidades, final_atribuicao)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RespostaPost {
+    Original,
+    Recusa403,
+}
+
+// O backend persiste antes de a bancada substituir o aceite por recusa.
+// Assim, o teste distingue estado final de prova causal do próprio POST.
+fn responder_local(
+    endereco: std::net::SocketAddr,
+    pedido: &[u8],
+    evento: &str,
+    resposta_post: RespostaPost,
+) -> Vec<u8> {
+    let mut backend = TcpStream::connect(endereco).unwrap();
+    backend.write_all(pedido).unwrap();
+    backend.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = Vec::new();
+    backend.read_to_end(&mut resposta).unwrap();
+    if resposta_post == RespostaPost::Recusa403
+        && evento == "POST procedimento_atribuicao_cadastrar"
+    {
+        resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            .to_vec();
+    }
+    resposta
+}
+
 // Uma bancada e a mesma sessão em duas invocações: escrita e releitura
 // independente por 'ies processo NUP', sem qualquer rede externa.
 fn executar_cenario(
@@ -164,7 +192,7 @@ fn executar_cenario(
     escolha_previa: Option<&str>,
     confirmar: bool,
 ) -> (Output, Option<Output>, Vec<String>, usize, String) {
-    executar_cenario_com_resposta(json, remover, escolha_previa, confirmar, false)
+    executar_cenario_com_resposta(json, remover, escolha_previa, confirmar, RespostaPost::Original)
 }
 
 fn executar_cenario_com_resposta(
@@ -172,7 +200,7 @@ fn executar_cenario_com_resposta(
     remover: bool,
     escolha_previa: Option<&str>,
     confirmar: bool,
-    mascarar_aceite_do_post: bool,
+    resposta_post: RespostaPost,
 ) -> (Output, Option<Output>, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
@@ -227,18 +255,7 @@ fn executar_cenario_com_resposta(
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = pedido(&mut canal);
-            let mut backend = TcpStream::connect(endereco).unwrap();
-            backend.write_all(&bytes).unwrap();
-            backend.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            backend.read_to_end(&mut resposta).unwrap();
-            // O SQLite já recebeu o POST, mas o cliente vê uma resposta
-            // de erro: a releitura coincidente não comprova autoria.
-            if mascarar_aceite_do_post && evento == "POST procedimento_atribuicao_cadastrar" {
-                resposta =
-                    b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                        .to_vec();
-            }
+            let resposta = responder_local(endereco, &bytes, &evento, resposta_post);
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();

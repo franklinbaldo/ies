@@ -97,7 +97,7 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
 #[test]
 fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     let (escrita, releitura, eventos, _, estado) =
-        executar_cenario_com_resposta(true, false, None, true, true);
+        executar_cenario_com_resposta(true, false, None, true, RespostaPost::Recusa403);
     assert_eq!(escrita.status.code(), Some(3));
     let erro: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
     assert_eq!(erro["subcodigo"], "efeito_incerto_na_atribuicao");
