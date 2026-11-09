@@ -5,3 +5,4 @@ cassettes/pen1/processo-atribuir-pen1--4f92a0df534c.md
 cassettes/pen2/processo-atribuir-pen2--7a3d210e81ef.md
 cassettes/pen3/processo-atribuir-pen3--e3f00544e746.md
 cassettes/pen4/processo-atribuir-pen4--918cdfc8237b.md
+# inspeção de resposta POST, somente metadados saneados
