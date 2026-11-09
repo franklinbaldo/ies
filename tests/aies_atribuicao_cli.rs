@@ -260,8 +260,13 @@ fn executar_cenario(
     let releitura = confirmar.then(|| {
         Command::new(env!("CARGO_BIN_EXE_ies"))
             .args([
-                "--json", "processo", NUP, "--sem-andamentos",
-                "--sem-propriedades", "--sem-marcadores", "--sem-documentos",
+                "--json",
+                "processo",
+                NUP,
+                "--sem-andamentos",
+                "--sem-propriedades",
+                "--sem-marcadores",
+                "--sem-documentos",
             ])
             .env("IES_URL_CONTROLE_FILE", &url)
             .env("IES_COOKIE_FILE", &cookie)
