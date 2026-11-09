@@ -31,8 +31,12 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
         match escuta.accept() {
             Ok((cliente, endereco)) => {
                 assert!(endereco.ip().is_loopback());
-                cliente.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                cliente.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                cliente
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                cliente
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return Some(cliente);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -62,10 +66,15 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
         .and_then(|(_, query)| query.split('&').find_map(|s| s.strip_prefix("acao=")))
         .unwrap_or("sem_acao");
     let evento = format!("{metodo} {acao}");
-    let tamanho = texto.lines().find_map(|linha| {
-        let (chave, valor) = linha.split_once(':')?;
-        chave.eq_ignore_ascii_case("content-length").then(|| valor.trim().parse::<usize>().unwrap())
-    }).unwrap_or(0);
+    let tamanho = texto
+        .lines()
+        .find_map(|linha| {
+            let (chave, valor) = linha.split_once(':')?;
+            chave
+                .eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or(0);
     assert!(tamanho < 64_000);
     let mut corpo = vec![0; tamanho];
     fonte.read_exact(&mut corpo).unwrap();
@@ -92,10 +101,12 @@ fn estado() -> (Connection, Instalacao) {
                     visualizado: false,
                     sigiloso: false,
                 }],
-            ).unwrap(),
+            )
+            .unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
         },
-    ).unwrap();
+    )
+    .unwrap();
     processos::guardar(
         &mut banco,
         &instalacao,
@@ -108,7 +119,8 @@ fn estado() -> (Connection, Instalacao) {
             anotacao_origem: None,
             destinos: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
     andamentos::guardar(
         &mut banco,
         &instalacao,
@@ -167,7 +179,8 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         while let Some(mut tcp) = aceitar(&proxy, &sinal) {
             let (connect, _) = pedido_http(&mut tcp);
             assert!(connect.starts_with(b"CONNECT"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (req, evento) = pedido_http(&mut canal);
             let mut destino = TcpStream::connect(endereco).unwrap();
@@ -195,7 +208,8 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         .env_remove("no_proxy")
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
-        .output().unwrap();
+        .output()
+        .unwrap();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
@@ -203,10 +217,13 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     assert_eq!(persistido.linhas.len(), 1);
     assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
     let pedidos = trilha.lock().unwrap();
-    assert_eq!(saida.status.code(), Some(0),
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr));
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["numero"], NUP);
     assert_eq!(json["texto"], TEXTO);
@@ -214,7 +231,15 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     assert_eq!(json["alterado"], false);
     assert_eq!(json["total_antes"], 1);
     assert_eq!(json["total_depois"], serde_json::Value::Null);
-    assert!(pedidos.iter().any(|p| p == "GET procedimento_consultar_historico"));
-    assert!(pedidos.iter().any(|p| p == "GET procedimento_atualizar_andamento"));
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET procedimento_consultar_historico")
+    );
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET procedimento_atualizar_andamento")
+    );
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
 }
