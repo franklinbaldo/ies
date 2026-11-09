@@ -188,6 +188,11 @@ pub(super) fn executar_sem_lista_na_unidade(args: &[&str]) -> (Output, Vec<Strin
     executar_com_estado(true, EstadoExtra::SemListaNaUnidade, args)
 }
 
+/// A árvore já ofereceu a ação; antes do GET de histórico, DOC é cancelado.
+pub(super) fn executar_cancelado_antes_da_lista(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::CanceladoAntesDaLista, args)
+}
+
 /// A lista já ofereceu a versão 1, mas o acesso muda antes do GET do corpo.
 pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::VersaoRevogadaAoVisualizar, args)
@@ -198,6 +203,7 @@ mod transicoes;
 use transicoes::{
     conferir_estado_apos_cli, revogar_antes_de_servir_corpo, revogar_sessao_antes_de_servir_corpo,
     revogar_versao_antes_de_servir_corpo, trocar_titulo_antes_de_servir_corpo,
+    cancelar_antes_de_servir_lista,
 };
 
 fn executar_com_estado(
@@ -240,6 +246,9 @@ fn executar_com_estado(
                     }
                     EstadoExtra::VersaoRevogadaAoVisualizar => {
                         revogar_versao_antes_de_servir_corpo(&tcp, &db, &instalacao)
+                    }
+                    EstadoExtra::CanceladoAntesDaLista => {
+                        cancelar_antes_de_servir_lista(&tcp, &db, &instalacao)
                     }
                     _ => false,
                 };
