@@ -113,11 +113,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
             ..
         } = erro
         {
-            let estado = if login.is_empty() {
-                "nenhuma"
-            } else {
-                login
-            };
+            let estado = if login.is_empty() { "nenhuma" } else { login };
             eprintln!("Estado relido: {estado} (não comprova o efeito deste POST).");
         }
     }
