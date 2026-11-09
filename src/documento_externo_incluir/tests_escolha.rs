@@ -88,3 +88,17 @@ fn dado_template_inerte_quando_publica_acao_entao_nao_aceita_link_falso() {
         Err(ErroEscolhaExterna::NaoOferecido)
     );
 }
+
+#[test]
+fn dado_opcao_vazia_com_nbsp_da_unb_quando_peço_anexo_entao_obtenho_id_observado() {
+    // UnB SEI 4.0.9 (cassettes documento-mover-cancelar-unb e
+    // cadastro-listas-unb): a opção vazia é `&nbsp;`. Ensaio live de
+    // 09/11/2026 recusava a tela inteira (tipo_externo_nao_oferecido).
+    let html = cadastro().replace(
+        r#"<option value="null"> </option>"#,
+        r#"<option value="null" selected="selected">&nbsp;</option>"#,
+    );
+    assert_eq!(identificar_tipo(&html, "Anexo"), Ok("293".to_owned()));
+    let acentuado = html.replace(">Despacho<", ">Of&iacute;cio<");
+    assert_eq!(identificar_tipo(&acentuado, "Ofício"), Ok("291".to_owned()));
+}
