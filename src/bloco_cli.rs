@@ -1,5 +1,5 @@
 //! CLI Web de blocos: GET Controle, GET lista e, para bloco N, GET detalhe.
-//! Zero POST, JS, retry ou restauração da tela.
+//! Paginação interna usa um POST único; sem JS, retry ou restauração da tela.
 use crate::bloco::{self, ErroBloco, TipoBloco};
 use crate::bloco_detalhe::{self};
 use crate::configuracao;
@@ -244,7 +244,7 @@ fn executar_leitura(
                 );
             } else {
                 println!(
-                    "IES: blocos {}: {} na página observada de {} declarados; {} GET(s).",
+                    "IES: blocos {}: {} na página observada de {} declarados; {} requisição(ões).",
                     tipo.rotulo(),
                     valor["lista"]["itens"].as_array().map_or(0, Vec::len),
                     valor["lista"]["total_declarado"],
