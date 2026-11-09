@@ -8,17 +8,17 @@ use iesei::processos;
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
-fn pagina_historico(numero: &str, historico: &Historico) -> Resposta {
+fn pagina_historico(numero: &str, id: &str, historico: &Historico, tipo: char) -> Resposta {
     let total = historico.total_declarado;
     let palavra = if total == 1 { "registro" } else { "registros" };
+    let (proximo, legenda) = if tipo == 'R' {
+        ('P', "Ver histórico completo")
+    } else {
+        ('R', "Ver histórico resumido")
+    };
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
     let mut html = format!(
-        "<html><head><title>SEI - Histórico do Processo {}</title></head><body>\
-         <form id='frmProcedimentoHistorico' method='post' \
-         action='controlador.php?acao=procedimento_consultar_historico'>\
-         <input type='hidden' name='hdnTipoHistorico' value='R'>\
-         <table id='tblHistorico' summary='Histórico de Andamentos'>\
-         <caption>Lista de Andamentos ({total} {palavra}):</caption>\
-         <tr><th>Data/Hora</th><th>Unidade</th><th>Usuário</th><th>Descrição</th></tr>",
+        "<html><head><title>SEI - Histórico do Processo {}</title>         <script>\nfunction verHistorico(valor){{\n         document.getElementById('hdnTipoHistorico').value = valor;\n         document.getElementById('frmProcedimentoHistorico').submit();\n         }}\n</script></head><body>         <form id='frmProcedimentoHistorico' method='post'          action='controlador.php?acao=procedimento_consultar_historico&amp;id_procedimento={id}&amp;infra_hash={hash}'>         <a id='ancTipoHistorico' href='#' onclick=\"verHistorico('{proximo}');\">{legenda}</a>         <input type='hidden' id='hdnTipoHistorico' name='hdnTipoHistorico' value='{tipo}'>         <table id='tblHistorico' class='infraTable' summary='Histórico de Andamentos'>         <caption>Lista de Andamentos ({total} {palavra}):</caption>         <tr><th>Data/Hora</th><th>Unidade</th><th>Usuário</th><th>Descrição</th></tr>",
         escapar(numero)
     );
     for linha in &historico.linhas {
@@ -118,14 +118,20 @@ pub(crate) fn responder(
     };
     match (metodo, parametro_unico(alvo, "acao")) {
         ("GET", Some("procedimento_consultar_historico")) => {
-            pagina_historico(&processo.numero, &historico)
+            pagina_historico(&processo.numero, id, &historico, 'R')
         }
         ("GET", Some("procedimento_atualizar_andamento")) => pagina_formulario(id),
         ("POST", Some("procedimento_atualizar_andamento")) => {
             gravar(corpo, banco, instalacao, cenario, id, &historico)
         }
+        ("POST", Some("procedimento_consultar_historico"))
+            if campo_unico(corpo, "hdnTipoHistorico").as_deref() == Some("P")
+                && corpo.split('&').count() == 1 =>
+        {
+            pagina_historico(&processo.numero, id, &historico, 'P')
+        }
         ("POST", Some("procedimento_consultar_historico")) => {
-            Resposta::nova(Estado::MetodoNaoPermitido)
+            Resposta::nova(Estado::RequisicaoInvalida)
         }
         _ => Resposta::nova(Estado::NaoImplementado),
     }
@@ -147,7 +153,7 @@ mod tests {
                 descricao: "Anterior".into(),
             }],
         };
-        let html = pagina_historico("00001.000001/2026-01", &h).corpo;
+        let html = pagina_historico("00001.000001/2026-01", "10", &h, 'R').corpo;
         assert!(html.contains("Anterior"));
         assert!(html.contains("Lista de Andamentos (1 registro):"));
         assert!(!html.contains("Registro novo"));
