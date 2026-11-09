@@ -163,6 +163,16 @@ fn executar_cenario(
     escolha_previa: Option<&str>,
     confirmar: bool,
 ) -> (Output, Option<Output>, Vec<String>, usize, String) {
+    executar_cenario_com_resposta(json, remover, escolha_previa, confirmar, false)
+}
+
+fn executar_cenario_com_resposta(
+    json: bool,
+    remover: bool,
+    escolha_previa: Option<&str>,
+    confirmar: bool,
+    mascarar_aceite_do_post: bool,
+) -> (Output, Option<Output>, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) =
         fixture_tls::identidade_com_host(&pasta.0, "sei.treinamento.unb.br");
@@ -222,6 +232,11 @@ fn executar_cenario(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
+            // O SQLite já recebeu o POST, mas o cliente vê uma resposta
+            // de erro: a releitura coincidente não comprova autoria.
+            if mascarar_aceite_do_post && evento == "POST procedimento_atribuicao_cadastrar" {
+                resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+            }
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
