@@ -1,5 +1,5 @@
 //! BDD-60-05: o link foi publicado, mas a sessão venceu antes do GET.
-//! Corrida hipotética: não consta das respostas da cassette UnB.
+//! Corrida hipotética: não consta das respostas da cassette `UnB`.
 use super::*;
 
 #[test]
