@@ -238,7 +238,10 @@ fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
     )
     .unwrap();
     assert_eq!(cadastro.estado, anti_ies::Estado::RequisicaoInvalida);
-    assert_eq!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(), []);
+    assert_eq!(
+        modelo::documentos(&banco, &origem, "ensaio", "7").unwrap(),
+        []
+    );
 
     let arvore = anti_ies::pdf_externo::atender(
         "GET",
