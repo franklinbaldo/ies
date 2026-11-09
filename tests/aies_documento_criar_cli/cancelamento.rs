@@ -8,7 +8,7 @@ fn bdd_273_02_criar_documento_e_cancelar_o_mesmo_id_com_releitura() {
     let criar = criar(true);
     let motivo = "  revisão necessária  ";
     let cancelar = [
-        "--json", "documento", "cancelar", "1000002", "--processo", NUP,
+        "--json", "documento", "--processo", NUP, "cancelar", "1000002",
         "--motivo", motivo, "--confirmar",
     ];
     let consultar = [
