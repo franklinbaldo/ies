@@ -200,10 +200,10 @@ fn executar(confirmar: bool) {
             }
             argumentos
         })
-        .env("IES_URL_CONTROLE_FILE", controle)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
+        .env("IES_URL_CONTROLE_FILE", &controle)
+        .env("IES_COOKIE_FILE", &cookie)
+        .env("IES_ORIGEM_FILE", &origem)
+        .env("SSL_CERT_FILE", &cert)
         .env("https_proxy", format!("http://127.0.0.1:{porta_proxy}"))
         .env("HOME", &pasta.0)
         .env_remove("HTTPS_PROXY")
