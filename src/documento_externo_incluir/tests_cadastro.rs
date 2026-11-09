@@ -342,13 +342,14 @@ fn bdd_332_03_ies_le_arvore_real_depois_do_cadastro_simulado() {
     .unwrap();
     interno::criar(&banco, &origem, "caso", "7", "291", "Primeiro").unwrap();
     let temporario = externo::receber_conteudo(
-            &banco,
-            &origem,
-            "caso",
-            "7",
-            "prova.pdf",
-            b"%PDF-1.7\nconteudo",
-        ).unwrap();
+        &banco,
+        &origem,
+        "caso",
+        "7",
+        "prova.pdf",
+        b"%PDF-1.7\nconteudo",
+    )
+    .unwrap();
     externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
 
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
