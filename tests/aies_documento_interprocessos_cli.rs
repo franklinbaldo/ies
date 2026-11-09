@@ -291,8 +291,10 @@ fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
             "sem link não se requisita conteúdo cancelado: {trilha:?}"
         );
         assert!(
-            trilha.iter().all(|pedido| pedido.starts_with("GET ")
-                || pedido == "POST protocolo_pesquisa_rapida"),
+            trilha
+                .iter()
+                .all(|pedido| pedido.starts_with("GET ")
+                    || pedido == "POST protocolo_pesquisa_rapida"),
             "sem POST mutador ou retry: {trilha:?}"
         );
     }
