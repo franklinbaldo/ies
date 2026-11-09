@@ -129,17 +129,13 @@ pub(super) fn conferir_estado_apos_cli(
     if matches!(modo, EstadoExtra::VersaoRevogadaAoVisualizar) {
         assert!(transicao, "CLI não buscou a versão 1 após o histórico");
         assert_eq!(
-            acesso_versao::consultar(
-                db, instalacao, CENARIO, "42", NonZeroU32::new(1).unwrap()
-            )
-            .unwrap(),
+            acesso_versao::consultar(db, instalacao, CENARIO, "42", NonZeroU32::new(1).unwrap())
+                .unwrap(),
             AcessoVersao::Recusado
         );
         assert_eq!(
-            acesso_versao::consultar(
-                db, instalacao, CENARIO, "42", NonZeroU32::new(2).unwrap()
-            )
-            .unwrap(),
+            acesso_versao::consultar(db, instalacao, CENARIO, "42", NonZeroU32::new(2).unwrap())
+                .unwrap(),
             AcessoVersao::Acessivel,
             "a revogação da versão 1 não afeta a revisão 2"
         );
@@ -165,4 +161,3 @@ pub(super) fn conferir_estado_apos_cli(
         );
     }
 }
-
