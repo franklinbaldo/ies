@@ -141,3 +141,65 @@ fn bdd_273_02_estado_cancelado_persiste_entre_cli_arvore_e_formulario() {
         })
     );
 }
+/// Regressão técnica do BDD-273-01/02: o texto da CLI é opaco. O form
+/// urlencoded deve conservar Unicode, espaços, quebra de linha e caracteres
+/// reservados, sem normalização pelo IES nem pelo anti-IES.
+#[test]
+fn bdd_273_02_motivo_opaco_sobrevive_previa_post_e_sqlite() {
+    use iesei::cancelamento_documento::{self, Situacao};
+
+    let pasta = Pasta::nova();
+    let motivo = "  Revisão\nnecessária & conferência=1 + \"literal\"  ";
+    let args = ["--json", "documento", "cancelar", DOC, "--motivo", motivo];
+    let previa = executar(&pasta, &args, 5);
+    assert_eq!(
+        previa.status.code(),
+        Some(0),
+        "prévia falhou: {}",
+        String::from_utf8_lossy(&previa.stderr)
+    );
+    assert_eq!(json(&previa)["motivo"], motivo);
+    assert_eq!(json(&previa)["alterado"], false);
+
+    let origem = Instalacao::interpretar(ORIGEM).unwrap();
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let banco = Connection::open(&caminho).unwrap();
+    assert_eq!(
+        cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap(),
+        Some(Situacao::Disponivel)
+    );
+    drop(banco);
+
+    let confirmado = executar(
+        &pasta,
+        &[
+            "--json",
+            "documento",
+            "cancelar",
+            DOC,
+            "--motivo",
+            motivo,
+            "--confirmar",
+        ],
+        10,
+    );
+    assert_eq!(
+        confirmado.status.code(),
+        Some(0),
+        "confirmação falhou: {}",
+        String::from_utf8_lossy(&confirmado.stderr)
+    );
+    let resultado = json(&confirmado);
+    assert_eq!(resultado["motivo"], motivo);
+    assert_eq!(resultado["alterado"], true);
+    assert_eq!(resultado["reconciliado_por_leitura"], true);
+    assert_eq!(resultado["requisicoes"], 10);
+
+    let banco = Connection::open(&caminho).unwrap();
+    assert_eq!(
+        cancelamento_documento::consultar(&banco, &origem, CENARIO, "42", "7").unwrap(),
+        Some(Situacao::Cancelado {
+            motivo: motivo.into()
+        })
+    );
+}

@@ -28,7 +28,11 @@ pub(super) fn ler_natureza(a: &[Literal; super::ARGUMENTOS]) -> NaturezaDoDocume
         _ => None,
     };
     let motivo = match &a[6] {
-        Literal::Texto(dica) => dica.strip_prefix(DICA_CANCELADO).map(str::trim),
+        // Retire apenas o separador visual depois de ':'; o motivo é opaco.
+        // `trim()` perderia espaços do usuário e tornaria a releitura incerta.
+        Literal::Texto(dica) => dica
+            .strip_prefix(DICA_CANCELADO)
+            .map(|resto| resto.strip_prefix(' ').unwrap_or(resto)),
         _ => None,
     };
     let (cancelado, motivo_do_cancelamento) = match (icone.as_deref(), motivo) {
