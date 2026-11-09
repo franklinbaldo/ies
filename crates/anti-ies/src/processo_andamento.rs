@@ -71,9 +71,7 @@ pub(crate) fn responder(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     match parametro_unico(alvo, "acao") {
-        Some("procedimento_consultar_historico") => {
-            pagina_historico(&processo.numero, &historico)
-        }
+        Some("procedimento_consultar_historico") => pagina_historico(&processo.numero, &historico),
         Some("procedimento_atualizar_andamento") => pagina_formulario(id),
         _ => Resposta::nova(Estado::NaoImplementado),
     }
