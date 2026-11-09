@@ -140,7 +140,6 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-#[test]
 fn executar(confirmar: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -221,7 +220,7 @@ fn executar(confirmar: bool) {
     let persistido = servidor.join().unwrap();
     assert_eq!(persistido.total_declarado, if confirmar { 2 } else { 1 });
     assert_eq!(persistido.linhas.len(), if confirmar { 2 } else { 1 });
-    assert_eq!(persistido.linhas[0].descricao, if confirmar { "  Registro novo  " } else { "Andamento anterior" });
+    assert_eq!(persistido.linhas[0].descricao, if confirmar { TEXTO } else { "Andamento anterior" });
     assert_eq!(persistido.linhas.last().unwrap().descricao, "Andamento anterior");
     let pedidos = trilha.lock().unwrap();
     assert_eq!(
