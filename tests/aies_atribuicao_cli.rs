@@ -19,9 +19,9 @@ use std::time::Duration;
 
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
-use fixture_tls::{Pasta, identidade};
+use fixture_tls::Pasta;
 
-const ORIGEM: &str = "https://sei.test/sei";
+const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
 const CENARIO: &str = "bdd-264-01-cli";
 const NUP: &str = "00001.000001/2026-01";
 
@@ -150,8 +150,22 @@ fn executar_apos_post_local(
     remover: bool,
     escolha_previa: Option<&str>,
 ) -> (Output, Vec<String>, usize, String) {
+    let (saida, _, eventos, unidades, final_atribuicao) =
+        executar_cenario(json, remover, escolha_previa, false);
+    (saida, eventos, unidades, final_atribuicao)
+}
+
+// Uma bancada e a mesma sessão em duas invocações: escrita e releitura
+// independente por 'ies processo NUP', sem qualquer rede externa.
+fn executar_cenario(
+    json: bool,
+    remover: bool,
+    escolha_previa: Option<&str>,
+    confirmar: bool,
+) -> (Output, Option<Output>, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) = identidade(&pasta.0);
+    let (cert, identidade_tls) =
+        fixture_tls::identidade_com_host(&pasta.0, "sei.treinamento.unb.br");
     let origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
     let url = pasta.privado(
@@ -198,7 +212,7 @@ fn executar_apos_post_local(
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = pedido(&mut tcp);
-            assert!(connect.starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+            assert!(connect.starts_with(b"CONNECT sei.treinamento.unb.br:443 HTTP/1.1\r\n"));
             tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
@@ -223,6 +237,9 @@ fn executar_apos_post_local(
     } else {
         argumentos.extend(["--usuario", "aluno2"]);
     }
+    if confirmar {
+        argumentos.push("--confirmar");
+    }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", url)
@@ -240,11 +257,33 @@ fn executar_apos_post_local(
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
         .unwrap();
+    let releitura = confirmar.then(|| {
+        Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args([
+                "--json", "processo", NUP, "--sem-andamentos",
+                "--sem-propriedades", "--sem-marcadores", "--sem-documentos",
+            ])
+            .env("IES_URL_CONTROLE_FILE", &url)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .unwrap()
+    });
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let (total, atribuicao_final) = servidor.join().unwrap();
     let trilha = eventos.lock().unwrap().clone();
-    (saida, trilha, total, atribuicao_final)
+    (saida, releitura, trilha, total, atribuicao_final)
 }
 
 #[test]
@@ -422,3 +461,6 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
 
 #[path = "aies_atribuicao_cli/estado_pos_post.rs"]
 mod estado_pos_post;
+
+#[path = "aies_atribuicao_cli/confirmacao.rs"]
+mod confirmacao;
