@@ -203,8 +203,14 @@ mod tests {
         };
         guardar(&mut banco, &instalacao, "um", &pagina).unwrap();
         guardar(&mut banco, &instalacao, "um", &pagina).unwrap();
-        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), Some(pagina));
-        assert_eq!(ler(&banco, &instalacao, "outro", Tipo::Assinatura).unwrap(), None);
+        assert_eq!(
+            ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(),
+            Some(pagina)
+        );
+        assert_eq!(
+            ler(&banco, &instalacao, "outro", Tipo::Assinatura).unwrap(),
+            None
+        );
         assert_eq!(ler(&banco, &instalacao, "um", Tipo::Interno).unwrap(), None);
     }
 
@@ -213,10 +219,21 @@ mod tests {
         let mut banco = Connection::open_in_memory().unwrap();
         crate::banco_cassettes::iniciar(&banco).unwrap();
         let instalacao = Instalacao::interpretar("https://sei.test/sei").unwrap();
-        let vazio = Pagina { tipo: Tipo::Assinatura, total: 0, faixa: None, linhas: vec![] };
-        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), None);
+        let vazio = Pagina {
+            tipo: Tipo::Assinatura,
+            total: 0,
+            faixa: None,
+            linhas: vec![],
+        };
+        assert_eq!(
+            ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(),
+            None
+        );
         guardar(&mut banco, &instalacao, "um", &vazio).unwrap();
-        assert_eq!(ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(), Some(vazio));
+        assert_eq!(
+            ler(&banco, &instalacao, "um", Tipo::Assinatura).unwrap(),
+            Some(vazio)
+        );
         let nao_conferido = Pagina {
             tipo: Tipo::Assinatura,
             total: 10,
