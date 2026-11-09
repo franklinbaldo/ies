@@ -269,6 +269,10 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
         unidades_abertas, 1,
         "bancada não altera unidades do processo"
     );
+    assert_eq!(
+        atribuicao_final, "aluno1",
+        "prévia não grava atribuição no SQLite"
+    );
 }
 
 #[test]
