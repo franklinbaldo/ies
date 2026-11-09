@@ -87,7 +87,7 @@ pub(crate) fn tela(
 }
 
 /// Rotas cuja consulta à lista não modifica o documento.
-/// O GET documento_ciencia é uma única escrita, nunca um "GET" inocente.
+/// O GET `documento_ciencia` é uma única escrita, nunca um "GET" inocente.
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
