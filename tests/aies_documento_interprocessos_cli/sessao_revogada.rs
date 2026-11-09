@@ -27,7 +27,10 @@ fn bdd_60_05_cli_recusa_sessao_revogada_depois_da_arvore() {
         assert_eq!(erro["status_http"], 403, "{erro}");
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-        assert!(erro.get("documentos").is_none(), "conteúdo publicado: {erro}");
+        assert!(
+            erro.get("documentos").is_none(),
+            "conteúdo publicado: {erro}"
+        );
         assert_eq!(
             trilha
                 .iter()
@@ -43,8 +46,10 @@ fn bdd_60_05_cli_recusa_sessao_revogada_depois_da_arvore() {
             "a árvore precede a revogação: {trilha:?}"
         );
         assert!(
-            trilha.iter().all(|pedido| pedido.starts_with("GET ")
-                || pedido == "POST protocolo_pesquisa_rapida"),
+            trilha
+                .iter()
+                .all(|pedido| pedido.starts_with("GET ")
+                    || pedido == "POST protocolo_pesquisa_rapida"),
             "nenhuma escrita ou nova tentativa: {trilha:?}"
         );
     }
