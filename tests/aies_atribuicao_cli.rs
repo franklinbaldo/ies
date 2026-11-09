@@ -160,6 +160,7 @@ fn executar_apos_post_local(
 enum RespostaPost {
     Original,
     Recusa403,
+    Historico302,
 }
 
 // O backend persiste antes de a bancada substituir o aceite por recusa.
@@ -175,11 +176,18 @@ fn responder_local(
     backend.shutdown(Shutdown::Write).unwrap();
     let mut resposta = Vec::new();
     backend.read_to_end(&mut resposta).unwrap();
-    if resposta_post == RespostaPost::Recusa403
-        && evento == "POST procedimento_atribuicao_cadastrar"
-    {
-        resposta =
-            b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+    if evento == "POST procedimento_atribuicao_cadastrar" {
+        resposta = match resposta_post {
+            RespostaPost::Original => resposta,
+            RespostaPost::Recusa403 => {
+                b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec()
+            }
+            // A forma do 302 segue os 14 POSTs históricos: sem ID decimal
+            // singular na Location. O efeito já foi aplicado no SQLite.
+            RespostaPost::Historico302 => {
+                b"HTTP/1.1 302 Found\r\nLocation: controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec()
+            }
+        };
     }
     resposta
 }
