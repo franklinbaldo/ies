@@ -131,7 +131,6 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     tarefa.join().unwrap();
 }
 
-
 /// Reconstrói apenas versões/metadados observados, sem inventar corpo histórico.
 fn revisoes_da_cassette(
     historico: &crate::documento_versoes::HistoricoDocumento,
