@@ -355,6 +355,9 @@ mod titulo_trocado;
 #[path = "aies_documento_interprocessos_cli/sessao_revogada.rs"]
 mod sessao_revogada;
 
+#[path = "aies_documento_interprocessos_cli/versao_revogada.rs"]
+mod versao_revogada;
+
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
