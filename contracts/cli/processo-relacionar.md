@@ -9,10 +9,14 @@ implementation: partial
 
 # Relacionar processos (#258)
 
-**Prévia disponível; escrita implementada apenas no motor de testes sintéticos.**
-Na CLI, `--confirmar` para adição e remoção ainda é recusado após a leitura
-local da sessão e **antes de qualquer requisição**, até ensaio autorizado
-em treinamento. A prévia sem `--confirmar` permanece disponível.
+**Prévia disponível; confirmação E2E somente em TLS local sintético.**
+Na CLI de distribuição, `--confirmar` para adição e remoção continua recusado
+após a leitura local da sessão e **antes de qualquer requisição**.
+Para provar BDD-258-02/03/04 sem escrita externa, somente a compilação
+**debug** com origem exata `https://sei.test/sei` (domínio reservado)
+exercita a confirmação contra anti-IES/SQLite via proxy TLS loopback.
+Essa exceção de teste não libera produção ou treinamento. A prévia sem
+`--confirmar` permanece disponível.
 Uma relação já existente é `sem_efeito` sem escrita. O aceite do POST
 mutador deve ser explícito e a leitura independente precisa comprovar
 o estado pretendido; caso contrário, saída 3, sem repetição.
@@ -57,7 +61,7 @@ relacionamento.
 acaoRemover('id'); na mesma linha. Sem relacionamento, sem_efeito true.
 Orçamento: abertura + 1 GET da tela, sem POST.
 
-**Adição (fluxo interno WIP, bloqueado na CLI):** o IES submete o formulário observado via botão
+**Adição (motor WIP, E2E somente em debug com origem .test):** o IES submete o formulário observado via botão
 `sbmAdicionar`, com `txtProtocolo`, `txtIdentificacaoProtocolo` e
 `hdnIdProtocolo` obtidos do XML de consulta. Um único POST mutador
 é seguido de uma GET independente, que deve localizar exatamente o id
@@ -69,7 +73,7 @@ resulta em `efeito_incerto`, saída 3. Orçamento sintético a frio:
 O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
 sem alegação de validação ao vivo nas demais instalações.
 
-**Remoção (fluxo interno WIP, bloqueado na CLI):** um único POST com `hdnInfraItemId` do vínculo
+**Remoção (motor WIP, E2E somente em debug com origem .test):** um único POST com `hdnInfraItemId` do vínculo
 identificado, action `procedimento_excluir_relacionamento` extraída do
 `acaoRemover(id)` ativo e conferida pelo primitivo de formulário. O POST
 precisa devolver 302 sem seguir o redirecionamento, para a própria tela
