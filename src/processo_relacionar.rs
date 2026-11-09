@@ -272,6 +272,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
                 &html,
                 &mime,
                 id_destino,
+                &relacionados,
                 &mut rede,
             )?;
             previa.resultado = ResultadoRelacionar::Confirmado;
