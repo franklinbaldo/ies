@@ -76,7 +76,7 @@ O Elefante atua na integração e gestão do backlog GitHub. Os comentários no 
 
 ## Antichurn e fluxo contínuo de integração
 
-- **Integração ágil na rodada:** Toda fatia WIP com CI oficial completo 100% verde (7/7), sincronizada com a `main` (`behind=0`), escopo restrito e `--confirmar` fechado deve ser integrada imediatamente por merge commit de dois pais (`main` + PR), sem rebase ou force-push.
+- **Integração ágil na rodada:** Toda fatia WIP com CI oficial completo 100% verde (7/7), sincronizada com a `main` (`behind=0`) e escopo restrito deve ser integrada imediatamente por merge commit de dois pais (`main` + PR), sem rebase ou force-push.
 - **Eficácia direta das decisões do 🦡 Texugo:** Parecer de revogação, ablação ou desbloqueio emitido pelo Texugo tem eficácia imediata e autoriza a integração direta pelo Elefante, superando qualquer hesitação ou ressalva anterior do 🦅.
 - **Fim da patinação burocrática:**
   - Integração direta de fatias aditivas com escopo disjunto e CI 100% verde no head exato.

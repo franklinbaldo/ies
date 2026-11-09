@@ -9,7 +9,7 @@ implementation: partial
 
 # Incluir documento externo em processo — #332
 
-A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` ainda **recusa antes da sessão e da rede** (causa tipada `CadastroNaoValidado`), inclusive com `--consultar-sei`, até completar e comprovar as duas escritas remotas.
+A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` envia o PDF (upload temporário) e cadastra o documento, uma única vez cada, sem retry, e só declara sucesso depois de reler a árvore e achar o externo novo (`Anexo (NNNNNNN)`, ícone PDF). Efeito não comprovado sai 3. **Validado ao vivo na UnB de treinamento em 09/11/2026** (saída 0, documento `0012273`, [relatório](../../docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md)). Não há chave nem trava de ensaio: a escrita vale para a instalação da sessão.
 
 ## Contrato atual do núcleo local
 
@@ -30,8 +30,7 @@ apresentação, nunca critério de classificação.
 
 A família `FalhaPdf` distingue ausência, arquivo não regular, link
 simbólico, arquivo vazio, extensão incorreta, nome não aceito, assinatura
-incorreta, limite observado ultrapassado, alteração detectada durante o hash e falha de leitura. A recusa
-de `--confirmar` ainda não validado sai 1; entrada não aceita sai 2.
+incorreta, limite observado ultrapassado, alteração detectada durante o hash e falha de leitura. Entrada não aceita sai 2.
 Nenhuma delas abre sessão ou rede.
 
 ## Recibo temporário — núcleo offline da PR #380
@@ -55,7 +54,7 @@ byte, nome acentuado nos dois charsets e o cálculo do comprimento.
 prévia Web validada, upload ou confirmação. O valor de `Content-Length`
 não prova que os bytes de um futuro envio serão idênticos aos inspecionados:
 a vinculação à mesma abertura/descritor será feita na integração com o
-transporte. `--confirmar` permanece fechado antes de sessão/rede.
+transporte. (Histórico desta fatia; ver o estado atual no início.)
 
 ## Transporte e recibo HTTP — bancada sintética da PR #380
 
@@ -80,7 +79,7 @@ O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/do
 
 A próxima fatia deve observar cada campo e action servidos; conferir os tipos e limites; usar `formulario_web`, origem e identidade; executar um único upload e um único cadastro, **sem retry**; distinguir `anexo confirmado`, `anexo não observado`, `documento criado` e `efeito incerto` com variantes tipadas, preferindo saída 3 a sucesso não provado. O caso [Todos #1246](https://github.com/franklinbaldo/todos/issues/1246) relata anexo somente visível na tela de alteração, não na árvore; **não** autoriza inferir ausência nem repetir POST.
 
-**Evidência:** os testes sintéticos do núcleo estão em `src/documento_externo_incluir.rs`; live em treinamento: **NOT_RUN**. `--confirmar` permanece fechado.
+**Evidência:** os testes sintéticos do núcleo estão em `src/documento_externo_incluir.rs`; live em treinamento: PASS em 09/11/2026 (ver o início deste contrato).
 
 ## Plano da linha de anexo pela tela servida — fatia #391
 
