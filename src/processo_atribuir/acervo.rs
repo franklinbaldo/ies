@@ -106,7 +106,7 @@ fn replay_sintetico_nao_converte_post_em_prova_de_atribuicao() {
 /// Observação limitada da resposta ao POST gravado: estrutura do 302,
 /// nunca prova de alteração de estado nem de autoria do efeito.
 /// Não publica a Location inteira (pode conter URL assinada).
-fn post_historico_tem_redirect_sem_id(item: &Value) -> bool {
+fn post_historico_sem_id_decimal_unico(item: &Value) -> bool {
     let Some(localizacao) = gravacao::localizacao(item) else {
         return false;
     };
@@ -124,9 +124,13 @@ fn post_historico_tem_redirect_sem_id(item: &Value) -> bool {
             .map(|(_, valor)| *valor)
             .collect::<Vec<_>>()
     };
+    let ids = ocorrencias("id_procedimento");
+    let id_unico_decimal = ids.len() == 1
+        && !ids[0].is_empty()
+        && ids[0].bytes().all(|c| c.is_ascii_digit());
     ocorrencias("acao") == ["arvore_visualizar"]
         && ocorrencias("acao_origem") == ["procedimento_atribuicao_cadastrar"]
-        && ocorrencias("id_procedimento").is_empty()
+        && !id_unico_decimal
 }
 
 /// Um GET sobre o mesmo HTTP local usado pela CLI, sem rede externa.
@@ -282,7 +286,7 @@ fn replay_de_processo_atribuir_no_acervo() {
     let mut registros = Vec::new();
     let mut total_cards = 0;
     let mut formularios_confrontados = 0;
-    let mut posts_historicos_sem_id = 0;
+    let mut posts_historicos_sem_id_decimal_unico = 0;
     for instalacao in INSTALACOES {
         let mut cards = std::fs::read_dir(raiz.join(instalacao))
             .expect("pasta das cassettes")
@@ -303,8 +307,8 @@ fn replay_de_processo_atribuir_no_acervo() {
             let conferida = conferir_cassette_ate(&card, zip, 120_000_000)
                 .expect("hash, schema, completude e host da cassette");
             assert_eq!(conferida.instalacao, instalacao);
-            // Fato do acervo imutável: a Location dos POSTs não contém
-            // id_procedimento. O anti-IES acrescenta esse ID sinteticamente
+            // Fato do acervo imutável: a Location dos POSTs não identifica
+            // o processo por um id_procedimento decimal singular. O anti-IES acrescenta esse ID sinteticamente
             // para permitir uma prova causal estrita no E2E, portanto sua
             // resposta não é paritária com a Location histórica.
             for resposta in gravacao::respostas(&conferida.json) {
@@ -316,10 +320,10 @@ fn replay_de_processo_atribuir_no_acervo() {
                         "status POST histórico divergente em {instalacao}"
                     );
                     assert!(
-                        post_historico_tem_redirect_sem_id(resposta.item),
+                        post_historico_sem_id_decimal_unico(resposta.item),
                         "forma POST histórica divergente em {instalacao}"
                     );
-                    posts_historicos_sem_id += 1;
+                    posts_historicos_sem_id_decimal_unico += 1;
                 }
             }
             registros.extend(replay(instalacao, &conferida.json));
@@ -336,9 +340,9 @@ fn replay_de_processo_atribuir_no_acervo() {
         "nenhuma resposta de atribuição gravada"
     );
     assert_eq!(
-        posts_historicos_sem_id,
+        posts_historicos_sem_id_decimal_unico,
         total_cards * 2,
-        "dois POSTs históricos de atribuição por cassette"
+        "dois POSTs históricos sem ID decimal singular por cassette"
     );
     assert!(
         formularios_confrontados > 0,
@@ -355,7 +359,7 @@ fn replay_de_processo_atribuir_no_acervo() {
     );
     let _ = writeln!(
         saida,
-        "{posts_historicos_sem_id} POSTs históricos: HTTP 302, arvore_visualizar, acao_origem correta, sem id_procedimento na Location. A resposta 302 do anti-IES inclui ID sintético: **divergência de forma**, não paridade nem prova de efeito.\n"
+        "{posts_historicos_sem_id_decimal_unico} POSTs históricos: HTTP 302, arvore_visualizar, acao_origem correta, sem id_procedimento decimal singular na Location. A resposta 302 do anti-IES inclui ID sintético: **divergência de forma**, não paridade nem prova de efeito.\n"
     );
     tabela(
         &mut saida,
