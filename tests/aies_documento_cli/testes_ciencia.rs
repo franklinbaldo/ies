@@ -25,10 +25,11 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(qtde, 0, "prévia não grava ciência");
     drop(banco);
 
+    // Nova invocação: quatro pedidos de abertura, tela, aceite único, árvore e lista.
     let confirmado = executar(
         &pasta,
         &["--json", "documento", "ciente", DOC, "--confirmar"],
-        5,
+        8,
     );
     assert_eq!(
         confirmado.status.code(),
@@ -43,7 +44,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(feito["numero"], DOC);
     assert_eq!(feito["id_documento"], "42");
     assert_eq!(feito["processo"]["id"], "7");
-    assert_eq!(feito["requisicoes"], 5);
+    assert_eq!(feito["requisicoes"], 8);
     let atividade = feito["id_atividade"].as_str().expect("atividade observada");
 
     // Oráculo independente da árvore e do leitor HTML: estado gravado no SQLite.
