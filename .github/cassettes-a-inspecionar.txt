@@ -1,3 +1,0 @@
-cassettes/unb/processo-prazo-excluir-unb--ddc4180646df.md
-cassettes/ufrj/processo-prazo-excluir-ufrj--111a778ef4a4.md
-cassettes/pen3/processo-prazo-excluir-pen3--8c4b0af09040.md
