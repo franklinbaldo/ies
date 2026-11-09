@@ -233,6 +233,19 @@ jobs:
       - name: Replay with real readers and verified cassette members
         run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
 
+      # Diagnóstico transitório #273, retirado antes do merge. ZIPs públicos
+      # com SHA verificado e nenhum contato com instalações SEI.
+      - name: TEMP #273 - confrontar formularios reais com IES e anti-IES
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 0 --max-time 240 \
+            --output "$HOME/.cache/ies/lote-0350d4efa37710c9.zip" \
+            "https://archive.org/download/todos-sei-cassettes-2026/lotes/lote-0350d4efa37710c9.zip"
+          printf '%s  %s\n' 'c95d0ad385617615974fad4c98137fcf3fa1b164' \
+            "$HOME/.cache/ies/lote-0350d4efa37710c9.zip" | sha1sum --check
+          cargo +1.99.1 test --locked --bin ies documento_cancelar::acervo::replay_independente_formulario_documento_cancelar_go_ufrj -- --ignored --exact --nocapture --test-threads=1
+
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
     # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
