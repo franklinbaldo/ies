@@ -54,6 +54,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
         if contexto.permitir_leitura_parcial {
             aberta.arvore.documentos_incluidos = false;
             aberta.arvore.documentos.clear();
+            aberta.arvore.documentos_movidos.clear();
             aberta.arvore.pastas.clear();
             aberta.arvore.aviso_leitura_parcial =
                 Some(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
@@ -73,6 +74,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
             if contexto.permitir_leitura_parcial && erro.admite_leitura_parcial() {
                 aberta.arvore.documentos_incluidos = false;
                 aberta.arvore.documentos.clear();
+                aberta.arvore.documentos_movidos.clear();
                 aberta.arvore.pastas.clear();
                 aberta.arvore.aviso_leitura_parcial = Some(erro);
                 return Ok(aberta);

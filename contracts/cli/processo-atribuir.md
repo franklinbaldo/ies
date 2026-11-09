@@ -86,16 +86,22 @@ genéricas sem identidade: a releitura coincidente pode ser efeito de
 outro agente, inclusive na remoção. Sem ID, o resultado é efeito incerto
 (saída 3), sem novo POST. A forma de `arvore_visualizar` com ID foi
 observada no caso `ACEITE` do Todos @323eb01.
-**Na CLI pública, --confirmar continua temporariamente bloqueado** por
-`escrita_de_atribuicao_ainda_nao_verificada`, antes de abrir sessão ou
-rede. Os testes de POST único e releitura já passaram; a habilitação
-pública ainda depende de validação live autorizada em treinamento.
+**Na CLI pública, `--confirmar` passa exclusivamente pelo caminho de
+treinamento UnB `https://sei.treinamento.unb.br/sei`**, cuja resposta
+302 com identidade está documentada no oráculo Todos. A sessão privada
+é lida antes dessa decisão; uma origem diferente, inclusive produção,
+recebe `escrita_de_atribuicao_ainda_nao_verificada` **antes de qualquer
+requisição de rede**. A origem precisa ser idêntica, não apenas um host
+parecido. A CLI chama o mesmo fluxo tipado de POST único e verificação por
+nova leitura. O efeito remoto em treinamento continua **NOT_RUN** até
+ensaio autorizado: aprovar o E2E sintético não comprova escrita no SEI.
 
 O fluxo de escrita injetável utiliza o formulário servido como fonte do
 payload, exatamente um POST sem retry e uma árvore nova para verificação.
-A habilitação da escrita na CLI depende ainda de ensaio seguro em treinamento,
-com prévia, confirmação única e registro da atribuição ou remoção residual. A autorização se restringe às instalações
-de treinamento; ordem prévia → confirmar uma vez → leitura de prova.
+Para ampliar essa habilitação a outras instalações, exige-se ensaio
+seguro em treinamento, com prévia, confirmação única e registro da
+atribuição ou remoção residual. A autorização se restringe a treinamento;
+ordem prévia → confirmar uma vez → leitura de prova.
 
 ## Orçamento conhecido e pendências
 
@@ -106,7 +112,8 @@ sem repetir o POST mesmo sob falha de rede. O teste sintético a frio afirma
 com índice local precisam de testes específicos.
 Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a frio (3 da abertura e 1 da tela); barra ausente custa 3 GET e 0 POST. As recusas HTTP da prévia preservam status e mensagem saneada. Testes sintéticos do corpo do POST e da remoção usam 0 requisições:
 `hdnInfraTipoPagina`, `sbmSalvar`, `selAtribuicao`, `hdnIdProtocolo`
-nessa ordem. A CLI `--confirmar` continua fechada antes da sessão.
+nessa ordem. Em origens diferentes da UnB de treinamento a confirmação
+continua fechada antes da rede, preservando o subcódigo existente.
 RED de transporte: [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454), **4 testes novos FAIL, 1.689 PASS**.
 Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Prévia live na UnB: **PASS** no [ensaio 42205702494](https://github.com/franklinbaldo/ies/actions/runs/42205702494), com login de 5 requisições e 4 GET de prévia, **0 POST de atribuição e 0 resíduo**. Prévia na segunda instalação: **PASS** em GO 5.0.3 (`--remover`, 5 requisições; [evidência](../../docs/validacao-live/2026-11-06-processo-atribuir-go.md)). Escrita e remoção efetivas ao vivo: **NOT_RUN**, nenhum POST de atribuição.
 RED da regressão de `principal` sem identidade: [CI 42204843683](https://github.com/franklinbaldo/ies/actions/runs/42204843683), **1 FAIL novo, 1.706 PASS, 23 ignored preexistentes**. Nenhuma escrita no SEI.
