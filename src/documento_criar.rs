@@ -120,7 +120,7 @@ pub(crate) fn conferir_criacao(
 }
 
 /// Como [`conferir_criacao`], com o rótulo que a árvore publica para o
-/// documento novo. Externo na UnB (SEI 4.0.9): `Anexo (0011862)`.
+/// documento novo. Externo na `UnB` (SEI 4.0.9): `Anexo (0011862)`.
 pub(crate) fn conferir_criacao_com_rotulo(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],

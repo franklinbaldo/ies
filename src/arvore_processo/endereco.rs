@@ -70,7 +70,7 @@ pub(crate) fn conferir_endereco_relativo_por(
 
 /// Como [`conferir_endereco_relativo`], aceitando a segunda ocorrência
 /// literalmente igual de `id_procedimento` que o SEI 4.0.9 publica nos links
-/// da lista de tipos (`documento_gerar` e `documento_receber`, UnB).
+/// da lista de tipos (`documento_gerar` e `documento_receber`, `UnB`).
 /// Só a cópia usada para validação perde a duplicata; a URL devolvida é a
 /// original, sem reconstruir a assinatura. Valores divergentes ou mais de
 /// duas ocorrências continuam recusados.
