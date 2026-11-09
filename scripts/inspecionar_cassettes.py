@@ -114,6 +114,33 @@ def verificar(caminho, arquivos):
         estruturas[estrutura] += 1
         if acao:
             acoes[(metodo, acao)] += 1
+    # TEMPORARIO #273: dados sanitizados de status e ordem causal; remover antes do Ready.
+    from urllib.parse import urlsplit, parse_qs
+    for indice, interacao in enumerate(interacoes):
+        metodo, acao, _ = detalhes_requisicao(interacao.get("request"))
+        if acao != "documento_cancelar":
+            continue
+        resposta = interacao.get("response") or {}
+        cabecalhos = resposta.get("headers") or {}
+        loc = next((v for k, v in cabecalhos.items()
+                    if k.lower() == "location" and isinstance(v, str)), "")
+        destino = parse_qs(urlsplit(loc).query)
+        origem = parse_qs(urlsplit(resposta.get("url") or "").query)
+        mesmo_proc = (len(destino.get("id_procedimento", [])) == 1
+                      and destino.get("id_procedimento") == origem.get("id_procedimento"))
+        mesmo_doc = (len(destino.get("id_documento", [])) == 1
+                     and destino.get("id_documento") == origem.get("id_documento"))
+        seguintes = []
+        for proxima in interacoes[indice + 1:indice + 5]:
+            m, a, _ = detalhes_requisicao(proxima.get("request"))
+            seguintes.append((m, a, (proxima.get("response") or {}).get("status_code")))
+        print("CANCEL_TRANSICAO_SANITIZADA", {
+            "passo": indice, "metodo": metodo, "status": resposta.get("status_code"),
+            "destino_acao": destino.get("acao", []),
+            "atualizar_arvore": destino.get("atualizar_arvore", []),
+            "id_proc_coerente": mesmo_proc, "id_doc_coerente": mesmo_doc,
+            "proximos": seguintes,
+        })
     # Nunca imprimir valores de URLs, corpos, cookies, tokens, hashes de sessao ou HTML.
     nome = Path(caminho).name
     print(f"PASS {card['installation']} {nome}: {len(interacoes)} interacoes; SHA-1/SHA-256 OK")
