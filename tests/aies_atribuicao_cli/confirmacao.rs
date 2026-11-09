@@ -1,0 +1,58 @@
+//! BDD-264-02/03: a própria CLI escreve uma única vez no anti-IES local,
+//! depois um processo novo lê a mesma identidade. Sem acesso externo.
+use super::*;
+
+fn executar_e_reler(remover: bool, esperado: Option<&str>) {
+    let (escrita, releitura, eventos, unidades, estado) =
+        executar_cenario(true, remover, None, true);
+    assert_eq!(
+        escrita.status.code(),
+        Some(0),
+        "primeira CLI: {}",
+        String::from_utf8_lossy(&escrita.stderr)
+    );
+    let resposta: serde_json::Value =
+        serde_json::from_slice(&escrita.stdout).expect("JSON da escrita");
+    assert_eq!(resposta["confirmado"], true);
+    assert_eq!(resposta["alterado"], true);
+    assert_eq!(resposta["usuario_atual"], "aluno1");
+    assert_eq!(resposta["usuario_pedido"], esperado);
+    assert_eq!(resposta["requisicoes"], 7);
+
+    let post_de_atribuicao = eventos
+        .iter()
+        .filter(|evento| evento.as_str() == "POST procedimento_atribuicao_cadastrar")
+        .count();
+    assert_eq!(post_de_atribuicao, 1, "não repetir escrita: {eventos:?}");
+    assert_eq!(unidades, 1);
+    let esperado_final = esperado.unwrap_or("");
+    assert_eq!(estado, esperado_final);
+
+    // Outro processo, nova invocação da CLI e nova leitura do estado Web.
+    let segunda = releitura.expect("segunda consulta ies processo NUP");
+    assert_eq!(
+        segunda.status.code(),
+        Some(0),
+        "releitura: {}",
+        String::from_utf8_lossy(&segunda.stderr)
+    );
+    let consulta: serde_json::Value =
+        serde_json::from_slice(&segunda.stdout).expect("JSON da releitura");
+    assert_eq!(consulta["numero"], NUP);
+    let usuario = &consulta["aberto_em"][0]["atribuido_a"];
+    if let Some(login) = esperado {
+        assert_eq!(usuario["sigla"], login);
+    } else {
+        assert!(usuario.is_null(), "remoção ainda aparece: {consulta}");
+    }
+}
+
+#[test]
+fn bdd_264_02_confirmar_atribuicao_e_reler_pela_cli_real() {
+    executar_e_reler(false, Some("aluno2"));
+}
+
+#[test]
+fn bdd_264_03_confirmar_remocao_e_reler_pela_cli_real() {
+    executar_e_reler(true, None);
+}
