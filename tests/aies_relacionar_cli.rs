@@ -125,7 +125,7 @@ fn banco(vinculo_inicial: bool) -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar(vinculo_inicial: bool) -> (Output, Vec<String>, usize) {
+fn executar(vinculo_inicial: bool, post_local: bool) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -157,6 +157,26 @@ fn executar(vinculo_inicial: bool) -> (Output, Vec<String>, usize) {
             .unwrap()
             .len()
     });
+    // A mutação é HTTP exclusivamente em loopback, antes de executar a CLI real.
+    // A consulta seguinte deve ler o mesmo estado SQLite, não uma fixture fixa.
+    if post_local {
+        let corpo = format!(
+            "hdnIdProtocolo=22&txtProtocolo={DESTINO}&txtIdentificacaoProtocolo=&sbmAdicionar=Adicionar"
+        );
+        let mut cliente = TcpStream::connect(endereco).unwrap();
+        let pedido = format!(
+            "POST /sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
+            corpo.len()
+        );
+        cliente.write_all(pedido.as_bytes()).unwrap();
+        cliente.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = String::new();
+        cliente.read_to_string(&mut resposta).unwrap();
+        assert!(
+            resposta.starts_with("HTTP/1.1 302 Found"),
+            "POST sintético deve ter aceite: {resposta}"
+        );
+    }
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
     let parar_proxy = Arc::clone(&parar);
@@ -205,7 +225,7 @@ fn executar(vinculo_inicial: bool) -> (Output, Vec<String>, usize) {
 
 #[test]
 fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
-    let (saida, eventos, relacionados) = executar(false);
+    let (saida, eventos, relacionados) = executar(false, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -249,7 +269,7 @@ fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {
 
 #[test]
 fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
-    let (saida, eventos, relacionados) = executar(true);
+    let (saida, eventos, relacionados) = executar(true, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -287,5 +307,37 @@ fn bdd_258_01_relacao_preexistente_nao_faz_consulta_ajax_nem_escrita() {
     assert_eq!(
         relacionados, 1,
         "a prévia preserva a única relação existente"
+    );
+}
+
+
+/// Apoio a BDD-258-02: um POST local anti-IES altera SQLite e a CLI real,
+/// em outra conexão TLS, observa o vínculo sem executar outro POST mutador.
+/// Não é a confirmação pela CLI, que permanece bloqueada antes da rede.
+#[test]
+fn bdd_258_02_parcial_post_local_e_previa_cli_enxergam_a_mesma_relacao() {
+    let (saida, eventos, relacionados) = executar(false, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} stdout={} http={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["sem_efeito"], true);
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(relacionados, 1);
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET procedimento_relacionar")
+            .count(),
+        1
+    );
+    assert!(
+        eventos.iter().all(|e| e.starts_with("GET ")
+            || e == "POST protocolo_pesquisa_rapida"),
+        "a CLI lê o vínculo criado no simulador, mas não o recria: {eventos:?}"
     );
 }
