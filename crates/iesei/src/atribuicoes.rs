@@ -138,7 +138,6 @@ pub fn ler(
     }))
 }
 
-
 /// Consome uma única seleção oferecida no formulário já observado.
 /// A transição é uma atualização atômica da identidade (origem, cenário,
 /// processo, unidade) no SQLite efêmero, nunca uma chamada ao SEI.
