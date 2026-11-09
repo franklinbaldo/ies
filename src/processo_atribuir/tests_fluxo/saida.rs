@@ -65,3 +65,27 @@ fn previa_nao_promete_escrita_nem_no_texto_nem_no_json() {
     assert_eq!(json["alterado"], false);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
+// O 302 histórico das cassettes publica acao_origem, mas não uma
+// identidade decimal singular. A árvore pode coincidir após a escrita;
+// a CLI não deve chamar essa coincidência de confirmação do nosso POST.
+#[test]
+fn redirect_historico_sem_id_expoe_incerteza_em_vez_de_confirmacao() {
+    for usuario in [Some("aluno2"), None] {
+        let mut respostas = respostas_previa("aluno20");
+        respostas.push(r302(
+            "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar",
+        ));
+        respostas.push(ok(arvore_atual(usuario.unwrap_or(""))));
+        let (resultado, pedidos) = rodar_confirmacao(usuario, respostas);
+        let erro = resultado.unwrap_err();
+        let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
+        assert_eq!(erro.saida(), 3);
+        assert_eq!(publico["atribuicao_relida"], usuario.unwrap_or(""));
+        assert!(
+            erro.mensagem().contains("efeito desta tentativa"),
+            "o diagnóstico deve distinguir estado relido de autoria"
+        );
+        assert_eq!(pedidos.len(), 6);
+        assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+    }
+}
