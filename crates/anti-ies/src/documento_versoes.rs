@@ -104,6 +104,15 @@ pub fn responder(
         Ok(Some(id)) if id.bytes().all(|b| b.is_ascii_digit()) => id,
         _ => return Resposta::nova(Estado::RequisicaoInvalida),
     };
+    // id_protocolo pode estar ausente no link publicado; se presente,
+    // nao pode contradizer o id_documento explicitamente selecionado.
+    match parametro(alvo, "id_protocolo") {
+        Ok(Some(protocolo)) if protocolo != id => {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        Err(estado) => return Resposta::nova(estado),
+        _ => {}
+    }
     let versao_pedida = if acao == "documento_visualizar" {
         match parametro(alvo, "versao") {
             Ok(None) => None,
