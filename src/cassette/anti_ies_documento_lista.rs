@@ -121,7 +121,7 @@ fn servir_barra(
                 .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
                     .get::<_, i64>(0))
                 .unwrap(),
-            revisoes_esperadas
+            i64::try_from(revisoes_esperadas).unwrap()
         );
     });
     (endereco, tarefa)
@@ -165,6 +165,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("conclusão registrada")
         .passo;
 
+    let html_historico = html_da_resposta(historico.item).unwrap();
     let barras = barras_observadas(respostas, &instalacao, &id, &identidade.numero);
     let antes = barras
         .iter()
@@ -181,7 +182,6 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
     // Dados das linhas vêm do GET original do histórico, não de uma fixture.
     // Corpos das versões antigas não foram capturados: a simulação não os
     // apresenta neste confronto, que examina somente a lista de metadados.
-    let html_historico = html_da_resposta(historico.item).unwrap();
     let numero = NumeroDocumento::novo(&identidade.numero).unwrap();
     let original_historico = interpretar_historico(&html_historico, &numero, &id, None).unwrap();
     let ultima = original_historico.atual().unwrap().numero();
