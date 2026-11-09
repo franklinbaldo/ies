@@ -143,10 +143,38 @@ fn remover_localmente(endereco: std::net::SocketAddr) {
     );
 }
 
-fn executar(
+#[derive(Clone, Copy)]
+enum Modo {
+    Previa,
+    ConfirmarAdicao,
+    ConfirmarRemocao,
+    AdicaoSemAceite,
+}
+
+fn adicionar_localmente(endereco: std::net::SocketAddr) {
+    let corpo = format!(
+        "hdnIdProtocolo=22&txtProtocolo={DESTINO}&txtIdentificacaoProtocolo=&sbmAdicionar=Adicionar"
+    );
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    let pedido = format!(
+        "POST /sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
+        corpo.len()
+    );
+    cliente.write_all(pedido.as_bytes()).unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    assert!(
+        resposta.starts_with("HTTP/1.1 302 Found"),
+        "POST sintético deve ter aceite: {resposta}"
+    );
+}
+
+fn executar_com(
     vinculo_inicial: bool,
     post_local: bool,
     remover_local: bool,
+    modo: Modo,
 ) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
@@ -182,22 +210,7 @@ fn executar(
     // A mutação é HTTP exclusivamente em loopback, antes de executar a CLI real.
     // A consulta seguinte deve ler o mesmo estado SQLite, não uma fixture fixa.
     if post_local {
-        let corpo = format!(
-            "hdnIdProtocolo=22&txtProtocolo={DESTINO}&txtIdentificacaoProtocolo=&sbmAdicionar=Adicionar"
-        );
-        let mut cliente = TcpStream::connect(endereco).unwrap();
-        let pedido = format!(
-            "POST /sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10 HTTP/1.1\r\nHost: sei.test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{corpo}",
-            corpo.len()
-        );
-        cliente.write_all(pedido.as_bytes()).unwrap();
-        cliente.shutdown(Shutdown::Write).unwrap();
-        let mut resposta = String::new();
-        cliente.read_to_string(&mut resposta).unwrap();
-        assert!(
-            resposta.starts_with("HTTP/1.1 302 Found"),
-            "POST sintético deve ter aceite: {resposta}"
-        );
+        adicionar_localmente(endereco);
     }
     if remover_local {
         assert!(vinculo_inicial && !post_local);
@@ -220,14 +233,21 @@ fn executar(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
+            // O backend pode ter gravado; a confirmação sem aceite não é sucesso.
+            if matches!(modo, Modo::AdicaoSemAceite) && evento == "POST procedimento_relacionar" {
+                resposta = b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 7\r\nConnection: close\r\n\r\n<html/>".to_vec();
+            }
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
         }
     });
     let mut argumentos = vec!["--json", "processo", "relacionar", NUP, "--com", DESTINO];
-    if remover_local {
+    if remover_local || matches!(modo, Modo::ConfirmarRemocao) {
         argumentos.push("--remover");
+    }
+    if !matches!(modo, Modo::Previa) {
+        argumentos.push("--confirmar");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
@@ -252,6 +272,17 @@ fn executar(
     let trilha = eventos.lock().unwrap().clone();
     (saida, trilha, total)
 }
+
+fn executar(
+    vinculo_inicial: bool,
+    post_local: bool,
+    remover_local: bool,
+) -> (Output, Vec<String>, usize) {
+    executar_com(vinculo_inicial, post_local, remover_local, Modo::Previa)
+}
+
+#[path = "aies_relacionar_cli/confirmacao.rs"]
+mod confirmacao;
 
 #[test]
 fn bdd_258_01_cli_previa_nup_distinto_sem_criar_vinculo() {

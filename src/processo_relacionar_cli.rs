@@ -40,9 +40,11 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         ));
     }
     Some(com_sessao(cli, |sessao, indice| {
-        // A escrita real só será habilitada após ensaio de treinamento.
-        // Esta trava não interfere na prévia nem nos testes offline do motor.
-        if *confirmar {
+        // Trava WIP: binário release e instalações reais permanecem
+        // sem confirmação. Somente o binário debug no domínio reservado
+        // .test pode exercitar a CLI inteira com TLS loopback/anti-IES.
+        // Não é permissão para escrever no SEI de treinamento ou produção.
+        if *confirmar && !(cfg!(debug_assertions) && sessao.origem == "https://sei.test/sei") {
             return falha(cli.json, &FalhaRelacionar::ConfirmacaoAindaNaoValidada);
         }
         let pedido = Pedido {
