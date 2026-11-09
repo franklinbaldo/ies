@@ -42,13 +42,11 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     if *confirmar && (!cfg!(debug_assertions) || !origem_local_sintetica()) {
         return Some(escrita_fechada(cli.json));
     }
-    Some(com_sessao(
-        cli,
-        |sessao, indice| {
-            if *confirmar && sessao.origem != "https://sei.test/sei" {
-                return escrita_fechada(cli.json);
-            }
-            match processo_andamento_registrar::registrar(
+    Some(com_sessao(cli, |sessao, indice| {
+        if *confirmar && sessao.origem != "https://sei.test/sei" {
+            return escrita_fechada(cli.json);
+        }
+        match processo_andamento_registrar::registrar(
             sessao,
             &numero,
             texto,
@@ -103,9 +101,8 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 ),
                 e.saida(),
             ),
-            }
-        },
-    ))
+        }
+    }))
 }
 
 fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
