@@ -47,7 +47,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("histórico original UnB");
     let ids = gravacao::parametro(historico.item, "id_documento");
     let id = ids.first().expect("id_documento do histórico").to_string();
-    assert!(ids.iter().all(|valor| **valor == id));
+    assert!(ids.iter().all(|valor| *valor == id.as_str()));
     let original = respostas
         .iter()
         .find(|r| {
