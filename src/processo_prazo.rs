@@ -379,7 +379,8 @@ mod tests {
 
     #[test]
     fn tela_le_prazo_em_dias_sem_inferir_data_de_calendario() {
-        let por_dias = tela("2", "").replace("name='txtDias' value=''", "name='txtDias' value='15'");
+        let por_dias =
+            tela("2", "").replace("name='txtDias' value=''", "name='txtDias' value='15'");
         assert_eq!(
             ler_tela(&por_dias, "10").unwrap().estado,
             EstadoDoPrazo::Dias(15)
