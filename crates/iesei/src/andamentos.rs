@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn nao_confunde_ausencia_com_historico_observado_e_regrava_idempotente() {
-        let mut banco = Connection::open_in_memory().unwrap();
+        let banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         assert!(ler(&banco, &origem, "cena", "10").unwrap().is_none());
@@ -183,8 +183,8 @@ mod tests {
                 descricao: "Anterior".into(),
             }],
         };
-        guardar(&mut banco, &origem, "cena", "10", &historico).unwrap();
-        guardar(&mut banco, &origem, "cena", "10", &historico).unwrap();
+        guardar(&banco, &origem, "cena", "10", &historico).unwrap();
+        guardar(&banco, &origem, "cena", "10", &historico).unwrap();
         assert_eq!(ler(&banco, &origem, "cena", "10").unwrap(), Some(historico));
         assert!(ler(&banco, &origem, "outra", "10").unwrap().is_none());
         assert!(ler(&banco, &origem, "cena", "11").unwrap().is_none());
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn dados_parciais_ou_inconsistentes_nao_viram_historico_completo() {
-        let mut banco = Connection::open_in_memory().unwrap();
+        let banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let incompleto = Historico {
@@ -200,7 +200,7 @@ mod tests {
             linhas: vec![],
         };
         assert!(matches!(
-            guardar(&mut banco, &origem, "cena", "10", &incompleto),
+            guardar(&banco, &origem, "cena", "10", &incompleto),
             Err(Falha::DadoInvalido)
         ));
         assert!(ler(&banco, &origem, "cena", "10").unwrap().is_none());
