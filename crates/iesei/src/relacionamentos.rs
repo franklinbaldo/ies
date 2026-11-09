@@ -108,6 +108,42 @@ pub fn registrar(
     )?;
     Ok(())
 }
+/// Remove apenas o vínculo bilateral solicitado, sem modificar vizinhos.
+///
+/// # Errors
+/// Recusa identidade inválida, processo não observado e vínculo ausente;
+/// preserva a causa SQLite da operação.
+pub fn remover(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    destino: &str,
+) -> Result<(), Falha> {
+    if id == destino
+        || !id_valido(id)
+        || !id_valido(destino)
+        || !observado(banco, origem, cenario, id)?
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    if !existe(banco, origem, cenario, destino)? {
+        return Err(Falha::ProcessoNaoObservado);
+    }
+    // Uma aresta antiga pode ter sido gravada na orientação inversa.
+    let removidas = banco.execute(
+        "DELETE FROM processo_relacao
+         WHERE origem=?1 AND cenario=?2
+           AND ((id_procedimento=?3 AND id_destino=?4)
+             OR (id_procedimento=?4 AND id_destino=?3))",
+        params![origem.url_base(), cenario, id, destino],
+    )?;
+    if removidas == 0 {
+        return Err(Falha::DadoInvalido);
+    }
+    Ok(())
+}
+
 /// Lista vínculos únicos já observados; `None` indica não observado.
 ///
 /// # Errors
