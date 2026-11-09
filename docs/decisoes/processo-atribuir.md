@@ -144,7 +144,8 @@ derivar um POST de campos estruturalmente válidos mas inacessíveis,
 recusar a tela com `ErroHtml` antes de qualquer escrita. O leitor
 inspeciona somente atributos via `html_atributos`; nenhum JS é executado.
 Teste sintético com RED antes da mudança e cenário de transporte para
-quatro GET de prévia e nenhum POST. A CLI `--confirmar` segue fechada.
+quatro GET de prévia e nenhum POST. A CLI `--confirmar` segue fechada nas demais origens; na UnB de treinamento,
+o ensaio posterior teve resultado inconclusivo.
 
 ## Revisão da execução CLI em treinamento (09/11/2026)
 
