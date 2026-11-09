@@ -114,6 +114,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
     let mut sem_identidade = 0usize;
     let mut posts_historicos = 0usize;
     for nome in cards {
+        let anteriores = (forms_reais, comparados, sem_identidade, posts_historicos);
         let card = raiz.join(nome);
         let zip = archive_filename(&card).expect("origem no card");
         let zip = ZipDoAcervo::ler(&cache.join(zip)).expect("ZIP do acervo");
@@ -180,6 +181,16 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             );
             comparados += 1;
         }
+        assert_eq!(
+            (
+                forms_reais - anteriores.0,
+                comparados - anteriores.1,
+                sem_identidade - anteriores.2,
+                posts_historicos - anteriores.3,
+            ),
+            (2, 2, 0, 1),
+            "cobertura do cancelamento incompleta no card {nome}"
+        );
     }
     println!(
         "documento cancelar: GET reais={forms_reais}; pares confrontados={comparados}; sem identidade/codificação={sem_identidade}; POST históricos={posts_historicos} (não provam efeito)"
