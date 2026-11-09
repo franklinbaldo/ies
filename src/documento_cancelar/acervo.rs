@@ -271,7 +271,7 @@ fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
             &origem,
             "replay-273",
         );
-        assert_eq!(simulado.estado.codigo_http(), original.status as u16);
+        assert_eq!(u64::from(simulado.estado.codigo_http()), original.status);
         let loc_simulado = simulado.localizacao.expect("Location sintético");
         assert!(
             super::fluxo::localizacao_aceita(&loc_simulado, enviado, &id_proc, &id_doc),
