@@ -4,7 +4,7 @@ title: Andamento do processo com POST único e prova por histórico
 operation: processo.andamento
 implementation: partial
 status: adopted-for-scope
-scope: ies processo andamento NUP --texto T somente em prévia Web (abertura, histórico e GET do formulário, sem POST); --confirmar recusa antes da sessão nesta fatia
+scope: prévia Web para todos; confirmação POST apenas no binário debug com origem sintética .test e releitura do SQLite; release permanece fechado
 selected_strategy: web-formulario-servido-com-releitura
 alternatives: web-formulario-servido-com-releitura,web-sem-conferencia,rest-wssei
 evidence_level: todos-unb-e-cassettes-de-treinamento
@@ -35,9 +35,9 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 - [Contrato](../../contracts/cli/processo-andamento.md)
 - [Evidências da matriz](../../contracts/evidencias/processo-andamento.md)
 - [Teste da trava de escrita](../../tests/cli_processo_andamento.rs)
-- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. Os dois testes da confirmação estão `wip #259`.
+- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. A confirmação possui teste CLI real no anti-IES e testes unitários do fluxo.
 
 ## Limitações e revisão
 
-Nesta fatia, `--confirmar` recusa `escrita_de_andamento_ainda_fechada` antes de abrir a sessão: a confirmação sintética ainda termina em efeito incerto. 
+A confirmação é autorizada somente no binário debug e na origem sintética `.test`, dupla conferência antes e após a sessão. O release mantém a recusa antes da rede. O teste BDD-259-02 comprova somente compatibilidade sintética da CLI com o anti-IES/SQLite; confronto independente com cassette e treinamento seguem NOT_RUN. 
 A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
