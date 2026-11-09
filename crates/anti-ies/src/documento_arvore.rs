@@ -281,8 +281,11 @@ Nos[{indice}].src = '{src}';
         )
         .expect("formatação de String");
     } else {
-        write!(no, "Nos[{indice}].acoes = '{cancelar}';\nNos[{indice}].src = '';\n")
-            .expect("formatação de String");
+        write!(
+            no,
+            "Nos[{indice}].acoes = '{cancelar}';\nNos[{indice}].src = '';\n"
+        )
+        .expect("formatação de String");
     }
     writeln!(no, "Nos[{indice}].html = '';").expect("formatação de String");
     no
