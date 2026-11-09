@@ -224,8 +224,15 @@ fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
     let origem = origem();
     let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "legado.pdf", 42).unwrap();
     let resultado = modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id);
-    assert!(resultado.is_err(), "metadados sem bytes não são PDF recuperável");
-    assert!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap().is_empty());
+    assert!(
+        resultado.is_err(),
+        "metadados sem bytes não são PDF recuperável"
+    );
+    assert!(
+        modelo::documentos(&banco, &origem, "ensaio", "7")
+            .unwrap()
+            .is_empty()
+    );
 
     let arvore = anti_ies::pdf_externo::atender(
         "GET",
