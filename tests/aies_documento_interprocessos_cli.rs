@@ -1,5 +1,5 @@
 //! #60 BDD-60-05/06: testes CLI documentais contra anti-IES e SQLite.
-//! Suporte TLS e estado efemero em support/documento_interprocessos.rs.
+//! Suporte TLS e estado efemero em `support/documento_interprocessos.rs`.
 #![cfg(unix)]
 #[path = "support/documento_interprocessos.rs"]
 mod apoio;
