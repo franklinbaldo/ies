@@ -54,17 +54,17 @@ pub struct Pagina {
 fn valido(p: &Pagina) -> bool {
     let intervalo = match p.faixa {
         Some((inicio, fim)) => {
-            inicio > 0 && fim >= inicio && fim <= p.total &&
-                fim - inicio + 1 == p.linhas.len()
+            inicio > 0 && fim >= inicio && fim <= p.total && fim - inicio + 1 == p.linhas.len()
         }
         None => p.total == 0 && p.linhas.is_empty(),
     };
     let mut vistos = HashSet::new();
-    intervalo && p.linhas.iter().all(|l| {
-        !l.numero.is_empty() &&
-        l.numero.bytes().all(|c| c.is_ascii_digit()) &&
-        vistos.insert(&l.numero)
-    })
+    intervalo
+        && p.linhas.iter().all(|l| {
+            !l.numero.is_empty()
+                && l.numero.bytes().all(|c| c.is_ascii_digit())
+                && vistos.insert(&l.numero)
+        })
 }
 /// Guarda somente estado de uma pagina; a fixture nao declara completude.
 /// # Errors
@@ -95,15 +95,28 @@ pub fn guardar(
          VALUES(?1,?2,?3,?4,?5,?6)
          ON CONFLICT(origem,cenario,tipo) DO UPDATE SET
          total=excluded.total,inicio=excluded.inicio,fim=excluded.fim",
-        params![instalacao.url_base(), cenario, pagina.tipo.nome(), total, inicio, fim],
+        params![
+            instalacao.url_base(),
+            cenario,
+            pagina.tipo.nome(),
+            total,
+            inicio,
+            fim
+        ],
     )?;
     for (posicao, linha) in pagina.linhas.iter().enumerate() {
         transacao.execute(
             "INSERT INTO sim_bloco_linha(origem,cenario,tipo,posicao,numero,estado,descricao)
              VALUES(?1,?2,?3,?4,?5,?6,?7)",
-            params![instalacao.url_base(), cenario, pagina.tipo.nome(),
+            params![
+                instalacao.url_base(),
+                cenario,
+                pagina.tipo.nome(),
                 i64::try_from(posicao).map_err(|_| rusqlite::Error::InvalidQuery)?,
-                linha.numero, linha.estado, linha.descricao],
+                linha.numero,
+                linha.estado,
+                linha.descricao
+            ],
         )?;
     }
     transacao.commit()
@@ -117,13 +130,17 @@ pub fn ler(
     cenario: &str,
     tipo: Tipo,
 ) -> rusqlite::Result<Option<Pagina>> {
-    let linha: Option<(i64, Option<i64>, Option<i64>)> = banco.query_row(
-        "SELECT total,inicio,fim FROM sim_bloco_pagina
+    let linha: Option<(i64, Option<i64>, Option<i64>)> = banco
+        .query_row(
+            "SELECT total,inicio,fim FROM sim_bloco_pagina
          WHERE origem=?1 AND cenario=?2 AND tipo=?3",
-        params![instalacao.url_base(), cenario, tipo.nome()],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
-    ).optional()?;
-    let Some((total, inicio, fim)) = linha else { return Ok(None); };
+            params![instalacao.url_base(), cenario, tipo.nome()],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?;
+    let Some((total, inicio, fim)) = linha else {
+        return Ok(None);
+    };
     let total = usize::try_from(total).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let faixa = match (inicio, fim) {
         (Some(i), Some(f)) => Some((
@@ -135,13 +152,25 @@ pub fn ler(
     };
     let mut consulta = banco.prepare(
         "SELECT numero,estado,descricao FROM sim_bloco_linha
-         WHERE origem=?1 AND cenario=?2 AND tipo=?3 ORDER BY posicao"
+         WHERE origem=?1 AND cenario=?2 AND tipo=?3 ORDER BY posicao",
     )?;
-    let linhas = consulta.query_map(
-        params![instalacao.url_base(), cenario, tipo.nome()],
-        |r| Ok(Linha { numero:r.get(0)?, estado:r.get(1)?, descricao:r.get(2)? }),
-    )?.collect::<rusqlite::Result<Vec<_>>>()?;
-    let pagina = Pagina { tipo, total, faixa, linhas };
-    if !valido(&pagina) { return Err(rusqlite::Error::InvalidQuery); }
+    let linhas = consulta
+        .query_map(params![instalacao.url_base(), cenario, tipo.nome()], |r| {
+            Ok(Linha {
+                numero: r.get(0)?,
+                estado: r.get(1)?,
+                descricao: r.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let pagina = Pagina {
+        tipo,
+        total,
+        faixa,
+        linhas,
+    };
+    if !valido(&pagina) {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
     Ok(Some(pagina))
 }
