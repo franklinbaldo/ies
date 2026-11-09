@@ -93,3 +93,26 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
         "escrita_de_atribuicao_ainda_nao_verificada"
     );
 }
+
+#[test]
+fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
+    let (escrita, releitura, eventos, _, estado) =
+        executar_cenario_com_resposta(true, false, None, true, true);
+    assert_eq!(escrita.status.code(), Some(3));
+    let erro: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
+    assert_eq!(erro["subcodigo"], "efeito_incerto_na_atribuicao");
+    assert_eq!(erro["atribuicao_relida"], "aluno2");
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|evento| evento.as_str() == "POST procedimento_atribuicao_cadastrar")
+            .count(),
+        1,
+        "nunca repetir o POST"
+    );
+    assert_eq!(estado, "aluno2", "a escrita realmente ocorreu no SQLite");
+    let consulta = releitura.expect("segunda execução independente");
+    assert_eq!(consulta.status.code(), Some(0));
+    let novo: serde_json::Value = serde_json::from_slice(&consulta.stdout).unwrap();
+    assert_eq!(novo["aberto_em"][0]["atribuido_a"]["sigla"], "aluno2");
+}
