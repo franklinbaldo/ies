@@ -270,4 +270,80 @@ mod testes {
             vec![]
         );
     }
+
+    /// Apoio ao BDD-258-03: a remoção sintética só é confirmável pela
+    /// consulta posterior dos dois processos, sem apagar outros vínculos.
+    #[test]
+    fn remover_post_exige_releitura_bilateral_e_preserva_vizinho() {
+        let (mut db, origem) = cenario();
+        guardar(
+            &mut db,
+            &origem,
+            "caso",
+            &ProcessoSimulado {
+                id: "33".into(),
+                numero: "P-03".into(),
+                unidade_origem: "TESTE".into(),
+                aberto_em: vec!["TESTE".into()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
+        relacionamentos::observar(&db, &origem, "caso", "33").unwrap();
+        relacionamentos::registrar(&db, &origem, "caso", "10", "22").unwrap();
+        relacionamentos::registrar(&db, &origem, "caso", "10", "33").unwrap();
+        let tela = rotas::responder(
+            "GET",
+            "/sei/controlador.php?acao=procedimento_relacionar&id_procedimento=10",
+            b"",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert!(tela.corpo.contains("acaoRemover('22');"));
+        assert!(tela.corpo.contains("procedimento_excluir_relacionamento"));
+
+        let resposta = rotas::responder(
+            "POST",
+            "/sei/controlador.php?acao=procedimento_excluir_relacionamento&id_procedimento=10",
+            b"hdnInfraItemId=22",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert_eq!(resposta.estado, Estado::Redirecionamento);
+        assert!(resposta.localizacao.as_deref().is_some_and(|l| l.contains("resultado=1")));
+        let origem_apos = relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap();
+        assert_eq!(origem_apos.len(), 1);
+        assert_eq!(origem_apos[0].id, "33");
+        assert_eq!(
+            relacionamentos::listar(&db, &origem, "caso", "22").unwrap().unwrap().len(),
+            0
+        );
+        assert_eq!(
+            relacionamentos::listar(&db, &origem, "caso", "33").unwrap().unwrap()[0].id,
+            "10"
+        );
+    }
+
+    #[test]
+    fn remover_post_recusa_identidade_estranha_sem_alterar_vinculo() {
+        let (db, origem) = cenario();
+        relacionamentos::registrar(&db, &origem, "caso", "10", "22").unwrap();
+        let resposta = rotas::responder(
+            "POST",
+            "/sei/controlador.php?acao=procedimento_excluir_relacionamento&id_procedimento=10",
+            b"hdnInfraItemId=99",
+            &db,
+            &origem,
+            "caso",
+        );
+        assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
+        assert_eq!(
+            relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().len(),
+            1
+        );
+    }
+
 }
