@@ -125,7 +125,7 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao) {
+fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bool) {
     blocos::guardar(
         banco,
         instalacao,
@@ -149,10 +149,110 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao) {
         },
     )
     .unwrap();
+    if interno {
+        blocos::guardar_na_pagina(
+            banco,
+            instalacao,
+            CENARIO,
+            1,
+            &Pagina {
+                tipo: Tipo::Interno,
+                total: 4,
+                faixa: Some((1, 2)),
+                linhas: vec![
+                    LinhaBloco {
+                        numero: "3001".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Primeiro interno".into(),
+                    },
+                    LinhaBloco {
+                        numero: "3002".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Segundo interno".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
+        blocos::guardar_na_pagina(
+            banco,
+            instalacao,
+            CENARIO,
+            2,
+            &Pagina {
+                tipo: Tipo::Interno,
+                total: 4,
+                faixa: Some((3, 4)),
+                linhas: vec![
+                    LinhaBloco {
+                        numero: "3003".into(),
+                        estado: "Disponibilizado".into(),
+                        descricao: "Terceiro interno".into(),
+                    },
+                    LinhaBloco {
+                        numero: "3004".into(),
+                        estado: "Gerado".into(),
+                        descricao: "Quarto interno".into(),
+                    },
+                ],
+            },
+        )
+        .unwrap();
+    }
 }
 
-fn executar() -> (Output, Vec<String>) {
-    let esperados = 2usize;
+fn iniciar_tunel(
+    proxy: TcpListener,
+    identidade: Identity,
+    endereco: std::net::SocketAddr,
+    esperados: usize,
+) -> thread::JoinHandle<Vec<String>> {
+    thread::spawn(move || {
+        let tls = TlsAcceptor::new(identidade).unwrap();
+        let mut alvos = Vec::new();
+        for _ in 0..esperados {
+            let mut tcp = aceitar(&proxy);
+            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
+            let mut canal = tls.accept(tcp).expect("handshake TLS de teste");
+            let mut pedido = cabecalho(&mut canal);
+            let cabecalhos = String::from_utf8_lossy(&pedido);
+            assert!(
+                cabecalhos.starts_with("GET /sei/controlador.php?")
+                    || cabecalhos.starts_with("POST /sei/controlador.php?")
+            );
+            alvos.push(cabecalhos.lines().next().unwrap().to_owned());
+            if alvos.last().is_some_and(|linha| linha.starts_with("POST ")) {
+                let tamanho = cabecalhos
+                    .lines()
+                    .find_map(|linha| {
+                        linha.split_once(':').and_then(|(nome, v)| {
+                            nome.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse::<usize>().ok())
+                                .flatten()
+                        })
+                    })
+                    .expect("Content-Length do POST");
+                assert!(tamanho < 16_384);
+                let mut corpo = vec![0u8; tamanho];
+                canal.read_exact(&mut corpo).unwrap();
+                pedido.extend_from_slice(&corpo);
+            }
+            let mut destino = TcpStream::connect(endereco).unwrap();
+            destino.write_all(&pedido).unwrap();
+            destino.shutdown(Shutdown::Write).unwrap();
+            let mut resposta = Vec::new();
+            destino.read_to_end(&mut resposta).unwrap();
+            canal.write_all(&resposta).unwrap();
+            canal.flush().unwrap();
+        }
+        alvos
+    })
+}
+
+fn executar(interno: bool) -> (Output, Vec<String>) {
+    let esperados = if interno { 3usize } else { 2usize };
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -183,7 +283,7 @@ fn executar() -> (Output, Vec<String>) {
             },
         )
         .unwrap();
-        registrar_blocos(&mut banco, &instalacao);
+        registrar_blocos(&mut banco, &instalacao, interno);
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
@@ -192,32 +292,17 @@ fn executar() -> (Output, Vec<String>) {
 
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
-    let tunel = thread::spawn(move || {
-        let tls = TlsAcceptor::new(identidade).unwrap();
-        let mut alvos = Vec::new();
-        for _ in 0..esperados {
-            let mut tcp = aceitar(&proxy);
-            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).expect("handshake TLS de teste");
-            let pedido = cabecalho(&mut canal);
-            assert!(pedido.starts_with(b"GET /sei/controlador.php?"));
-            let linha = String::from_utf8_lossy(&pedido);
-            alvos.push(linha.lines().next().unwrap().to_owned());
-            let mut destino = TcpStream::connect(endereco).unwrap();
-            destino.write_all(&pedido).unwrap();
-            destino.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            destino.read_to_end(&mut resposta).unwrap();
-            canal.write_all(&resposta).unwrap();
-            canal.flush().unwrap();
-        }
-        alvos
-    });
+    let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
+    let argumentos: Vec<&str> = if interno {
+        vec![
+            "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
+        ]
+    } else {
+        vec!["--json", "bloco", "listar", "--tipo", "assinatura"]
+    };
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "bloco", "listar", "--tipo", "assinatura"])
+        .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -236,9 +321,20 @@ fn executar() -> (Output, Vec<String>) {
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
     assert_eq!(pedidos.len(), esperados);
-    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+    assert_eq!(pedidos.iter().filter(|p| p.starts_with("GET ")).count(), 2);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+        usize::from(interno)
+    );
     assert!(pedidos[0].contains("acao=procedimento_controlar"));
-    assert!(pedidos[1].contains("acao=bloco_assinatura_listar"));
+    assert!(pedidos[1].contains(if interno {
+        "acao=bloco_interno_listar"
+    } else {
+        "acao=bloco_assinatura_listar"
+    }));
+    if interno {
+        assert!(pedidos[2].contains("acao=bloco_interno_listar"));
+    }
     (saida, pedidos)
 }
 fn json(saida: &Output) -> Value {
@@ -254,7 +350,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar();
+    let (saida, pedidos) = executar(false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -283,4 +379,35 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
     assert!(itens[1]["quantidade_itens"].is_null());
     assert!(!valor.to_string().contains("infra_hash"));
     assert!(!valor.to_string().contains("PHPSESSID"));
+}
+
+/// BDD-256-02: o POST devolve exclusivamente a segunda pagina observada.
+/// A expectativa nao e derivada do HTML gerado pelo anti-IES.
+#[test]
+fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
+    let (saida, pedidos) = executar(true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(pedidos.len(), 3);
+    let valor = json(&saida);
+    assert_eq!(valor["unidade"], "TESTE");
+    assert_eq!(valor["requisicoes"], 3);
+    assert_eq!(valor["lista"]["tipo"], "interno");
+    assert_eq!(valor["lista"]["total_declarado"], 4);
+    assert_eq!(valor["lista"]["faixa_observada"]["inicio"], 3);
+    assert_eq!(valor["lista"]["faixa_observada"]["fim"], 4);
+    let itens = valor["lista"]["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["numero"], "3003");
+    assert_eq!(itens[1]["numero"], "3004");
+    assert_eq!(itens[0]["estado"], "Disponibilizado");
+    assert!(itens.iter().all(|x| x["quantidade_itens"].is_null()));
+    assert!(!valor.to_string().contains("3001"));
+    assert!(!valor.to_string().contains("3002"));
+    assert!(!valor.to_string().contains("infra_hash"));
 }

@@ -16,8 +16,11 @@ validados, GET do link exato `bloco_assinatura_listar`,
 `bloco_interno_listar` ou `bloco_reuniao_listar` publicado no mesmo
 Controle. Não há fallback REST/SOAP nem URL de ação presumida.
 
-Orçamento da leitura de uma página: **2 GET, zero POST**, sem retry, sem
-seguir redirect, sem restaurar página/filtro ou executar JS. Falhas anteriores
+Orçamento sem `--pagina` ou `--pagina 1`: **2 GET, zero POST**.
+Para `--tipo interno --pagina 2`, a tela inicial autoriza **2 GET e um POST**
+único do `frmBlocoLista` usando a opção `1` zero-based publicada. A resposta
+precisa demonstrar a faixa contígua da segunda página e o mesmo total.
+Sem retry, sem seguir redirect, sem restaurar página/filtro ou executar JS. Falhas anteriores
 ao primeiro GET consomem zero pedidos. A saída declara o número de GETs
 realmente feitos apenas nos sucessos. Sessão ativa é pré-requisito.
 
@@ -33,13 +36,17 @@ fixa, e exige Número, Estado, Descrição, legenda e número de linha coerentes
 Cabeçalho truncado, número repetido, tabela repetida e faixa contraditória
 são erros tipados, nunca listas parciais declaradas completas.
 
-**WIP:** A paginação N>1 ainda está bloqueada antes de qualquer rede com
-`pagina_de_blocos_nao_implementada`; `--pagina 1` confere se a página
-observada começa na primeira. A leitura sem `--pagina` publica apenas a
-página que a sessão atualmente apresenta. Nunca apresenta a primeira página
-como se fosse a lista inteira. O formulário `frmBlocoLista` e os filtros
-devem ser observados, contratados e testados antes de habilitar POST de
-paginação, sem restaurar a sessão.
+**Parcial:** o `--tipo interno --pagina 2` usa um único POST a partir da
+primeira página e exige a faixa correspondente, com estado compartilhado no
+anti-IES. Páginas acima de 2 e a página 2 dos outros tipos permanecem
+bloqueadas antes da rede (`pagina_de_blocos_nao_implementada`).
+`--pagina 1` confere a primeira faixa. Sem `--pagina`, a CLI publica
+somente a faixa observada, nunca presume a lista inteira. A cassette Goiás
+`bloco-interno-ciclo-go` registrou GET da faixa 1–50, seguido de POST
+respondendo com 51–100 (`hdnInfraPaginaAtual=1`). Os **corpos originais dos
+POSTs não foram preservados**, portanto os pares do formulário derivado são
+hipótese que requer confronto e ensaio de treinamento. A mudança de página
+altera o estado da sessão e não é revertida.
 
 Fonte de cenários: Todos `src/todos/sei/blocos_lista.py` e
 `tests/paginas_reais/menu_blocos.html` @323eb01; cassettes
