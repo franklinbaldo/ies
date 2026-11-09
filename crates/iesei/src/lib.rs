@@ -1,7 +1,7 @@
 //! Tipos e observações do IES e anti-IES, sem interfaces de rede.
 pub mod acesso_sessao;
-pub mod atribuicoes;
 pub mod acesso_versao;
+pub mod atribuicoes;
 pub mod banco_cassettes;
 pub mod cancelamento_documento;
 pub mod detalhada_cassettes;
