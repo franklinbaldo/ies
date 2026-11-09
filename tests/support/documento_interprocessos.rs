@@ -319,7 +319,11 @@ pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
-fn executar_com_estado(com_segundo: bool, modo: EstadoExtra, args: &[&str]) -> (Output, Vec<String>) {
+fn executar_com_estado(
+    com_segundo: bool,
+    modo: EstadoExtra,
+    args: &[&str],
+) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
