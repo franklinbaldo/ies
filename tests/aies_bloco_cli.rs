@@ -251,8 +251,8 @@ fn iniciar_tunel(
     })
 }
 
-fn executar(interno: bool) -> (Output, Vec<String>) {
-    let esperados = if interno { 3usize } else { 2usize };
+fn executar(interno: bool, detalhe: bool) -> (Output, Vec<String>) {
+    let esperados = if interno || detalhe { 3usize } else { 2usize };
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -294,7 +294,9 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let argumentos: Vec<&str> = if interno {
+    let argumentos: Vec<&str> = if detalhe {
+        vec!["--json", "bloco", "2195"]
+    } else if interno {
         vec![
             "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
         ]
@@ -321,7 +323,10 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
     assert_eq!(pedidos.len(), esperados);
-    assert_eq!(pedidos.iter().filter(|p| p.starts_with("GET ")).count(), 2);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("GET ")).count(),
+        if detalhe { 3 } else { 2 }
+    );
     assert_eq!(
         pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
         usize::from(interno)
@@ -334,6 +339,10 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     }));
     if interno {
         assert!(pedidos[2].contains("acao=bloco_interno_listar"));
+    }
+    if detalhe {
+        assert!(pedidos[2].contains("acao=rel_bloco_protocolo_listar"));
+        assert!(pedidos[2].contains("id_bloco=2195"));
     }
     (saida, pedidos)
 }
@@ -350,7 +359,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false);
+    let (saida, pedidos) = executar(false, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -385,7 +394,7 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true);
+    let (saida, pedidos) = executar(true, false);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -410,4 +419,39 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
     assert!(!valor.to_string().contains("3001"));
     assert!(!valor.to_string().contains("3002"));
     assert!(!valor.to_string().contains("infra_hash"));
+}
+
+/// BDD-256-03: detalhe do bloco publicado na pagina observada pela CLI real.
+/// Expectativas definidas independentemente do HTML gerado pelo simulador.
+#[test]
+fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
+    let (saida, pedidos) = executar(false, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(pedidos.len(), 3);
+    let valor = json(&saida);
+    assert_eq!(valor["unidade"], "TESTE");
+    assert_eq!(valor["requisicoes"], 3);
+    assert_eq!(valor["bloco"]["numero"], "2195");
+    assert_eq!(valor["bloco"]["tipo"], "assinatura");
+    assert_eq!(valor["bloco"]["estado"], "Gerado");
+    assert_eq!(valor["bloco"]["total_declarado"], 2);
+    assert_eq!(valor["bloco"]["faixa_observada"]["inicio"], 1);
+    assert_eq!(valor["bloco"]["faixa_observada"]["fim"], 2);
+    let itens = valor["bloco"]["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["processo"], "0000.01/2026-01");
+    assert_eq!(itens[0]["documento"], "100001");
+    assert_eq!(itens[0]["tipo"], "Despacho");
+    assert_eq!(itens[0]["anotacoes"], "Revisão inicial");
+    assert_eq!(itens[1]["processo"], "0000.02/2026-02");
+    assert_eq!(itens[1]["documento"], "100002");
+    assert_eq!(itens[1]["anotacoes"], "");
+    assert!(!valor.to_string().contains("infra_hash"));
+    assert!(!valor.to_string().contains("PHPSESSID"));
 }
