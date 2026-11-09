@@ -57,6 +57,7 @@ fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
                 "confirmado": feito.confirmado,
                 "verificado": feito.verificado,
                 "id_atividade": feito.id_atividade,
+                "usuario": feito.usuario,
                 "requisicoes": feito.requisicoes,
             })
         );
@@ -162,6 +163,7 @@ mod testes_previa {
             confirmado: false,
             verificado: false,
             id_atividade: None,
+            usuario: None,
             requisicoes: 3,
         }
     }
