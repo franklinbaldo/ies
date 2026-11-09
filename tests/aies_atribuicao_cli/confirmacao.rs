@@ -124,7 +124,11 @@ fn bdd_264_02_03_302_historico_informa_estado_relido_sem_falsa_confirmacao() {
             executar_cenario_com_resposta(false, remover, None, true, RespostaPost::Historico302);
         assert_eq!(escrita.status.code(), Some(3));
         let texto = String::from_utf8_lossy(&escrita.stderr);
-        let estado_publicado = if esperado.is_empty() { "nenhuma" } else { esperado };
+        let estado_publicado = if esperado.is_empty() {
+            "nenhuma"
+        } else {
+            esperado
+        };
         assert!(
             texto.contains(&format!(
                 "Estado relido: {estado_publicado} (não comprova o efeito deste POST)."
@@ -134,7 +138,10 @@ fn bdd_264_02_03_302_historico_informa_estado_relido_sem_falsa_confirmacao() {
         assert!(!texto.contains("Atribuição confirmada"));
         assert!(!texto.contains("Remoção confirmada"));
         assert_eq!(
-            eventos.iter().filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar").count(),
+            eventos
+                .iter()
+                .filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar")
+                .count(),
             1,
             "um único POST, sem retry: {eventos:?}"
         );
@@ -163,7 +170,10 @@ fn bdd_264_02_03_302_historico_preserva_erro_json_e_orcamento() {
         assert_eq!(json["requisicoes"], 10);
         assert_eq!(estado, esperado);
         assert_eq!(
-            eventos.iter().filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar").count(),
+            eventos
+                .iter()
+                .filter(|e| e.as_str() == "POST procedimento_atribuicao_cadastrar")
+                .count(),
             1
         );
     }
