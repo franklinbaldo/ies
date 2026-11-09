@@ -118,6 +118,14 @@ fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
     assert!(depois.contains("Motivo do cancelamento"));
     assert!(depois.contains("0011519"));
     assert!(depois.contains("0011520"));
+    // Uma identidade cancelada permanece na árvore, mas não pode oferecer
+    // navegação para versões que o próprio servidor recusa como inacessíveis.
+    // A outra identidade, ainda disponível, continua oferecendo a lista.
+    assert_eq!(
+        depois.matches("acao=documento_versao_listar").count(),
+        1,
+        "somente o DOC disponível publica histórico: {depois}"
+    );
     let individual = responder(
         "GET",
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10&id_documento=42",
@@ -126,4 +134,9 @@ fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
         cenario,
     );
     assert!(individual.corpo.contains("documento_cancelado.svg"));
+    assert!(
+        !individual.corpo.contains("acao=documento_versao_listar"),
+        "a barra do DOC cancelado não publica lista: {}",
+        individual.corpo
+    );
 }
