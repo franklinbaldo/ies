@@ -250,6 +250,17 @@ pub(crate) fn nos_do_processo(
     cenario: &str,
     processo: &str,
 ) -> Result<String, Estado> {
+    nos_com_proximo_indice(banco, instalacao, cenario, processo).map(|(nos, _)| nos)
+}
+
+/// Projeta a lista documental e entrega o próximo índice livre para nós de
+/// pastas, sem interpretar ou reescrever o JavaScript que acabou de gerar.
+pub(crate) fn nos_com_proximo_indice(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    processo: &str,
+) -> Result<(String, usize), Estado> {
     let lista = lista_visivel(banco, instalacao, cenario, processo)?;
     let ids = versoes::ids_do_processo(banco, instalacao, cenario, processo)
         .map_err(|_| Estado::DadosInsuficientes)?;
@@ -300,7 +311,7 @@ pub(crate) fn nos_do_processo(
         ));
         indice += 1;
     }
-    Ok(nos)
+    Ok((nos, indice))
 }
 
 fn no_de_documento(

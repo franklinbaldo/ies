@@ -3,6 +3,7 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::documentos_simulados::{self, Processo as ProcessoDocumental, Tipo};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::pastas_incompletas::{self, PastaPendente};
@@ -25,6 +26,13 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-342-02-identidade";
 const PEDIDO: &str = "00001.000001/2026-01";
 const ALHEIO: &str = "00001.000002/2026-01";
+
+#[derive(Clone, Copy)]
+enum Cena {
+    IdentidadeDivergente,
+    PastaPendente,
+    DocumentosVisiveisComPastaPendente,
+}
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
@@ -86,7 +94,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, format!("{evento} {acao}"))
 }
 
-fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
+fn estado(cena: Cena) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -121,7 +129,12 @@ fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
         CENARIO,
         &ProcessoSimulado {
             id: "10".into(),
-            numero: (if com_pasta_incompleta { PEDIDO } else { ALHEIO }).into(),
+            numero: (if matches!(cena, Cena::IdentidadeDivergente) {
+                ALHEIO
+            } else {
+                PEDIDO
+            })
+            .into(),
             unidade_origem: "TESTE".into(),
             aberto_em: vec!["TESTE".into()],
             anotacao_origem: None,
@@ -129,7 +142,7 @@ fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
-    if com_pasta_incompleta {
+    if !matches!(cena, Cena::IdentidadeDivergente) {
         // Estado de falha inventado somente onde os cards UnB não cobrem
         // a transição; a resposta HTML vem do modelo tipado no SQLite.
         pastas_incompletas::guardar(
@@ -144,10 +157,53 @@ fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
+    if matches!(cena, Cena::DocumentosVisiveisComPastaPendente) {
+        // O corpus registra documentos visíveis e pastas fechadas, mas não
+        // a falha em que a pasta nunca carrega. Só essa falha é hipotética.
+        documentos_simulados::registrar_processo(
+            &banco,
+            &instalacao,
+            CENARIO,
+            &ProcessoDocumental {
+                id: "10".into(),
+                nup: PEDIDO.into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
+        documentos_simulados::registrar_tipo(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "10",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
+        for indice in 1..=19 {
+            documentos_simulados::criar(
+                &banco,
+                &instalacao,
+                CENARIO,
+                "10",
+                "291",
+                &format!("Documento {indice}"),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            documentos_simulados::documentos(&banco, &instalacao, CENARIO, "10")
+                .unwrap()
+                .len(),
+            19
+        );
+    }
     (banco, instalacao)
 }
 
-fn executar(com_pasta_incompleta: bool) -> (Output, Vec<String>, (String, String)) {
+fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -169,7 +225,7 @@ fn executar(com_pasta_incompleta: bool) -> (Output, Vec<String>, (String, String
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado(com_pasta_incompleta);
+        let (banco, instalacao) = estado(cena);
         while let Some(mut cliente) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -236,7 +292,7 @@ fn executar(com_pasta_incompleta: bool) -> (Output, Vec<String>, (String, String
 
 #[test]
 fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
-    let (saida, pedidos, (controle, arvore)) = executar(false);
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::IdentidadeDivergente);
     assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, ALHEIO));
     assert_eq!(
         saida.status.code(),
@@ -271,7 +327,7 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
 /// distinta das capturas `UnB` em que abrir as pastas teve sucesso.
 #[test]
 fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
-    let (saida, pedidos, (controle, arvore)) = executar(true);
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::PastaPendente);
     assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
     assert_eq!(
         saida.status.code(),
@@ -302,5 +358,43 @@ fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
     assert!(
         pedidos.iter().all(|evento| evento.starts_with("GET ")),
         "consulta informativa nunca executa POST: {pedidos:?}"
+    );
+}
+
+/// Regressão do BDD-342-01: 19 documentos conhecidos no banco não podem
+/// escapar para a saída informativa quando ainda há pasta não carregada.
+/// Não é transcrição do caso 19/20 dentro da mesma pasta em uma cassette.
+#[test]
+fn bdd_342_01_documentos_visiveis_nao_vazam_com_pasta_pendente() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::DocumentosVisiveisComPastaPendente);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["numero"], PEDIDO);
+    assert_eq!(valor["documentos_incluidos"], false);
+    assert_eq!(valor["documentos"], serde_json::json!([]));
+    assert_eq!(valor["documentos_movidos"], serde_json::json!([]));
+    assert_eq!(valor["pastas"], serde_json::json!([]));
+    assert!(
+        valor["aviso_leitura_parcial"]
+            .as_str()
+            .is_some_and(|aviso| aviso.contains("leitura parcial")),
+        "não publicar os 19 documentos como lista comprovada: {valor}"
+    );
+    assert!(
+        pedidos
+            .iter()
+            .any(|evento| evento == "GET procedimento_visualizar"),
+        "a árvore deve ser realmente consultada: {pedidos:?}"
+    );
+    assert!(
+        pedidos.iter().all(|evento| evento.starts_with("GET ")),
+        "leitura não deve produzir escrita: {pedidos:?}"
     );
 }
