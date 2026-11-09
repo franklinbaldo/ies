@@ -4,6 +4,7 @@ mod controle_detalhado;
 mod controle_resumido;
 pub mod documento_arvore;
 pub mod documento_cancelar;
+mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;

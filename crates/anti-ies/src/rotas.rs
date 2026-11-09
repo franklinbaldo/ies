@@ -1,9 +1,9 @@
 //! Rotas HTTP da simulação; um estado SQLite compartilhado entre capacidades.
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
-    documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
-    pdf_externo, pesquisa_documento, processo_atribuicao, processo_criacao, processo_envio,
-    processo_relacionar, retorno_programado,
+    documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
+    parametro_unico, pdf_externo, pesquisa_documento, processo_atribuicao, processo_criacao,
+    processo_envio, processo_relacionar, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -145,13 +145,17 @@ pub(crate) fn responder(
         Some("documento_gerar") if eh_controlador_sei(alvo) => {
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("arvore_visualizar") if eh_controlador_sei(alvo) => pdf_externo::complementar_arvore(
-            documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
-            alvo,
-            banco,
-            instalacao,
-            cenario,
-        ),
+        Some("arvore_visualizar") if eh_controlador_sei(alvo) => {
+            documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(|| {
+                pdf_externo::complementar_arvore(
+                    documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
+                    alvo,
+                    banco,
+                    instalacao,
+                    cenario,
+                )
+            })
+        }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
         {
@@ -171,6 +175,9 @@ pub(crate) fn responder(
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
             trabalhar_protocolo(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("documento_ciencia" | "protocolo_ciencia_listar") if eh_controlador_sei(alvo) => {
+            documento_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_cancelar") if eh_controlador_sei(alvo) => {
             documento_cancelar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
