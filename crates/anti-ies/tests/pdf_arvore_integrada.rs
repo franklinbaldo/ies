@@ -89,7 +89,14 @@ fn bdd_332_03_pdf_so_aparece_na_arvore_js_apos_cadastro() {
             let mut conexao = aceitar(&escuta);
             anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
         }
-        let temporario = externo::receber(&banco, &origem, "caso", "7", "prova.pdf", 42).unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "caso",
+            "7",
+            "prova.pdf",
+            b"%PDF-1.7\nconteudo",
+        ).unwrap();
         externo::cadastrar(&banco, &origem, "caso", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "caso"))).unwrap();
@@ -138,7 +145,14 @@ fn bdd_332_03_selecionar_pdf_cadastrado_nao_oculta_arvore_do_processo() {
         )
         .unwrap();
         let temporario =
-            externo::receber(&banco, &origem, "selecao", "7", "prova.pdf", 42).unwrap();
+            externo::receber_conteudo(
+            &banco,
+            &origem,
+            "selecao",
+            "7",
+            "prova.pdf",
+            b"%PDF-1.7\nconteudo",
+        ).unwrap();
         externo::cadastrar(&banco, &origem, "selecao", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "selecao"))).unwrap();
@@ -212,7 +226,14 @@ fn bdd_332_03_pdf_cadastrado_preserva_documento_versionado_e_interno() {
             },
         )
         .unwrap();
-        let temporario = externo::receber(&banco, &origem, "triplo", "7", "anexo.pdf", 42).unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "triplo",
+            "7",
+            "anexo.pdf",
+            b"%PDF-1.7\nconteudo",
+        ).unwrap();
         externo::cadastrar(&banco, &origem, "triplo", "7", "293", temporario.id).unwrap();
         let mut conexao = aceitar(&escuta);
         anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "triplo"))).unwrap();
@@ -271,7 +292,14 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
         },
     )
     .unwrap();
-    let temp = externo::receber(&banco, &origem, "barra", "7", "prova.pdf", 42).unwrap();
+    let temp = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "barra",
+            "7",
+            "prova.pdf",
+            b"%PDF-1.7\nconteudo",
+        ).unwrap();
     let doc = externo::cadastrar(&banco, &origem, "barra", "7", "293", temp.id).unwrap();
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
