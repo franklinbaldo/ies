@@ -150,7 +150,7 @@ fn bdd_332_02_03_04_hypotese_sintetica_upload_e_cadastro_sao_estados_distintos()
     let selecionado = pedir(endereco, "GET", &format!("/sei/{location}"), b"");
     assert!(selecionado.starts_with("HTTP/1.1 200 OK\r\n"));
     assert!(selecionado.contains("infraArvoreNo(\"DOCUMENTO\",\"8000000000001\""));
-    assert!(selecionado.contains("Anexo 050000001"));
+    assert!(selecionado.contains("Anexo (050000001)"));
 
     let depois = pedir(
         endereco,

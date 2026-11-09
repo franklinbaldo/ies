@@ -116,6 +116,16 @@ pub(crate) fn conferir_criacao(
     depois: &[DocumentoNaArvore],
     tipo: &str,
 ) -> Result<String, ErroCriar> {
+    conferir_criacao_com_rotulo(antes, depois, |numero| format!("{tipo} {numero}"))
+}
+
+/// Como [`conferir_criacao`], com o rótulo que a árvore publica para o
+/// documento novo. Externo na UnB (SEI 4.0.9): `Anexo (0011862)`.
+pub(crate) fn conferir_criacao_com_rotulo(
+    antes: &[DocumentoNaArvore],
+    depois: &[DocumentoNaArvore],
+    rotulo_esperado: impl Fn(&str) -> String,
+) -> Result<String, ErroCriar> {
     use ErroCriar as E;
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
     // não basta a leitura posterior ter IDs distintos.
@@ -150,7 +160,7 @@ pub(crate) fn conferir_criacao(
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
         .ok_or(E::EfeitoIncerto)?;
-    if novo.rotulo != format!("{tipo} {numero}")
+    if novo.rotulo != rotulo_esperado(numero)
         || antes
             .iter()
             .any(|d| d.numero_sei.as_deref() == Some(numero))

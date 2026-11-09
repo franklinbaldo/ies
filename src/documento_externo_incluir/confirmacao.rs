@@ -106,9 +106,14 @@ where
     if depois.id != antes.id || depois.pastas_nao_carregadas {
         return Err(E::EfeitoIncerto);
     }
-    let numero =
-        crate::documento_criar::conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-            .map_err(|_| E::EfeitoIncerto)?;
+    // A árvore rotula o externo com o número entre parênteses (UnB, live
+    // 09/11/2026 e cassette documento-mover-cancelar-unb): `Anexo (0012272)`.
+    let numero = crate::documento_criar::conferir_criacao_com_rotulo(
+        &antes.documentos,
+        &depois.documentos,
+        |numero| format!("{tipo} ({numero})"),
+    )
+    .map_err(|_| E::EfeitoIncerto)?;
     let novo = depois
         .documentos
         .iter()

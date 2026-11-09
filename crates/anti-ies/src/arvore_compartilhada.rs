@@ -38,7 +38,10 @@ fn no_documento(
     numero: &str,
     icone: &str,
 ) -> String {
-    let rotulo = js(&format!("{tipo} {numero}"));
+    // SEI 4.0.9 (UnB) rotula o externo com o número entre parênteses:
+    // `Anexo (0012272)` no live de 09/11/2026 e na cassette
+    // documento-mover-cancelar-unb.
+    let rotulo = js(&format!("{tipo} ({numero})"));
     let numero = js(numero);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     let anexo = js(id_anexo);

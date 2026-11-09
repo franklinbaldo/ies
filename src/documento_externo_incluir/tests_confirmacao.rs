@@ -29,7 +29,7 @@ fn foto(novo: bool) -> FotoProcesso {
     let documentos = if novo {
         vec![DocumentoNaArvore {
             id: "42".into(),
-            rotulo: "Anexo 123".into(),
+            rotulo: "Anexo (123)".into(),
             numero_sei: Some("123".into()),
             pasta: None,
             natureza: NaturezaDoDocumento {
