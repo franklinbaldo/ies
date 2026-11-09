@@ -152,7 +152,7 @@ pub(crate) fn responder(
                     Resposta::html(format!(
                         "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}' /></td>{autoria}</tr></table></html>"
                     ))
-                },
+                }
                 Ok(Some(Ciencia::Pendente)) => Resposta::nova(Estado::DadosInsuficientes),
                 Ok(None) => Resposta::nova(Estado::NaoEncontrado),
                 Err(erro) => Resposta::nova(erro),
