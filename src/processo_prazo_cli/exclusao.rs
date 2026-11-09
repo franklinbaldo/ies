@@ -24,6 +24,7 @@ struct ExclusaoPreparada {
     mime: String,
     id_controle: String,
     id_procedimento: String,
+    nup: String,
     link_prazo: String,
 }
 
@@ -201,15 +202,10 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     }
     let (lista_nova, _) =
         obter_tela(rede, cookie, &dados.link_lista).map_err(|_| efeito_incerto(json_mode, None))?;
-    if id_na_lista(&lista_nova, "").is_err()
-        || id_na_lista(&lista_nova, &dados.id_procedimento).is_err()
-    {
-        return Err(efeito_incerto(json_mode, None));
-    }
-    // A lista nao deve mais oferecer o mesmo item. Conferir o id controle
-    // original tambem evita declarar sucesso ao ocultar so a acao.
-    if lista_nova.contains(&format!("acaoExcluir('{}',", dados.id_controle)) {
-        return Err(efeito_incerto(json_mode, None));
+    // A mesma linha do NUP precisa desaparecer da lista relida.
+    match id_na_lista(&lista_nova, &dados.nup) {
+        Ok(None) => {}
+        Ok(Some(_)) | Err(()) => return Err(efeito_incerto(json_mode, None)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
     let (formulario, _) =
@@ -301,6 +297,7 @@ pub(super) fn executar(
         mime,
         id_controle,
         id_procedimento: aberto.arvore.processo.id.clone(),
+        nup: nup.as_str().to_owned(),
         link_prazo,
     };
     if confirmar
