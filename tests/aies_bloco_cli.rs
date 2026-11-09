@@ -4,9 +4,9 @@
 
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
-use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -178,7 +178,8 @@ fn executar() -> (Output, Vec<String>) {
                     },
                 ],
             },
-        ).unwrap();
+        )
+        .unwrap();
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
