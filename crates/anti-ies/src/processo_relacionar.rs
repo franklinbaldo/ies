@@ -263,11 +263,11 @@ mod testes {
             "caso",
         );
         assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
-        assert!(
+        assert_eq!(
             relacionamentos::listar(&db, &origem, "caso", "10")
                 .unwrap()
-                .unwrap()
-                .is_empty()
+                .unwrap(),
+            vec![]
         );
     }
 }
