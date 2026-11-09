@@ -202,7 +202,7 @@ fn executar(caso: &str) -> (Output, Vec<String>, (Option<String>, bool)) {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-.args(["--json", "processo", "prazo", PEDIDO])
+        .args(["--json", "processo", "prazo", PEDIDO])
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
