@@ -116,6 +116,46 @@ fn quantidade(banco: &Connection) -> i64 {
         .unwrap()
 }
 
+fn processar_tunel(
+    mut tcp: TcpStream,
+    tls: &TlsAcceptor,
+    destino: std::net::SocketAddr,
+    registro: &Mutex<Vec<String>>,
+) {
+    assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
+    tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        .unwrap();
+    let mut canal = tls.accept(tcp).unwrap();
+    let (bytes, primeira) = pedido(&mut canal);
+    let metodo = primeira.split_whitespace().next().unwrap();
+    let alvo = primeira.split_whitespace().nth(1).unwrap();
+    // Nunca armazenar a URL, pois pode conter token de sessão.
+    let acao = alvo
+        .split_once('?')
+        .and_then(|(_, query)| {
+            query
+                .split('&')
+                .find_map(|parte| parte.strip_prefix("acao="))
+        })
+        .unwrap_or("desconhecida");
+    let mut backend = TcpStream::connect(destino).unwrap();
+    backend.write_all(&bytes).unwrap();
+    backend.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = Vec::new();
+    backend.read_to_end(&mut resposta).unwrap();
+    let status = std::str::from_utf8(&resposta)
+        .ok()
+        .and_then(|valor| valor.split_whitespace().nth(1))
+        .unwrap_or("?")
+        .to_owned();
+    registro
+        .lock()
+        .unwrap()
+        .push(format!("{metodo} {acao} {status}"));
+    canal.write_all(&resposta).unwrap();
+    canal.flush().unwrap();
+}
+
 fn executar_com_releitura(
     args: &[&str],
     reler: bool,
@@ -159,39 +199,8 @@ fn executar_com_releitura(
     let registro = Arc::clone(&trilha);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade).unwrap();
-        while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
-            assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).unwrap();
-            let (bytes, primeira) = pedido(&mut canal);
-            let metodo = primeira.split_whitespace().next().unwrap();
-            let alvo = primeira.split_whitespace().nth(1).unwrap();
-            // Nunca armazenar a URL, pois pode conter token de sessão.
-            let acao = alvo
-                .split_once('?')
-                .and_then(|(_, query)| {
-                    query
-                        .split('&')
-                        .find_map(|parte| parte.strip_prefix("acao="))
-                })
-                .unwrap_or("desconhecida");
-            let mut backend = TcpStream::connect(destino).unwrap();
-            backend.write_all(&bytes).unwrap();
-            backend.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            backend.read_to_end(&mut resposta).unwrap();
-            let status = std::str::from_utf8(&resposta)
-                .ok()
-                .and_then(|valor| valor.split_whitespace().nth(1))
-                .unwrap_or("?")
-                .to_owned();
-            registro
-                .lock()
-                .unwrap()
-                .push(format!("{metodo} {acao} {status}"));
-            canal.write_all(&resposta).unwrap();
-            canal.flush().unwrap();
+        while let Some(tcp) = aceitar(&proxy, &parar_proxy) {
+            processar_tunel(tcp, &tls, destino, &registro);
         }
     });
 
