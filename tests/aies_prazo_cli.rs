@@ -1,4 +1,4 @@
-//! BDD-272-01: a CLI real lê prazo persistido pelo anti-IES, sem POST.
+//! BDD-272-01/02: a CLI real lê, prevê e confirma prazo no anti-IES.
 //! Hipótese sintética: TLS loopback e um único SQLite efêmero por execução.
 #![cfg(unix)]
 use anti_ies::atender_http;
@@ -284,6 +284,26 @@ fn bdd_272_01_cli_real_le_tres_estados_sem_escrita() {
         );
         assert_eq!(json["requisicoes"], pedidos.len());
     }
+}
+
+#[test]
+fn bdd_272_02_cli_real_previsualiza_dias_sem_post_e_sem_mutacao() {
+    let (saida, pedidos, estado_final) =
+        executar_com_argumentos("sem", &["--dias", "15"]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["confirmado"], false);
+    assert_eq!(json["solicitado"]["dias"], 15);
+    assert_eq!(json["atual"]["tipo"], "sem_prazo");
+    assert_eq!(estado_final, (None, false));
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+    assert_eq!(json["requisicoes"], pedidos.len());
 }
 
 #[test]
