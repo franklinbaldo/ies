@@ -1,7 +1,8 @@
 //! Histórico e prévia de registro de andamento como projeções do SQLite.
 //! Somente leitura: o --confirmar permanece fechado na CLI pública.
-use crate::{Estado, Resposta, escapar, parametro_unico};
-use iesei::andamentos::{self, Historico};
+use crate::{Estado, Resposta, documentos::campo_formulario_unico, escapar, parametro_unico};
+use iesei::andamentos::{self, Historico, Linha};
+use iesei::banco_cassettes;
 use iesei::instalacao::Instalacao;
 use iesei::processos;
 use rusqlite::Connection;
@@ -52,11 +53,12 @@ fn pagina_formulario(id: &str) -> Resposta {
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -70,10 +72,69 @@ pub(crate) fn responder(
     let Ok(Some(processo)) = processos::ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    match parametro_unico(alvo, "acao") {
-        Some("procedimento_consultar_historico") => pagina_historico(&processo.numero, &historico),
-        Some("procedimento_atualizar_andamento") => pagina_formulario(id),
+    match (parametro_unico(alvo, "acao"), metodo) {
+        (Some("procedimento_consultar_historico"), "GET") => {
+            pagina_historico(&processo.numero, &historico)
+        }
+        (Some("procedimento_atualizar_andamento"), "GET") => pagina_formulario(id),
+        (Some("procedimento_atualizar_andamento"), "POST") => {
+            registrar_sintetico(corpo, banco, instalacao, cenario, id, &processo)
+        }
+        (Some("procedimento_consultar_historico" | "procedimento_atualizar_andamento"), _) => {
+            Resposta::nova(Estado::MetodoNaoPermitido)
+        }
         _ => Resposta::nova(Estado::NaoImplementado),
+    }
+}
+
+/// Hipótese de transição local: os dados de formulário devem corresponder
+/// à tela oferecida e ao processo aberto. Nenhuma escrita sai do SQLite.
+fn registrar_sintetico(
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    processo: &processos::ProcessoSimulado,
+) -> Resposta {
+    let (Some(protocolo), Some(atividade), Some(texto), Some(botao)) = (
+        campo_formulario_unico(corpo, "hdnIdProtocolo"),
+        campo_formulario_unico(corpo, "hdnIdAtividade"),
+        campo_formulario_unico(corpo, "txaDescricao"),
+        campo_formulario_unico(corpo, "sbmSalvar"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if corpo.split('&').count() != 4
+        || protocolo != id
+        || !atividade.is_empty()
+        || botao != "Salvar"
+        || texto.trim().is_empty()
+        || texto.chars().count() > 500
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let Ok(Some(controle)) = banco_cassettes::ler(banco, instalacao, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let unidade = controle.unidade.as_str();
+    if !processo.aberto_em.iter().any(|aberta| aberta == unidade) {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    // Relógio/usuário não foram observados nesta transição: valores
+    // explicitamente sintéticos, sem reivindicar proveniência de cassette.
+    let linha = Linha {
+        ocorrido_em: "09/11/2026 11:00".into(),
+        unidade: unidade.to_owned(),
+        usuario: "simulador".into(),
+        descricao: texto,
+    };
+    match andamentos::acrescentar(banco, instalacao, cenario, id, linha) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=procedimento_consultar_historico&id_procedimento={id}"
+        )),
+        Err(andamentos::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(andamentos::Falha::Sqlite(_)) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 
