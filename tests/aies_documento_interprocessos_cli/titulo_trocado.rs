@@ -20,8 +20,7 @@ fn bdd_60_05_cli_recusa_titulo_divergente_apos_arvore_sem_fallback() {
     );
     let erro = json(&saida);
     assert_eq!(
-        erro["subcodigo"],
-        "titulo_do_conteudo_de_outro_documento",
+        erro["subcodigo"], "titulo_do_conteudo_de_outro_documento",
         "{erro}"
     );
     assert_eq!(erro["documento"], DOC_A, "{erro}");
@@ -36,14 +35,15 @@ fn bdd_60_05_cli_recusa_titulo_divergente_apos_arvore_sem_fallback() {
         "um único GET do conteúdo divergente, sem retry: {trilha:?}"
     );
     assert!(
-        trilha.iter().any(|pedido| pedido == "GET procedimento_visualizar"),
+        trilha
+            .iter()
+            .any(|pedido| pedido == "GET procedimento_visualizar"),
         "é necessário ler a árvore antes da divergência: {trilha:?}"
     );
     assert!(
         trilha
             .iter()
-            .all(|pedido| pedido.starts_with("GET ")
-                || pedido == "POST protocolo_pesquisa_rapida"),
+            .all(|pedido| pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"),
         "nenhum POST mutador nem fallback: {trilha:?}"
     );
 }
