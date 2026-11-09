@@ -138,7 +138,16 @@ pub fn responder(
         Ok(documento) => documento,
         Err(estado) => return Resposta::nova(estado),
     };
-    let id = documento.or_else(|| super::parametro_unico(alvo, "id_protocolo"));
+    // id_protocolo e id_documento podem selecionar o mesmo documento,
+    // mas valores divergentes nao autorizam escolher um deles como fallback.
+    let protocolo = match super::documento_versoes::parametro(alvo, "id_protocolo") {
+        Ok(protocolo) => protocolo,
+        Err(estado) => return Resposta::nova(estado),
+    };
+    if documento.is_some() && protocolo.is_some() && documento != protocolo {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let id = documento.or(protocolo);
     let Some(id) = id.filter(|s| s.bytes().all(|b| b.is_ascii_digit())) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

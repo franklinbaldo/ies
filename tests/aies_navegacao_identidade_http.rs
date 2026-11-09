@@ -70,7 +70,7 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
     let endereco = servidor.local_addr().unwrap();
     let atendimento = thread::spawn(move || {
         let (banco, origem) = estado();
-        for _ in 0..4 {
+        for _ in 0..6 {
             let (mut tcp, cliente) = servidor.accept().unwrap();
             assert!(cliente.ip().is_loopback());
             atender_http(&mut tcp, Some((&banco, &origem, CENARIO))).unwrap();
@@ -92,6 +92,25 @@ fn http_documento_duplicado_nao_escolhe_id_protocolo_alternativo() {
         !ambiguo.contains("0011520"),
         "não entregar documento alternativo"
     );
+
+    // BDD-60-05: dois identificadores diferentes, cada qual selecionavel
+    // isoladamente, nao podem escolher silenciosamente o primeiro.
+    let conflitante = pedir(endereco, "GET", "id_documento=42&id_protocolo=43");
+    assert!(
+        conflitante.starts_with("HTTP/1.1 400 Bad Request\r\n"),
+        "{conflitante}"
+    );
+    assert!(!conflitante.contains("0011519"));
+    assert!(!conflitante.contains("0011520"));
+
+    // Dois campos concordantes podem identificar o mesmo documento.
+    let concordante = pedir(endereco, "GET", "id_documento=42&id_protocolo=42");
+    assert!(
+        concordante.starts_with("HTTP/1.1 200 OK\r\n"),
+        "{concordante}"
+    );
+    assert!(concordante.contains("0011519"));
+    assert!(!concordante.contains("0011520"));
 
     let primeiro = pedir(endereco, "GET", "id_documento=42");
     assert!(primeiro.starts_with("HTTP/1.1 200 OK\r\n"), "{primeiro}");
