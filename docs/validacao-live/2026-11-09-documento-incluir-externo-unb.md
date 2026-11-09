@@ -84,16 +84,37 @@ tentativa ao vivo.
 - **Escrita no SEI de treinamento: PASS**, comprovada por releitura
   independente (passos 7 e 8): documento novo `0012272`, ícone
   `documento_pdf`, não cancelado, conteúdo com SHA-256 idêntico ao enviado.
-- **Saída da CLI no `--confirmar`: FAIL** no live (saída 3, falso efeito
-  incerto). A correção (`c5504fc`) está validada só em
-  IES ↔ anti-IES ↔ SQLite; **um segundo `--confirmar` ao vivo com o binário
-  corrigido está NOT_RUN** e cria outro documento: depende de decisão do
-  proprietário.
+- **Saída da CLI no primeiro `--confirmar`: FAIL** no live (saída 3,
+  falso efeito incerto), corrigida em `c5504fc` (PR #601).
+- **Segundo `--confirmar` com o binário corrigido: PASS** (seção abaixo),
+  autorizado pelo proprietário depois da integração da #601.
 - **`--confirmar` público:** continua fechado. O ensaio usa o opt-in
   `IES_ENSAIO_TREINAMENTO=332` mais a origem exata da UnB de treinamento.
 
+## Segundo ensaio, binário corrigido (09/11/2026, 21:30 UTC)
+
+Binário release de `main@5662a35` (com a #601), SHA-256
+`d751bba8cfd8d599fd42404d1e80fbecbbb157b96e265cc79aace4bc501408d6`.
+Orçamento declarado: **25**; usado: **16**. Mesmo processo, mesma conta.
+PDF novo de 659 bytes, SHA-256
+`c3b866e2a51dee50ad34eba87c87a4e1e11d0a8a02145402a5e6c68ced6d02bc`.
+
+| # | Comando | Resultado | Req. |
+| --- | --- | --- | --- |
+| 1 | `ies --json login` | **PASS** `sessao_existente_valida` | 1 |
+| 2 | `documento incluir-externo … --consultar-sei` | **PASS** tipo 293, sem upload | 5 |
+| 3 | `IES_ENSAIO_TREINAMENTO=332 … --confirmar` (uma vez, trava `O_EXCL`) | **PASS** saída **0**, `confirmado: true`, `numero_sei: 0012273`, `reconciliado_por_leitura: true` | 8 |
+| 4 | `ies --json documento 0012273 --saida …` | **PASS** `Anexo (0012273)`, `documento_pdf`, não cancelado, SHA-256 **idêntico** ao enviado | 2 |
+
+A prova completa de BDD-332-03 ao vivo fica assim: prévia, uma
+confirmação com saída 0 reconciliada pela própria CLI e verificação
+independente do conteúdo. O `--confirmar` público continua fechado nesta
+fatia; abri-lo é decisão separada.
+
 ## Resíduo
 
+- Documento externo **`0012273`** (Anexo, PDF de 659 bytes, público), do
+  segundo ensaio, no mesmo processo.
 - Documento externo **`0012272`** (Anexo, PDF de 639 bytes, público) no
   processo `23106.001906/2026-14` da Unidade1, UnB de treinamento. Não foi
   removido: cancelar é outra escrita e não fazia parte do roteiro.
