@@ -230,12 +230,8 @@ pub fn responder(
                 Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
                 Err(estado) => return Resposta::nova(estado),
             };
-            let lista = match lista_visivel(
-                banco,
-                instalacao,
-                cenario,
-                &documento.id_procedimento,
-            ) {
+            let lista = match lista_visivel(banco, instalacao, cenario, &documento.id_procedimento)
+            {
                 Ok(lista) => lista,
                 Err(estado) => return Resposta::nova(estado),
             };
