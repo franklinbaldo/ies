@@ -251,7 +251,6 @@ fn filtro_de_tipos_lista_todos_sem_criar_documento_e_recusa_pedido_misto() {
     servidor.join().unwrap();
 }
 
-
 /// #246/#496: a acao de incluir documento pertence ao estado de abertura,
 /// nao ao HTML da arvore. Uma tramitacao muda ambas as projecoes.
 #[test]
@@ -298,7 +297,12 @@ fn bdd_246_acao_documental_reflete_tramitacao_no_mesmo_sqlite() {
             let (mut fluxo, _) = escuta.accept().unwrap();
             atender_http(&mut fluxo, Some((&banco, &origem, cenario))).unwrap();
         }
-        assert_eq!(sim::documentos(&banco, &origem, cenario, "10").unwrap().len(), 1);
+        assert_eq!(
+            sim::documentos(&banco, &origem, cenario, "10")
+                .unwrap()
+                .len(),
+            1
+        );
         let estado = iesei::processos::ler(&banco, &origem, cenario, "10")
             .unwrap()
             .unwrap();
