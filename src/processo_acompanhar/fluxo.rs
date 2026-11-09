@@ -68,10 +68,32 @@ pub(crate) struct Previa {
     pub(crate) grupo: String,
     pub(crate) observacao: String,
     pub(crate) id_de_remocao: Option<String>,
-    pub(crate) ja_estava: bool,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
+    pub(crate) estado: EstadoDoAcompanhamento,
     pub(crate) requisicoes: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDoAcompanhamento {
+    Previa { ja_estava: bool },
+    ConfirmadoSemMudanca,
+    Incluido,
+}
+
+impl EstadoDoAcompanhamento {
+    pub(crate) fn ja_estava(self) -> bool {
+        matches!(
+            self,
+            Self::Previa { ja_estava: true } | Self::ConfirmadoSemMudanca
+        )
+    }
+
+    pub(crate) fn confirmado(self) -> bool {
+        matches!(self, Self::ConfirmadoSemMudanca | Self::Incluido)
+    }
+
+    pub(crate) fn alterado(self) -> bool {
+        matches!(self, Self::Incluido)
+    }
 }
 
 fn url_do_cadastro(instalacao: &Instalacao, ref_url: &str, id: &str) -> Result<String, ErroPrevia> {
@@ -168,9 +190,9 @@ fn selecionar_previa(
             grupo: alvo.map_or("", |a| a.grupo.as_str()).to_owned(),
             observacao: alvo.map_or("", |a| a.observacao.as_str()).to_owned(),
             id_de_remocao: alvo.map(|a| a.id.clone()),
-            ja_estava: alvo.is_none(),
-            confirmado: false,
-            alterado: false,
+            estado: EstadoDoAcompanhamento::Previa {
+                ja_estava: alvo.is_none(),
+            },
             requisicoes,
         });
     }
@@ -183,9 +205,9 @@ fn selecionar_previa(
         grupo: selecionado.nome.clone(),
         observacao: pedido.observacao.unwrap_or("").to_owned(),
         id_de_remocao: None,
-        ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
-        confirmado: false,
-        alterado: false,
+        estado: EstadoDoAcompanhamento::Previa {
+            ja_estava: super::conferir_novo_grupo(antes, &selecionado.nome).is_err(),
+        },
         requisicoes,
     })
 }
@@ -275,8 +297,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(plano);
     }
-    plano.confirmado = true;
-    if plano.ja_estava {
+    if plano.estado.ja_estava() {
+        plano.estado = EstadoDoAcompanhamento::ConfirmadoSemMudanca;
         return Ok(plano);
     }
     let submissao = submissao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
@@ -343,7 +365,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         })
         .ok_or(ErroPrevia::EfeitoIncerto)?;
     plano.id_de_remocao = Some(novo.id.clone());
-    plano.alterado = true;
+    plano.estado = EstadoDoAcompanhamento::Incluido;
     plano.requisicoes = rede.feitas();
     Ok(plano)
 }

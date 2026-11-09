@@ -81,14 +81,14 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                             "unidade": previa.unidade,
                             "acao": previa.acao.como_texto(),
                             "motivo": motivo,
-                            "confirmado": previa.confirmado,
-                            "alterado": previa.alterado,
-                            "reconciliado_por_leitura": previa.reconciliado_por_leitura,
+                            "confirmado": previa.estado.aplicada(),
+                            "alterado": previa.estado.aplicada(),
+                            "reconciliado_por_leitura": previa.estado.aplicada(),
                             "origem": "web",
                             "requisicoes": previa.requisicoes
                         })
                     );
-                } else if previa.confirmado {
+                } else if previa.estado.aplicada() {
                     println!(
                         "Processo {}: {} aplicado e conferido por leitura. Requisições: {}.",
                         previa.nup,
