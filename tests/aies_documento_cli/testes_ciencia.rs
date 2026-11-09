@@ -45,6 +45,10 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(feito["id_documento"], "42");
     assert_eq!(feito["processo"]["id"], "7");
     assert_eq!(feito["requisicoes"], 11);
+    assert!(
+        feito["usuario"].is_null(),
+        "sem identidade de sessão não se inventa nome"
+    );
     let atividade = feito["id_atividade"].as_str().expect("atividade observada");
 
     // Oráculo independente da árvore e do leitor HTML: estado gravado no SQLite.
@@ -235,6 +239,8 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
     );
     let resultado = json(&confirmado);
     assert_eq!(resultado["verificado"], true);
+    // O usuário deve vir da Lista de Ciências relida pela CLI, não apenas do SQL.
+    assert_eq!(resultado["usuario"], "agente-de-teste");
     let id = resultado["id_atividade"].as_str().unwrap();
     let banco = Connection::open(&caminho).unwrap();
     let (atividade, usuario): (String, Option<String>) = banco
