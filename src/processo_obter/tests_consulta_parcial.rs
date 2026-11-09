@@ -194,9 +194,7 @@ fn com_documento_movido(html: String, indice: usize) -> String {
     let destino = html_do_movido(&href_do_destino(ID_DESTINO, "31"), NUP_DESTINO);
     html.replacen(
         marcador,
-        &format!(
-            "{no}\nNos[{indice}].acoes = '';\nNos[{indice}].html = '{destino}';\n{marcador}"
-        ),
+        &format!("{no}\nNos[{indice}].acoes = '';\nNos[{indice}].html = '{destino}';\n{marcador}"),
         1,
     )
 }
@@ -236,7 +234,9 @@ fn bdd_342_01_lista_incompleta_nao_divulga_movidos_nem_ensina_destino() {
             "a lista omitida não pode deixar movidos reutilizáveis no domínio"
         );
         assert!(
-            amb.indice.id_por_nup(&super::tests_apoio::instalacao(), NUP_DESTINO).is_none(),
+            amb.indice
+                .id_por_nup(&super::tests_apoio::instalacao(), NUP_DESTINO)
+                .is_none(),
             "não aprender destino a partir de lista documental incompleta"
         );
         let nup = NumeroProcesso::novo(NUP).unwrap();
