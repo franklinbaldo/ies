@@ -366,8 +366,7 @@ fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
 /// Não é transcrição do caso 19/20 dentro da mesma pasta em uma cassette.
 #[test]
 fn bdd_342_01_documentos_visiveis_nao_vazam_com_pasta_pendente() {
-    let (saida, pedidos, (controle, arvore)) =
-        executar(Cena::DocumentosVisiveisComPastaPendente);
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::DocumentosVisiveisComPastaPendente);
     assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
     assert_eq!(
         saida.status.code(),
@@ -389,7 +388,9 @@ fn bdd_342_01_documentos_visiveis_nao_vazam_com_pasta_pendente() {
         "não publicar os 19 documentos como lista comprovada: {valor}"
     );
     assert!(
-        pedidos.iter().any(|evento| evento == "GET procedimento_visualizar"),
+        pedidos
+            .iter()
+            .any(|evento| evento == "GET procedimento_visualizar"),
         "a árvore deve ser realmente consultada: {pedidos:?}"
     );
     assert!(
