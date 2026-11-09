@@ -15,13 +15,28 @@ import tempfile
 import time
 
 from ensaio_processo_criar import (
-    chamar_ies, origem_privada_permitida, origens_de_treinamento,
+    chamar_ies, codigo_tipado_publicavel, origem_privada_permitida,
+    origens_de_treinamento,
 )
 
 
 def quantidade(resposta: dict) -> int | None:
     valor = resposta.get("requisicoes")
     return valor if type(valor) is int and valor > 0 else None
+
+
+def falha_da_previa(codigo: int | None, resposta: dict) -> tuple[int, dict]:
+    """Falha do ensaio com causa tipada; nunca publica HTML ou mensagem livre."""
+    relatorio = {"estado": "PREVIA_FAIL", "requisicoes": [quantidade(resposta)]}
+    if type(codigo) is int:
+        relatorio["saida_cli"] = codigo
+    subcodigo = codigo_tipado_publicavel(resposta.get("subcodigo"))
+    if subcodigo is not None:
+        relatorio["subcodigo"] = subcodigo
+    status = resposta.get("status_http")
+    if type(status) is int and 100 <= status <= 599:
+        relatorio["status_http"] = status
+    return 1, relatorio
 
 
 def registrar_estado_relido_incerto(relatorio: dict, resposta: dict, usuario: str) -> None:
@@ -89,7 +104,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
     try:
         codigo, previa = executar(ies, atribuir)
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        return 1, {"estado": "PREVIA_FAIL", "requisicoes": [None]}
+        return falha_da_previa(None, {})
     identificador = previa.get("id_procedimento")
     unidade = previa.get("unidade")
     if (codigo != 0 or previa.get("nup") != nup
@@ -100,7 +115,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
             or previa.get("confirmado") is not False
             or previa.get("alterado") is not False
             or quantidade(previa) is None):
-        return 1, {"estado": "PREVIA_FAIL", "requisicoes": [quantidade(previa)]}
+        return falha_da_previa(codigo, previa)
 
     # Trava durável antes do primeiro POST; segundo ensaio exige outro registro.
     try:
