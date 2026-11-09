@@ -4,7 +4,7 @@ title: Andamento do processo com POST único e prova por histórico
 operation: processo.andamento
 implementation: partial
 status: adopted-for-scope
-scope: prévia Web para todos; confirmação POST apenas no binário debug com origem sintética .test e releitura do SQLite; release permanece fechado
+scope: prévia Web para todos; confirmação em treinamento UnB/GO ou simulador .test, inclusive release, com releitura; demais origens recusadas
 selected_strategy: web-formulario-servido-com-releitura
 alternatives: web-formulario-servido-com-releitura,web-sem-conferencia,rest-wssei
 evidence_level: todos-unb-e-cassettes-de-treinamento
@@ -39,5 +39,5 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 
 ## Limitações e revisão
 
-A confirmação é autorizada somente no binário debug e na origem sintética `.test`, dupla conferência antes e após a sessão. O release mantém a recusa antes da rede. O teste BDD-259-02 comprova somente compatibilidade sintética da CLI com o anti-IES/SQLite; confronto independente com cassette e treinamento seguem NOT_RUN. 
+A confirmação é habilitada somente para as origens exatas UnB/GO de treinamento e o simulador `.test`. A origem é verificada antes da requisição, mesmo no binário de distribuição. O teste BDD-259-02 exercita duas execuções reais da CLI com um SQLite compartilhado, incluindo consulta do histórico completo; comprova somente compatibilidade sintética, não paridade com cassette ou treinamento, ambos NOT_RUN. 
 A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
