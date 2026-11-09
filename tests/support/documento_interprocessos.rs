@@ -209,16 +209,36 @@ fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
     if sem_src {
         use iesei::documentos_simulados::{self as internos, Processo, Tipo};
         internos::registrar_processo(
-            &banco, &origem, CENARIO,
-            &Processo { id: "7".into(), nup: NUP_A.into(), unidade: "TESTE".into() },
-        ).unwrap();
+            &banco,
+            &origem,
+            CENARIO,
+            &Processo {
+                id: "7".into(),
+                nup: NUP_A.into(),
+                unidade: "TESTE".into(),
+            },
+        )
+        .unwrap();
         internos::registrar_tipo(
-            &banco, &origem, CENARIO, "7",
-            &Tipo { id: "291".into(), nome: "Despacho".into() },
-        ).unwrap();
+            &banco,
+            &origem,
+            CENARIO,
+            "7",
+            &Tipo {
+                id: "291".into(),
+                nome: "Despacho".into(),
+            },
+        )
+        .unwrap();
         let sem_conteudo = internos::criar(
-            &banco, &origem, CENARIO, "7", "291", "Metadados sem conteudo",
-        ).unwrap();
+            &banco,
+            &origem,
+            CENARIO,
+            "7",
+            "291",
+            "Metadados sem conteudo",
+        )
+        .unwrap();
         assert_eq!(sem_conteudo.numero_sei, "1000001");
     }
     (banco, origem)
@@ -246,11 +266,7 @@ pub(super) fn executar_sem_src(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, true, args)
 }
 
-fn executar_com_estado(
-    com_segundo: bool,
-    sem_src: bool,
-    args: &[&str],
-) -> (Output, Vec<String>) {
+fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
