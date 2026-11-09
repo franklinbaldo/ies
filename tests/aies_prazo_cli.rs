@@ -159,8 +159,7 @@ fn executar_com_resposta(
     extras: &[&str],
     negar_aceite: bool,
 ) -> (Output, Vec<String>, (Option<String>, bool)) {
-    let (mut saidas, pedidos, estado_final) =
-        executar_sequencia(caso, &[extras], negar_aceite);
+    let (mut saidas, pedidos, estado_final) = executar_sequencia(caso, &[extras], negar_aceite);
     (saidas.pop().expect("uma execução"), pedidos, estado_final)
 }
 
