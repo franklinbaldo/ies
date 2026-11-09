@@ -75,11 +75,15 @@ fn arvore_do_processo(
     ));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
+    let prazo_observado = iesei::prazos::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .is_some();
     let barra = literal_js(&crate::processo_barra::acoes_do_processo(
         processo,
         unidade_atual,
         relacionados,
         atribuicao.is_some(),
+        prazo_observado,
     ));
     Ok(format!(
         r#"<html><head><script>
