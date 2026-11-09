@@ -4,6 +4,8 @@
 use crate::arvore_processo::{ler_arvore, ler_barra_do_documento, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::documento::NumeroDocumento;
+use crate::documento_versoes::{VersaoDocumento, interpretar_historico};
 use iesei::banco_cassettes::{self, ControleResumido, Linha, iniciar};
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -70,6 +72,7 @@ fn servir_barra(
     instalacao: iesei::instalacao::Instalacao,
     id_processo: String,
     nup: String,
+    revisoes_esperadas: usize,
 ) -> (SocketAddr, std::thread::JoinHandle<()>) {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
@@ -97,11 +100,11 @@ fn servir_barra(
             destinos: vec![],
         };
         processos::guardar(&mut banco, &instalacao, "cassette-lista", &processo).unwrap();
-        for passo in 0..3 {
+        for passo in 0..4 {
             let (mut fluxo, _) = escuta.accept().unwrap();
             anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-lista")))
                 .unwrap();
-            if passo == 0 {
+            if passo == 1 {
                 processo.aberto_em.clear();
                 processos::guardar(&mut banco, &instalacao, "cassette-lista", &processo).unwrap();
             }
@@ -118,7 +121,7 @@ fn servir_barra(
                 .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
                     .get::<_, i64>(0))
                 .unwrap(),
-            1
+            revisoes_esperadas
         );
     });
     (endereco, tarefa)
@@ -175,6 +178,36 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("após conclusão, mesma identidade sem link de versões");
     assert!(antes.0 < conclusao && depois.0 > conclusao);
 
+    // Dados das linhas vêm do GET original do histórico, não de uma fixture.
+    // Corpos das versões antigas não foram capturados: a simulação não os
+    // apresenta neste confronto, que examina somente a lista de metadados.
+    let html_historico = html_da_resposta(historico.item).unwrap();
+    let numero = NumeroDocumento::novo(&identidade.numero).unwrap();
+    let original_historico = interpretar_historico(&html_historico, &numero, &id, None).unwrap();
+    let ultima = original_historico.atual().unwrap().numero();
+    let revisoes: Vec<_> = (1..=ultima)
+        .filter_map(|n| {
+            let entrada = original_historico
+                .selecionar(VersaoDocumento::nova(n).unwrap())
+                .ok()?;
+            Some(Revisao {
+                versao: NonZeroU32::new(n).unwrap(),
+                usuario: entrada.usuario.clone(),
+                unidade: entrada.unidade.clone(),
+                modificacao: entrada.modificacao.clone(),
+                html_corpo: if n == ultima {
+                    format!(
+                        "<p>{}</p>",
+                        texto.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+                    )
+                } else {
+                    String::new()
+                },
+            })
+        })
+        .collect();
+    assert_eq!(revisoes.len(), original_historico.len());
+
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.clone(),
@@ -182,25 +215,15 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         numero_processo: antes.2.clone(),
         numero: identidade.numero.clone(),
         tipo: identidade.tipo,
-        revisoes: vec![Revisao {
-            versao: NonZeroU32::new(1).unwrap(),
-            usuario: "NÃO OBSERVADO".to_owned(),
-            unidade: "NÃO OBSERVADA".to_owned(),
-            modificacao: "09/11/2026".to_owned(),
-            html_corpo: format!(
-                "<p>{}</p>",
-                texto
-                    .replace('&', "&amp;")
-                    .replace('<', "&lt;")
-                    .replace('>', "&gt;")
-            ),
-        }],
+        revisoes,
     };
+    let revisoes_esperadas = documento.revisoes.len();
     let (endereco, tarefa) = servir_barra(
         documento,
         instalacao.clone(),
         antes.1.clone(),
         antes.2.clone(),
+        revisoes_esperadas,
     );
     let alvo = format!(
         "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento={}&id_documento={id}",
@@ -218,6 +241,33 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             esperado,
             "barra original versus HTTP simulado"
         );
+        if esperado {
+            // Segundo GET da mesma sessão: confronto INDEPENDENTE dos
+            // metadados lidos na cassette e dos renderizados do SQLite.
+            let alvo_historico = format!(
+                "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={}",
+                antes.1
+            );
+            let http_historico = pedir(endereco, "GET", &alvo_historico);
+            let (cabecalho, html) = http_historico.split_once("\r\n\r\n").unwrap();
+            assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
+            let simulado = interpretar_historico(html, &numero, &id, Some(revisoes_esperadas))
+                .expect("leitor real do IES no histórico HTTP simulado");
+            assert_eq!(simulado.len(), original_historico.len());
+            assert_eq!(simulado.atual(), original_historico.atual());
+            for n in 1..=ultima {
+                let versao = VersaoDocumento::nova(n).unwrap();
+                let Ok(observada) = original_historico.selecionar(versao) else {
+                    assert!(simulado.selecionar(versao).is_err());
+                    continue;
+                };
+                let projetada = simulado.selecionar(versao).unwrap();
+                assert_eq!(
+                    (&projetada.usuario, &projetada.unidade, &projetada.modificacao),
+                    (&observada.usuario, &observada.unidade, &observada.modificacao)
+                );
+            }
+        }
     }
     assert!(pedir(endereco, "POST", &alvo).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
