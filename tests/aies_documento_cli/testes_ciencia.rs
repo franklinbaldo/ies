@@ -5,12 +5,7 @@ use super::*;
 #[test]
 fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let pasta = Pasta::nova();
-    let args = [
-        "--json",
-        "documento",
-        "ciente",
-        DOC,
-    ];
+    let args = ["--json", "documento", "ciente", DOC];
     let previa = executar(&pasta, &args, 4);
     assert_eq!(
         previa.status.code(),
@@ -32,13 +27,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
 
     let confirmado = executar(
         &pasta,
-        &[
-            "--json",
-            "documento",
-            "ciente",
-            DOC,
-            "--confirmar",
-        ],
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
         5,
     );
     assert_eq!(
