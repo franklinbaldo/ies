@@ -39,5 +39,5 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 
 ## Limitações e revisão
 
-Nesta fatia, `--confirmar` recusa `escrita_de_andamento_ainda_fechada` antes de abrir a sessão: a confirmação sintética ainda termina em efeito incerto. 
+Desde 09/11/2026, `--confirmar` grava nas instalações de treinamento sem trava de ensaio (decisão do proprietário); outra origem recebe `origem_fora_do_treinamento` antes da rede. 
 A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.

@@ -64,8 +64,6 @@ pub(crate) enum ErroProcessoAtribuir {
     TelaDaAtribuicaoRedirecionada,
     SessaoEncerradaNaAtribuicao,
     OrigemNaoAutorizada,
-    #[causa(nome = "escrita_de_atribuicao_ainda_nao_verificada")]
-    EscritaAindaNaoVerificada,
     #[causa(interna)]
     Preparacao(ErroAtribuir),
     #[causa(interna)]
@@ -134,9 +132,6 @@ impl ErroProcessoAtribuir {
                 "a sessão encerrou antes da atribuição; rode ies login"
             }
             Self::OrigemNaoAutorizada => "a origem da sessão não é autorizada",
-            Self::EscritaAindaNaoVerificada => {
-                "a confirmação não está habilitada nesta origem; execute sem --confirmar para consultar a prévia"
-            }
             Self::Preparacao(ErroAtribuir::AtribuicaoJaAplicada) => {
                 "a atribuição solicitada já está aplicada"
             }

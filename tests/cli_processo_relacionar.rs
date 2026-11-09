@@ -152,10 +152,7 @@ fn escrita_wip_com_sessao_sintetica_recusa_antes_da_rede() {
             .output()
             .expect("IES deve iniciar");
         assert_eq!(saida.status.code(), Some(1));
-        assert_eq!(
-            json(&saida)["subcodigo"],
-            "confirmacao_de_relacionamento_nao_validada"
-        );
+        assert_eq!(json(&saida)["subcodigo"], "origem_fora_do_treinamento");
     }
     fs::remove_dir_all(pasta).unwrap();
 }

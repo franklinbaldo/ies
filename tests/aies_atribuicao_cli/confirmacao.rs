@@ -88,10 +88,7 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
     let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(
-        resultado["subcodigo"],
-        "escrita_de_atribuicao_ainda_nao_verificada"
-    );
+    assert_eq!(resultado["subcodigo"], "origem_fora_do_treinamento");
 }
 
 #[test]

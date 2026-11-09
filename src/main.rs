@@ -59,6 +59,7 @@ mod instalacao;
 mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;
+mod origem_de_treinamento;
 mod pagina_do_controle;
 mod paginacao_controle;
 mod paginas;
