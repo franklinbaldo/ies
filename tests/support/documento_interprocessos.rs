@@ -2,6 +2,7 @@
 //! Hipótese sintética; não valida equivalência ao SEI de treinamento.
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::cancelamento_documento::{self, Aplicacao};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -161,7 +162,7 @@ fn semear_documento_sem_src(banco: &Connection, origem: &Instalacao) {
     assert_eq!(sem_conteudo.numero_sei, "1000001");
 }
 
-fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
+fn estado(com_segundo: bool, sem_src: bool, cancelado: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
@@ -237,6 +238,20 @@ fn estado(com_segundo: bool, sem_src: bool) -> (Connection, Instalacao) {
     if sem_src {
         semear_documento_sem_src(&banco, &origem);
     }
+    if cancelado {
+        assert_eq!(
+            cancelamento_documento::aplicar(
+                &banco,
+                &origem,
+                CENARIO,
+                "42",
+                "7",
+                "Motivo sintético"
+            )
+            .unwrap(),
+            Aplicacao::Aplicada
+        );
+    }
     (banco, origem)
 }
 
@@ -255,14 +270,23 @@ fn acao_do_pedido(cab: &[u8]) -> String {
 /// A saída do subprocesso encerra os dois ouvintes sem assumir número fixo
 /// de leituras: um segundo DOC pode ou não reutilizar ação de pesquisa.
 pub(super) fn executar(com_segundo: bool, args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(com_segundo, false, args)
+    executar_com_estado(com_segundo, false, false, args)
 }
 
 pub(super) fn executar_sem_src(args: &[&str]) -> (Output, Vec<String>) {
-    executar_com_estado(true, true, args)
+    executar_com_estado(true, true, false, args)
 }
 
-fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Output, Vec<String>) {
+pub(super) fn executar_cancelado(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, false, true, args)
+}
+
+fn executar_com_estado(
+    com_segundo: bool,
+    sem_src: bool,
+    cancelado: bool,
+    args: &[&str],
+) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -282,7 +306,7 @@ fn executar_com_estado(com_segundo: bool, sem_src: bool, args: &[&str]) -> (Outp
     let parar = Arc::new(AtomicBool::new(false));
     let parar_servidor = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
-        let (db, instalacao) = estado(com_segundo, sem_src);
+        let (db, instalacao) = estado(com_segundo, sem_src, cancelado);
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
         }
