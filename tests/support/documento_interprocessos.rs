@@ -168,6 +168,7 @@ enum EstadoExtra {
     SemSrc,
     Cancelado,
     NumeroRepetido,
+    RevogadoAoVisualizar,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -286,6 +287,7 @@ fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
             );
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
+        EstadoExtra::RevogadoAoVisualizar => {}
     }
     (banco, origem)
 }
@@ -320,6 +322,12 @@ pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
+/// A árvore oferece um href válido; a mesma identidade é revogada somente
+/// no GET de conteúdo, antes de o anti-IES consultar o SQLite.
+pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::RevogadoAoVisualizar, args)
+}
+
 fn executar_com_estado(
     com_segundo: bool,
     modo: EstadoExtra,
@@ -345,8 +353,34 @@ fn executar_com_estado(
     let parar_servidor = Arc::clone(&parar);
     let simulador = thread::spawn(move || {
         let (db, instalacao) = estado(com_segundo, modo);
+        let mut revogado = false;
         while let Some(mut tcp) = aceitar_ate(&servidor, &parar_servidor) {
+            if matches!(modo, EstadoExtra::RevogadoAoVisualizar) && !revogado {
+                // peek não consome o pedido: o handler segue recebendo HTTP real.
+                // A transição ocorre depois da árvore e imediatamente antes
+                // do GET da URL de corpo previamente publicada.
+                let mut inicio = [0_u8; 1024];
+                let tamanho = tcp.peek(&mut inicio).unwrap();
+                let linha = String::from_utf8_lossy(&inicio[..tamanho]);
+                if linha.starts_with("GET ") && linha.contains("acao=documento_visualizar") {
+                    assert_eq!(
+                        cancelamento_documento::aplicar(
+                            &db, &instalacao, CENARIO, "42", "7", "Revogado entre leituras"
+                        )
+                        .unwrap(),
+                        Aplicacao::Aplicada
+                    );
+                    revogado = true;
+                }
+            }
             atender_http(&mut tcp, Some((&db, &instalacao, CENARIO))).unwrap();
+        }
+        if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
+            assert!(revogado, "CLI não tentou seguir a URL antes oferecida");
+            assert!(matches!(
+                cancelamento_documento::consultar(&db, &instalacao, CENARIO, "42", "7"),
+                Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
+            ));
         }
     });
     let pedidos = Arc::new(Mutex::new(Vec::<String>::new()));
