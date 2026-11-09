@@ -2,7 +2,7 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_versoes, documentos, editor_documento, eh_controlador_sei, parametro_unico,
-    pdf_externo, pesquisa_documento, processo_criacao, processo_envio, retorno_programado,
+    pdf_externo, pesquisa_documento, processo_criacao, processo_envio, processo_relacionar, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -69,6 +69,7 @@ fn trabalhar_protocolo(
 }
 
 /// Resolve uma única operação a partir do estado da instalação e do cenário.
+#[allow(clippy::too_many_lines)] // Despachante de ações HTTP: cada capacidade permanece em módulo próprio.
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
@@ -105,6 +106,18 @@ pub(crate) fn responder(
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
+            processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
+            processo_criacao::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("procedimento_relacionar") if eh_controlador_sei(alvo) => {
+            processo_relacionar::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {
+            processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("protocolo_pesquisar") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder_pesquisa(metodo, alvo, corpo, banco, instalacao, cenario)
         }
@@ -113,12 +126,6 @@ pub(crate) fn responder(
         }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
-        }
-        Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
-            processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
-        }
-        Some("procedimento_escolher_tipo" | "procedimento_gerar") if eh_controlador_sei(alvo) => {
-            processo_criacao::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_escolher_tipo") if eh_controlador_sei(alvo) => {
             pdf_externo::complementar_escolha(

@@ -30,8 +30,8 @@ fn reconstroi_meses_e_isola_instalacao_e_periodo() {
     let versao: i64 = banco
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    // O esquema derivado versão 16 não altera a identidade dos retornos.
-    assert_eq!(versao, 16);
+    // O esquema derivado versão 17 não altera a identidade dos retornos.
+    assert_eq!(versao, 17);
     let m = mes();
     assert!(
         ler(

@@ -9,4 +9,4 @@ CREATE TABLE tipo_processo_simulado (
   assunto TEXT NOT NULL,
   PRIMARY KEY (origem, cenario, id_tipo)
 ) STRICT;
-PRAGMA user_version = 16;
+PRAGMA user_version = 17;
