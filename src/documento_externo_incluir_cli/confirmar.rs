@@ -24,13 +24,14 @@ pub(super) fn executar(
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
         // Limite inviolável do AGENTS.md: só treinamento/homologação.
-        // Conferido antes da primeira requisição, inclusive GET.
-        if !origem_de_treinamento(sessao.origem) {
-            return super::recusa(
+        if let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+            crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
                 cli.json,
-                &super::FalhaInclusaoExterna::OrigemForaDoTreinamento,
-                "a origem da sessão não é instalação pública de treinamento",
-                1,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
             );
         }
         let mut envio = EnvioHttps;
@@ -98,26 +99,6 @@ pub(super) fn executar(
     })
 }
 
-/// Instalações públicas de treinamento e homologação
-/// (`docs/interfaces/credenciais-de-treinamento.md`) e a bancada reservada
-/// `sei.test` do anti-IES. Comparação exata da URL base: hosts parecidos,
-/// outro caminho ou `http` não passam.
-const ORIGENS_DE_TREINAMENTO: [&str; 8] = [
-    "https://sei.treinamento.unb.br/sei",
-    "https://sei.orgao1.tramita.processoeletronico.gov.br/sei",
-    "https://sei.orgao2.tramita.processoeletronico.gov.br/sei",
-    "https://sei.orgao3.tramita.processoeletronico.gov.br/sei",
-    "https://sei.orgao4.tramita.processoeletronico.gov.br/sei",
-    "https://teste.sei.tic.ufrj.br/sei",
-    "https://seitreinamento.go.gov.br/sei",
-    "https://sei.test/sei",
-];
-
-fn origem_de_treinamento(origem: &str) -> bool {
-    crate::instalacao::Instalacao::interpretar(origem)
-        .is_some_and(|instalacao| ORIGENS_DE_TREINAMENTO.contains(&instalacao.url_base().as_str()))
-}
-
 fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
     json!({
         "confirmado": false,
@@ -147,26 +128,6 @@ mod tests {
         assert_eq!(resultado["cadastro_tentado"], true);
         assert_eq!(resultado["temporario_possivel"], true);
         assert_eq!(resultado["retentavel"], false);
-    }
-
-    #[test]
-    fn confirmar_aceita_so_instalacoes_de_treinamento_e_a_bancada() {
-        for origem in ORIGENS_DE_TREINAMENTO {
-            assert!(origem_de_treinamento(origem), "{origem}");
-        }
-        for producao_ou_parecida in [
-            "https://sei.unb.br/sei",
-            "https://sei.treinamento.unb.br.exemplo/sei",
-            "https://sei.treinamento.unb.br/outro",
-            "http://sei.treinamento.unb.br/sei",
-            "https://sei.go.gov.br/sei",
-            "https://sei.exemplo.gov.br/sei",
-        ] {
-            assert!(
-                !origem_de_treinamento(producao_ou_parecida),
-                "{producao_ou_parecida}"
-            );
-        }
     }
 
     #[test]

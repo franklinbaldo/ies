@@ -39,7 +39,6 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug)]
 pub(crate) enum FalhaRelacionar {
     /// Caminho de escrita implementado offline, mas ainda sem validação live.
-    ConfirmacaoAindaNaoValidada,
     Abertura(ErroProcessoObter),
     Barra(ErroRelacionarNaBarra),
     LinkNaoPublicado,
@@ -60,7 +59,6 @@ pub(crate) enum FalhaRelacionar {
 impl FalhaRelacionar {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::ConfirmacaoAindaNaoValidada => "confirmacao_de_relacionamento_nao_validada",
             Self::Abertura(erro) => erro.subcodigo(),
             Self::Barra(erro) => erro.subcodigo(),
             Self::LinkNaoPublicado => "relacionar_nao_publicado_na_barra",

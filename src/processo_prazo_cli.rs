@@ -45,35 +45,21 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
         Ok(pedido) => pedido,
         Err(erro) => return Some(uso(cli.json, erro.subcodigo())),
     };
-    // Confirmação implementada somente no binário debug para a origem
-    // reservada .test. Release e pedidos fora desta fatia não abrem sessão.
-    if *confirmar
-        && (!cfg!(debug_assertions)
-            || !matches!(
-                pedido,
-                PedidoDePrazo::Ate(_) | PedidoDePrazo::Dias(_) | PedidoDePrazo::Excluir
-            )
-            || !origem_local_sintetica())
-    {
-        return Some(recusar(
-            cli.json,
-            "escrita_de_prazo_ainda_nao_disponivel",
-            "confirmação de prazo indisponível neste binário ou pedido",
-        ));
-    }
-    if pedido == PedidoDePrazo::Excluir && (!cfg!(debug_assertions) || !origem_local_sintetica()) {
-        return Some(recusar(
-            cli.json,
-            "exclusao_de_prazo_ainda_nao_disponivel",
-            "exclusão depende da lista de prazos da unidade; nenhuma requisição enviada",
-        ));
+    // Sem --ate, --dias ou --excluir não há o que gravar: uso, antes da rede.
+    if *confirmar && pedido == PedidoDePrazo::Ler {
+        return Some(uso(cli.json, "confirmar_sem_alteracao_de_prazo"));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        if *confirmar && sessao.origem != "https://sei.test/sei" {
-            return recusar(
+        // Limite inviolável: escrita só em instalação de treinamento.
+        if *confirmar
+            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
                 cli.json,
-                "escrita_de_prazo_ainda_nao_disponivel",
-                "confirmação permitida somente no simulador local reservado",
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
             );
         }
         if pedido == PedidoDePrazo::Excluir {
@@ -82,17 +68,6 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
             previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
         }
     }))
-}
-
-/// Habilitação adicional antes de carregar a sessão: o binário debug não
-/// deve permitir confirmação baseada apenas em configuração externa.
-/// A leitura definitiva da origem continua no carregador da sessão.
-fn origem_local_sintetica() -> bool {
-    std::env::var_os("IES_CONFIG_FILE").is_none()
-        && std::env::var("IES_ORIGEM_FILE")
-            .ok()
-            .and_then(|caminho| std::fs::read_to_string(caminho).ok())
-            .is_some_and(|origem| origem.trim() == "https://sei.test/sei")
 }
 
 fn uso(json_mode: bool, subcodigo: &str) -> ExitCode {

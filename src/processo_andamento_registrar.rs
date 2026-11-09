@@ -176,7 +176,6 @@ pub(crate) enum Erro {
     CharsetNaoSuportado,
     Formulario(ErroSubmissaoFormulario),
     EfeitoIncerto,
-    EscritaAindaFechada,
 }
 impl Erro {
     pub(crate) fn subcodigo(&self) -> &'static str {
@@ -194,16 +193,12 @@ impl Erro {
             Self::CharsetNaoSuportado => "charset_do_andamento_nao_suportado",
             Self::Formulario(e) => e.subcodigo(),
             Self::EfeitoIncerto => "efeito_incerto_no_andamento",
-            Self::EscritaAindaFechada => "escrita_de_andamento_ainda_fechada",
         }
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::EfeitoIncerto => {
                 "A escrita pode ter sido aplicada; confira o histórico antes de qualquer nova tentativa"
-            }
-            Self::EscritaAindaFechada => {
-                "A escrita de andamento ainda não foi validada; nada foi enviado"
             }
             _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
         }
