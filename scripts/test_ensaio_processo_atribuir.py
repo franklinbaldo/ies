@@ -110,6 +110,27 @@ class EnsaioAtribuicao(unittest.TestCase):
         self.assertNotIn("status_http", relatorio)
         self.assertFalse(self.registro.exists())
 
+    def test_previa_falhou_preserva_somente_confronto_de_unidades(self):
+        # O proprio JSON tipado da CLI publica a unidade da tela e as
+        # unidades abertas. Comparar sem publicar os nomes no resumo.
+        for unidade, aberto_em, esperado in (
+            ("Unidade2", ["Unidade1"], False),
+            ("Unidade1", ["Unidade1"], True),
+            ("Unidade1", None, None),
+        ):
+            with self.subTest(unidade=unidade, aberto_em=aberto_em):
+                codigo, relatorio = self.rodar([(
+                    1, {"subcodigo": "situacao_da_atribuicao_nao_observada",
+                        "unidade": unidade, "aberto_em": aberto_em,
+                        "requisicoes": 3}
+                )])
+                self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+                self.assertEqual(relatorio.get("unidade_consta_na_arvore"), esperado)
+                self.assertNotIn("unidade", relatorio)
+                self.assertNotIn("aberto_em", relatorio)
+                self.assertFalse(self.registro.exists())
+                self.chamadas.clear()
+
     def test_post_sem_resposta_nao_repete_escrita(self):
         dados = roteiro()
         dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao", "requisicoes": 6}
