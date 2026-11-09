@@ -241,7 +241,7 @@ fn conferir_estado_apos_cli(
     if matches!(modo, EstadoExtra::RevogadoAoVisualizar) {
         assert!(transicao, "CLI não tentou seguir a URL antes oferecida");
         assert!(matches!(
-            cancelamento_documento::consultar(&db, &instalacao, CENARIO, "42", "7"),
+            cancelamento_documento::consultar(db, instalacao, CENARIO, "42", "7"),
             Ok(Some(cancelamento_documento::Situacao::Cancelado { .. }))
         ));
     }
@@ -257,7 +257,7 @@ fn conferir_estado_apos_cli(
             .unwrap();
         assert_eq!(observado, DOC_B, "a transição persiste no SQLite");
         assert_eq!(
-            documento_versoes::ler(&db, &instalacao, CENARIO, "43")
+            documento_versoes::ler(db, instalacao, CENARIO, "43")
                 .unwrap()
                 .unwrap()
                 .numero,
