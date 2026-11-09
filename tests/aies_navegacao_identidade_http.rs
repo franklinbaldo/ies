@@ -334,7 +334,6 @@ fn http_url_observada_antes_do_cancelamento_nao_serve_corpo_depois() {
     atendimento.join().unwrap();
 }
 
-
 #[test]
 fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -399,7 +398,10 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
         "documento_versao_listar",
         "id_documento=42&id_procedimento=7",
     );
-    assert!(metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"), "{metodo}");
+    assert!(
+        metodo.starts_with("HTTP/1.1 405 Method Not Allowed\r\n"),
+        "{metodo}"
+    );
 
     let repetido = pedir_rota(
         endereco,
