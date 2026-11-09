@@ -21,3 +21,4 @@ CREATE TABLE andamento_linha (
         REFERENCES andamento_historico (origem, cenario, id_procedimento)
         ON DELETE CASCADE
 ) STRICT;
+PRAGMA user_version = 26;
