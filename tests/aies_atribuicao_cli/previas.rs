@@ -19,7 +19,7 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
     assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
-    assert_eq!(eventos.len(), 5, "{eventos:?}");
+    assert_eq!(eventos.len(), 4, "{eventos:?}");
     assert_eq!(
         eventos
             .iter()
@@ -33,7 +33,7 @@ fn bdd_264_01_cli_json_previa_atribuicao_sem_escrever() {
             .filter(|e| e.starts_with("POST "))
             .map(String::as_str)
             .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"],
+        Vec::<&str>::new(),
         "nenhum POST de atribuição: {eventos:?}"
     );
     assert_eq!(
@@ -59,14 +59,14 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
     let texto = String::from_utf8(saida.stdout).unwrap();
     assert!(texto.contains("Atribuição atual: aluno1"), "{texto}");
     assert!(texto.contains("Atribuir a aluno2"), "{texto}");
-    assert_eq!(eventos.len(), 5);
+    assert_eq!(eventos.len(), 4);
     assert_eq!(
         eventos
             .iter()
             .filter(|e| e.starts_with("POST "))
             .map(String::as_str)
             .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"]
+        Vec::<&str>::new()
     );
     assert_eq!(unidades_abertas, 1);
     assert_eq!(
@@ -139,14 +139,14 @@ fn remover_previa_cli_real_json_nao_altera_anti_ies() {
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
     assert_eq!(valor["requisicoes"].as_u64(), Some(eventos.len() as u64));
-    assert_eq!(eventos.len(), 5, "{eventos:?}");
+    assert_eq!(eventos.len(), 4, "{eventos:?}");
     assert_eq!(
         eventos
             .iter()
             .filter(|e| e.starts_with("POST "))
             .map(String::as_str)
             .collect::<Vec<_>>(),
-        ["POST protocolo_pesquisa_rapida"],
+        Vec::<&str>::new(),
         "a prévia não deve remover atribuição: {eventos:?}"
     );
     assert_eq!(unidades_abertas, 1);
@@ -161,6 +161,6 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
     assert!(texto.contains("Atribuição atual: aluno1."), "{texto}");
     assert!(texto.contains("Remover a atribuição observada."), "{texto}");
     assert!(!texto.contains("Remoção confirmada"), "{texto}");
-    assert_eq!(eventos.len(), 5);
+    assert_eq!(eventos.len(), 4);
     assert_eq!(atribuicao_final, "aluno1");
 }
