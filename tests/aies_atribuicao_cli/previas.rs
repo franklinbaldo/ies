@@ -164,4 +164,3 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
     assert_eq!(eventos.len(), 5);
     assert_eq!(atribuicao_final, "aluno1");
 }
-
