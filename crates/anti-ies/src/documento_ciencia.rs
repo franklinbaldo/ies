@@ -137,6 +137,19 @@ pub(crate) fn responder(
             };
             match estado(banco, origem, cenario, documento, processo) {
                 Ok(Some(Ciencia::Registrada { id_atividade })) => {
+                    // A escrita foi persistida, mas a projeção da Lista pode
+                    // ainda não publicar a atividade. Trata-se de hipótese
+                    // sintética de efeito incerto, nunca de perda de gravação.
+                    match modelo::lista_invisivel(banco, origem, cenario, documento) {
+                        Ok(true) => {
+                            return Resposta::html(
+                                "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr></table></html>"
+                                    .to_owned(),
+                            );
+                        }
+                        Ok(false) => {}
+                        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                    }
                     let Ok(usuario) =
                         modelo::usuario_da_ciencia(banco, origem, cenario, documento, processo)
                     else {
@@ -145,11 +158,12 @@ pub(crate) fn responder(
                     // A lista só nomeia o autor quando a sessão sintética
                     // o identificou. Revisores do documento não são autores
                     // inferidos da ciência.
-                    let autoria = usuario.as_deref().map_or_else(String::new, |nome| {
-                        format!("<td>{}</td>", crate::escapar(nome))
-                    });
+                    let autoria = usuario.as_deref().map_or_else(
+                        || "<td></td>".to_owned(),
+                        |nome| format!("<td>{}</td>", crate::escapar(nome)),
+                    );
                     Resposta::html(format!(
-                        "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}' /></td>{autoria}</tr></table></html>"
+                        "<html><table id='tblAndamentos'><caption>Lista de Ciências:</caption><tr><th>Atividade</th><th>Usuário</th></tr><tr><td><input type='checkbox' name='chkInfraItem' value='{id_atividade}' /></td>{autoria}</tr></table></html>"
                     ))
                 }
                 Ok(Some(Ciencia::Pendente)) => Resposta::nova(Estado::DadosInsuficientes),
