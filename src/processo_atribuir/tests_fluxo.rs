@@ -393,3 +393,6 @@ fn fieldset_desabilitado_recusa_confirmacao_sem_post() {
 
 #[path = "tests_fluxo/adversariais.rs"]
 mod adversariais;
+
+#[path = "tests_fluxo/saida.rs"]
+mod saida;
