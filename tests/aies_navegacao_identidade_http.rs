@@ -340,7 +340,7 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
     let endereco = servidor.local_addr().unwrap();
     let atendimento = thread::spawn(move || {
         let (banco, origem) = estado();
-        for _ in 0..6 {
+        for _ in 0..7 {
             let (mut tcp, cliente) = servidor.accept().unwrap();
             assert!(cliente.ip().is_loopback());
             atender_http(&mut tcp, Some((&banco, &origem, CENARIO))).unwrap();
@@ -411,5 +411,14 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
     );
     assert!(repetido.starts_with("HTTP/1.1 200 OK\r\n"), "{repetido}");
     assert!(repetido.contains("Corpo do primeiro"));
+
+    let concordante = pedir_rota(
+        endereco,
+        "GET",
+        "documento_visualizar",
+        "id_documento=42&id_protocolo=42&id_procedimento=7",
+    );
+    assert!(concordante.starts_with("HTTP/1.1 200 OK\r\n"), "{concordante}");
+    assert!(concordante.contains("Corpo do primeiro"));
     atendimento.join().unwrap();
 }
