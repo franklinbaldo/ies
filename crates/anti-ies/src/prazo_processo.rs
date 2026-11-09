@@ -4,6 +4,7 @@ use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::prazos::{self, EstadoDoPrazo};
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 /// Serve o formulário sintético sem inferir "sem prazo" de ausência de captura.
 pub(crate) fn responder(
@@ -186,13 +187,15 @@ pub(crate) fn responder_lista(
                     EstadoDoPrazo::Dias(dias) => dias.to_string(),
                     EstadoDoPrazo::SemPrazo | EstadoDoPrazo::Concluido => continue,
                 };
-                pagina.push_str(&format!(
+                write!(&mut pagina,
                     "<tr><td>{nup}</td><td>{prazo}</td><td><a href='#'                      onclick=\"acaoExcluir('{id}','{nup}');\">Excluir</a></td></tr>"
-                ));
+                )
+                .expect("formatacao de String");
             }
-            pagina.push_str(&format!(
+            write!(&mut pagina,
                 "</tbody></table></form><script>function acaoExcluir(id, nup) {{                  document.getElementById('frmControlePrazoLista').action =                  'controlador.php?acao=controle_prazo_excluir&infra_hash={hash}';                  }}</script></body></html>"
-            ));
+            )
+            .expect("formatacao de String");
             Resposta::html(pagina)
         }
         (Some("controle_prazo_excluir"), "POST") => {
