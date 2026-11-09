@@ -2,20 +2,16 @@
 //! Sintético: não equivale a confronto independente com o SEI.
 use super::*;
 
-const PROCESSO_CIENCIA: &str = "00001.000001/2026-01";
-
 #[test]
 fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let pasta = Pasta::nova();
     let args = [
         "--json",
         "documento",
-        "--processo",
-        PROCESSO_CIENCIA,
         "ciente",
         DOC,
     ];
-    let previa = executar(&pasta, &args, 2);
+    let previa = executar(&pasta, &args, 4);
     assert_eq!(
         previa.status.code(),
         Some(0),
@@ -26,7 +22,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     let antes = json(&previa);
     assert_eq!(antes["confirmado"], false);
     assert_eq!(antes["verificado"], false);
-    assert_eq!(antes["requisicoes"], 2);
+    assert_eq!(antes["requisicoes"], 4);
 
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let qtde: i64 = banco.query_row("SELECT COUNT(*) FROM ciencia_documental WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
@@ -39,13 +35,11 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
         &[
             "--json",
             "documento",
-            "--processo",
-            PROCESSO_CIENCIA,
             "ciente",
             DOC,
             "--confirmar",
         ],
-        7,
+        5,
     );
     assert_eq!(
         confirmado.status.code(),
@@ -60,7 +54,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(feito["numero"], DOC);
     assert_eq!(feito["id_documento"], "42");
     assert_eq!(feito["processo"]["id"], "7");
-    assert_eq!(feito["requisicoes"], 7);
+    assert_eq!(feito["requisicoes"], 5);
     let atividade = feito["id_atividade"].as_str().expect("atividade observada");
 
     // Oráculo independente da árvore e do leitor HTML: estado gravado no SQLite.
