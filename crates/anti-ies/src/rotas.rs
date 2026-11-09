@@ -2,7 +2,7 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
-    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_atribuicao,
+    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_atribuicao, processo_ciencia,
     processo_criacao, processo_envio, processo_relacionar, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
@@ -152,7 +152,9 @@ pub(crate) fn responder(
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("arvore_visualizar") if eh_controlador_sei(alvo) => {
-            documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario).unwrap_or_else(|| {
+            processo_ciencia::tela(metodo, alvo, banco, instalacao, cenario)
+                .or_else(|| documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
+                .unwrap_or_else(|| {
                 pdf_externo::complementar_arvore(
                     documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario),
                     alvo,
@@ -181,6 +183,13 @@ pub(crate) fn responder(
             if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_protocolo").is_some() =>
         {
             trabalhar_protocolo(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_ciencia") if eh_controlador_sei(alvo) => {
+            processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
+        }
+        Some("protocolo_ciencia_listar") if eh_controlador_sei(alvo)
+            && parametro_unico(alvo, "id_documento").is_none() => {
+            processo_ciencia::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("documento_ciencia" | "protocolo_ciencia_listar") if eh_controlador_sei(alvo) => {
             documento_ciencia::responder(metodo, alvo, banco, instalacao, cenario)

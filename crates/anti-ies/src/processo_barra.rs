@@ -10,6 +10,7 @@ pub(crate) fn acoes_do_processo(
     relacionamentos_observados: bool,
     atribuicao_observada: bool,
     prazo_observado: bool,
+    ciencia_pendente: bool,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
@@ -31,6 +32,9 @@ pub(crate) fn acoes_do_processo(
             r#"<a href="controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Incluir Documento</a>"#
         )
         .expect("formatação de String");
+    }
+    if ciencia_pendente && processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        links.push_str(r##"<a href="#" onclick="cienciaProcesso();" title="Ciência">Ciência</a>"##);
     }
     if atribuicao_observada && processo.aberto_em.iter().any(|u| u == unidade_atual) {
         write!(
