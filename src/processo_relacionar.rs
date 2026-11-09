@@ -323,10 +323,12 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if !mesmo_protocolo(pedido.com.as_str(), &nup) {
         return Err(E::DestinoDaConsultaDivergente);
     }
-    previa.resultado = if relacionados.iter().any(|linha| linha.id == destino_id) {
-        ResultadoRelacionar::SemEfeito
-    } else {
-        ResultadoRelacionar::Previa
+    // O mesmo id não pode identificar outro NUP na tabela já servida.
+    // Caso contrário, "sem efeito" esconderia duas identidades incompatíveis.
+    previa.resultado = match relacionados.iter().find(|linha| linha.id == destino_id) {
+        Some(linha) if mesmo_protocolo(&linha.nup, &nup) => ResultadoRelacionar::SemEfeito,
+        Some(_) => return Err(E::DestinoDaConsultaDivergente),
+        None => ResultadoRelacionar::Previa,
     };
     previa.id_destino = Some(destino_id);
     previa.tipo_destino = tipo;
