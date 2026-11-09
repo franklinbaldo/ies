@@ -1,3 +1,0 @@
-cassettes/unb/documento-numero-e-busca-unb--f1b386d8e7bc.md
-cassettes/go/documento-numero-e-busca-go--f26b4140acb8.md
-cassettes/unb/liberacoes-e-versoes-leitura-unb--a781b0fbca8f.md
