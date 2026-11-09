@@ -1,5 +1,5 @@
 //! Prévia Web de atribuição por login exato; confirmação apenas nas
-//! instalação de treinamento UnB com efeito verificado por releitura.
+//! instalação de treinamento `UnB` com efeito verificado por releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,

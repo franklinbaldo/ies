@@ -31,11 +31,7 @@ impl Drop for Pasta {
     }
 }
 
-pub(super) fn identidade(pasta: &Path) -> (PathBuf, Identity) {
-    identidade_com_host(pasta, "sei.test")
-}
-
-pub(super) fn identidade_com_host(pasta: &Path, host: &str) -> (PathBuf, Identity) {
+pub(super) fn identidade(pasta: &Path, host: &str) -> (PathBuf, Identity) {
     let cert = pasta.join("ca.pem");
     let chave = pasta.join("chave.pem");
     let arquivo = pasta.join("cert.p12");

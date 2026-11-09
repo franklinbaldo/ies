@@ -19,7 +19,8 @@ use std::time::Duration;
 
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
-use fixture_tls::Pasta;
+use fixture_tls::{Pasta, identidade};
+use std::path::Path;
 
 const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
 const CENARIO: &str = "bdd-264-01-cli";
@@ -174,8 +175,7 @@ fn executar_cenario_com_resposta(
     mascarar_aceite_do_post: bool,
 ) -> (Output, Option<Output>, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) =
-        fixture_tls::identidade_com_host(&pasta.0, "sei.treinamento.unb.br");
+    let (cert, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
     let url = pasta.privado(
@@ -235,7 +235,9 @@ fn executar_cenario_com_resposta(
             // O SQLite já recebeu o POST, mas o cliente vê uma resposta
             // de erro: a releitura coincidente não comprova autoria.
             if mascarar_aceite_do_post && evento == "POST procedimento_atribuicao_cadastrar" {
-                resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+                resposta =
+                    b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        .to_vec();
             }
             eventos_proxy.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
@@ -255,12 +257,40 @@ fn executar_cenario_com_resposta(
     if confirmar {
         argumentos.push("--confirmar");
     }
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+    let arquivos = [url.as_path(), cookie.as_path(), origem.as_path(), cert.as_path()];
+    let saida = executar_cli(arquivos, &pasta, porta, &argumentos);
+    let releitura = confirmar.then(|| {
+        executar_cli(
+            arquivos,
+            &pasta,
+            porta,
+            &[
+                "--json",
+                "processo",
+                NUP,
+                "--sem-andamentos",
+                "--sem-propriedades",
+                "--sem-marcadores",
+                "--sem-documentos",
+            ],
+        )
+    });
+    parar.store(true, Ordering::SeqCst);
+    tunel.join().unwrap();
+    let (total, atribuicao_final) = servidor.join().unwrap();
+    let trilha = eventos.lock().unwrap().clone();
+    (saida, releitura, trilha, total, atribuicao_final)
+}
+
+// A mesma sessão privada serve às duas invocações independentes da CLI.
+fn executar_cli(arquivos: [&Path; 4], pasta: &Pasta, porta: u16, argumentos: &[&str]) -> Output {
+    let [url, cookie, origem, cert] = arquivos;
+    Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(argumentos)
-        .env("IES_URL_CONTROLE_FILE", &url)
-        .env("IES_COOKIE_FILE", &cookie)
-        .env("IES_ORIGEM_FILE", &origem)
-        .env("SSL_CERT_FILE", &cert)
+        .env("IES_URL_CONTROLE_FILE", url)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .env("SSL_CERT_FILE", cert)
         .env("https_proxy", format!("http://127.0.0.1:{porta}"))
         .env("HOME", &pasta.0)
         .env_remove("HTTPS_PROXY")
@@ -271,39 +301,7 @@ fn executar_cenario_com_resposta(
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
-        .unwrap();
-    let releitura = confirmar.then(|| {
-        Command::new(env!("CARGO_BIN_EXE_ies"))
-            .args([
-                "--json",
-                "processo",
-                NUP,
-                "--sem-andamentos",
-                "--sem-propriedades",
-                "--sem-marcadores",
-                "--sem-documentos",
-            ])
-            .env("IES_URL_CONTROLE_FILE", &url)
-            .env("IES_COOKIE_FILE", &cookie)
-            .env("IES_ORIGEM_FILE", &origem)
-            .env("SSL_CERT_FILE", &cert)
-            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-            .env("HOME", &pasta.0)
-            .env_remove("HTTPS_PROXY")
-            .env_remove("all_proxy")
-            .env_remove("ALL_PROXY")
-            .env_remove("NO_PROXY")
-            .env_remove("no_proxy")
-            .env_remove("IES_CONFIG_FILE")
-            .env_remove("IES_CREDENCIAIS_FILE")
-            .output()
-            .unwrap()
-    });
-    parar.store(true, Ordering::SeqCst);
-    tunel.join().unwrap();
-    let (total, atribuicao_final) = servidor.join().unwrap();
-    let trilha = eventos.lock().unwrap().clone();
-    (saida, releitura, trilha, total, atribuicao_final)
+        .unwrap()
 }
 
 #[path = "aies_atribuicao_cli/previas.rs"]

@@ -177,7 +177,7 @@ fn executar_com(
     modo: Modo,
 ) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) = identidade(&pasta.0);
+    let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
     let url = pasta.privado(

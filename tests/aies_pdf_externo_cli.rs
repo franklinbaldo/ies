@@ -141,7 +141,7 @@ fn executar(
     com_leitura: bool,
 ) -> (Vec<Output>, Vec<String>, usize, Option<Vec<u8>>) {
     let pasta = Pasta::nova();
-    let (cert, identidade_tls) = identidade(&pasta.0);
+    let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
     let controle = pasta.privado(

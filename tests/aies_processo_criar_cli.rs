@@ -118,7 +118,7 @@ fn quantidade(banco: &Connection) -> i64 {
 
 fn executar(args: &[&str]) -> (Output, Vec<String>, (i64, i64), usize) {
     let pasta = Pasta::nova();
-    let (cert, identidade) = identidade(&pasta.0);
+    let (cert, identidade) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
     let controle = pasta.privado(
