@@ -28,6 +28,12 @@ def quantidade(resposta: dict) -> int | None:
 def falha_da_previa(codigo: int | None, resposta: dict) -> tuple[int, dict]:
     """Falha do ensaio com causa tipada; nunca publica HTML ou mensagem livre."""
     relatorio = {"estado": "PREVIA_FAIL", "requisicoes": [quantidade(resposta)]}
+    # Comparação de dois fatos publicados no JSON; nunca divulga siglas.
+    unidade = resposta.get("unidade")
+    abertas = resposta.get("aberto_em")
+    if (type(unidade) is str and unidade and type(abertas) is list
+            and all(type(sigla) is str for sigla in abertas)):
+        relatorio["unidade_consta_na_arvore"] = unidade in abertas
     if type(codigo) is int:
         relatorio["saida_cli"] = codigo
     subcodigo = codigo_tipado_publicavel(resposta.get("subcodigo"))

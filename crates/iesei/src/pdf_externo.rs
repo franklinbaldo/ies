@@ -46,6 +46,7 @@ pub enum Falha {
     ProcessoNaoAbertoNaUnidade,
     TipoAusente,
     UploadAusente,
+    UploadSemConteudoRecuperavel,
     LimiteExcedido,
 }
 
@@ -281,15 +282,21 @@ pub fn cadastrar(
         .into_iter()
         .find(|tipo| tipo.id == id_serie)
         .ok_or(Falha::TipoAusente)?;
-    let temporario: Option<(String, i64)> = banco
+    let temporario: Option<(String, i64, bool)> = banco
         .query_row(
-            "SELECT nome, tamanho FROM externo_upload
+            "SELECT nome, tamanho,
+                    conteudo IS NOT NULL AND typeof(conteudo)='blob'
+                    AND length(conteudo)=tamanho
+             FROM externo_upload
              WHERE id=?1 AND origem=?2 AND cenario=?3 AND id_procedimento=?4",
             params![id_upload, origem.url_base(), cenario, id_procedimento],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .optional()?;
-    let (nome, tamanho) = temporario.ok_or(Falha::UploadAusente)?;
+    let (nome, tamanho, conteudo_recuperavel) = temporario.ok_or(Falha::UploadAusente)?;
+    if !conteudo_recuperavel {
+        return Err(Falha::UploadSemConteudoRecuperavel);
+    }
     let tamanho = u64::try_from(tamanho).map_err(|_| Falha::EntradaInvalida)?;
     if tamanho > tipo.limite_bytes {
         return Err(Falha::LimiteExcedido);
