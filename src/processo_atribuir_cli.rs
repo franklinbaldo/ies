@@ -106,6 +106,20 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
             "{}",
             saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
         );
+        // O estado observado depois do POST pode ser um resíduo real,
+        // mas não identifica qual sessão provocou a mudança.
+        if let ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao {
+            atribuicao_relida: Some(login),
+            ..
+        } = erro
+        {
+            let estado = if login.is_empty() {
+                "nenhuma"
+            } else {
+                login
+            };
+            eprintln!("Estado relido: {estado} (não comprova o efeito deste POST).");
+        }
     }
     ExitCode::from(erro.saida())
 }
