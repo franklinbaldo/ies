@@ -10,6 +10,7 @@ pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod processo_barra;
+mod processo_criacao;
 pub mod processo_envio;
 mod processo_relacionar;
 mod protocolo_sintetico;
