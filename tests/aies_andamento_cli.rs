@@ -11,7 +11,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -215,16 +215,49 @@ fn executar(confirmar: bool) {
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
         .unwrap();
+    let segunda = confirmar.then(|| segunda_leitura(&pasta, &controle, &cookie, &origem, &cert, porta_proxy));
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap();
-    verificar(confirmar, &saida, &persistido, &pedidos);
+    verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
+}
+
+
+fn segunda_leitura(
+    pasta: &Pasta,
+    controle: &std::path::Path,
+    cookie: &std::path::Path,
+    origem: &std::path::Path,
+    cert: &std::path::Path,
+    porta_proxy: u16,
+) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "--json", "processo", NUP, "--andamentos-completos", "--sem-documentos",
+            "--sem-propriedades", "--sem-marcadores",
+        ])
+        .env("IES_URL_CONTROLE_FILE", controle)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .env("SSL_CERT_FILE", cert)
+        .env("https_proxy", format!("http://127.0.0.1:{porta_proxy}"))
+        .env("HOME", &pasta.0)
+        .env_remove("HTTPS_PROXY")
+        .env_remove("all_proxy")
+        .env_remove("ALL_PROXY")
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy")
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_CREDENCIAIS_FILE")
+        .output()
+        .unwrap()
 }
 
 fn verificar(
     confirmar: bool,
     saida: &std::process::Output,
+    segunda: Option<&Output>,
     persistido: &Historico,
     pedidos: &[String],
 ) {
@@ -275,14 +308,32 @@ fn verificar(
     );
     if confirmar {
         assert_eq!(
-            pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+            pedidos.iter().filter(|p| p.as_str() == "POST procedimento_atualizar_andamento").count(),
             1,
             "{pedidos:?}"
         );
         assert_eq!(
             pedidos.last().map(String::as_str),
-            Some("GET procedimento_consultar_historico")
+            Some("POST procedimento_consultar_historico")
         );
+        let segunda = segunda.expect("segunda CLI do BDD-259-02");
+        assert_eq!(
+            segunda.status.code(),
+            Some(0),
+            "segunda CLI: stdout={} stderr={}",
+            String::from_utf8_lossy(&segunda.stdout),
+            String::from_utf8_lossy(&segunda.stderr)
+        );
+        let resultado: serde_json::Value = serde_json::from_slice(&segunda.stdout).unwrap();
+        assert_eq!(resultado["andamentos"]["tipo"], "completo");
+        assert_eq!(resultado["andamentos"]["total_declarado"], 2);
+        let itens = resultado["andamentos"]["itens"].as_array().unwrap();
+        assert_eq!(itens.len(), 2);
+        assert_eq!(
+            itens[0]["descricao"].as_str().unwrap().split_whitespace().collect::<Vec<_>>(),
+            TEXTO.split_whitespace().collect::<Vec<_>>(),
+        );
+        assert_eq!(itens[1]["descricao"], "Andamento anterior");
     } else {
         assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
     }
