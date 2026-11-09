@@ -294,5 +294,8 @@ fn bdd_264_01_cli_humana_exibe_atribuicao_atual_e_pretendida() {
         ["POST protocolo_pesquisa_rapida"]
     );
     assert_eq!(unidades_abertas, 1);
-    assert_eq!(atribuicao_final, "aluno1", "prévia não grava atribuição no SQLite");
+    assert_eq!(
+        atribuicao_final, "aluno1",
+        "prévia não grava atribuição no SQLite"
+    );
 }
