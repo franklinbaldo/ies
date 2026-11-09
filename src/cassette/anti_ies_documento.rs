@@ -202,10 +202,9 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
         "histórico e conteúdo precisam referir o mesmo id_documento"
     );
-    let identidade = crate::documento_web::identidade_do_titulo(
-        &html_da_resposta(conteudos[0].item).unwrap(),
-    )
-    .unwrap();
+    let identidade =
+        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
+            .unwrap();
     let numero = crate::documento::NumeroDocumento::novo(&identidade.numero).unwrap();
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let historico_original =
