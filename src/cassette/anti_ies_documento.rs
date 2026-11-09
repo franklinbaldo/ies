@@ -164,6 +164,24 @@ fn revisoes_da_cassette(
     (revisoes, versoes)
 }
 
+/// O número e o tipo da mesma identidade vêm do conteúdo gravado, não da fixture.
+fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (String, String) {
+    let conteudos: Vec<_> = gravacao::respostas(json)
+        .into_iter()
+        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
+        .collect();
+    assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
+    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
+    assert!(
+        !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
+        "histórico e conteúdo precisam referir o mesmo id_documento"
+    );
+    let identidade =
+        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
+            .unwrap();
+    (identidade.numero, identidade.tipo)
+}
+
 #[test]
 #[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; somente offline"]
 fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
@@ -190,22 +208,9 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         ids.iter().all(|valor| *valor == id),
         "a identidade da requisição deve ser inequívoca"
     );
-    // A lista original não traz o número SEI no título. A identidade
-    // vem do GET de conteúdo gravado na MESMA cassette, não da fixture.
-    let conteudos: Vec<_> = gravacao::respostas(&captura.json)
-        .into_iter()
-        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
-        .collect();
-    assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
-    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
-    assert!(
-        !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
-        "histórico e conteúdo precisam referir o mesmo id_documento"
-    );
-    let identidade =
-        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
-            .unwrap();
-    let numero = crate::documento::NumeroDocumento::novo(&identidade.numero).unwrap();
+    // A lista original não traz número SEI. Cruzamos o GET de conteúdo.
+    let (numero_observado, tipo_observado) = identidade_do_conteudo_observado(&captura.json, id);
+    let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(originais[0].item).unwrap();
     let historico_original =
         crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
@@ -221,7 +226,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         id_procedimento: "7".to_owned(),
         numero_processo: "00001.000001/2026-01".to_owned(),
         numero: numero.as_str().to_owned(),
-        tipo: identidade.tipo,
+        tipo: tipo_observado,
         revisoes,
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
