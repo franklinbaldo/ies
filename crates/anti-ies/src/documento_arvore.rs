@@ -45,6 +45,13 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao) -> String {
         ),
     };
     let dica = js(&dica);
+    // Um documento cancelado segue identificável, mas não publica conteúdo.
+    let src = match situacao {
+        Situacao::Disponivel => format!(
+            "controlador.php?acao=documento_visualizar&acao_origem=procedimento_visualizar&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash_corpo}"
+        ),
+        Situacao::Cancelado { .. } => String::new(),
+    };
     format!(
         r#"<html><head><script>
 var Nos = new Array();
@@ -54,7 +61,7 @@ Nos[0].src = '';
 Nos[0].html = '';
 Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","about:blank","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
 Nos[1].acoes = '<a href="controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}" tabindex="455"><img title="Versões do Documento"/></a>{cancelar}';
-Nos[1].src = 'controlador.php?acao=documento_visualizar&acao_origem=procedimento_visualizar&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash_corpo}';
+Nos[1].src = '{src}';
 Nos[1].html = '';
 </script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#
     )
@@ -248,10 +255,16 @@ fn no_de_documento(
     if versoes {
         let hash = "e".repeat(64);
         let hash_corpo = "f".repeat(64);
+        let src = match situacao {
+            Situacao::Disponivel => format!(
+                "controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}"
+            ),
+            Situacao::Cancelado { .. } => String::new(),
+        };
         write!(
             no,
             r#"Nos[{indice}].acoes = '<a href="controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}">Versões</a>';
-Nos[{indice}].src = 'controlador.php?acao=documento_visualizar&id_documento={id}&infra_hash={hash_corpo}';
+Nos[{indice}].src = '{src}';
 "#
         )
         .expect("formatação de String");
