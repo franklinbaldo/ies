@@ -38,7 +38,11 @@ fn adicionar_post_reler_bilateralmente_e_preservar_estado() {
     assert_eq!(inicial.estado, Estado::Ok);
     // Cassette PEN1: a lista observada vazia oferece o formulário,
     // mas não publica a tabela nem o campo de remoção.
-    assert!(inicial.corpo.contains("frmProcedimentoListarRelacionamentos"));
+    assert!(
+        inicial
+            .corpo
+            .contains("frmProcedimentoListarRelacionamentos")
+    );
     assert!(inicial.corpo.contains("hdnIdProtocolo"));
     assert!(!inicial.corpo.contains("Lista de Processos Relacionados"));
     assert!(!inicial.corpo.contains("hdnInfraItemId"));

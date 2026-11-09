@@ -432,5 +432,8 @@ fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     );
 }
 
+#[path = "aies_documento_criar_cli/cancelamento.rs"]
+mod cancelamento;
+
 #[path = "aies_documento_criar_cli/recusas.rs"]
 mod recusas;
