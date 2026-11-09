@@ -50,7 +50,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0023_ciencia_documental_lista_invisivel.sql"),
     "\n",
-    include_str!("../migrations/0024_pasta_pendente.sql")
+    include_str!("../migrations/0024_ciencia_processo.sql"),
+    "\n",
+    include_str!("../migrations/0025_pasta_pendente.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]

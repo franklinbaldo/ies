@@ -44,6 +44,7 @@ fn json_de_sucesso(feito: &CienciaDoProcesso) -> Value {
         "confirmado": feito.confirmado,
         "verificado": feito.verificado,
         "id_atividade": feito.id_atividade,
+        "usuario": feito.usuario,
         "requisicoes": feito.requisicoes,
     })
 }

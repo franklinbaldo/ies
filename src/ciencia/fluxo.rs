@@ -20,6 +20,7 @@ pub(crate) struct CienciaDoProcesso {
     pub(crate) confirmado: bool,
     pub(crate) verificado: bool,
     pub(crate) id_atividade: Option<String>,
+    pub(crate) usuario: Option<String>,
     pub(crate) requisicoes: u8,
 }
 
@@ -166,6 +167,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         confirmado: pedido.confirmar,
         verificado: false,
         id_atividade: None,
+        usuario: None,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
@@ -199,12 +201,13 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         Err(falha) => (None, Some(falha)),
     };
     match prova {
-        Ok(true) => {
+        Ok((true, usuario)) => {
             resultado.verificado = true;
             resultado.id_atividade = atividade;
+            resultado.usuario = usuario;
             Ok(resultado)
         }
-        Ok(false) => Err(E::EfeitoIncerto {
+        Ok((false, _)) => Err(E::EfeitoIncerto {
             motivo: "atividade_da_ciencia_nao_encontrada_na_lista_relida",
             requisicoes: rede.feitas(),
             falha_do_aceite,
@@ -252,7 +255,7 @@ fn verificar<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     id_original: &str,
     atividade: Option<&str>,
-) -> Result<bool, &'static str> {
+) -> Result<(bool, Option<String>), &'static str> {
     let (novo, acoes) = abrir_para_escrever(
         sessao,
         &leitura(pedido.nup, pedido.unidade, false),
@@ -275,5 +278,12 @@ fn verificar<V: EnvioDoProcesso>(
         .map_err(|_| "releitura_da_lista_de_ciencias_falhou")?;
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|_| "resposta_da_lista_de_ciencias_nao_lida")?;
-    atividade_na_lista(&html, atividade).map_err(super::ErroCiencia::subcodigo)
+    let presente = atividade_na_lista(&html, atividade).map_err(super::ErroCiencia::subcodigo)?;
+    let usuario = if presente {
+        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
+            .map_err(super::ErroCiencia::subcodigo)?
+    } else {
+        None
+    };
+    Ok((presente, usuario))
 }
