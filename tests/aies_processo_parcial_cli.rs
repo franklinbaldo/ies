@@ -267,8 +267,8 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
 }
 
 /// BDD-342-01: o processo e seu NUP são comprovados, mas a lista documental não.
-/// PASTA+AGUARDE sem ação ABRIR_PASTAS é hipótese sintética de falha,
-/// distinta das capturas UnB em que abrir as pastas teve sucesso.
+/// PASTA+AGUARDE sem ação `ABRIR_PASTAS` é hipótese sintética de falha,
+/// distinta das capturas `UnB` em que abrir as pastas teve sucesso.
 #[test]
 fn bdd_342_01_cli_informa_metadados_sem_inventar_documentos() {
     let (saida, pedidos, (controle, arvore)) = executar(true);
