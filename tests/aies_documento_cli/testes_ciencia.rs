@@ -60,4 +60,30 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
             .collect()
     };
     assert_eq!(registros, vec![atividade.to_owned()]);
+    // A ciência é única por documento: nova invocação não pode enviar
+    // outro GET potencialmente mutador nem atribuir uma atividade nova.
+    // A bancada encerra após os quatro pedidos de abertura do documento.
+    let repeticao = executar(
+        &pasta,
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
+        4,
+    );
+    assert_eq!(
+        repeticao.status.code(),
+        Some(1),
+        "repetição: stdout={} stderr={}",
+        String::from_utf8_lossy(&repeticao.stdout),
+        String::from_utf8_lossy(&repeticao.stderr)
+    );
+    assert_eq!(json(&repeticao)["codigo"], "fonte_invalida");
+    let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
+    let registros_depois: Vec<String> = banco
+        .prepare("SELECT id_atividade FROM ciencia_documental WHERE origem=?1 AND cenario=?2 AND id_documento='42' AND id_procedimento='7'")
+        .unwrap()
+        .query_map(rusqlite::params![ORIGEM, CENARIO], |r| r.get::<_, String>(0))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
+    assert_eq!(registros_depois, vec![atividade.to_owned()]);
+
 }
