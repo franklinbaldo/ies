@@ -217,6 +217,29 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
 }
 
 #[test]
+fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    semear(&banco);
+    let origem = origem();
+    let recibo = modelo::receber(&banco, &origem, "ensaio", "7", "legado.pdf", 42).unwrap();
+    let resultado = modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id);
+    assert!(resultado.is_err(), "metadados sem bytes não são PDF recuperável");
+    assert!(modelo::documentos(&banco, &origem, "ensaio", "7").unwrap().is_empty());
+
+    let arvore = anti_ies::pdf_externo::atender(
+        "GET",
+        "/sei/controlador.php?acao=arvore_visualizar&id_procedimento=7",
+        b"",
+        &banco,
+        &origem,
+        "ensaio",
+    )
+    .unwrap();
+    assert!(!arvore.corpo.contains("legado.pdf"));
+}
+
+#[test]
 fn bdd_332_03_multipart_com_campo_adicional_preserva_pdf_e_cadastro() {
     let banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
