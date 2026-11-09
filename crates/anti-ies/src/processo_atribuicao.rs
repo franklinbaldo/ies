@@ -1,6 +1,6 @@
-//! Projeção GET do formulário de atribuição observado no SQLite efêmero.
-//! Escrita fechada: nenhuma resposta sintética confirma um POST de atribuição.
-use crate::{Estado, Resposta, parametro_unico};
+//! Formulário e transição sintética de atribuição a partir do SQLite efêmero.
+//! O POST modifica apenas este estado local; não acessa o SEI externo.
+use crate::{Estado, Resposta, documentos::campo_formulario_unico, parametro_unico};
 use iesei::atribuicoes;
 use iesei::banco_cassettes;
 use iesei::instalacao::Instalacao;
@@ -11,11 +11,12 @@ use std::fmt::Write as _;
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -30,6 +31,34 @@ pub(crate) fn responder(
     let Ok(Some(observacao)) = atribuicoes::ler(banco, instalacao, cenario, id, &unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if metodo == "POST" {
+        // O mesmo formulário exibido no GET é a única fonte de opções.
+        // Campo repetido, identidade alheia ou escolha não publicada
+        // jamais podem modificar o banco.
+        let campos = corpo.split('&').count();
+        let (Some(tipo), Some(protocolo), Some(opcao), Some(botao)) = (
+            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+            campo_formulario_unico(corpo, "hdnIdProtocolo"),
+            campo_formulario_unico(corpo, "selAtribuicao"),
+            campo_formulario_unico(corpo, "sbmSalvar"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if campos != 4 || tipo != "2" || protocolo != id || botao != "Salvar" {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match atribuicoes::aplicar(banco, instalacao, cenario, id, &unidade, &opcao) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={id}"
+            )),
+            Err(atribuicoes::Falha::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(atribuicoes::Falha::Sqlite(_) | atribuicoes::Falha::ProcessoNaoObservado) => {
+                Resposta::nova(Estado::DadosInsuficientes)
+            }
+        };
+    }
     let hash = crate::protocolo_sintetico::INFRA_HASH;
     let mut html = format!(
         "<html><body><form id='frmAtividadeAtribuir' method='post' \
