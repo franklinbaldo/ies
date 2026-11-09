@@ -9,8 +9,13 @@ use rusqlite::Connection;
 /// Renderização da hipótese sintética de pasta declarada, mas não carregada.
 /// Os cards `UnB` mostram `PASTA`/`AGUARDE` e abertura bem-sucedida; a ausência
 /// de `ABRIR_PASTAS` é cenário de falha, não transição observada na cassette.
-fn no_pasta_pendente(pasta: &iesei::pastas_incompletas::PastaPendente, id: &str) -> String {
+fn no_pasta_pendente(
+    pasta: &iesei::pastas_incompletas::PastaPendente,
+    id: &str,
+    indice_no: usize,
+) -> String {
     let indice = pasta.indice;
+    let indice_aguarde = indice_no + 1;
     let protocolo = &pasta.protocolo_declarado;
     let hash = crate::protocolo_sintetico::INFRA_HASH;
     let pagina_hash = "5".repeat(32);
@@ -19,9 +24,9 @@ fn no_pasta_pendente(pasta: &iesei::pastas_incompletas::PastaPendente, id: &str)
 Pastas[{indice}] = [];
 Pastas[{indice}]['link'] = 'controlador.php?acao=procedimento_paginar&id_procedimento={id}&no_pai=PASTA{indice}&pagina_hash={pagina_hash}&infra_hash={hash}';
 Pastas[{indice}]['protocolos'] = '{protocolo}';
-Nos[1] = new infraArvoreNo("PASTA","PASTA{indice}","{id}","javascript:abrirFecharPasta('PASTA{indice}');",null,"I","Pasta {indice}",null,"svg/processo_aberto.svg","svg/processo_fechado.svg",false,true,null,null,null);
-Nos[1].carregado = false;
-Nos[2] = new infraArvoreNo("AGUARDE","AGUARDE{indice}","PASTA{indice}",null,null,"Aguarde...","Aguarde...","/infra_css/svg/aguarde.svg",null,null,false,true,null,null,null);
+Nos[{indice_no}] = new infraArvoreNo("PASTA","PASTA{indice}","{id}","javascript:abrirFecharPasta('PASTA{indice}');",null,"I","Pasta {indice}",null,"svg/processo_aberto.svg","svg/processo_fechado.svg",false,true,null,null,null);
+Nos[{indice_no}].carregado = false;
+Nos[{indice_aguarde}] = new infraArvoreNo("AGUARDE","AGUARDE{indice}","PASTA{indice}",null,null,"Aguarde...","Aguarde...","/infra_css/svg/aguarde.svg",null,null,false,true,null,null,null);
 "#
     )
 }
@@ -83,17 +88,16 @@ fn arvore_do_processo(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Result<String, Estado> {
-    let nos = crate::documento_arvore::nos_do_processo(banco, instalacao, cenario, &processo.id)?;
+    let (mut nos, proximo_indice) =
+        crate::documento_arvore::nos_com_proximo_indice(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
-    let pendente = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
-        .map_err(|_| Estado::DadosInsuficientes)?;
-    let nos = match pendente {
-        None => nos,
-        Some(pasta) if nos.is_empty() => no_pasta_pendente(&pasta, id),
-        // Ainda não modelamos combinação de documentos cadastrados e
-        // pasta incompleta. Recusar é melhor que duplicar Nos[1].
-        Some(_) => return Err(Estado::DadosInsuficientes),
-    };
+    if let Some(pasta) = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+    {
+        // Pastas e documentos coexistem no estado. O índice vem do próprio
+        // gerador dos nós documentais, não da contagem inferida do HTML.
+        nos.push_str(&no_pasta_pendente(&pasta, id, proximo_indice));
+    }
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
