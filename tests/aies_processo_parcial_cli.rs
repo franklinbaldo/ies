@@ -5,6 +5,7 @@ use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
+use iesei::pastas_incompletas::{self, PastaPendente};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
@@ -129,16 +130,19 @@ fn estado(com_pasta_incompleta: bool) -> (Connection, Instalacao) {
     )
     .unwrap();
     if com_pasta_incompleta {
-        // RED: a migration ainda não existe. A forma sintética será
-        // derivada do SQLite, não de uma página HTML congelada.
-        banco
-            .execute(
-                "INSERT INTO sim_pasta_pendente
-             (origem, cenario, id_procedimento, indice, protocolo_declarado)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-                rusqlite::params![instalacao.url_base(), CENARIO, "10", 1, 900],
-            )
-            .unwrap();
+        // Estado de falha inventado somente onde os cards UnB não cobrem
+        // a transição; a resposta HTML vem do modelo tipado no SQLite.
+        pastas_incompletas::guardar(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "10",
+            &PastaPendente {
+                indice: 1,
+                protocolo_declarado: "900".into(),
+            },
+        )
+        .unwrap();
     }
     (banco, instalacao)
 }
