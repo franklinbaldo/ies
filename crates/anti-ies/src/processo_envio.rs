@@ -358,11 +358,7 @@ fn arvore_do_processo(
     let situacao = literal_js(&situacao_da_raiz(processo));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
-    let mut acoes = super::processo_barra::acoes_do_processo(
-        processo,
-        unidade_atual,
-        relacionados,
-    );
+    let mut acoes = super::processo_barra::acoes_do_processo(processo, unidade_atual, relacionados);
     if iesei::criacao_processo::ler_criado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .is_some()
