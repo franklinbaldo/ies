@@ -1,2 +1,0 @@
-cassettes/unb/processo-andamento-registrar-unb--111df7e25e1e.md
-cassettes/go/processo-andamento-registrar-go--3d46a9421f08.md
