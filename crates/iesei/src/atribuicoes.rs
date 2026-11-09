@@ -47,9 +47,13 @@ pub fn registrar(
     unidade: &str,
     observacao: &Observacao,
 ) -> Result<(), Falha> {
-    if !id_valido(id) || cenario.is_empty() || unidade.is_empty()
+    if !id_valido(id)
+        || cenario.is_empty()
+        || unidade.is_empty()
         || observacao.usuarios.iter().any(|u| {
-            !id_valido(&u.id) || u.login.trim() != u.login || u.login.is_empty()
+            !id_valido(&u.id)
+                || u.login.trim() != u.login
+                || u.login.is_empty()
                 || u.nome.trim().is_empty()
         })
     {
@@ -103,12 +107,14 @@ pub fn ler(
     id: &str,
     unidade: &str,
 ) -> Result<Option<Observacao>, Falha> {
-    let login_atual: Option<String> = banco.query_row(
-        "SELECT login_atual FROM processo_atribuicao_observada
+    let login_atual: Option<String> = banco
+        .query_row(
+            "SELECT login_atual FROM processo_atribuicao_observada
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4",
-        params![origem.url_base(), cenario, id, unidade],
-        |r| r.get(0),
-    ).optional()?;
+            params![origem.url_base(), cenario, id, unidade],
+            |r| r.get(0),
+        )
+        .optional()?;
     let Some(login_atual) = login_atual else {
         return Ok(None);
     };
@@ -117,9 +123,17 @@ pub fn ler(
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
          ORDER BY id_usuario",
     )?;
-    let usuarios = stmt.query_map(
-        params![origem.url_base(), cenario, id, unidade],
-        |r| Ok(Usuario {id:r.get(0)?,login:r.get(1)?,nome:r.get(2)?}),
-    )?.collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(Some(Observacao {login_atual, usuarios}))
+    let usuarios = stmt
+        .query_map(params![origem.url_base(), cenario, id, unidade], |r| {
+            Ok(Usuario {
+                id: r.get(0)?,
+                login: r.get(1)?,
+                nome: r.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(Some(Observacao {
+        login_atual,
+        usuarios,
+    }))
 }
