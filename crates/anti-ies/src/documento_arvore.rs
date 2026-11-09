@@ -76,7 +76,7 @@ fn arvore(
     let dica = js(&dica);
     let ciencia_acao = crate::documento_ciencia::barra(ciencia);
     let lista_ciencia = crate::documento_ciencia::acao_da_lista(9, id, p, ciencia);
-    let link_lista = if lista_visivel {
+    let link_lista = if lista_visivel && matches!(situacao, Situacao::Disponivel) {
         format!(
             "<a href=\"controlador.php?acao=documento_versao_listar&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"455\"><img title=\"Versões do Documento\"/></a>"
         )
@@ -356,7 +356,7 @@ fn no_de_documento(
     );
     if versoes {
         let hash = "e".repeat(64);
-        let link_lista = if lista_visivel {
+        let link_lista = if lista_visivel && matches!(situacao, Situacao::Disponivel) {
             format!(
                 "<a href=\"controlador.php?acao=documento_versao_listar&id_procedimento={processo}&id_documento={id}&infra_hash={hash}\">Versões</a>"
             )
