@@ -71,11 +71,12 @@ pub fn ler(
             |linha| Ok((linha.get(0)?, linha.get(1)?)),
         )
         .optional()?;
-    linha.map(|(data, concluido)| match (data, concluido) {
-        (None, false) => Ok(EstadoDoPrazo::SemPrazo),
-        (Some(data), false) if !data.is_empty() => Ok(EstadoDoPrazo::Data(data)),
-        (None, true) => Ok(EstadoDoPrazo::Concluido),
-        _ => Err(Falha::EstadoInvalido),
-    })
-    .transpose()
+    linha
+        .map(|(data, concluido)| match (data, concluido) {
+            (None, false) => Ok(EstadoDoPrazo::SemPrazo),
+            (Some(data), false) if !data.is_empty() => Ok(EstadoDoPrazo::Data(data)),
+            (None, true) => Ok(EstadoDoPrazo::Concluido),
+            _ => Err(Falha::EstadoInvalido),
+        })
+        .transpose()
 }
