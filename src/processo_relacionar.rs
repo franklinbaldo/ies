@@ -346,6 +346,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
                 .ok_or(E::Estrutura("destino_a_relacionar_nao_identificado"))?,
             &previa.destino,
             previa.tipo_destino.as_deref().unwrap_or(""),
+            &relacionados,
             &mut rede,
         )?;
         previa.resultado = ResultadoRelacionar::Confirmado;
