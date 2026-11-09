@@ -1,11 +1,12 @@
 //! Histórico e prévia de registro de andamento como projeções do SQLite.
-//! Somente leitura: o --confirmar permanece fechado na CLI pública.
+//! Escrita sintética limitada ao backend local: sem rede externa.
 use crate::{Estado, Resposta, escapar, parametro_unico};
-use iesei::andamentos::{self, Historico};
+use iesei::andamentos::{self, Historico, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::processos;
 use rusqlite::Connection;
 use std::fmt::Write as _;
+use crate::prazo_processo::campo_unico;
 
 fn pagina_historico(numero: &str, historico: &Historico) -> Resposta {
     let total = historico.total_declarado;
@@ -48,15 +49,60 @@ fn pagina_formulario(id: &str) -> Resposta {
     ))
 }
 
+/// O POST usa somente campos derivados do formulário e persiste a nova
+/// linha no SQLite efêmero; horário e autoria são hipótese sintética.
+fn gravar(
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    historico: &Historico,
+) -> Resposta {
+    let (Some(processo), Some(atividade), Some(texto), Some(botao)) = (
+        campo_unico(corpo, "hdnIdProtocolo"),
+        campo_unico(corpo, "hdnIdAtividade"),
+        campo_unico(corpo, "txaDescricao"),
+        campo_unico(corpo, "sbmSalvar"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if corpo.split('&').count() != 4
+        || processo != id
+        || !atividade.is_empty()
+        || botao != "Salvar"
+        || texto.trim().is_empty()
+        || texto.chars().count() > 500
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let Some(anterior) = historico.linhas.first() else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let nova = Linha {
+        ocorrido_em: "09/11/2026 10:01".to_owned(),
+        unidade: anterior.unidade.clone(),
+        usuario: anterior.usuario.clone(),
+        descricao: texto,
+    };
+    match andamentos::acrescentar(banco, instalacao, cenario, id, nova) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=procedimento_consultar_historico&id_procedimento={id}"
+        )),
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 /// Serve formulário e histórico já registrados, sem fingir dados ausentes.
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -70,9 +116,17 @@ pub(crate) fn responder(
     let Ok(Some(processo)) = processos::ler(banco, instalacao, cenario, id) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    match parametro_unico(alvo, "acao") {
-        Some("procedimento_consultar_historico") => pagina_historico(&processo.numero, &historico),
-        Some("procedimento_atualizar_andamento") => pagina_formulario(id),
+    match (metodo, parametro_unico(alvo, "acao")) {
+        ("GET", Some("procedimento_consultar_historico")) => {
+            pagina_historico(&processo.numero, &historico)
+        }
+        ("GET", Some("procedimento_atualizar_andamento")) => pagina_formulario(id),
+        ("POST", Some("procedimento_atualizar_andamento")) => {
+            gravar(corpo, banco, instalacao, cenario, id, &historico)
+        }
+        ("POST", Some("procedimento_consultar_historico")) => {
+            Resposta::nova(Estado::MetodoNaoPermitido)
+        }
         _ => Resposta::nova(Estado::NaoImplementado),
     }
 }
