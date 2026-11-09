@@ -137,11 +137,10 @@ pub(crate) fn responder(
             };
             match estado(banco, origem, cenario, documento, processo) {
                 Ok(Some(Ciencia::Registrada { id_atividade })) => {
-                    let usuario = match modelo::usuario_da_ciencia(
+                    let Ok(usuario) = modelo::usuario_da_ciencia(
                         banco, origem, cenario, documento, processo,
-                    ) {
-                        Ok(usuario) => usuario,
-                        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                    ) else {
+                        return Resposta::nova(Estado::DadosInsuficientes);
                     };
                     // A lista só nomeia o autor quando a sessão sintética
                     // o identificou. Revisores do documento não são autores
