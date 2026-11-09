@@ -62,6 +62,7 @@ fn arvore(d: &DocumentoSimulado, situacao: &Situacao, ciencia: &Ciencia) -> Stri
     format!(
         r#"<html><head><script>
 var Nos = new Array();
+var NosAcoes = new Array();
 Nos[0] = new infraArvoreNo("PROCESSO","{p}",null,"controlador.php?acao=arvore_visualizar&id_procedimento={p}","ifrVisualizacao","{nup}","Processo simulado","svg/processo.svg","svg/processo.svg","svg/processo.svg",true,true,"noVisitado",null,"noVisitado","{nup}");
 Nos[0].acoes = '';
 Nos[0].src = '';
