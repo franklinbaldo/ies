@@ -51,9 +51,7 @@ pub(crate) fn responder(
             Ok(()) => Resposta::redirecionar(format!(
                 "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={id}"
             )),
-            Err(atribuicoes::Falha::DadoInvalido) => {
-                Resposta::nova(Estado::RequisicaoInvalida)
-            }
+            Err(atribuicoes::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
             Err(atribuicoes::Falha::Sqlite(_) | atribuicoes::Falha::ProcessoNaoObservado) => {
                 Resposta::nova(Estado::DadosInsuficientes)
             }
@@ -136,8 +134,16 @@ mod tests {
             &Observacao {
                 login_atual: "aluno1".into(),
                 usuarios: vec![
-                    Usuario { id: "7".into(), login: "aluno1".into(), nome: "Pessoa 1".into() },
-                    Usuario { id: "8".into(), login: "aluno2".into(), nome: "Pessoa 2".into() },
+                    Usuario {
+                        id: "7".into(),
+                        login: "aluno1".into(),
+                        nome: "Pessoa 1".into(),
+                    },
+                    Usuario {
+                        id: "8".into(),
+                        login: "aluno2".into(),
+                        nome: "Pessoa 2".into(),
+                    },
                 ],
             },
         )
@@ -164,9 +170,7 @@ mod tests {
     #[test]
     fn bdd_264_02_post_unico_atualiza_sqlite_e_arvore_independente() {
         let (banco, origem) = fixture();
-        let antes = rotas::responder(
-            "GET", URL, b"", &banco, &origem, CENARIO
-        );
+        let antes = rotas::responder("GET", URL, b"", &banco, &origem, CENARIO);
         assert_eq!(antes.estado, Estado::Ok);
         assert!(antes.corpo.contains("value='8'"));
         assert_eq!(leitura(&banco, &origem), "aluno1");
@@ -174,12 +178,17 @@ mod tests {
         assert_eq!(resposta.estado, Estado::Redirecionamento);
         assert_eq!(
             resposta.localizacao.as_deref(),
-            Some("controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento=10"),
+            Some(
+                "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento=10"
+            ),
         );
         let arvore = rotas::responder(
             "GET",
             "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
-            b"", &banco, &origem, CENARIO,
+            b"",
+            &banco,
+            &origem,
+            CENARIO,
         );
         assert_eq!(arvore.estado, Estado::Ok);
         assert!(arvore.corpo.contains("atribuído para "), "{}", arvore.corpo);
@@ -199,11 +208,17 @@ mod tests {
         let arvore = rotas::responder(
             "GET",
             "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=10",
-            b"", &banco, &origem, CENARIO,
+            b"",
+            &banco,
+            &origem,
+            CENARIO,
         );
         assert_eq!(arvore.estado, Estado::Ok);
         assert!(!arvore.corpo.contains("atribuído para "));
-        assert_eq!(post(&banco, &origem, REMOVER).estado, Estado::RequisicaoInvalida);
+        assert_eq!(
+            post(&banco, &origem, REMOVER).estado,
+            Estado::RequisicaoInvalida
+        );
     }
 
     #[test]
@@ -228,11 +243,21 @@ mod tests {
     #[test]
     fn nao_inventa_atribuicao_se_ausente_observacao_ou_unidade() {
         let (banco, origem) = fixture();
-        banco.execute("DELETE FROM processo_atribuicao_observada", []).unwrap();
-        assert_eq!(post(&banco, &origem, ATRIBUIR).estado, Estado::DadosInsuficientes);
+        banco
+            .execute_batch("DELETE FROM processo_atribuicao_opcao; DELETE FROM processo_atribuicao_observada;")
+            .unwrap();
+        assert_eq!(
+            post(&banco, &origem, ATRIBUIR).estado,
+            Estado::DadosInsuficientes
+        );
         let (banco, origem) = fixture();
-        banco.execute("UPDATE controle_resumido SET unidade='OUTRA'", []).unwrap();
-        assert_eq!(post(&banco, &origem, ATRIBUIR).estado, Estado::DadosInsuficientes);
+        banco
+            .execute("UPDATE controle_resumido SET unidade='OUTRA'", [])
+            .unwrap();
+        assert_eq!(
+            post(&banco, &origem, ATRIBUIR).estado,
+            Estado::DadosInsuficientes
+        );
         assert_eq!(leitura(&banco, &origem), "aluno1");
     }
 }
