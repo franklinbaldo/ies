@@ -24,6 +24,21 @@ def quantidade(resposta: dict) -> int | None:
     return valor if type(valor) is int and valor > 0 else None
 
 
+def registrar_estado_relido_incerto(relatorio: dict, resposta: dict, usuario: str) -> None:
+    """Relato da CLI, não prova de que este POST produziu a alteração.
+
+    Aceita apenas o usuário pedido, ausência explicitamente observada ou
+    observação nula; nunca publica texto de resposta arbitrário no registro.
+    """
+    if resposta.get("subcodigo") != "efeito_incerto_na_atribuicao":
+        return
+    if "atribuicao_relida" not in resposta:
+        return
+    relida = resposta["atribuicao_relida"]
+    if relida is None or (type(relida) is str and relida in ("", usuario)):
+        relatorio["atribuicao_relida"] = relida
+
+
 def atribuicao_da_unidade(resposta: dict, unidade: str) -> str | None:
     """None: não observado; string vazia: ausência observada."""
     unidades = resposta.get("aberto_em")
@@ -162,6 +177,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
                 or escrita.get("alterado") is not True
                 or quantidade(escrita) is None):
             relatorio["estado"] = "EFEITO_INCERTO"
+            registrar_estado_relido_incerto(relatorio, escrita, usuario)
             gravar()
             return 3, relatorio
         relatorio["estado"] = "ATRIBUICAO_VERIFICACAO_PENDENTE"
@@ -204,6 +220,7 @@ def ensaiar(*, ies: str, registro: Path, nup: str, usuario: str, origem: str,
                 or remocao.get("alterado") is not True
                 or quantidade(remocao) is None):
             relatorio["estado"] = "EFEITO_INCERTO"
+            registrar_estado_relido_incerto(relatorio, remocao, usuario)
             gravar()
             return 3, relatorio
         relatorio["estado"] = "REMOCAO_VERIFICACAO_PENDENTE"
