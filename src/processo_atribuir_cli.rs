@@ -146,6 +146,11 @@ fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
         println!("{}", json_da_previa(feito));
     } else {
         println!("Prévia: processo {}, unidade {}.", feito.nup, feito.unidade);
+        if feito.usuario_atual.is_empty() {
+            println!("Atribuição atual: nenhuma.");
+        } else {
+            println!("Atribuição atual: {}.", feito.usuario_atual);
+        }
         if let Some(login) = &feito.usuario_pedido {
             println!("Atribuir a {login}; opção verificada na tela.");
         } else {
