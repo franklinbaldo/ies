@@ -1,0 +1,74 @@
+name: TEMP Raposa 264 leitura UnB
+on:
+  push:
+    branches:
+      - codex/raposa-264-live-descobrir-20261109t2010
+    paths:
+      - .github/workflows/raposa-264-leitura-temporaria.yml
+
+permissions:
+  contents: read
+
+jobs:
+  descobrir:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compilar CLI real
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --release --locked --bin ies
+      - name: Login unico e descoberta somente-leitura
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          pasta="$RUNNER_TEMP/raposa-unb"
+          mkdir -m 700 "$pasta"
+          export IES_ORIGEM_FILE="$pasta/origem"
+          export IES_CREDENCIAIS_FILE="$pasta/credenciais"
+          export IES_COOKIE_FILE="$pasta/cookie"
+          export IES_URL_CONTROLE_FILE="$pasta/controle"
+          export IES_SEM_INDICE=1
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys, time
+          pasta=pathlib.Path(os.environ["IES_ORIGEM_FILE"]).parent
+          origem="https://sei.treinamento.unb.br/sei"
+          linhas=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+          dados=[]
+          for linha in linhas:
+              cols=[v.strip().strip("`") for v in linha.strip().strip("|").split("|")]
+              if len(cols)==7 and cols[0]=="unb": dados.append(cols)
+          if len(dados)!=1 or dados[0][2]!=origem:
+              print(json.dumps({"etapa":"config","estado":"BLOQUEADO"}));sys.exit(0)
+          chave, instalacao, url, usuario, senha, orgao, fonte=dados[0]
+          for var, conteudo in [
+              ("IES_ORIGEM_FILE", origem+"\n"),
+              ("IES_CREDENCIAIS_FILE", "usuario="+usuario+"\nsenha="+senha+"\norgao="+orgao+"\n"),
+              ("IES_COOKIE_FILE", ""),
+              ("IES_URL_CONTROLE_FILE", ""),
+          ]:
+              destino=pathlib.Path(os.environ[var])
+              fd=os.open(destino,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+              with os.fdopen(fd,"w") as f: f.write(conteudo)
+          sys.path.insert(0,str(pathlib.Path.cwd()/"scripts"))
+          from ensaio_processo_criar import chamar_ies, codigo_tipado_publicavel
+          codigo,resposta=chamar_ies("target/release/ies",["login"])
+          print(json.dumps({"etapa":"login","codigo":codigo,
+                            "conexao":resposta.get("conexao") if resposta.get("conexao") in ("login_realizado","sessao_existente_valida") else None,
+                            "requisicoes":resposta.get("requisicoes") if type(resposta.get("requisicoes")) is int else None,
+                            "causa":codigo_tipado_publicavel(resposta.get("subcodigo"))}))
+          if codigo!=0:
+              sys.exit(0)
+          time.sleep(30)
+          from ensaio_processo_atribuir_descoberta import descobrir_candidato
+          try:
+              status,relatorio=descobrir_candidato(ies="target/release/ies",origem=origem)
+              print(json.dumps({"etapa":"descoberta","codigo":status,"resultado":relatorio},ensure_ascii=False))
+          except Exception:
+              print(json.dumps({"etapa":"descoberta","estado":"INCONCLUSIVO_EXCECAO"}))
+          PY
