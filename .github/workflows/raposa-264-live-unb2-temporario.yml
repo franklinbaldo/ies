@@ -1,0 +1,79 @@
+name: Raposa 264 UnB treinamento - ensaio unico temporario
+on:
+  push:
+    branches:
+      - codex/raposa-264-live-previa-unb-20261109t1710
+    paths:
+      - .github/workflows/raposa-264-live-unb2-temporario.yml
+permissions:
+  contents: read
+jobs:
+  ensaio:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust pinado e CLI real
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 build --locked --release --bin ies
+      - name: Login unico e ensaio UnB com trava duravel
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          DIR="$RUNNER_TEMP/raposa264"
+          mkdir -m 700 "$DIR"
+          export IES_ORIGEM_FILE="$DIR/origem"
+          export IES_CREDENCIAIS_FILE="$DIR/credenciais"
+          export IES_COOKIE_FILE="$DIR/cookie"
+          export IES_URL_CONTROLE_FILE="$DIR/controle"
+          export IES_SEM_INDICE=1
+          unset IES_CONFIG_FILE
+          python3 - "$DIR" <<'PY'
+          import os, pathlib, sys
+          raiz=pathlib.Path(sys.argv[1])
+          linhas=pathlib.Path("docs/interfaces/credenciais-de-treinamento.md").read_text().splitlines()
+          linhas=[p for p in ([s.strip().strip(chr(96)) for s in l.strip().strip("|").split("|")] for l in linhas) if len(p)==7 and p[0]=="unb"]
+          if len(linhas)!=1 or linhas[0][2]!="https://sei.treinamento.unb.br/sei":
+              raise SystemExit("cadastro UnB de treinamento nao verificado")
+          _,_,url,usuario,senha,orgao,_=linhas[0]
+          if not all((url,usuario,senha,orgao)):
+              raise SystemExit("dados incompletos")
+          for nome,conteudo in [("origem",url+"\n"),("credenciais",f"usuario={usuario}\nsenha={senha}\norgao={orgao}\n"),("cookie",""),("controle","")]:
+              (raiz/nome).write_text(conteudo)
+              os.chmod(raiz/nome,0o600)
+          print("ORIGEM_TREINAMENTO_VALIDADA")
+          PY
+          set +e
+          ./target/release/ies --json login > "$DIR/login.json" 2> "$DIR/login.stderr"
+          LC=$?
+          set -e
+          python3 - "$DIR/login.json" "$LC" <<'PY'
+          import json,sys
+          try: data=json.load(open(sys.argv[1]))
+          except (OSError,ValueError): data={}
+          status={"etapa":"login","codigo":int(sys.argv[2]),"conexao":data.get("conexao"),"requisicoes":data.get("requisicoes"),"subcodigo":data.get("subcodigo")}
+          print(json.dumps(status,ensure_ascii=False))
+          PY
+          if [ "$LC" -ne 0 ]; then exit 1; fi
+          sleep 30
+          set +e
+          PYTHONPATH=scripts python3 scripts/ensaio_processo_atribuir.py --ies ./target/release/ies --registro "$DIR/registro.json" --nup 23106.001559/2026-11 --usuario aluno2 > "$DIR/resultado.json" 2> "$DIR/ensaio.stderr"
+          EC=$?
+          set -e
+          python3 - "$DIR/resultado.json" "$DIR/registro.json" "$EC" <<'PY'
+          import json, pathlib,sys
+          try: dado=json.loads(pathlib.Path(sys.argv[1]).read_text())
+          except (OSError,ValueError): dado={}
+          campos=("estado","motivo","residuo","requisicoes","atribuicao_relida","saida_cli","status_http","subcodigo","unidade_consta_na_arvore")
+          registro=pathlib.Path(sys.argv[2])
+          print(json.dumps({"etapa":"ensaio","codigo":int(sys.argv[3]),"resultado":{k:dado[k] for k in campos if k in dado},"checkpoint":registro.exists()},ensure_ascii=False))
+          PY
+          # Codigo 3 significa efeito incerto, jamais repetir automaticamente.
+          exit 0
