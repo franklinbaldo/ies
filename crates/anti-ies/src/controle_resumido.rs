@@ -4,7 +4,12 @@ use iesei::banco_cassettes::{ControleResumido, Linha};
 use iesei::observacao::TabelaObservada;
 use std::fmt::Write as _;
 
-fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) -> Option<()> {
+fn tabela_html(
+    id: &str,
+    tabela: &TabelaObservada<Linha>,
+    observadas: &[Linha],
+    destino: &mut String,
+) -> Option<()> {
     if !tabela.pagina_verificavel() {
         return None;
     }
@@ -22,19 +27,31 @@ fn tabela_html(id: &str, tabela: &TabelaObservada<Linha>, destino: &mut String) 
             (true, true) => "processoVisualizadoSigiloso",
             (false, true) => "processoNaoVisualizadoSigiloso",
         };
-        write!(
-            destino,
-            "<tr id='P{}'><td><a class='{classe}'>{}</a></td></tr>",
-            escapar(&linha.id),
-            escapar(&linha.numero)
-        )
-        .ok()?;
+        let id_linha = escapar(&linha.id);
+        write!(destino, "<tr id='P{id_linha}'><td><a class='{classe}'").ok()?;
+        // O Controle originalmente observado permite projetar o link;
+        // uma linha criada apenas pelo SQLite ainda não o comprova.
+        if observadas
+            .iter()
+            .any(|observada| observada.id == linha.id && observada.numero == linha.numero)
+        {
+            write!(
+                destino,
+                " href='controlador.php?acao=procedimento_trabalhar&amp;acao_origem=procedimento_controlar&amp;acao_retorno=procedimento_controlar&amp;id_procedimento={id_linha}&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={}'",
+                crate::protocolo_sintetico::INFRA_HASH
+            )
+            .ok()?;
+        }
+        write!(destino, ">{}</a></td></tr>", escapar(&linha.numero)).ok()?;
     }
     destino.push_str("</table>");
     Some(())
 }
 
-pub(crate) fn controle_html(controle: &ControleResumido) -> Option<String> {
+pub(crate) fn controle_html(
+    controle: &ControleResumido,
+    original: &ControleResumido,
+) -> Option<String> {
     // A pesquisa e o unico POST da leitura de documento, sem criar objeto.
     // Assinaturas aqui sao placeholders locais, nunca tokens de SEI.
     let formulario = format!(
@@ -50,8 +67,18 @@ pub(crate) fn controle_html(controle: &ControleResumido) -> Option<String> {
         "<html><body>{formulario}{menu_pesquisa}<a id='lnkInfraUnidade'>{}</a><input id='hdnTipoVisualizacao' value='R'>",
         escapar(controle.unidade.as_str())
     );
-    tabela_html("tblProcessosRecebidos", &controle.recebidos, &mut html)?;
-    tabela_html("tblProcessosGerados", &controle.gerados, &mut html)?;
+    tabela_html(
+        "tblProcessosRecebidos",
+        &controle.recebidos,
+        &original.recebidos.linhas,
+        &mut html,
+    )?;
+    tabela_html(
+        "tblProcessosGerados",
+        &controle.gerados,
+        &original.gerados.linhas,
+        &mut html,
+    )?;
     html.push_str("</body></html>");
     Some(html)
 }

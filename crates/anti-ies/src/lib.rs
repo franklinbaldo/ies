@@ -357,11 +357,12 @@ pub fn controlar(
     let Ok(Some(snapshot)) = ler(banco, instalacao, cenario) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Ok(snapshot) = iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot)
+    let Ok(projetado) =
+        iesei::processos::controle_da_unidade(banco, instalacao, cenario, snapshot.clone())
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let Some(corpo) = controle_resumido::controle_html(&snapshot) else {
+    let Some(corpo) = controle_resumido::controle_html(&projetado, &snapshot) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     Resposta::html(menu_com_retornos(corpo, banco, instalacao, cenario))
