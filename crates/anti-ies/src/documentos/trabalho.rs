@@ -1,6 +1,7 @@
 //! Tela de trabalho derivada do estado documental e da abertura da unidade.
-use super::{inclusao_disponivel, modelo};
+use super::{erros_de_modelo, modelo};
 use crate::{Estado, Resposta, escapar};
+use iesei::documentos_simulados::Falha;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write as _;
@@ -20,13 +21,13 @@ pub(super) fn pagina_do_processo(
     // A tela de trabalho e a árvore devem anunciar a mesma capacidade.
     // Depois de enviar sem manter aberto, o cadastro já recusa a escrita:
     // não se pode continuar oferecendo um link que não funcionará.
-    let incluir = match inclusao_disponivel(banco, origem, cenario, id) {
-        Ok(true) => format!(
+    let incluir = match modelo::conferir_abertura(banco, origem, cenario, id) {
+        Ok(()) => format!(
             "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
             crate::protocolo_sintetico::INFRA_HASH
         ),
-        Ok(false) => String::new(),
-        Err(falha) => return super::erros_de_modelo(&falha),
+        Err(Falha::ProcessoNaoAbertoNaUnidade) => String::new(),
+        Err(falha) => return erros_de_modelo(&falha),
     };
     let mut html = format!(
         "<html><body><a id='lnkInfraUnidade' href='#'>{}</a>\
