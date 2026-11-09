@@ -16,7 +16,7 @@ fn executar_e_reler(remover: bool, esperado: Option<&str>) {
     assert_eq!(resposta["confirmado"], true);
     assert_eq!(resposta["alterado"], true);
     assert_eq!(resposta["usuario_atual"], "aluno1");
-    assert_eq!(resposta["usuario_pedido"], esperado);
+    assert_eq!(resposta["usuario_pedido"], serde_json::json!(esperado));
     assert_eq!(resposta["requisicoes"], 7);
 
     let post_de_atribuicao = eventos
@@ -62,7 +62,10 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
     let pasta = Pasta::nova();
     let origem = pasta.privado("origem", "https://sei.producao.exemplo/sei");
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
-    let url = pasta.privado("url", "https://sei.producao.exemplo/sei/controlador.php?acao=procedimento_controlar");
+    let url = pasta.privado("url", &format!(
+        "https://sei.producao.exemplo/sei/controlador.php?acao=procedimento_controlar&infra_hash={}",
+        "a".repeat(64),
+    ));
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["--json", "processo", "atribuir", NUP, "--usuario", "aluno2", "--confirmar"])
         .env("IES_URL_CONTROLE_FILE", url)
