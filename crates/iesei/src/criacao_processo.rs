@@ -116,3 +116,162 @@ pub fn consultar(
         )
         .optional()
 }
+
+/// Registro causal de uma criacao sintética. O ID/NUP nascem de UMA transacao.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Criado {
+    pub id_procedimento: String,
+    pub nup: String,
+    pub tipo: TipoDeProcesso,
+    pub especificacao: String,
+}
+
+/// Cria uma unica identidade na unidade ativa, com propriedades e abertura
+/// compartilhadas com a arvore e o Controle. Esta hipotese aceita apenas
+/// acesso publico, sem interessados: outras variantes seguem fechadas.
+///
+/// # Errors
+/// Rejeita tipo ou entrada nao observada e propaga erros SQLite.
+pub fn criar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id_tipo: &str,
+    especificacao: &str,
+    unidade: &str,
+) -> Result<Criado, Falha> {
+    if cenario.is_empty()
+        || unidade.trim().is_empty()
+        || especificacao.trim().is_empty()
+        || especificacao.chars().any(char::is_control)
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    let tipo = consultar(&tx, instalacao, cenario, id_tipo)?.ok_or(Falha::DadoInvalido)?;
+    let origem = instalacao.url_base();
+    tx.execute(
+        "INSERT INTO processo_criado
+         (origem, cenario, id_tipo, especificacao, nivel)
+         VALUES (?1, ?2, ?3, ?4, 0)",
+        params![origem, cenario, id_tipo, especificacao],
+    )?;
+    let sequencia = tx.last_insert_rowid();
+    let id_procedimento = format!("9{sequencia}");
+    let nup = format!("00000.{sequencia:06}/2026-01");
+    tx.execute(
+        "UPDATE processo_criado SET id_procedimento=?1 WHERE id=?2",
+        params![id_procedimento, sequencia],
+    )?;
+    tx.execute(
+        "INSERT INTO sim_processo
+         (origem, cenario, id_procedimento, nup, unidade)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![origem, cenario, id_procedimento, nup, unidade],
+    )?;
+    tx.execute(
+        "INSERT INTO processo_simulado
+         (origem, cenario, id_procedimento, anotacao_origem)
+         VALUES (?1, ?2, ?3, NULL)",
+        params![origem, cenario, id_procedimento],
+    )?;
+    tx.execute(
+        "INSERT INTO processo_abertura
+         (origem, cenario, id_procedimento, posicao, unidade)
+         VALUES (?1, ?2, ?3, 0, ?4)",
+        params![origem, cenario, id_procedimento, unidade],
+    )?;
+    tx.commit()?;
+    Ok(Criado {
+        id_procedimento,
+        nup,
+        tipo,
+        especificacao: especificacao.to_owned(),
+    })
+}
+
+/// Relê a identidade e propriedades do processo criado a partir do SQLite.
+/// Nenhuma correspondencia retorna None: ausencia nao cria documento ficticio.
+///
+/// # Errors
+/// Preserva falhas de leitura SQLite.
+pub fn ler_criado(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> rusqlite::Result<Option<Criado>> {
+    banco
+        .query_row(
+            "SELECT c.id_procedimento, p.nup, t.id_tipo, t.nome,
+                    t.id_assunto, t.assunto, c.especificacao
+             FROM processo_criado c
+             JOIN sim_processo p ON p.origem=c.origem AND p.cenario=c.cenario
+               AND p.id_procedimento=c.id_procedimento
+             JOIN tipo_processo_simulado t ON t.origem=c.origem AND t.cenario=c.cenario
+               AND t.id_tipo=c.id_tipo
+             WHERE c.origem=?1 AND c.cenario=?2 AND c.id_procedimento=?3",
+            params![instalacao.url_base(), cenario, id],
+            |linha| {
+                Ok(Criado {
+                    id_procedimento: linha.get(0)?,
+                    nup: linha.get(1)?,
+                    tipo: TipoDeProcesso {
+                        id: linha.get(2)?,
+                        nome: linha.get(3)?,
+                        id_assunto: linha.get(4)?,
+                        assunto: linha.get(5)?,
+                    },
+                    especificacao: linha.get(6)?,
+                })
+            },
+        )
+        .optional()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::banco_cassettes::iniciar;
+
+    #[test]
+    fn registrar_processo_e_propriedades_num_unico_sqlite() {
+        let banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+        let tipo = TipoDeProcesso {
+            id: "12".to_owned(),
+            nome: "Ensaio".to_owned(),
+            id_assunto: "21".to_owned(),
+            assunto: "Assunto de Ensaio".to_owned(),
+        };
+        registrar(&banco, &origem, "cenario", &tipo).unwrap();
+        assert!(
+            ler_criado(&banco, &origem, "cenario", "91")
+                .unwrap()
+                .is_none()
+        );
+        let novo = criar(&banco, &origem, "cenario", "12", "Nova origem", "U1").unwrap();
+        assert_eq!(novo.tipo, tipo);
+        assert_eq!(
+            ler_criado(&banco, &origem, "cenario", &novo.id_procedimento).unwrap(),
+            Some(novo.clone())
+        );
+        let processo = crate::processos::ler(&banco, &origem, "cenario", &novo.id_procedimento)
+            .unwrap()
+            .unwrap();
+        assert_eq!(processo.numero, novo.nup);
+        assert_eq!(processo.aberto_em, ["U1"]);
+        assert!(matches!(
+            criar(&banco, &origem, "cenario", "999", "Invalido", "U1"),
+            Err(Falha::DadoInvalido)
+        ));
+        assert_eq!(
+            banco
+                .query_row("SELECT COUNT(*) FROM sim_processo", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+}

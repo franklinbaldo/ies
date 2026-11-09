@@ -293,7 +293,7 @@ pub fn autocompletar(
 }
 
 /// Decodifica o corpo de consulta form-urlencoded, inclusive escape percentual.
-fn decodificar_formulario(texto: &str) -> Option<String> {
+pub(crate) fn decodificar_formulario(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::with_capacity(bytes.len());
     let mut posicao = 0;

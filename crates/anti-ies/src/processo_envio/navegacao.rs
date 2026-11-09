@@ -53,11 +53,20 @@ fn arvore_do_processo(
     let situacao = literal_js(&situacao_da_raiz(processo));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
-    let barra = literal_js(&crate::processo_barra::acoes_do_processo(
-        processo,
-        unidade_atual,
-        relacionados,
-    ));
+    let mut acoes = crate::processo_barra::acoes_do_processo(processo, unidade_atual, relacionados);
+    if iesei::criacao_processo::ler_criado(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .is_some()
+    {
+        use std::fmt::Write as _;
+        write!(
+            acoes,
+            r#"<a href="controlador.php?acao=procedimento_alterar&amp;id_procedimento={id}&amp;infra_hash={}">Alterar Processo</a>"#,
+            crate::protocolo_sintetico::INFRA_HASH,
+        )
+        .expect("formatacao String");
+    }
+    let barra = literal_js(&acoes);
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
