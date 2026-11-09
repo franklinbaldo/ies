@@ -67,7 +67,8 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
                 .split('&')
                 .find_map(|parte| parte.strip_prefix("acao="))
         })
-        .unwrap_or("sem_acao");
+        .unwrap_or("sem_acao")
+        .to_owned();
     let tamanho = texto
         .lines()
         .find_map(|linha| {
