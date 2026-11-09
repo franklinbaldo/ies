@@ -90,7 +90,7 @@ fn requests_post() -> Vec<crate::processo_concluir::tests_apoio::Pedido> {
 fn previa_deriva_formulario_sem_post_com_orcamento_exato() {
     let (resultado, pedidos) = executar(preparar(), false);
     let plano = resultado.unwrap();
-    assert!(!plano.confirmado && !plano.alterado && !plano.ja_estava);
+    assert!(!plano.estado.confirmado() && !plano.estado.alterado() && !plano.estado.ja_estava());
     assert_eq!(plano.requisicoes, 5);
     assert_eq!(pedidos, &requests_post()[..5]);
 }
@@ -101,7 +101,7 @@ fn confirmar_post_unico_e_reler_lista_mesmo_processo() {
     respostas.extend([r302(&gerenciar()), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
     let feito = resultado.unwrap();
-    assert!(feito.confirmado && feito.alterado && !feito.ja_estava);
+    assert!(feito.estado.confirmado() && feito.estado.alterado() && !feito.estado.ja_estava());
     assert_eq!(feito.id_de_remocao.as_deref(), Some("831"));
     assert_eq!(feito.requisicoes, 7);
     assert_eq!(pedidos, requests_post());
@@ -113,7 +113,7 @@ fn falha_de_rede_no_post_nao_repete_e_reconcilia_pela_leitura() {
     let mut respostas = preparar();
     respostas.extend([Err(FalhaTransporte::Rede), ok(lista("G"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(resultado.unwrap().alterado);
+    assert!(resultado.unwrap().estado.alterado());
     assert_eq!(pedidos, requests_post());
 }
 
