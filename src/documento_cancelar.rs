@@ -14,6 +14,8 @@ mod fluxo;
 mod tests_fluxo;
 
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
+#[cfg(test)]
+pub(crate) use fluxo::ResultadoDaVerificacao;
 pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
