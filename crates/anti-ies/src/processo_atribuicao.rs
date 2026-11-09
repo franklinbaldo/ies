@@ -167,7 +167,7 @@ mod tests {
         "hdnInfraTipoPagina=2&hdnIdProtocolo=10&selAtribuicao=null&sbmSalvar=Salvar";
 
     #[test]
-    fn bdd_264_02_post_unico_atualiza_sqlite_e_arvore_independente() {
+    fn post_unico_atualiza_sqlite_e_arvore_independente() {
         let (banco, origem) = fixture();
         let antes = rotas::responder("GET", URL, b"", &banco, &origem, CENARIO);
         assert_eq!(antes.estado, Estado::Ok);
@@ -199,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn bdd_264_03_remover_exige_atribuicao_existente_e_releitura() {
+    fn post_remover_exige_atribuicao_existente_e_releitura() {
         let (banco, origem) = fixture();
         let resposta = post(&banco, &origem, REMOVER);
         assert_eq!(resposta.estado, Estado::Redirecionamento);
