@@ -9,6 +9,7 @@ pub(crate) fn acoes_do_processo(
     unidade_atual: &str,
     relacionamentos_observados: bool,
     atribuicao_observada: bool,
+    prazo_observado: bool,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
@@ -43,6 +44,13 @@ pub(crate) fn acoes_do_processo(
             links,
             r#"<a href="controlador.php?acao=procedimento_relacionar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Relacionar Processos</a>"#
         ).expect("formatação de String");
+    }
+    if prazo_observado && processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        write!(
+            links,
+            r#"<a href="controlador.php?acao=controle_prazo_definir&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Controle de Prazo</a>"#
+        )
+        .expect("formatação de String");
     }
     if unidade_atual == processo.unidade_origem && processo.anotacao_origem.is_some() {
         write!(
