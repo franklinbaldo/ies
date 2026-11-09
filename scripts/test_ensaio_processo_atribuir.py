@@ -83,6 +83,33 @@ class EnsaioAtribuicao(unittest.TestCase):
                 self.chamadas.clear()
                 self.assertFalse(self.registro.exists())
 
+    def test_previa_falhou_preserva_diagnostico_tipado_sem_dados_livres(self):
+        codigo, relatorio = self.rodar([(
+            1, {"subcodigo": "situacao_da_atribuicao_nao_observada",
+                "status_http": 403, "requisicoes": 3,
+                "mensagem_do_servidor": "https://example.invalid/privado"}
+        )])
+        self.assertEqual(codigo, 1)
+        self.assertEqual(relatorio["estado"], "PREVIA_FAIL")
+        self.assertEqual(relatorio["requisicoes"], [3])
+        self.assertEqual(relatorio["saida_cli"], 1)
+        self.assertEqual(relatorio["subcodigo"],
+                         "situacao_da_atribuicao_nao_observada")
+        self.assertEqual(relatorio["status_http"], 403)
+        self.assertNotIn("mensagem_do_servidor", relatorio)
+        self.assertNotIn("example.invalid", json.dumps(relatorio))
+        self.assertFalse(self.registro.exists())
+
+    def test_previa_nao_publica_codigo_textual_arbitrario(self):
+        codigo, relatorio = self.rodar([(
+            1, {"subcodigo": "https://example.invalid/privado",
+                "status_http": "https://example.invalid", "requisicoes": None}
+        )])
+        self.assertEqual((codigo, relatorio["estado"]), (1, "PREVIA_FAIL"))
+        self.assertNotIn("subcodigo", relatorio)
+        self.assertNotIn("status_http", relatorio)
+        self.assertFalse(self.registro.exists())
+
     def test_post_sem_resposta_nao_repete_escrita(self):
         dados = roteiro()
         dados[1] = 3, {"subcodigo": "efeito_incerto_na_atribuicao", "requisicoes": 6}
