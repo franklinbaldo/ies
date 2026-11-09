@@ -259,3 +259,77 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
         "autor da revisão não é autor da ciência"
     );
 }
+/// BDD-271-03: o GET mutador persistiu uma ciência, mas a Lista relida
+/// ainda não a publicou. Não inferir fracasso nem reenviar a escrita.
+/// Hipótese de consistência eventual do anti-IES; NÃO é paridade de cassette.
+#[test]
+fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
+    let pasta = Pasta::nova();
+    let previa = executar(&pasta, &["--json", "documento", "ciente", DOC], 4);
+    assert_eq!(previa.status.code(), Some(0));
+    assert_eq!(json(&previa)["verificado"], false);
+
+    // O modo de observação é declarado na migração canônica, sem DDL em teste.
+    // O documento continua gravável; somente a lista relida omite sua atividade.
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let banco = Connection::open(&caminho).unwrap();
+    banco.execute(
+        "INSERT INTO ciencia_documental_lista_invisivel
+         (origem, cenario, id_documento) VALUES (?1, ?2, '42')",
+        rusqlite::params![ORIGEM, CENARIO],
+    )
+    .unwrap();
+    drop(banco);
+
+    // O mesmo orçamento de 11 GETs do aceite verificável: o mutador é
+    // enviado uma única vez, seguido da árvore e da Lista independentes.
+    let resultado = executar(
+        &pasta,
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
+        11,
+    );
+    assert_eq!(
+        resultado.status.code(),
+        Some(3),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&resultado.stdout),
+        String::from_utf8_lossy(&resultado.stderr)
+    );
+    let saida = json(&resultado);
+    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["retentavel"], false);
+    assert_eq!(saida["requisicoes"], 11);
+    assert!(saida["erro"].as_str().unwrap().contains("Lista de Ciências"));
+
+    let banco = Connection::open(&caminho).unwrap();
+    let atividade: String = banco
+        .query_row(
+            "SELECT id_atividade FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
+            rusqlite::params![ORIGEM, CENARIO],
+            |linha| linha.get(0),
+        )
+        .unwrap();
+    assert!(!atividade.is_empty());
+    drop(banco);
+
+    // Outra invocação (não um retry automático) encontra o botão ausente,
+    // não reemite o GET mutador e não cria segunda atividade.
+    let repeticao = executar(
+        &pasta,
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
+        4,
+    );
+    assert_eq!(repeticao.status.code(), Some(1));
+    let banco = Connection::open(&caminho).unwrap();
+    let total: i64 = banco
+        .query_row(
+            "SELECT COUNT(*) FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 AND id_documento='42'
+               AND id_atividade=?3",
+            rusqlite::params![ORIGEM, CENARIO, atividade],
+            |linha| linha.get(0),
+        )
+        .unwrap();
+    assert_eq!(total, 1, "o efeito original permanece único");
+}
