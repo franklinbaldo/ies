@@ -87,8 +87,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     assert_eq!(historicos.len(), 1, "histórico da mesma cassette UnB");
     let ids_historico = gravacao::parametro(historicos[0].item, "id_documento");
     assert!(
-        !ids_historico.is_empty()
-            && ids_historico.iter().all(|id| *id == id_observado),
+        !ids_historico.is_empty() && ids_historico.iter().all(|id| *id == id_observado),
         "histórico e corpo devem pertencer ao mesmo documento"
     );
     let numero = crate::documento::NumeroDocumento::novo(&identidade.numero).unwrap();
