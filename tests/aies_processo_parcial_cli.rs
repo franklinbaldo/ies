@@ -59,11 +59,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     }
     let texto = std::str::from_utf8(&bytes).unwrap();
     let primeira = texto.lines().next().unwrap();
-    let evento = primeira
-        .split_whitespace()
-        .next()
-        .unwrap()
-        .to_owned();
+    let evento = primeira.split_whitespace().next().unwrap().to_owned();
     let acao = primeira
         .split_once('?')
         .and_then(|(_, consulta)| {
@@ -233,11 +229,15 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
         String::from_utf8_lossy(&saida.stderr)
     );
     assert!(
-        pedidos.iter().any(|evento| evento == "GET procedimento_controlar"),
+        pedidos
+            .iter()
+            .any(|evento| evento == "GET procedimento_controlar"),
         "a CLI deve consultar o Controle real do simulador: {pedidos:?}"
     );
     assert!(
-        pedidos.iter().any(|evento| evento == "GET procedimento_visualizar"),
+        pedidos
+            .iter()
+            .any(|evento| evento == "GET procedimento_visualizar"),
         "a identidade divergente precisa ser encontrada na árvore: {pedidos:?}"
     );
     assert!(
