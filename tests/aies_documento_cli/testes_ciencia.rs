@@ -87,7 +87,6 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
     assert_eq!(registros_depois, vec![atividade.to_owned()]);
 }
 
-
 /// O BDD-271-02 requer identidade documental: a ciência de um documento
 /// não autoriza atribuir sua atividade ao outro documento do mesmo processo.
 /// Ensaio sintético; não observa usuário de uma sessão real nem prova SEI.
@@ -150,11 +149,7 @@ fn bdd_271_02_ciencias_de_documentos_distintos_nao_se_confundem() {
         .unwrap();
     assert_eq!(pendente, 0);
     drop(banco);
-    let previa_outro = executar(
-        &pasta,
-        &["--json", "documento", "ciente", OUTRO_DOC],
-        4,
-    );
+    let previa_outro = executar(&pasta, &["--json", "documento", "ciente", OUTRO_DOC], 4);
     assert_eq!(
         previa_outro.status.code(),
         Some(0),
