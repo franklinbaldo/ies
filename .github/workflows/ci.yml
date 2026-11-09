@@ -233,7 +233,6 @@ jobs:
       - name: Replay with real readers and verified cassette members
         run: cargo test --locked --bin ies documento_criar::acervo::replay_documento_criar_go -- --ignored --exact --nocapture --test-threads=1
 
-
   replay-processo-criar:
     # Gate obrigatório da issue #245: o replay não pode ficar só ignorado.
     # ZIPs públicos conferidos por SHA-1; membros por SHA-256 no leitor Rust.
