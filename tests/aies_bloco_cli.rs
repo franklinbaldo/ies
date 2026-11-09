@@ -1,5 +1,5 @@
 //! BDD-256-01: CLI real, HTTPS local, anti-IES, mesmo SQLite efemero.
-//! Numeros e estados sao hipoteses sinteticas, nao dados da cassette UnB.
+//! Numeros e estados sao hipoteses sinteticas, nao dados da cassette `UnB`.
 #![cfg(unix)]
 
 use anti_ies::atender_http;
@@ -125,6 +125,32 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
+fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao) {
+    blocos::guardar(
+        banco,
+        instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Assinatura,
+            total: 4,
+            faixa: Some((1, 2)),
+            linhas: vec![
+                LinhaBloco {
+                    numero: "2195".into(),
+                    estado: "Gerado".into(),
+                    descricao: "Despachos de teste".into(),
+                },
+                LinhaBloco {
+                    numero: "2196".into(),
+                    estado: "Disponibilizado".into(),
+                    descricao: "Assinaturas pendentes".into(),
+                },
+            ],
+        },
+    )
+    .unwrap();
+}
+
 fn executar() -> (Output, Vec<String>) {
     let esperados = 2usize;
     let pasta = Pasta::nova();
@@ -157,29 +183,7 @@ fn executar() -> (Output, Vec<String>) {
             },
         )
         .unwrap();
-        blocos::guardar(
-            &mut banco,
-            &instalacao,
-            CENARIO,
-            &Pagina {
-                tipo: Tipo::Assinatura,
-                total: 4,
-                faixa: Some((1, 2)),
-                linhas: vec![
-                    LinhaBloco {
-                        numero: "2195".into(),
-                        estado: "Gerado".into(),
-                        descricao: "Despachos de teste".into(),
-                    },
-                    LinhaBloco {
-                        numero: "2196".into(),
-                        estado: "Disponibilizado".into(),
-                        descricao: "Assinaturas pendentes".into(),
-                    },
-                ],
-            },
-        )
-        .unwrap();
+        registrar_blocos(&mut banco, &instalacao);
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
