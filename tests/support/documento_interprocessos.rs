@@ -190,9 +190,8 @@ pub(super) fn executar_versao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
 #[path = "documento_interprocessos_transicoes.rs"]
 mod transicoes;
 use transicoes::{
-    conferir_estado_apos_cli, revogar_antes_de_servir_corpo,
-    revogar_sessao_antes_de_servir_corpo, revogar_versao_antes_de_servir_corpo,
-    trocar_titulo_antes_de_servir_corpo,
+    conferir_estado_apos_cli, revogar_antes_de_servir_corpo, revogar_sessao_antes_de_servir_corpo,
+    revogar_versao_antes_de_servir_corpo, trocar_titulo_antes_de_servir_corpo,
 };
 
 fn executar_com_estado(
