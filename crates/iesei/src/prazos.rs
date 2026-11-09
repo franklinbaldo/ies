@@ -7,6 +7,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 pub enum EstadoDoPrazo {
     SemPrazo,
     Data(String),
+    Dias(u16),
     Concluido,
 }
 
@@ -36,19 +37,24 @@ pub fn guardar(
     if cenario.is_empty() || id.is_empty() {
         return Err(Falha::EstadoInvalido);
     }
-    let (vence_em, concluido): (Option<&str>, bool) = match estado {
-        EstadoDoPrazo::SemPrazo => (None, false),
-        EstadoDoPrazo::Data(data) if !data.is_empty() => (Some(data), false),
+    let (vence_em, concluido, dias): (Option<&str>, bool, Option<i64>) = match estado {
+        EstadoDoPrazo::SemPrazo => (None, false, None),
+        EstadoDoPrazo::Data(data) if !data.is_empty() => (Some(data), false, None),
         EstadoDoPrazo::Data(_) => return Err(Falha::EstadoInvalido),
-        EstadoDoPrazo::Concluido => (None, true),
+        EstadoDoPrazo::Dias(dias) if (1..=999).contains(dias) => {
+            (None, false, Some(i64::from(*dias)))
+        }
+        EstadoDoPrazo::Dias(_) => return Err(Falha::EstadoInvalido),
+        EstadoDoPrazo::Concluido => (None, true, None),
     };
     banco.execute(
         "INSERT INTO prazo_processo
-         (origem, cenario, id_procedimento, vence_em, concluido)
-         VALUES (?1, ?2, ?3, ?4, ?5)
+         (origem, cenario, id_procedimento, vence_em, concluido, dias)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT(origem, cenario, id_procedimento) DO UPDATE SET
-         vence_em=excluded.vence_em, concluido=excluded.concluido",
-        params![instalacao.url_base(), cenario, id, vence_em, concluido],
+         vence_em=excluded.vence_em, concluido=excluded.concluido,
+         dias=excluded.dias",
+        params![instalacao.url_base(), cenario, id, vence_em, concluido, dias],
     )?;
     Ok(())
 }
@@ -63,19 +69,22 @@ pub fn ler(
     cenario: &str,
     id: &str,
 ) -> Result<Option<EstadoDoPrazo>, Falha> {
-    let linha: Option<(Option<String>, bool)> = banco
+    let linha: Option<(Option<String>, bool, Option<i64>)> = banco
         .query_row(
-            "SELECT vence_em, concluido FROM prazo_processo
+            "SELECT vence_em, concluido, dias FROM prazo_processo
              WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
             params![instalacao.url_base(), cenario, id],
-            |linha| Ok((linha.get(0)?, linha.get(1)?)),
+            |linha| Ok((linha.get(0)?, linha.get(1)?, linha.get(2)?)),
         )
         .optional()?;
     linha
-        .map(|(data, concluido)| match (data, concluido) {
-            (None, false) => Ok(EstadoDoPrazo::SemPrazo),
-            (Some(data), false) if !data.is_empty() => Ok(EstadoDoPrazo::Data(data)),
-            (None, true) => Ok(EstadoDoPrazo::Concluido),
+        .map(|(data, concluido, dias)| match (data, concluido, dias) {
+            (None, false, None) => Ok(EstadoDoPrazo::SemPrazo),
+            (Some(data), false, None) if !data.is_empty() => Ok(EstadoDoPrazo::Data(data)),
+            (None, false, Some(dias @ 1..=999)) => u16::try_from(dias)
+                .map(EstadoDoPrazo::Dias)
+                .map_err(|_| Falha::EstadoInvalido),
+            (None, true, None) => Ok(EstadoDoPrazo::Concluido),
             _ => Err(Falha::EstadoInvalido),
         })
         .transpose()

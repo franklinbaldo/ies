@@ -47,7 +47,7 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     // reservada .test. Release e pedidos fora desta fatia não abrem sessão.
     if *confirmar
         && (!cfg!(debug_assertions)
-            || !matches!(pedido, PedidoDePrazo::Ate(_))
+            || !matches!(pedido, PedidoDePrazo::Ate(_) | PedidoDePrazo::Dias(_))
             || !origem_local_sintetica())
     {
         return Some(recusar(
@@ -199,7 +199,7 @@ fn previsualizar(
         }
     };
     let tela = if confirmar {
-        match confirmar_data(
+        match confirmar_prazo(
             sessao,
             &cookie,
             &link,
@@ -243,6 +243,7 @@ fn publicar_previa(
     let atual = match &tela.estado {
         EstadoDoPrazo::SemPrazo => json!({"tipo": "sem_prazo"}),
         EstadoDoPrazo::Data(data) => json!({"tipo": "data", "data": data}),
+        EstadoDoPrazo::Dias(dias) => json!({"tipo": "dias", "dias": dias}),
         EstadoDoPrazo::Concluido => json!({"tipo": "concluido"}),
     };
     let solicitado = match pedido {
@@ -330,7 +331,7 @@ fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
 
 /// Apenas o primeiro POST tem efeito; erro depois do envio é incerto.
 #[allow(clippy::too_many_arguments)]
-fn confirmar_data<V: EnvioDoProcesso>(
+fn confirmar_prazo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     cookie: &str,
     link: &str,
@@ -340,8 +341,10 @@ fn confirmar_data<V: EnvioDoProcesso>(
     id: &str,
     rede: &mut Contador<'_, V>,
 ) -> Result<TelaDoPrazo, FalhaConfirmacao> {
-    let PedidoDePrazo::Ate(data) = pedido else {
-        return Err(FalhaConfirmacao::Preparo);
+    let esperado = match pedido {
+        PedidoDePrazo::Ate(data) => EstadoDoPrazo::Data(data.clone()),
+        PedidoDePrazo::Dias(dias) => EstadoDoPrazo::Dias(*dias),
+        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => return Err(FalhaConfirmacao::Preparo),
     };
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(FalhaConfirmacao::Preparo)?;
     let codificacao = codificacao_da_tela(mime).ok_or(FalhaConfirmacao::Preparo)?;
@@ -379,7 +382,7 @@ fn confirmar_data<V: EnvioDoProcesso>(
     let (nova, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
     let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
-    if verificada.estado != EstadoDoPrazo::Data(data.clone()) {
+    if verificada.estado != esperado {
         return Err(FalhaConfirmacao::EfeitoIncerto(None));
     }
     Ok(verificada)

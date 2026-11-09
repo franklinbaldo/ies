@@ -35,6 +35,7 @@ impl ErroPrazo {
 pub(crate) enum EstadoDoPrazo {
     SemPrazo,
     Data(String),
+    Dias(u16),
     Concluido,
 }
 
@@ -183,6 +184,7 @@ fn ler_controles_da_tela(
     let mut radios = std::collections::HashSet::new();
     let mut marcada: Option<String> = None;
     let mut data = String::new();
+    let mut dias = String::new();
     let mut valor_dos_uteis = String::new();
     let mut botoes = 0u8;
     let mut id_conferido = false;
@@ -246,6 +248,7 @@ fn ler_controles_da_tela(
                 if presente(tag, "readonly")? {
                     return Err(E::TelaNaoObservada);
                 }
+                dias = valor.unwrap_or_default();
             }
             ("chkSinDiasUteis", "input", "checkbox") => {
                 if presente(tag, "readonly")? {
@@ -264,6 +267,12 @@ fn ler_controles_da_tela(
     }
     let estado = match marcada.as_deref() {
         Some("1") if data_valida(&data) => EstadoDoPrazo::Data(data),
+        Some("2") => EstadoDoPrazo::Dias(
+            dias.parse::<u16>()
+                .ok()
+                .filter(|n| (1..=999).contains(n))
+                .ok_or(E::TelaNaoObservada)?,
+        ),
         Some("3") => EstadoDoPrazo::Concluido,
         None => EstadoDoPrazo::SemPrazo,
         _ => return Err(E::TelaNaoObservada),
@@ -365,6 +374,15 @@ mod tests {
         assert_eq!(
             ler_tela(&tela("", ""), "10").unwrap().estado,
             EstadoDoPrazo::SemPrazo
+        );
+    }
+
+    #[test]
+    fn tela_le_prazo_em_dias_sem_inferir_data_de_calendario() {
+        let por_dias = tela("2", "").replace("name='txtDias' value=''", "name='txtDias' value='15'");
+        assert_eq!(
+            ler_tela(&por_dias, "10").unwrap().estado,
+            EstadoDoPrazo::Dias(15)
         );
     }
 

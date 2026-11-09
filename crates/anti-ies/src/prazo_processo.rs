@@ -31,10 +31,11 @@ pub(crate) fn responder(
     if metodo == "POST" {
         return gravar_prazo(corpo, banco, instalacao, cenario, id);
     }
-    let (radio_data, radio_concluido, data) = match estado {
-        EstadoDoPrazo::SemPrazo => ("", "", String::new()),
-        EstadoDoPrazo::Data(data) => (" checked", "", escapar(&data)),
-        EstadoDoPrazo::Concluido => ("", " checked", String::new()),
+    let (radio_data, radio_dias, radio_concluido, data, dias) = match estado {
+        EstadoDoPrazo::SemPrazo => ("", "", "", String::new(), String::new()),
+        EstadoDoPrazo::Data(data) => (" checked", "", "", escapar(&data), String::new()),
+        EstadoDoPrazo::Dias(dias) => ("", " checked", "", String::new(), dias.to_string()),
+        EstadoDoPrazo::Concluido => ("", "", " checked", String::new(), String::new()),
     };
     let id = escapar(id);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
@@ -46,8 +47,8 @@ pub(crate) fn responder(
          <input type='hidden' name='hdnIdProcedimentos' value='{id}'>\
          <input type='radio' name='rdoPrazo' value='1'{radio_data}>\
          <input type='text' name='txtPrazo' value='{data}'>\
-         <input type='radio' name='rdoPrazo' value='2'>\
-         <input type='text' name='txtDias' value=''>\
+         <input type='radio' name='rdoPrazo' value='2'{radio_dias}>\
+         <input type='text' name='txtDias' value='{dias}'>\
          <input type='radio' name='rdoPrazo' value='3'{radio_concluido}>\
          <input type='checkbox' name='chkSinDiasUteis' value='on'>\
          <button type='submit' name='sbmDefinirControlePrazo'>Salvar</button>\
@@ -73,10 +74,20 @@ fn gravar_prazo(
     let (Some(processo), Some(opcao), Some(data), Some(dias)) = pedido else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if processo != id || opcao != "1" || data.is_empty() || !dias.is_empty() {
+    if processo != id {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    match prazos::guardar(banco, instalacao, cenario, id, &EstadoDoPrazo::Data(data)) {
+    let pedido = match (opcao.as_str(), data.is_empty(), dias.is_empty()) {
+        ("1", false, true) => EstadoDoPrazo::Data(data),
+        ("2", true, false) => {
+            let Some(dias) = dias.parse::<u16>().ok().filter(|n| (1..=999).contains(n)) else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            EstadoDoPrazo::Dias(dias)
+        }
+        _ => return Resposta::nova(Estado::RequisicaoInvalida),
+    };
+    match prazos::guardar(banco, instalacao, cenario, id, &pedido) {
         Ok(()) => Resposta::redirecionar(format!(
             "controlador.php?acao=controle_prazo_definir&resultado=1&id_procedimento={id}"
         )),
