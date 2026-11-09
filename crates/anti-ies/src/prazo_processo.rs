@@ -96,7 +96,7 @@ fn gravar_prazo(
     }
 }
 
-fn campo_unico(corpo: &str, campo: &str) -> Option<String> {
+pub(crate) fn campo_unico(corpo: &str, campo: &str) -> Option<String> {
     let mut valores = corpo
         .split('&')
         .filter_map(|parte| parte.split_once('='))
