@@ -95,3 +95,85 @@ pub fn ler(
         })
         .transpose()
 }
+
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LinhaDePrazo {
+    pub id_procedimento: String,
+    pub nup: String,
+    pub estado: EstadoDoPrazo,
+}
+
+/// Lista apenas os controles de prazo em vigor na unidade observada.
+///
+/// # Errors
+/// Propaga falhas SQLite, sem transformar ausencia de observacao em lista vazia.
+pub fn listar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    unidade: &str,
+) -> Result<Vec<LinhaDePrazo>, Falha> {
+    let mut consulta = banco.prepare(
+        "SELECT prazo.id_procedimento, base.nup, prazo.vence_em, prazo.dias
+         FROM prazo_processo prazo
+         JOIN sim_processo base
+           ON base.origem=prazo.origem AND base.cenario=prazo.cenario
+          AND base.id_procedimento=prazo.id_procedimento
+         JOIN processo_abertura aberta
+           ON aberta.origem=prazo.origem AND aberta.cenario=prazo.cenario
+          AND aberta.id_procedimento=prazo.id_procedimento
+         WHERE prazo.origem=?1 AND prazo.cenario=?2 AND aberta.unidade=?3
+           AND (prazo.vence_em IS NOT NULL OR prazo.dias IS NOT NULL)
+           AND prazo.concluido=0
+         ORDER BY prazo.id_procedimento",
+    )?;
+    let linhas = consulta
+        .query_map(params![instalacao.url_base(), cenario, unidade], |linha| {
+            Ok((
+                linha.get::<_, String>(0)?,
+                linha.get::<_, String>(1)?,
+                linha.get::<_, Option<String>>(2)?,
+                linha.get::<_, Option<i64>>(3)?,
+            ))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    linhas
+        .into_iter()
+        .map(|(id_procedimento, nup, data, dias)| {
+            let estado = match (data, dias) {
+                (Some(data), None) if !data.is_empty() => EstadoDoPrazo::Data(data),
+                (None, Some(dias @ 1..=999)) => {
+                    EstadoDoPrazo::Dias(u16::try_from(dias).map_err(|_| Falha::EstadoInvalido)?)
+                }
+                _ => return Err(Falha::EstadoInvalido),
+            };
+            Ok(LinhaDePrazo {
+                id_procedimento,
+                nup,
+                estado,
+            })
+        })
+        .collect()
+}
+
+/// Retira o prazo ativo, preservando a observacao explicita SemPrazo.
+/// Identidade/escopo devem ter sido conferidos na lista da unidade.
+///
+/// # Errors
+/// Propaga falha de escrita SQLite; retorna false se nao havia prazo ativo.
+pub fn excluir(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> Result<bool, Falha> {
+    let linhas = banco.execute(
+        "UPDATE prazo_processo
+         SET vence_em=NULL, dias=NULL, concluido=0
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3
+           AND concluido=0 AND (vence_em IS NOT NULL OR dias IS NOT NULL)",
+        params![instalacao.url_base(), cenario, id],
+    )?;
+    Ok(linhas == 1)
+}
