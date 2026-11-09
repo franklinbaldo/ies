@@ -131,7 +131,9 @@ fn revisoes_observadas(historico: &HistoricoDocumento, texto: &str) -> Vec<Revis
     let ultima = historico.atual().unwrap().numero();
     let revisoes: Vec<_> = (1..=ultima)
         .filter_map(|n| {
-            let entrada = historico.selecionar(VersaoDocumento::nova(n).unwrap()).ok()?;
+            let entrada = historico
+                .selecionar(VersaoDocumento::nova(n).unwrap())
+                .ok()?;
             Some(Revisao {
                 versao: NonZeroU32::new(n).unwrap(),
                 usuario: entrada.usuario.clone(),
