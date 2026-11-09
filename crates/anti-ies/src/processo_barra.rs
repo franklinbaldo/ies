@@ -34,8 +34,7 @@ pub(crate) fn acoes_do_processo(
         )
         .expect("formatação de String");
     }
-    if matches!(ciencia, Ciencia::Pendente)
-        && processo.aberto_em.iter().any(|u| u == unidade_atual)
+    if matches!(ciencia, Ciencia::Pendente) && processo.aberto_em.iter().any(|u| u == unidade_atual)
     {
         links.push_str(r##"<a href="#" onclick="cienciaProcesso();" title="Ciência">Ciência</a>"##);
     }
