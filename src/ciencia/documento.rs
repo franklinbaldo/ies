@@ -30,6 +30,7 @@ pub(crate) struct CienciaDoDocumento {
     pub(crate) confirmado: bool,
     pub(crate) verificado: bool,
     pub(crate) id_atividade: Option<String>,
+    pub(crate) usuario: Option<String>,
     pub(crate) requisicoes: u8,
 }
 
@@ -171,6 +172,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         confirmado: pedido.confirmar,
         verificado: false,
         id_atividade: None,
+        usuario: None,
         requisicoes: rede.feitas(),
     };
     if !pedido.confirmar {
@@ -223,12 +225,13 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     };
     feito.requisicoes = rede.feitas();
     match prova {
-        Ok(true) => {
+        Ok((true, usuario)) => {
             feito.verificado = true;
             feito.id_atividade = atividade;
+            feito.usuario = usuario;
             Ok(feito)
         }
-        Ok(false) => Err(E::EfeitoIncerto {
+        Ok((false, _)) => Err(E::EfeitoIncerto {
             motivo: "atividade_da_ciencia_nao_encontrada_na_lista_do_documento",
             requisicoes: rede.feitas(),
             falha_do_aceite,
@@ -281,7 +284,7 @@ fn verificar<V: EnvioDoProcesso>(
     id_procedimento: &str,
     id_documento: &str,
     atividade: Option<&str>,
-) -> Result<bool, &'static str> {
+) -> Result<(bool, Option<String>), &'static str> {
     let abertura = PedidoDoDocumento {
         numero: pedido.numero,
         processo: pedido.processo,
@@ -304,6 +307,13 @@ fn verificar<V: EnvioDoProcesso>(
         .map_err(|_| "releitura_da_lista_de_ciencias_do_documento_falhou")?;
     let html = decodificar_resposta(resposta.resposta)
         .map_err(|_| "resposta_da_lista_de_ciencias_do_documento_nao_lida")?;
-    atividade_na_lista(&html, atividade)
-        .map_err(|_| "lista_de_ciencias_do_documento_nao_comprovou_atividade")
+    let presente = atividade_na_lista(&html, atividade)
+        .map_err(|_| "lista_de_ciencias_do_documento_nao_comprovou_atividade")?;
+    let usuario = if presente {
+        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
+            .map_err(|_| "lista_de_ciencias_do_documento_nao_comprovou_atividade")?
+    } else {
+        None
+    };
+    Ok((presente, usuario))
 }
