@@ -2,6 +2,7 @@
 //! Hipótese sintética, não prova paridade com uma instalação SEI.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::andamentos::{self, Historico, Linha as LinhaDoHistorico};
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -60,6 +61,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
         .split_once('?')
         .and_then(|(_, query)| query.split('&').find_map(|s| s.strip_prefix("acao=")))
         .unwrap_or("sem_acao");
+    let evento = format!("{metodo} {acao}");
     let tamanho = texto.lines().find_map(|linha| {
         let (chave, valor) = linha.split_once(':')?;
         chave.eq_ignore_ascii_case("content-length").then(|| valor.trim().parse::<usize>().unwrap())
@@ -68,7 +70,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     let mut corpo = vec![0; tamanho];
     fonte.read_exact(&mut corpo).unwrap();
     cabecalho.extend(corpo);
-    (cabecalho, format!("{metodo} {acao}"))
+    (cabecalho, evento)
 }
 
 fn estado() -> (Connection, Instalacao) {
@@ -107,7 +109,22 @@ fn estado() -> (Connection, Instalacao) {
             destinos: vec![],
         },
     ).unwrap();
-    // REGISTRAR_HISTORICO_AQUI
+    andamentos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        "10",
+        &Historico {
+            total_declarado: 1,
+            linhas: vec![LinhaDoHistorico {
+                ocorrido_em: "09/11/2026 10:00".into(),
+                unidade: "TESTE".into(),
+                usuario: "aluno".into(),
+                descricao: "Andamento anterior".into(),
+            }],
+        },
+    )
+    .unwrap();
     (banco, instalacao)
 }
 
@@ -138,7 +155,9 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        // RELEITURA_SQLITE_AQUI
+        andamentos::ler(&banco, &instalacao, CENARIO, "10")
+            .unwrap()
+            .unwrap()
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos = Arc::clone(&trilha);
@@ -179,7 +198,10 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         .output().unwrap();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
-    servidor.join().unwrap();
+    let persistido = servidor.join().unwrap();
+    assert_eq!(persistido.total_declarado, 1);
+    assert_eq!(persistido.linhas.len(), 1);
+    assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
     let pedidos = trilha.lock().unwrap();
     assert_eq!(saida.status.code(), Some(0),
         "stdout={} stderr={} pedidos={pedidos:?}",
