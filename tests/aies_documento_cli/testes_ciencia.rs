@@ -200,3 +200,52 @@ fn bdd_271_02_ciencias_de_documentos_distintos_nao_se_confundem() {
         ]
     );
 }
+
+
+/// BDD-271-02, lacuna de autoria: a revisão ("Ana"/"Bia") não prova
+/// quem praticou a ciência. A identidade desta sessão é explicitamente
+/// preparada no SQLite sintético e não deriva de cookie ou credencial.
+#[test]
+fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
+    let pasta = Pasta::nova();
+    let previa = executar(&pasta, &["--json", "documento", "ciente", DOC], 4);
+    assert_eq!(previa.status.code(), Some(0));
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let banco = Connection::open(&caminho).unwrap();
+    // DML de uma sessão conhecida, nunca DDL de fixture no teste.
+    // RED: a tabela de identidade da sessão ainda não existe.
+    banco.execute(
+        "INSERT INTO sessao_usuario (origem, cenario, usuario)
+         VALUES (?1, ?2, ?3)",
+        rusqlite::params![ORIGEM, CENARIO, "agente-de-teste"],
+    )
+    .unwrap();
+    drop(banco);
+
+    let confirmado = executar(
+        &pasta,
+        &["--json", "documento", "ciente", DOC, "--confirmar"],
+        11,
+    );
+    assert_eq!(
+        confirmado.status.code(),
+        Some(0),
+        "stderr={}",
+        String::from_utf8_lossy(&confirmado.stderr)
+    );
+    let resultado = json(&confirmado);
+    assert_eq!(resultado["verificado"], true);
+    let id = resultado["id_atividade"].as_str().unwrap();
+    let banco = Connection::open(&caminho).unwrap();
+    let (atividade, usuario): (String, Option<String>) = banco
+        .query_row(
+            "SELECT id_atividade, usuario FROM ciencia_documental
+             WHERE origem=?1 AND cenario=?2 AND id_documento='42'",
+            rusqlite::params![ORIGEM, CENARIO],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(atividade, id);
+    assert_eq!(usuario.as_deref(), Some("agente-de-teste"));
+    assert_ne!(usuario.as_deref(), Some("Bia"), "autor da revisão não é autor da ciência");
+}
