@@ -125,7 +125,11 @@ fn banco(vinculo_inicial: bool) -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar(vinculo_inicial: bool, post_local: bool, remover_local: bool) -> (Output, Vec<String>, usize) {
+fn executar(
+    vinculo_inicial: bool,
+    post_local: bool,
+    remover_local: bool,
+) -> (Output, Vec<String>, usize) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -381,6 +385,16 @@ fn bdd_258_03_parcial_exclusao_local_e_previa_cli_observam_ausencia() {
     assert_eq!(valor["sem_efeito"], true);
     assert_eq!(valor["confirmado"], false);
     assert_eq!(relacionados, 0, "o SQLite deixou de registrar a aresta");
-    assert!(eventos.iter().all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida"));
-    assert_eq!(eventos.iter().filter(|e| e.as_str() == "GET procedimento_relacionar").count(), 1);
+    assert!(
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST protocolo_pesquisa_rapida")
+    );
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|e| e.as_str() == "GET procedimento_relacionar")
+            .count(),
+        1
+    );
 }
