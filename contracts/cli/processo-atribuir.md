@@ -78,7 +78,11 @@ o usuário pedido ou a remoção: outro agente pode ter realizado a
 mudança no intervalo. A leitura nova ainda registra
 `atribuicao_relida` no JSON (`null` = não observada, texto vazio =
 remoção observada), como **possível resíduo e não prova de autoria**.
-O erro original do envio fica preservado no erro tipado, sem retry. O 302
+O erro original do envio fica preservado no erro tipado, sem retry.
+A mensagem humana e o campo `mensagem` do JSON orientam **não repetir a
+confirmação de efeito incerto**, mesmo quando a releitura mostra o estado
+pedido. Consulte o processo para verificar o possível resíduo, não para
+transformar a tentativa inconclusiva em autorização de retry. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
 solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 3 após a leitura única. As duas ações são
