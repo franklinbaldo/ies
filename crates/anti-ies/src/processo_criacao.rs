@@ -120,8 +120,13 @@ pub(crate) fn controle_com_menu(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    acrescentar_menu(
-        controlar(metodo, alvo, banco, instalacao, cenario),
+    crate::prazo_processo::acrescentar_menu(
+        acrescentar_menu(
+            controlar(metodo, alvo, banco, instalacao, cenario),
+            banco,
+            instalacao,
+            cenario,
+        ),
         banco,
         instalacao,
         cenario,

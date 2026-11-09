@@ -4,6 +4,7 @@ use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::prazos::{self, EstadoDoPrazo};
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 /// Serve o formulário sintético sem inferir "sem prazo" de ausência de captura.
 pub(crate) fn responder(
@@ -119,4 +120,105 @@ fn campo_unico(corpo: &str, campo: &str) -> Option<String> {
         }
     }
     String::from_utf8(bytes).ok()
+}
+
+fn unidade_da_lista(banco: &Connection, instalacao: &Instalacao, cenario: &str) -> Option<String> {
+    iesei::banco_cassettes::ler(banco, instalacao, cenario)
+        .ok()
+        .flatten()
+        .map(|controle| controle.unidade.as_str().to_owned())
+}
+
+/// O menu da unidade oferece a lista somente quando ha prazo em vigor.
+pub(crate) fn acrescentar_menu(
+    mut resposta: Resposta,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    if resposta.estado != Estado::Ok {
+        return resposta;
+    }
+    let Some(unidade) = unidade_da_lista(banco, instalacao, cenario) else {
+        return resposta;
+    };
+    let Ok(linhas) = prazos::listar(banco, instalacao, cenario, &unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    if !linhas.is_empty() && resposta.corpo.contains("</body>") {
+        let assinatura = crate::protocolo_sintetico::INFRA_HASH;
+        let link = format!(
+            "<a href='controlador.php?acao=controle_prazo_listar&amp;infra_hash={assinatura}'>Controle de Prazos</a>"
+        );
+        resposta.corpo = resposta
+            .corpo
+            .replacen("</body>", &format!("{link}</body>"), 1);
+    }
+    resposta
+}
+
+/// Lista de prazos da unidade. A identidade do item de exclusao usa, por
+/// hipotese sintetica, o id do processo; o SEI pode usar id distinto.
+pub(crate) fn responder_lista(
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Resposta {
+    let Some(unidade) = unidade_da_lista(banco, instalacao, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Ok(linhas) = prazos::listar(banco, instalacao, cenario, &unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    match (parametro_unico(alvo, "acao"), metodo) {
+        (Some("controle_prazo_listar"), "GET") => {
+            let hash = crate::protocolo_sintetico::INFRA_HASH;
+            let mut pagina = format!(
+                "<html><body><form id='frmControlePrazoLista' method='post'                  action='controlador.php?acao=controle_prazo_listar&amp;infra_hash={hash}'>                 <input type='hidden' name='hdnInfraItemId' value=''>                 <table><thead><tr><th>Processo</th><th>Prazo</th><th>Acoes</th></tr></thead><tbody>"
+            );
+            for linha in linhas {
+                let id = escapar(&linha.id_procedimento);
+                let nup = escapar(&linha.nup);
+                let prazo = match linha.estado {
+                    EstadoDoPrazo::Data(data) => escapar(&data),
+                    EstadoDoPrazo::Dias(dias) => dias.to_string(),
+                    EstadoDoPrazo::SemPrazo | EstadoDoPrazo::Concluido => continue,
+                };
+                write!(&mut pagina,
+                    "<tr><td>{nup}</td><td>{prazo}</td><td><a href='#'                      onclick=\"acaoExcluir('{id}','{nup}');\">Excluir</a></td></tr>"
+                )
+                .expect("formatacao de String");
+            }
+            write!(&mut pagina,
+                "</tbody></table></form><script>function acaoExcluir(id, nup) {{                  document.getElementById('frmControlePrazoLista').action =                  'controlador.php?acao=controle_prazo_excluir&infra_hash={hash}';                  }}</script></body></html>"
+            )
+            .expect("formatacao de String");
+            Resposta::html(pagina)
+        }
+        (Some("controle_prazo_excluir"), "POST") => {
+            let Some(id) = campo_unico(corpo, "hdnInfraItemId")
+                .filter(|id| id.bytes().all(|c| c.is_ascii_digit()))
+            else {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            };
+            if !linhas.iter().any(|linha| linha.id_procedimento == id) {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            match prazos::excluir(banco, instalacao, cenario, &id) {
+                Ok(true) => Resposta::redirecionar(
+                    "controlador.php?acao=controle_prazo_listar&acao_origem=controle_prazo_excluir"
+                        .to_owned(),
+                ),
+                Ok(false) => Resposta::nova(Estado::RequisicaoInvalida),
+                Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+            }
+        }
+        (Some("controle_prazo_listar" | "controle_prazo_excluir"), _) => {
+            Resposta::nova(Estado::MetodoNaoPermitido)
+        }
+        _ => Resposta::nova(Estado::RequisicaoInvalida),
+    }
 }

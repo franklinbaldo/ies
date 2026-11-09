@@ -211,7 +211,7 @@ fn executar_com_resposta(
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
-            if negar_aceite && evento == "POST controle_prazo_definir" {
+            if negar_aceite && evento.starts_with("POST controle_prazo_") {
                 // O SQLite já persistiu o efeito, mas a rede nega o aceite.
                 // Uma confirmação insegura não pode declarar sucesso nem refazer POST.
                 resposta = b"HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
@@ -386,5 +386,78 @@ fn bdd_272_02_post_aplicado_mas_recusado_retorna_efeito_incerto_sem_retry() {
             .count(),
         1,
         "não repetir o envio inconclusivo: {pedidos:?}"
+    );
+}
+
+#[test]
+fn bdd_272_03_previa_de_exclusao_nao_altera_prazo() {
+    let (saida, pedidos, estado_final) = executar_com_argumentos("data", &["--excluir"]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["confirmado"], false);
+    assert_eq!(estado_final, (Some("20/11/2026".into()), false));
+    assert!(
+        pedidos.iter().any(|p| p == "GET controle_prazo_listar"),
+        "exclusão nasce da lista de prazos da unidade: {pedidos:?}"
+    );
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")));
+}
+
+#[test]
+fn bdd_272_03_exclui_pela_lista_com_post_unico_e_releitura() {
+    let (saida, pedidos, estado_final) =
+        executar_com_argumentos("data", &["--excluir", "--confirmar"]);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["confirmado"], true);
+    assert_eq!(json["atual"]["tipo"], "sem_prazo");
+    assert_eq!(estado_final, (None, false));
+    let escrita = pedidos
+        .iter()
+        .position(|p| p == "POST controle_prazo_excluir")
+        .expect("exclusão da lista, não definição");
+    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
+    assert!(
+        pedidos[escrita + 1..]
+            .iter()
+            .any(|p| p == "GET controle_prazo_listar"),
+        "verificação da remoção é a lista relida: {pedidos:?}"
+    );
+}
+
+#[test]
+fn bdd_272_03_post_exclusao_persistido_sem_aceite_retorna_3_sem_retry() {
+    let (saida, pedidos, estado_final) =
+        executar_com_resposta("data", &["--excluir", "--confirmar"], true);
+    assert_eq!(
+        saida.status.code(),
+        Some(3),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["retentavel"], false);
+    assert_eq!(estado_final, (None, false));
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p == &"POST controle_prazo_excluir")
+            .count(),
+        1,
+        "não repetir exclusão inconclusiva: {pedidos:?}"
     );
 }

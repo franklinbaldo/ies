@@ -20,6 +20,8 @@ use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_er
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
+mod exclusao;
+
 pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
         acao:
@@ -47,7 +49,10 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     // reservada .test. Release e pedidos fora desta fatia não abrem sessão.
     if *confirmar
         && (!cfg!(debug_assertions)
-            || !matches!(pedido, PedidoDePrazo::Ate(_) | PedidoDePrazo::Dias(_))
+            || !matches!(
+                pedido,
+                PedidoDePrazo::Ate(_) | PedidoDePrazo::Dias(_) | PedidoDePrazo::Excluir
+            )
             || !origem_local_sintetica())
     {
         return Some(recusar(
@@ -56,7 +61,7 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
             "confirmação de prazo indisponível neste binário ou pedido",
         ));
     }
-    if pedido == PedidoDePrazo::Excluir {
+    if pedido == PedidoDePrazo::Excluir && (!cfg!(debug_assertions) || !origem_local_sintetica()) {
         return Some(recusar(
             cli.json,
             "exclusao_de_prazo_ainda_nao_disponivel",
@@ -71,7 +76,11 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
                 "confirmação permitida somente no simulador local reservado",
             );
         }
-        previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
+        if pedido == PedidoDePrazo::Excluir {
+            exclusao::executar(cli, &nup, *confirmar, sessao, indice)
+        } else {
+            previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
+        }
     }))
 }
 

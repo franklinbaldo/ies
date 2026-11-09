@@ -15,8 +15,9 @@ Na **CLI de desenvolvimento**, exclusivamente com a origem reservada
 `https://sei.test/sei`, `--confirmar` envia uma única requisição POST
 para o anti-IES e relê o formulário antes de declarar sucesso. No binário
 de distribuição, a confirmação permanece bloqueada antes de qualquer
-requisição. `--excluir` depende da lista de prazos da unidade e segue
-bloqueado.
+requisição. `--excluir` deriva da lista de prazos da unidade (`controle_prazo_listar`),
+com envio unico de `controle_prazo_excluir` e verificacao por releitura.
+A escrita de exclusao so roda em debug com a origem sintetica reservada.
 
 ## Entrada e saída
 
@@ -25,7 +26,7 @@ bloqueado.
 - `--dias N`: 1 a 999 dias corridos; a contagem é do SEI.
 - `--excluir`: exclusivo com os dois anteriores.
 - `--confirmar`: recusado antes da rede no binário release; no binário
-  debug, aceito apenas para `--ate`/`--dias` contra a origem sintética
+  debug, aceito para `--ate`/`--dias` e `--excluir` somente na origem sintetica
   reservada, com um POST e releitura independente.
 - `--unidade`: conferida na abertura pela tela do processo.
 - Saída JSON: `nup`, `id_procedimento`, `unidade`, `origem=web`,
@@ -54,7 +55,7 @@ bloqueado.
 Orçamento esperado: **abertura + 1 GET** para leitura e prévia;
 na confirmação sintética, **abertura + GET do formulário + 1 POST
 + 1 GET de verificação**. Requisições posteriores à escrita verificam o
-estado persistido no mesmo SQLite. Uso inválido, exclusão e confirmação
+estado persistido no mesmo SQLite. Uso inválido, exclusão fora do simulador e confirmação
 em release resultam em **zero requisições**. Uma resposta inconclusiva
 após o POST retorna código 3 sem retry, redirecionamento seguido ou
 restauração de tela.
@@ -98,6 +99,14 @@ a contagem observada sem inventar data de calendário. A integridade dos
 ZIPs UnB/GO foi verificada separadamente; **paridade semântica com as
 respostas originais e treinamento continuam NOT_RUN**.
 
-**Ainda falta para concluir #272:** `--excluir` pela lista de prazos
-e tratamento de páginas, confronto independente do acervo e validação
-live em treinamento autorizado. Nunca escrever na produção.
+**BDD-272-03 (hipotese sintetica):** o anti-IES serve a lista da unidade
+com controles ativos derivados do SQLite, e a CLI so envia o POST apos
+selecionar a linha pelo NUP. O id do item da lista e hipoteticamente igual
+ao id do processo no simulador, enquanto as capturas reais podem distingui-los.
+A lista e o formulario de definicao sao relidos apos o POST; falha ou efeito
+inconclusivo resulta em saida 3 sem retry. A integridade das cassettes de
+exclusao UnB/UFRJ/PEN3 foi verificada em Actions #42633542261 (73 interacoes,
+POST controle_prazo_excluir em cada uma). Paridade semantica e live NOT_RUN.
+
+**Ainda falta para concluir #272:** confronto independente do acervo e
+validacao live em treinamento autorizado. Nunca escrever na producao.
