@@ -27,9 +27,8 @@ pub(crate) fn responder(
         Ok(Some(controle)) => controle.unidade.as_str().to_owned(),
         Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let observacao = match atribuicoes::ler(banco, instalacao, cenario, id, &unidade) {
-        Ok(Some(observacao)) => observacao,
-        Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(observacao)) = atribuicoes::ler(banco, instalacao, cenario, id, &unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let hash = crate::protocolo_sintetico::INFRA_HASH;
     let mut html = format!(
