@@ -132,8 +132,7 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
         let Ok(original) = html_da_resposta(resposta.item) else {
             continue;
         };
-        let Some(id) =
-            gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&original))
+        let Some(id) = gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&original))
         else {
             continue;
         };
