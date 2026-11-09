@@ -342,3 +342,51 @@ fn releitura_remocao_com_outro_vinculo_preservado_confirma() {
     assert_eq!(pedidos[4].metodo, "POST");
     assert_eq!(pedidos[5].metodo, "GET");
 }
+
+fn pagina_adicionar_com_outro_vinculo(relacionado: bool) -> String {
+    let hash = "a".repeat(64);
+    let outra_linha = format!(
+        r#"<tr><td><a href="controlador.php?acao=procedimento_trabalhar&id_procedimento=33&infra_hash={hash}">99999.000003/2026-01</a></td></tr>"#
+    );
+    pagina_adicionar(relacionado).replace("</table>", &format!("{outra_linha}</table>"))
+}
+
+/// Regressão técnica do BDD-258-02: ver o destino após o POST não
+/// autoriza declarar sucesso se outro relacionamento desapareceu.
+#[test]
+fn releitura_adicao_nao_confirma_perda_de_outro_vinculo() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar_com_outro_vinculo(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina_adicionar(true)));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    assert!(
+        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        "vínculo vizinho perdido: {resultado:?}"
+    );
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos[5].metodo, "POST");
+    assert_eq!(pedidos[6].metodo, "GET");
+}
+
+/// Caso positivo: a adição pode ser confirmada quando o vínculo novo
+/// aparece e o relacionamento observado anteriormente permanece.
+#[test]
+fn releitura_adicao_com_outro_vinculo_preservado_confirma() {
+    let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
+    respostas.push(ok(pagina_adicionar_com_outro_vinculo(false)));
+    respostas.push(ok(xml_destino()));
+    respostas.push(r302(
+        "controlador.php?acao=procedimento_relacionar&resultado=1&infra_hash=H",
+    ));
+    respostas.push(ok(pagina_adicionar_com_outro_vinculo(true)));
+    let (resultado, pedidos) = executar_adicao(respostas);
+    let previa = resultado.expect("destino novo e vizinho preservado");
+    assert_eq!(previa.resultado, super::ResultadoRelacionar::Confirmado);
+    assert_eq!(pedidos.len(), 7);
+    assert_eq!(pedidos[5].metodo, "POST");
+    assert_eq!(pedidos[6].metodo, "GET");
+}
