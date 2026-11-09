@@ -420,4 +420,5 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
     assert_eq!(atribuicao_final, "aluno1");
 }
 
+#[path = "aies_atribuicao_cli/estado_pos_post.rs"]
 mod estado_pos_post;
