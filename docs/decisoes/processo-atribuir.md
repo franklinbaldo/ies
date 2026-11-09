@@ -4,7 +4,7 @@ title: Leitura estrita da tela de atribuição de processo
 operation: processo.atribuir
 implementation: partial
 status: adopted-for-scope
-scope: prévia Web e transporte injetável (POST único e verificação por leitura); --confirmar público permanece bloqueado antes da sessão
+scope: prévia Web e confirmação CLI restrita à UnB de treinamento com POST único e releitura
 selected_strategy: usuario-exato-da-lista-e-arvore-como-fonte
 alternatives: usuario-exato-da-lista-e-arvore-como-fonte,substring,html-sem-conferencia,rest-wssei
 evidence_level: pagina-real-todos-323eb01-testes-sinteticos
@@ -142,3 +142,22 @@ recusar a tela com `ErroHtml` antes de qualquer escrita. O leitor
 inspeciona somente atributos via `html_atributos`; nenhum JS é executado.
 Teste sintético com RED antes da mudança e cenário de transporte para
 quatro GET de prévia e nenhum POST. A CLI `--confirmar` segue fechada.
+
+## Revisão da execução CLI em treinamento (09/11/2026)
+
+A #264 exige a confirmação pela **CLI real**, e não apenas um POST
+independente da bancada. A mesma operação injetável é chamada pela CLI
+para o `--confirmar`, sem duplicar submissão ou parser. A autorização
+operacional fica estritamente condicionada à origem exata
+`https://sei.treinamento.unb.br/sei`: é onde o oráculo Todos registra
+um 302 identificado. Qualquer outra origem é recusada antes da rede,
+inclusive produção, sem criar subcódigo.
+
+O E2E da PR #547 executa a CLI real por HTTPS em **loopback** contra o
+anti-IES e o SQLite efêmero, depois invoca outra vez `ies processo NUP`
+na mesma bancada para observar a alteração ou remoção. Sua execução
+sintética não autoriza afirmar paridade dos efeitos de POST das cassettes
+nem sucesso em treinamento externo. A confirmação remota segue
+**NOT_RUN** até um ensaio específico com prévia, POST único, segunda
+consulta e registro de resíduo, sem retry. A ampliação para outras
+instalações depende de observação e revisão independentes.
