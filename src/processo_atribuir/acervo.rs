@@ -103,6 +103,35 @@ fn replay_sintetico_nao_converte_post_em_prova_de_atribuicao() {
     );
 }
 
+/// Um GET sobre o mesmo HTTP local usado pela CLI, sem rede externa.
+fn resposta_http_do_anti_ies(
+    banco: rusqlite::Connection,
+    origem: iesei::instalacao::Instalacao,
+    cenario: &'static str,
+    id: &str,
+) -> String {
+    use std::io::{Read as _, Write as _};
+    use std::net::{Shutdown, TcpListener, TcpStream};
+
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        let (mut fluxo, _) = escuta.accept().unwrap();
+        anti_ies::atender_http(&mut fluxo, Some((&banco, &origem, cenario))).unwrap();
+    });
+    let mut cliente = TcpStream::connect(endereco).unwrap();
+    write!(
+        cliente,
+        "GET /sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={id} HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    )
+    .unwrap();
+    cliente.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = String::new();
+    cliente.read_to_string(&mut resposta).unwrap();
+    servidor.join().unwrap();
+    resposta
+}
+
 /// Compara o *mesmo* formulário observado em uma cassette pública com a
 /// projeção de menu do anti-IES, usando o leitor real do IES nos dois HTMLs.
 /// A unidade e o NUP são andaimes locais: o GET da atribuição não os publica.
@@ -113,9 +142,6 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
     use iesei::banco_cassettes::{self, ControleResumido, Linha};
     use iesei::observacao::{TabelaObservada, UnidadeExibida};
     use iesei::processos::{self, ProcessoSimulado};
-    use std::io::{Read as _, Write as _};
-    use std::net::{Shutdown, TcpListener, TcpStream};
-
     const CENARIO: &str = "confronto-264-formulario-original";
     const UNIDADE_TECNICA: &str = "ACERVO";
     const NUP_TECNICO: &str = "00001.000001/2026-01";
@@ -196,23 +222,7 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
         )
         .unwrap();
 
-        let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-        let endereco = escuta.local_addr().unwrap();
-        let origem_servidor = origem.clone();
-        let servidor = std::thread::spawn(move || {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(&mut fluxo, Some((&banco, &origem_servidor, CENARIO))).unwrap();
-        });
-        let mut cliente = TcpStream::connect(endereco).unwrap();
-        write!(
-            cliente,
-            "GET /sei/controlador.php?acao=procedimento_atribuicao_cadastrar&id_procedimento={id} HTTP/1.1\r\nHost: localhost\r\n\r\n"
-        )
-        .unwrap();
-        cliente.shutdown(Shutdown::Write).unwrap();
-        let mut resposta_http = String::new();
-        cliente.read_to_string(&mut resposta_http).unwrap();
-        servidor.join().unwrap();
+        let resposta_http = resposta_http_do_anti_ies(banco, origem.clone(), CENARIO, &id);
         let (cabecalho, corpo) = resposta_http
             .split_once("\r\n\r\n")
             .expect("resposta HTTP do anti-IES");
@@ -289,8 +299,7 @@ fn replay_de_processo_atribuir_no_acervo() {
     );
     let _ = writeln!(
         saida,
-        "{} formulários GET confrontados independentemente com o anti-IES por HTTP local (identidade, opções e rótulos); sem prova de POST/estado externo.\n",
-        formularios_confrontados
+        "{formularios_confrontados} formulários GET confrontados independentemente com o anti-IES por HTTP local (identidade, opções e rótulos); sem prova de POST/estado externo.\n"
     );
     tabela(
         &mut saida,
