@@ -141,7 +141,9 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
     }
 
     match modo {
-        EstadoExtra::Nenhum | EstadoExtra::RevogadoAoVisualizar | EstadoExtra::TituloTrocadoAoVisualizar => {}
+        EstadoExtra::Nenhum
+        | EstadoExtra::RevogadoAoVisualizar
+        | EstadoExtra::TituloTrocadoAoVisualizar => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(
@@ -161,4 +163,3 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
     }
     (banco, origem)
 }
-
