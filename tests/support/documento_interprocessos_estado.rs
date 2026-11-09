@@ -43,6 +43,7 @@ pub(super) enum EstadoExtra {
     SessaoRevogadaAoVisualizar,
     VersaoRevogadaAoVisualizar,
     SemListaNaUnidade,
+    CanceladoAntesDaLista,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -168,7 +169,8 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         | EstadoExtra::TituloTrocadoAoVisualizar
         | EstadoExtra::SessaoRevogadaAoVisualizar
         | EstadoExtra::VersaoRevogadaAoVisualizar
-        | EstadoExtra::SemListaNaUnidade => {}
+        | EstadoExtra::SemListaNaUnidade
+        | EstadoExtra::CanceladoAntesDaLista => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(
