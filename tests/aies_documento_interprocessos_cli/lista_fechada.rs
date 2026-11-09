@@ -29,7 +29,9 @@ fn bdd_60_05_cli_recusa_versao_sem_link_na_unidade_mas_le_conteudo_atual() {
     assert_eq!(erro["documento"], DOC_A);
     assert!(erro.get("documentos").is_none(), "{erro}");
     assert!(
-        trilha.iter().any(|pedido| pedido == "GET procedimento_visualizar"),
+        trilha
+            .iter()
+            .any(|pedido| pedido == "GET procedimento_visualizar"),
         "a recusa precisa decorrer da árvore lida: {trilha:?}"
     );
     assert!(
@@ -72,7 +74,9 @@ fn bdd_60_05_cli_recusa_versao_sem_link_na_unidade_mas_le_conteudo_atual() {
         "conteúdo presente e uma única leitura: {trilha_atual:?}"
     );
     assert!(
-        !trilha_atual.iter().any(|p| p == "GET documento_versao_listar"),
+        !trilha_atual
+            .iter()
+            .any(|p| p == "GET documento_versao_listar"),
         "leitura atual não solicita lista: {trilha_atual:?}"
     );
 }
