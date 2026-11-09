@@ -316,10 +316,9 @@ mod tests {
         );
         assert!(ler_pagina(&banco, &instalacao, "um", Tipo::Interno, 0).is_err());
         assert!(guardar_na_pagina(&mut banco, &instalacao, "um", 0, &pagina(1, 1001)).is_err());
-        assert!(
-            paginas_observadas(&banco, &instalacao, "outro", Tipo::Interno)
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            paginas_observadas(&banco, &instalacao, "outro", Tipo::Interno).unwrap(),
+            Vec::<usize>::new()
         );
     }
 
