@@ -37,13 +37,13 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             "Texto do andamento deve conter entre 1 e 500 caracteres",
         ));
     }
-    // Escrita disponível exclusivamente para ensaio local debug.
-    // Release e qualquer outra origem recusam antes de carregar a sessão.
-    if *confirmar && (!cfg!(debug_assertions) || !origem_local_sintetica()) {
+    // Recusa origem explicitamente não autorizada antes de carregar a sessão.
+    // A origem efetiva também é conferida antes de qualquer request.
+    if *confirmar && origem_explicita_nao_autorizada() {
         return Some(escrita_fechada(cli.json));
     }
     Some(com_sessao(cli, |sessao, indice| {
-        if *confirmar && sessao.origem != "https://sei.test/sei" {
+        if *confirmar && !origem_permitida(sessao.origem) {
             return escrita_fechada(cli.json);
         }
         match processo_andamento_registrar::registrar(
@@ -120,14 +120,30 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-/// O marcador de origem local não equivale a uma autorização de escrita
-/// em qualquer SEI: a sessão é conferida novamente após ser carregada.
-fn origem_local_sintetica() -> bool {
-    std::env::var_os("IES_CONFIG_FILE").is_none()
-        && std::env::var("IES_ORIGEM_FILE")
-            .ok()
-            .and_then(|caminho| std::fs::read_to_string(caminho).ok())
-            .is_some_and(|origem| origem.trim() == "https://sei.test/sei")
+/// A origem literal, e não um sufixo parcial, delimita o ensaio:
+/// simulador reservado e duas instalações de treinamento com evidência.
+/// Nunca autorizar uma origem externa por conter apenas "treinamento".
+fn origem_permitida(origem: &str) -> bool {
+    let Some(instalacao) = crate::instalacao::Instalacao::interpretar(origem) else {
+        return false;
+    };
+    matches!(
+        instalacao.url_base(),
+        "https://sei.test/sei"
+            | "https://sei.treinamento.unb.br/sei"
+            | "https://seitreinamento.go.gov.br/sei"
+    )
+}
+
+/// Se o usuário especificou arquivo de origem, recuse uma origem inválida
+/// antes da sessão; no modo de configuração a checagem segue na sessão.
+fn origem_explicita_nao_autorizada() -> bool {
+    let Some(caminho) = std::env::var_os("IES_ORIGEM_FILE") else {
+        return false;
+    };
+    !std::fs::read_to_string(caminho)
+        .ok()
+        .is_some_and(|origem| origem_permitida(origem.trim()))
 }
 
 fn escrita_fechada(json_mode: bool) -> ExitCode {
