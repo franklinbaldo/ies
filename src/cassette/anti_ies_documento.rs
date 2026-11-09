@@ -161,7 +161,10 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let numero = crate::documento::NumeroDocumento::novo("0011519").unwrap();
     let historico_original =
         crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
-    let atual = historico_original.atual().expect("histórico não vazio").numero();
+    let atual = historico_original
+        .atual()
+        .expect("histórico não vazio")
+        .numero();
     let mut revisoes = Vec::new();
     let mut versoes = Vec::new();
     for n in 1..=atual {
@@ -197,12 +200,16 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         guardar(&mut banco, "cassette-historico", &documento).unwrap();
         for _ in 0..3 {
             let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-historico")))
-                .unwrap();
+            anti_ies::atender_http(
+                &mut fluxo,
+                Some((&banco, &instalacao, "cassette-historico")),
+            )
+            .unwrap();
         }
         assert_eq!(
             banco
-                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
+                    .get::<_, i64>(0))
                 .unwrap() as usize,
             quantidade_versoes,
             "leitura de histórico e recusas preservam o SQLite"
@@ -224,7 +231,11 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         let esperado = historico_original.selecionar(versao).unwrap();
         let observado = historico_anti.selecionar(versao).unwrap();
         assert_eq!(
-            (&observado.usuario, &observado.unidade, &observado.modificacao),
+            (
+                &observado.usuario,
+                &observado.unidade,
+                &observado.modificacao
+            ),
             (&esperado.usuario, &esperado.unidade, &esperado.modificacao),
             "metadados da versão {n} vêm da cassette, não da fixture"
         );
