@@ -235,7 +235,12 @@ fn http_url_observada_antes_do_cancelamento_nao_serve_corpo_depois() {
                 // da mesma URL depois de uma transicao real no SQLite.
                 assert_eq!(
                     cancelamento_documento::aplicar(
-                        &banco, &origem, CENARIO, "42", "7", "Cancelamento local"
+                        &banco,
+                        &origem,
+                        CENARIO,
+                        "42",
+                        "7",
+                        "Cancelamento local"
                     )
                     .unwrap(),
                     Aplicacao::Aplicada
@@ -258,10 +263,7 @@ fn http_url_observada_antes_do_cancelamento_nao_serve_corpo_depois() {
     // A fonte de um link ja observado nao pode publicar novamente o corpo
     // cancelado; omitir src na arvore, sozinho, nao fecha essa transicao.
     let depois = pedir_rota(endereco, "GET", "documento_visualizar", alvo);
-    assert!(
-        depois.starts_with("HTTP/1.1 403 Forbidden\r\n"),
-        "{depois}"
-    );
+    assert!(depois.starts_with("HTTP/1.1 403 Forbidden\r\n"), "{depois}");
     assert!(!depois.contains("Corpo do primeiro"));
 
     let outro = pedir_rota(
