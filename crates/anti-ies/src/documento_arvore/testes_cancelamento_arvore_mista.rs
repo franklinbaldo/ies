@@ -139,8 +139,10 @@ fn cancelamento_altera_icone_na_arvore_mista_sem_apagar_outros_documentos() {
         "a barra do DOC cancelado não publica lista: {}",
         individual.corpo
     );
-    let alvo_42 = "/sei/controlador.php?acao=documento_versao_listar&id_procedimento=10&id_documento=42";
-    let alvo_43 = "/sei/controlador.php?acao=documento_versao_listar&id_procedimento=10&id_documento=43";
+    let alvo_42 =
+        "/sei/controlador.php?acao=documento_versao_listar&id_procedimento=10&id_documento=42";
+    let alvo_43 =
+        "/sei/controlador.php?acao=documento_versao_listar&id_procedimento=10&id_documento=43";
     assert_eq!(
         crate::documento_versoes::responder("GET", alvo_42, &banco, &origem, cenario).estado,
         Estado::AcessoNegado,
