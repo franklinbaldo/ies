@@ -218,6 +218,41 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     Ok(())
 }
 
+
+fn publicar_exclusao(
+    cli: &Cli,
+    nup: &NumeroProcesso,
+    confirmar: bool,
+    aberto: &crate::processo_obter::ProcessoAberto,
+    requisicoes: u8,
+) -> ExitCode {
+    let resultado = json!({
+        "nup": nup.as_str(),
+        "id_procedimento": aberto.arvore.processo.id,
+        "unidade": aberto.unidade,
+        "origem": "web",
+        "atual": if confirmar { json!({"tipo": "sem_prazo"}) } else { Value::Null },
+        "solicitado": {"excluir": true},
+        "confirmado": confirmar,
+        "requisicoes": requisicoes,
+    });
+    if cli.json {
+        println!("{resultado}");
+    } else if confirmar {
+        println!(
+            "Prazo do processo {} excluido e verificado por leitura.",
+            nup.as_str()
+        );
+    } else {
+        println!(
+            "Previa: excluir o controle de prazo de {}. Sem escrita.",
+            nup.as_str()
+        );
+    }
+
+    ExitCode::SUCCESS
+}
+
 /// Executa BDD-272-03 na CLI real, incluindo a previa sem qualquer POST.
 pub(super) fn executar(
     cli: &Cli,
@@ -305,28 +340,5 @@ pub(super) fn executar(
     {
         return erro;
     }
-    let resultado = json!({
-        "nup": nup.as_str(),
-        "id_procedimento": aberto.arvore.processo.id,
-        "unidade": aberto.unidade,
-        "origem": "web",
-        "atual": if confirmar { json!({"tipo": "sem_prazo"}) } else { Value::Null },
-        "solicitado": {"excluir": true},
-        "confirmado": confirmar,
-        "requisicoes": rede.feitas(),
-    });
-    if cli.json {
-        println!("{resultado}");
-    } else if confirmar {
-        println!(
-            "Prazo do processo {} excluido e verificado por leitura.",
-            nup.as_str()
-        );
-    } else {
-        println!(
-            "Previa: excluir o controle de prazo de {}. Sem escrita.",
-            nup.as_str()
-        );
-    }
-    ExitCode::SUCCESS
+    publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas())
 }
