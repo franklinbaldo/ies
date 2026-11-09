@@ -95,6 +95,28 @@ pub fn usuario_da_ciencia(
         .map(Option::flatten)
 }
 
+/// Indica que a lista sintética ainda não publicou a ciência persistida.
+///
+/// A observação é do banco efêmero, não da interface externa do SEI.
+///
+/// # Errors
+/// Propaga falhas de SQLite.
+pub fn lista_invisivel(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    documento: &str,
+) -> rusqlite::Result<bool> {
+    banco.query_row(
+        "SELECT EXISTS (
+            SELECT 1 FROM ciencia_documental_lista_invisivel
+            WHERE origem=?1 AND cenario=?2 AND id_documento=?3
+        )",
+        params![origem.url_base(), cenario, documento],
+        |linha| linha.get(0),
+    )
+}
+
 /// Um GET potencialmente mutador registra no máximo uma atividade por documento.
 /// A atividade deriva do banco efêmero e jamais de uma URL assinada.
 ///
