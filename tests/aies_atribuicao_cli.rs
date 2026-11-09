@@ -142,6 +142,14 @@ fn banco() -> (Connection, Instalacao) {
 }
 
 fn executar(json: bool, remover: bool) -> (Output, Vec<String>, usize, String) {
+    executar_apos_post_local(json, remover, None)
+}
+
+fn executar_apos_post_local(
+    json: bool,
+    remover: bool,
+    escolha_previa: Option<&str>,
+) -> (Output, Vec<String>, usize, String) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -180,6 +188,9 @@ fn executar(json: bool, remover: bool) -> (Output, Vec<String>, usize, String) {
                 .login_atual,
         )
     });
+    if let Some(escolha) = escolha_previa {
+        estado_pos_post::aplicar_post_no_sqlite_por_http_local(endereco, escolha);
+    }
     let eventos = Arc::new(Mutex::new(Vec::<String>::new()));
     let eventos_proxy = Arc::clone(&eventos);
     let parar_proxy = Arc::clone(&parar);
@@ -408,3 +419,6 @@ fn remover_previa_cli_real_humana_nomeia_operacao_sem_escrita() {
     assert_eq!(eventos.len(), 5);
     assert_eq!(atribuicao_final, "aluno1");
 }
+
+#[path = "aies_atribuicao_cli/estado_pos_post.rs"]
+mod estado_pos_post;
