@@ -42,8 +42,13 @@ pub(crate) fn responder(
         if !id_destino.bytes().all(|b| b.is_ascii_digit()) || id_destino.is_empty() || id_destino == id {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
-        let Ok(Some(destino)) = relacionamentos::identificar(banco, origem, cenario, &numero) else {
-            return Resposta::nova(Estado::DadosInsuficientes);
+        let destino = match relacionamentos::identificar(banco, origem, cenario, &numero) {
+            Ok(Some(destino)) => destino,
+            Ok(None)
+            | Err(relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::DestinoAmbiguo) => {
+                return Resposta::nova(Estado::RequisicaoInvalida);
+            }
+            Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
         };
         if destino.id != id_destino || vinculos.iter().any(|r| r.id == id_destino) {
             return Resposta::nova(Estado::RequisicaoInvalida);
@@ -155,7 +160,6 @@ pub(crate) fn consulta(
     }
 }
 
-
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -206,7 +210,12 @@ mod testes {
             "caso",
         );
         assert_eq!(resposta.estado, Estado::Redirecionamento);
-        assert!(resposta.localizacao.as_deref().is_some_and(|s| s.contains("resultado=1")));
+        assert!(
+            resposta
+                .localizacao
+                .as_deref()
+                .is_some_and(|s| s.contains("resultado=1"))
+        );
         let depois = rotas::responder("GET", url, b"", &db, &origem, "caso");
         assert_eq!(depois.estado, Estado::Ok);
         assert!(depois.corpo.contains("P-02</a>"));
@@ -219,8 +228,20 @@ mod testes {
             "caso",
         );
         assert!(inverso.corpo.contains("P-01</a>"));
-        assert_eq!(relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().len(), 1);
-        assert_eq!(relacionamentos::listar(&db, &origem, "caso", "22").unwrap().unwrap().len(), 1);
+        assert_eq!(
+            relacionamentos::listar(&db, &origem, "caso", "10")
+                .unwrap()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            relacionamentos::listar(&db, &origem, "caso", "22")
+                .unwrap()
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -236,6 +257,11 @@ mod testes {
             "caso",
         );
         assert_eq!(resposta.estado, Estado::RequisicaoInvalida);
-        assert!(relacionamentos::listar(&db, &origem, "caso", "10").unwrap().unwrap().is_empty());
+        assert!(
+            relacionamentos::listar(&db, &origem, "caso", "10")
+                .unwrap()
+                .unwrap()
+                .is_empty()
+        );
     }
 }
