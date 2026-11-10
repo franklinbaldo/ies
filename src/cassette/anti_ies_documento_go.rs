@@ -51,7 +51,7 @@ fn documento_na_arvore(
     primeiro
 }
 
-fn confrontar_cassette_historico_por_http(caminho_card: &str) {
+fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool) {
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(caminho_card);
     let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
@@ -78,7 +78,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
     let numero = NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(respostas[0].item).unwrap();
     let historico_original = interpretar_historico(&html_original, &numero, id, None)
-        .expect("leitor real do IES na lista original GO");
+        .expect("leitor real do IES na lista original");
     // O GET de corpo existe no PEN1, mas não em GO/UFRJ. Ele somente pode
     // preencher a versão apontada por seu próprio rodapé, nunca as demais.
     let originais: Vec<_> = gravacao::respostas(&captura.json)
@@ -100,6 +100,10 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
         let texto = crate::documento_web::texto_do_corpo(&html).unwrap();
         (versao.numero(), identidade.tipo, texto)
     });
+    assert!(
+        !exigir_corpo || conteudo.is_some(),
+        "PEN1 precisa associar seu GET original de corpo ao id do histórico"
+    );
     let mut revisoes = revisoes_observadas(&historico_original, "");
     if let Some((versao, _, texto)) = &conteudo {
         let revisao = revisoes
@@ -125,8 +129,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
         id_procedimento: processo.clone(),
         numero_processo: nup,
         numero: numero_observado,
-        // Só serve para preencher campo obrigatório, não é confrontado como
-        // tipo de conteúdo: a cassette não traz GET de corpo.
+        // GO/UFRJ não capturaram tipo no corpo; PEN1 usa a identidade original.
         tipo: conteudo
             .as_ref()
             .map_or(rotulo_observado, |(_, tipo, _)| tipo.clone()),
@@ -180,7 +183,10 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
             .unwrap()
             .0;
         let texto = crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
-        assert_eq!(&texto, texto_original, "corpo capturado deve sobreviver ao transporte");
+        assert_eq!(
+            &texto, texto_original,
+            "corpo capturado deve sobreviver ao transporte"
+        );
     }
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
@@ -201,6 +207,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
 fn cassette_go_historico_preserva_metadados_e_identidade_por_http() {
     confrontar_cassette_historico_por_http(
         "cassettes/go/liberacoes-e-versoes-leitura-go--3ca10f1df295.md",
+        false,
     );
 }
 
@@ -209,6 +216,7 @@ fn cassette_go_historico_preserva_metadados_e_identidade_por_http() {
 fn cassette_ufrj_historico_preserva_metadados_e_identidade_por_http() {
     confrontar_cassette_historico_por_http(
         "cassettes/ufrj/liberacoes-e-versoes-leitura-ufrj--37ca449e6b97.md",
+        false,
     );
 }
 
@@ -217,5 +225,6 @@ fn cassette_ufrj_historico_preserva_metadados_e_identidade_por_http() {
 fn cassette_pen1_historico_e_conteudo_preservam_identidade_por_http() {
     confrontar_cassette_historico_por_http(
         "cassettes/pen1/liberacoes-e-versoes-leitura-pen1--f46eada4effb.md",
+        true,
     );
 }
