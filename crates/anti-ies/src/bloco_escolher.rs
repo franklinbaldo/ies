@@ -5,6 +5,7 @@
 //! inclusão é a próxima fatia (BDD-381-02) e aqui é recusado.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::blocos::{self, Tipo};
+use iesei::bloco_detalhe::{self, Item};
 use iesei::documento_versoes;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -15,11 +16,12 @@ const HASH: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    if metodo != "GET" && metodo != "POST" {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let (Some(id_procedimento), Some(id_documento)) = (
@@ -36,6 +38,38 @@ pub(crate) fn responder(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let linhas = pagina.map(|p| p.linhas).unwrap_or_default();
+    if metodo == "POST" {
+        let campo = |nome| crate::documentos::campo_formulario_unico(corpo, nome);
+        let (Some(numero), Some(checkbox), Some(selecionados), Some(botao)) = (
+            campo("selBloco"), campo("chkDocumentosItem0"),
+            campo("hdnDocumentosItensSelecionados"), campo("sbmIncluir"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if !linhas.iter().any(|b| b.numero == numero)
+            || checkbox != documento.id_documento
+            || selecionados != documento.id_documento
+            || botao != "Incluir"
+            || campo("hdnDocumentosItens").as_deref() != Some(documento.id_documento.as_str())
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        let item = Item {
+            processo: documento.numero_processo,
+            documento: Some(documento.numero),
+            tipo: Some(documento.tipo),
+            anotacoes: String::new(),
+        };
+        return match bloco_detalhe::incluir_documento(
+            banco, instalacao, cenario, &numero, &item,
+        ) {
+            Ok(true) => Resposta::redirecionar(format!(
+                "controlador.php?acao=bloco_escolher&acao_origem=bloco_escolher&arvore=1&id_procedimento={id_procedimento}&id_documento={id_documento}&infra_hash={HASH}"
+            )),
+            Ok(false) => Resposta::nova(Estado::RequisicaoInvalida),
+            Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
     let mut opcoes = String::from("<option value=\"null\" selected=\"selected\">&nbsp;</option>\n");
     for linha in &linhas {
         writeln!(
