@@ -148,14 +148,6 @@ impl ErroLogin {
         }
     }
 
-    /// Status com que o proxy do ambiente recusou o túnel.
-    pub(crate) fn status_do_proxy(&self) -> Option<u16> {
-        match self {
-            Self::Transporte(falha) => falha.status_do_proxy(),
-            _ => None,
-        }
-    }
-
     /// Chave do arquivo de credenciais envolvida (nunca o valor).
     pub(crate) fn campo_das_credenciais(&self) -> Option<&'static str> {
         match self {

@@ -123,22 +123,6 @@ fn resposta_do_post<R: std::io::BufRead>(resposta: Resposta<R>) -> RespostaDoPos
     }
 }
 
-/// O mesmo POST com ambiente e camada TLS injetáveis (proxy falso nos testes).
-#[cfg(test)]
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn enviar_post_via<S: Read + std::io::Write>(
-    submissao: SubmissaoDerivada,
-    cookie: &str,
-    ambiente: impl Fn(&str) -> Option<String>,
-    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
-) -> Result<RespostaDoPost<impl Read>, FalhaTransporte> {
-    let envio = envio_de(&submissao);
-    let url = submissao.url();
-    let resposta =
-        cliente_https::requisitar_via("POST", url, cookie, Some(&envio), ambiente, envolver)?;
-    Ok(resposta_do_post(resposta))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
