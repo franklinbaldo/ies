@@ -108,3 +108,17 @@ fn recusas_da_tela() {
         );
     }
 }
+
+#[test]
+fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
+    // GO 5.0.3 (live de 10/11/2026, processo 202600005006024): o SEI abre a
+    // modal `usuario_validar_acesso` (pede a senha) e serve a árvore vazia.
+    let html = tela_do_processo("SEAD/CDE-09516", &[String::new()]).replace(
+        "</body>",
+        "<script>function inicializar(){ if (''!='1'){ infraAbrirJanelaModal('controlador.php?acao=usuario_validar_acesso&acao_origem=procedimento_trabalhar&id_procedimento=10&infra_hash=SINTETICO',500,300,true,'finalizar'); return; } }</script></body>",
+    );
+    assert_eq!(ler(&html, None), Err(E::ProcessoExigeValidacaoDeAcesso));
+    // Sem a modal, árvore vazia continua sendo endereço não reconhecido.
+    let sem_modal = tela_do_processo("SEAD/CDE-09516", &[String::new()]);
+    assert!(matches!(ler(&sem_modal, None), Err(E::Html(_))));
+}
