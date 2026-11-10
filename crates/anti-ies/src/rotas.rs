@@ -120,7 +120,7 @@ pub(crate) fn responder(
             processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("comentario_listar") if eh_controlador_sei(alvo) => {
-            processo_comentarios::responder(metodo, alvo, banco, instalacao, cenario)
+            crate::processo_comentarios::responder(metodo, alvo, banco, instalacao, cenario)
         }
         Some("procedimento_anexar") if eh_controlador_sei(alvo) => {
             processo_anexacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
