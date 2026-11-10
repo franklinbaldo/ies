@@ -22,7 +22,10 @@ pub(super) fn destino_oferecido(
     let action = campo(form, "action")?.ok_or_else(recusada)?;
     let action = decodificar_atributo(&action).ok_or_else(recusada)?;
     crate::arvore_processo::conferir_endereco_relativo(
-        instalacao, &action, "acompanhamento_gerenciar", id_procedimento,
+        instalacao,
+        &action,
+        "acompanhamento_gerenciar",
+        id_procedimento,
     )
     .map_err(|_| recusada())?;
 
@@ -56,7 +59,9 @@ pub(super) fn destino_oferecido(
     let enviar = "document.getElementById('frmGerenciarAcompanhamento').submit();";
     let mut destinos = Vec::new();
     for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else { continue };
+        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
         let codigo = tag.inner_text(parser);
         let codigo = codigo.as_ref();
         if !codigo.contains("function acaoExcluir(") {
@@ -64,14 +69,18 @@ pub(super) fn destino_oferecido(
         }
         let (antes, resto) = codigo.split_once(prefixo).ok_or_else(recusada)?;
         let (destino, depois) = resto.split_once('\'').ok_or_else(recusada)?;
-        if !antes.contains(gravar) || !depois.contains(enviar)
+        if !antes.contains(gravar)
+            || !depois.contains(enviar)
             || codigo.matches(prefixo).count() != 1
         {
             return Err(recusada());
         }
         let destino = decodificar_atributo(destino).ok_or_else(recusada)?;
         crate::arvore_processo::conferir_endereco_relativo(
-            instalacao, &destino, "acompanhamento_excluir", id_procedimento,
+            instalacao,
+            &destino,
+            "acompanhamento_excluir",
+            id_procedimento,
         )
         .map_err(|_| recusada())?;
         destinos.push(destino);
