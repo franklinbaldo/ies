@@ -5,7 +5,7 @@ use super::abertura::{Contexto, Lida, Rede};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::formulario_web::{
-    CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario,
     ErroSubmissaoFormulario, EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio,
     ResultadoDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
@@ -47,15 +47,23 @@ impl ErroValidacaoAcesso {
 
 /// A modal so pode usar o link oferecido pela tela ja obtida.
 /// Nem o URL nem o segredo da senha podem ser colocados em logs.
-fn link_oferecido(contexto: &Contexto<'_>, id: &str, html: &str) -> Result<String, ErroValidacaoAcesso> {
+fn link_oferecido(
+    contexto: &Contexto<'_>,
+    id: &str,
+    html: &str,
+) -> Result<String, ErroValidacaoAcesso> {
     const MARCADOR: &str = "controlador.php?acao=usuario_validar_acesso&";
     let mut ocorrencias = html.match_indices(MARCADOR);
-    let (inicio, _) = ocorrencias.next().ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
+    let (inicio, _) = ocorrencias
+        .next()
+        .ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
     if ocorrencias.next().is_some() {
         return Err(ErroValidacaoAcesso::ModalNaoReconhecida);
     }
     let restante = &html[inicio..];
-    let fim = restante.find('\'').ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
+    let fim = restante
+        .find('\'')
+        .ok_or(ErroValidacaoAcesso::ModalNaoReconhecida)?;
     let relativo = &restante[..fim];
     conferir_endereco_relativo(&contexto.instalacao, relativo, OPERACAO.acao, id)
         .map_err(|_| ErroValidacaoAcesso::ModalNaoReconhecida)
@@ -70,10 +78,13 @@ pub(super) fn validar<V: EnvioDoProcesso>(
     tela_do_trabalho: &str,
 ) -> Result<(), E> {
     let Some(caminho) = std::env::var_os("IES_CREDENCIAIS_FILE").filter(|c| !c.is_empty()) else {
-        return Err(E::Tela(crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso));
+        return Err(E::Tela(
+            crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso,
+        ));
     };
     let url = link_oferecido(contexto, id, tela_do_trabalho)?;
-    let credenciais = Credenciais::ler(&PathBuf::from(caminho)).map_err(ErroValidacaoAcesso::from)?;
+    let credenciais =
+        Credenciais::ler(&PathBuf::from(caminho)).map_err(ErroValidacaoAcesso::from)?;
     let (html, codificacao) = match rede.get(&url)? {
         Lida::Html { html, mime } => {
             let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
@@ -96,9 +107,11 @@ pub(super) fn validar<V: EnvioDoProcesso>(
         &tela,
         contexto.unidade_pedida.unwrap_or(""),
         &[("txtSenha", credenciais.senha())],
-    )?;
+    )
+    .map_err(ErroValidacaoAcesso::from)?;
     rede.requisicoes.registrar();
-    let resposta = enviar_submissao_via(submissao, contexto.cookie, |s, c| rede.envio.post(s, c))?;
+    let resposta = enviar_submissao_via(submissao, contexto.cookie, |s, c| rede.envio.post(s, c))
+        .map_err(ErroValidacaoAcesso::from)?;
     match resposta {
         RespostaDoEnvio::Html(_) => Ok(()),
         RespostaDoEnvio::Redirecionamento(_) => {
