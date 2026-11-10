@@ -44,7 +44,12 @@ pub(crate) enum ErroDocumentoObter {
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
-    Html(#[from] ErroHtml),
+    BarraDoDocumentoForaDaFormaObservada,
+    DocumentoAusenteDaArvore,
+    NumeroSeiAusenteDaArvoreDoProcesso,
+    NumeroSeiRepetidoNaArvore,
+    /// Ponte: `propriedades_documento` ainda devolve `ErroHtml`.
+    Propriedades(#[source] ErroHtml),
 }
 
 impl ErroDocumentoObter {
@@ -67,7 +72,11 @@ impl ErroDocumentoObter {
             | Self::Versoes(_)
             | Self::VersaoServidaDiferenteDaPedida
             | Self::ConteudoComLinkAssinado
-            | Self::Html(_) => false,
+            | Self::NumeroSeiAusenteDaArvoreDoProcesso
+            | Self::NumeroSeiRepetidoNaArvore
+            | Self::DocumentoAusenteDaArvore
+            | Self::BarraDoDocumentoForaDaFormaObservada
+            | Self::Propriedades(_) => false,
         }
     }
 }

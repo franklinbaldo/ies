@@ -1,6 +1,5 @@
 //! RED/GREEN da derivação: HTML sintético modelado no formulário servido.
 use super::*;
-use crate::erro_html::ErroHtml;
 
 pub(crate) const HASH_TELA: &str =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -235,16 +234,12 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
     let sem = html.replace("lnkInfraUnidade", "lnkOutro");
     assert_eq!(
         erro(&sem, &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela"
-        ))
+        ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
     );
     let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
     assert_eq!(
         erro(&repetida, &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::repetido(
-            "identificacoes_da_unidade_repetidas_na_tela"
-        ))
+        ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela
     );
 }
 
@@ -292,11 +287,11 @@ fn action_para_outro_host_ou_caminho_e_recusado() {
 fn action_ausente_sem_hash_ou_de_outra_operacao_e_recusado() {
     assert_eq!(
         erro(&pagina("", INTERIOR), &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("acao_do_formulario_ausente"))
+        ErroSubmissaoFormulario::AcaoDoFormularioAusente
     );
     assert_eq!(
         erro(&com_action("#ancora"), &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("acao_do_formulario_ausente"))
+        ErroSubmissaoFormulario::AcaoDoFormularioAusente
     );
     let sem_hash = "controlador.php?acao=protocolo_pesquisar";
     assert_eq!(
@@ -329,7 +324,7 @@ fn botao_de_envio_ausente_ou_repetido_e_recusado() {
     );
     assert_eq!(
         erro(&sem, &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("botao_de_envio_ausente_no_formulario"))
+        ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
     );
     let dois = padrao().replace(
         "</form>",
@@ -337,9 +332,7 @@ fn botao_de_envio_ausente_ou_repetido_e_recusado() {
     );
     assert_eq!(
         erro(&dois, &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::repetido(
-            "botoes_de_envio_repetidos_no_formulario"
-        ))
+        ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
     );
 }
 
@@ -348,7 +341,7 @@ fn formulario_ausente_ou_com_identificador_repetido_e_recusado() {
     let ausente = padrao().replace("frmPesquisaProtocolo", "frmOutro");
     assert_eq!(
         erro(&ausente, &[]),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
+        ErroSubmissaoFormulario::FormularioAusenteNaTela
     );
     let duplicado = padrao().replace(
         "</html>",

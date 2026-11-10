@@ -22,7 +22,7 @@ fn bdd_60_05_cli_humana_recusa_duplicidade_na_arvore_do_processo() {
             String::from_utf8_lossy(&saida.stderr)
         );
         assert!(
-            mensagem.contains("o número SEI aparece mais de uma vez na árvore"),
+            mensagem.contains("NumeroSeiRepetidoNaArvore"),
             "a pessoa deve ver a causa específica: {mensagem}"
         );
         assert!(
@@ -67,7 +67,7 @@ fn bdd_60_05_cli_humana_nao_oferece_documento_de_outro_nup() {
         String::from_utf8_lossy(&saida.stderr)
     );
     assert!(
-        mensagem.contains("o número SEI não está na árvore do processo informado"),
+        mensagem.contains("NumeroSeiAusenteDaArvoreDoProcesso"),
         "a recusa humana deve indicar o contexto: {mensagem}"
     );
     assert!(

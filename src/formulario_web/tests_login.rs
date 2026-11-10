@@ -2,7 +2,6 @@
 //! com regra declarada, botão desabilitado pelo `onsubmit` servido e não
 //! enviado, tela e `action` fora do host recusados.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::sessao_login::tela::{ENTRAR_COM_ACESSAR, ENTRAR_COM_SBM_ACESSAR};
 
 fn instalacao() -> Instalacao {
@@ -74,7 +73,7 @@ fn botao_desabilitado_pelo_onsubmit_e_exigido_mas_nao_enviado() {
             CAMPOS
         )
         .unwrap_err(),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("botao_de_envio_ausente_no_formulario"))
+        ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
     );
 }
 

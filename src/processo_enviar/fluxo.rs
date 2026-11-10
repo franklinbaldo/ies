@@ -296,7 +296,7 @@ fn ler_anotacao_antes<V: EnvioDoProcesso>(
         }
     })?;
     let presente = super::anotacoes::anotacao_presente(&html, id)
-        .map_err(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes)?;
+        .map_err(super::anotacoes::ErroDasAnotacoes::from)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(ErroEnviar::CharsetDaTelaNaoSuportado)?;
     Ok(Some(AnotacaoLida {
         presente,

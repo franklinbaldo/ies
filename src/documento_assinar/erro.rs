@@ -15,7 +15,11 @@ pub(crate) enum ErroTelaDeAssinatura {
     TelaDeAssinaturaDeOutroDocumento,
     AssinanteNaoPublicadoNaTela,
     OrgaoDoAssinanteNaoSelecionado,
-    Html(#[from] ErroHtml),
+    CampoDeSenhaAusenteNaTela,
+    CampoNaoPrevistoNaTelaDeAssinatura,
+    FormularioDeAssinaturaAusente,
+    TelaDeAssinaturaNaoInterpretada,
+    TelaDeAssinaturaComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter
@@ -77,5 +81,5 @@ pub(crate) enum ErroAssinar {
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoDaAssinatura>,
     },
-    Html(#[source] ErroHtml),
+    EnderecoDaTelaDoDocumentoNaoReconhecido,
 }

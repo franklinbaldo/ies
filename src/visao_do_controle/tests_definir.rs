@@ -308,9 +308,9 @@ fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
         ),
         (
             sem_botao,
-            ErroVisaoDoControle::Submissao(ErroSubmissaoFormulario::Html(ErroHtml::ausente(
-                "botao_de_envio_ausente_no_formulario",
-            ))),
+            ErroVisaoDoControle::Submissao(
+                ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario,
+            ),
         ),
     ] {
         for confirmar in [false, true] {

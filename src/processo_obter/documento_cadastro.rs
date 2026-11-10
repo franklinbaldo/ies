@@ -28,7 +28,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         });
     }
     let Some(link) = propriedades_documento::ler_link(instalacao, arvore, documento, processo)
-        .map_err(ErroDocumentoObter::Html)?
+        .map_err(ErroDocumentoObter::Propriedades)?
     else {
         return Ok(Cadastro {
             propriedades: if pedir_propriedades {
@@ -69,11 +69,11 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         }
     };
     let mut lidas = propriedades_documento::ler_formulario(&html, documento, processo)
-        .map_err(ErroDocumentoObter::Html)?;
+        .map_err(ErroDocumentoObter::Propriedades)?;
     lidas.fonte = link.fonte;
     let anexo = if buscar_anexo {
         propriedades_documento::ler_anexo_publicado(instalacao, &html, documento, processo)
-            .map_err(ErroDocumentoObter::Html)?
+            .map_err(ErroDocumentoObter::Propriedades)?
     } else {
         None
     };

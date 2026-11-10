@@ -114,9 +114,7 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     for (resposta, erro) in [
         (
             ok(fora),
-            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::Html(ErroHtml::ausente(
-                "formulario_de_envio_ausente",
-            ))),
+            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::FormularioDeEnvioAusente),
         ),
         (
             r302("controlador.php?acao=principal"),
