@@ -38,6 +38,7 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
         ));
     }
     Some(com_sessao(cli, |sessao, indice| {
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
         if *confirmar
             && crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoAndamento,

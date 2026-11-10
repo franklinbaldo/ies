@@ -39,5 +39,5 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 
 ## Limitações e revisão
 
-Desde 09/11/2026, `--confirmar` grava nas instalações de treinamento sem trava de ensaio (decisão do proprietário); outra origem recebe `origem_fora_do_treinamento` antes da rede. 
+Desde 10/11/2026, aprovado no ensaio da UnB de treinamento, `--confirmar` grava também em produção (decisão do proprietário).
 A prova BDD-259-02 é sintética: duas CLIs consultam o mesmo SQLite após um POST único; integridade UnB/GO verificada, mas confronto semântico independente e live permanecem NOT_RUN. A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
