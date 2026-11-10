@@ -100,7 +100,7 @@ fn guardar_controle_parcial(banco: &mut Connection, instalacao: &Instalacao) {
     // A projeção de processos não pode substituir a identidade observada
     // numa página parcial pela identidade divergente da árvore.
     banco_cassettes::guardar(
-        &mut banco,
+        banco,
         CENARIO,
         &ControleResumido {
             instalacao: instalacao.clone(),
