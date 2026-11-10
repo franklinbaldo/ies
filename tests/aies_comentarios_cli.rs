@@ -228,7 +228,7 @@ fn executar(modo: Modo) {
             "comentar",
             NUP,
             "--texto",
-            "Comentário novo",
+            " Comentário novo ",
         ]
     } else {
         &["--json", "processo", "comentarios", NUP]
@@ -269,7 +269,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if matches!(modo, Modo::Previa) {
         assert_eq!(json["nup"], NUP);
-        assert_eq!(json["texto"], "Comentário novo");
+        assert_eq!(json["texto"], " Comentário novo ");
         assert_eq!(json["confirmado"], false);
         assert_eq!(json["alterado"], false);
     } else if matches!(modo, Modo::Completa) {
