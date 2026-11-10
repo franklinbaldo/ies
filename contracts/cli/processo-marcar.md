@@ -58,7 +58,10 @@ Testes sintéticos também conferem idempotência, lista parcial,
 identidade divergente e texto Latin-1 válido. O E2E da prévia de retirada
 presente usa a CLI Rust real, HTTPS local, anti-IES e SQLite efêmero,
 compara saída humana/JSON e consulta novamente os marcadores para
-comprovar **estado inalterado e zero POST**. Isto é apenas a primeira
+comprovar **estado inalterado e zero POST**. Até que o formulário de
+remoção seja validado, `retirada_possivel` permanece `false`, mesmo
+quando a presença do marcador está confirmada. Presença não é prova de
+ação oferecida. Isto é apenas a primeira
 metade do BDD-255-02: remoção com `--confirmar` continua pendente.
 Entrada inválida não lê configuração.
 
