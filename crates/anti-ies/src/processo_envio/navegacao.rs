@@ -150,6 +150,28 @@ fn inserir_acao_acompanhamento(
     Ok(())
 }
 
+/// Acesso a marcadores dependente da observação e da unidade aberta.
+fn inserir_acao_marcadores(
+    acoes: &mut String,
+    processo: &ProcessoSimulado,
+    unidade: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Result<(), Estado> {
+    let id = &processo.id;
+    let observado = iesei::marcadores::ler(banco, instalacao, cenario, id, unidade)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    if observado.is_some() && processo.aberto_em.iter().any(|aberta| aberta == unidade) {
+        let hash = crate::protocolo_sintetico::INFRA_HASH;
+        write!(
+            acoes,
+            r#"<a href="controlador.php?acao=andamento_marcador_gerenciar&amp;acao_origem=procedimento_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}">Marcadores</a>"#
+        ).expect("formatação String");
+    }
+    Ok(())
+}
+
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
@@ -206,15 +228,22 @@ fn arvore_do_processo(
         sobrestamento.as_ref(),
     );
     let hash = crate::protocolo_sintetico::INFRA_HASH;
-    inserir_acao_acompanhamento(&mut acoes, processo, unidade_atual, banco, instalacao, cenario)?;
-    let marcadores = iesei::marcadores::ler(banco, instalacao, cenario, id, unidade_atual)
-        .map_err(|_| Estado::DadosInsuficientes)?;
-    if marcadores.is_some() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
-        write!(
-            acoes,
-            r#"<a href="controlador.php?acao=andamento_marcador_gerenciar&amp;acao_origem=procedimento_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}">Marcadores</a>"#
-        ).expect("formatação String");
-    }
+    inserir_acao_acompanhamento(
+        &mut acoes,
+        processo,
+        unidade_atual,
+        banco,
+        instalacao,
+        cenario,
+    )?;
+    inserir_acao_marcadores(
+        &mut acoes,
+        processo,
+        unidade_atual,
+        banco,
+        instalacao,
+        cenario,
+    )?;
     let pode_atualizar = historico_observado
         && processo
             .aberto_em
