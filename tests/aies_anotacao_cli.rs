@@ -122,12 +122,11 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-#[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "uma prova vertical única pela CLI real, TLS, anti-IES e SQLite, com contagem de GET e ausência de POST"
+    reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn bdd_anot_01_previa_publica_texto_sem_escrever() {
+fn executar_caso(confirmar: bool) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -180,15 +179,14 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
             canal.flush().unwrap();
         }
     });
+    let mut argumentos = vec![
+        "--json", "processo", "anotar", NUP, "--texto", "Revisar minuta",
+    ];
+    if confirmar {
+        argumentos.push("--confirmar");
+    }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "--json",
-            "processo",
-            "anotar",
-            NUP,
-            "--texto",
-            "Revisar minuta",
-        ])
+        .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", &controle)
         .env("IES_COOKIE_FILE", &cookie)
         .env("IES_ORIGEM_FILE", &origem)
@@ -219,16 +217,32 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
     assert_eq!(json["nup"], NUP);
     assert_eq!(json["texto"], "Revisar minuta");
     assert_eq!(json["anotacao_antes"], "");
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
-    assert_eq!(persistido.as_deref(), Some(""));
+    assert_eq!(json["confirmado"], confirmar);
+    assert_eq!(json["alterado"], confirmar);
+    assert_eq!(
+        persistido.as_deref(),
+        Some(if confirmar { "Revisar minuta" } else { "" })
+    );
     assert_eq!(
         pedidos
             .iter()
             .filter(|e| *e == "GET anotacao_registrar")
             .count(),
-        1
+        if confirmar { 2 } else { 1 }
     );
-    assert_eq!(pedidos.iter().filter(|e| e.starts_with("POST ")).count(), 0);
+    assert_eq!(
+        pedidos.iter().filter(|e| *e == "POST anotacao_registrar").count(),
+        usize::from(confirmar)
+    );
     assert_eq!(json["requisicoes"], pedidos.len());
+}
+
+#[test]
+fn bdd_anot_01_previa_publica_texto_sem_escrever() {
+    executar_caso(false);
+}
+
+#[test]
+fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
+    executar_caso(true);
 }
