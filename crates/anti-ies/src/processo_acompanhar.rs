@@ -16,8 +16,7 @@ pub(crate) fn responder(
     let acao = parametro_unico(alvo, "acao");
     let permitido = matches!(
         (metodo, acao),
-        ("GET", Some("acompanhamento_gerenciar"))
-            | ("POST", Some("acompanhamento_excluir"))
+        ("GET", Some("acompanhamento_gerenciar")) | ("POST", Some("acompanhamento_excluir"))
     );
     if !permitido {
         return Resposta::nova(Estado::MetodoNaoPermitido);
@@ -48,7 +47,8 @@ pub(crate) fn responder(
     );
     if metodo == "POST" {
         // O formulário observado envia só o oculto reescrito pelo handler.
-        let Some(alvo) = corpo.strip_prefix("hdnInfraItemId=")
+        let Some(alvo) = corpo
+            .strip_prefix("hdnInfraItemId=")
             .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
         else {
             return Resposta::nova(Estado::RequisicaoInvalida);
@@ -56,9 +56,7 @@ pub(crate) fn responder(
         if !observacao.itens.iter().any(|item| item.id == alvo) {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
-        return match iesei::acompanhamentos::retirar(
-            banco, origem, cenario, id, &unidade, alvo,
-        ) {
+        return match iesei::acompanhamentos::retirar(banco, origem, cenario, id, &unidade, alvo) {
             Ok(true) => Resposta::redirecionar(gerenciar),
             Ok(false) => Resposta::nova(Estado::RequisicaoInvalida),
             Err(_) => Resposta::nova(Estado::DadosInsuficientes),
