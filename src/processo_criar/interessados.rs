@@ -33,6 +33,7 @@ pub(crate) enum ErroInteressado {
 }
 
 impl ErroInteressado {
+    #[cfg(test)]
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
     }

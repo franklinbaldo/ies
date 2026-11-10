@@ -383,7 +383,6 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
-        .map(legado)
         .or_else(|| processo_comentarios_cli::tentar_ler(cli))
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))

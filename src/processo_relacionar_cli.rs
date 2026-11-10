@@ -6,7 +6,6 @@ use crate::processo_relacionar::{
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -27,10 +26,7 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
     if mesmo_protocolo(nup.as_str(), outro.as_str()) {
-        return Some(crate::legado(falha(
-            cli.json,
-            &FalhaRelacionar::RelacionamentoConsigoMesmo,
-        )));
+        return Some(Err(FalhaRelacionar::RelacionamentoConsigoMesmo.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (10/11/2026): grava também em produção.
@@ -50,37 +46,12 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
-        crate::legado(publicar(cli.json, &preview))
+        publicar(cli.json, &preview);
+        Ok(())
     }))
 }
 
-fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
-    let incerto = matches!(erro, FalhaRelacionar::NaoConfirmado(_));
-    let mensagem = if incerto {
-        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita.".to_owned()
-    } else {
-        erro.mensagem()
-    };
-    if json_mode {
-        let mut resposta = json!({
-            "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
-            "erro": mensagem,
-            "retentavel": false,
-        });
-        if let Some(status) = erro.status_http() {
-            resposta["status_http"] = json!(status.status);
-            if let Some(texto) = &status.mensagem_do_servidor {
-                resposta["mensagem_servidor"] = json!(texto);
-            }
-        }
-        println!("{resposta}");
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
-}
-
-fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
+fn publicar(json_mode: bool, previa: &Previa) {
     if json_mode {
         println!(
             "{}",
@@ -136,5 +107,4 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             },
         );
     }
-    ExitCode::SUCCESS
 }

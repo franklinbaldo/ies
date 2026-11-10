@@ -57,7 +57,7 @@ fn confirmar_recusa_sem_sessao_ativa() {
 #[test]
 fn mesma_identidade_recusa_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
+    assert_falha(&saida, "AnexacaoAoProprioProcesso");
 }
 
 #[test]

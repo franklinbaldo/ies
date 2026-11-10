@@ -156,14 +156,13 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     dados: &ExclusaoPreparada,
     rede: &mut Contador<'_, V>,
     cookie: &str,
-    json_mode: bool,
-) -> Result<(), ExitCode> {
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or_else(|| recusar(json_mode, "origem invalida"))?;
-    let codificacao = codificacao_da_tela(&dados.mime)
-        .ok_or_else(|| recusar(json_mode, "charset da lista nao observado"))?;
-    let url_declarada = action_de_exclusao(&dados.html_lista)
-        .ok_or_else(|| recusar(json_mode, "a lista nao publicou a acao de exclusao"))?;
+) -> Result<(), FalhaDoPrazo> {
+    use FalhaDoPrazo as F;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
+    let codificacao = codificacao_da_tela(&dados.mime).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
+    let url_declarada =
+        action_de_exclusao(&dados.html_lista).ok_or(F::AcaoDeExclusaoNaoPublicada)?;
     let servida = TelaServida {
         url: &dados.link_lista,
         html: &dados.html_lista,
@@ -177,7 +176,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         &[("hdnInfraItemId", dados.id_controle.as_str())],
         Some(&url_declarada),
     )
-    .map_err(|_| recusar(json_mode, "formulario de exclusao nao pode ser submetido"))?;
+    .map_err(F::SubmissaoRecusada)?;
     let mut enviou = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -185,9 +184,9 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            nao_confirmado(json_mode, Some(&erro))
+            F::NaoConfirmado(Some(erro))
         } else {
-            recusar(json_mode, "envio de exclusao nao preparado")
+            F::SubmissaoRecusada(erro)
         }
     })?;
     match resposta {
@@ -196,30 +195,30 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
                 local.contains("acao=controle_prazo_listar")
                     && local.contains("acao_origem=controle_prazo_excluir")
             }) => {}
-        _ => return Err(nao_confirmado(json_mode, None)),
+        _ => return Err(F::NaoConfirmado(None)),
     }
     let (lista_nova, _) =
-        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| nao_confirmado(json_mode, None))?;
+        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| F::NaoConfirmado(None))?;
     // A mesma linha do NUP precisa desaparecer da lista relida.
     match id_na_lista(&lista_nova, &dados.nup) {
         Ok(None) => {}
-        Ok(Some(_)) | Err(()) => return Err(nao_confirmado(json_mode, None)),
+        Ok(Some(_)) | Err(()) => return Err(F::NaoConfirmado(None)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
     // O link guardado leva `id_controle_prazo` do controle excluido (cassette
     // processo-prazo-excluir-unb, interacoes 11 e 19): reabrir o processo e
     // usar o link novo da barra, como a leitura de `ies processo prazo`.
-    let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
-        .map_err(|_| nao_confirmado(json_mode, None))?;
+    let (_, acoes) =
+        abrir_para_escrever(sessao, pedido, indice, rede).map_err(|_| F::NaoConfirmado(None))?;
     let Ok(Some(link_novo)) = acoes.prazo else {
-        return Err(nao_confirmado(json_mode, None));
+        return Err(F::NaoConfirmado(None));
     };
-    let (formulario, _) = obter_tela(rede, cookie, link_novo.as_str())
-        .map_err(|_| nao_confirmado(json_mode, None))?;
-    let prazo = ler_tela(&formulario, &dados.id_procedimento)
-        .map_err(|_| nao_confirmado(json_mode, None))?;
+    let (formulario, _) =
+        obter_tela(rede, cookie, link_novo.as_str()).map_err(|_| F::NaoConfirmado(None))?;
+    let prazo =
+        ler_tela(&formulario, &dados.id_procedimento).map_err(|_| F::NaoConfirmado(None))?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
-        return Err(nao_confirmado(json_mode, None));
+        return Err(F::NaoConfirmado(None));
     }
     Ok(())
 }
@@ -230,7 +229,7 @@ fn publicar_exclusao(
     confirmar: bool,
     aberto: &crate::processo_obter::ProcessoAberto,
     requisicoes: u8,
-) -> ExitCode {
+) {
     let resultado = json!({
         "nup": nup.as_str(),
         "id_procedimento": aberto.arvore.processo.id,
@@ -254,8 +253,6 @@ fn publicar_exclusao(
             nup.as_str()
         );
     }
-
-    ExitCode::SUCCESS
 }
 
 /// Executa BDD-272-03 na CLI real, incluindo a previa sem qualquer POST.
@@ -265,54 +262,23 @@ pub(super) fn executar(
     confirmar: bool,
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
-) -> ExitCode {
+) -> anyhow::Result<()> {
+    use FalhaDoPrazo as F;
     let mut envio = EnvioHttps;
     let mut rede = Contador::novo(&mut envio);
     let leitura = leitura(nup, cli.unidade.as_deref(), true);
-    let (aberto, acoes) = match abrir_para_escrever(sessao, &leitura, indice, &mut rede) {
-        Ok(aberto) => aberto,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
+    let (aberto, acoes) = abrir_para_escrever(sessao, &leitura, indice, &mut rede)?;
     let Ok(Some(_)) = acoes.prazo else {
-        return recusar(
-            cli.json,
-            "processo nao oferece leitura independente do prazo",
-        );
+        return Err(F::LeituraIndependenteNaoOferecida.into());
     };
-    let cookie = match ler_cookie(sessao) {
-        Ok(cookie) => cookie,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
-    let (controle, _) =
-        match consultar_formulario(&mut rede, &cookie, sessao.url_do_controle, cli.json) {
-            Ok(tela) => tela,
-            Err(erro) => return erro,
-        };
-    let Some(link_lista) = link_da_lista(&controle, sessao.origem) else {
-        return recusar(cli.json, "controle da unidade nao publicou lista de prazos");
-    };
-    let (html_lista, mime) = match consultar_formulario(&mut rede, &cookie, &link_lista, cli.json) {
-        Ok(tela) => tela,
-        Err(erro) => return erro,
-    };
+    let cookie = ler_cookie(sessao)?;
+    let (controle, _) = obter_tela(&mut rede, &cookie, sessao.url_do_controle)?;
+    let link_lista = link_da_lista(&controle, sessao.origem).ok_or(F::ListaDePrazosNaoPublicada)?;
+    let (html_lista, mime) = obter_tela(&mut rede, &cookie, &link_lista)?;
     let id_controle = match id_na_lista(&html_lista, nup.as_str()) {
         Ok(Some(id)) => id,
-        Ok(None) => {
-            return recusar(
-                cli.json,
-                "o processo nao esta na lista de prazos da unidade",
-            );
-        }
-        Err(()) => {
-            return recusar(
-                cli.json,
-                "a lista de prazos nao identifica um unico controle",
-            );
-        }
+        Ok(None) => return Err(F::ProcessoForaDaListaDePrazos.into()),
+        Err(()) => return Err(F::ControleNaoUnicoNaLista.into()),
     };
     let preparada = ExclusaoPreparada {
         link_lista,
@@ -323,19 +289,11 @@ pub(super) fn executar(
         nup: nup.as_str().to_owned(),
         unidade: aberto.unidade.clone().unwrap_or_default(),
     };
-    if confirmar
-        && let Err(erro) = escrever_e_verificar(
-            sessao,
-            (&leitura, indice),
-            &preparada,
-            &mut rede,
-            &cookie,
-            cli.json,
-        )
-    {
-        return erro;
+    if confirmar {
+        escrever_e_verificar(sessao, (&leitura, indice), &preparada, &mut rede, &cookie)?;
     }
-    publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas())
+    publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas());
+    Ok(())
 }
 
 #[cfg(test)]

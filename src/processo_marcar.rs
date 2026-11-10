@@ -33,27 +33,28 @@ pub(crate) enum ErroMarcar {
     MarcadoresNaoLidos,
     UnidadeDaSessaoNaoPublicada,
 }
-impl ErroMarcar {
-    pub(crate) fn mensagem(self) -> &'static str {
-        match self {
-            Self::RotuloSemSeparador => "identifique o marcador por id#nome",
-            Self::IdDoMarcadorNaoDecimal => "o identificador do marcador deve ser decimal",
-            Self::NomeDoMarcadorVazio => "o nome do marcador não pode ser vazio",
-            Self::NomeDoMarcadorComControle => "o nome do marcador contém caractere de controle",
-            Self::TextoDoMarcadorLongo => "o texto do marcador excede 250 caracteres",
-            Self::ListaDeMarcadoresParcial => "a lista de marcadores do processo não está completa",
-            Self::RotuloDiferenteDoMarcadorLido => {
-                "o id do marcador tem nome diferente do solicitado"
-            }
-            Self::CatalogoDaUnidadeNaoObservado => {
-                "o catálogo de marcadores da unidade não foi conferido"
-            }
-            Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
-            Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
-            Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
-        }
-    }
+/// Falha depois de abrir o processo, com os pedidos já feitos.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum FalhaDaMarcacao {
+    /// Recusa da tela ou dos dados; nenhum POST de escrita saiu.
+    Recusada { causa: ErroMarcar, requisicoes: u8 },
+    /// O POST da retirada saiu e o efeito não foi comprovado: não repetir.
+    RetiradaNaoConfirmada {
+        requisicoes: u8,
+        ausente_relido: Option<bool>,
+    },
+    /// O POST da atribuição saiu e o efeito não foi comprovado: não repetir.
+    AtribuicaoNaoConfirmada {
+        requisicoes: u8,
+        presente_relido: Option<bool>,
+    },
 }
+
+pub(crate) fn recusa(causa: ErroMarcar, requisicoes: u8) -> anyhow::Error {
+    FalhaDaMarcacao::Recusada { causa, requisicoes }.into()
+}
+
 pub(crate) fn interpretar_rotulo(texto: &str) -> Result<Rotulo, ErroMarcar> {
     let (id, nome) = texto
         .split_once('#')
@@ -80,6 +81,12 @@ pub(crate) fn validar_texto(texto: &str) -> Result<(), ErroMarcar> {
         return Err(ErroMarcar::TextoDoMarcadorLongo);
     }
     Ok(())
+}
+
+/// `--texto`: o clap recusa o longo (saída 2) antes da sessão.
+pub(crate) fn texto_do_marcador(texto: &str) -> Result<String, ErroMarcar> {
+    validar_texto(texto)?;
+    Ok(texto.to_owned())
 }
 
 /// Só decide ausência se o número observado igualar o total declarado.

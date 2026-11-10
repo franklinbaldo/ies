@@ -57,9 +57,12 @@ fn bdd_258_05_autorrelacionamento_recusado_antes_da_sessao() {
                 }
                 let saida = sem_sessao(&args);
                 assert_eq!(saida.status.code(), Some(1), "stderr={:?}", saida.stderr);
-                let valor: serde_json::Value =
-                    serde_json::from_slice(&saida.stdout).expect("JSON na saída");
-                assert_eq!(valor["retentavel"], false);
+                assert_eq!(saida.stdout, b"");
+                let erro = String::from_utf8_lossy(&saida.stderr);
+                assert!(
+                    erro.starts_with("Error: RelacionamentoConsigoMesmo"),
+                    "{erro}"
+                );
             }
         }
     }

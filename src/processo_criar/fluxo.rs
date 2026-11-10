@@ -77,7 +77,7 @@ mod links;
 mod pos_escrita;
 #[path = "verificacao_apos_post.rs"]
 mod verificacao_apos_post;
-pub(crate) use erro_fluxo::{ErroCriar, EvidenciaDeCoincidencia};
+pub(crate) use erro_fluxo::ErroCriar;
 use links::{id_do_link, resolver_link, retorno_da_criacao, url_do_redirecionamento};
 
 pub(crate) struct PedidoCriar<'a> {

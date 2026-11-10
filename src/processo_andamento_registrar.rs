@@ -113,6 +113,20 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 pub(crate) fn texto_valido(texto: &str) -> bool {
     !texto.trim().is_empty() && texto.chars().count() <= 500
 }
+
+/// Texto do andamento vazio ou com mais de 500 caracteres.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TextoDoAndamentoInvalido;
+
+/// `--texto`: o clap recusa o inválido (saída 2) antes da sessão.
+pub(crate) fn texto_do_andamento(texto: &str) -> Result<String, TextoDoAndamentoInvalido> {
+    if texto_valido(texto) {
+        Ok(texto.to_owned())
+    } else {
+        Err(TextoDoAndamentoInvalido)
+    }
+}
 fn normalizar(texto: &str) -> String {
     texto.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -173,7 +187,6 @@ pub(crate) enum Erro {
     Formulario(#[from] ErroSubmissaoFormulario),
     NaoConfirmado,
 }
-impl Erro {}
 /// Fluxo injetável, sem retries, sem redirecionamentos seguidos.
 pub(crate) fn registrar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,

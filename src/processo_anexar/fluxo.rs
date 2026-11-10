@@ -43,6 +43,8 @@ pub(crate) enum EtapaNaoComprovada {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaAnexar {
+    /// O processo a anexar é o próprio principal; recusado antes da sessão.
+    AnexacaoAoProprioProcesso,
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
     NaoConfirmado(EtapaNaoComprovada),
@@ -57,7 +59,6 @@ pub(crate) enum FalhaAnexar {
     ConsultaTransporte(FalhaTransporte),
     ConsultaResposta(FalhaTransporte),
 }
-impl FalhaAnexar {}
 mod escrita;
 
 pub(crate) struct Pedido<'a> {
