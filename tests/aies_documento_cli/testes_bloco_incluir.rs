@@ -104,7 +104,6 @@ fn bdd_381_01_previa_documental_sem_incluir() {
 /// lista e detalhe do bloco.
 const REQUISICOES_DA_PREVIA: usize = 8;
 
-
 /// BDD-381-02: única confirmação oferecida, aceita e comprovada no mesmo
 /// SQLite; o segundo comando lê o estado produzido pelo primeiro.
 #[test]
@@ -114,7 +113,13 @@ fn bdd_381_02_inclusao_documental_causal_e_persistente() {
     let saida = executar(
         &pasta,
         &[
-            "--json", "bloco", "incluir", BLOCO, "--documento", DOC, "--confirmar",
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO,
+            "--documento",
+            DOC,
+            "--confirmar",
         ],
         REQUISICOES_DA_PREVIA + 4, // um POST e três GETs da releitura independente
     );
@@ -135,18 +140,27 @@ fn bdd_381_02_inclusao_documental_causal_e_persistente() {
     assert_eq!(consulta.status.code(), Some(0));
     let itens = json(&consulta)["bloco"]["itens"].clone();
     assert_eq!(
-        itens.as_array().unwrap().iter()
-            .filter(|item| item["documento"] == DOC).count(),
+        itens
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["documento"] == DOC)
+            .count(),
         1,
         "documento não persistiu no mesmo SQLite: {itens}"
     );
     let caminho = pasta.0.join("anti-ies.sqlite3");
     let (banco, instalacao) = estado(&caminho, true, 0, false);
     let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
-        .unwrap().expect("bloco publicado");
+        .unwrap()
+        .expect("bloco publicado");
     assert_eq!(detalhe.total, 2);
     assert_eq!(
-        detalhe.itens.iter().filter(|i| i.documento.as_deref() == Some(DOC)).count(),
+        detalhe
+            .itens
+            .iter()
+            .filter(|i| i.documento.as_deref() == Some(DOC))
+            .count(),
         1
     );
 }
