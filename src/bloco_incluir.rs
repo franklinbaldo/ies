@@ -22,8 +22,8 @@ use crate::processo_concluir::escrita::{
     Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
 };
 use crate::processo_obter::{
-    DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo,
-    PedidoDoDocumento, SessaoDoProcesso, abrir_documento_na_arvore,
+    DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento,
+    SessaoDoProcesso, abrir_documento_na_arvore,
 };
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
@@ -155,7 +155,11 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<PreviaDocumental, ErroIncluir> {
-    let PedidoDaInclusao { bloco, documento, confirmar } = pedido;
+    let PedidoDaInclusao {
+        bloco,
+        documento,
+        confirmar,
+    } = pedido;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroIncluir::Transporte(
         FalhaTransporte::OrigemNaoAutorizada,
     ))?;
@@ -232,7 +236,6 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     })
 }
 
-
 /// A tela fresca da oferta de inclusão, sem persistir HTML assinado.
 struct TelaDaInclusao<'a> {
     url: &'a str,
@@ -251,8 +254,8 @@ fn confirmar_documento<V: EnvioDoProcesso>(
     tela: TelaDaInclusao<'_>,
     rede: &mut Contador<'_, V>,
 ) -> Result<(), ErroIncluir> {
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
     let codificacao = codificacao_da_tela(tela.mime).ok_or(ErroIncluir::CharsetNaoSuportado)?;
     let servida = TelaServida {
         url: tela.url,
@@ -264,7 +267,10 @@ fn confirmar_documento<V: EnvioDoProcesso>(
         &instalacao,
         &servida,
         "",
-        &[("selBloco", bloco), ("chkDocumentosItem0", &aberto.id_documento)],
+        &[
+            ("selBloco", bloco),
+            ("chkDocumentosItem0", &aberto.id_documento),
+        ],
     )?;
     // Submissão consumida, sem possibilidade de segundo POST.
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
@@ -280,7 +286,12 @@ fn confirmar_documento<V: EnvioDoProcesso>(
         _ => false,
     };
     let relido = ler_tipado_via(
-        referencias, unidade, TipoBloco::Assinatura, Some(bloco), None, rede,
+        referencias,
+        unidade,
+        TipoBloco::Assinatura,
+        Some(bloco),
+        None,
+        rede,
     );
     let conferido = matches!(
         relido,
