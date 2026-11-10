@@ -95,11 +95,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, format!("{evento} {acao}"))
 }
 
-fn estado(cena: Cena) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-
+fn guardar_controle_parcial(banco: &mut Connection, instalacao: &Instalacao) {
     // O Controle observa PEDIDO, porém apenas uma página de duas linhas.
     // A projeção de processos não pode substituir a identidade observada
     // numa página parcial pela identidade divergente da árvore.
@@ -124,6 +120,14 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+}
+
+fn estado(cena: Cena) -> (Connection, Instalacao) {
+    let mut banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+
+    guardar_controle_parcial(&mut banco, &instalacao);
     processos::guardar(
         &mut banco,
         &instalacao,
