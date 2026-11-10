@@ -329,7 +329,7 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
 
 /// BDD-60-05: identidade de PDF em outra árvore conhecida não autoriza
 /// fallback para o processo pedido. A recusa é hipótese sintética:
-/// a cassette UnB registra navegação, não esta seleção cruzada.
+/// a cassette `UnB` registra navegação, não esta seleção cruzada.
 #[test]
 fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
     let banco = Connection::open_in_memory().unwrap();
