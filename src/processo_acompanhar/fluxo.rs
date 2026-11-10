@@ -223,16 +223,18 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
     id: &str,
     unidade: &str,
     pedido: &Pedido<'_>,
-) -> Result<(Vec<Acompanhamento>, Option<String>, Option<SubmissaoDerivada>), ErroPrevia> {
+) -> Result<
+    (
+        Vec<Acompanhamento>,
+        Option<String>,
+        Option<SubmissaoDerivada>,
+    ),
+    ErroPrevia,
+> {
     let res = rede.get_sem_seguir(link, cookie)?;
     let mut exclusao = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
-        let url = redirecionamento_do_gerenciar(
-            instalacao,
-            res.localizacao.as_deref(),
-            link,
-            id,
-        )?;
+        let url = redirecionamento_do_gerenciar(instalacao, res.localizacao.as_deref(), link, id)?;
         (Vec::new(), Some(url))
     } else {
         let mime = res.resposta.mime.clone();
@@ -244,8 +246,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
                 .any(|linha| pedido.grupo.is_none_or(|grupo| linha.grupo == grupo));
             if alvo {
                 let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
-                let destino =
-                    super::exclusao::destino_oferecido(instalacao, &html, id, &alvo.id)?;
+                let destino = super::exclusao::destino_oferecido(instalacao, &html, id, &alvo.id)?;
                 let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
                     .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
                 let tela = crate::formulario_web::TelaServida {
@@ -254,11 +255,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
                     codificacao,
                 };
                 exclusao = Some(super::submissao::derivar_exclusao(
-                    instalacao,
-                    &tela,
-                    unidade,
-                    &alvo.id,
-                    &destino,
+                    instalacao, &tela, unidade, &alvo.id, &destino,
                 )?);
             }
         }
