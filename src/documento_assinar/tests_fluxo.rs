@@ -176,7 +176,7 @@ fn confirmar_envia_um_post_com_a_senha_e_confere_a_caneta() {
     assert_eq!(
         feito.resultado,
         super::ResultadoDaAssinatura::Comprovada {
-            assinaturas_depois: vec![da_sessao(CARGO)],
+            assinatura_depois: da_sessao(CARGO),
             edicao_depois: EdicaoNaBarra::Assinado,
             reconciliado_por: None,
         }
@@ -239,7 +239,7 @@ fn resposta_sem_finalizar_reconciliada_pela_leitura() {
     assert_eq!(
         feito.resultado,
         super::ResultadoDaAssinatura::Comprovada {
-            assinaturas_depois: vec![da_sessao(CARGO)],
+            assinatura_depois: da_sessao(CARGO),
             edicao_depois: EdicaoNaBarra::Assinado,
             reconciliado_por: Some(FalhaDoEnvio::RespostaSemFinalizacao),
         }
