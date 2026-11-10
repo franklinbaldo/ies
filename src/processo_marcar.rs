@@ -114,7 +114,9 @@ pub(crate) fn decidir(
     }
 }
 
+mod catalogo;
 mod escrita;
+pub(crate) use catalogo::previa_atribuicao;
 pub(crate) use escrita::confirmar_retirada;
 
 #[cfg(test)]
