@@ -222,7 +222,9 @@ enum Caso {
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
-        Caso::AtribuirExistente | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo => ("--marcador", "501#Revisão"),
+        Caso::AtribuirExistente | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo => {
+            ("--marcador", "501#Revisão")
+        }
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
         Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
             ("--retirar", "501#Revisão")
