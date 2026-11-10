@@ -29,6 +29,7 @@ enum Modo {
     Completa,
     Parcial,
     Desconhecida,
+    Previa,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -202,7 +203,11 @@ fn executar(modo: Modo) {
         }
     });
     let saida: Output = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "comentarios", NUP])
+        .args(if matches!(modo, Modo::Previa) {
+            vec!["--json", "processo", "comentar", NUP, "--texto", "Comentário novo"]
+        } else {
+            vec!["--json", "processo", "comentarios", NUP]
+        })
         .env("IES_URL_CONTROLE_FILE", &controle)
         .env("IES_COOKIE_FILE", &cookie)
         .env("IES_ORIGEM_FILE", &origem)
@@ -226,7 +231,7 @@ fn executar(modo: Modo) {
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
-    let esperado = i32::from(!matches!(modo, Modo::Completa));
+    let esperado = i32::from(matches!(modo, Modo::Parcial | Modo::Desconhecida));
     assert_eq!(
         saida.status.code(),
         Some(esperado),
@@ -235,7 +240,12 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::Completa) {
+    if matches!(modo, Modo::Previa) {
+        assert_eq!(json["nup"], NUP);
+        assert_eq!(json["texto"], "Comentário novo");
+        assert_eq!(json["confirmado"], false);
+        assert_eq!(json["alterado"], false);
+    } else if matches!(modo, Modo::Completa) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["total"], 1);
         assert_eq!(json["lista_completa"], true);
@@ -257,6 +267,9 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         eventos.iter().all(|e| e.starts_with("GET ")),
         "consulta não pode enviar POST: {eventos:?}"
     );
+    if matches!(modo, Modo::Previa) {
+        assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
+    }
     let listagens = eventos
         .iter()
         .filter(|e| e.as_str() == "GET comentario_listar")
@@ -279,4 +292,9 @@ fn bdd_257_01_pagina_incompleta_nao_e_lista_total() {
 #[test]
 fn bdd_257_01_ausencia_de_foto_nao_e_lista_vazia() {
     executar(Modo::Desconhecida);
+}
+
+#[test]
+fn bdd_257_02_previa_observa_formulario_sem_post() {
+    executar(Modo::Previa);
 }
