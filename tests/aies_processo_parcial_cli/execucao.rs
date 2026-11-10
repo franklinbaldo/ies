@@ -3,10 +3,10 @@ use super::*;
 
 
 fn estado_final(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
-    let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
+    let controle = banco_cassettes::ler(banco, instalacao, CENARIO)
         .unwrap()
         .unwrap();
-    let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+    let processo = processos::ler(banco, instalacao, CENARIO, "10")
         .unwrap()
         .unwrap();
     if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoAutorizada) {
@@ -16,7 +16,7 @@ fn estado_final(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (Str
             iesei::validacao_acesso::Validacao::Exigida
         };
         assert_eq!(
-            iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
+            iesei::validacao_acesso::ler(banco, instalacao, CENARIO, "10").unwrap(),
             Some(esperado),
         );
     }

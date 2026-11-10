@@ -7,7 +7,7 @@ use crate::arvore_processo::{
 };
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
-    RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
+    ResultadoDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::sessao_login::Credenciais;
@@ -32,7 +32,7 @@ const VALIDAR_ACESSO: OperacaoDeFormulario = OperacaoDeFormulario {
 fn link_modal(html: &str, contexto: &Contexto<'_>, id: &str) -> Result<String, E> {
     let recusada = || E::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
     let mut fragmentos = html.split("infraAbrirJanelaModal('");
-    fragmentos.next();
+    let _ = fragmentos.next();
     let trecho = fragmentos.next().ok_or_else(recusada)?;
     if fragmentos.next().is_some() {
         return Err(recusada());
@@ -75,13 +75,11 @@ pub(super) fn validar<V: EnvioDoProcesso>(
         contexto.unidade_pedida.unwrap_or(""),
         &[("pwdSenha", credenciais.senha())],
     )?;
-    let resultado = enviar_submissao_via(submissao, contexto.cookie, |s, c| {
+    let _ = enviar_submissao_via(submissao, contexto.cookie, |s, c| {
         rede.requisicoes.registrar();
         rede.envio.post(s, c)
     })?;
-    match resultado {
-        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => Ok(()),
-    }
+    Ok(())
 }
 
 /// Depois de um POST único, exige uma nova leitura independente do trabalho
