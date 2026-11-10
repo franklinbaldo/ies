@@ -96,22 +96,17 @@ regra de proteção seja habilitada.
 Os workflows usam `contents: read`, salvo permissões específicas
 de publicação. Sem acesso ao SEI.
 
-## Decisões de engenharia
+## Links locais
 
-O `prek` executa `cargo run --quiet --locked -p xtask --bin check_design`.
-Para cada `CommandContract` com `implementation: partial` ou `complete`,
-o gate exige um `ImplementationDecision` em `docs/decisoes/`, com
-alternativas distintas, recorte implementado, estratégia selecionada,
-estado de evidência e links válidos para contrato, matriz e testes Rust.
-
-O gate impede documentação órfã e omissões estruturais. Ele **não
-transforma uma justificativa em demonstração de equivalência**.
-Stubs são dispensados, sem gerar documentos vazios.
+O hook `links-locais` roda o `okf-parser` (o mesmo do hook `okf`) e falha
+se algum link Markdown local não resolver (OKF101), fora de `.agents/`,
+que guarda skills de terceiros. Frontmatter e tipos OKF ficam com o hook
+`okf` (`--require-spec`). Os antigos `check_design` e `check_evidence`
+saíram (#679).
 
 ## Ferramentas de verificação
 
-`check_size`, `check_evidence` e `check_design` pertencem ao membro Rust
-`xtask`, sem dependências. O check de tamanho não deve compilar `ies`
+`check_size` pertence ao membro Rust `xtask`, sem dependências. O check de tamanho não deve compilar `ies`
 (`openssl`, `zip` ou `clap`) apenas para verificar os arquivos. Todos
 os caminhos OKF e de contratos são resolvidos na raiz do workspace.
 

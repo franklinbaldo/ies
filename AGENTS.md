@@ -160,10 +160,9 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
    o que já está gravado. Sem cassette, siga com hipótese testável.
    Rede local bloqueada? Use [GitHub Actions](docs/cassettes.md),
    não uma fixture sintética no lugar da observação disponível.
-2. **Contratar.** Contrato OKF da operação, erros tipados, shim compilável
-   e [decisão por operação](docs/decisoes/unidade-listar-processos.md)
-   (alternativas, evidência, trade-offs, revisão; o gate `check_design`
-   confere a ligação, não o mérito).
+2. **Contratar.** Contrato OKF da operação, erros tipados e shim
+   compilável; decisão de arquitetura só quando houver uma de verdade
+   (ADR em `docs/arquitetura/`).
 3. **RED.** Execute antes do código o BDD já definido na issue,
    com fixtures sintéticas quando preciso; registre a falha.
    Testes internos auxiliares não são cenários BDD.
