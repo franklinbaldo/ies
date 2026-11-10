@@ -35,6 +35,7 @@ pub(crate) enum ErroProcessoObter {
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
     Formulario(#[from] ErroSubmissaoFormulario),
+    ValidacaoDeAcesso(#[from] super::validacao_acesso::ErroValidacaoAcesso),
     Tela(#[from] ErroTelaDoProcesso),
     Arvore(#[from] ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
@@ -75,6 +76,15 @@ impl ErroProcessoObter {
             }
             Self::CharsetDoControleNaoSuportado => "o charset do Controle não é suportado",
             Self::Formulario(_) => "a pesquisa rápida não foi enviada como observado",
+            Self::ValidacaoDeAcesso(super::validacao_acesso::ErroValidacaoAcesso::Credenciais(
+                _,
+            )) => "o arquivo de credenciais privado está ausente, inseguro ou inválido",
+            Self::ValidacaoDeAcesso(erro) if erro.status_http().is_some() => {
+                "o SEI recusou a validação de acesso; não repetir"
+            }
+            Self::ValidacaoDeAcesso(_) => {
+                "a modal de validação de acesso não foi servida como esperado"
+            }
             Self::Tela(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
                 "a unidade da tela do processo difere da solicitada"
             }
@@ -133,6 +143,7 @@ impl ErroProcessoObter {
             Self::Transporte(erro) => erro.status_http(),
             Self::Controle(erro) => erro.status_http(),
             Self::Formulario(erro) => erro.status_http(),
+            Self::ValidacaoDeAcesso(erro) => erro.status_http(),
             Self::FormularioDoHistorico(erro) => erro.status_http(),
             _ => None,
         }

@@ -9,6 +9,8 @@ pub(crate) enum EstadoDeSessao {
     PreferenciaDeVisualizacao,
     /// O login cria a sessão autenticada (cookies) no servidor.
     SessaoAutenticada,
+    /// Acesso revalidado na sessao para um processo determinado.
+    AcessoAoProcessoRevalidado,
 }
 
 /// Preferência persistente do usuário, que sobrevive à sessão.

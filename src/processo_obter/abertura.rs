@@ -11,8 +11,7 @@ use crate::arvore_processo::{
     ler_andamento_da_barra, ler_anexar_da_barra, ler_atribuir_da_barra, ler_concluir_da_barra,
     ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
     ler_link_dos_comentarios, ler_link_dos_marcadores, ler_reabrir_da_barra,
-    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
-    ler_vinculo_de_anexacao,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_vinculo_de_anexacao,
 };
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
@@ -368,8 +367,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
-        self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
+        super::validacao_acesso::abrir_trabalho(self, contexto, trabalho, id, (&html, &mime))
     }
 
     /// A partir da tela do processo já lida e conferida: GET da árvore (e o
