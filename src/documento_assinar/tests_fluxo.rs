@@ -55,7 +55,14 @@ fn previa_abre_as_telas_e_nao_envia() {
     let (r, feitos) = rodar_assinar(None, false, ate_a_tela(arvore_do_documento('N', &[])));
     let feito = r.unwrap();
     assert_eq!(feitos, pedidos_ate_a_tela());
-    assert!(!feito.confirmado && !feito.alterado && !feito.ja_assinado_pela_sessao);
+    assert!(matches!(
+        &feito.resultado,
+        super::ResultadoDaAssinatura::Previa
+    ));
+    let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
+    assert_eq!(saida["confirmado"], false);
+    assert_eq!(saida["alterado"], false);
+    assert_eq!(saida["assinaturas_depois"], serde_json::Value::Null);
     assert_eq!(
         (feito.numero.as_str(), feito.id_documento.as_str()),
         (DOC, ID_DOC)
@@ -127,7 +134,16 @@ fn ja_assinado_pela_sessao_nao_envia_nem_com_confirmar() {
     let arvore = arvore_do_documento('S', &[caneta_da_sessao("Presidente")]);
     let (r, feitos) = rodar_assinar(Some(CARGO), true, ate_a_tela(arvore));
     let feito = r.unwrap();
-    assert!(feito.ja_assinado_pela_sessao && !feito.alterado);
+    assert_eq!(
+        feito.resultado,
+        super::ResultadoDaAssinatura::JaAssinadoPelaSessao {
+            confirmacao_pedida: true
+        }
+    );
+    let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
+    assert_eq!(saida["confirmado"], true);
+    assert_eq!(saida["alterado"], false);
+    assert_eq!(saida["ja_assinado_pela_sessao"], true);
     assert_eq!(feito.assinaturas, vec![da_sessao("Presidente")]);
     assert_eq!(feito.edicao, EdicaoNaBarra::Assinado);
     assert_eq!(feitos, pedidos_ate_a_tela());
@@ -157,11 +173,20 @@ fn confirmar_envia_um_post_com_a_senha_e_confere_a_caneta() {
     let (r, feitos) = rodar_assinar(Some(CARGO), true, respostas);
     let feito = r.unwrap();
     assert_eq!(feitos, pedidos_da_escrita());
-    assert!(feito.confirmado && feito.alterado);
+    assert_eq!(
+        feito.resultado,
+        super::ResultadoDaAssinatura::Comprovada {
+            assinaturas_depois: vec![da_sessao(CARGO)],
+            edicao_depois: EdicaoNaBarra::Assinado,
+            reconciliado_por: None,
+        }
+    );
     assert_eq!(feito.cargo.as_deref(), Some(CARGO));
-    assert_eq!(feito.assinaturas_depois, Some(vec![da_sessao(CARGO)]));
-    assert_eq!(feito.edicao_depois, Some(EdicaoNaBarra::Assinado));
-    assert_eq!(feito.reconciliado_por, None);
+    let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
+    assert_eq!(saida["confirmado"], true);
+    assert_eq!(saida["alterado"], true);
+    assert_eq!(saida["edicao_depois"], "assinado");
+    assert_eq!(saida["reconciliado_por_leitura"], false);
     assert_eq!(feito.requisicoes, 7);
     assert!(!format!("{feito:?}").contains(SENHA));
 }
@@ -211,11 +236,17 @@ fn resposta_sem_finalizar_reconciliada_pela_leitura() {
     );
     let (r, feitos) = rodar_assinar(Some(CARGO), true, respostas);
     let feito = r.unwrap();
-    assert!(feito.alterado);
     assert_eq!(
-        feito.reconciliado_por,
-        Some(FalhaDoEnvio::RespostaSemFinalizacao)
+        feito.resultado,
+        super::ResultadoDaAssinatura::Comprovada {
+            assinaturas_depois: vec![da_sessao(CARGO)],
+            edicao_depois: EdicaoNaBarra::Assinado,
+            reconciliado_por: Some(FalhaDoEnvio::RespostaSemFinalizacao),
+        }
     );
+    let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
+    assert_eq!(saida["reconciliado_por_leitura"], true);
+    assert_eq!(saida["falha_do_envio"]["subcodigo"], "resposta_da_assinatura_sem_finalizacao");
     assert_eq!(feitos, pedidos_da_escrita());
 }
 
