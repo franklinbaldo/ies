@@ -132,12 +132,19 @@ pub(crate) fn consulta(
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
-    let Ok(pendencia) =
-        iesei::editor_documento::ha_documento_sem_assinatura(banco, origem, cenario, &id)
+    use iesei::editor_documento::SituacaoAssinaturas;
+    let Ok(situacao) =
+        iesei::editor_documento::situacao_assinaturas_anexacao(banco, origem, cenario, &id)
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    let resultado = if pendencia { "N" } else { "S" };
+    let resultado = match situacao {
+        SituacaoAssinaturas::SemPendencias => "S",
+        SituacaoAssinaturas::Pendentes => "N",
+        SituacaoAssinaturas::NaoObservadas => {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        }
+    };
     Resposta {
         estado: Estado::Ok,
         tipo_conteudo: "application/xml; charset=utf-8",
