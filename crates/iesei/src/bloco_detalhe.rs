@@ -183,6 +183,35 @@ pub fn ler(
     Ok(Some(detalhe))
 }
 
+/// Uma ocorrência positiva em detalhe observado comprova pertencimento; a
+/// ausência da linha não prova que o documento não pertence a outro bloco.
+/// Usado pelo anti-IES para modelar uma barra que não oferece nova inclusão
+/// quando o documento já consta de um bloco da unidade.
+///
+/// # Errors
+/// Propaga falha de leitura do estado derivado.
+pub fn documento_ja_observado_em_bloco(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    documento: &str,
+) -> rusqlite::Result<bool> {
+    let encontrado: Option<i64> = banco
+        .query_row(
+            "SELECT 1 FROM sim_bloco_item
+             WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND documento=?4 LIMIT 1",
+            params![
+                instalacao.url_base(),
+                cenario,
+                Tipo::Assinatura.nome(),
+                documento
+            ],
+            |linha| linha.get(0),
+        )
+        .optional()?;
+    Ok(encontrado.is_some())
+}
+
 /// Confirma a inclusão de documento em um bloco de assinatura já inteiramente
 /// observado. O mesmo SQLite sustenta a releitura e os comandos posteriores.
 /// Não inventa item ausente quando a página do detalhe é parcial.
