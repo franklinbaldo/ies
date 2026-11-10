@@ -78,42 +78,43 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 erro.mensagem(),
                 erro.status_http(),
             ),
-            Err(erro) => {
-                use crate::erro_publico::Causa;
-                let causa = crate::erro_publico::caminho_de(&erro);
-                let motivo_situacao = match &erro {
-                    Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
-                    _ => None,
-                };
-                let mensagem = "o SEI não publicou a anotação deste processo para esta unidade; nenhuma escrita foi realizada";
-                if cli.json {
-                    let mut saida = json!({
-                        "codigo": "fonte_invalida",
-                        "causa": causa,
-                        "erro": mensagem,
-                        "retentavel": false
-                    });
-                    if let Some(motivo) = motivo_situacao {
-                        saida["motivo_situacao"] = json!(motivo);
-                    }
-                    if let Some(http) = erro.status_http() {
-                        if http.status != 200 {
-                            saida["status_http"] = json!(http.status);
-                        }
-                        if let Some(mensagem_do_servidor) = &http.mensagem_do_servidor {
-                            saida["mensagem_do_servidor"] = json!(mensagem_do_servidor);
-                        }
-                    }
-                    println!("{saida}");
-                } else {
-                    if let Some(motivo) = motivo_situacao {
-                        eprintln!("IES: {mensagem} [{}; {motivo}]", causa.join("/"));
-                    } else {
-                        eprintln!("IES: {mensagem} [{}]", causa.join("/"));
-                    }
-                }
-                ExitCode::from(1)
-            }
+            Err(erro) => falha_da_previa(cli, erro),
         },
     ))
+}
+
+/// Emite a causa tipada sem catálogo de subcódigos por operação.
+fn falha_da_previa(cli: &Cli, erro: Erro) -> ExitCode {
+    use crate::erro_publico::Causa;
+    let causa = crate::erro_publico::caminho_de(&erro);
+    let motivo_situacao = match &erro {
+        Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
+        _ => None,
+    };
+    let mensagem = "o SEI não publicou a anotação deste processo para esta unidade; nenhuma escrita foi realizada";
+    if cli.json {
+        let mut saida = json!({
+            "codigo": "fonte_invalida",
+            "causa": causa,
+            "erro": mensagem,
+            "retentavel": false
+        });
+        if let Some(motivo) = motivo_situacao {
+            saida["motivo_situacao"] = json!(motivo);
+        }
+        if let Some(http) = erro.status_http() {
+            if http.status != 200 {
+                saida["status_http"] = json!(http.status);
+            }
+            if let Some(mensagem_do_servidor) = &http.mensagem_do_servidor {
+                saida["mensagem_do_servidor"] = json!(mensagem_do_servidor);
+            }
+        }
+        println!("{saida}");
+    } else if let Some(motivo) = motivo_situacao {
+        eprintln!("IES: {mensagem} [{}; {motivo}]", causa.join("/"));
+    } else {
+        eprintln!("IES: {mensagem} [{}]", causa.join("/"));
+    }
+    ExitCode::from(1)
 }
