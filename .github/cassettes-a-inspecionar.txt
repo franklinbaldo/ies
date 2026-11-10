@@ -1,2 +1,0 @@
-cassettes/unb/bloco-incluir-anotar-retirar-unb--c3232a87e814.md
-# segunda passagem: respostas base64 saneadas
