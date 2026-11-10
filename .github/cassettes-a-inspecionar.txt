@@ -1,4 +1,0 @@
-# BDD-633: inventariar apenas estrutura HTTP publica, sem divulgar dados.
-cassettes/go/processo-busca-go--a7182b2ab8d7.md
-cassettes/go/processo-acesso-externo-go--34dedaf86d52.md
-cassettes/go/processo-nup-inexistente-go--cf432a7c366d.md
