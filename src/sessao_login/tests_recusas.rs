@@ -410,5 +410,8 @@ fn falha_da_sessao_gravada_que_nao_e_vencimento_nao_faz_login() {
     assert_eq!(roteiro.pedidos.len(), 1);
     let mut roteiro = Roteiro::novo(vec![r200("<html><body>outra</body></html>", &[])]);
     let erro = entrar_via(&ambiente.pedido(false), &mut roteiro).unwrap_err();
-    assert_eq!(erro.subcodigo(), "controle_web_nao_reconhecido");
+    assert_eq!(
+        erro.subcodigo(),
+        "controle_da_sessao_existente_nao_reconhecido"
+    );
 }

@@ -11,7 +11,6 @@ const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcaoSobrestar {
-    #[causa(nome = "endereco_do_sobrestamento_de_outro_processo")]
     OutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),
@@ -77,7 +76,6 @@ pub(crate) fn ler_retomar_da_barra(
 /// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnderecoDeRetomar {
-    #[causa(nome = "endereco_de_retomar_de_outro_processo")]
     OutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

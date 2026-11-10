@@ -1,6 +1,6 @@
 //! Um único POST de anexação mais releitura independente da lista observada.
 //! O aceite 302 sozinho nunca demonstra que houve anexação.
-use super::{Destino, FalhaAnexar as E, ler_tela};
+use super::{Destino, EtapaNaoComprovada, FalhaAnexar as E, ler_tela};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -92,7 +92,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     })
     .map_err(|e| {
         if enviou {
-            E::EfeitoIncerto
+            E::EfeitoIncerto(EtapaNaoComprovada::RespostaDoPost)
         } else {
             E::ConsultaDerivacao(e)
         }
@@ -101,12 +101,15 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         RespostaDoEnvio::Redirecionamento(r)
             if r.localizacao()
                 .is_some_and(|loc| aceite(loc, r.url_do_envio(), id_principal)) => {}
-        _ => return Err(E::EfeitoIncerto),
+        _ => return Err(E::EfeitoIncerto(EtapaNaoComprovada::RespostaDoPost)),
     }
-    let (depois, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto)?;
-    let lista = ler_tela(&depois).map_err(|_| E::EfeitoIncerto)?.anexados;
+    let (depois, _) = obter_tela(rede, cookie, link)
+        .map_err(|_| E::EfeitoIncerto(EtapaNaoComprovada::ListaAposPost))?;
+    let lista = ler_tela(&depois)
+        .map_err(|_| E::EfeitoIncerto(EtapaNaoComprovada::ListaAposPost))?
+        .anexados;
     if !lista.contains(&destino.id) || !anteriores.iter().all(|id| lista.contains(id)) {
-        return Err(E::EfeitoIncerto);
+        return Err(E::EfeitoIncerto(EtapaNaoComprovada::ListaAposPost));
     }
     Ok(())
 }

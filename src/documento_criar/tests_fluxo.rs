@@ -170,10 +170,7 @@ fn cadastro_ignora_required_de_controles_inativos() {
 #[test]
 fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {
     let erro = ErroPreviaCriacao::NivelNaoInformado;
-    assert_eq!(
-        erro.subcodigo(),
-        "nivel_de_documento_nao_informado_para_escrita"
-    );
+    assert_eq!(erro.subcodigo(), "nivel_nao_informado");
 }
 
 #[test]
@@ -223,9 +220,9 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
     // o processo: GET também pode registrar recebimento no SEI.
     use crate::processo_concluir::tests_apoio as apoio;
     for (nivel, subcodigo) in [
-        (None, "nivel_de_documento_nao_informado_para_escrita"),
-        (Some("restrito"), "nivel_de_documento_requer_hipotese_legal"),
-        (Some("sigiloso"), "nivel_de_documento_requer_hipotese_legal"),
+        (None, "nivel_nao_informado"),
+        (Some("restrito"), "nivel_restrito_sem_hipotese"),
+        (Some("sigiloso"), "nivel_restrito_sem_hipotese"),
     ] {
         let ambiente = apoio::ambiente();
         let (resultado, pedidos) =
@@ -256,22 +253,16 @@ fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
     // O código público continua sendo a folha, mas a causa deve incluir
     // cada etapa tipada do fluxo, sem depender de textos para classificar.
     let tipo = ErroPreviaCriacao::Tipo(ErroCriar::TipoAusente);
-    assert_eq!(
-        crate::erro_publico::folha(&tipo),
-        "tipo_de_documento_nao_oferecido"
-    );
+    assert_eq!(crate::erro_publico::folha(&tipo), "tipo_ausente");
     assert_eq!(
         crate::erro_publico::caminho_de(&tipo),
-        ["tipo", "tipo_de_documento_nao_oferecido"]
+        ["tipo", "tipo_ausente"]
     );
     let link = ErroPreviaCriacao::Link(ErroLinkIncluirDocumento::LinkRepetido);
-    assert_eq!(
-        crate::erro_publico::folha(&link),
-        "links_de_incluir_documento_repetidos"
-    );
+    assert_eq!(crate::erro_publico::folha(&link), "link_repetido");
     assert_eq!(
         crate::erro_publico::caminho_de(&link),
-        ["link", "links_de_incluir_documento_repetidos"]
+        ["link", "link_repetido"]
     );
 }
 

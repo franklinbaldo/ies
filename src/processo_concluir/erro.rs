@@ -29,16 +29,12 @@ pub(crate) enum FalhaDoEnvio {
     #[causa(interna)]
     Transporte(FalhaTransporte),
     /// GET da função: a tela de login.
-    #[causa(nome = "tela_de_login_recebida_apos_envio")]
     LoginAposEscrita,
     /// 302 para destino fora dos observados (`arvore_visualizar`, `principal`).
-    #[causa(nome = "redirecionamento_nao_reconhecido_apos_concluir")]
     RedirecionamentoNaoReconhecido,
     /// HTML 200 em vez do 302 (forma `tela`).
-    #[causa(nome = "resposta_do_concluir_sem_redirecionamento")]
     RespostaSemRedirecionamento,
     /// 302 em vez do HTML 200 (forma `funcao`).
-    #[causa(nome = "redirecionamento_na_conclusao_pela_funcao")]
     RedirecionamentoNaFuncao,
     /// 302 em vez do HTML 200 (GET de reabrir).
     RedirecionamentoNaReabertura,
@@ -96,7 +92,6 @@ pub(crate) enum ErroConcluir {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
-    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeConcluir {
         motivo: MotivoAbertoEm,
@@ -113,11 +108,9 @@ pub(crate) enum ErroConcluir {
     /// GET da tela de conclusão ou da tela do nó, antes da escrita.
     #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
-    #[causa(nome = "tela_da_conclusao_redirecionada")]
     TelaDaEscritaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
-    #[causa(nome = "charset_da_tela_de_conclusao_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     #[causa(interna)]
     TelaDeConclusao(ErroTelaDeConclusao),

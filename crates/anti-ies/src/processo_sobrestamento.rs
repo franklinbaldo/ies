@@ -33,6 +33,7 @@ fn pagina(id: &str) -> String {
 <input type="radio" name="rdoSobrestar" id="optSomenteSobrestar" value="S" />
 <input type="radio" name="rdoSobrestar" id="optSobrestarVincular" value="V" />
 <input type="text" name="txtProcedimentoDestino" value="" />
+<button type="button" name="btnPesquisar">Pesquisar</button>
 <input type="text" name="txtIdentificacaoProcedimentoDestino" readonly="readonly" value="" />
 <textarea id="txaMotivo" name="txaMotivo"></textarea>
 <input type="hidden" name="hdnIdProtocolos" value="{id}" />

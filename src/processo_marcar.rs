@@ -20,7 +20,6 @@ pub(crate) enum Decisao {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroMarcar {
-    #[causa(nome = "rotulo_do_marcador_sem_separador")]
     RotuloSemSeparador,
     IdDoMarcadorNaoDecimal,
     NomeDoMarcadorVazio,
@@ -30,11 +29,8 @@ pub(crate) enum ErroMarcar {
     RotuloDiferenteDoMarcadorLido,
     CatalogoDaUnidadeNaoObservado,
     RemocaoSemFormularioObservado,
-    #[causa(nome = "marcadores_nao_lidos_para_escrita")]
     MarcadoresNaoLidos,
-    #[causa(nome = "unidade_da_sessao_nao_publicada_para_marcar")]
     UnidadeDaSessaoNaoPublicada,
-    #[causa(nome = "escrita_de_marcador_ainda_fechada")]
     EscritaAindaFechada,
 }
 impl ErroMarcar {
@@ -58,7 +54,9 @@ impl ErroMarcar {
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
-            Self::EscritaAindaFechada => "a escrita de marcador ainda não está liberada",
+            Self::EscritaAindaFechada => {
+                "a confirmação de marcador ainda não está disponível; execute sem --confirmar para ver a prévia"
+            }
         }
     }
 }

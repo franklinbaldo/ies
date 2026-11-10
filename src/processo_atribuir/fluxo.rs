@@ -47,7 +47,6 @@ pub(crate) enum ErroProcessoAtribuir {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,
-    #[causa(nome = "situacao_da_atribuicao_nao_observada")]
     SituacaoDaAtribuicaoNaoObservada {
         unidade: String,
         aberto_em: Option<Vec<String>>,
@@ -68,7 +67,6 @@ pub(crate) enum ErroProcessoAtribuir {
     Preparacao(ErroAtribuir),
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    #[causa(nome = "efeito_incerto_na_atribuicao")]
     EfeitoIncertoNaAtribuicao {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,

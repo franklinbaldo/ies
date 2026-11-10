@@ -17,25 +17,15 @@ const TABELA: &str = "Tabela de Acompanhamentos.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcompanhar {
-    #[causa(nome = "cadastro_de_acompanhamento_nao_publicado")]
     CadastroNaoPublicado,
-    #[causa(nome = "cadastro_de_acompanhamento_de_outro_processo")]
     CadastroDeOutroProcesso,
-    #[causa(nome = "grupos_de_acompanhamento_nao_publicados")]
     GruposNaoPublicados,
-    #[causa(nome = "grupo_de_acompanhamento_nao_oferecido")]
     GrupoNaoOferecido,
-    #[causa(nome = "grupo_de_acompanhamento_ambiguo")]
     GrupoAmbiguo,
-    #[causa(nome = "lista_de_acompanhamentos_nao_publicada")]
     ListaNaoPublicada,
-    #[causa(nome = "grupo_ja_acompanhado_no_processo")]
     GrupoJaAcompanhado,
-    #[causa(nome = "processo_sem_acompanhamento")]
     NenhumAcompanhamento,
-    #[causa(nome = "acompanhamento_para_remover_ambiguo")]
     EscolhaDeAcompanhamentoAmbigua,
-    #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     AcompanhamentoNaoConfirmado,
     #[causa(transparente)]
     Html(ErroHtml),

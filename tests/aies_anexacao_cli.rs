@@ -275,6 +275,10 @@ fn conferir_resultados(
         assert_eq!(saida_json["alterado"], true);
     } else {
         assert_eq!(saida_json["codigo"], "efeito_incerto");
+        assert_eq!(saida_json["causa"], "resposta_do_post");
+        assert!(saida_json.get("subcodigo").is_none());
+        assert_eq!(saida_json["escrita"]["envio_tentado"], true);
+        assert!(saida_json["escrita"]["aplicada"].is_null());
         assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
     }
     assert_eq!(

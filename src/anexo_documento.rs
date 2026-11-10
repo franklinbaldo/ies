@@ -140,32 +140,22 @@ pub(crate) enum ErroAnexo {
     #[causa(interna)]
     Transporte(FalhaTransporte),
     /// HTML 200 que é a tela de login.
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     TelaDeLogin,
-    #[causa(nome = "anexo_sem_tipo_de_conteudo")]
     SemTipoDeConteudo,
-    #[causa(nome = "tipo_de_anexo_nao_permitido")]
     TipoNaoPermitido,
-    #[causa(nome = "cabecalho_do_anexo_repetido")]
     CabecalhoRepetido,
-    #[causa(nome = "disposicao_do_anexo_fora_da_forma_observada")]
     DisposicaoForaDaFormaObservada,
-    #[causa(nome = "anexo_acima_do_limite")]
     AcimaDoLimite,
-    #[causa(nome = "anexo_vazio")]
     Vazio,
     ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
-    #[causa(nome = "anexo_recusado_pelo_sei")]
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
     #[causa(interna)]
     Corpo(ErroCorpoDocumento),
-    #[causa(nome = "diretorio_do_anexo_ausente")]
     DiretorioAusente,
-    #[causa(nome = "arquivo_do_anexo_ja_existe")]
     ArquivoJaExiste,
-    #[causa(nome = "escrita_do_anexo_falhou")]
     EscritaFalhou,
 }
 

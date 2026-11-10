@@ -35,7 +35,11 @@ publica URL assinada, cookie ou `infra_hash`.
   `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
   existir **no processo** para provar que ele existe **na unidade**.
 
-A prévia não reivindica a escrita como implementada. O código não executa
+A prévia não reivindica a escrita como implementada. Se `--confirmar` for
+pedido, a CLI explica **antes de abrir sessão ou rede** que a confirmação
+não está disponível e orienta a executar sem `--confirmar` para consultar
+uma prévia. A instrução é idêntica nas saídas humana e JSON; não promete
+que a prévia tenha removido ou atribuído o marcador. O código não executa
 JavaScript e não interpreta mensagem do SEI para classificação.
 
 ## Orçamento e sequência da fatia
@@ -51,15 +55,22 @@ na prévia quanto na confirmação recusada. O transporte roteirizado
 confere a lista exata de pedidos, sem rede real. A contagem de outros
 caminhos de abertura e do índice quente precisa de novos casos.
 Testes sintéticos também conferem idempotência, lista parcial,
-identidade divergente e texto Latin-1 válido. Entrada inválida não
-lê configuração.
+identidade divergente e texto Latin-1 válido. O E2E da prévia de retirada
+presente usa a CLI Rust real, HTTPS local, anti-IES e SQLite efêmero,
+compara saída humana/JSON e consulta novamente os marcadores para
+comprovar **estado inalterado e zero POST**. Até que o formulário de
+remoção seja validado, `retirada_possivel` permanece `false`, mesmo
+quando a presença do marcador está confirmada. Presença não é prova de
+ação oferecida. Isto é apenas a primeira
+metade do BDD-255-02: remoção com `--confirmar` continua pendente.
+Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
 A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
 Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto
 a escrita não for observada, `--confirmar` recusa
-`escrita_de_marcador_ainda_fechada` antes de abrir a sessão.
+`escrita_ainda_fechada` antes de abrir a sessão.
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
@@ -71,7 +82,7 @@ a escrita não for observada, `--confirmar` recusa
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
 | `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
 | `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
-| `escrita_de_marcador_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
+| `escrita_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
 | `texto_do_marcador_longo` | Texto excede 250 caracteres |

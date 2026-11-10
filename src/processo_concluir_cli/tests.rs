@@ -51,7 +51,7 @@ fn reconciliado_traz_a_falha_do_envio() {
     assert_eq!(valor["reconciliado_por_leitura"], true);
     assert_eq!(
         valor["falha_do_envio"],
-        json!({"subcodigo": "redirecionamento_nao_reconhecido_apos_concluir", "status_http": 302})
+        json!({"subcodigo": "redirecionamento_nao_reconhecido", "status_http": 302})
     );
 }
 
@@ -115,7 +115,7 @@ fn erro_tipado_da_conclusao_publica_situacao_e_resposta_sem_json() {
             format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo()),
             "IES: aberto_em: TESTE".to_owned(),
             "IES: depois: OUTRA".to_owned(),
-            "IES: resposta da escrita: redirecionamento_nao_reconhecido_apos_concluir".to_owned(),
+            "IES: resposta da escrita: redirecionamento_nao_reconhecido".to_owned(),
         ]
     );
 }
@@ -144,7 +144,7 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
     let casos = [
         (
             ErroConcluir::UnidadeDaSessaoNaoPublicada,
-            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi concluído","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada_na_abertura"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi concluído","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada"}"#,
         ),
         (
             ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir {
@@ -174,7 +174,7 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido_apos_concluir"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_conclusao","verificacao":null}"#,
+            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_conclusao","verificacao":null}"#,
         ),
     ];
     for (erro, esperado) in casos {

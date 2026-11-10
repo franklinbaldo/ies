@@ -169,7 +169,7 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
     let casos = [
         (
             ErroReabrir::UnidadeDaSessaoNaoPublicada,
-            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi reaberto","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada_na_abertura"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"a abertura não publicou a unidade da sessão; nada foi reaberto","retentavel":false,"subcodigo":"unidade_da_sessao_nao_publicada"}"#,
         ),
         (
             ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir {

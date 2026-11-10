@@ -76,7 +76,7 @@ fn conferir_lista(item: &Value, atividade: Option<ProvaPendente>) -> Resultado {
     match atividade_na_lista(&html, id) {
         Ok(true) => Resultado::Lido,
         Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
     }
 }
 
@@ -158,7 +158,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                         });
                         Resultado::Lido
                     }
-                    Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                    Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
                 };
                 (leitor, resultado)
             }

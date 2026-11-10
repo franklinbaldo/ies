@@ -22,7 +22,6 @@ pub(crate) enum ErroDocumentoObter {
     #[causa(interna)]
     Conteudo(ErroConteudoNaArvore),
     /// `.src` vazio num nó com ícone e dica de cancelado.
-    #[causa(nome = "documento_cancelado_sem_conteudo_na_arvore")]
     DocumentoCancelado,
     /// `.src` vazio: a árvore não publica o conteúdo para esta sessão.
     ConteudoNaoPublicadoNaArvore { requisicoes: u8 },
@@ -33,7 +32,6 @@ pub(crate) enum ErroDocumentoObter {
     #[causa(interna)]
     Titulo(ErroTituloDocumento),
     /// O título servido é de outro número SEI.
-    #[causa(nome = "titulo_do_conteudo_de_outro_documento")]
     TituloDeOutroDocumento,
     /// O corpo do HTML servido.
     #[causa(interna)]

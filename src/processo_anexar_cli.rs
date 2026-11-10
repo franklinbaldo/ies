@@ -75,14 +75,26 @@ fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(1)
 }
 fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
-    if erro.saida() != 3 {
-        return falha(json_mode, erro.subcodigo());
-    }
+    let FalhaAnexar::EfeitoIncerto(etapa) = erro else {
+        return falha(
+            json_mode,
+            erro.subcodigo_legado()
+                .expect("a recusa comum conserva o subcódigo legado"),
+        );
+    };
     let mensagem = "O efeito da anexação não pôde ser comprovado. Confira a lista no SEI; não repita --confirmar.";
     if json_mode {
+        // A causa vem diretamente da variante Rust serializada por Serde.
+        // Não acrescentar um novo subcódigo textual ao catálogo legado.
         println!(
             "{}",
-            json!({"codigo":"efeito_incerto", "subcodigo":erro.subcodigo(), "erro":mensagem, "retentavel":false})
+            json!({
+                "codigo": "efeito_incerto",
+                "causa": etapa,
+                "escrita": {"envio_tentado": true, "aplicada": null},
+                "erro": mensagem,
+                "retentavel": false
+            })
         );
     } else {
         eprintln!("IES: {mensagem}");

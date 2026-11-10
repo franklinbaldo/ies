@@ -32,7 +32,6 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 /// Uma variante por fato verificável da paginação da pesquisa.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    #[causa(nome = "pagina_da_pesquisa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         solicitada: u32,
         paginas: u64,

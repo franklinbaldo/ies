@@ -192,7 +192,7 @@ fn ajax_com_duas_hipoteses_recusa_antes_do_post_criador() {
         )
     });
     let erro = resultado.expect_err("duas hipoteses devem ser recusadas");
-    assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
+    assert_eq!(erro.subcodigo(), "opcoes_disponiveis");
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert!(
@@ -404,7 +404,7 @@ fn nome_incorreto_da_hipotese_nao_cria_processo() {
         resultado
             .expect_err("nome não publicado deve ser recusado")
             .subcodigo(),
-        "hipotese_legal_escolha_nao_oferecida"
+        "escolha_nao_oferecida"
     );
     assert_eq!(pedidos.len(), 4);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

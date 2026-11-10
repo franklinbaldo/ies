@@ -40,7 +40,7 @@ fn documento_com_propriedades_sem_sessao_falha_sem_rede() {
     let output = ies_sem_sessao(&["documento", "77782513", "--com-propriedades", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(result["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 /// `ies documento DOC` lê a sessão Web (Refs #60): sem os arquivos de
@@ -50,7 +50,7 @@ fn leitura_web_de_documento_le_a_sessao_antes_da_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 /// `--processo` com NUP inválido é entrada inválida, sem rede (Refs #60).
@@ -59,7 +59,7 @@ fn processo_invalido_do_documento_e_recusado_sem_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "--processo", "sei://1", "--json"]);
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "referencia_processo_legada");
+    assert_eq!(value["subcodigo"], "referencia_legada");
 }
 
 /// O mesmo número duas vezes é entrada inválida (zeros à esquerda contam:
@@ -72,7 +72,7 @@ fn numero_de_documento_repetido_e_recusado_sem_rede() {
     assert_eq!(value["subcodigo"], "numero_documento_repetido");
     let output = ies_sem_sessao(&["documento", "011354", "0011354", "--json"]);
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn leitura_pela_arvore_aceita_andamentos_completos_e_le_a_sessao() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -201,7 +201,7 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
     ]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "diretorio_texto_documento_ausente");
+    assert_eq!(value["subcodigo"], "diretorio_ausente");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn processo_rejeita_numero_vazio_com_erro_tipado() {
     assert_eq!(output.status.code(), Some(2));
     let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(erro["codigo"], "entrada_invalida");
-    assert_eq!(erro["subcodigo"], "numero_processo_vazio");
+    assert_eq!(erro["subcodigo"], "vazio");
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn processo_rejeita_numero_com_controle_sem_vazar_entrada() {
     let output = ies(&["processo", "123\nSEGREDO", "--json"]);
     assert_eq!(output.status.code(), Some(2));
     let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "numero_processo_controle");
+    assert_eq!(erro["subcodigo"], "controle");
     assert!(!String::from_utf8_lossy(&output.stdout).contains("SEGREDO"));
 }
 
@@ -284,7 +284,7 @@ fn processo_rejeita_controle_removivel_no_inicio_ou_fim_sem_rede() {
         let output = ies(&["processo", numero, "--json"]);
         assert_eq!(output.status.code(), Some(2));
         let valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(valor["subcodigo"], "numero_processo_controle");
+        assert_eq!(valor["subcodigo"], "controle");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("000123/2026"));
     }
 }
@@ -294,7 +294,7 @@ fn processo_preserva_zeros_e_nao_inventa_leitura() {
     let output = ies_sem_sessao(&["processo", "000123/2026-01", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(resposta["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(resposta["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
         assert_eq!(output.status.code(), Some(1), "{numero}");
         let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(
-            value["subcodigo"], "caminho_url_controle_nao_informado",
+            value["subcodigo"], "url_do_controle_sem_caminho",
             "{numero}"
         );
     }
@@ -320,7 +320,7 @@ fn processo_recusa_referencia_legada_por_tipo() {
     let output = ies(&["processo", "SEI://processo/abc", "--json"]);
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "referencia_processo_legada");
+    assert_eq!(value["subcodigo"], "referencia_legada");
 }
 
 #[test]
@@ -341,7 +341,7 @@ fn documento_rejeita_texto_sem_abrir_sessao() {
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["codigo"], "entrada_invalida");
-    assert_eq!(value["subcodigo"], "numero_documento_nao_numerico");
+    assert_eq!(value["subcodigo"], "nao_numerico");
 }
 
 #[test]
@@ -351,7 +351,7 @@ fn documento_recusa_controle_nas_extremidades_sem_expor_numero() {
         assert_eq!(output.status.code(), Some(2));
         let valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(valor["codigo"], "entrada_invalida");
-        assert_eq!(valor["subcodigo"], "numero_documento_controle");
+        assert_eq!(valor["subcodigo"], "controle");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("0011519"));
     }
 }
@@ -361,7 +361,7 @@ fn documento_valida_todos_os_itens_do_lote() {
     let output = ies(&["documento", "00123", "documento-ruim", "--json"]);
     assert_eq!(output.status.code(), Some(2));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "numero_documento_nao_numerico");
+    assert_eq!(value["subcodigo"], "nao_numerico");
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn status_distingue_configuracao_ausente_de_sei_indisponivel() {
     assert_eq!(output.status.code(), Some(0));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["configuracao"], "caminhos_pendentes");
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
     assert_eq!(value["conexao"], "nao_verificada");
     assert_eq!(value["acesso_remoto"], false);
 }
@@ -409,7 +409,7 @@ fn unidade_atual_sem_sessao_falha_sem_rede() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -424,7 +424,10 @@ fn configuracao_explicita_ilegivel_nao_usa_caminhos_de_fallback() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "arquivo_configuracao_nao_pode_ser_lido");
+    assert_eq!(
+        value["subcodigo"],
+        "arquivo_de_configuracao_nao_pode_ser_lido"
+    );
 }
 
 #[test]
@@ -442,7 +445,7 @@ fn documento_versao_segue_a_leitura_web_e_sem_copia_saiu() {
     let output = ies_sem_sessao(&["documento", "0011519", "--versao", "2", "--json"]);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(value["subcodigo"], "url_do_controle_sem_caminho");
     let output = ies_sem_sessao(&["documento", "0011519", "--sem-copia", "--json"]);
     assert_eq!(output.status.code(), Some(2));
 }

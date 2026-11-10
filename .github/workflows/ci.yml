@@ -183,6 +183,8 @@ jobs:
           cargo +1.99.1 test --locked --bin ies cassette_go_historico_preserva_metadados_e_identidade_por_http -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_ufrj_historico_preserva_metadados_e_identidade_por_http: test'
           cargo +1.99.1 test --locked --bin ies cassette_ufrj_historico_preserva_metadados_e_identidade_por_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento_lista::cassette_pen1_historico_e_conteudo_preservam_identidade_por_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_pen1_historico_e_conteudo_preservam_identidade_por_http -- --ignored --nocapture --test-threads=1
 
   replay-lupa-go:
     # Regressão permanente da #244. ZIP público, hash conferido e apenas

@@ -187,7 +187,7 @@ fn get_3xx_pelo_proxy_nao_e_seguido_nem_lido() {
         erro,
         FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(302))
     );
-    assert_eq!(erro.subcodigo(), "redirecionamento_recusado");
+    assert_eq!(erro.subcodigo(), "redirecionamento");
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn recusa_http_pelo_proxy_le_no_maximo_64_kib_do_corpo() {
         FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado::sem_mensagem(500))
     );
     for (status, subcodigo) in [
-        (401, "sessao_nao_autorizada"),
+        (401, "acesso_negado"),
         (429, "status_http_de_limite_de_requisicoes"),
         (404, "status_http_diferente_de_200"),
     ] {
@@ -265,7 +265,7 @@ fn proxy_que_recusa_o_tunel_ou_invalido_no_get() {
         erro,
         FalhaTransporte::Proxy(FalhaDoProxy::RecusouOTunel { status: 407 })
     );
-    assert_eq!(erro.subcodigo(), "proxy_recusou_o_tunel");
+    assert_eq!(erro.subcodigo(), "recusou_o_tunel");
     assert_eq!(erro.status_do_proxy(), Some(407));
     assert!(erro.status_http().is_none());
     assert_eq!(tarefa.join().unwrap().1, 0);
@@ -273,7 +273,7 @@ fn proxy_que_recusa_o_tunel_ou_invalido_no_get() {
     let erro = get_https_via(&url(), "PHPSESSID=SINTETICO", invalido, sem_tls)
         .map(|_| ())
         .unwrap_err();
-    assert_eq!(erro.subcodigo(), "proxy_com_esquema_nao_suportado");
+    assert_eq!(erro.subcodigo(), "esquema_nao_suportado");
 }
 
 const FORM: &str = "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>\

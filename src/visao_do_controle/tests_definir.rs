@@ -469,10 +469,7 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
         "<html><form id='frmLogin' action='login.php'><input name='txtUsuario'></form></html>"
             .to_owned();
     for (passo, subcodigo) in [
-        (
-            Passo::Html(302, String::new()),
-            "redirecionamento_ao_salvar_nivel_de_detalhe",
-        ),
+        (Passo::Html(302, String::new()), "redirecionamento_302"),
         (Passo::Html(200, login), "tela_de_login_recebida_apos_envio"),
     ] {
         let rodada = salvar_incerto(passo, nivel(&C::TODAS, &C::TODAS));
@@ -515,7 +512,7 @@ fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
     assert_eq!(falha.saida(), 1);
     assert_eq!(
         FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.subcodigo(),
-        "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"
+        "nivel_devolvido_sem_sinal_de_gravacao"
     );
     assert_eq!(
         FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.status_http(),

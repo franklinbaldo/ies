@@ -106,9 +106,7 @@ fn geracao_trocada_nas_duas_leituras_falha_fechado_com_subcodigo_proprio() {
     assert_eq!(vezes, 2, "uma releitura só, depois falha");
     assert_eq!(falha, FalhaTransporte::SessaoTrocadaDuranteALeitura);
     assert_eq!(falha.subcodigo(), "sessao_trocada_durante_a_leitura");
-    assert!(!crate::sessao_login::relogin::sessao_encerrada(
-        falha.subcodigo()
-    ));
+    assert!(!crate::erro_publico::Causa::sessao_encerrada(&falha));
 }
 
 #[test]

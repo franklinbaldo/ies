@@ -221,10 +221,7 @@ fn documento_unico_tem_uma_pagina_so() {
             ),
         ],
     );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pagina_da_pesquisa_fora_do_intervalo"
-    );
+    assert_eq!(r.unwrap_err().subcodigo(), "pagina_fora_do_intervalo");
     assert_eq!(pedidos.len(), 3);
 }
 

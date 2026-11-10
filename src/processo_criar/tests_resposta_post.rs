@@ -30,10 +30,7 @@ fn post_criador_responde_html_200_e_rele_gerados_sem_retry() {
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
-    assert_eq!(
-        diagnostico.causa_post,
-        "resposta_inesperada_apos_post_criador"
-    );
+    assert_eq!(diagnostico.causa_post, "resposta_inesperada");
     assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(diagnostico.candidatos_observados, Some(vec![]));
     assert_eq!(requests.len(), 5);
@@ -69,10 +66,7 @@ fn location_ambigua_rele_controle_sem_seguir_location() {
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
-    assert_eq!(
-        diagnostico.causa_post,
-        "localizacao_invalida_apos_post_criador"
-    );
+    assert_eq!(diagnostico.causa_post, "localizacao_invalida");
     assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -102,11 +96,8 @@ fn retorno_inesperado_e_releitura_falha_preservam_as_duas_causas() {
         )
     });
     let diagnostico = resultado.unwrap_err().diagnostico_apos_post().unwrap();
-    assert_eq!(
-        diagnostico.causa_post,
-        "resposta_inesperada_apos_post_criador"
-    );
-    assert_eq!(diagnostico.causa_releitura, Some("falha_de_rede"));
+    assert_eq!(diagnostico.causa_post, "resposta_inesperada");
+    assert_eq!(diagnostico.causa_releitura, Some("rede"));
     assert_eq!(diagnostico.candidatos_observados, None);
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -140,7 +131,7 @@ fn redirecionamento_com_duas_acoes_nao_eh_seguido() {
             .diagnostico_apos_post()
             .unwrap()
             .causa_post,
-        "localizacao_invalida_apos_post_criador"
+        "localizacao_invalida"
     );
     assert_eq!(requests.len(), 5);
     assert_eq!(
@@ -176,7 +167,7 @@ fn redirecionamento_com_id_invalido_duplicado_nao_eh_seguido() {
             .diagnostico_apos_post()
             .unwrap()
             .causa_post,
-        "localizacao_invalida_apos_post_criador"
+        "localizacao_invalida"
     );
     assert_eq!(requests.len(), 5);
     assert_eq!(
@@ -225,10 +216,7 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
     });
     let erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
     assert_eq!(erro.saida(), 3);
-    assert_eq!(
-        erro.subcodigo(),
-        "propriedades_divergentes_apos_post_criador"
-    );
+    assert_eq!(erro.subcodigo(), "propriedades_divergentes");
     assert_eq!(requests.len(), 7); // 3 GET + 1 POST + tela + árvore + propriedades
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(requests[6].metodo, "GET");
@@ -291,7 +279,7 @@ fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
     });
     let erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
     assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "falha_de_rede");
+    assert_eq!(erro.subcodigo(), "rede");
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -321,7 +309,7 @@ fn location_para_id_preexistente_nao_confirma_criacao() {
     });
     let erro = resultado.expect_err("ID preexistente não comprova nova criação");
     assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "id_preexistente_no_retorno_criador");
+    assert_eq!(erro.subcodigo(), "identidade_preexistente");
     assert_eq!(requests.len(), 4); // 3 GET de preparação + 1 POST, zero GET inútil
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }

@@ -81,15 +81,13 @@ pub(crate) enum ErroAssinar {
     /// GET da tela do documento ou da de assinatura, antes da escrita.
     #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
-    #[causa(nome = "tela_da_assinatura_redirecionada")]
     TelaDaEscritaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     #[causa(interna)]
     LinkDeAssinar(ErroLinkDeAssinar),
     #[causa(interna)]
     TelaDeAssinatura(ErroTelaDeAssinatura),
-    #[causa(nome = "charset_da_tela_de_assinatura_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     CargoNaoOferecidoPelaTela {
         cargos: Vec<String>,

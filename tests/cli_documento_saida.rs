@@ -41,7 +41,7 @@ fn documento_saida_confere_a_foto_e_o_diretorio_antes_da_sessao() {
     let output = ies_sem_sessao(&args);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "foto_local_divergente");
+    assert_eq!(value["subcodigo"], "foto_divergente");
     let ausente = pasta.join("nao-existe");
     let args = [
         "documento",
@@ -53,7 +53,7 @@ fn documento_saida_confere_a_foto_e_o_diretorio_antes_da_sessao() {
     let output = ies_sem_sessao(&args);
     assert_eq!(output.status.code(), Some(1));
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["subcodigo"], "diretorio_texto_documento_ausente");
+    assert_eq!(value["subcodigo"], "diretorio_ausente");
     std::fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -167,7 +167,7 @@ fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
     let (codigo, value) = salvar_offline(&pasta, &[]);
     assert_eq!(
         (codigo, value["subcodigo"].as_str()),
-        (Some(1), Some("versao_editada_igual_a_base"))
+        (Some(1), Some("edicao_igual_a_base"))
     );
     std::fs::remove_dir_all(pasta).unwrap();
 }

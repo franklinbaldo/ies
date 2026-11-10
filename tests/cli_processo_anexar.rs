@@ -27,7 +27,7 @@ fn comando_recusa_numero_vazio_antes_da_sessao() {
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "numero_processo_vazio");
+    assert_eq!(valor["subcodigo"], "vazio");
 }
 
 #[test]

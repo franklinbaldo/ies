@@ -11,7 +11,6 @@ pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAndamentoNaBarra {
-    #[causa(nome = "endereco_de_atualizar_andamento_de_outro_processo")]
     OutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

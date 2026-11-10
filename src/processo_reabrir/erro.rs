@@ -13,7 +13,6 @@ pub(crate) enum ErroReabrir {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
-    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeReabrir {
         motivo: MotivoAbertoEm,
@@ -35,7 +34,7 @@ pub(crate) enum ErroReabrir {
     #[causa(interna)]
     TelaDoNo(FalhaTransporte),
     TelaDoNoRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     #[causa(interna)]
     EnderecoDeReabrir(ErroEnderecoDeReabrir),

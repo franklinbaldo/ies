@@ -50,7 +50,6 @@ pub(crate) enum ErroEnviar {
     /// A abertura do processo (a de `ies processo NUP`) falhou.
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(nome = "unidade_da_sessao_nao_publicada_na_abertura")]
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeEnviar {
         motivo: MotivoAbertoEm,
@@ -69,11 +68,9 @@ pub(crate) enum ErroEnviar {
     Barra(ErroEnviarNaBarra),
     #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
-    #[causa(nome = "tela_de_envio_redirecionada")]
     TelaDaEscritaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
-    #[causa(nome = "charset_da_tela_de_envio_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     #[causa(interna)]
     TelaDeEnvio(ErroTelaDeEnvio),

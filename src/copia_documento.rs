@@ -20,23 +20,16 @@ pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
     #[causa(interna)]
     DiretorioDeSaida(ErroArquivoTexto),
-    #[causa(nome = "destino_copia_inseguro")]
     DestinoInseguro,
-    #[causa(nome = "copia_local_link_simbolico")]
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
     #[cfg_attr(not(unix), allow(dead_code))]
-    #[causa(nome = "copia_local_permissoes_inseguras")]
     PermissoesInseguras,
     /// A foto local tem outro conteúdo que o servido (ou outro documento
     /// ou versão no próprio HTML).
-    #[causa(nome = "foto_local_divergente")]
     FotoDivergente,
-    #[causa(nome = "gravacao_foto_falhou")]
     GravacaoFalhou,
-    #[causa(nome = "leitura_copia_falhou")]
     LeituraFalhou,
-    #[causa(nome = "versao_editada_igual_a_base")]
     EdicaoIgualABase,
     #[causa(transparente)]
     Html(ErroHtml),

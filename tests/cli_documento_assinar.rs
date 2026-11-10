@@ -34,7 +34,7 @@ fn numero_invalido_e_erro_de_uso_antes_da_configuracao() {
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
         let valor = json(&saida);
         assert_eq!(valor["codigo"], "entrada_invalida");
-        assert_eq!(valor["subcodigo"], "numero_documento_nao_numerico");
+        assert_eq!(valor["subcodigo"], "nao_numerico");
     }
 }
 
@@ -115,6 +115,6 @@ fn confirmar_sem_credenciais_e_recusa_antes_da_rede() {
     let _ = std::fs::remove_dir_all(&pasta);
     assert_eq!(saida.status.code(), Some(1));
     let valor = json(&saida);
-    assert_eq!(valor["subcodigo"], "caminho_credenciais_nao_informado");
+    assert_eq!(valor["subcodigo"], "caminho_das_credenciais_nao_informado");
     assert!(valor.get("requisicoes").is_none());
 }

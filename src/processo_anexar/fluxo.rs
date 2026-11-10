@@ -32,9 +32,16 @@ const CONFERIR: ConsultaAjax = ConsultaAjax {
     },
 };
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum EtapaNaoComprovada {
+    RespostaDoPost,
+    ListaAposPost,
+    ArvoreDoPrincipal,
+}
 #[derive(Debug)]
 pub(crate) enum FalhaAnexar {
-    EfeitoIncerto,
+    EfeitoIncerto(EtapaNaoComprovada),
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
     LinkNaoPublicado,
@@ -47,26 +54,21 @@ pub(crate) enum FalhaAnexar {
     ConsultaResposta(FalhaTransporte),
 }
 impl FalhaAnexar {
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto) {
-            3
-        } else {
-            1
-        }
-    }
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    // Apenas as recusas legadas possuem subcódigo durante a migração.
+    // A falha nova é publicada pela variante tipada, não por tabela textual.
+    pub(crate) fn subcodigo_legado(&self) -> Option<&'static str> {
         match self {
-            Self::EfeitoIncerto => "efeito_incerto",
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::LinkNaoPublicado => "anexacao_nao_publicada_na_barra",
+            Self::EfeitoIncerto(_) => None,
+            Self::Abertura(erro) => Some(erro.subcodigo()),
+            Self::Barra(erro) => Some(erro.subcodigo()),
+            Self::LinkNaoPublicado => Some("anexacao_nao_publicada_na_barra"),
             Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
-                erro.subcodigo()
+                Some(erro.subcodigo())
             }
-            Self::TelaRedirecionada => "tela_de_anexacao_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::Estrutura(codigo) => codigo,
-            Self::ConsultaDerivacao(erro) => erro.subcodigo(),
+            Self::TelaRedirecionada => Some("tela_de_anexacao_redirecionada"),
+            Self::SessaoEncerrada => Some("sessao_encerrada_rode_ies_login"),
+            Self::Estrutura(codigo) => Some(codigo),
+            Self::ConsultaDerivacao(erro) => Some(erro.subcodigo()),
         }
     }
 }
@@ -125,7 +127,7 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
         indice,
         rede,
     )
-    .map_err(|_| FalhaAnexar::EfeitoIncerto)?;
+    .map_err(|_| FalhaAnexar::EfeitoIncerto(EtapaNaoComprovada::ArvoreDoPrincipal))?;
     let depois = &lido.arvore.anexados;
     if !depois
         .iter()
@@ -134,7 +136,9 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
             .iter()
             .all(|id| depois.iter().any(|p| &p.id == id))
     {
-        return Err(FalhaAnexar::EfeitoIncerto);
+        return Err(FalhaAnexar::EfeitoIncerto(
+            EtapaNaoComprovada::ArvoreDoPrincipal,
+        ));
     }
     Ok(())
 }
