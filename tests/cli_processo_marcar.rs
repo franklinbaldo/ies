@@ -128,8 +128,13 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
 fn confirmacao_fechada_explicita_previa_segura_sem_sessao() {
     for operacao in ["--retirar", "--marcador"] {
         let json_saida = sem_sessao(&[
-            "processo", "marcar", "NUP", operacao, "501#Revisão",
-            "--confirmar", "--json",
+            "processo",
+            "marcar",
+            "NUP",
+            operacao,
+            "501#Revisão",
+            "--confirmar",
+            "--json",
         ]);
         assert_eq!(json_saida.status.code(), Some(1));
         let resposta = json(&json_saida);
@@ -143,7 +148,11 @@ fn confirmacao_fechada_explicita_previa_segura_sem_sessao() {
         );
 
         let humana = sem_sessao(&[
-            "processo", "marcar", "NUP", operacao, "501#Revisão",
+            "processo",
+            "marcar",
+            "NUP",
+            operacao,
+            "501#Revisão",
             "--confirmar",
         ]);
         assert_eq!(humana.status.code(), Some(1));
