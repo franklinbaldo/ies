@@ -73,7 +73,7 @@ pub(crate) enum ResultadoDaAssinatura {
     Previa,
     JaAssinadoPelaSessao { confirmacao_pedida: bool },
     Comprovada {
-        assinaturas_depois: Vec<Assinante>,
+        assinatura_depois: Assinante,
         edicao_depois: EdicaoNaBarra,
         reconciliado_por: Option<FalhaDoEnvio>,
     },
