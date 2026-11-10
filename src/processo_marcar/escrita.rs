@@ -207,7 +207,14 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     unidade: &str,
     rotulo: &Rotulo,
 ) -> Result<crate::formulario_web::SubmissaoDerivada, ExitCode> {
-    let cookie = ler_cookie(sessao).map_err(|erro| falha_transporte(cli, &erro))?;
+    let cookie = ler_cookie(sessao).map_err(|erro| {
+        saida_erro::erro_fonte_http(
+            cli.json,
+            crate::erro_publico::folha(&erro),
+            erro.mensagem(),
+            erro.status_http(),
+        )
+    })?;
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(falha_transporte(cli, &erro)),

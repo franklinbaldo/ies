@@ -31,10 +31,10 @@ pub(crate) enum ErroLogin {
     Configuracao(ErroConfiguracao),
     /// Origem da instalação ilegível ou fora do formato `Instalacao`.
     #[causa(interna)]
-    Origem(FalhaTransporte),
+    Origem(super::fluxo::OrigemIlegivel),
     CaminhoDasCredenciaisNaoInformado,
     #[causa(interna)]
-    ArquivoDeCredenciais(FalhaTransporte),
+    ArquivoDeCredenciais(super::credenciais::CredenciaisIlegiveis),
     CampoDasCredenciaisAusente(CampoDasCredenciais),
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
     CampoDasCredenciaisVazio(CampoDasCredenciais),
@@ -43,7 +43,7 @@ pub(crate) enum ErroLogin {
     ArquivoDeLockDoLoginInacessivel,
     /// URL ou cookie gravados que o transporte recusa antes da rede.
     #[causa(interna)]
-    ArquivoDaSessao(FalhaTransporte),
+    ArquivoDaSessao(super::fluxo::SessaoGravadaInvalida),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
     RedirecionamentoSemLocalizacao,

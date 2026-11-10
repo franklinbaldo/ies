@@ -50,7 +50,7 @@ pub(crate) enum ErroProcessoObter {
     Andamentos(ErroAndamentos),
     /// Derivação ou envio do formulário `verHistorico('P')`.
     #[causa(interna)]
-    FormularioDoHistorico(ErroSubmissaoFormulario),
+    FormularioDoHistorico(super::andamentos::HistoricoNaoPedido),
     /// O link das propriedades na barra ou a tela delas.
     #[causa(interna)]
     Propriedades(ErroPropriedades),
@@ -141,7 +141,8 @@ impl ErroProcessoObter {
             Self::RespostaDaEntradaPorIdNaoReconhecida(status)
             | Self::PesquisaRapidaSemUrlDeTrabalho(status)
             | Self::RedirecionamentoNaoReconhecido(status) => Some(status),
-            Self::Formulario(erro) | Self::FormularioDoHistorico(erro) => erro.status_http(),
+            Self::Formulario(erro) => erro.status_http(),
+            Self::FormularioDoHistorico(erro) => erro.status_http(),
             _ => None,
         }
     }

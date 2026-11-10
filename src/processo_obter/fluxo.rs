@@ -483,8 +483,7 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &servida,
         &controle.unidade,
         &[(CAMPO, valor)],
-    )
-    .map_err(E::Formulario)?;
+    )?;
     rede.pesquisar(contexto, submissao, valor)?
         .ok_or(E::SessaoEncerrada)
 }

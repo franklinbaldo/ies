@@ -97,7 +97,7 @@ fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin>
             FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
             | FalhaTransporte::ArquivoPrivadoVazio,
         ) => Ok(None),
-        Err(falha) => Err(ErroLogin::ArquivoDaSessao(falha)),
+        Err(falha) => Err(SessaoGravadaInvalida::Arquivo(falha).into()),
     }
 }
 
@@ -119,11 +119,9 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
         return Ok(None);
     }
     // Mesmas travas do GET da caixa, antes de qualquer conexão.
-    transporte::validar_origem(&url, origem).map_err(ErroLogin::ArquivoDaSessao)?;
-    transporte::validar_cookie(&cookie).map_err(ErroLogin::ArquivoDaSessao)?;
-    let resposta = transporte
-        .get(&url, &cookie)
-        .map_err(ErroLogin::Transporte)?;
+    transporte::validar_origem(&url, origem).map_err(SessaoGravadaInvalida::Arquivo)?;
+    transporte::validar_cookie(&cookie).map_err(SessaoGravadaInvalida::Arquivo)?;
+    let resposta = transporte.get(&url, &cookie)?;
     let web = como_web(resposta);
     let mime = web.mime.clone();
     match transporte::decodificar_resposta(web) {
@@ -157,9 +155,7 @@ fn navegar<T: TransporteDeLogin>(
     let mut atual = url;
     let mut saltos = 0;
     loop {
-        let resposta = transporte
-            .get(&atual, &pote.cabecalho(&atual))
-            .map_err(ErroLogin::Transporte)?;
+        let resposta = transporte.get(&atual, &pote.cabecalho(&atual))?;
         pote.absorver(&atual, &resposta)?;
         if !(300..400).contains(&resposta.status) {
             return Ok((atual, resposta));
@@ -271,9 +267,7 @@ fn autenticar<T: TransporteDeLogin>(
     let submissao = tela::derivar_login(instalacao, &servida, credenciais)?;
     let url_do_post = submissao.url().to_owned();
     let cookie = pote.cabecalho(&url_do_post);
-    let resposta = transporte
-        .post(submissao, &cookie)
-        .map_err(ErroLogin::Transporte)?;
+    let resposta = transporte.post(submissao, &cookie)?;
     pote.absorver(&url_do_post, &resposta)?;
     let (url, resposta) = match resposta.status {
         // Seguir repetiria o corpo com as credenciais.
@@ -350,11 +344,12 @@ pub(crate) fn entrar_colhendo<T: TransporteDeLogin>(
 ) -> Result<ResultadoDoLogin, ErroLogin> {
     // Exceção inventariada (#183): o login de origem não dispõe ainda da
     // URL do Controle e precisa primeiro selecionar a instalação pelo arquivo.
-    let origem =
-        transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
+    let origem = transporte::arquivo_privado(&pedido.arquivos.origem, 512)
+        .map_err(OrigemIlegivel::Arquivo)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem)
-        .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
+        FalhaTransporte::OrigemNaoAutorizada,
+    ))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     let mut contador = Contador {
         transporte,
@@ -435,11 +430,12 @@ pub(super) fn relogar<T: TransporteDeLogin>(
     indice: &IndiceLocal,
     transporte: &mut T,
 ) -> Result<Relogado, ErroLogin> {
-    let origem =
-        transporte::arquivo_privado(&pedido.arquivos.origem, 512).map_err(ErroLogin::Origem)?;
+    let origem = transporte::arquivo_privado(&pedido.arquivos.origem, 512)
+        .map_err(OrigemIlegivel::Arquivo)?;
     let origem = origem.trim();
-    let instalacao = Instalacao::interpretar(origem)
-        .ok_or(ErroLogin::Origem(FalhaTransporte::OrigemNaoAutorizada))?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(OrigemIlegivel::Arquivo(
+        FalhaTransporte::OrigemNaoAutorizada,
+    ))?;
     let _trava = TravaDoLogin::obter(&pedido.arquivos.url_controle, pedido.espera_do_lock)?;
     if gravacao::geracao_gravada(pedido.arquivos).as_deref() != inicial {
         return Ok(Relogado::GeracaoJaTrocada);
@@ -457,4 +453,20 @@ fn colher(
 ) {
     crate::colheita_do_controle::Colheita::do_cookie(indice, instalacao, cookie, url)
         .colher(&controle.html, Some(&controle.mime));
+}
+
+/// O arquivo de origem da instalação ausente, inseguro ou inválido. Tipo próprio da etapa; o nome
+/// público é o motivo do transporte (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum OrigemIlegivel {
+    #[causa(transparente)]
+    Arquivo(crate::transporte::FalhaTransporte),
+}
+
+/// URL ou cookie gravados que o transporte recusa antes da rede. Tipo próprio da etapa; o nome
+/// público é o motivo do transporte (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum SessaoGravadaInvalida {
+    #[causa(transparente)]
+    Arquivo(crate::transporte::FalhaTransporte),
 }

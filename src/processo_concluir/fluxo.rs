@@ -12,8 +12,7 @@ use super::tela::{
 use super::{FormaDaConclusao, PedidoDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ConcluirNaBarra, ler_funcao_de_concluir};
 use crate::formulario_web::{
-    ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-    enviar_submissao_via,
+    RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -78,8 +77,7 @@ pub(crate) fn concluir_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(feito);
     }
-    let cookie = ler_cookie(sessao)
-        .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
+    let cookie = ler_cookie(sessao)?;
     let id = feito.id_procedimento.clone();
     let falha = match acao {
         ConcluirNaBarra::PelaTela(url) => {
