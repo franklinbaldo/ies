@@ -187,7 +187,7 @@ fn previa<E: EnvioDoProcesso>(
                 "confirmado": confirmar,
                 "alterado": false,
                 "nada_a_fazer": nada_a_fazer,
-                "retirada_possivel": !nada_a_fazer,
+                "retirada_possivel": false, // Sem formulário de remoção validado, não prometer ação.
                 "requisicoes": n,
             })
         );
