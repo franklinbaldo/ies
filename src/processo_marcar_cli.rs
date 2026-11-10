@@ -97,7 +97,7 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
             *confirmar,
             &mut EnvioHttps,
         )
-    })))
+    }))
 }
 
 fn erro_de_uso(cli: &Cli, subcodigo: &str, mensagem: &str) -> ExitCode {
