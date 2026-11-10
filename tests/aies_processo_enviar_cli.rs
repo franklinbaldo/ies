@@ -152,6 +152,44 @@ fn selecionar_unidade_destino(banco: &mut Connection, instalacao: &Instalacao, u
     .unwrap();
 }
 
+/// O anti-IES recebe todos os pedidos e mantém o mesmo SQLite entre CLIs.
+fn atender_simulador(
+    escuta: TcpListener,
+    parar: Arc<AtomicBool>,
+    trocar: Arc<AtomicBool>,
+    recusar_destino: Arc<AtomicBool>,
+    anotacao: Option<&'static str>,
+    trocar_apos_primeiro: Option<&'static str>,
+) -> ProcessoSimulado {
+    let (mut banco, instalacao) = preparar_banco(anotacao);
+    let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(antes.aberto_em, ["ORIGEM"]);
+    while let Some(mut tcp) = aceitar(&escuta, &parar) {
+        if trocar.swap(false, Ordering::SeqCst) {
+            selecionar_unidade_destino(
+                &mut banco,
+                &instalacao,
+                trocar_apos_primeiro.expect("segunda unidade especificada"),
+            );
+        }
+        if recusar_destino.swap(false, Ordering::SeqCst) {
+            // Hipótese sintética: o destino foi retirado depois do autocomplete.
+            // O POST original chega ao anti-IES, que recusa sem tramitar.
+            let mut processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+                .unwrap()
+                .unwrap();
+            processo.destinos.retain(|destino| destino.id != "2");
+            processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
+        }
+        atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+    }
+    processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap()
+}
+
 /// Trilha tem apenas método e ação; nunca URL completa, corpo ou cookie.
 fn executar(
     comandos: &[&[&str]],
@@ -216,34 +254,14 @@ fn executar_com_troca_de_unidade(
     let recusar_destino = Arc::new(AtomicBool::new(false));
     let recusar_no_simulador = Arc::clone(&recusar_destino);
     let simulador = thread::spawn(move || {
-        let (mut banco, instalacao) = preparar_banco(anotacao);
-        let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap();
-        assert_eq!(antes.aberto_em, ["ORIGEM"]);
-        while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
-            if trocar_sim.swap(false, Ordering::SeqCst) {
-                selecionar_unidade_destino(
-                    &mut banco,
-                    &instalacao,
-                    trocar_apos_primeiro.expect("segunda unidade especificada"),
-                );
-            }
-            if recusar_no_simulador.swap(false, Ordering::SeqCst) {
-                // Hipótese sintética: o destino deixou de ser oferecido entre
-                // o autocomplete e o POST. O anti-IES recebe a requisição
-                // original, recusa e não altera a tramitação no SQLite.
-                let mut processo = processos::ler(&banco, &instalacao, CENARIO, "10")
-                    .unwrap()
-                    .unwrap();
-                processo.destinos.retain(|destino| destino.id != "2");
-                processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
-            }
-            atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
-        }
-        processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap()
+        atender_simulador(
+            escuta,
+            parar_sim,
+            trocar_sim,
+            recusar_no_simulador,
+            anotacao,
+            trocar_apos_primeiro,
+        )
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
