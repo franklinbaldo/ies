@@ -1,6 +1,6 @@
 ---
 type: CommandContract
-title: Prévia de anexação de processo ao principal
+title: Prévia e confirmação de anexação de processo ao principal
 operation: processo.anexar
 command: ies processo anexar NUP --a NUP_PRINCIPAL [--confirmar]
 effect: write-process-state
@@ -30,7 +30,7 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 | Subcódigo | Fato identificado |
 | --- | --- |
 | `anexacao_nao_publicada_na_barra` | O processo aberto não publica ação de anexar. |
-| `confirmacao_de_anexacao_nao_validada` | Escrita ainda bloqueada antes da sessão. |
+| `confirmacao_de_anexacao_nao_validada` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |
 | `endereco_de_anexar_de_outro_processo` | Link assinado aponta para outro processo. |
 | `endereco_de_anexar_nao_reconhecido` | Link assinado da ação inválido. |
 | `links_de_anexar_repetidos_na_barra` | Mais de um link de anexar na barra. |
