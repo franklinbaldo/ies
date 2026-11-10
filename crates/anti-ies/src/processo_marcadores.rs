@@ -1,6 +1,6 @@
 //! Marcadores projetados do SQLite efêmero: GET e remoção local confirmável.
 //! O POST opera exclusivamente a associação simulada, nunca o SEI externo.
-//! BDD-255-02 parcial (remoção) e BDD-255-03 (idempotência).
+//! BDD-255-01 (catálogo separado), BDD-255-02 (remoção) e BDD-255-03.
 use crate::{Estado, Resposta, documentos::campo_formulario_unico, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{Marcador, Observacao};
@@ -88,6 +88,51 @@ fn linha(html: &mut String, m: &Marcador) {
     .expect("String");
 }
 
+/// Cadastro aberto a partir do GET de gerenciamento: catálogo vem da unidade,
+/// nunca da associação existente no processo. Nenhum POST é presumido.
+fn formulario_adicionar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+) -> Resposta {
+    let Ok(Some(opcoes)) =
+        iesei::catalogo_marcadores::ler(banco, origem, cenario, unidade)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    let mut html = format!(
+        "<!doctype html><html><body><h1>Adicionar Marcador</h1>\
+         <form id='frmAndamentoMarcadorCadastro' method='post' \
+         action='controlador.php?acao=andamento_marcador_cadastrar&acao_origem=andamento_marcador_cadastrar&arvore=1&id_procedimento={id}&infra_hash={hash}'>\
+         <input type='hidden' name='hdnInfraTipoPagina' value='2'>\
+         <button type='submit' id='sbmSalvar' name='sbmSalvar' value='Salvar'>Salvar</button>\
+         <select id='selMarcador' name='selMarcador'>\
+         <option value='null' selected='selected'>&nbsp;</option>"
+    );
+    for opcao in opcoes {
+        write!(
+            html,
+            "<option value='{}' data-imagesrc='svg/marcador_{}.svg'>{}</option>",
+            escapar(&opcao.id),
+            escapar(&opcao.cor),
+            escapar(&opcao.nome)
+        )
+        .expect("String");
+    }
+    write!(
+        html,
+        "</select><input type='hidden' id='hdnIdMarcador' name='hdnIdMarcador' value=''>\
+         <textarea id='txaTexto' name='txaTexto' rows='4'></textarea>\
+         <input type='hidden' name='hdnIdProtocolo' value='{id}'>\
+         </form></body></html>"
+    )
+    .expect("String");
+    Resposta::html(html)
+}
+
 /// Responde à tela de leitura cuja ação foi publicada na barra da árvore.
 /// Sem observação não há afirmação de lista vazia nem rota de escrita.
 ///
@@ -106,6 +151,7 @@ pub(crate) fn responder(
         (metodo, acao),
         ("GET", Some("andamento_marcador_gerenciar"))
             | ("POST", Some("andamento_marcador_remover"))
+            | ("GET", Some("andamento_marcador_cadastrar"))
     ) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
@@ -128,6 +174,9 @@ pub(crate) fn responder(
     let Ok(Some(observacao)) = iesei::marcadores::ler(banco, origem, cenario, id, &unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if acao == Some("andamento_marcador_cadastrar") {
+        return formulario_adicionar(banco, origem, cenario, id, &unidade);
+    }
     if metodo == "POST" {
         let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
             campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
