@@ -248,3 +248,30 @@ fn cassette_pen1_historico_e_conteudo_preservam_identidade_por_http() {
         true,
     );
 }
+
+#[test]
+#[ignore = "ZIP original PEN2 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen2_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen2/liberacoes-e-versoes-leitura-pen2--8524cf9ab35b.md",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN3 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen3_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen3/liberacoes-e-versoes-leitura-pen3--d26a229876cd.md",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN4 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen4_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen4/liberacoes-e-versoes-leitura-pen4--e50e4fdacce1.md",
+        true,
+    );
+}
