@@ -35,8 +35,7 @@ pub(crate) fn responder(
     if !processo.aberto_em.contains(&unidade) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    let Ok(Some(observacao)) =
-        iesei::acompanhamentos::ler(banco, origem, cenario, id, &unidade)
+    let Ok(Some(observacao)) = iesei::acompanhamentos::ler(banco, origem, cenario, id, &unidade)
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
