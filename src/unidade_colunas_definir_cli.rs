@@ -159,13 +159,13 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
         confirmado: feito.confirmado(),
         depois: feito.depois().map(chaves_tipadas),
         desmarcar: chaves_tipadas(&plano.desmarcar()),
-        envio: feito.campos_do_envio()
-            .map(|campos| EnvioColunasPublico {
-                acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
-                campos,
-                metodo: "POST",
-            }),
-        falha_do_salvar: feito.reconciliado_por()
+        envio: feito.campos_do_envio().map(|campos| EnvioColunasPublico {
+            acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            campos,
+            metodo: "POST",
+        }),
+        falha_do_salvar: feito
+            .reconciliado_por()
             .map(|falha| crate::saida_erro::FalhaPublica::nova(falha.status_http())),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
@@ -179,14 +179,13 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
 #[cfg(test)]
 fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     let plano = &feito.plano;
-    let envio = feito.campos_do_envio()
-        .map_or(Value::Null, |campos| {
-            json!({
-                "metodo": "POST",
-                "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
-                "campos": campos,
-            })
-        });
+    let envio = feito.campos_do_envio().map_or(Value::Null, |campos| {
+        json!({
+            "metodo": "POST",
+            "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            "campos": campos,
+        })
+    });
     let mut valor = json!({
         "unidade": feito.unidade,
         "origem": "web",
@@ -341,7 +340,11 @@ fn linha(rotulo: &str, colunas: &[ColunaDoDetalhe]) -> String {
 
 fn humano(feito: &ColunasDefinidas) -> String {
     let plano = &feito.plano;
-    let cabeca = match (feito.confirmado(), feito.alterado(), feito.campos_do_envio()) {
+    let cabeca = match (
+        feito.confirmado(),
+        feito.alterado(),
+        feito.campos_do_envio(),
+    ) {
         (_, _, None) => "nada a salvar: o alvo é a configuração atual",
         (false, _, Some(_)) => "prévia, nada foi salvo",
         (true, true, _) => "salvo e conferido por leitura",
