@@ -14,6 +14,7 @@ mod assinatura;
 mod atribuir;
 mod barra_do_documento;
 mod barra_do_processo;
+mod bloco_escolher;
 mod ciencia;
 mod concluir;
 mod conferencia_parcial;
@@ -95,6 +96,7 @@ pub(crate) use barra_do_processo::{
 pub(crate) use barra_do_processo::{
     ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
 };
+pub(crate) use bloco_escolher::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 pub(crate) use ciencia::niveis_js;
 pub(crate) use ciencia::{
     ErroCienciaNaArvore, ciencia_da_barra, ciencia_do_documento_na_barra, lista_do_documento,
