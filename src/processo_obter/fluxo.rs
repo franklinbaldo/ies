@@ -115,6 +115,7 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
         retomar: arvore_lida.retomar,
         enviar: arvore_lida.enviar,
         anotacoes: arvore_lida.anotacoes,
+        comentarios: arvore_lida.comentarios,
         ciencia: arvore_lida.ciencia,
         lista_ciencias: arvore_lida.lista_ciencias,
         anexar: arvore_lida.anexar,
