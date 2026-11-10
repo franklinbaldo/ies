@@ -124,6 +124,32 @@ fn acao_ciencia(id: &str, ciencia: &iesei::ciencia_processo::Estado) -> String {
     }
 }
 
+/// Publica o acesso ao acompanhamento somente quando a fotografia foi observada.
+fn acrescentar_acao_acompanhamento(
+    acoes: &mut String,
+    processo: &ProcessoSimulado,
+    unidade: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Result<(), Estado> {
+    if !processo.aberto_em.iter().any(|aberta| aberta == unidade) {
+        return Ok(());
+    }
+    let id = &processo.id;
+    let observado = iesei::acompanhamentos::ler(banco, instalacao, cenario, id, unidade)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    if observado.is_some() {
+        let hash = crate::protocolo_sintetico::INFRA_HASH;
+        write!(
+            acoes,
+            r#"<a href="controlador.php?acao=acompanhamento_gerenciar&amp;id_procedimento={id}&amp;infra_hash={hash}">Acompanhamento Especial</a>"#
+        )
+        .expect("formatação String");
+    }
+    Ok(())
+}
+
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
@@ -180,15 +206,14 @@ fn arvore_do_processo(
         sobrestamento.as_ref(),
     );
     let hash = crate::protocolo_sintetico::INFRA_HASH;
-    let acompanhamento = iesei::acompanhamentos::ler(banco, instalacao, cenario, id, unidade_atual)
-        .map_err(|_| Estado::DadosInsuficientes)?;
-    if acompanhamento.is_some() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
-        write!(
-            acoes,
-            r#"<a href="controlador.php?acao=acompanhamento_gerenciar&amp;id_procedimento={id}&amp;infra_hash={hash}">Acompanhamento Especial</a>"#
-        )
-        .expect("formatação String");
-    }
+    acrescentar_acao_acompanhamento(
+        &mut acoes,
+        processo,
+        unidade_atual,
+        banco,
+        instalacao,
+        cenario,
+    )?;
     let marcadores = iesei::marcadores::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
     if marcadores.is_some() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
