@@ -94,13 +94,12 @@ fn enviar(
         // Aprovada nas sete instalações (10/11/2026): grava também em produção.
         if remover_anotacoes
             && confirmar
-            && crate::origem_de_treinamento::exigir(
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoEnviarRemovendoAnotacoes,
                 sessao.origem,
             )
-            .is_err()
         {
-            return crate::origem_de_treinamento::recusa(cli.json);
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         let pedido = PedidoDoEnvio {
             nup,
