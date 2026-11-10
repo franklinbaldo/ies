@@ -141,7 +141,7 @@ fn texto_fora_das_ancoras_e_recusa_e_nao_vira_marcador() {
     }
     assert_eq!(
         crate::erro_publico::folha(&ErroDetalhada::TextoForaDosMarcadoresNaCelula),
-        "texto_fora_dos_marcadores_na_celula_detalhada"
+        "texto_fora_dos_marcadores_na_celula"
     );
 }
 

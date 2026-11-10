@@ -105,7 +105,7 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
         valor["falha_do_salvar"]["subcodigo"],
         "status_http_de_erro_do_servidor"
     );
-    assert_eq!(valor["verificacao"], "falha_de_rede");
+    assert_eq!(valor["verificacao"], "rede");
     assert_eq!(valor["observadas"], Value::Null);
 }
 
@@ -132,9 +132,9 @@ fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
     let valor = json_de_falha(&erro);
     assert_eq!(
         valor["falha_do_salvar"],
-        json!({"subcodigo": "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao"})
+        json!({"subcodigo": "nivel_devolvido_sem_sinal_de_gravacao"})
     );
-    assert_eq!(valor["verificacao"], "falha_de_rede");
+    assert_eq!(valor["verificacao"], "rede");
     assert_eq!(valor.get("status_http"), None);
 }
 

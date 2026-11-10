@@ -123,7 +123,7 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     );
     assert_eq!(
         crate::erro_publico::folha(&E::EnderecoDasVersoesDeOutroDocumento),
-        "link_das_versoes_de_outro_documento"
+        "endereco_das_versoes_de_outro_documento"
     );
 }
 

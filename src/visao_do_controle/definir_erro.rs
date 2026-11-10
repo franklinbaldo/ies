@@ -14,10 +14,8 @@ pub(crate) enum FalhaDoSalvar {
     #[causa(interna)]
     Envio(ErroSubmissaoFormulario),
     /// 302 recebido e não seguido.
-    #[causa(nome = "redirecionamento_ao_salvar_nivel_de_detalhe")]
     Redirecionamento302,
     /// HTML 200 com a tela do Nível sem o sinal de gravação (`''=='1'`).
-    #[causa(nome = "nivel_de_detalhe_devolvido_sem_sinal_de_gravacao")]
     NivelDevolvidoSemSinalDeGravacao,
     /// HTML 200 sem o `inicializar()` observado da tela do Nível.
     RespostaDoSalvarNaoReconhecida,
@@ -76,7 +74,6 @@ pub(crate) enum ErroDefinirColunas {
     },
     /// Resposta esperada, mas a leitura mostrou outras marcas (nem o alvo
     /// nem as de antes).
-    #[causa(nome = "marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar")]
     MarcasDiferentesDoAlvoAposSalvar {
         plano: Box<PlanoDasColunas>,
         observadas: Vec<ColunaDoDetalhe>,

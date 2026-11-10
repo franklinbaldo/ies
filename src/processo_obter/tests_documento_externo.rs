@@ -344,7 +344,7 @@ fn limite_do_pedido_chega_ao_transporte_e_recusa() {
     );
     assert_eq!(
         ErroDocumentoObter::Anexo(ErroAnexo::AcimaDoLimite).subcodigo(),
-        "anexo_acima_do_limite"
+        "acima_do_limite"
     );
 }
 

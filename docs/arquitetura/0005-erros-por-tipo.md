@@ -96,6 +96,12 @@ Restam à mão:
   `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
   (`ErroSubmissaoFormulario`).
 
+Terceira passada (10/11/2026): o derive deixou de aceitar
+`#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o
+`snake_case` da variante, e para mudá-lo renomeia-se a variante. O relogin
+das leituras passou a decidir por `#[causa(sessao_encerrada)]` em vez de
+comparar o texto do subcódigo.
+
 ## Forma não observada
 
 Um elemento ausente, repetido, com valor fora da forma ou um HTML

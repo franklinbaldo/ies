@@ -121,10 +121,7 @@ fn previa_recusa_especificacao_acima_do_maxlength_observado() {
         )
     });
     let erro = resultado.expect_err("prévia deve respeitar maxlength da tela");
-    assert_eq!(
-        erro.subcodigo(),
-        "especificacao_acima_do_limite_do_cadastro"
-    );
+    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite");
     assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
@@ -154,10 +151,7 @@ fn confirmacao_recusa_especificacao_longa_antes_de_post() {
         )
     });
     let erro = resultado.expect_err("maxlength deve impedir a escrita");
-    assert_eq!(
-        erro.subcodigo(),
-        "especificacao_acima_do_limite_do_cadastro"
-    );
+    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite");
     assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
@@ -188,7 +182,7 @@ fn comprimento_html_de_especificacao_considera_unidades_utf16() {
         resultado
             .expect_err("maxlength HTML considera UTF-16")
             .subcodigo(),
-        "especificacao_acima_do_limite_do_cadastro"
+        "especificacao_acima_do_limite"
     );
     assert_eq!(requests.len(), 3);
 }

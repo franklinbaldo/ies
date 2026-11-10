@@ -75,7 +75,7 @@ fn negacao_401_403_continua_sessao_nao_autorizada_com_status_e_mensagem() {
     for status in [401, 403] {
         let falha =
             decodificar_resposta(resposta(status, "text/plain", b"Acesso negado.")).unwrap_err();
-        assert_eq!(falha.subcodigo(), "sessao_nao_autorizada");
+        assert_eq!(falha.subcodigo(), "acesso_negado");
         assert_eq!(
             recusa(&falha),
             (u16::try_from(status).unwrap(), Some("Acesso negado."))
@@ -101,7 +101,7 @@ fn redirecionamento_expoe_o_status_sem_ler_o_corpo() {
         corpo: CorpoProibido,
     })
     .unwrap_err();
-    assert_eq!(falha.subcodigo(), "redirecionamento_recusado");
+    assert_eq!(falha.subcodigo(), "redirecionamento");
     assert_eq!(recusa(&falha), (307, None));
 }
 

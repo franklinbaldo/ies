@@ -6,7 +6,6 @@ use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaControleWeb {
-    #[causa(nome = "controle_web_nao_reconhecido")]
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,
     UnidadeExibidaDiferenteDaSolicitada,
@@ -156,7 +155,7 @@ mod testes {
         let html = "<html><form id='frmLogin'><input name='txtUsuario'></form></html>";
         assert_eq!(
             projetar(html).unwrap_err().subcodigo(),
-            "controle_web_nao_reconhecido"
+            "controle_nao_reconhecido"
         );
     }
 

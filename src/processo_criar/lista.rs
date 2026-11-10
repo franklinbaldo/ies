@@ -7,11 +7,8 @@ use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroListaDeTipos {
-    #[causa(nome = "tipo_de_processo_nao_oferecido")]
     TipoNaoOferecido,
-    #[causa(nome = "tipo_de_processo_sem_acao")]
     TipoSemAcao,
-    #[causa(nome = "lista_de_tipos_incompleta")]
     ListaIncompleta,
     #[causa(transparente)]
     Html(ErroHtml),

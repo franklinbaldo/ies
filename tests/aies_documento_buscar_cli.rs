@@ -384,9 +384,9 @@ fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
     // no caminho de validação deixa de produzir a recusa contratada.
     let pasta = Pasta::nova();
     for (termo, causa) in [
-        ("   ", "termo_de_documento_vazio"),
-        ("123\n", "termo_de_documento_contem_controle"),
-        ("123\t", "termo_de_documento_contem_controle"),
+        ("   ", "vazio"),
+        ("123\n", "controle"),
+        ("123\t", "controle"),
     ] {
         let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
             .current_dir(&pasta.0)

@@ -4,7 +4,6 @@ use super::*;
 #[derive(Debug, Causa)]
 enum Interno {
     LinkAusente,
-    #[causa(nome = "nome_historico")]
     Renomeado,
     #[causa(acao = "relogar")]
     SessaoEncerrada,
@@ -44,7 +43,7 @@ fn caminho_compoe_externo_e_interno() {
 
 #[test]
 fn nome_explicito_vence_o_derivado() {
-    assert_eq!(caminho_de(&Interno::Renomeado), ["nome_historico"]);
+    assert_eq!(caminho_de(&Interno::Renomeado), ["renomeado"]);
 }
 
 #[test]

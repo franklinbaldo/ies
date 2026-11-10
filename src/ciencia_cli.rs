@@ -141,7 +141,7 @@ mod testes_aviso {
     #[test]
     fn efeito_incerto_indica_lista_antes_de_nova_confirmacao() {
         let erro = ErroCienciaProcesso::EfeitoIncerto {
-            motivo: crate::ciencia::VerificacaoDaCiencia::AceiteSemAtividade,
+            motivo: crate::ciencia::VerificacaoDaCiencia::AceiteSemIdDeAtividade,
             requisicoes: 6,
             falha_do_aceite: None,
         };

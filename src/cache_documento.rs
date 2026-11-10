@@ -15,13 +15,9 @@ pub(crate) struct Registro {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaCache {
-    #[causa(nome = "diretorio_cache_documento_inseguro")]
     Diretorio,
-    #[causa(nome = "gravacao_cache_documento_falhou")]
     Gravacao,
-    #[causa(nome = "cache_documento_local_divergente")]
     ArquivoDivergente,
-    #[causa(nome = "conteudo_com_link_assinado")]
     ConteudoInseguro,
 }
 

@@ -10,7 +10,6 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroListagem {
-    #[causa(nome = "limite_copias_locais")]
     LimiteDeCopias,
     #[causa(interna)]
     CopiaInvalida(ErroCopia),

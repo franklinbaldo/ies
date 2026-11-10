@@ -10,7 +10,6 @@ pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAcompanharNaBarra {
-    #[causa(nome = "link_de_acompanhamento_de_outro_processo")]
     LinkDeOutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

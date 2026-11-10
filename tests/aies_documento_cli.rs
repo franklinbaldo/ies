@@ -438,7 +438,7 @@ fn bdd_88_01_02_cli_binario_versao_historica_e_foto_idempotente() {
         .output()
         .unwrap();
     assert_eq!(terceira.status.code(), Some(1));
-    assert_eq!(json(&terceira)["subcodigo"], "foto_local_divergente");
+    assert_eq!(json(&terceira)["subcodigo"], "foto_divergente");
     assert_eq!(
         fs::read_to_string(&foto).unwrap(),
         "<html><body>Edição local</body></html>"

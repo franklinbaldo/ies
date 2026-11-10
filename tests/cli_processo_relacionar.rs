@@ -26,7 +26,7 @@ fn entrada_vazia_sai_2_antes_da_sessao() {
     ] {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2));
-        assert_eq!(json(&saida)["subcodigo"], "numero_processo_vazio");
+        assert_eq!(json(&saida)["subcodigo"], "vazio");
     }
 }
 #[test]

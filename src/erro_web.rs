@@ -26,12 +26,10 @@ pub enum ErroCaixa {
         categoria: Categoria,
         id: String,
     },
-    #[causa(nome = "numero_da_caixa_invalido")]
     NumeroInvalido {
         categoria: Categoria,
         id: String,
     },
-    #[causa(nome = "processo_ambiguo")]
     MaisDeUmNumeroNaLinhaDoProcesso {
         categoria: Categoria,
         id: String,
@@ -47,7 +45,6 @@ pub enum ErroCaixa {
     TotalExcedido {
         categoria: Categoria,
     },
-    #[causa(nome = "total_divergente")]
     TotaisDeclaradosDiferentesEntrePaginas {
         categoria: Categoria,
     },
@@ -76,13 +73,11 @@ pub enum ErroCaixa {
         categoria: Categoria,
     },
     LimitePaginas,
-    #[causa(nome = "visao_resumida_com_paginacao_nao_demonstrada")]
     VisaoResumidaComPaginacao,
     /// `hdnIdMarcador{unidade}` preenchido: a lista é só a do marcador.
     FiltroDeMarcadorAtivoNoControle,
     IdentificacaoDaUnidadeAusenteNoControle,
     ContextoNaoVerificavel,
-    #[causa(nome = "contexto_divergente")]
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
     #[causa(transparente)]

@@ -312,7 +312,7 @@ mod tests {
             }),
         ));
         let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
-        assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao_de_documento");
+        assert_eq!(erro.subcodigo(), "efeito_incerto_na_releitura");
         assert_eq!(saida["status_http"], 403);
         assert_eq!(saida["mensagem_do_servidor"], "leitura recusada");
         assert_eq!(saida["requisicoes"], 7);

@@ -40,9 +40,9 @@ pub(crate) struct CienciaDoDocumento {
 pub(crate) enum FalhaDoAceite {
     #[causa(interna)]
     Transporte(FalhaTransporte),
-    #[causa(http, nome = "validacao_da_infra_na_ciencia_do_documento")]
+    #[causa(http)]
     ValidacaoDaInfra(StatusHttpRecusado),
-    #[causa(nome = "atividade_do_aceite_documental_nao_reconhecida")]
+    #[causa(interna)]
     Aceite(super::ErroCiencia),
 }
 
@@ -64,27 +64,21 @@ impl FalhaDoAceite {
 }
 
 /// Por que a releitura não comprovou a ciência do documento depois do GET
-/// mutador. A causa original fica como `fonte`; o nome público é o mesmo.
+/// mutador. Cada etapa guarda o erro original e sobe com `?`.
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum VerificacaoDaCienciaDoDocumento {
-    #[causa(fonte, nome = "arvore_do_documento_nao_relida")]
-    ArvoreNaoRelida(ErroDocumentoObter),
-    #[causa(nome = "identidade_do_documento_alterada_na_releitura")]
-    IdentidadeAlterada,
-    #[causa(nome = "aceite_sem_atividade_do_documento")]
-    AceiteSemAtividade,
-    #[causa(fonte, nome = "lista_de_ciencias_do_documento_fora_da_forma")]
-    ListaForaDaForma(ErroHtml),
-    #[causa(nome = "lista_de_ciencias_do_documento_ausente")]
-    ListaAusente,
-    #[causa(fonte, nome = "releitura_da_lista_de_ciencias_do_documento_falhou")]
-    ReleituraFalhou(FalhaTransporte),
-    #[causa(fonte, nome = "resposta_da_lista_de_ciencias_do_documento_nao_lida")]
-    RespostaNaoLida(FalhaTransporte),
-    #[causa(fonte, nome = "lista_de_ciencias_do_documento_nao_comprovou_atividade")]
-    ListaNaoComprovou(super::ErroCiencia),
-    #[causa(nome = "atividade_da_ciencia_nao_encontrada_na_lista_do_documento")]
-    AtividadeNaoEncontrada,
+    #[causa(interna)]
+    Abertura(ErroDocumentoObter),
+    IdentidadeDoDocumentoAlteradaNaReleitura,
+    AceiteSemAtividadeDoDocumento,
+    #[causa(transparente)]
+    Html(ErroHtml),
+    ListaDeCienciasDoDocumentoAusente,
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
+    #[causa(interna)]
+    Lista(super::ErroCiencia),
+    AtividadeNaoEncontradaNaListaDoDocumento,
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -95,21 +89,16 @@ pub(crate) enum ErroCienciaDocumento {
     Barra(ErroBarraDoDocumento),
     #[causa(transparente)]
     Html(ErroHtml),
-    #[causa(nome = "ciencia_nao_oferecida_no_documento")]
     CienciaNaoOferecida,
-    #[causa(nome = "tela_da_ciencia_do_documento_nao_publicada")]
     TelaNaoPublicada,
-    #[causa(nome = "origem_nao_autorizada")]
     OrigemNaoAutorizada,
     #[causa(interna)]
     Cookie(FalhaTransporte),
     #[causa(interna)]
     Tela(FalhaTransporte),
-    #[causa(nome = "tela_da_ciencia_do_documento_redirecionada")]
     TelaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
-    #[causa(nome = "efeito_incerto_na_ciencia_do_documento")]
     EfeitoIncerto {
         motivo: VerificacaoDaCienciaDoDocumento,
         requisicoes: u8,
@@ -253,7 +242,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             Ok(feito)
         }
         Ok((false, _)) => Err(E::EfeitoIncerto {
-            motivo: VerificacaoDaCienciaDoDocumento::AtividadeNaoEncontrada,
+            motivo: VerificacaoDaCienciaDoDocumento::AtividadeNaoEncontradaNaListaDoDocumento,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
@@ -312,27 +301,20 @@ fn verificar<V: EnvioDoProcesso>(
         unidade: pedido.unidade,
         anexo: PedidoDoAnexo::default(),
     };
-    let novo = abrir_documento_na_arvore(sessao, &abertura, indice, rede)
-        .map_err(VerificacaoDaCienciaDoDocumento::ArvoreNaoRelida)?;
+    let novo = abrir_documento_na_arvore(sessao, &abertura, indice, rede)?;
     if novo.id_documento != id_documento || novo.processo.id != id_procedimento {
-        return Err(VerificacaoDaCienciaDoDocumento::IdentidadeAlterada);
+        return Err(VerificacaoDaCienciaDoDocumento::IdentidadeDoDocumentoAlteradaNaReleitura);
     }
     let Some(atividade) = atividade else {
-        return Err(VerificacaoDaCienciaDoDocumento::AceiteSemAtividade);
+        return Err(VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento);
     };
-    let lista = lista_do_documento(instalacao, &novo.html, id_procedimento, id_documento)
-        .map_err(VerificacaoDaCienciaDoDocumento::ListaForaDaForma)?
-        .ok_or(VerificacaoDaCienciaDoDocumento::ListaAusente)?;
-    let resposta = rede
-        .get_sem_seguir(lista.as_str(), cookie)
-        .map_err(VerificacaoDaCienciaDoDocumento::ReleituraFalhou)?;
-    let html = decodificar_resposta(resposta.resposta)
-        .map_err(VerificacaoDaCienciaDoDocumento::RespostaNaoLida)?;
-    let presente = atividade_na_lista(&html, atividade)
-        .map_err(VerificacaoDaCienciaDoDocumento::ListaNaoComprovou)?;
+    let lista = lista_do_documento(instalacao, &novo.html, id_procedimento, id_documento)?
+        .ok_or(VerificacaoDaCienciaDoDocumento::ListaDeCienciasDoDocumentoAusente)?;
+    let resposta = rede.get_sem_seguir(lista.as_str(), cookie)?;
+    let html = decodificar_resposta(resposta.resposta)?;
+    let presente = atividade_na_lista(&html, atividade)?;
     let usuario = if presente {
-        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
-            .map_err(VerificacaoDaCienciaDoDocumento::ListaNaoComprovou)?
+        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)?
     } else {
         None
     };

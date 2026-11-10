@@ -196,7 +196,7 @@ mod testes_previa {
     #[test]
     fn erro_humano_da_ciencia_documental_informa_requests_e_nao_proibe_previa() {
         let erro = ErroCienciaDocumento::EfeitoIncerto {
-            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividade,
+            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
             requisicoes: 6,
             falha_do_aceite: None,
         };
@@ -217,7 +217,7 @@ mod testes_previa {
     #[test]
     fn erro_json_documental_orienta_conferir_lista_antes_de_confirmar() {
         let erro = ErroCienciaDocumento::EfeitoIncerto {
-            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividade,
+            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
             requisicoes: 6,
             falha_do_aceite: None,
         };

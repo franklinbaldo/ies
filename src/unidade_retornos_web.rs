@@ -21,7 +21,6 @@ pub(crate) enum ErroLeituraRetornos {
     LinkDeRetornosForaDaInstalacao,
     CalendarioDosRetornosDesconhecido,
     MesDosRetornosInacessivel,
-    #[causa(nome = "mes_dos_retornos_invalido")]
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
 }
@@ -54,6 +53,9 @@ impl crate::relogin_cli::FalhaPublicavel for ErroLeituraRetornos {
     }
     fn status_http(&self) -> Option<&StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
+    }
+    fn sessao_encerrada(&self) -> bool {
+        crate::erro_publico::Causa::sessao_encerrada(self)
     }
 }
 

@@ -9,7 +9,6 @@ const ACAO: &str = "procedimento_atribuicao_cadastrar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuirNaBarra {
-    #[causa(nome = "endereco_da_atribuicao_de_outro_processo")]
     EnderecoDeOutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

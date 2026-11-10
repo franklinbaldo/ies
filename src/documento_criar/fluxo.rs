@@ -105,54 +105,35 @@ pub(crate) enum ErroPreviaCriacao {
     Abertura(ErroProcessoObter),
     #[causa(interna)]
     Transporte(FalhaTransporte),
-    #[causa(nome = "unidade_da_sessao_nao_publicada")]
     UnidadeNaoPublicada,
-    #[causa(nome = "situacao_do_processo_nao_lida_antes_de_criar_documento")]
     SituacaoNaoLida,
-    #[causa(nome = "processo_nao_aberto_na_unidade_da_sessao")]
     ProcessoNaoAbertoNaUnidade,
     #[causa(interna)]
     Link(ErroLinkIncluirDocumento),
-    #[causa(nome = "incluir_documento_nao_publicado_na_barra")]
     LinkNaoPublicado,
     #[causa(interna)]
     TelaTransporte(FalhaTransporte),
-    #[causa(nome = "tela_de_criacao_redirecionada")]
     TelaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     #[causa(interna)]
     Tipo(ErroCriar),
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    #[causa(nome = "nivel_de_documento_nao_informado_para_escrita")]
     NivelNaoInformado,
-    #[causa(nome = "nivel_de_documento_requer_hipotese_legal")]
     NivelRestritoSemHipotese,
-    #[causa(nome = "submissao_do_documento_nao_observada")]
     SubmissaoNaoComprovada,
-    #[causa(nome = "arvore_de_documentos_incompleta")]
     ArvoreIncompleta,
-    #[causa(nome = "foto_inicial_de_documentos_inconsistente")]
     FotoInicialInconsistente,
-    #[causa(
-        nome = "efeito_incerto_na_criacao_de_documento",
-        acao = "conferir_escrita"
-    )]
+    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
-    #[causa(
-        nome = "efeito_incerto_na_criacao_de_documento",
-        acao = "conferir_escrita"
-    )]
+    #[causa(acao = "conferir_escrita")]
     EfeitoIncertoNoEnvio(ErroSubmissaoFormulario),
     /// O GET de reconciliação falhou após o POST; preservar a causa
     /// observada, sem inferir que o documento deixou de ser criado.
-    #[causa(
-        nome = "efeito_incerto_na_criacao_de_documento",
-        acao = "conferir_escrita"
-    )]
+    #[causa(acao = "conferir_escrita")]
     EfeitoIncertoNaReleitura(ErroProcessoObter),
 }
 impl ErroPreviaCriacao {

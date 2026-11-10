@@ -18,7 +18,7 @@ fn pesquisar_reconhece_a_cli_e_pede_configuracao_local() {
     let result = executar(&["unidade", "pesquisar", "sao/cde", "--json"]);
     assert_eq!(result.status.code(), Some(1));
     let saida: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
-    assert_eq!(saida["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(saida["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn listar_unidades_reconhece_a_cli_e_pede_configuracao_local() {
     let result = executar(&["unidade", "listar", "--json"]);
     assert_eq!(result.status.code(), Some(1));
     let saida: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
-    assert_eq!(saida["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(saida["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn atualizar_sem_sessao_recusa_antes_de_qualquer_leitura_web() {
     let result = executar(&["unidade", "listar", "--atualizar", "--json"]);
     assert_eq!(result.status.code(), Some(1));
     let saida: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
-    assert_eq!(saida["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(saida["subcodigo"], "url_do_controle_sem_caminho");
     assert_eq!(saida["codigo"], "fonte_invalida");
     assert_eq!(saida["retentavel"], false);
 }

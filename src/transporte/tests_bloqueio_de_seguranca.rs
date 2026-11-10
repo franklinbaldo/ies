@@ -71,11 +71,11 @@ fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
         "<html><head><title>Forbidden</title></head><body>Forbidden</body></html>",
     ))
     .unwrap_err();
-    assert_eq!(generico.subcodigo(), "sessao_nao_autorizada");
+    assert_eq!(generico.subcodigo(), "acesso_negado");
     let nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
-    assert_eq!(nao_autorizado.subcodigo(), "sessao_nao_autorizada");
+    assert_eq!(nao_autorizado.subcodigo(), "acesso_negado");
     let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
-    assert_eq!(texto.subcodigo(), "sessao_nao_autorizada");
+    assert_eq!(texto.subcodigo(), "acesso_negado");
 }
 
 /// Bloqueio do Cloudflare da PEN2 (Tramita, 04/11/2026), no segundo GET de

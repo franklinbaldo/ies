@@ -29,9 +29,9 @@ pub(crate) struct CienciaDoProcesso {
 pub(crate) enum FalhaDoAceiteProcesso {
     #[causa(interna)]
     Transporte(FalhaTransporte),
-    #[causa(http, nome = "validacao_da_infra_na_ciencia_do_processo")]
+    #[causa(http)]
     ValidacaoDaInfra(StatusHttpRecusado),
-    #[causa(nome = "atividade_do_aceite_do_processo_nao_reconhecida")]
+    #[causa(interna)]
     Aceite(super::ErroCiencia),
 }
 
@@ -53,27 +53,21 @@ impl FalhaDoAceiteProcesso {
 }
 
 /// Por que a releitura não comprovou a ciência do processo depois do GET
-/// mutador. A causa original fica como `fonte`; o nome público é o mesmo.
+/// mutador. Cada etapa guarda o erro original e sobe com `?`.
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum VerificacaoDaCiencia {
-    #[causa(fonte, nome = "arvore_nao_relida_depois_da_ciencia")]
-    ArvoreNaoRelida(ErroProcessoObter),
-    #[causa(nome = "identidade_do_processo_alterada_na_releitura")]
-    IdentidadeAlterada,
-    #[causa(nome = "aceite_sem_id_de_atividade_depois_da_escrita")]
-    AceiteSemAtividade,
-    #[causa(fonte, nome = "lista_de_ciencias_fora_da_forma")]
-    ListaForaDaForma(ErroCienciaNaArvore),
-    #[causa(nome = "lista_de_ciencias_nao_publicada_na_arvore_relida")]
-    ListaNaoPublicada,
-    #[causa(fonte, nome = "releitura_da_lista_de_ciencias_falhou")]
-    ReleituraFalhou(FalhaTransporte),
-    #[causa(fonte, nome = "resposta_da_lista_de_ciencias_nao_lida")]
-    RespostaNaoLida(FalhaTransporte),
+    #[causa(interna)]
+    Abertura(ErroProcessoObter),
+    IdentidadeDoProcessoAlteradaNaReleitura,
+    AceiteSemIdDeAtividade,
+    #[causa(interna)]
+    Barra(ErroCienciaNaArvore),
+    ListaDeCienciasNaoPublicadaNaArvoreRelida,
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
     #[causa(interna)]
     Lista(super::ErroCiencia),
-    #[causa(nome = "atividade_da_ciencia_nao_encontrada_na_lista_relida")]
-    AtividadeNaoEncontrada,
+    AtividadeNaoEncontradaNaListaRelida,
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -82,21 +76,17 @@ pub(crate) enum ErroCienciaProcesso {
     Abertura(ErroProcessoObter),
     #[causa(interna)]
     Barra(ErroCienciaNaArvore),
-    #[causa(nome = "ciencia_nao_oferecida_na_barra")]
     CienciaNaoOferecida,
-    #[causa(nome = "unidade_nao_publicada_antes_da_ciencia")]
     UnidadeNaoPublicada,
     OrigemNaoAutorizada,
     #[causa(interna)]
     Cookie(FalhaTransporte),
     #[causa(interna)]
     Tela(FalhaTransporte),
-    #[causa(nome = "tela_de_ciencia_redirecionada")]
     TelaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     /// A escrita pode ter ocorrido. NUNCA repetir; revisar a lista manualmente.
-    #[causa(nome = "efeito_incerto_na_ciencia")]
     EfeitoIncerto {
         motivo: VerificacaoDaCiencia,
         requisicoes: u8,
@@ -227,7 +217,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
             Ok(resultado)
         }
         Ok((false, _)) => Err(E::EfeitoIncerto {
-            motivo: VerificacaoDaCiencia::AtividadeNaoEncontrada,
+            motivo: VerificacaoDaCiencia::AtividadeNaoEncontradaNaListaRelida,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
@@ -280,23 +270,18 @@ fn verificar<V: EnvioDoProcesso>(
         &leitura(pedido.nup, pedido.unidade, false),
         indice,
         rede,
-    )
-    .map_err(VerificacaoDaCiencia::ArvoreNaoRelida)?;
+    )?;
     if novo.arvore.processo.id != id_original {
-        return Err(VerificacaoDaCiencia::IdentidadeAlterada);
+        return Err(VerificacaoDaCiencia::IdentidadeDoProcessoAlteradaNaReleitura);
     }
     let Some(atividade) = atividade else {
-        return Err(VerificacaoDaCiencia::AceiteSemAtividade);
+        return Err(VerificacaoDaCiencia::AceiteSemIdDeAtividade);
     };
     let lista = acoes
-        .lista_ciencias
-        .map_err(VerificacaoDaCiencia::ListaForaDaForma)?
-        .ok_or(VerificacaoDaCiencia::ListaNaoPublicada)?;
-    let resposta = rede
-        .get_sem_seguir(lista.as_str(), cookie)
-        .map_err(VerificacaoDaCiencia::ReleituraFalhou)?;
-    let html =
-        decodificar_resposta(resposta.resposta).map_err(VerificacaoDaCiencia::RespostaNaoLida)?;
+        .lista_ciencias?
+        .ok_or(VerificacaoDaCiencia::ListaDeCienciasNaoPublicadaNaArvoreRelida)?;
+    let resposta = rede.get_sem_seguir(lista.as_str(), cookie)?;
+    let html = decodificar_resposta(resposta.resposta)?;
     let presente = atividade_na_lista(&html, atividade)?;
     let usuario = if presente {
         super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)?

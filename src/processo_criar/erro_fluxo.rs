@@ -10,18 +10,14 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum CausaRespostaCriadora {
-    #[causa(nome = "resposta_inesperada_apos_post_criador")]
     RespostaInesperada,
-    #[causa(nome = "localizacao_invalida_apos_post_criador")]
     LocalizacaoInvalida,
 }
 
 /// Fato observado na verificação independente após Location legítimo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ProvaDaCriacao {
-    #[causa(nome = "propriedades_divergentes_apos_post_criador")]
     PropriedadesDivergentes,
-    #[causa(nome = "id_preexistente_no_retorno_criador")]
     IdentidadePreexistente,
 }
 

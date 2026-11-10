@@ -256,7 +256,7 @@ mod tests {
         let linhas = "<tr id='P7'><td><a class='processoVisualizado'>123</a>\
             <a class='processoNaoVisualizado'>124</a></td></tr>";
         let erro = parse_html(&html(linhas, 1)).unwrap_err();
-        assert_eq!(erro.subcodigo(), "processo_ambiguo");
+        assert_eq!(erro.subcodigo(), "mais_de_um_numero_na_linha_do_processo");
         assert_eq!(erro.id(), Some("7"));
     }
 

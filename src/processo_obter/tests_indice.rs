@@ -109,7 +109,7 @@ fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     assert_eq!(amb.indice.entrada_por_id(&inst), Some(false));
     assert_eq!(
         E::EntradaPorIdRecusada.subcodigo(),
-        "entrada_por_id_recusada_rode_ies_login"
+        "entrada_por_id_recusada"
     );
 }
 
@@ -265,7 +265,7 @@ fn falhas_fora_de_palpite() {
     let (r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
     assert_eq!(
         r.unwrap_err().subcodigo(),
-        "unidade_da_tela_diferente_da_solicitada"
+        "unidade_do_controle_diferente_da_solicitada"
     );
     assert_eq!(pedidos.len(), 1);
     // 302 da tela do processo para outro lugar.

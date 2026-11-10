@@ -244,6 +244,12 @@ enum FalhaDoDocumento {
 }
 
 impl relogin_cli::FalhaPublicavel for FalhaDoDocumento {
+    fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Sessao(falha) => crate::erro_publico::Causa::sessao_encerrada(falha),
+            Self::Documento { erro, .. } => crate::erro_publico::Causa::sessao_encerrada(erro),
+        }
+    }
     fn subcodigo(&self) -> &'static str {
         match self {
             Self::Sessao(falha) => falha.subcodigo(),

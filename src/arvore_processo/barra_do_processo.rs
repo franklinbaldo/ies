@@ -80,13 +80,9 @@ pub(crate) fn ler_link_das_anotacoes(
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkPrazo {
-    #[causa(nome = "barra_de_prazo_nao_interpretada")]
     BarraNaoInterpretada,
-    #[causa(nome = "links_de_prazo_repetidos")]
     LinksRepetidos,
-    #[causa(nome = "endereco_de_prazo_nao_reconhecido")]
     EnderecoNaoReconhecido,
-    #[causa(nome = "endereco_de_prazo_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 
@@ -286,15 +282,10 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkIncluirDocumento {
-    #[causa(nome = "barra_do_incluir_documento_fora_da_forma")]
     BarraForaDaForma,
-    #[causa(nome = "barra_do_incluir_documento_repetida")]
     BarraRepetida,
-    #[causa(nome = "links_de_incluir_documento_repetidos")]
     LinkRepetido,
-    #[causa(nome = "endereco_de_incluir_documento_nao_reconhecido")]
     EnderecoNaoReconhecido,
-    #[causa(nome = "endereco_de_incluir_documento_de_outro_processo")]
     EnderecoDeOutroProcesso,
 }
 
