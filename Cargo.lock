@@ -726,7 +726,6 @@ dependencies = [
  "clap",
  "cucumber",
  "futures",
- "ies-derive",
  "iesei",
  "native-tls",
  "rusqlite",
@@ -734,13 +733,10 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
+ "thiserror",
  "tl",
  "zip",
 ]
-
-[[package]]
-name = "ies-derive"
-version = "0.1.0"
 
 [[package]]
 name = "iesei"

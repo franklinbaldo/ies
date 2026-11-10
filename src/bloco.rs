@@ -32,12 +32,12 @@ impl TipoBloco {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroBloco {
     FaixaDeBlocosIncoerente,
     PaginaDeBlocosNaoImplementada,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 impl ErroBloco {
     pub(crate) const fn mensagem(self) -> &'static str {

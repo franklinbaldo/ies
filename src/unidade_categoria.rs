@@ -29,12 +29,12 @@ impl CategoriaLista {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
-    #[causa(interna)]
-    FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
+    FaixaNaoPublicavel(#[from] crate::erro_web::ErroCaixa),
 }
 impl FalhaCategoria {
     pub(crate) fn mensagem(&self) -> &'static str {

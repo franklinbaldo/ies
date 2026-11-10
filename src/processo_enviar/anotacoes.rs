@@ -9,15 +9,13 @@ use crate::formulario_web::{
 
 /// Por que a anotação da origem não foi lida antes de enviar. Etapa
 /// própria: o erro nasce aqui e chega ao envio por `From`.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDasAnotacoes {
-    #[causa(interna)]
-    LinkDasAnotacoes(ErroHtml),
-    #[causa(interna)]
-    TelaDasAnotacoes(crate::transporte::FalhaTransporte),
+    LinkDasAnotacoes(#[source] ErroHtml),
+    TelaDasAnotacoes(#[from] crate::transporte::FalhaTransporte),
     TelaDasAnotacoesRedirecionada,
-    #[causa(interna)]
-    LeituraDasAnotacoes(ErroHtml),
+    LeituraDasAnotacoes(#[source] ErroHtml),
 }
 
 impl ErroDasAnotacoes {

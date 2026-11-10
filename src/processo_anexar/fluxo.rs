@@ -172,7 +172,9 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
             FalhaDaTela::Transporte(falha) => E::Tela(falha),
             FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-            FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+            FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                E::SessaoEncerrada
+            }
         })?;
     let vista = ler_tela(&html).map_err(E::Estrutura)?;
     let codificacao = codificacao_da_tela(&mime)

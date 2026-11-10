@@ -17,20 +17,15 @@ use serde_json::{Value, json};
 mod paginacao;
 use std::process::ExitCode;
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum FalhaLeitura {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Controle(ErroCaixa),
-    #[causa(interna)]
-    Bloco(ErroBloco),
-    #[causa(interna)]
-    Detalhe(ErroHtml),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Transporte(#[from] FalhaTransporte),
+    Controle(#[from] ErroCaixa),
+    Bloco(#[from] ErroBloco),
+    Detalhe(#[source] ErroHtml),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Html(#[source] ErroHtml),
 }
 impl FalhaLeitura {
     fn mensagem(&self) -> &'static str {

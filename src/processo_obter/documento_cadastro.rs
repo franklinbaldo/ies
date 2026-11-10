@@ -52,7 +52,11 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     }
     let html = match rede.get(&link.url).map_err(E::Processo)? {
         Lida::Html { html, .. } => html,
-        Lida::Login => return Err(E::Processo(ErroProcessoObter::SessaoEncerrada)),
+        Lida::Login => {
+            return Err(E::Processo(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            )));
+        }
         Lida::Redirecionamento(local) => {
             return Err(E::Processo(fora_de_palpite(local.as_deref())));
         }

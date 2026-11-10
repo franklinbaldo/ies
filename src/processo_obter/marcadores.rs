@@ -110,7 +110,7 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
             Ok(vazia())
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada),
+        Lida::Login => Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => Err(E::Transporte(falha)),
     }
 }

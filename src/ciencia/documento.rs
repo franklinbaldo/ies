@@ -37,14 +37,12 @@ pub(crate) struct CienciaDoDocumento {
 
 /// Causa tipada da resposta do GET que pode registrar ciência. A decisão de
 /// conferir o efeito não elimina o fato observado durante o único envio.
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDoAceite {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(http)]
-    ValidacaoDaInfra(StatusHttpRecusado),
-    #[causa(interna)]
-    Aceite(super::ErroCiencia),
+    Transporte(#[from] FalhaTransporte),
+    ValidacaoDaInfra(#[source] StatusHttpRecusado),
+    Aceite(#[from] super::ErroCiencia),
 }
 
 impl FalhaDoAceite {
@@ -59,19 +57,16 @@ impl FalhaDoAceite {
 
 /// Por que a releitura não comprovou a ciência do documento depois do GET
 /// mutador. Cada etapa guarda o erro original e sobe com `?`.
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum VerificacaoDaCienciaDoDocumento {
-    #[causa(interna)]
-    Abertura(ErroDocumentoObter),
+    Abertura(#[from] ErroDocumentoObter),
     IdentidadeDoDocumentoAlteradaNaReleitura,
     AceiteSemAtividadeDoDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
     ListaDeCienciasDoDocumentoAusente,
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Lista(super::ErroCiencia),
+    Transporte(#[from] FalhaTransporte),
+    Lista(#[from] super::ErroCiencia),
     AtividadeNaoEncontradaNaListaDoDocumento,
 }
 
@@ -96,24 +91,19 @@ impl VerificacaoDaCienciaDoDocumento {
     }
 }
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCienciaDocumento {
-    #[causa(interna)]
-    Abertura(ErroDocumentoObter),
-    #[causa(interna)]
-    Barra(ErroBarraDoDocumento),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Abertura(#[from] ErroDocumentoObter),
+    Barra(#[from] ErroBarraDoDocumento),
+    Html(#[from] ErroHtml),
     CienciaNaoOferecida,
     TelaNaoPublicada,
     OrigemNaoAutorizada,
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Tela(FalhaTransporte),
+    Cookie(#[from] CookieIlegivel),
+    Tela(#[from] FalhaTransporte),
     TelaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     NaoConfirmado {
         motivo: VerificacaoDaCienciaDoDocumento,
         requisicoes: u8,
@@ -133,7 +123,9 @@ impl ErroCienciaDocumento {
             Self::OrigemNaoAutorizada => "a origem da instalação não é autorizada",
             Self::Cookie(_) => "a sessão privada não pôde ser lida",
             Self::Tela(_) | Self::TelaRedirecionada => "a tela do documento não foi servida",
-            Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode ies login"
+            }
             Self::NaoConfirmado { .. } => {
                 "a ciência pode ter sido registrada; confira a Lista de Ciências do documento no SEI antes de nova confirmação"
             }
@@ -211,7 +203,9 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     })?;
     let url = url_da_ciencia_do_documento(
         &instalacao,

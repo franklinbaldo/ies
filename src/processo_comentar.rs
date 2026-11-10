@@ -3,7 +3,8 @@
 //! o id do aceite, texto exato e lista relida e completa.
 use crate::processo_comentarios::ComentariosLidos;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum FalhaDaConferencia {
     IdDoAceiteAusente,
     ComentarioNaoVisivelNaReleitura,

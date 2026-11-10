@@ -31,7 +31,8 @@ pub(crate) struct TelaDoProcesso {
     pub(crate) arvore: EnderecoDaArvore,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDoProcesso {
     UnidadeDaTelaDiferenteDaSolicitada,
     EnderecoDaArvoreDeOutroProcesso,
@@ -41,8 +42,7 @@ pub(crate) enum ErroTelaDoProcesso {
     /// antes de servir a árvore, que vem com `src` vazio (GO 5.0.3, live de
     /// 10/11/2026). A validação em si não é feita pelo IES.
     ProcessoExigeValidacaoDeAcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`

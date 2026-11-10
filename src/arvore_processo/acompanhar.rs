@@ -8,11 +8,11 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAcompanharNaBarra {
     LinkDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 pub(crate) fn ler_acompanhar_da_barra(

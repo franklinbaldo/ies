@@ -8,25 +8,24 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Conclusão de Processo", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode
 /// ter saído): o efeito é decidido pela leitura.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDoEnvio {
     /// POST da tela: rede, tempo, status, MIME, charset, login, validação.
-    #[causa(interna)]
-    Envio(ErroSubmissaoFormulario),
+    Envio(#[from] ErroSubmissaoFormulario),
     /// GET da função: rede, tempo, status, MIME, charset, tamanho.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// GET da função: a tela de login.
     LoginAposEscrita,
     /// 302 para destino fora dos observados (`arvore_visualizar`, `principal`).
@@ -72,14 +71,13 @@ pub(crate) enum VerificacaoPorLeitura {
 
 impl VerificacaoPorLeitura {}
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConcluir {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeConcluir {
@@ -92,22 +90,16 @@ pub(crate) enum ErroConcluir {
     ConclusaoNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
-    #[causa(interna)]
-    Barra(ErroConcluirNaBarra),
+    Barra(#[from] ErroConcluirNaBarra),
     /// GET da tela de conclusão ou da tela do nó, antes da escrita.
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaDaEscritaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     CharsetDaTelaNaoSuportado,
-    #[causa(interna)]
-    TelaDeConclusao(ErroTelaDeConclusao),
-    #[causa(interna)]
-    FuncaoDeConcluir(ErroFuncaoDeConcluir),
+    TelaDeConclusao(#[from] ErroTelaDeConclusao),
+    FuncaoDeConcluir(#[from] ErroFuncaoDeConcluir),
     /// Derivação do POST ou falha antes de ele sair (cookie).
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     /// A leitura depois da escrita ainda lista a unidade da sessão.
     ConclusaoNaoAplicada {
         aberto_em: Vec<String>,
@@ -168,7 +160,9 @@ impl ErroConcluir {
             Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
                 "a tela da conclusão não foi servida; nada foi concluído"
             }
-            Self::SessaoEncerrada => "a sessão encerrou; rode `ies login` (nada foi concluído)",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode `ies login` (nada foi concluído)"
+            }
             Self::CharsetDaTelaNaoSuportado => {
                 "a tela de conclusão declara um charset não suportado; nada foi concluído"
             }

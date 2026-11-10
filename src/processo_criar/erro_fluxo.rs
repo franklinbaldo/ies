@@ -8,14 +8,16 @@ use crate::processo_criar_interessados::ErroInteressado;
 use crate::processo_criar_lista::ErroListaDeTipos;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum CausaRespostaCriadora {
     RespostaInesperada,
     LocalizacaoInvalida,
 }
 
 /// Fato observado na verificação independente após Location legítimo.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ProvaDaCriacao {
     PropriedadesDivergentes,
     IdentidadePreexistente,

@@ -65,7 +65,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
     let html = match rede.get(endereco.as_str())? {
         Lida::Html { html, .. } => html,
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(E::SessaoEncerrada),
+        Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => return Err(E::Transporte(falha)),
     };
     let completa = match aberta_inteira(contexto, &html, &id) {

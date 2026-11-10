@@ -7,7 +7,8 @@ use serde::Serialize;
 pub struct NumeroProcesso(String);
 
 /// Apenas entrada opaca: cada instalação decide a numeração que reconhece.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, thiserror::Error)]
+#[error("{self:?}")]
 pub enum NumeroProcessoInvalido {
     Vazio,
     Controle,
