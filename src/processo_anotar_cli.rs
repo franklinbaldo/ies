@@ -123,7 +123,11 @@ fn exibir_registro(preview: &processo_anotar::Previa, confirmar: bool, modo_json
     } else {
         println!(
             "Prévia: anotar no processo {} ({}): {:?}. Anotação atual: {:?}. Nenhuma escrita realizada. Requisições: {}.",
-            preview.nup, preview.unidade, preview.texto, preview.anotacao_antes, preview.requisicoes
+            preview.nup,
+            preview.unidade,
+            preview.texto,
+            preview.anotacao_antes,
+            preview.requisicoes
         );
     }
 }
