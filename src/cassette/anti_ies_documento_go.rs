@@ -1,5 +1,5 @@
-// BDD-60-05: confrontos independentes de históricos GO/UFRJ com anti-IES.
-// Essas gravações não têm GET de corpo: nenhuma revisão recebe texto suposto.
+// BDD-60-05: históricos GO/UFRJ/PEN1 confrontados com anti-IES.
+// Corpo capturado só entra na versão e identidade efetivamente observadas.
 
 /// Encontra o número SEI pelo mesmo `id_documento` em uma árvore gravada,
 /// sem emprestar identidade ou tipo de uma fixture `UnB`.
@@ -58,7 +58,8 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
         || std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
         std::path::PathBuf::from,
     );
-    let zip = ZipDoAcervo::ler(&cache.join("lote-9497057d512230ff.zip")).unwrap();
+    let nome_zip = crate::cassette::archive_filename(&card).unwrap();
+    let zip = ZipDoAcervo::ler(&cache.join(nome_zip)).unwrap();
     let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
     let instalacao = gravacao::instalacao(&captura.json).unwrap();
     let respostas: Vec<_> = gravacao::respostas(&captura.json)
@@ -78,12 +79,44 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
     let html_original = html_da_resposta(respostas[0].item).unwrap();
     let historico_original = interpretar_historico(&html_original, &numero, id, None)
         .expect("leitor real do IES na lista original GO");
-    // Nem GO nem UFRJ capturaram documento_visualizar. Todos os corpos são
-    // placeholders estruturais exigidos pelo banco, não observações.
-    let revisoes = revisoes_observadas(&historico_original, "");
+    // O GET de corpo existe no PEN1, mas não em GO/UFRJ. Ele somente pode
+    // preencher a versão apontada por seu próprio rodapé, nunca as demais.
+    let originais: Vec<_> = gravacao::respostas(&captura.json)
+        .into_iter()
+        .filter(|r| {
+            r.operacao == "documento_visualizar"
+                && r.metodo == "GET"
+                && r.status == 200
+                && gravacao::parametro(r.item, "id_documento").contains(&id)
+        })
+        .collect();
+    assert!(originais.len() <= 1, "um único GET de corpo por identidade");
+    let conteudo = originais.first().map(|r| {
+        let html = html_da_resposta(r.item).unwrap();
+        let identidade = crate::documento_web::identidade_do_titulo(&html).unwrap();
+        assert_eq!(identidade.numero, numero_observado);
+        let versao = crate::rodape_do_documento::versao_do_rodape(&html)
+            .expect("versão no rodapé original");
+        let texto = crate::documento_web::texto_do_corpo(&html).unwrap();
+        (versao.numero(), identidade.tipo, texto)
+    });
+    let mut revisoes = revisoes_observadas(&historico_original, "");
+    if let Some((versao, _, texto)) = &conteudo {
+        let revisao = revisoes
+            .iter_mut()
+            .find(|r| r.versao.get() == *versao)
+            .expect("versão do corpo capturado existe no histórico");
+        revisao.html_corpo = format!(
+            "<p>{}</p>",
+            texto.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+        );
+    }
     assert!(
-        revisoes.iter().all(|r| r.html_corpo == "<p></p>"),
-        "não inventar conteúdo histórico não observado"
+        revisoes.iter().all(|r| {
+            conteudo.as_ref().is_some_and(|(v, _, _)| *v == r.versao.get())
+                || r.html_corpo == "<p></p>"
+        }),
+        "versões sem corpo capturado ficam apenas com estrutura vazia"
     );
     let quantidade = revisoes.len();
     let documento = DocumentoSimulado {
@@ -94,16 +127,19 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
         numero: numero_observado,
         // Só serve para preencher campo obrigatório, não é confrontado como
         // tipo de conteúdo: a cassette não traz GET de corpo.
-        tipo: rotulo_observado,
+        tipo: conteudo
+            .as_ref()
+            .map_or(rotulo_observado, |(_, tipo, _)| tipo.clone()),
         revisoes,
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
+    let pedidos = 3 + usize::from(conteudo.is_some());
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         guardar(&mut banco, "cassette-historico-sei", &documento).unwrap();
-        for _ in 0..3 {
+        for _ in 0..pedidos {
             let (mut fluxo, _) = escuta.accept().unwrap();
             anti_ies::atender_http(
                 &mut fluxo,
@@ -121,6 +157,30 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
+    if let Some((versao, tipo_original, texto_original)) = &conteudo {
+        let alvo = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
+        );
+        let resposta = pedir(endereco, "GET", &alvo);
+        let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
+        assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
+        let identidade = crate::documento_web::identidade_do_titulo(html).unwrap();
+        assert_eq!((&identidade.numero, &identidade.tipo), (&numero_observado, tipo_original));
+        assert_eq!(
+            crate::rodape_do_documento::versao_do_rodape(html)
+                .map(crate::documento_versoes::VersaoDocumento::numero),
+            Some(*versao)
+        );
+        let corpo = html
+            .split_once("<main id='corpoEditavel'>")
+            .expect("editor projetado")
+            .1
+            .split_once("</main>")
+            .unwrap()
+            .0;
+        let texto = crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+        assert_eq!(&texto, texto_original, "corpo capturado deve sobreviver ao transporte");
+    }
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
@@ -148,5 +208,13 @@ fn cassette_go_historico_preserva_metadados_e_identidade_por_http() {
 fn cassette_ufrj_historico_preserva_metadados_e_identidade_por_http() {
     confrontar_cassette_historico_por_http(
         "cassettes/ufrj/liberacoes-e-versoes-leitura-ufrj--37ca449e6b97.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN1 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen1_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen1/liberacoes-e-versoes-leitura-pen1--f46eada4effb.md",
     );
 }
