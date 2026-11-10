@@ -52,7 +52,10 @@ fn atender_quatro_gets(listener: &TcpListener, todas: bool) {
         .unwrap()
         .unwrap()
         .opcoes;
-    assert_eq!(opcoes.iter().filter(|opcao| opcao.marcada).count(), if todas { 3 } else { 1 });
+    assert_eq!(
+        opcoes.iter().filter(|opcao| opcao.marcada).count(),
+        if todas { 3 } else { 1 }
+    );
 }
 
 fn encaminhar_quatro_gets(
@@ -86,6 +89,12 @@ fn encaminhar_quatro_gets(
     assert!(rotas[3].contains("acao=procedimento_configurar_detalhe"));
 }
 
+enum ComandoColunas {
+    Listar,
+    Previa,
+    Confirmar,
+}
+
 fn cli_colunas(
     pasta: &Pasta,
     cert: &Path,
@@ -93,17 +102,19 @@ fn cli_colunas(
     url: &Path,
     cookie: &Path,
     origem: &Path,
-    definir: bool,
-    confirmar: bool,
+    comando: ComandoColunas,
 ) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_ies"));
-    if definir {
-        cmd.args(["--json", "unidade", "colunas", "--definir", "todas"]);
-    } else {
-        cmd.args(["--json", "unidade", "colunas"]);
-    }
-    if confirmar {
-        cmd.arg("--confirmar");
+    match comando {
+        ComandoColunas::Listar => {
+            cmd.args(["--json", "unidade", "colunas"]);
+        }
+        ComandoColunas::Previa => {
+            cmd.args(["--json", "unidade", "colunas", "--definir", "todas"]);
+        }
+        ComandoColunas::Confirmar => {
+            cmd.args(["--json", "unidade", "colunas", "--definir", "todas", "--confirmar"]);
+        }
     }
     cmd.env("IES_URL_CONTROLE_FILE", url)
         .env("IES_COOKIE_FILE", cookie)
@@ -143,8 +154,21 @@ fn duas_clis_colunas(todas: bool, confirmar: bool) -> (Output, Output) {
     let porta = proxy.local_addr().unwrap().port();
     let tunel = thread::spawn(move || encaminhar_quatro_gets(&proxy, destino, identidade));
 
-    let previa = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, true, confirmar);
-    let releitura = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, false, false);
+    let comando = if confirmar {
+        ComandoColunas::Confirmar
+    } else {
+        ComandoColunas::Previa
+    };
+    let previa = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, comando);
+    let releitura = cli_colunas(
+        &pasta,
+        &cert,
+        porta,
+        &url,
+        &cookie,
+        &origem,
+        ComandoColunas::Listar,
+    );
     tunel.join().unwrap();
     backend.join().unwrap();
     (previa, releitura)
