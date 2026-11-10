@@ -1,9 +1,9 @@
 ---
 type: CommandContract
-title: Prévia de anotação de processo na unidade
+title: Prévia e confirmação de anotação de processo na unidade
 operation: processo.anotar
-command: ies processo anotar NUP --texto TEXTO
-effect: read-only-preview
+command: ies processo anotar NUP --texto TEXTO [--confirmar]
+effect: preview-or-confirmed-write
 implementation: partial
 ---
 
@@ -21,6 +21,12 @@ A saída JSON tem `nup`, `id_procedimento`, `unidade`, `texto` pedido, `anotacao
 - **Cassettes:** `processo-escritas-unb` (37 interações) e `processo-escritas-go` (40 interações), ambas incluem `anotacao_registrar`. Integridade verificada no GitHub Actions, mas o confronto semântico completo com a tela/ação ainda é `NOT_RUN`.
 - **Treinamento/live:** `NOT_RUN`. Nenhuma requisição ao SEI foi executada por este BDD.
 
-**BDD-ANOT-02/03/04/05:** registro confirmado, leitura direta, retirada e interação com envio permanecem pendentes. Esta PR não aceita `--confirmar`; a capacidade está propositalmente limitada à prévia.
+## Confirmação (BDD-ANOT-02)
+
+Com `--confirmar`, somente instalações de treinamento explicitamente permitidas recebem a escrita. A CLI abre o processo, confere a unidade ativa e a anotação anterior no formulário original; deriva os campos e a URL assinada do GET servido, jamais de um NUP reconstruído. É efetuado **um único POST** com `txaDescricao=T`, sem seguir redirecionamento e sem retry. Uma releitura independente do formulário para a mesma identidade deve encontrar exatamente `T`; a resposta mutadora também precisa ter o 302 esperado, pois texto presente após recusa não prova que este POST o escreveu. Sem as duas provas, o comando encerra com código 3 e `codigo=efeito_incerto`, sem prometer que a escrita não ocorreu. Havendo texto preexistente, a gravação é recusada nesta fatia em vez de sobrescrever sem contrato para atualização.
+
+JSON de sucesso: mesmos campos da prévia, agora `confirmado:true` e `alterado:true`. O SQLite compartilhado pelo anti-IES armazena o texto e o serve na próxima leitura; não há alteração de schema porque `anotacao_origem` já é textual. O teste vertical `bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao` em `tests/aies_anotacao_cli.rs` é sintético, não certifica a resposta do SEI.
+
+**BDD-ANOT-03/04/05:** leitura direta, retirada e interação com envio permanecem pendentes; não ampliar estes cenários nesta PR.
 
 [Decisão](../../docs/decisoes/processo-anotar.md) · [Issue #638](https://github.com/franklinbaldo/ies/issues/638)
