@@ -291,6 +291,14 @@ fn verificar(
         );
         let observado: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
         assert_eq!(observado["numero"], NUP);
+        // A segunda CLI, e não apenas o SQLite, comprova o estado final.
+        if sobrestado {
+            assert_eq!(observado["aberto_em"][0]["sigla"], "TESTE");
+            assert!(observado["sobrestado_em"].is_null());
+        } else {
+            assert!(observado["aberto_em"].is_null());
+            assert_eq!(observado["sobrestado_em"][0]["sigla"], "TESTE");
+        }
     }
     assert_eq!(
         pedidos
