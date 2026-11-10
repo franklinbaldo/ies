@@ -6,49 +6,54 @@ use super::*;
 fn bdd_60_05_cli_recusa_versao_revogada_entre_lista_e_corpo() {
     for ocultar in [false, true] {
         let mut argumentos = vec![
-            "--json", "documento", DOC_A, "--processo", NUP_A,
-            "--versao", "1", "--sem-cache",
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--versao",
+            "1",
+            "--sem-cache",
         ];
         if ocultar {
             argumentos.push("--ocultar-inacessiveis");
         }
         let (saida, trilha) = apoio::executar_versao_revogada_ao_visualizar(&argumentos);
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "a versão recusada não pode ser substituída: stderr={} trilha={trilha:?}",
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let erro = json(&saida);
-    assert_eq!(erro["status_http"], 403, "{erro}");
-    assert_eq!(erro["documento"], DOC_A, "{erro}");
-    assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-    assert!(erro.get("documentos").is_none(), "{erro}");
-    assert_eq!(
-        trilha
-            .iter()
-            .filter(|pedido| pedido.as_str() == "GET documento_versao_listar")
-            .count(),
-        1,
-        "a lista deve ser publicada antes da recusa: {trilha:?}"
-    );
-    assert_eq!(
-        trilha
-            .iter()
-            .filter(|pedido| pedido.as_str() == "GET documento_visualizar")
-            .count(),
-        1,
-        "um GET da versão 1, sem retry/fallback para a versão 2: {trilha:?}"
-    );
-    assert!(
-        trilha.iter().all(|pedido| {
-            pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"
-        }),
-        "a recusa não autoriza escrita: {trilha:?}"
-    );
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "a versão recusada não pode ser substituída: stderr={} trilha={trilha:?}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let erro = json(&saida);
+        assert_eq!(erro["status_http"], 403, "{erro}");
+        assert_eq!(erro["documento"], DOC_A, "{erro}");
+        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
+        assert!(erro.get("documentos").is_none(), "{erro}");
+        assert_eq!(
+            trilha
+                .iter()
+                .filter(|pedido| pedido.as_str() == "GET documento_versao_listar")
+                .count(),
+            1,
+            "a lista deve ser publicada antes da recusa: {trilha:?}"
+        );
+        assert_eq!(
+            trilha
+                .iter()
+                .filter(|pedido| pedido.as_str() == "GET documento_visualizar")
+                .count(),
+            1,
+            "um GET da versão 1, sem retry/fallback para a versão 2: {trilha:?}"
+        );
+        assert!(
+            trilha.iter().all(|pedido| {
+                pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"
+            }),
+            "a recusa não autoriza escrita: {trilha:?}"
+        );
     }
 }
-
 
 /// Uma recusa após o histórico não pode produzir nem sobrescrever foto
 /// local, inclusive quando a opção de ocultar inacessíveis está ativa.
@@ -75,8 +80,16 @@ fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
         std::fs::write(&foto, conteudo_local).unwrap();
         let dir = pasta.0.to_str().unwrap();
         let mut argumentos = vec![
-            "--json", "documento", DOC_A, "--processo", NUP_A,
-            "--versao", "1", "--saida", dir, "--sem-cache",
+            "--json",
+            "documento",
+            DOC_A,
+            "--processo",
+            NUP_A,
+            "--versao",
+            "1",
+            "--saida",
+            dir,
+            "--sem-cache",
         ];
         if ocultar {
             argumentos.push("--ocultar-inacessiveis");
@@ -96,12 +109,18 @@ fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
         assert_eq!(std::fs::read(&foto).unwrap(), conteudo_local);
         assert!(!pasta.0.join(format!("{DOC_A}.v2.html")).exists());
         assert_eq!(
-            trilha.iter().filter(|pedido| pedido.as_str() == "GET documento_versao_listar").count(),
+            trilha
+                .iter()
+                .filter(|pedido| pedido.as_str() == "GET documento_versao_listar")
+                .count(),
             1,
             "histórico antes da negativa: {trilha:?}"
         );
         assert_eq!(
-            trilha.iter().filter(|pedido| pedido.as_str() == "GET documento_visualizar").count(),
+            trilha
+                .iter()
+                .filter(|pedido| pedido.as_str() == "GET documento_visualizar")
+                .count(),
             1,
             "sem retry nem fallback para outra revisão: {trilha:?}"
         );
