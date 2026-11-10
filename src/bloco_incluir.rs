@@ -151,15 +151,13 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     referencias: &ReferenciasDaSessao,
     unidade: Option<&str>,
-    pedido: PedidoDaInclusao<'_>,
+    pedido: &PedidoDaInclusao<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<PreviaDocumental, ErroIncluir> {
-    let PedidoDaInclusao {
-        bloco,
-        documento,
-        confirmar,
-    } = pedido;
+    let bloco = pedido.bloco;
+    let documento = pedido.documento;
+    let confirmar = pedido.confirmar;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroIncluir::Transporte(
         FalhaTransporte::OrigemNaoAutorizada,
     ))?;
@@ -213,7 +211,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
             unidade,
             bloco,
             &aberto,
-            TelaDaInclusao {
+            &TelaDaInclusao {
                 url: link.as_str(),
                 html: &html,
                 mime: &mime,
@@ -251,7 +249,7 @@ fn confirmar_documento<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     bloco: &str,
     aberto: &DocumentoNaArvoreAberto,
-    tela: TelaDaInclusao<'_>,
+    tela: &TelaDaInclusao<'_>,
     rede: &mut Contador<'_, V>,
 ) -> Result<(), ErroIncluir> {
     let instalacao =
