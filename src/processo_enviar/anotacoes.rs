@@ -122,7 +122,10 @@ mod tests {
     #[test]
     fn texto_do_formulario_e_lido_sem_perder_entidades() {
         let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
-        assert_eq!(texto_anotacao(&html, "50693"), Ok("Observação & prioridade".into()));
+        assert_eq!(
+            texto_anotacao(&html, "50693"),
+            Ok("Observação & prioridade".into())
+        );
     }
 
     #[test]
