@@ -78,7 +78,15 @@ impl ErroProcessoObter {
                 "a unidade da tela do processo difere da solicitada"
             }
             Self::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
-                "o SEI exige validar o acesso com a senha antes de abrir este processo; o IES ainda não faz essa validação"
+                // O fato do SEI é tipado. A ausência da configuração privada
+                // é um detalhe da mensagem, não um novo código de erro.
+                if std::env::var_os("IES_CREDENCIAIS_FILE")
+                    .is_none_or(|caminho| caminho.is_empty())
+                {
+                    "o SEI exige validar o acesso com a senha antes de abrir este processo; falta o arquivo de credenciais privado (IES_CREDENCIAIS_FILE); o IES ainda não faz essa validação"
+                } else {
+                    "o SEI exige validar o acesso com a senha antes de abrir este processo; o IES ainda não faz essa validação"
+                }
             }
             Self::Tela(_) => "a tela do processo não foi reconhecida",
             Self::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida) => {
