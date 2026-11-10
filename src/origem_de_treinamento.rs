@@ -83,8 +83,7 @@ mod tests {
 
     #[test]
     fn causa_de_origem_serde_direto_preserva_identidade_legada() {
-        let erro =
-            exigir(Escrita::ProcessoAtribuir, "https://sei.exemplo.gov.br/sei").unwrap_err();
+        let erro = exigir(Escrita::ProcessoAtribuir, "https://sei.exemplo.gov.br/sei").unwrap_err();
         assert_eq!(
             serde_json::to_value(erro).unwrap(),
             serde_json::json!("origem_fora_do_treinamento")
