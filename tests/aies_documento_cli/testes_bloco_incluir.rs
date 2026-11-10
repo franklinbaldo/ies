@@ -248,8 +248,13 @@ fn bdd_381_03_documento_em_a_pode_ser_incluido_em_b() {
     let saida = executar(
         &pasta,
         &[
-            "--json", "bloco", "incluir", outro_bloco,
-            "--documento", DOC, "--confirmar",
+            "--json",
+            "bloco",
+            "incluir",
+            outro_bloco,
+            "--documento",
+            DOC,
+            "--confirmar",
         ],
         REQUISICOES_DA_PREVIA + 4,
     );
@@ -277,12 +282,15 @@ fn bdd_381_03_documento_em_a_pode_ser_incluido_em_b() {
     }
     let (banco, instalacao) = estado(&caminho, true, 0, false);
     for bloco in [BLOCO, outro_bloco] {
-        let detalhe = bloco_detalhe::ler(
-            &banco, &instalacao, CENARIO, Tipo::Assinatura, bloco,
-        ).unwrap().unwrap();
+        let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, bloco)
+            .unwrap()
+            .unwrap();
         assert_eq!(
-            detalhe.itens.iter()
-                .filter(|item| item.documento.as_deref() == Some(DOC)).count(),
+            detalhe
+                .itens
+                .iter()
+                .filter(|item| item.documento.as_deref() == Some(DOC))
+                .count(),
             1,
         );
     }
