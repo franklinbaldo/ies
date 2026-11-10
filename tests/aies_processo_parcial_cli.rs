@@ -34,6 +34,7 @@ enum Cena {
     DocumentosVisiveisComPastaPendente,
     ValidacaoExigida,
     ValidacaoComCredenciais,
+    ValidacaoRecusada,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -166,13 +167,20 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
-    if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais) {
+    if matches!(
+        cena,
+        Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+    ) {
         iesei::validacao_acesso::guardar(
             &banco,
             &instalacao,
             CENARIO,
             "10",
-            iesei::validacao_acesso::Validacao::Exigida,
+            if matches!(cena, Cena::ValidacaoRecusada) {
+                iesei::validacao_acesso::Validacao::Recusada
+            } else {
+                iesei::validacao_acesso::Validacao::Exigida
+            },
         )
         .unwrap();
     }
@@ -254,10 +262,18 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
-        if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais) {
+        if matches!(
+            cena,
+            Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+        ) {
             assert_eq!(
                 iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
-                Some(iesei::validacao_acesso::Validacao::Exigida),
+                Some(match cena {
+                    Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
+                    Cena::ValidacaoComCredenciais => iesei::validacao_acesso::Validacao::Realizada,
+                    Cena::ValidacaoRecusada => iesei::validacao_acesso::Validacao::Recusada,
+                    _ => unreachable!(),
+                }),
             );
         }
         (controle.recebidos.linhas[0].numero.clone(), processo.numero)
@@ -284,7 +300,7 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             canal.flush().unwrap();
         }
     });
-    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais).then(|| {
+    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada).then(|| {
         pasta.privado(
             "credenciais",
             "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n",
