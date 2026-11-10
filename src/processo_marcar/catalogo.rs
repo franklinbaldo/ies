@@ -4,7 +4,8 @@ use super::{Decisao, ErroMarcar, Operacao, Rotulo, decidir};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, TelaServida, decodificar_atributo, derivar_submissao,
+    OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
+    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
 };
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
@@ -17,6 +18,7 @@ use crate::processo_obter::{
     abrir_para_escrever,
 };
 use crate::transporte::decodificar_resposta;
+use crate::visao_do_controle::EnvioDoControle as _;
 use crate::{Cli, saida_erro};
 use serde_json::json;
 use std::process::ExitCode;
@@ -126,7 +128,7 @@ fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> bool {
     encontrados == 1
 }
 
-fn conferir_catalogo<V: EnvioDoProcesso>(
+fn submissao_cadastro<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Contador<'_, V>,
     link: &str,
@@ -134,39 +136,41 @@ fn conferir_catalogo<V: EnvioDoProcesso>(
     unidade: &str,
     rotulo: &Rotulo,
     texto: Option<&str>,
-) -> bool {
+) -> Option<crate::formulario_web::SubmissaoDerivada> {
     let Ok(cookie) = ler_cookie(sessao) else {
-        return false;
+        return None;
     };
     let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return false;
+        return None;
     };
     let Some(url) = destino_cadastro(rede, &cookie, link, &instalacao, id) else {
-        return false;
+        return None;
     };
     let Ok((html, mime)) = obter_tela(rede, &cookie, &url) else {
-        return false;
+        return None;
     };
     let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return false;
+        return None;
     };
     let tela = TelaServida {
         url: &url,
         html: &html,
         codificacao,
     };
-    rotulo_oferecido(&html, rotulo)
-        && derivar_submissao(
-            &ADICIONAR,
-            &instalacao,
-            &tela,
-            unidade,
-            &[
-                ("hdnIdMarcador", &rotulo.id),
-                ("txaTexto", texto.unwrap_or("")),
-            ],
-        )
-        .is_ok()
+    if !rotulo_oferecido(&html, rotulo) {
+        return None;
+    }
+    derivar_submissao(
+        &ADICIONAR,
+        &instalacao,
+        &tela,
+        unidade,
+        &[
+            ("hdnIdMarcador", &rotulo.id),
+            ("txaTexto", texto.unwrap_or("")),
+        ],
+    )
+    .ok()
 }
 
 fn saida_previa(
@@ -214,13 +218,14 @@ fn saida_previa(
 
 /// Atribuição ausente só produz prévia se a opção exata estiver na tela
 /// independente de cadastro da unidade, incluindo validação do form servido.
-pub(crate) fn previa_atribuicao<V: EnvioDoProcesso>(
+pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
     nup: &NumeroProcesso,
     rotulo: &Rotulo,
     texto: Option<&str>,
+    confirmar: bool,
     envio: &mut V,
 ) -> ExitCode {
     let mut rede = Contador::novo(envio);
@@ -256,38 +261,166 @@ pub(crate) fn previa_atribuicao<V: EnvioDoProcesso>(
         Ok(Decisao::PreviaDeRetirada) => unreachable!(),
         Err(e) => return falha(cli, e, rede.feitas()),
     };
-    if !nada {
-        let Some(link) = acoes.marcadores.ok().flatten() else {
-            return falha(
-                cli,
-                ErroMarcar::CatalogoDaUnidadeNaoObservado,
-                rede.feitas(),
-            );
-        };
-        if !conferir_catalogo(
-            sessao,
-            &mut rede,
-            link.as_str(),
+    if nada {
+        return saida_previa(
+            cli,
+            nup,
             &aberto.arvore.processo.id,
             unidade,
             rotulo,
             texto,
-        ) {
-            return falha(
-                cli,
-                ErroMarcar::CatalogoDaUnidadeNaoObservado,
-                rede.feitas(),
-            );
-        }
+            true,
+            rede.feitas(),
+        );
     }
-    saida_previa(
+    let Some(link) = acoes.marcadores.ok().flatten() else {
+        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+    };
+    let Some(submissao) = submissao_cadastro(
+        sessao,
+        &mut rede,
+        link.as_str(),
+        &aberto.arvore.processo.id,
+        unidade,
+        rotulo,
+        texto,
+    ) else {
+        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+    };
+    if !confirmar {
+        return saida_previa(
+            cli,
+            nup,
+            &aberto.arvore.processo.id,
+            unidade,
+            rotulo,
+            texto,
+            false,
+            rede.feitas(),
+        );
+    }
+    let mut tentativa = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |submissao, cookie| {
+        tentativa = true;
+        rede.post(submissao, cookie)
+    });
+    if !tentativa {
+        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+    }
+    let aceito = matches!(
+        resposta,
+        Ok(RespostaDoEnvio::Redirecionamento(ref redir))
+            if aceite_da_atribuicao(redir, &aberto.arvore.processo.id)
+    );
+    // Segunda leitura independente: não confiar no próprio POST nem repetir.
+    let releitura = obter_processo(sessao, &pedido, indice, &mut rede);
+    let presente = match releitura {
+        Ok(ref novo)
+            if novo.arvore.processo.id == aberto.arvore.processo.id
+                && novo.unidade.as_deref() == Some(unidade) =>
+        {
+            match &novo.marcadores {
+                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
+                    Some(lidos.itens.iter().any(|m| {
+                        m.id == rotulo.id
+                            && m.nome == rotulo.nome
+                            && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
+                    }))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+    if !aceito || presente != Some(true) {
+        return efeito_incerto(cli, rede.feitas(), presente);
+    }
+    saida_confirmada(
         cli,
         nup,
         &aberto.arvore.processo.id,
         unidade,
         rotulo,
         texto,
-        nada,
         rede.feitas(),
     )
+}
+
+fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
+    let Some(consulta) = redir
+        .localizacao()
+        .and_then(|url| consulta_do_controlador(url, redir.url_do_envio()))
+    else {
+        return false;
+    };
+    let (mut acao, mut procedimento, mut origem) = (None, None, None);
+    for item in consulta.split('&') {
+        let Some((nome, valor)) = item.split_once('=') else {
+            return false;
+        };
+        let destino = match nome {
+            "acao" => &mut acao,
+            "id_procedimento" => &mut procedimento,
+            "acao_origem" => &mut origem,
+            _ => continue,
+        };
+        if destino.replace(valor).is_some() {
+            return false;
+        }
+    }
+    acao == Some("andamento_marcador_gerenciar")
+        && origem == Some("andamento_marcador_cadastrar")
+        && procedimento == Some(id)
+}
+
+fn efeito_incerto(cli: &Cli, requisicoes: u8, presente_relido: Option<bool>) -> ExitCode {
+    let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
+    if cli.json {
+        println!(
+            "{}",
+            json!({
+                "codigo": "efeito_incerto",
+                "erro": mensagem,
+                "retentavel": false,
+                "requisicoes": requisicoes,
+                "presente_relido": presente_relido,
+            })
+        );
+    } else {
+        eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
+    }
+    ExitCode::from(3)
+}
+
+fn saida_confirmada(
+    cli: &Cli,
+    nup: &NumeroProcesso,
+    id: &str,
+    unidade: &str,
+    rotulo: &Rotulo,
+    texto: Option<&str>,
+    requisicoes: u8,
+) -> ExitCode {
+    if cli.json {
+        println!(
+            "{}",
+            json!({
+                "nup": nup.as_str(), "id_procedimento": id, "unidade": unidade,
+                "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
+                "texto": texto, "acao": "atribuir", "origem": "web",
+                "confirmado": true, "alterado": true,
+                "nada_a_fazer": false, "requisicoes": requisicoes,
+            })
+        );
+    } else {
+        println!(
+            "Atribuição confirmada: marcador {}#{} no processo {} (unidade {}). Requisições: {}.",
+            rotulo.id,
+            rotulo.nome,
+            nup.as_str(),
+            unidade,
+            requisicoes
+        );
+    }
+    ExitCode::SUCCESS
 }
