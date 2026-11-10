@@ -70,9 +70,12 @@ pub(crate) fn executar(
         Err(crate::bloco_incluir::ErroIncluir::NaoConfirmado) => {
             let mensagem = "inclusão não confirmada; consulte o bloco antes de repetir";
             if cli.json {
-                println!("{}", json!({
-                    "codigo": "nao_confirmado", "erro": mensagem, "retentavel": false
-                }));
+                println!(
+                    "{}",
+                    json!({
+                        "codigo": "nao_confirmado", "erro": mensagem, "retentavel": false
+                    })
+                );
                 ExitCode::from(1)
             } else {
                 erro_fonte(false, mensagem)
