@@ -1,6 +1,6 @@
 //! Ações de sobrestar e retomar publicadas na barra do nó PROCESSO (#269).
 //! Só URLs servidas, com ID e `infra_hash` únicos; nunca executar JavaScript.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, tela_do_no_da_raiz};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::instalacao::Instalacao;
@@ -11,15 +11,11 @@ const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcaoSobrestar {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     OutroProcesso,
     AcoesDeSobrestamentoRepetidasNaBarra,
-    BarraDoSobrestamentoNaoInterpretada,
     EnderecoDoSobrestamentoNaoReconhecido,
     TelaDoNoDaRetomadaNaoReconhecida,
-}
-
-fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
-    ErroAcaoSobrestar::BarraDoSobrestamentoNaoInterpretada
 }
 
 /// Link para o formulário de sobrestamento: não é uma escrita.
@@ -28,7 +24,7 @@ pub(crate) fn ler_sobrestar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar> {
-    let ancoras = ancoras_da_barra(html).map_err(mapear_barra)?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
@@ -56,7 +52,7 @@ pub(crate) fn ler_retomar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar> {
-    let ancoras = ancoras_da_barra(html).map_err(mapear_barra)?;
+    let ancoras = ancoras_da_barra(html)?;
     match ancoras
         .iter()
         .filter(|a| a.onclick.as_deref() == Some(ONCLICK_RETOMAR))

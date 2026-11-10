@@ -1,5 +1,4 @@
 use super::*;
-use crate::erro_html::ErroHtml;
 
 fn lista_41() -> String {
     // Caso: Todos tests/test_comentarios_010.py @323eb01 (UFRJ SEI 4.1).

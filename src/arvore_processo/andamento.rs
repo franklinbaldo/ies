@@ -1,7 +1,7 @@
 //! "Atualizar Andamento" na barra do nó PROCESSO.
 //! Caso: Todos src/todos/andamento.py @323eb01; cassete `UnB`
 //! processo-andamento-registrar-unb. Nunca executa JS nem publica URL.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::instalacao::Instalacao;
@@ -11,9 +11,8 @@ pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentoNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     OutroProcesso,
-    BarraDoAndamentoForaDaForma,
-    BarrasDoProcessoRepetidasNaArvore,
     EnderecoDeAtualizarAndamentoNaoReconhecido,
     LinksDeAtualizarAndamentoRepetidos,
 }
@@ -24,10 +23,7 @@ pub(crate) fn ler_andamento_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|f| match f {
-        FalhaDaBarra::Fora => ErroAndamentoNaBarra::BarraDoAndamentoForaDaForma,
-        FalhaDaBarra::Repetidas => ErroAndamentoNaBarra::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())

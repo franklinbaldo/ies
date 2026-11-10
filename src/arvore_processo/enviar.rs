@@ -4,7 +4,7 @@
 //! instalações gravadas: `<a href="controlador.php?acao=procedimento_enviar
 //! &acao_origem=arvore_visualizar&…&id_procedimento=ID&arvore=1&…&infra_hash=…">`,
 //! o link da tela "Enviar Processo". Sem regex e sem JavaScript executado.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::instalacao::Instalacao;
@@ -16,9 +16,8 @@ pub(crate) const ACAO_DE_ENVIAR: &str = "procedimento_enviar";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviarNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDoEnvioDeOutroProcesso,
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
     EnderecoDoEnvioNaoReconhecido,
     LinksDeEnviarRepetidosNaBarra,
 }
@@ -30,10 +29,7 @@ pub(crate) fn ler_enviar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => ErroEnviarNaBarra::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroEnviarNaBarra::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())

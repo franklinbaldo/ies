@@ -3,7 +3,6 @@
 use super::erro::{ErroEnviar, ErroTelaDeEnvio, FalhaDaConsulta};
 use super::tests_apoio::*;
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
@@ -112,9 +111,7 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     for (resposta, erro) in [
         (
             ok(fora),
-            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::Html(ErroHtml::ausente(
-                "formulario_de_envio_ausente",
-            ))),
+            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::FormularioDeEnvioAusente),
         ),
         (
             r302("controlador.php?acao=principal"),

@@ -1,5 +1,4 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::ErroAtributoHtml;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
@@ -50,7 +49,12 @@ pub(crate) enum ErroSubmissaoFormulario {
     /// Tag de abertura servida que o tokenizador de atributos recusou.
     AtributoHtml(#[from] ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
-    Html(#[from] ErroHtml),
+    AcaoDoFormularioAusente,
+    BotaoDeEnvioAusenteNoFormulario,
+    BotoesDeEnvioRepetidosNoFormulario,
+    FormularioAusenteNaTela,
+    IdentificacaoDaUnidadeAusenteNaTela,
+    IdentificacoesDaUnidadeRepetidasNaTela,
 }
 
 impl ErroSubmissaoFormulario {
@@ -82,7 +86,12 @@ impl ErroSubmissaoFormulario {
             | Self::MarcadorDeResultadoAusenteNaResposta
             | Self::ValidacaoRecusadaPeloSei(_)
             | Self::AtributoHtml(_)
-            | Self::Html(_) => false,
+            | Self::AcaoDoFormularioAusente
+            | Self::BotaoDeEnvioAusenteNoFormulario
+            | Self::BotoesDeEnvioRepetidosNoFormulario
+            | Self::FormularioAusenteNaTela
+            | Self::IdentificacaoDaUnidadeAusenteNaTela
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela => false,
         }
     }
 }

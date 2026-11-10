@@ -276,9 +276,7 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     let sem_form = html.replace("frmPesquisaProtocolo", "frmOutro");
     assert_eq!(
         derivar(&sem_form).unwrap_err(),
-        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Html(
-            crate::erro_html::ErroHtml::ausente("formulario_ausente_na_tela")
-        ))
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::FormularioAusenteNaTela)
     );
 }
 

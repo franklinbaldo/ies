@@ -15,11 +15,10 @@ use super::abertura::{Contexto, Lida, Rede, concluir, fora_de_palpite, ler_arvor
 use super::fluxo::{ler_controle_colhido, pesquisar_no_controle, pesquisar_pela_guardada};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{
-    ConteudoNaArvore, DocumentoNaArvore, ErroArvore, ErroConteudoNaArvore, NaturezaDoDocumento,
-    ProcessoNaArvore, ler_conteudo_na_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
+    ConteudoNaArvore, DocumentoNaArvore, ErroArvore, NaturezaDoDocumento, ProcessoNaArvore,
+    ler_conteudo_na_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
 };
 use crate::documento::NumeroDocumento;
-use crate::erro_html::ErroHtml;
 use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -313,9 +312,7 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         .iter()
         .find(|d| d.id == id_documento)
     else {
-        return Err(ErroDocumentoObter::Conteudo(
-            ErroConteudoNaArvore::DocumentoAusenteDaArvore,
-        ));
+        return Err(ErroDocumentoObter::DocumentoAusenteDaArvore);
     };
     if no.numero_sei.as_deref() != Some(numero) {
         return Err(ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido);
@@ -341,9 +338,7 @@ pub(super) fn localizar<'a>(
         .filter(|d| d.numero_sei.as_deref() == Some(numero));
     let primeiro = com_numero.next();
     if com_numero.next().is_some() {
-        return Err(ErroHtml::repetido("numero_sei_repetido_na_arvore")
-            .com_mensagem("o número SEI aparece mais de uma vez na árvore")
-            .into());
+        return Err(ErroDocumentoObter::NumeroSeiRepetidoNaArvore);
     }
     Ok(primeiro)
 }

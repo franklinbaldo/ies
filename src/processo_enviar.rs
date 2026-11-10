@@ -33,7 +33,9 @@ mod tests_reconciliacao;
 #[cfg(test)]
 mod tests_tela;
 
-pub(crate) use anotacoes::{REGISTRAR_ANOTACAO, salvar_oferecido, texto_anotacao};
+pub(crate) use anotacoes::{
+    ErroLeituraDaAnotacao, REGISTRAR_ANOTACAO, salvar_oferecido, texto_anotacao,
+};
 pub(crate) use erro::ErroEnviar;
 pub(crate) use fluxo::enviar_processo;
 

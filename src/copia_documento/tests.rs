@@ -2,7 +2,6 @@
 //! `DOC.v(N+1).html` (#207), offline: sem base oculta, manifesto, índice
 //! ou configuração. A base não é verificada aqui.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::foto_documento::{gravar, tests::pasta};
 
 fn v(n: u32) -> VersaoDocumento {
@@ -76,13 +75,10 @@ fn base_qualquer_e_aceita_sem_verificacao() {
 fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
     let pasta = pasta();
     foto(&pasta, 2);
-    assert_eq!(
-        previa(&pasta, None),
-        Err(ErroCopia::Html(ErroHtml::ausente("versao_editada_ausente")))
-    );
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoEditadaAusente));
     assert_eq!(
         previa(&pasta, Some(2)),
-        Err(ErroCopia::Html(ErroHtml::ausente("versao_editada_ausente")))
+        Err(ErroCopia::VersaoEditadaAusente)
     );
     editar(&pasta, 3, FOTO);
     assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoIgualABase));
@@ -92,20 +88,11 @@ fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
 #[test]
 fn base_ausente_e_recusada() {
     let pasta = pasta();
-    assert_eq!(
-        previa(&pasta, None),
-        Err(ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")))
-    );
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::BaseVersaoAusente));
     editar(&pasta, 3, EDICAO);
     // `--versao` sem a base daquela versão.
-    assert_eq!(
-        previa(&pasta, Some(2)),
-        Err(ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")))
-    );
-    assert_eq!(
-        previa(&pasta, Some(5)),
-        Err(ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")))
-    );
+    assert_eq!(previa(&pasta, Some(2)), Err(ErroCopia::BaseVersaoAusente));
+    assert_eq!(previa(&pasta, Some(5)), Err(ErroCopia::BaseVersaoAusente));
     fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -114,10 +101,7 @@ fn duas_grafias_sao_recusadas() {
     let pasta = pasta();
     editar(&pasta, 2, FOTO);
     fs::write(pasta.join("0011519.v02.html"), "x").unwrap();
-    assert_eq!(
-        previa(&pasta, None),
-        Err(ErroCopia::Html(ErroHtml::repetido("versao_local_repetida")))
-    );
+    assert_eq!(previa(&pasta, None), Err(ErroCopia::VersaoLocalRepetida));
     fs::remove_dir_all(pasta).unwrap();
 }
 

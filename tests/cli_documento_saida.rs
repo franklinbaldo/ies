@@ -154,11 +154,14 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
 #[test]
 fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
     let pasta = pasta_vazia("recusas");
-    falha(&salvar_offline(&pasta, &[]), "Html");
+    falha(&salvar_offline(&pasta, &[]), "BaseVersaoAusente");
     versao_local(&pasta, 3, "<p>b</p>");
-    falha(&salvar_offline(&pasta, &["--versao", "2"]), "Html");
+    falha(
+        &salvar_offline(&pasta, &["--versao", "2"]),
+        "BaseVersaoAusente",
+    );
     // Só v3: ela é a base e a edição v4 falta.
-    falha(&salvar_offline(&pasta, &[]), "Html");
+    falha(&salvar_offline(&pasta, &[]), "VersaoEditadaAusente");
     versao_local(&pasta, 4, "<p>b</p>");
     falha(&salvar_offline(&pasta, &[]), "EdicaoIgualABase");
     std::fs::remove_dir_all(pasta).unwrap();

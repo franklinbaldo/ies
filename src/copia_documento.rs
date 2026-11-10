@@ -8,7 +8,6 @@ use crate::arquivo_copia::ler_regular;
 use crate::arquivo_texto_documento::ErroArquivoTexto;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
-use crate::erro_html::ErroHtml;
 use crate::foto_documento::nome;
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -31,7 +30,10 @@ pub enum ErroCopia {
     GravacaoFalhou,
     LeituraFalhou,
     EdicaoIgualABase,
-    Html(#[from] ErroHtml),
+    BaseVersaoAusente,
+    NomeVersaoLocalInvalido,
+    VersaoEditadaAusente,
+    VersaoLocalRepetida,
 }
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
@@ -62,9 +64,9 @@ pub(crate) fn versoes_locais(
             continue;
         };
         let versao = VersaoDocumento::interpretar(digitos)
-            .map_err(|_| ErroHtml::valor("nome_versao_local_invalido"))?;
+            .map_err(|_| ErroCopia::NomeVersaoLocalInvalido)?;
         if !versoes.insert(versao) {
-            return Err(ErroHtml::repetido("versao_local_repetida").into());
+            return Err(ErroCopia::VersaoLocalRepetida);
         }
     }
     Ok(versoes)
@@ -218,16 +220,14 @@ fn par(
         n
     } else {
         let versoes = versoes_locais(pasta, documento)?;
-        let maior = *versoes
-            .last()
-            .ok_or(ErroHtml::ausente("base_versao_ausente"))?;
+        let maior = *versoes.last().ok_or(ErroCopia::BaseVersaoAusente)?;
         match VersaoDocumento::nova(maior.numero() - 1) {
             Ok(anterior) if versoes.contains(&anterior) => anterior,
             _ => maior,
         }
     };
     let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
-        .map_err(|_| ErroHtml::ausente("versao_editada_ausente"))?;
+        .map_err(|_| ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 
@@ -241,13 +241,10 @@ pub fn previa_local(
     pasta_segura(pasta)?;
     let (n, seguinte) = par(pasta, documento, solicitada)?;
     let numero = documento.as_str();
-    let base = ler_regular(
-        &pasta.join(nome(numero, n)),
-        ErroCopia::Html(ErroHtml::ausente("base_versao_ausente")),
-    )?;
+    let base = ler_regular(&pasta.join(nome(numero, n)), ErroCopia::BaseVersaoAusente)?;
     let editada = ler_regular(
         &pasta.join(nome(numero, seguinte)),
-        ErroCopia::Html(ErroHtml::ausente("versao_editada_ausente")),
+        ErroCopia::VersaoEditadaAusente,
     )?;
     if editada == base {
         return Err(ErroCopia::EdicaoIgualABase);

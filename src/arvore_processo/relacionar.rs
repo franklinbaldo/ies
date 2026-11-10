@@ -1,5 +1,5 @@
 //! Link assinado de `procedimento_relacionar` na barra do processo.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::instalacao::Instalacao;
@@ -9,9 +9,8 @@ pub(crate) const ACAO_DE_RELACIONAR: &str = "procedimento_relacionar";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRelacionarNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDeOutroProcesso,
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
     EnderecoDeRelacionarNaoReconhecido,
     LinksDeRelacionarRepetidosNaBarra,
 }
@@ -20,10 +19,7 @@ pub(crate) fn ler_relacionar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => ErroRelacionarNaBarra::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroRelacionarNaBarra::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<_> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())

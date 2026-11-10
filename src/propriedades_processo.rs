@@ -96,8 +96,7 @@ pub(crate) struct PropriedadesLidas {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
     EnderecoDasPropriedadesDeOutroProcesso,

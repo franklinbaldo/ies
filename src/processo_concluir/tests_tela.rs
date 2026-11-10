@@ -6,7 +6,6 @@ use super::tela::{
 };
 use super::tests_apoio::*;
 use crate::arvore_processo::tests_tela::instalacao;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 
 fn conferir(html: &str) -> Result<(), super::erro::ErroTelaDeConclusao> {
@@ -47,9 +46,7 @@ fn controle_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         conferir(&extra),
-        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::valor(
-            "campo_nao_previsto_na_tela_de_conclusao"
-        )))
+        Err(super::erro::ErroTelaDeConclusao::CampoNaoPrevistoNaTelaDeConclusao)
     );
     let oculto = html.replace(
         "</form>",
@@ -57,9 +54,7 @@ fn controle_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         conferir(&oculto),
-        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::valor(
-            "campo_nao_previsto_na_tela_de_conclusao"
-        )))
+        Err(super::erro::ErroTelaDeConclusao::CampoNaoPrevistoNaTelaDeConclusao)
     );
     // Botão `button` e controle desabilitado não participam do envio.
     let neutros = html.replace(
@@ -73,9 +68,7 @@ fn controle_fora_da_lista_e_recusado() {
 fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
     assert_eq!(
         conferir("<html><body></body></html>"),
-        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::ausente(
-            "formulario_de_conclusao_ausente"
-        )))
+        Err(super::erro::ErroTelaDeConclusao::FormularioDeConclusaoAusente)
     );
     assert_eq!(
         conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),

@@ -6,7 +6,7 @@ mod javascript;
 mod tests_unb;
 pub(crate) use javascript::niveis_js;
 
-use super::barra_do_processo::{FalhaDaBarra, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::{
     EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes, urls_das_variaveis,
 };
@@ -17,7 +17,7 @@ use crate::instalacao::Instalacao;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCienciaNaArvore {
-    BarraDeCienciaForaDaForma,
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     CienciaRepetidaNaBarra,
     TelaDeCienciaNaoPublicada,
     FuncaoDeCienciaAusenteNaTela,
@@ -47,11 +47,7 @@ pub(crate) fn ciencia_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroCienciaNaArvore> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora | FalhaDaBarra::Repetidas => {
-            ErroCienciaNaArvore::BarraDeCienciaForaDaForma
-        }
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let total = ancoras
         .iter()
         .filter(|a| a.onclick.as_deref() == Some("cienciaProcesso();"))

@@ -9,9 +9,7 @@ use super::super::EnvioDoProcesso;
 use super::super::abertura::{Lida, Rede};
 use super::{ErroDocumentoObter, fora_do_html};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
-use crate::arvore_processo::{
-    BarraDoDocumento, EnderecoDoConteudo, ErroBarraDoDocumento, ler_barra_do_documento,
-};
+use crate::arvore_processo::{BarraDoDocumento, EnderecoDoConteudo, ler_barra_do_documento};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::{
     ErroVersao, HistoricoDocumento, VersaoDocumento, interpretar_historico,
@@ -109,9 +107,7 @@ pub(super) fn do_externo(
     if pedido.versao.is_some() {
         return Err(match no.barra()?.versoes {
             None => ErroDocumentoObter::ListaDeVersoesNaoPublicadaNaArvore,
-            Some(_) => ErroDocumentoObter::BarraDoDocumento(
-                ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada,
-            ),
+            Some(_) => ErroDocumentoObter::BarraDoDocumentoForaDaFormaObservada,
         });
     }
     Ok(VersoesDoDocumento {

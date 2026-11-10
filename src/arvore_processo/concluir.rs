@@ -10,7 +10,7 @@
 //!   linhas: a da função, a do `confirm` comentado e a do `location.href`.
 //!
 //! Sem regex e sem JavaScript executado: só essas formas exatas.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_declaracao};
 use crate::instalacao::Instalacao;
@@ -54,9 +54,8 @@ pub(crate) enum ConcluirNaBarra {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConcluirNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDaConclusaoDeOutroProcesso,
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
     EnderecoDaConclusaoNaoReconhecido,
     EnderecoDaTelaDoNoNaoReconhecido,
     FormasDeConcluirRepetidasNaBarra,
@@ -69,10 +68,7 @@ pub(crate) fn ler_concluir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => ErroConcluirNaBarra::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroConcluirNaBarra::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())

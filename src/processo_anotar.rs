@@ -1,7 +1,6 @@
 //! Prévia e registro único de anotação a partir do formulário servido.
 //! A releitura da mesma identidade ocorre após o POST, sem retry.
 use crate::arvore_processo::MotivoAbertoEm;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, enviar_submissao_via,
@@ -57,9 +56,8 @@ pub(crate) fn texto_da_anotacao(texto: &str) -> Result<String, TextoDaAnotacaoVa
 #[error("{self:?}")]
 pub(crate) enum ErroAnotar {
     Abertura(#[from] ErroProcessoObter),
-    /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
-    Html(#[from] ErroHtml),
     LinkDasAnotacoes(#[from] crate::arvore_processo::ErroLinkDasAnotacoes),
+    LeituraDaAnotacao(#[from] crate::processo_enviar::ErroLeituraDaAnotacao),
     Transporte(#[from] FalhaTransporte),
     Cookie(#[from] CookieIlegivel),
     TelaRedirecionada,

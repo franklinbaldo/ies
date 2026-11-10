@@ -6,7 +6,6 @@ use crate::anexo_documento::ErroAnexo;
 use crate::arvore_processo::{ErroBarraDoDocumento, ErroConteudoNaArvore};
 use crate::documento_versoes::ErroVersao;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
-use crate::erro_html::ErroHtml;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -46,7 +45,10 @@ pub(crate) enum ErroDocumentoObter {
     ConteudoComLinkAssinado,
     /// O cadastro (propriedades/anexo) publicado fora da forma observada.
     Cadastro(#[source] crate::propriedades_documento::ErroPropriedadesDocumento),
-    Html(#[from] ErroHtml),
+    BarraDoDocumentoForaDaFormaObservada,
+    DocumentoAusenteDaArvore,
+    NumeroSeiAusenteDaArvoreDoProcesso,
+    NumeroSeiRepetidoNaArvore,
 }
 
 impl ErroDocumentoObter {
@@ -70,7 +72,10 @@ impl ErroDocumentoObter {
             | Self::VersaoServidaDiferenteDaPedida
             | Self::ConteudoComLinkAssinado
             | Self::Cadastro(_)
-            | Self::Html(_) => false,
+            | Self::NumeroSeiAusenteDaArvoreDoProcesso
+            | Self::NumeroSeiRepetidoNaArvore
+            | Self::DocumentoAusenteDaArvore
+            | Self::BarraDoDocumentoForaDaFormaObservada => false,
         }
     }
 }

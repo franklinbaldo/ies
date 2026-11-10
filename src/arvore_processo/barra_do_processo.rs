@@ -24,12 +24,8 @@ pub(crate) fn ler_link_das_propriedades(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDasPropriedades>, ErroPropriedades> {
-    let falha = |f: FalhaDaBarra| match f {
-        FalhaDaBarra::Fora => ErroPropriedades::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroPropriedades::BarrasDoProcessoRepetidasNaArvore,
-    };
     let (mut alterar, mut consultar) = (Vec::new(), Vec::new());
-    for href in hrefs_da_barra(html).map_err(falha)? {
+    for href in hrefs_da_barra(html)? {
         match acao_do_href(&href) {
             Some(acao) if acao == FonteDasPropriedades::Alterar.acao() => alterar.push(href),
             Some(acao) if acao == FonteDasPropriedades::Consultar.acao() => consultar.push(href),
@@ -131,10 +127,7 @@ pub(crate) fn ler_link_dos_marcadores(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDosMarcadores>, ErroMarcadores> {
-    let hrefs = hrefs_da_barra(html).map_err(|f| match f {
-        FalhaDaBarra::Fora => ErroMarcadores::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroMarcadores::BarrasDoProcessoRepetidasNaArvore,
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some(marcadores_processo::ACAO))
@@ -161,10 +154,7 @@ pub(crate) fn ler_link_dos_comentarios(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
-    let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => ErroLinkDosComentarios::BarraDosComentariosForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => ErroLinkDosComentarios::BarrasDosComentariosRepetidasNaArvore,
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some("comentario_listar"))
@@ -184,15 +174,17 @@ pub(crate) fn ler_link_dos_comentarios(
         })
 }
 
-/// Barra fora da forma observada, ou duas barras para o nó `PROCESSO`.
-pub(super) enum FalhaDaBarra {
-    Fora,
-    Repetidas,
+/// A barra do nó `PROCESSO` (`Nos[0].acoes`) como o leitor a encontrou.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroBarraDoProcesso {
+    BarraDoProcessoForaDaFormaObservada,
+    BarrasDoProcessoRepetidasNaArvore,
 }
 
 /// Os `href` (entidades decodificadas) das tags `<a>` da barra do nó
 /// `PROCESSO`, na ordem servida; sem barra, nenhum.
-fn hrefs_da_barra(html: &str) -> Result<Vec<String>, FalhaDaBarra> {
+fn hrefs_da_barra(html: &str) -> Result<Vec<String>, ErroBarraDoProcesso> {
     Ok(ancoras_da_barra(html)?
         .into_iter()
         .filter_map(|a| a.href)
@@ -207,24 +199,29 @@ pub(super) struct AncoraDaBarra {
 
 /// As tags `<a>` da barra do nó `PROCESSO`, na ordem servida; sem barra,
 /// nenhuma.
-pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, FalhaDaBarra> {
+pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBarraDoProcesso> {
     let Some(texto) = barra_da_raiz(html)? else {
         return Ok(Vec::new());
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| FalhaDaBarra::Fora)?;
+    let dom = tl::parse(&texto, tl::ParserOptions::default())
+        .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?;
     let parser = dom.parser();
     let mut ancoras = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| FalhaDaBarra::Fora)?;
-        let decodificado = |nome: &'static str| -> Result<Option<String>, FalhaDaBarra> {
-            match lidos.valor(nome).map_err(|_| FalhaDaBarra::Fora)? {
+        let lidos =
+            atributos(tag).map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?;
+        let decodificado = |nome: &'static str| -> Result<Option<String>, ErroBarraDoProcesso> {
+            match lidos
+                .valor(nome)
+                .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
+            {
                 None => Ok(None),
                 Some(bruto) => decodificar_atributo(bruto)
                     .map(Some)
-                    .ok_or(FalhaDaBarra::Fora),
+                    .ok_or(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada),
             }
         };
         ancoras.push(AncoraDaBarra {
@@ -243,10 +240,11 @@ pub(super) fn acao_do_href(href: &str) -> Option<&str> {
 }
 
 /// O texto da barra do nó `PROCESSO`; duas barras para ele são recusa.
-fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
+fn barra_da_raiz(html: &str) -> Result<Option<String>, ErroBarraDoProcesso> {
     let mut raiz = None;
     for linha in html.split('\n') {
-        if let Some((i, argumentos)) = ler_declaracao(linha).map_err(|_| FalhaDaBarra::Fora)?
+        if let Some((i, argumentos)) = ler_declaracao(linha)
+            .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
             && argumentos.first() == Some(&Literal::Texto("PROCESSO".into()))
         {
             raiz = Some(i);
@@ -261,11 +259,13 @@ fn barra_da_raiz(html: &str) -> Result<Option<String>, FalhaDaBarra> {
         if indice_da_barra(linha) != Some(raiz) {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha).map_err(|_| FalhaDaBarra::Fora)? else {
-            return Err(FalhaDaBarra::Fora);
+        let Some((_, lido)) = ler_barra(linha)
+            .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
+        else {
+            return Err(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada);
         };
         if texto.is_some() {
-            return Err(FalhaDaBarra::Repetidas);
+            return Err(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore);
         }
         texto = Some(lido);
     }
@@ -289,8 +289,7 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkIncluirDocumento {
-    BarraForaDaForma,
-    BarraRepetida,
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinkRepetido,
     EnderecoNaoReconhecido,
     EnderecoDeOutroProcesso,
@@ -303,10 +302,7 @@ pub(crate) fn ler_link_de_incluir_documento(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento> {
-    let hrefs = hrefs_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => ErroLinkIncluirDocumento::BarraForaDaForma,
-        FalhaDaBarra::Repetidas => ErroLinkIncluirDocumento::BarraRepetida,
-    })?;
+    let hrefs = hrefs_da_barra(html)?;
     let mut links = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some("documento_escolher_tipo"));

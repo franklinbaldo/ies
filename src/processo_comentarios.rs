@@ -2,7 +2,6 @@
 //! Oráculo de comportamento: Todos `tests/test_comentarios_010.py` @323eb01;
 //! SEI 4.x: linha de dados + trComentario; SEI 5.0: coluna Texto.
 //! Não usa rede, não executa JS e não infere ausência de tabela como lista vazia.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id};
 use std::collections::HashSet;
@@ -128,9 +127,8 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDosComentarios {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDeOutroProcesso,
-    BarraDosComentariosForaDaFormaObservada,
-    BarrasDosComentariosRepetidasNaArvore,
     EnderecoDosComentariosNaoReconhecido,
     LinksDosComentariosRepetidosNaBarra,
 }

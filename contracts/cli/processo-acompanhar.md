@@ -84,7 +84,7 @@ fixture contém credencial real. Nenhuma operação é dirigida à produção.
 
 ## Inventário de erros tipados
 
-A coluna é o que aparece no stderr: o erro tipado (com o tipo que o declara) ou, para HTML fora da forma, o `onde` do `ErroHtml`.
+A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 
 | Erro ou `onde` (stderr) | Condição |
 | --- | --- |
