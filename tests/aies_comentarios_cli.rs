@@ -30,6 +30,7 @@ enum Modo {
     Parcial,
     Desconhecida,
     Previa,
+    Confirmar,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -221,7 +222,7 @@ fn executar(modo: Modo) {
             .output()
             .unwrap()
     };
-    let comando: &[&str] = if matches!(modo, Modo::Previa) {
+    let comando: &[&str] = if matches!(modo, Modo::Previa | Modo::Confirmar) {
         &[
             "--json",
             "processo",
@@ -233,11 +234,17 @@ fn executar(modo: Modo) {
     } else {
         &["--json", "processo", "comentarios", NUP]
     };
-    let saida: Output = chamar(comando);
+    let comando_confirmado = ["--json", "processo", "comentar", NUP,
+        "--texto", " Comentário novo ", "--confirmar"];
+    let saida: Output = if matches!(modo, Modo::Confirmar) {
+        chamar(&comando_confirmado)
+    } else {
+        chamar(comando)
+    };
     // A segunda invocação usa o mesmo SQLite e verifica a ausência
     // de publicação do comentário previsto, sem confiar na saída da prévia.
     let posterior =
-        matches!(modo, Modo::Previa).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
+        matches!(modo, Modo::Previa | Modo::Confirmar).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     servidor.join().unwrap();
@@ -247,8 +254,13 @@ fn executar(modo: Modo) {
         assert_eq!(posterior.status.code(), Some(0));
         let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
         assert_eq!(foto["lista_completa"], true);
-        assert_eq!(foto["total"], 1);
-        assert_eq!(foto["comentarios"].as_array().unwrap().len(), 1);
+        let total = if matches!(modo, Modo::Confirmar) { 2 } else { 1 };
+        assert_eq!(foto["total"], total);
+        assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
+        if matches!(modo, Modo::Confirmar) {
+            assert_eq!(foto["comentarios"][1]["texto"], " Comentário novo ");
+            assert_ne!(foto["comentarios"][1]["id"], "42");
+        }
         assert_eq!(foto["comentarios"][0]["id"], "42");
         assert_eq!(
             foto["comentarios"][0]["texto"],
@@ -267,11 +279,11 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::Previa) {
+    if matches!(modo, Modo::Previa | Modo::Confirmar) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["texto"], " Comentário novo ");
-        assert_eq!(json["confirmado"], false);
-        assert_eq!(json["alterado"], false);
+        assert_eq!(json["confirmado"], matches!(modo, Modo::Confirmar));
+        assert_eq!(json["alterado"], matches!(modo, Modo::Confirmar));
     } else if matches!(modo, Modo::Completa) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["total"], 1);
@@ -290,11 +302,12 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
             "lista incompleta ou desconhecida não pode virar vazia ou completa"
         );
     }
-    assert!(
-        eventos.iter().all(|e| e.starts_with("GET ")),
-        "consulta não pode enviar POST: {eventos:?}"
-    );
-    if matches!(modo, Modo::Previa) {
+    let posts = eventos.iter().filter(|e| e.as_str() == "POST comentario_cadastrar").count();
+    assert_eq!(posts, usize::from(matches!(modo, Modo::Confirmar)),
+        "um único POST somente na confirmação: {eventos:?}");
+    assert!(eventos.iter().all(|e| e.starts_with("GET ") ||
+        e == "POST comentario_cadastrar"), "transição inesperada: {eventos:?}");
+    if matches!(modo, Modo::Previa | Modo::Confirmar) {
         assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
     }
     let listagens = eventos
@@ -306,6 +319,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         match modo {
             Modo::Desconhecida => 0,
             Modo::Previa => 2,
+            Modo::Confirmar => 3,
             Modo::Completa | Modo::Parcial => 1,
         },
         "a segunda CLI relê os comentários após a prévia"
@@ -328,4 +342,9 @@ fn bdd_257_01_ausencia_de_foto_nao_e_lista_vazia() {
 #[test]
 fn bdd_257_02_previa_observa_formulario_sem_post() {
     executar(Modo::Previa);
+}
+
+#[test]
+fn bdd_257_02_confirmacao_post_unico_e_releitura_independente() {
+    executar(Modo::Confirmar);
 }
