@@ -293,13 +293,11 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
 // Confronto separado da navegação de pesquisa pelo número SEI.
 include!("anti_ies_documento_navegacao_unb.rs");
 
-
 /// BDD-60-05: identidade documental sem '=' não é campo ausente.
 /// Hipótese sintética: as cassettes publicam URLs bem formadas, não esta recusa.
 #[test]
 fn bdd60_http_identidade_documental_sem_igual_recusa_sem_fallback() {
-    let instalacao =
-        iesei::instalacao::Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    let instalacao = iesei::instalacao::Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: "42".into(),
