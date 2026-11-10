@@ -180,7 +180,12 @@ fn executar_caso(confirmar: bool) {
         }
     });
     let mut argumentos = vec![
-        "--json", "processo", "anotar", NUP, "--texto", "Revisar minuta",
+        "--json",
+        "processo",
+        "anotar",
+        NUP,
+        "--texto",
+        "Revisar minuta",
     ];
     if confirmar {
         argumentos.push("--confirmar");
@@ -231,7 +236,10 @@ fn executar_caso(confirmar: bool) {
         if confirmar { 2 } else { 1 }
     );
     assert_eq!(
-        pedidos.iter().filter(|e| *e == "POST anotacao_registrar").count(),
+        pedidos
+            .iter()
+            .filter(|e| *e == "POST anotacao_registrar")
+            .count(),
         usize::from(confirmar)
     );
     assert_eq!(json["requisicoes"], pedidos.len());
