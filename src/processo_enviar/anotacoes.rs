@@ -45,7 +45,7 @@ pub(crate) fn salvar_oferecido(html: &str) -> bool {
         })
 }
 
-pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
+pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroHtml> {
     use crate::formulario_web::{decodificar_atributo, localizar_formulario};
     use crate::html_atributos::valor_do_atributo;
 
@@ -84,16 +84,21 @@ pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> 
         }
     }
     match (ids.as_slice(), descricoes.as_slice()) {
-        ([Some(publicado)], [texto]) if publicado == id => Ok(!texto.trim().is_empty()),
+        ([Some(publicado)], [texto]) if publicado == id => Ok(texto.clone()),
         ([Some(_)], [_]) => Err(ErroHtml::valor("anotacao_de_outro_processo")),
         ([], _) | (_, []) => Err(ErroHtml::ausente("anotacao_nao_publicada")),
         _ => Err(ErroHtml::repetido("campos_de_anotacao_repetidos")),
     }
 }
 
+/// Ausência só é comprovada se a tela do mesmo processo publicar o texto vazio.
+pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
+    texto_anotacao(html, id).map(|texto| !texto.trim().is_empty())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::anotacao_presente;
+    use super::{anotacao_presente, texto_anotacao};
 
     fn formulario(id: &str, texto: &str) -> String {
         format!(
@@ -112,6 +117,12 @@ mod tests {
         // quando leio o mesmo processo, então há anotação verificável.
         let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
         assert_eq!(anotacao_presente(&html, "50693"), Ok(true));
+    }
+
+    #[test]
+    fn texto_do_formulario_e_lido_sem_perder_entidades() {
+        let html = formulario("50693", "Observa&ccedil;&atilde;o &amp; prioridade");
+        assert_eq!(texto_anotacao(&html, "50693"), Ok("Observação & prioridade".into()));
     }
 
     #[test]
