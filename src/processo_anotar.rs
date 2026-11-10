@@ -71,8 +71,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
 ) -> Result<Previa, Erro> {
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
-        abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)
-            .map_err(Erro::Abertura)?;
+        abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)?;
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
     let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(Erro::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {

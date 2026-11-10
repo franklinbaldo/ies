@@ -182,7 +182,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         )
         .map_err(|_| E::DerivacaoRecusada)?;
         *requisicoes += 1;
-        let resposta = envio.post(consulta, cookie).map_err(E::Transporte)?;
+        let resposta = envio.post(consulta, cookie)?;
         if resposta.resposta.status_code != 200 {
             return Err(E::Transporte(crate::transporte::recusar_status(
                 resposta.resposta,
@@ -201,8 +201,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
         }
         let mime = resposta.resposta.mime.clone();
-        let bytes =
-            ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::Transporte)?;
+        let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)?;
         let xml = decode_http_body(&bytes, &mime)
             .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;

@@ -16,12 +16,6 @@ pub(crate) enum ErroAndamentoNaBarra {
     Html(ErroHtml),
 }
 
-impl ErroAndamentoNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 /// Só links publicados na barra conferida; nenhuma URL montada no IES.
 pub(crate) fn ler_andamento_da_barra(
     instalacao: &Instalacao,

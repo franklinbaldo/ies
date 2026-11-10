@@ -31,8 +31,7 @@ impl FotografiaDosGerados {
     /// Uma página parcial, ainda que apresente o primeiro candidato,
     /// não comprova ausência nem unicidade depois da escrita.
     pub(crate) fn da_tela(html: &str, unidade: &str) -> Result<Self, ErroFotografia> {
-        let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))
-            .map_err(ErroFotografia::Caixa)?;
+        let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))?;
         let tabela = &leitura.caixa.gerados;
         let total = tabela
             .total_declarado
