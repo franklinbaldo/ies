@@ -29,6 +29,7 @@ const NUP: &str = "00001.000001/2026-01";
 enum EstadoInicial {
     GrupoG,
     SomenteH,
+    VazioObservado,
     NaoObservado,
 }
 
@@ -135,6 +136,7 @@ fn banco(estado: EstadoInicial) -> (Connection, Instalacao) {
             grupo: "H".into(),
             observacao: "Preservar".into(),
         }]),
+        EstadoInicial::VazioObservado => Some(vec![]),
         EstadoInicial::NaoObservado => None,
     };
     if let Some(itens) = itens {
@@ -307,6 +309,32 @@ fn observacao_ausente_nao_inventa_lista_vazia() {
     let (saida, eventos, depois) = executar(EstadoInicial::NaoObservado);
     assert_ne!(saida.status.code(), Some(0));
     assert!(depois.is_none());
+    assert!(
+        eventos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{eventos:?}"
+    );
+}
+
+#[test]
+fn observacao_explicitamente_vazia_permite_no_op_sem_escrita() {
+    let (saida, eventos, depois) = executar(EstadoInicial::VazioObservado);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["operacao"], "deixar");
+    assert_eq!(valor["grupo"], "G");
+    assert!(valor["id_acompanhamento"].is_null());
+    assert_eq!(valor["ja_estava"], true);
+    assert_eq!(valor["confirmado"], false);
+    assert_eq!(valor["alterado"], false);
+    assert!(depois.unwrap().itens.is_empty());
+    assert!(eventos.iter().any(|p| p == "GET acompanhamento_gerenciar"));
     assert!(
         eventos
             .iter()
