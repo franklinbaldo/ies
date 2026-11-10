@@ -2,7 +2,6 @@
 //! CLI real -> HTTPS local -> anti-IES -> SQLite; duas leituras independentes.
 use super::*;
 use iesei::colunas_detalhe::{self, Coluna, Configuracao, Opcao};
-use std::os::unix::fs::PermissionsExt as _;
 
 fn configurar_banco(banco: &mut Connection, instalacao: &Instalacao) {
     banco_cassettes::iniciar(banco).unwrap();
@@ -41,7 +40,7 @@ fn configurar_banco(banco: &mut Connection, instalacao: &Instalacao) {
     .unwrap();
 }
 
-fn atender_quatro_gets(listener: TcpListener) {
+fn atender_quatro_gets(listener: &TcpListener) {
     let mut banco = Connection::open_in_memory().unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     configurar_banco(&mut banco, &instalacao);
@@ -56,7 +55,7 @@ fn atender_quatro_gets(listener: TcpListener) {
     assert_eq!(opcoes.iter().filter(|opcao| opcao.marcada).count(), 1);
 }
 
-fn encaminhar_quatro_gets(proxy: TcpListener, destino: std::net::SocketAddr, identidade: Identity) {
+fn encaminhar_quatro_gets(proxy: &TcpListener, destino: std::net::SocketAddr, identidade: Identity) {
     let tls = TlsAcceptor::new(identidade).unwrap();
     let mut rotas = Vec::new();
     for _ in 0..4 {
@@ -132,10 +131,10 @@ fn bdd_565_01_previa_nao_grava_e_segunda_cli_rele_original() {
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let destino = servidor.local_addr().unwrap();
-    let backend = thread::spawn(move || atender_quatro_gets(servidor));
+    let backend = thread::spawn(move || atender_quatro_gets(&servidor));
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
-    let tunel = thread::spawn(move || encaminhar_quatro_gets(proxy, destino, identidade));
+    let tunel = thread::spawn(move || encaminhar_quatro_gets(&proxy, destino, identidade));
 
     let previa = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, true);
     assert_eq!(
