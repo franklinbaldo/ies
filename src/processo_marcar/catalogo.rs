@@ -4,8 +4,7 @@ use super::{Decisao, ErroMarcar, Operacao, Rotulo, decidir};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, TelaServida, derivar_submissao,
-    decodificar_atributo,
+    OperacaoDeFormulario, ResultadoDoEnvio, TelaServida, decodificar_atributo, derivar_submissao,
 };
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::IndiceLocal;
@@ -98,11 +97,7 @@ fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> bool {
         .flatten()
         .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
         .filter(|tag| {
-            valor_do_atributo(tag, "id")
-                .ok()
-                .flatten()
-                .as_deref()
-                == Some("selMarcador")
+            valor_do_atributo(tag, "id").ok().flatten().as_deref() == Some("selMarcador")
         });
     let Some(select) = selects.next() else {
         return false;
@@ -141,7 +136,9 @@ fn conferir_catalogo<V: EnvioDoProcesso>(
     rotulo: &Rotulo,
     texto: Option<&str>,
 ) -> bool {
-    let Ok(cookie) = ler_cookie(sessao) else { return false };
+    let Ok(cookie) = ler_cookie(sessao) else {
+        return false;
+    };
     let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
         return false;
     };
@@ -154,14 +151,21 @@ fn conferir_catalogo<V: EnvioDoProcesso>(
     let Some(codificacao) = codificacao_da_tela(&mime) else {
         return false;
     };
-    let tela = TelaServida { url: &url, html: &html, codificacao };
+    let tela = TelaServida {
+        url: &url,
+        html: &html,
+        codificacao,
+    };
     rotulo_oferecido(&html, rotulo)
         && derivar_submissao(
             &ADICIONAR,
             &instalacao,
             &tela,
             unidade,
-            &[("hdnIdMarcador", &rotulo.id), ("txaTexto", texto.unwrap_or(""))],
+            &[
+                ("hdnIdMarcador", &rotulo.id),
+                ("txaTexto", texto.unwrap_or("")),
+            ],
         )
         .is_ok()
 }
@@ -177,23 +181,33 @@ fn saida_previa(
     requisicoes: u8,
 ) -> ExitCode {
     if cli.json {
-        println!("{}", json!({
-            "nup": nup.as_str(), "id_procedimento": id, "unidade": unidade,
-            "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
-            "texto": texto, "acao": "atribuir", "origem": "web",
-            "confirmado": false, "alterado": false,
-            "nada_a_fazer": nada_a_fazer,
-            "retirada_possivel": false, "requisicoes": requisicoes,
-        }));
+        println!(
+            "{}",
+            json!({
+                "nup": nup.as_str(), "id_procedimento": id, "unidade": unidade,
+                "marcador": format!("{}#{}", rotulo.id, rotulo.nome),
+                "texto": texto, "acao": "atribuir", "origem": "web",
+                "confirmado": false, "alterado": false,
+                "nada_a_fazer": nada_a_fazer,
+                "retirada_possivel": false, "requisicoes": requisicoes,
+            })
+        );
     } else if nada_a_fazer {
         println!(
             "Processo {}: nada a fazer com {} (atribuir). Requisições: {}.",
-            nup.as_str(), rotulo.id, requisicoes
+            nup.as_str(),
+            rotulo.id,
+            requisicoes
         );
     } else {
         println!(
             "Prévia: atribuir marcador {}#{} ao processo {} (unidade {}, texto: {:?}). Requisições: {}. Esta prévia não alterou o processo. A confirmação ainda não está habilitada.",
-            rotulo.id, rotulo.nome, nup.as_str(), unidade, texto.unwrap_or(""), requisicoes
+            rotulo.id,
+            rotulo.nome,
+            nup.as_str(),
+            unidade,
+            texto.unwrap_or(""),
+            requisicoes
         );
     }
     ExitCode::SUCCESS
@@ -224,7 +238,10 @@ pub(crate) fn previa_atribuicao<V: EnvioDoProcesso>(
         Ok(resposta) => resposta,
         Err(erro) => {
             return saida_erro::erro_fonte_http(
-                cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http()
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
             );
         }
     };
@@ -242,17 +259,36 @@ pub(crate) fn previa_atribuicao<V: EnvioDoProcesso>(
     };
     if !nada {
         let Some(link) = acoes.marcadores.ok().flatten() else {
-            return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+            return falha(
+                cli,
+                ErroMarcar::CatalogoDaUnidadeNaoObservado,
+                rede.feitas(),
+            );
         };
         if !conferir_catalogo(
-            sessao, &mut rede, link.as_str(), &aberto.arvore.processo.id,
-            unidade, rotulo, texto
+            sessao,
+            &mut rede,
+            link.as_str(),
+            &aberto.arvore.processo.id,
+            unidade,
+            rotulo,
+            texto,
         ) {
-            return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+            return falha(
+                cli,
+                ErroMarcar::CatalogoDaUnidadeNaoObservado,
+                rede.feitas(),
+            );
         }
     }
     saida_previa(
-        cli, nup, &aberto.arvore.processo.id, unidade, rotulo,
-        texto, nada, rede.feitas()
+        cli,
+        nup,
+        &aberto.arvore.processo.id,
+        unidade,
+        rotulo,
+        texto,
+        nada,
+        rede.feitas(),
     )
 }
