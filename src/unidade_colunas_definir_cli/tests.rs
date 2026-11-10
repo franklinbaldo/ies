@@ -17,16 +17,32 @@ fn previa() -> ColunasDefinidas {
     ColunasDefinidas {
         unidade: "TESTE".to_owned(),
         plano: plano(),
-        confirmado: false,
-        alterado: false,
-        campos_do_envio: Some(vec![
-            "sbmSalvar".to_owned(),
-            "chkSinAtribuicao".to_owned(),
-            "chkSinAnotacao".to_owned(),
-            "hdnInfraTipoPagina".to_owned(),
-        ]),
-        depois: None,
-        reconciliado_por: None,
+        estado: EstadoDasColunas::Previa {
+            campos_do_envio: vec![
+                "sbmSalvar".to_owned(),
+                "chkSinAtribuicao".to_owned(),
+                "chkSinAnotacao".to_owned(),
+                "hdnInfraTipoPagina".to_owned(),
+            ],
+        },
+    }
+}
+
+fn conferidas() -> ColunasDefinidas {
+    let feito = previa();
+    ColunasDefinidas {
+        unidade: feito.unidade,
+        plano: feito.plano,
+        estado: EstadoDasColunas::Conferidas {
+            campos_do_envio: vec![
+                "sbmSalvar".to_owned(),
+                "chkSinAtribuicao".to_owned(),
+                "chkSinAnotacao".to_owned(),
+                "hdnInfraTipoPagina".to_owned(),
+            ],
+            depois: vec![C::Atribuicao, C::Anotacao],
+            reconciliado_por: Some(erro_500()),
+        },
     }
 }
 
@@ -61,11 +77,7 @@ fn previa_publica_antes_alvo_diferenca_e_campos_sem_valores() {
 
 #[test]
 fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
-    let mut feito = previa();
-    feito.confirmado = true;
-    feito.alterado = true;
-    feito.depois = Some(feito.plano.alvo.clone());
-    feito.reconciliado_por = Some(erro_500());
+    let feito = conferidas();
     let valor = json_de_sucesso(&feito);
     assert_eq!(valor["alterado"], true);
     assert_eq!(valor["depois"], json!(["atribuicao", "anotacao"]));
@@ -75,6 +87,25 @@ fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
         valor["falha_do_salvar"]["mensagem_do_servidor"],
         "Serviço indisponível."
     );
+}
+
+#[test]
+fn alvo_ja_satisfeito_nao_publica_envio_nem_releitura_ficticios() {
+    for confirmado in [false, true] {
+        let feito = ColunasDefinidas {
+            unidade: "TESTE".to_owned(),
+            plano: plano(),
+            estado: EstadoDasColunas::Inalteradas { confirmado },
+        };
+        let valor = serde_json::to_value(resultado_colunas(&feito)).unwrap();
+        assert_eq!(valor["confirmado"], confirmado);
+        assert_eq!(valor["alterado"], false);
+        assert_eq!(valor["envio"], Value::Null);
+        assert_eq!(valor["depois"], Value::Null);
+        assert_eq!(valor["reconciliado_por_leitura"], false);
+        assert!(valor.get("falha_do_salvar").is_none());
+        assert_eq!(valor, json_de_sucesso(&feito));
+    }
 }
 
 #[test]
@@ -121,14 +152,8 @@ fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
 
 #[test]
 fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
-    let mut feito = previa();
     for reconciliar in [false, true] {
-        if reconciliar {
-            feito.confirmado = true;
-            feito.alterado = true;
-            feito.depois = Some(feito.plano.alvo.clone());
-            feito.reconciliado_por = Some(erro_500());
-        }
+        let feito = if reconciliar { conferidas() } else { previa() };
         let mut bytes = Vec::new();
         serde_json::to_writer_pretty(&mut bytes, &resultado_colunas(&feito)).unwrap();
         let legado = json_de_sucesso(&feito);

@@ -170,15 +170,15 @@ fn previa_na_d_le_planeja_e_nao_salva() {
     assert_eq!(rodada.registro, [GET_NIVEL]);
     let feito = ok(&rodada);
     assert_eq!(feito.unidade, "TESTE");
-    assert!(!feito.confirmado && !feito.alterado);
+    assert!(!feito.confirmado() && !feito.alterado());
     assert_eq!(feito.plano.antes, ATUAL);
     assert_eq!(feito.plano.alvo, C::TODAS);
     let mut esperados = vec!["sbmSalvar".to_owned()];
     esperados.extend(C::TODAS.map(|c| c.campo().to_owned()));
     esperados.push("hdnInfraTipoPagina".to_owned());
-    assert_eq!(feito.campos_do_envio.as_deref(), Some(&esperados[..]));
-    assert_eq!(feito.depois, None);
-    assert_eq!(feito.reconciliado_por, None);
+    assert_eq!(feito.campos_do_envio(), Some(&esperados[..]));
+    assert_eq!(feito.depois(), None);
+    assert_eq!(feito.reconciliado_por(), None);
 }
 
 #[test]
@@ -218,9 +218,9 @@ fn todas_confirmado_na_unb_salva_as_onze_e_confere_por_leitura() {
     corpo.push_str("&hdnInfraTipoPagina=2");
     assert_eq!(rodada.corpos, [corpo]);
     let feito = ok(&rodada);
-    assert!(feito.confirmado && feito.alterado);
+    assert!(feito.confirmado() && feito.alterado());
     assert_eq!(feito.plano.indisponiveis, [C::Prioridade]);
-    assert_eq!(feito.depois.as_deref(), Some(&onze()[..]));
+    assert_eq!(feito.depois(), Some(&onze()[..]));
 }
 
 #[test]
@@ -245,7 +245,7 @@ fn lista_confirmada_na_r_salva_confere_e_fica_na_d() {
         rodada.corpos,
         ["sbmSalvar=Salvar&chkSinAnotacao=on&chkSinMarcadores=on&hdnInfraTipoPagina=2"]
     );
-    assert_eq!(ok(&rodada).depois.as_deref(), Some(&alvo[..]));
+    assert_eq!(ok(&rodada).depois(), Some(&alvo[..]));
 }
 
 #[test]
@@ -258,8 +258,8 @@ fn alvo_igual_ao_atual_confirmado_nao_envia_post() {
     );
     assert_eq!(rodada.registro, [GET_NIVEL]);
     let feito = ok(&rodada);
-    assert!(feito.confirmado && !feito.alterado);
-    assert_eq!(feito.campos_do_envio, None);
+    assert!(feito.confirmado() && !feito.alterado());
+    assert_eq!(feito.campos_do_envio(), None);
 }
 
 #[test]
@@ -386,8 +386,8 @@ fn erro_5xx_no_salvar_reconcilia_por_leitura_sem_repetir_o_post() {
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let feito = ok(&rodada);
-    assert!(feito.alterado);
-    let por = feito.reconciliado_por.as_ref().unwrap();
+    assert!(feito.alterado());
+    let por = feito.reconciliado_por().unwrap();
     assert_eq!(por.status_http().map(|h| h.status), Some(500));
 }
 
@@ -460,7 +460,7 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
     ] {
         let rodada = salvar_incerto(passo, nivel(&C::TODAS, &C::TODAS));
         assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
-        let _por = ok(&rodada).reconciliado_por.as_ref().unwrap();
+        let _por = ok(&rodada).reconciliado_por().unwrap();
     }
 }
 
@@ -506,7 +506,7 @@ fn resposta_200_nao_reconhecida_e_leitura_do_alvo_e_reconciliada() {
         "<html><body><script>infraFecharJanelaModal();</script></body></html>".to_owned();
     let rodada = salvar_incerto(Passo::Html(200, inventada), nivel(&C::TODAS, &C::TODAS));
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
-    let por = ok(&rodada).reconciliado_por.as_ref().unwrap();
+    let por = ok(&rodada).reconciliado_por().unwrap();
     assert_eq!(por, &FalhaDoSalvar::RespostaDoSalvarNaoReconhecida);
 }
 

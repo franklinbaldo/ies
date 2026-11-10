@@ -5,7 +5,8 @@
 use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas as D, FalhaDoSalvar, VerificacaoDasColunas,
+    ColunasDefinidas, ErroDefinirColunas as D, EstadoDasColunas, FalhaDoSalvar,
+    VerificacaoDasColunas,
 };
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::nivel::{link_do_nivel_de_detalhe, obter_tela_do_nivel};
@@ -77,22 +78,24 @@ fn na_detalhada<V: EnvioDoControle>(
         planejar(&nivel, pedido.alvo).map_err(|ColunaIndisponivelNestaInstalacao { coluna }| {
             D::ColunaIndisponivelNestaInstalacao { coluna }
         })?;
-    let mut feito = ColunasDefinidas {
-        unidade: sessao.unidade.to_owned(),
-        plano,
-        confirmado: pedido.confirmar,
-        alterado: false,
-        campos_do_envio: None,
-        depois: None,
-        reconciliado_por: None,
-    };
-    if feito.plano.inalterado() {
-        return Ok(feito);
+    let unidade = sessao.unidade.to_owned();
+    if plano.inalterado() {
+        return Ok(ColunasDefinidas {
+            unidade,
+            plano,
+            estado: EstadoDasColunas::Inalteradas {
+                confirmado: pedido.confirmar,
+            },
+        });
     }
-    let submissao = derivar_salvar(sessao, &servida, &feito.plano)?;
-    feito.campos_do_envio = Some(submissao.nomes_dos_campos().to_vec());
+    let submissao = derivar_salvar(sessao, &servida, &plano)?;
+    let campos_do_envio = submissao.nomes_dos_campos().to_vec();
     if !pedido.confirmar {
-        return Ok(feito);
+        return Ok(ColunasDefinidas {
+            unidade,
+            plano,
+            estado: EstadoDasColunas::Previa { campos_do_envio },
+        });
     }
     let falha = salvar(sessao, submissao)?;
     let verificacao = match obter_tela_do_nivel(sessao, &url)
@@ -101,7 +104,7 @@ fn na_detalhada<V: EnvioDoControle>(
         Ok(lido) => VerificacaoDasColunas::Marcadas(lido.marcadas()),
         Err(erro) => VerificacaoDasColunas::LeituraFalhou(erro),
     };
-    conciliar(feito, falha, verificacao)
+    conciliar(unidade, plano, campos_do_envio, falha, verificacao)
 }
 
 fn derivar_salvar<V: EnvioDoControle>(
@@ -154,27 +157,34 @@ fn salvar<V: EnvioDoControle>(
 
 /// Tabela de reconciliação do contrato.
 fn conciliar(
-    mut feito: ColunasDefinidas,
+    unidade: String,
+    plano: PlanoDasColunas,
+    campos_do_envio: Vec<String>,
     falha: Option<FalhaDoSalvar>,
     verificacao: VerificacaoDasColunas,
 ) -> Result<ColunasDefinidas, D> {
-    let plano = Box::new(feito.plano.clone());
-    let observadas: Vec<ColunaDoDetalhe> = match verificacao {
-        VerificacaoDasColunas::Marcadas(ref marcadas) => marcadas.clone(),
+    let observadas: Vec<ColunaDoDetalhe> = match &verificacao {
+        VerificacaoDasColunas::Marcadas(marcadas) => marcadas.clone(),
         VerificacaoDasColunas::LeituraFalhou(_) => {
             return Err(D::NaoConfirmadoNaConfiguracaoDeColunas {
-                plano,
+                plano: Box::new(plano),
                 falha_do_salvar: falha,
                 verificacao: Box::new(verificacao),
             });
         }
     };
     if observadas == plano.alvo {
-        feito.alterado = true;
-        feito.depois = Some(observadas);
-        feito.reconciliado_por = falha;
-        return Ok(feito);
+        return Ok(ColunasDefinidas {
+            unidade,
+            plano,
+            estado: EstadoDasColunas::Conferidas {
+                campos_do_envio,
+                depois: observadas,
+                reconciliado_por: falha,
+            },
+        });
     }
+    let plano = Box::new(plano);
     if observadas == plano.antes {
         return Err(D::ConfiguracaoDeColunasNaoAplicada {
             plano,

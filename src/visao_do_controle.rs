@@ -32,7 +32,7 @@ use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
+    ColunasDefinidas, ErroDefinirColunas, EstadoDasColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
 pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
