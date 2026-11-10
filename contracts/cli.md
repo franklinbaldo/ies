@@ -38,6 +38,9 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies bloco listar [--tipo assinatura|interno|reuniao]` e `ies bloco N`
   (leitura Web por menu observado; contratos
   [listar](cli/bloco-listar.md) e [obter](cli/bloco-obter.md); #256).
+- `ies bloco incluir BLOCO --processo NUP | --documento DOC [--confirmar]`
+  (contrato unificado de inclusão em bloco interno/reunião ou assinatura,
+  [bloco.incluir](cli/bloco-incluir.md), #381 e #343; ainda não implementado).
 
 
 - `ies processo NUP`
