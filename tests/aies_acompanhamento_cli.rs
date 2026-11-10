@@ -333,7 +333,7 @@ fn observacao_explicitamente_vazia_permite_no_op_sem_escrita() {
     assert_eq!(valor["ja_estava"], true);
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
-    assert!(depois.unwrap().itens.is_empty());
+    assert_eq!(depois.unwrap().itens, Vec::<Acompanhamento>::new());
     assert!(eventos.iter().any(|p| p == "GET acompanhamento_gerenciar"));
     assert!(
         eventos
