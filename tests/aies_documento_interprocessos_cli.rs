@@ -367,6 +367,9 @@ mod cancelado_antes_da_lista;
 #[path = "aies_documento_interprocessos_cli/cancelado_sem_historico.rs"]
 mod cancelado_sem_historico;
 
+#[path = "aies_documento_interprocessos_cli/pdf_numero_repetido.rs"]
+mod pdf_numero_repetido;
+
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
