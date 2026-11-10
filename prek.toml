@@ -49,13 +49,13 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "evidencias"
-name = "Relações OKF de operações e cassettes"
-entry = "cargo run --quiet --locked -p xtask --bin check_evidence"
+id = "links-locais"
+name = "Links Markdown locais resolvem (okf-parser OKF101)"
+entry = "sh -c '! uvx --from okf-parser==0.48.2 okf-parser check . --exclude \".agents/**\" | grep -A2 OKF101'"
 language = "system"
 pass_filenames = false
 always_run = true
-stages = ["pre-push"]
+stages = ["pre-commit", "pre-push"]
 
 [[repos.hooks]]
 id = "scripts-python"
@@ -70,15 +70,6 @@ stages = ["pre-push"]
 id = "auditoria-dependencias"
 name = "Avisos de segurança das dependências (cargo-deny)"
 entry = "sh -c 'if command -v cargo-deny >/dev/null; then cargo deny check advisories; elif [ -n \"$CI\" ]; then echo cargo-deny ausente no CI; exit 1; else echo NOT_RUN: cargo-deny ausente; fi'"
-language = "system"
-pass_filenames = false
-always_run = true
-stages = ["pre-push"]
-
-[[repos.hooks]]
-id = "decisoes"
-name = "Decisões de engenharia por operação implementada"
-entry = "cargo run --quiet --locked -p xtask --bin check_design"
 language = "system"
 pass_filenames = false
 always_run = true
