@@ -1,4 +1,4 @@
-//! BDD-ANOT-01/02: prévia sem escrita, confirmação única e releitura.
+//! BDD-ANOT-01/02/03: prévia, confirmação única e consulta sem escrita.
 use crate::processo::NumeroProcesso;
 use crate::processo_anotar::{self, Erro};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
@@ -24,7 +24,8 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         Ok(numero) => numero,
         Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
     };
-    if texto.trim().is_empty() {
+    let texto = texto.as_deref();
+    if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
         if cli.json {
             println!(
                 "{}",
@@ -51,14 +52,16 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         match processo_anotar::executar(
             sessao,
             &nup,
-            texto,
+            texto.unwrap_or(""),
             *confirmar,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
         ) {
             Ok(preview) => {
-                if cli.json {
+                if texto.is_none() {
+                    exibir_consulta(&preview, cli.json);
+                } else if cli.json {
                     println!(
                         "{}",
                         json!({
@@ -99,6 +102,36 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
             Err(erro) => falha_da_previa(cli, &erro),
         }
     }))
+}
+
+/// A ausência só é publicada após o formulário do próprio processo confirmar
+/// explicitamente uma textarea vazia. Formulário ausente falha antes daqui.
+fn exibir_consulta(preview: &processo_anotar::Previa, modo_json: bool) {
+    let anotacao = (!preview.anotacao_antes.is_empty()).then_some(preview.anotacao_antes.as_str());
+    if modo_json {
+        println!(
+            "{}",
+            json!({
+                "nup": preview.nup,
+                "id_procedimento": preview.id_procedimento,
+                "unidade": preview.unidade,
+                "anotacao": anotacao,
+                "alterado": false,
+                "origem": "web",
+                "requisicoes": preview.requisicoes,
+            })
+        );
+    } else if let Some(texto) = anotacao {
+        println!(
+            "Anotação atual do processo {} ({}): {texto:?}. Nenhuma alteração realizada. Requisições: {}.",
+            preview.nup, preview.unidade, preview.requisicoes
+        );
+    } else {
+        println!(
+            "Nenhuma anotação no processo {} ({}). Nenhuma alteração realizada. Requisições: {}.",
+            preview.nup, preview.unidade, preview.requisicoes
+        );
+    }
 }
 
 /// Emite a causa tipada sem catálogo de subcódigos por operação.

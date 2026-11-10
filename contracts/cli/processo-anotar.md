@@ -1,9 +1,9 @@
 ---
 type: CommandContract
-title: Prévia e confirmação de anotação de processo na unidade
+title: Consultar, prever e confirmar anotação de processo na unidade
 operation: processo.anotar
-command: ies processo anotar NUP --texto TEXTO [--confirmar]
-effect: preview-or-confirmed-write
+command: ies processo anotar NUP [--texto TEXTO] [--confirmar]
+effect: read-or-preview-or-confirmed-write
 implementation: partial
 ---
 
@@ -27,6 +27,12 @@ Com `--confirmar`, somente instalações de treinamento explicitamente permitida
 
 JSON de sucesso: mesmos campos da prévia, agora `confirmado:true` e `alterado:true`. O SQLite compartilhado pelo anti-IES armazena o texto e o serve na próxima leitura; não há alteração de schema porque `anotacao_origem` já é textual. O teste vertical `bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao` em `tests/aies_anotacao_cli.rs` é sintético, não certifica a resposta do SEI.
 
-**BDD-ANOT-03/04/05:** leitura direta, retirada e interação com envio permanecem pendentes; não ampliar estes cenários nesta PR.
+## Consulta (BDD-ANOT-03)
+
+Sem `--texto`, `ies processo anotar NUP` consulta a anotação **sem enviar POST**, reutilizando o link de `anotacao_registrar` da barra e a conferência de `hdnIdProtocolo` e `txaDescricao` do mesmo processo. A saída humana mostra o texto publicado ou informa que não há anotação, sem alterar estado. Em `--json`, publica `anotacao` com o texto observado e `alterado:false`; apenas o formulário legível com textarea explicitamente vazia autoriza `anotacao:null`. Formulário ausente, ilegível ou de identidade divergente deve recusar a consulta em vez de inventar vazio. `--confirmar` exige `--texto`, e a consulta nunca dispara escrita.
+
+A prova sintética `bdd_anot_03_consulta_texto_publicado_sem_post` executa os modos humano e JSON pela CLI Rust real, HTTPS loopback, anti-IES e SQLite; `bdd_anot_03_consulta_sem_anotacao_publica_null` verifica ausência observada. Os testes confirmam estado imutável, ausência de POST e orçamento observado. Comparação semântica independente com cassettes e ensaio de treinamento não estão demonstrados por esses testes.
+
+**BDD-ANOT-04/05:** retirada e interação com envio permanecem pendentes; não ampliar esses cenários nesta PR.
 
 [Decisão](../../docs/decisoes/processo-anotar.md) · [Issue #638](https://github.com/franklinbaldo/ies/issues/638)

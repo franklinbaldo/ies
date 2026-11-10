@@ -37,12 +37,12 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Prévia de anotação na unidade; com --confirmar, grava e relê uma vez.
+    /// Consulta a anotação; com --texto faz prévia e --confirmar grava.
     Anotar {
         numero: String,
         #[arg(long)]
-        texto: String,
-        #[arg(long)]
+        texto: Option<String>,
+        #[arg(long, requires = "texto")]
         confirmar: bool,
     },
     /// Registra andamento livre no histórico do processo (prévia antes da escrita)
