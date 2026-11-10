@@ -170,14 +170,14 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
                 (*confirmacao_pedida, false, true, None, None, None)
             }
             ResultadoDaAssinatura::Comprovada {
-                assinaturas_depois,
+                assinatura_depois,
                 edicao_depois,
                 reconciliado_por,
             } => (
                 true,
                 true,
                 false,
-                Some(assinaturas_depois.as_slice()),
+                Some(std::slice::from_ref(assinatura_depois)),
                 Some(*edicao_depois),
                 reconciliado_por.as_ref(),
             ),
@@ -248,13 +248,13 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
             linhas.push("Nada a fazer: o documento já está assinado por este usuário.".to_owned());
         }
         ResultadoDaAssinatura::Comprovada {
-            assinaturas_depois,
+            assinatura_depois,
             reconciliado_por,
             ..
         } => {
             linhas.push(format!(
                 "Assinado. Assinaturas, relidas: {}",
-                linha_das_assinaturas(assinaturas_depois)
+                linha_das_assinaturas(std::slice::from_ref(assinatura_depois))
             ));
             if let Some(falha) = reconciliado_por {
                 linhas.push(format!(
