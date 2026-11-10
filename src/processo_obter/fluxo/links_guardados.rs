@@ -86,11 +86,7 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
                 &id,
                 (&html, &mime),
             )?;
-            return Ok(Some((
-                arvore,
-                Some(unidade),
-                ResolvidoPor::IndiceTrabalhar,
-            )));
+            return Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
         }
         // Unidade distinta não é link envelhecido; recusa sem fallback.
         Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
