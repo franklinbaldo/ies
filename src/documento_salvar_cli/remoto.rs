@@ -1,5 +1,6 @@
 //! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
+use crate::Cli;
 use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
 use crate::documento::NumeroDocumento;
@@ -18,10 +19,8 @@ use crate::processo_obter::{
 };
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
-use crate::{Cli, erro_fonte};
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
@@ -50,6 +49,8 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
     partes_da_foto(html).map(|(_, corpo, _)| corpo)
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum Falha {
     Local(ErroCopia),
     Leitura,
@@ -58,22 +59,9 @@ enum Falha {
     EditorIndisponivel,
     Formulario,
     RegiaoNaoEditavelAlterada,
-}
-
-impl Falha {
-    fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Local(_) => "arquivos locais não puderam ser relidos com segurança",
-            Self::Leitura => "versão remota não pôde ser conferida",
-            Self::VersaoAlterada => "a versão remota atual diverge da base local",
-            Self::BaseAlterada => "a base local não corresponde ao HTML remoto da versão",
-            Self::EditorIndisponivel => "a instalação sintética não ofereceu editor verificável",
-            Self::Formulario => "o formulário publicado não corresponde ao editor simulado",
-            Self::RegiaoNaoEditavelAlterada => {
-                "a edição alterou uma região não editável da foto local"
-            }
-        }
-    }
+    /// O POST saiu e a releitura não comprovou a edição: não repita
+    /// `--confirmar` sem releitura independente.
+    EdicaoNaoComprovada,
 }
 
 fn ler_par(
@@ -309,52 +297,30 @@ pub(super) fn confirmar(
     previa: &PreviaCopia,
 ) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        crate::legado({
-            match executar(cli, sessao, indice, numero, previa) {
-                Resultado::Confirmado(versao) => {
-                    if cli.json {
-                        println!(
-                            "{}",
-                            json!({
-                                "documento": numero.as_str(),
-                                "confirmado": true,
-                                "versao_criada": versao,
-                                "releitura_confirmada": true,
-                                "assinaturas_apos": 0
-                            })
-                        );
-                    } else {
-                        println!(
-                            "IES: documento {} salvo na versão {versao}, conferida por releitura.",
-                            numero.as_str()
-                        );
-                    }
-                    ExitCode::SUCCESS
+        match executar(cli, sessao, indice, numero, previa) {
+            Resultado::Confirmado(versao) => {
+                if cli.json {
+                    println!(
+                        "{}",
+                        json!({
+                            "documento": numero.as_str(),
+                            "confirmado": true,
+                            "versao_criada": versao,
+                            "releitura_confirmada": true,
+                            "assinaturas_apos": 0
+                        })
+                    );
+                } else {
+                    println!(
+                        "IES: documento {} salvo na versão {versao}, conferida por releitura.",
+                        numero.as_str()
+                    );
                 }
-                Resultado::Recusado(Falha::Local(causa)) => {
-                    erro_fonte(cli.json, Falha::Local(causa).mensagem())
-                }
-                Resultado::Recusado(falha) => erro_fonte(cli.json, falha.mensagem()),
-                Resultado::Incerto => {
-                    if cli.json {
-                        println!(
-                            "{}",
-                            json!({
-                                "codigo": "nao_confirmado",
-                                "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
-                                "confirmado": false,
-                                "retentavel": false
-                            })
-                        );
-                    } else {
-                        eprintln!(
-                            "IES: edição não comprovada; não repita --confirmar sem releitura."
-                        );
-                    }
-                    ExitCode::from(1)
-                }
+                Ok(())
             }
-        })
+            Resultado::Recusado(falha) => Err(falha.into()),
+            Resultado::Incerto => Err(Falha::EdicaoNaoComprovada.into()),
+        }
     })
 }
 

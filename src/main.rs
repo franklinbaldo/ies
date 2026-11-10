@@ -197,13 +197,13 @@ enum Domain {
 #[derive(Debug, Args)]
 struct Documento {
     /// Números dos documentos SEI
-    #[arg(num_args = 0..)]
-    numeros: Vec<String>,
+    #[arg(num_args = 0.., value_parser = crate::documento::NumeroDocumento::novo)]
+    numeros: Vec<crate::documento::NumeroDocumento>,
     /// Contexto de processo, quando conhecido
-    #[arg(long)]
-    processo: Option<String>,
+    #[arg(long, value_parser = crate::processo::NumeroProcesso::novo)]
+    processo: Option<crate::processo::NumeroProcesso>,
     /// Solicita exatamente esta versão histórica (requer transporte autorizado)
-    #[arg(long)]
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     versao: Option<u32>,
     /// Interpreta HTML privado já capturado, sem rede ou confirmação de sessão
     #[arg(long = "html-privado", value_name = "ARQUIVO")]
@@ -388,11 +388,10 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
         .or_else(|| processo_buscar_cli::tentar_buscar(cli).map(legado))
-        .or_else(|| documento_buscar_cli::tentar_buscar(cli).map(legado))
-        .or_else(|| documento_html_privado_cli::tentar_ler(cli).map(legado))
+        .or_else(|| documento_buscar_cli::tentar_buscar(cli))
+        .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
-        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli).map(legado))
-        .or_else(|| documento_obter_cli::tentar_obter(cli).map(legado))
+        .or_else(|| documento_obter_cli::tentar_obter(cli))
         .or_else(|| processo_obter_cli::tentar_obter(cli).map(legado))
         .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
         .or_else(|| processo_marcar_cli::tentar_marcar(cli))
@@ -442,15 +441,6 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
             return legado(cli_unidade_aux::executar(cli, acao));
         }
         _ => {}
-    }
-    if let Domain::Documento(Documento {
-        numeros,
-        acao: None,
-        ..
-    }) = &cli.command
-        && let Some(status) = documento_salvar_cli::validar_documentos(numeros, cli.json)
-    {
-        return legado(status);
     }
     if let Some(status) = processo_obter_cli::validar_numero(cli) {
         return legado(status);

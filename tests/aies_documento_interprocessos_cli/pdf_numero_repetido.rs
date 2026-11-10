@@ -25,10 +25,7 @@ fn bdd_60_05_cli_numero_repetido_entre_pdf_e_interno_recusa_sem_fallback() {
              stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "Html");
         assert!(
             trilha.iter().any(|p| p == "GET procedimento_visualizar"),
             "a ambiguidade deve surgir da árvore: {trilha:?}"

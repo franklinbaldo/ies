@@ -23,7 +23,7 @@ use crate::processo_concluir::escrita::{
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
 // A forma de documento_gerar observada no Todos 323eb01 e em
@@ -100,7 +100,7 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) estado: EstadoCriacao,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPreviaCriacao {
     /// O cookie privado da sessão não pôde ser lido.
@@ -130,27 +130,7 @@ pub(crate) enum ErroPreviaCriacao {
     /// observada, sem inferir que o documento deixou de ser criado.
     NaoConfirmadoNaReleitura(ErroProcessoObter),
 }
-impl ErroPreviaCriacao {
-    pub(crate) fn causa_envio(&self) -> Option<&ErroSubmissaoFormulario> {
-        match self {
-            Self::NaoConfirmadoNoEnvio(causa) => Some(causa),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        // A folha tipada preserva a classificação, mas o status HTTP
-        // público inclui recusas da Infra (200) que o derive não marca.
-        match self {
-            Self::Abertura(erro) => erro.status_http(),
-            Self::Formulario(erro) => erro.status_http(),
-            Self::TelaTransporte(erro) => erro.status_http(),
-            Self::NaoConfirmadoNoEnvio(causa) => causa.status_http(),
-            Self::NaoConfirmadoNaReleitura(causa) => causa.status_http(),
-            _ => None,
-        }
-    }
-}
+impl ErroPreviaCriacao {}
 
 /// A falha da tela é traduzida para uma causa específica desta operação.
 /// O transporte mantém a causa original; redirecionamento e login são fatos.

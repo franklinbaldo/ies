@@ -5,30 +5,17 @@ use crate::{
 };
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroHtmlPrivado {
     QuantidadeDeDocumentos,
     OpcoesDeDocumentoSemEvidencia,
-    Numero(#[from] documento::NumeroDocumentoInvalido),
     Fonte(#[from] transporte::FalhaTransporte),
     Titulo(#[from] documento_web::ErroTituloDocumento),
     Corpo(#[from] documento_web::ErroCorpoDocumento),
     NumeroDiferenteDoSolicitado,
     Exportacao(#[from] arquivo_texto_documento::ErroArquivoTexto),
-}
-
-impl ErroHtmlPrivado {
-    fn status(&self) -> u8 {
-        match self {
-            Self::QuantidadeDeDocumentos
-            | Self::OpcoesDeDocumentoSemEvidencia
-            | Self::Numero(_) => 2,
-            _ => 1,
-        }
-    }
 }
 
 fn conferir_comando(
@@ -47,7 +34,7 @@ fn conferir_comando(
     {
         return Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia);
     }
-    documento::NumeroDocumento::novo(&documento.numeros[0]).map_err(ErroHtmlPrivado::Numero)
+    Ok(documento.numeros[0].clone())
 }
 
 /// Seleção positiva deve verificar identidade exata, sem converter zeros.
@@ -74,7 +61,7 @@ fn exportar(
     arquivo_texto_documento::salvar(&destino, texto).map_err(ErroHtmlPrivado::Exportacao)
 }
 
-pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
+pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(documento) = &cli.command else {
         return None;
     };
@@ -91,8 +78,12 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
             .transpose()?;
         Ok((identidade, texto, exportado))
     })();
-    Some(match resultado {
-        Ok((identidade, texto, exportado)) => {
+    let (identidade, texto, exportado) = match resultado {
+        Ok(lido) => lido,
+        Err(erro) => return Some(Err(erro.into())),
+    };
+    {
+        {
             if let Some(bytes) = exportado {
                 if cli.json {
                     println!(
@@ -127,30 +118,9 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                 );
                 println!("{texto}");
             }
-            ExitCode::SUCCESS
         }
-        Err(erro) => {
-            if cli.json {
-                println!(
-                    "{}",
-                    json!({
-                        "codigo": if erro.status() == 2 {
-                            "entrada_invalida"
-                        } else if matches!(erro, ErroHtmlPrivado::Exportacao(_)) {
-                            "arquivo_privado_invalido"
-                        } else {
-                            "fonte_invalida"
-                        },
-                        "erro": "leitura de documento no HTML privado não comprovada",
-                        "retentavel": false
-                    })
-                );
-            } else {
-                eprintln!("IES: HTML privado de documento recusado ({erro:?})");
-            }
-            ExitCode::from(erro.status())
-        }
-    })
+    }
+    Some(Ok(()))
 }
 
 #[cfg(test)]

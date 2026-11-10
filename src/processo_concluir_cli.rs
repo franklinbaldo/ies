@@ -26,23 +26,6 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     Some(concluir(cli, &nup, *confirmar))
 }
 
-/// Ainda usado por `ciencia documento` (fora deste grupo).
-pub(crate) fn erro_de_uso(json_mode: bool) -> std::process::ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            serde_json::json!({
-                "codigo": "entrada_invalida",
-                "erro": "número de processo inválido",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: número de processo inválido");
-    }
-    std::process::ExitCode::from(2)
-}
-
 /// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha
 /// de configuração ou de sessão sobe até o `main`, sem rede.
 pub(crate) fn com_sessao(
