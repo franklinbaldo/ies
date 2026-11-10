@@ -222,7 +222,11 @@ fn executar(modo: Modo) {
     tunel.join().unwrap();
     servidor.join().unwrap();
     let eventos = eventos.lock().unwrap().clone();
-    let esperado = if matches!(modo, Modo::Completa) { 0 } else { 1 };
+    verificar(modo, &saida, &eventos);
+}
+
+fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
+    let esperado = i32::from(!matches!(modo, Modo::Completa));
     assert_eq!(
         saida.status.code(),
         Some(esperado),
