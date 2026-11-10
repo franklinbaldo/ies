@@ -1,6 +1,6 @@
 //! Prévia Web de anexação: abre principal, lê a tela e consulta somente
 //! a identidade do anexado e sua condição de assinatura. Não grava nada.
-//! O POST de escrita permanece bloqueado até teste de transporte/efeito incerto.
+//! POST de escrita apenas após prévia e confirmação, com releitura de prova.
 use super::{Destino, decidir, ler_confirmacao, ler_destino, ler_tela};
 use crate::arvore_processo::ErroAnexarNaBarra;
 use crate::formulario_web::{
@@ -12,7 +12,7 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
-    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta_xml};
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -32,9 +32,16 @@ const CONFERIR: ConsultaAjax = ConsultaAjax {
     },
 };
 
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum EtapaNaoComprovada {
+    RespostaDoPost,
+    ListaAposPost,
+    ArvoreDoPrincipal,
+}
 #[derive(Debug)]
 pub(crate) enum FalhaAnexar {
-    ConfirmacaoAindaNaoValidada,
+    EfeitoIncerto(EtapaNaoComprovada),
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
     LinkNaoPublicado,
@@ -47,29 +54,40 @@ pub(crate) enum FalhaAnexar {
     ConsultaResposta(FalhaTransporte),
 }
 impl FalhaAnexar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    // Apenas as recusas legadas possuem subcódigo durante a migração.
+    // A falha nova é publicada pela variante tipada, não por tabela textual.
+    pub(crate) fn subcodigo_legado(&self) -> Option<&'static str> {
         match self {
-            Self::ConfirmacaoAindaNaoValidada => "confirmacao_de_anexacao_nao_validada",
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::LinkNaoPublicado => "anexacao_nao_publicada_na_barra",
+            Self::EfeitoIncerto(_) => None,
+            Self::Abertura(erro) => Some(erro.subcodigo()),
+            Self::Barra(erro) => Some(erro.subcodigo()),
+            Self::LinkNaoPublicado => Some("anexacao_nao_publicada_na_barra"),
             Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
-                erro.subcodigo()
+                Some(erro.subcodigo())
             }
-            Self::TelaRedirecionada => "tela_de_anexacao_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::Estrutura(codigo) => codigo,
-            Self::ConsultaDerivacao(erro) => erro.subcodigo(),
+            Self::TelaRedirecionada => Some("tela_de_anexacao_redirecionada"),
+            Self::SessaoEncerrada => Some("sessao_encerrada_rode_ies_login"),
+            Self::Estrutura(codigo) => Some(codigo),
+            Self::ConsultaDerivacao(erro) => Some(erro.subcodigo()),
         }
     }
 }
+mod escrita;
+
 pub(crate) struct Pedido<'a> {
     pub(crate) anexado: &'a NumeroProcesso,
     pub(crate) principal: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
     pub(crate) confirmar: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoAnexacao {
+    Previa,
+    Confirmada,
+}
+
 pub(crate) struct Previa {
+    pub(crate) resultado: ResultadoAnexacao,
     pub(crate) principal: String,
     pub(crate) id_principal: String,
     pub(crate) anexado: Destino,
@@ -94,6 +112,37 @@ pub(super) fn url_da_consulta(html: &str, inicio: &str) -> Result<String, &'stat
     Ok(url.to_owned())
 }
 
+/// Um estado posterior é necessário para confirmar o efeito do único POST.
+fn comprovar_na_arvore<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &Pedido<'_>,
+    indice: &IndiceLocal,
+    anexado: &Destino,
+    anteriores: &[String],
+    rede: &mut Contador<'_, V>,
+) -> Result<(), FalhaAnexar> {
+    let lido = obter_processo(
+        sessao,
+        &leitura(pedido.principal, pedido.unidade, false),
+        indice,
+        rede,
+    )
+    .map_err(|_| FalhaAnexar::EfeitoIncerto(EtapaNaoComprovada::ArvoreDoPrincipal))?;
+    let depois = &lido.arvore.anexados;
+    if !depois
+        .iter()
+        .any(|p| p.id == anexado.id && p.nup == anexado.nup)
+        || !anteriores
+            .iter()
+            .all(|id| depois.iter().any(|p| &p.id == id))
+    {
+        return Err(FalhaAnexar::EfeitoIncerto(
+            EtapaNaoComprovada::ArvoreDoPrincipal,
+        ));
+    }
+    Ok(())
+}
+
 /// Sem --confirmar, a única escrita possível no transporte é a consulta AJAX
 /// (POST de leitura, declarada e conferida). Nada de POST criador.
 pub(crate) fn prever<V: EnvioDoProcesso>(
@@ -103,9 +152,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, FalhaAnexar> {
     use FalhaAnexar as E;
-    if pedido.confirmar {
-        return Err(E::ConfirmacaoAindaNaoValidada);
-    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
@@ -173,7 +219,29 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     }
     let xml = decodificar_resposta_xml(resposta.resposta).map_err(E::ConsultaResposta)?;
     let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
+    let resultado = if pedido.confirmar {
+        escrita::confirmar(
+            sessao,
+            &instalacao,
+            &cookie,
+            link.as_str(),
+            &html,
+            &mime,
+            &id,
+            &anexado,
+            assinaturas_em_dia,
+            &vista.anexados,
+            &mut rede,
+        )?;
+        // O contrato exige a árvore da própria CLI, não somente o 302
+        // nem a lista textual devolvida pelo formulário.
+        comprovar_na_arvore(sessao, pedido, indice, &anexado, &vista.anexados, &mut rede)?;
+        ResultadoAnexacao::Confirmada
+    } else {
+        ResultadoAnexacao::Previa
+    };
     Ok(Previa {
+        resultado,
         principal: pedido.principal.as_str().to_owned(),
         id_principal: id,
         anexado,
