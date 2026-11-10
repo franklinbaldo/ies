@@ -12,11 +12,15 @@ unresolved_steps: 0
 
 # processo.comentarios
 
-Origem: matriz de demonstrações do Todos. **Leitura CLI Rust BDD-257-01
-implementada sinteticamente**, ainda sem validação live e sem confronto
-semântico independente. A prévia GET de `processo comentar` com lista existente está em implementação
-na PR #659 e não executa POST; `--confirmar` é recusado antecipadamente.
-A escrita de comentários permanece bloqueada.
+Origem: matriz de demonstrações do Todos. **Leitura CLI Rust BDD-257-01,
+prévia sem POST e confirmação sintética BDD-257-02 implementadas**.
+A PR #659 entregou a prévia; a PR #661 habilitou `--confirmar`
+exclusivamente nas origens públicas de treinamento (incluindo
+`sei.test` na bancada). A confirmação deriva a requisição do formulário
+publicado, faz POST único e relê a lista completa exigindo id e texto
+exatos. Sem confirmação, saída 3 sem retry. Essa implementação **não**
+equivale a confronto semântico de cassettes nem a validação live.
+Os estados do Todos abaixo não são vereditos do IES.
 Os estados do Todos abaixo não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -71,13 +75,17 @@ Estado registrado no Todos: **demonstrada**.
   [UnB/GO, 76 interações](https://github.com/franklinbaldo/ies/actions/runs/42786966461),
   SHA-1/SHA-256, esquema e estrutura dos métodos, incluindo GET
   `comentario_listar`. Isso **não é replay nem confronto semântico**.
-- `tests/aies_comentarios_cli.rs`: prova apenas do ciclo sintético, com
-  GET sem POST, SQLite v33 e causas tipadas para lista incompleta/ausente.
-- PR #659: cenário BDD-257-02 de prévia via CLI real com GET de listagem e
-  GET do formulário publicado; zero POST. O RED inicial foi observado no
-  [CI #42796263728](https://github.com/franklinbaldo/ies/actions/runs/42796263728)
-  (exit 2 por ausência de `processo comentar`), além do erro Rustfmt;
-  o GREEN precisa de CI oficial no head final.
+- `tests/aies_comentarios_cli.rs`: leitura e prévia sem POST, confirmação
+  com exatamente um POST, resposta 302 e consulta por uma **segunda CLI**
+  sobre o SQLite persistido; o comentário anterior precisa permanecer.
+- PR #661: RED funcional comprovado no
+  [CI #42805414597](https://github.com/franklinbaldo/ies/actions/runs/42805414597):
+  BDD-257-02 `confirmacao_post_unico_e_releitura_independente` falhou
+  por bloqueio antecipado de `--confirmar` (quatro testes anteriores PASS).
+  O GREEN requer CI oficial no head final. Testes sintéticos não substituem
+  replay semântico independente.
+- PR #659: prévia via CLI real com GET do formulário publicado e zero POST,
+  sem evidência live.
 - **Confronto semântico independente:** NOT_RUN. **Treinamento/live:** NOT_RUN.
 
 ## Limite da evidência

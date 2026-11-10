@@ -101,6 +101,15 @@ mod tests {
     }
 
     #[test]
+    fn comentarios_sao_restritos_a_treinamento() {
+        assert!(exigir(Escrita::ProcessoComentar, "https://sei.test/sei").is_ok());
+        assert!(matches!(
+            exigir(Escrita::ProcessoComentar, "https://sei.exemplo.gov.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        ));
+    }
+
+    #[test]
     fn aceita_so_instalacoes_de_treinamento_e_a_bancada() {
         for origem in ORIGENS {
             assert!(
