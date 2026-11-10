@@ -6,7 +6,7 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
     Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, interpretar_rotulo,
-    previa_atribuicao, validar_texto,
+    executar_atribuicao, validar_texto,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
@@ -64,10 +64,6 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     {
         return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
-    if *confirmar && operacao == Operacao::Atribuir {
-        // Atribuição continua fechada até formulário/catálogo validado.
-        return Some(falha(cli, ErroMarcar::EscritaAindaFechada, 0));
-    }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         if *confirmar {
             if let Err(causa) = crate::origem_de_treinamento::exigir(
@@ -76,18 +72,21 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
             ) {
                 return crate::origem_de_treinamento::recusa(cli.json, causa);
             }
-            return confirmar_retirada(cli, sessao, indice, &nup, &rotulo, &mut EnvioHttps);
         }
         if operacao == Operacao::Atribuir {
-            return previa_atribuicao(
+            return executar_atribuicao(
                 cli,
                 sessao,
                 indice,
                 &nup,
                 &rotulo,
                 texto.as_deref(),
+                *confirmar,
                 &mut EnvioHttps,
             );
+        }
+        if *confirmar {
+            return confirmar_retirada(cli, sessao, indice, &nup, &rotulo, &mut EnvioHttps);
         }
         previa(
             cli,
@@ -98,7 +97,7 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
             *confirmar,
             &mut EnvioHttps,
         )
-    }))
+    })))
 }
 
 fn erro_de_uso(cli: &Cli, subcodigo: &str, mensagem: &str) -> ExitCode {
