@@ -10,6 +10,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
@@ -41,6 +42,8 @@ pub(crate) enum EtapaNaoComprovada {
 }
 #[derive(Debug)]
 pub(crate) enum FalhaAnexar {
+    /// O cookie privado da sessão não pôde ser lido.
+    Cookie(CookieIlegivel),
     EfeitoIncerto(EtapaNaoComprovada),
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
@@ -58,6 +61,7 @@ impl FalhaAnexar {
     // A falha nova é publicada pela variante tipada, não por tabela textual.
     pub(crate) fn subcodigo_legado(&self) -> Option<&'static str> {
         match self {
+            Self::Cookie(e) => Some(crate::erro_publico::folha(e)),
             Self::EfeitoIncerto(_) => None,
             Self::Abertura(erro) => Some(erro.subcodigo()),
             Self::Barra(erro) => Some(erro.subcodigo()),
@@ -164,7 +168,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     .map_err(E::Abertura)?;
     let id = aberto.arvore.processo.id;
     let link = acoes.anexar.map_err(E::Barra)?.ok_or(E::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao).map_err(E::Tela)?;
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
             FalhaDaTela::Transporte(falha) => E::Tela(falha),
@@ -248,4 +252,10 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         assinaturas_em_dia,
         requisicoes: rede.feitas(),
     })
+}
+
+impl From<CookieIlegivel> for FalhaAnexar {
+    fn from(erro: CookieIlegivel) -> Self {
+        Self::Cookie(erro)
+    }
 }

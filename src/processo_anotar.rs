@@ -10,6 +10,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
@@ -20,7 +21,7 @@ use crate::processo_obter::{
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
-/// Intenção sem combinações inválidas entre consulta, registro e retirada.
+/// Intenção exclusiva de consulta, registro ou retirada.
 pub(crate) enum Intencao<'a> {
     Consulta,
     Registro { texto: &'a str, confirmar: bool },
@@ -42,14 +43,13 @@ pub(crate) struct Previa {
 pub(crate) enum Erro {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(interna)]
-    Barra(ErroHtml),
-    #[causa(interna)]
-    Leitura(ErroHtml),
+    /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
+    #[causa(transparente)]
+    Html(ErroHtml),
     #[causa(interna)]
     Transporte(FalhaTransporte),
     #[causa(interna)]
-    Cookie(FalhaTransporte),
+    Cookie(CookieIlegivel),
     TelaRedirecionada,
     #[causa(sessao_encerrada)]
     SessaoEncerrada,
@@ -70,15 +70,15 @@ pub(crate) enum Erro {
 pub(crate) fn executar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
-    intencao: Intencao<'_>,
+    intencao: &Intencao<'_>,
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, Erro> {
     let (texto, confirmar, remover) = match intencao {
         Intencao::Consulta => ("", false, false),
-        Intencao::Registro { texto, confirmar } => (texto, confirmar, false),
-        Intencao::Retirada { confirmar } => ("", confirmar, true),
+        Intencao::Registro { texto, confirmar } => (*texto, *confirmar, false),
+        Intencao::Retirada { confirmar } => ("", *confirmar, true),
     };
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
@@ -89,20 +89,16 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         return Err(Erro::ProcessoForaDaUnidade);
     }
     let id = aberto.arvore.processo.id;
-    let url = acoes
-        .anotacoes
-        .map_err(Erro::Barra)?
-        .ok_or(Erro::AnotacaoNaoOferecida)?;
-    let cookie = ler_cookie(sessao).map_err(Erro::Cookie)?;
+    let url = acoes.anotacoes?.ok_or(Erro::AnotacaoNaoOferecida)?;
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
         FalhaDaTela::Redirecionada => Erro::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada => Erro::SessaoEncerrada,
     })?;
-    let anotacao_antes =
-        crate::processo_enviar::texto_anotacao(&html, &id).map_err(Erro::Leitura)?;
+    let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
     let mut alterado = false;
-    // Retirada com ausência já observada é no-op, sem POST.
+    // Retirada com anotação comprovadamente vazia dispensa POST.
     if confirmar && (!remover || !anotacao_antes.is_empty()) {
         if !remover && !anotacao_antes.trim().is_empty() {
             return Err(Erro::AnotacaoJaPresente);
@@ -123,8 +119,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             &servida,
             "",
             &[("txaDescricao", if remover { "" } else { texto })],
-        )
-        .map_err(Erro::Formulario)?;
+        )?;
         let mut enviada = false;
         let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
             enviada = true;

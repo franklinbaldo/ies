@@ -72,7 +72,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         match processo_anotar::executar(
             sessao,
             &nup,
-            intencao,
+            &intencao,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
@@ -82,35 +82,8 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                     exibir_retirada(&preview, *confirmar, cli.json);
                 } else if texto.is_none() {
                     exibir_consulta(&preview, cli.json);
-                } else if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "nup": preview.nup,
-                            "id_procedimento": preview.id_procedimento,
-                            "unidade": preview.unidade,
-                            "texto": preview.texto,
-                            "anotacao_antes": preview.anotacao_antes,
-                            "confirmado": *confirmar,
-                            "alterado": preview.alterado,
-                            "origem": "web",
-                            "requisicoes": preview.requisicoes,
-                        })
-                    );
-                } else if preview.alterado {
-                    println!(
-                        "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
-                        preview.nup, preview.unidade, preview.texto, preview.requisicoes
-                    );
                 } else {
-                    println!(
-                        "Prévia: anotar no processo {} ({}): {:?}. Anotação atual: {:?}. Nenhuma escrita realizada. Requisições: {}.",
-                        preview.nup,
-                        preview.unidade,
-                        preview.texto,
-                        preview.anotacao_antes,
-                        preview.requisicoes
-                    );
+                    exibir_registro(&preview, *confirmar, cli.json);
                 }
                 ExitCode::SUCCESS
             }
@@ -123,6 +96,36 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
             Err(erro) => falha_da_previa(cli, &erro),
         }
     }))
+}
+
+/// A saída de registro é uma operação de apresentação, separada do despacho.
+fn exibir_registro(preview: &processo_anotar::Previa, confirmar: bool, modo_json: bool) {
+    if modo_json {
+        println!(
+            "{}",
+            json!({
+                "nup": preview.nup,
+                "id_procedimento": preview.id_procedimento,
+                "unidade": preview.unidade,
+                "texto": preview.texto,
+                "anotacao_antes": preview.anotacao_antes,
+                "confirmado": confirmar,
+                "alterado": preview.alterado,
+                "origem": "web",
+                "requisicoes": preview.requisicoes,
+            })
+        );
+    } else if preview.alterado {
+        println!(
+            "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
+            preview.nup, preview.unidade, preview.texto, preview.requisicoes
+        );
+    } else {
+        println!(
+            "Prévia: anotar no processo {} ({}): {:?}. Anotação atual: {:?}. Nenhuma escrita realizada. Requisições: {}.",
+            preview.nup, preview.unidade, preview.texto, preview.anotacao_antes, preview.requisicoes
+        );
+    }
 }
 
 /// A retirada distingue uma prévia da ausência confirmada por releitura.

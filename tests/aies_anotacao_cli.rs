@@ -122,17 +122,31 @@ fn estado(texto_anotacao: &str) -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
+enum Caso<'a> {
+    Consulta(&'a str),
+    Registro,
+    Retirada,
+}
+
+enum Resultado {
+    Previa,
+    Confirmado,
+    Recusado,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn executar_caso(
-    confirmar: bool,
-    resposta_recusada: bool,
-    consulta: Option<&str>,
-    modo_json: bool,
-    remover: bool,
-) {
+fn executar_caso(caso: Caso<'_>, resultado: Resultado, modo_json: bool) {
+    let confirmar = !matches!(resultado, Resultado::Previa);
+    let resposta_recusada = matches!(resultado, Resultado::Recusado);
+    let remover = matches!(caso, Caso::Retirada);
+    let consulta = match caso {
+        Caso::Consulta(texto) => Some(texto),
+        Caso::Registro => None,
+        Caso::Retirada => Some("Rascunho"),
+    };
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -290,10 +304,9 @@ fn executar_caso(
         assert_eq!(json["requisicoes"], pedidos.len());
     }
     let anotacao_esperada = match (remover, confirmar) {
-        (true, true) => "",
+        (true, true) | (false, false) => "",
         (true, false) => "Rascunho",
         (false, true) => "Revisar minuta",
-        (false, false) => "",
     };
     assert_eq!(persistido.as_deref(), Some(anotacao_esperada));
     assert_eq!(
@@ -314,43 +327,43 @@ fn executar_caso(
 
 #[test]
 fn bdd_anot_01_previa_publica_texto_sem_escrever() {
-    executar_caso(false, false, None, true, false);
+    executar_caso(Caso::Registro, Resultado::Previa, true);
 }
 
 #[test]
 fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
-    executar_caso(true, false, None, true, false);
+    executar_caso(Caso::Registro, Resultado::Confirmado, true);
 }
 
 #[test]
 fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
-    executar_caso(true, true, None, true, false);
+    executar_caso(Caso::Registro, Resultado::Recusado, true);
 }
 
 #[test]
 fn bdd_anot_03_consulta_texto_publicado_sem_post() {
-    executar_caso(false, false, Some("Revisar minuta"), true, false);
-    executar_caso(false, false, Some("Revisar minuta"), false, false);
-    executar_caso(false, false, Some("   "), true, false);
-    executar_caso(false, false, Some("   "), false, false);
+    executar_caso(Caso::Consulta("Revisar minuta"), Resultado::Previa, true);
+    executar_caso(Caso::Consulta("Revisar minuta"), Resultado::Previa, false);
+    executar_caso(Caso::Consulta("   "), Resultado::Previa, true);
+    executar_caso(Caso::Consulta("   "), Resultado::Previa, false);
 }
 
 #[test]
 fn bdd_anot_03_consulta_sem_anotacao_publica_null() {
-    executar_caso(false, false, Some(""), true, false);
+    executar_caso(Caso::Consulta(""), Resultado::Previa, true);
 }
 
 #[test]
 fn bdd_anot_04_previa_remocao_sem_post() {
-    executar_caso(false, false, Some("Rascunho"), true, true);
+    executar_caso(Caso::Retirada, Resultado::Previa, true);
 }
 
 #[test]
 fn bdd_anot_04_remove_uma_vez_e_confere_vazio_por_releitura() {
-    executar_caso(true, false, Some("Rascunho"), true, true);
+    executar_caso(Caso::Retirada, Resultado::Confirmado, true);
 }
 
 #[test]
 fn bdd_anot_04_403_apos_remocao_aplicada_exige_efeito_incerto() {
-    executar_caso(true, true, Some("Rascunho"), true, true);
+    executar_caso(Caso::Retirada, Resultado::Recusado, true);
 }
