@@ -292,3 +292,53 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
 
 // Confronto separado da navegação de pesquisa pelo número SEI.
 include!("anti_ies_documento_navegacao_unb.rs");
+
+
+/// BDD-60-05: identidade documental sem '=' não é campo ausente.
+/// Hipótese sintética: as cassettes publicam URLs bem formadas, não esta recusa.
+#[test]
+fn bdd60_http_identidade_documental_sem_igual_recusa_sem_fallback() {
+    let instalacao =
+        iesei::instalacao::Instalacao::interpretar("https://sei.exemplo/sei").unwrap();
+    let documento = DocumentoSimulado {
+        instalacao: instalacao.clone(),
+        id_documento: "42".into(),
+        id_procedimento: "10".into(),
+        numero_processo: "00001.000001/2026-01".into(),
+        numero: "0011519".into(),
+        tipo: "Despacho".into(),
+        revisoes: vec![Revisao {
+            versao: NonZeroU32::new(1).unwrap(),
+            usuario: "TESTE".into(),
+            unidade: "ORIGEM".into(),
+            modificacao: "10/11/2026".into(),
+            html_corpo: "<p>Conteudo de teste</p>".into(),
+        }],
+    };
+    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao, 4);
+    let base = "/sei/controlador.php?acao=procedimento_trabalhar";
+    let valido = format!("{base}&id_documento=42");
+    assert!(
+        pedir(endereco, "GET", &valido).starts_with("HTTP/1.1 200"),
+        "identidade documental unica continua navegavel"
+    );
+    for alvo in [
+        format!("{base}&id_documento=42&id_documento"),
+        format!("{base}&id_protocolo=42&id_documento"),
+    ] {
+        let resposta = pedir(endereco, "GET", &alvo);
+        assert!(
+            resposta.starts_with("HTTP/1.1 400"),
+            "campo id_documento sem '=' nao autoriza selecionar documento: {resposta}"
+        );
+        assert!(
+            !resposta.contains("ifrArvore"),
+            "recusa nao pode publicar arvore de outro caminho"
+        );
+    }
+    assert!(
+        pedir(endereco, "POST", &valido).starts_with("HTTP/1.1 405"),
+        "leitura nao permite metodo mutador"
+    );
+    tarefa.join().unwrap(); // Guarda a comparacao integral da revisao no SQLite.
+}
