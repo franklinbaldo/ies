@@ -18,6 +18,7 @@ mod processo_anexacao;
 mod processo_atribuicao;
 mod processo_barra;
 mod processo_ciencia;
+mod processo_comentarios;
 mod processo_criacao;
 pub mod processo_envio;
 mod processo_marcadores;

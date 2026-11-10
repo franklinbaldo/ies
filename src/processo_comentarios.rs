@@ -137,12 +137,6 @@ pub(crate) enum ErroLinkDosComentarios {
     Html(ErroHtml),
 }
 
-impl ErroLinkDosComentarios {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 /// Posicionamento das colunas observadas na tela, sem ordem pressuposta.
 struct Colunas {
     data: usize,

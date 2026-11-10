@@ -6,6 +6,7 @@ use crate::arvore_processo::{
     ReabrirNaBarra,
 };
 use crate::erro_html::ErroHtml;
+use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
 /// só pesa no comando que a usa.
@@ -29,6 +30,7 @@ pub(crate) struct AcoesDeEstado {
     >,
     /// Link das anotações da origem (só pesa no envio com remoção).
     pub(crate) anotacoes: Result<Option<String>, ErroHtml>,
+    pub(crate) comentarios: Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios>,
     /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
     pub(crate) ciencia:
         Result<Option<EnderecoDeEscrita>, crate::arvore_processo::ErroCienciaNaArvore>,

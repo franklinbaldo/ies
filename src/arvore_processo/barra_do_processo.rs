@@ -144,7 +144,6 @@ pub(crate) fn ler_link_dos_marcadores(
 
 /// Link assinado de `comentario_listar` da própria barra do processo.
 /// Não forma URL, não executa JS e não segue links de documentos.
-#[allow(dead_code)] // ligado ao fluxo Web de comentários na próxima fatia (#257)
 pub(crate) fn ler_link_dos_comentarios(
     instalacao: &Instalacao,
     html: &str,
