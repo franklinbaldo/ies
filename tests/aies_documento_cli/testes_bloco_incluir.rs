@@ -191,6 +191,103 @@ fn bdd_381_03_idempotencia_sem_nova_acao_oferecida() {
 /// a tela de escolha nem chega a ser solicitada.
 const REQUISICOES_SEM_ACAO: usize = REQUISICOES_DA_PREVIA - 1;
 
+/// Contraprova técnica do BDD-381-03: presença em A não implica
+/// ausência da ação de incluir no B. Cada bloco tem seu pertencimento.
+#[test]
+fn bdd_381_03_documento_em_a_pode_ser_incluido_em_b() {
+    let pasta = Pasta::nova();
+    preparar_documento_ja_incluido(&pasta);
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    let outro_bloco = "2196";
+    blocos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Assinatura,
+            total: 2,
+            faixa: Some((1, 2)),
+            linhas: vec![
+                LinhaBloco {
+                    numero: BLOCO.into(),
+                    estado: "Gerado".into(),
+                    descricao: "Bloco A".into(),
+                },
+                LinhaBloco {
+                    numero: outro_bloco.into(),
+                    estado: "Gerado".into(),
+                    descricao: "Bloco B".into(),
+                },
+            ],
+        },
+    )
+    .unwrap();
+    bloco_detalhe::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Detalhe {
+            numero: outro_bloco.into(),
+            tipo: Tipo::Assinatura,
+            total: 1,
+            faixa: Some((1, 1)),
+            itens: vec![Item {
+                processo: "00001.000002/2026-02".into(),
+                documento: Some("0011600".into()),
+                tipo: Some("Ofício".into()),
+                anotacoes: String::new(),
+            }],
+        },
+    )
+    .unwrap();
+    drop(banco);
+
+    // DOC está em A, porém não em B. A CLI deve oferecer e executar a
+    // inclusão em B, preservando A, no mesmo SQLite e sem retry.
+    let saida = executar(
+        &pasta,
+        &[
+            "--json", "bloco", "incluir", outro_bloco,
+            "--documento", DOC, "--confirmar",
+        ],
+        REQUISICOES_DA_PREVIA + 4,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let resultado = json(&saida);
+    assert_eq!(resultado["presente_antes"], false);
+    assert_eq!(resultado["alterado"], true);
+    assert_eq!(resultado["presente_depois"], true);
+
+    for bloco in [BLOCO, outro_bloco] {
+        let leitura = executar(&pasta, &["--json", "bloco", bloco], 3);
+        assert_eq!(leitura.status.code(), Some(0));
+        let itens = json(&leitura)["bloco"]["itens"].as_array().unwrap().clone();
+        assert_eq!(
+            itens.iter().filter(|item| item["documento"] == DOC).count(),
+            1,
+            "bloco={bloco}: {itens:?}"
+        );
+    }
+    let (banco, instalacao) = estado(&caminho, true, 0, false);
+    for bloco in [BLOCO, outro_bloco] {
+        let detalhe = bloco_detalhe::ler(
+            &banco, &instalacao, CENARIO, Tipo::Assinatura, bloco,
+        ).unwrap().unwrap();
+        assert_eq!(
+            detalhe.itens.iter()
+                .filter(|item| item.documento.as_deref() == Some(DOC)).count(),
+            1,
+        );
+    }
+}
+
 /// O bloco 7737 existe somente na lista de blocos internos. A forma
 /// documental não pode interpretá-lo como assinatura ou disparar POST.
 #[test]
