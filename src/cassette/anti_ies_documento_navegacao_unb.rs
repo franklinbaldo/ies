@@ -1,7 +1,7 @@
 // BDD-60-05: a tela publicada após pesquisa deve selecionar o mesmo
 // documento e processo que a árvore original. Não compara tokens de sessão.
 
-/// Lê somente o id_documento publicado no src do iframe, sem executar JS.
+/// Lê somente o `id_documento` publicado no src do iframe, sem executar JS.
 fn id_selecionado_na_tela(html: &str) -> Option<String> {
     let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
     let iframes = crate::html_atributos::nos_com_id(&dom, "ifrArvore").ok()?;
@@ -23,6 +23,20 @@ fn id_selecionado_na_tela(html: &str) -> Option<String> {
         return None;
     };
     (!id.is_empty()).then(|| (*id).to_owned())
+}
+
+fn conferir_recusas_da_tela(endereco: SocketAddr, id: &str, processo: &str, url: &str) {
+    let processo_estranho = format!(
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_documento={id}&id_procedimento={processo}0"
+    );
+    assert!(
+        pedir(endereco, "GET", &processo_estranho).starts_with("HTTP/1.1 404"),
+        "nao reaproveitar conteudo documental de outro processo"
+    );
+    assert!(
+        pedir(endereco, "POST", url).starts_with("HTTP/1.1 405"),
+        "o transporte de leitura nao pode aceitar POST"
+    );
 }
 
 #[test]
@@ -132,16 +146,6 @@ fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
         "a selecao deve conservar id do documento e numero SEI da captura"
     );
 
-    let processo_estranho = format!(
-        "/sei/controlador.php?acao=procedimento_trabalhar&id_documento={id}&id_procedimento={processo}0"
-    );
-    assert!(
-        pedir(endereco, "GET", &processo_estranho).starts_with("HTTP/1.1 404"),
-        "nao reaproveitar conteudo documental de outro processo"
-    );
-    assert!(
-        pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"),
-        "o transporte de leitura nao pode aceitar POST"
-    );
+    conferir_recusas_da_tela(endereco, id, processo, &url);
     tarefa.join().unwrap();
 }
