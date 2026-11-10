@@ -11,6 +11,8 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaPesquisa {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
     LinkDaPesquisaAusenteNoControle,
@@ -82,7 +84,8 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| nao)? else {
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroLinkDaPesquisa::Atributo)?
+        else {
             continue;
         };
         let Some(href) = decodificar_atributo(&bruto) else {

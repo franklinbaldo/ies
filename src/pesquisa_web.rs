@@ -1,8 +1,7 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
 use crate::html_atributos::{
-    ErroAtributoHtml, nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
-    valor_do_atributo,
+    nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias, valor_do_atributo,
 };
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use serde::Serialize;
@@ -16,6 +15,8 @@ pub struct ResultadoPesquisa {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroResultadoPesquisa {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     LinhaDePesquisaSemLinkDoProcesso,
     LinkDeProcessoSemClasseReconhecida,
     /// `a.arvore` da linha com `href` diferente do `a.protocoloNormal`.
@@ -131,11 +132,10 @@ fn contar_arvore_da_linha(
     linha: &tl::HTMLTag<'_>,
     href_do_processo: &str,
 ) -> Result<usize, ErroResultadoPesquisa> {
-    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
     let arvores =
         nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
-            .map_err(ilegivel)?;
+            .map_err(ErroResultadoPesquisa::Atributo)?;
     let arvore = match arvores.as_slice() {
         [] => return Ok(0),
         [arvore] => *arvore,
@@ -147,7 +147,11 @@ fn contar_arvore_da_linha(
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
         .ok_or(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
-    if valor_do_atributo(tag, "href").map_err(ilegivel)?.as_deref() != Some(href_do_processo) {
+    if valor_do_atributo(tag, "href")
+        .map_err(ErroResultadoPesquisa::Atributo)?
+        .as_deref()
+        != Some(href_do_processo)
+    {
         return Err(ErroResultadoPesquisa::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
     }
     Ok(1)
@@ -160,9 +164,8 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     let parser = dom.parser();
     // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
-    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
     let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
-        .map_err(ilegivel)?
+        .map_err(ErroResultadoPesquisa::Atributo)?
         .as_slice()
     {
         [] => return Err(ErroResultadoPesquisa::TabelaDePesquisaAusente),
@@ -174,7 +177,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         .and_then(tl::Node::as_tag)
         .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
     let linhas = nos_por_elemento_e_classe(&dom, Some(tabela), "tr", "pesquisaTituloRegistro")
-        .map_err(ilegivel)?;
+        .map_err(ErroResultadoPesquisa::Atributo)?;
     let mut observados = HashSet::new();
     let mut ids_observados = HashSet::new();
     let mut resultados = Vec::new();
@@ -191,7 +194,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             "a",
             "protocoloNormal",
         )
-        .map_err(ilegivel)?;
+        .map_err(ErroResultadoPesquisa::Atributo)?;
         // Links que só abrem um documento (acerto em documento, Goiás) não
         // disputam o lugar do link do processo.
         let (candidatos, documentos) = documento_da_linha::separar(parser, links)?;
@@ -207,7 +210,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             .and_then(tl::Node::as_tag)
             .ok_or(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso)?;
         let href = valor_do_atributo(link, "href")
-            .map_err(ilegivel)?
+            .map_err(ErroResultadoPesquisa::Atributo)?
             .ok_or(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso)?;
         let primeiro_id = validar_href_de_processo(&href)?;
         if !documentos.is_empty() {
@@ -238,7 +241,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         "a",
         "protocoloNormal",
     )
-    .map_err(ilegivel)?
+    .map_err(ErroResultadoPesquisa::Atributo)?
     .len();
     if links_da_tabela != resultados.len() + links_de_documento {
         return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
@@ -265,7 +268,7 @@ fn links_de_trabalho(
             continue;
         };
         let abre_processo = valor_do_atributo(tag, "href")
-            .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?
+            .map_err(ErroResultadoPesquisa::Atributo)?
             .is_some_and(|href| {
                 href.strip_prefix("controlador.php?").is_some_and(|query| {
                     query.split('&').enumerate().any(|(indice, campo)| {

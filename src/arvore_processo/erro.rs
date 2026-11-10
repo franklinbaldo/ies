@@ -5,6 +5,8 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroArvore {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     ArgumentoDeNoNaoLiteral,
     TextoDeNoSemFechamento,
     QuantidadeDeArgumentosDoNoDiferenteDaObservada,

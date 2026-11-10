@@ -32,7 +32,12 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    PaginaForaDoIntervalo {
+        solicitada: u32,
+        paginas: u64,
+    },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
@@ -163,7 +168,9 @@ fn conferir_links_de_navegar(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| ilegivel)? else {
+        let Some(bruto) =
+            valor_do_atributo(tag, "href").map_err(ErroPaginacaoDaPesquisa::Atributo)?
+        else {
             continue;
         };
         let href = decodificar_atributo(&bruto).ok_or(ilegivel)?;
@@ -207,11 +214,12 @@ pub(crate) fn conferir_protocolo_servido(
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
     {
         if valor_do_atributo(tag, "name")
-            .map_err(|_| ilegivel)?
+            .map_err(ErroPaginacaoDaPesquisa::Atributo)?
             .as_deref()
             == Some("txtProtocoloPesquisa")
         {
-            let bruto = valor_do_atributo(tag, "value").map_err(|_| ilegivel)?;
+            let bruto =
+                valor_do_atributo(tag, "value").map_err(ErroPaginacaoDaPesquisa::Atributo)?;
             servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ilegivel)?);
         }
     }

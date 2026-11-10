@@ -295,10 +295,10 @@ fn eh_data_hora(texto: &str) -> bool {
 
 /// Valor do atributo com entidades decodificadas.
 fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroMarcadores> {
-    let lidos = atributos(tag).map_err(|_| ILEGIVEL)?;
+    let lidos = atributos(tag).map_err(ErroMarcadores::Atributo)?;
     lidos
         .valor(nome)
-        .map_err(|_| ILEGIVEL)?
+        .map_err(ErroMarcadores::Atributo)?
         .map(|v| decodificar(v).ok_or(LINHA))
         .transpose()
 }

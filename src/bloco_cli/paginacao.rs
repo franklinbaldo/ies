@@ -45,7 +45,7 @@ pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), 
             .and_then(tl::Node::as_tag)
             .ok_or_else(ilegivel)?;
         if valor_do_atributo(tag, "name")
-            .map_err(|_| ilegivel())?
+            .map_err(FalhaLeitura::Atributo)?
             .as_deref()
             != Some("selInfraPaginacaoSuperior")
         {
@@ -57,7 +57,7 @@ pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), 
             .ok_or_else(ilegivel)?;
         let valores = opcoes
             .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-            .map(|o| valor_do_atributo(o, "value").map_err(|_| ilegivel()))
+            .map(|o| valor_do_atributo(o, "value").map_err(FalhaLeitura::Atributo))
             .collect::<Result<Vec<_>, _>>()?;
         if valores
             .iter()

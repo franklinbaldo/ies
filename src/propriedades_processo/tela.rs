@@ -96,11 +96,8 @@ impl<'p> Campos<'p> {
             let Some(tag) = no.get(self.parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let lidos =
-                atributos(tag).map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
-            let bruto = lidos
-                .valor("value")
-                .map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
+            let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
+            let bruto = lidos.valor("value").map_err(ErroPropriedades::Atributo)?;
             let valor = bruto.map(decodificar).transpose()?.unwrap_or_default();
             let texto = espacos(&decodificar(&tag.inner_text(self.parser))?);
             opcoes.push((valor, lidos.presente("selected"), texto));
@@ -125,10 +122,8 @@ fn espacos(texto: &str) -> String {
 
 /// `value` decodificado; sem o atributo, vazio.
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedades> {
-    let lidos = atributos(tag).map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
-    let bruto = lidos
-        .valor("value")
-        .map_err(|_| ErroPropriedades::CampoDasPropriedadesRepetido)?;
+    let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
+    let bruto = lidos.valor("value").map_err(ErroPropriedades::Atributo)?;
     bruto
         .map(decodificar)
         .transpose()
@@ -228,11 +223,8 @@ fn nivel_de_acesso(campos: &Campos<'_>) -> Result<NivelDeAcesso, ErroPropriedade
         let Some(tag) = no.get(campos.parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos =
-            atributos(tag).map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
-        let nome = lidos
-            .valor("name")
-            .map_err(|_| ErroPropriedades::HtmlDasPropriedadesNaoInterpretado)?;
+        let lidos = atributos(tag).map_err(ErroPropriedades::Atributo)?;
+        let nome = lidos.valor("name").map_err(ErroPropriedades::Atributo)?;
         if nome != Some("rdoNivelAcesso") || !lidos.presente("checked") {
             continue;
         }

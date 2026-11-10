@@ -77,7 +77,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
                 continue;
             };
             let bruto = valor_do_atributo(a, "onclick")
-                .map_err(|_| ilegivel)?
+                .map_err(ErroLinkDoHistorico::Atributo)?
                 .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
             let onclick = decodificar_atributo(&bruto).ok_or(ilegivel)?;
             if onclick == SEM_ARGUMENTO {

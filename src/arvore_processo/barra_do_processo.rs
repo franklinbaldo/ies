@@ -178,6 +178,8 @@ pub(crate) fn ler_link_dos_comentarios(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoProcesso {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
 }
@@ -211,13 +213,9 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos =
-            atributos(tag).map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?;
+        let lidos = atributos(tag).map_err(ErroBarraDoProcesso::Atributo)?;
         let decodificado = |nome: &'static str| -> Result<Option<String>, ErroBarraDoProcesso> {
-            match lidos
-                .valor(nome)
-                .map_err(|_| ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)?
-            {
+            match lidos.valor(nome).map_err(ErroBarraDoProcesso::Atributo)? {
                 None => Ok(None),
                 Some(bruto) => decodificar_atributo(bruto)
                     .map(Some)

@@ -14,6 +14,8 @@ use consulta::consulta;
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaDaLupa {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[source] FalhaTransporte),
     Tela(ErroLupa),
     LinkAusente,
@@ -142,7 +144,7 @@ fn candidatos_do_controle(tag: &tl::HTMLTag<'_>) -> Result<Vec<String>, FalhaDaL
     let mut urls = Vec::new();
     for atributo in ["href", "onclick"] {
         let bruto = crate::html_atributos::valor_do_atributo(tag, atributo)
-            .map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+            .map_err(FalhaDaLupa::Atributo)?;
         let Some(bruto) = bruto else { continue };
         let decodificado =
             crate::formulario_web::decodificar_atributo(&bruto).ok_or(FalhaDaLupa::LinkAmbiguo)?;

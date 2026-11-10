@@ -81,12 +81,12 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             return Err(fora);
         };
-        let tipo = valor_do_atributo(tag, "type").map_err(|_| fora)?;
+        let tipo = valor_do_atributo(tag, "type").map_err(ErroCiencia::Atributo)?;
         if tipo.as_deref() != Some("checkbox") {
             continue;
         }
-        let nome = valor_do_atributo(tag, "name").map_err(|_| fora)?;
-        let valor = valor_do_atributo(tag, "value").map_err(|_| fora)?;
+        let nome = valor_do_atributo(tag, "name").map_err(ErroCiencia::Atributo)?;
+        let valor = valor_do_atributo(tag, "value").map_err(ErroCiencia::Atributo)?;
         let Some(nome) = nome else {
             return Err(fora);
         };

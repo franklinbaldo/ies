@@ -64,7 +64,7 @@ fn link_do_gerado(
         let Some(linha) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let id = valor_do_atributo(linha, "id").map_err(|_| erro())?;
+        let id = valor_do_atributo(linha, "id").map_err(ErroCriar::Atributo)?;
         if id.as_deref() != Some(alvo.as_str()) {
             continue;
         }
@@ -76,7 +76,7 @@ fn link_do_gerado(
                 continue;
             }
             let href = valor_do_atributo(ancora, "href")
-                .map_err(|_| erro())?
+                .map_err(ErroCriar::Atributo)?
                 .ok_or_else(erro)?;
             let href = decodificar_atributo(&href).ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {

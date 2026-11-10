@@ -22,6 +22,8 @@ use crate::instalacao::Instalacao;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     ListaForaDaForma,
     TipoAusente,
     TipoAmbiguo,
@@ -64,11 +66,11 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         {
             continue;
         }
-        let href = valor_do_atributo(tag, "href").map_err(|_| err)?;
+        let href = valor_do_atributo(tag, "href").map_err(ErroCriar::Atributo)?;
         if href.is_none() {
             continue;
         }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| err)?;
+        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
         let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
@@ -267,11 +269,11 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
         return Err(ErroCriar::ListaForaDaForma);
     }
     let href = valor_do_atributo(tag, "href")
-        .map_err(|_| ErroCriar::ListaForaDaForma)?
+        .map_err(ErroCriar::Atributo)?
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
     let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
     let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(|_| ErroCriar::ListaForaDaForma)?
+        .map_err(ErroCriar::Atributo)?
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
     let onclick = decodificar_atributo(&onclick).ok_or(ErroCriar::ListaForaDaForma)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
@@ -340,9 +342,9 @@ pub(crate) fn escolha_do_tipo(
         if nome != tipo {
             continue;
         }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| ErroCriar::ListaForaDaForma)?;
+        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
         let href = valor_do_atributo(tag, "href")
-            .map_err(|_| ErroCriar::ListaForaDaForma)?
+            .map_err(ErroCriar::Atributo)?
             .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
         let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
         if link_de_tipo_externo(&href, onclick.as_deref()) {

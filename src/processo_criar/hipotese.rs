@@ -25,6 +25,8 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroHipotese {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     HipoteseLegalAjaxNaoDeclarada,
     HipoteseLegalAjaxNaoDerivada,
     HipoteseLegalAjaxRespostaNaoReconhecida,
@@ -70,6 +72,7 @@ impl ErroHipotese {
             | Self::OpcaoNaoUnica
             | Self::OpcoesDisponiveis(_)
             | Self::EscolhaNaoOferecida
+            | Self::Atributo(_)
             | Self::EscolhaInlineNaoVerificada => None,
         }
     }
@@ -121,8 +124,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
         {
             continue;
         }
-        let valor = valor_do_atributo(opcao, "value")
-            .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
+        let valor = valor_do_atributo(opcao, "value").map_err(ErroHipotese::Atributo)?;
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };

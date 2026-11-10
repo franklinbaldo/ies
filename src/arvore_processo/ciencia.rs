@@ -17,6 +17,8 @@ use crate::instalacao::Instalacao;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCienciaNaArvore {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     CienciaRepetidaNaBarra,
     TelaDeCienciaNaoPublicada,
@@ -189,12 +191,15 @@ pub(crate) fn url_da_ciencia_do_documento(
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let fora = ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma;
-        let lidos = crate::html_atributos::atributos(tag).map_err(|_| fora)?;
-        if lidos.valor("src").map_err(|_| fora)?.is_some() {
+        let lidos = crate::html_atributos::atributos(tag).map_err(ErroCienciaNaArvore::Atributo)?;
+        if lidos
+            .valor("src")
+            .map_err(ErroCienciaNaArvore::Atributo)?
+            .is_some()
+        {
             continue;
         }
-        let tipo = lidos.valor("type").map_err(|_| fora)?;
+        let tipo = lidos.valor("type").map_err(ErroCienciaNaArvore::Atributo)?;
         if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
             continue;
         }
