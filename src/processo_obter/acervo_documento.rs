@@ -94,7 +94,7 @@ fn anexo(item: &serde_json::Value) -> String {
                 "sem texto"
             }
         ),
-        Err(erro) => format!("`{}`", erro.mensagem()),
+        Err(erro) => format!("`{}`", erro.rotulo()),
     }
 }
 

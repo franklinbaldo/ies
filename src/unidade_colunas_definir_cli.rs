@@ -97,7 +97,7 @@ struct ResultadoColunas<'a> {
     desmarcar: Vec<&'static str>,
     envio: Option<EnvioColunasPublico<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_salvar: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_salvar: Option<crate::saida::FalhaPublica>,
     indisponiveis: Vec<&'static str>,
     marcar: Vec<&'static str>,
     origem: &'static str,
@@ -129,7 +129,7 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
         falha_do_salvar: feito
             .reconciliado_por
             .as_ref()
-            .map(|falha| crate::saida_erro::FalhaPublica::nova(falha.status_http())),
+            .map(|falha| crate::saida::FalhaPublica::nova(falha.status_http())),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
         origem: "web",

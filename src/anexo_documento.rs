@@ -157,38 +157,7 @@ pub(crate) enum ErroAnexo {
     EscritaFalhou,
 }
 
-impl ErroAnexo {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.mensagem(),
-            Self::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão foi encerrada; rode ies login"
-            }
-            Self::SemTipoDeConteudo => "o anexo veio sem Content-Type",
-            Self::TipoNaoPermitido => "o tipo do anexo não está na lista observada",
-            Self::CabecalhoRepetido => "cabeçalho do anexo repetido",
-            Self::DisposicaoForaDaFormaObservada => {
-                "o Content-Disposition do anexo não tem a forma observada"
-            }
-            Self::AcimaDoLimite => "o anexo passa do limite (IES_LIMITE_ANEXO_BYTES)",
-            Self::Vazio => "o anexo veio vazio",
-            Self::ConteudoComLinkAssinado => "o anexo contém credencial de link assinado",
-            Self::RecusadoPeloSei(_) => "o SEI recusou o anexo",
-            Self::Corpo(_) => "o corpo do HTML recebido não foi reconhecido",
-            Self::DiretorioAusente => "o diretório de --saida não existe",
-            Self::ArquivoJaExiste => "o arquivo do anexo já existe em --saida",
-            Self::EscritaFalhou => "o arquivo do anexo não foi gravado",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(falha) => falha.status_http(),
-            Self::RecusadoPeloSei(status) => Some(status),
-            _ => None,
-        }
-    }
-}
+impl ErroAnexo {}
 
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.
 /// 3xx não chega aqui: quem chama o trata como no resto do fluxo.

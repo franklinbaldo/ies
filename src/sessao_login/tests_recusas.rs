@@ -308,7 +308,13 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
         r200(&tela_acessar(), &[]),
         erro500(),
     ]);
-    assert_eq!(erro.status_http().map(|h| h.status), Some(500));
+    assert!(matches!(
+        erro,
+        ErroLogin::Transporte(FalhaTransporte::Status(StatusHttpRecusado {
+            status: 500,
+            ..
+        }))
+    ));
     assert_eq!(posts(&roteiro), 1);
 }
 

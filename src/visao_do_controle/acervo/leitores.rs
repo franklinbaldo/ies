@@ -97,7 +97,7 @@ pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte>
 fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     let resultado = match transporte(resp) {
         Ok(_) => Resultado::Lido,
-        Err(falha) => Resultado::Recusado(falha.mensagem()),
+        Err(falha) => Resultado::Recusado(falha.rotulo()),
     };
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
@@ -108,7 +108,7 @@ fn subcodigo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'st
         return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
             .rotulo();
     }
-    falha.mensagem()
+    falha.rotulo()
 }
 
 fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, saida: &mut Replay) {
@@ -135,7 +135,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let ctx = match contexto(&html) {
         Ok(ctx) => ctx,
         Err(erro) => {
-            v.resultado = Resultado::Recusado(erro.mensagem());
+            v.resultado = Resultado::Recusado(erro.rotulo());
             saida.registros.push(v);
             return;
         }
@@ -163,7 +163,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let unidade = match unidade_da_tela(&ctx, None) {
         Ok(unidade) => unidade,
         Err(erro) => {
-            u.resultado = Resultado::Recusado(erro.mensagem());
+            u.resultado = Resultado::Recusado(erro.rotulo());
             saida.registros.push(u);
             return;
         }
@@ -215,7 +215,7 @@ fn solicitada(
         .into(),
     );
     if let Err(erro) = unidade_da_tela(ctx, Some(prev)) {
-        s.resultado = Resultado::Recusado(erro.mensagem());
+        s.resultado = Resultado::Recusado(erro.rotulo());
     }
     // A lista R aplica a mesma conferência (`unidade_inesperada`), quando lida.
     let pagina = [html.to_owned()];

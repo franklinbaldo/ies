@@ -22,7 +22,6 @@ pub(crate) enum ErroLeituraRetornos {
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
 }
-crate::relogin_cli::encerravel!(ErroLeituraRetornos);
 
 /// `--mes AAAA-MM` (parser do clap: saída 2): somente numeros e limites do
 /// mes, sem depender do fuso da maquina.

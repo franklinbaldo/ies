@@ -5,76 +5,18 @@
 //! comandos de leitura chamam [`ler`]; escrita e prévia nunca.
 use crate::configuracao::ArquivosDeAcesso;
 use crate::indice_local::IndiceLocal;
-use crate::saida_erro;
 use crate::sessao_login::http::HttpsDoLogin;
 use crate::sessao_login::relogin::{ContextoDoRelogin, ler_com_relogin};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, cliente_https};
+use crate::transporte::cliente_https;
 use serde_json::{Value, json};
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
-
-/// O fato tipado que dispara o relogin único: o único requisito de [`ler`].
-pub(crate) trait Encerravel {
-    fn sessao_encerrada(&self) -> bool;
-}
-
-impl<T: FalhaPublicavel> Encerravel for T {
-    fn sessao_encerrada(&self) -> bool {
-        FalhaPublicavel::sessao_encerrada(self)
-    }
-}
-
-/// Erros que só sobem tipados: a sessão encerrada é achada na cadeia `source()`.
-macro_rules! encerravel {
-    ($($tipo:ty),*) => {$(
-        impl $crate::relogin_cli::Encerravel for $tipo {
-            fn sessao_encerrada(&self) -> bool {
-                crate::erro_publico::Causa::sessao_encerrada(self)
-            }
-        }
-    )*};
-}
-pub(crate) use encerravel;
-
-/// Falha de leitura publicável como `fonte_invalida` (comandos ainda não
-/// convertidos ao erro que sobe tipado, #695).
-pub(crate) trait FalhaPublicavel {
-    fn mensagem(&self) -> &'static str;
-    fn status_http(&self) -> Option<&StatusHttpRecusado>;
-    /// O fato tipado que dispara o relogin único.
-    fn sessao_encerrada(&self) -> bool;
-}
-
-macro_rules! publicavel {
-    ($($tipo:ty),*) => {$(
-        impl FalhaPublicavel for $tipo {
-            fn mensagem(&self) -> &'static str {
-                <$tipo>::mensagem(self)
-            }
-            fn status_http(&self) -> Option<&StatusHttpRecusado> {
-                <$tipo>::status_http(self)
-            }
-            fn sessao_encerrada(&self) -> bool {
-                crate::erro_publico::Causa::sessao_encerrada(self)
-            }
-        }
-    )*};
-}
-
-publicavel!(
-    FalhaTransporte,
-    crate::processo_obter::ErroProcessoObter,
-    crate::processo_obter::ErroDocumentoObter,
-    crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso,
-    crate::visao_do_controle::ErroVisaoDoControle
-);
 
 /// A leitura com o relogin único: credenciais só de `IES_CREDENCIAIS_FILE`
 /// (ausente: comportamento sem relogin), lock do `ies login` e a contagem
 /// de todos os pedidos do processo.
-pub(crate) fn ler<T, E: Encerravel>(
+pub(crate) fn ler<T, E: crate::erro_publico::Causa>(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
     ler: impl FnMut() -> Result<T, E>,
@@ -164,37 +106,6 @@ pub(crate) fn avisar(json_mode: bool, nota: Option<&NotaDoRelogin>) {
             "IES: a sessão tinha vencido e outro processo já tinha relogado; leitura refeita com a sessão nova ({} requisições no total).",
             nota.total()
         );
-    }
-}
-
-/// O JSON da falha de leitura, com `relogin` quando houve relogin.
-pub(crate) fn json_da_falha(
-    mensagem: &str,
-    http: Option<&StatusHttpRecusado>,
-    nota: Option<&NotaDoRelogin>,
-) -> Value {
-    let mut valor = saida_erro::json_de_erro_fonte(mensagem, http);
-    anotar(&mut valor, nota);
-    valor
-}
-
-/// Imprime a falha (da leitura ou do relogin) e devolve a saída 1.
-pub(crate) fn publicar_falha<E: FalhaPublicavel>(
-    json_mode: bool,
-    falha: &FalhaDaLeitura<E>,
-) -> ExitCode {
-    match falha {
-        FalhaDaLeitura::Relogin(erro) => crate::sessao_login_cli::falhar(json_mode, erro),
-        FalhaDaLeitura::Leitura { erro, nota } => {
-            let (msg, http) = (erro.mensagem(), erro.status_http());
-            if json_mode {
-                println!("{}", json_da_falha(msg, http, nota.as_ref()));
-            } else {
-                avisar(json_mode, nota.as_ref());
-                eprintln!("{}", saida_erro::linha_humana(msg, http));
-            }
-            ExitCode::from(1)
-        }
     }
 }
 

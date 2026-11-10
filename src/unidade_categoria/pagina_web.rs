@@ -26,8 +26,6 @@ pub(super) enum ErroPaginaWeb {
     Visao(#[from] ErroVisaoDoControle),
 }
 
-crate::relogin_cli::encerravel!(ErroPaginaWeb);
-
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
 /// na visão D, a troca para R, que fica (orçamento no contrato). Cada tela
 /// do Controle lida é colhida no índice local, sem requisição a mais.

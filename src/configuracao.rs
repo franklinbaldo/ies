@@ -20,26 +20,7 @@ pub enum ErroConfiguracao {
     ArquivoConfiguracaoCampoInvalido,
 }
 
-impl ErroConfiguracao {
-    pub fn mensagem(self) -> &'static str {
-        match self {
-            Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
-            Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
-            Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
-            Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
-                "arquivo IES_CONFIG_FILE ausente, não regular, excessivo ou ilegível"
-            }
-            Self::ArquivoConfiguracaoPermissoesAbertas => {
-                "IES_CONFIG_FILE tem permissões inseguras"
-            }
-            Self::ArquivoConfiguracaoLinkSimbolico => "IES_CONFIG_FILE é link simbólico",
-            Self::ArquivoConfiguracaoJsonInvalido => "IES_CONFIG_FILE não contém JSON válido",
-            Self::ArquivoConfiguracaoCampoInvalido => {
-                "IES_CONFIG_FILE contém campo de caminho inválido"
-            }
-        }
-    }
-}
+impl ErroConfiguracao {}
 
 fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfiguracao> {
     std::env::var_os(nome)

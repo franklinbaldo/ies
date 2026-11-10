@@ -227,27 +227,6 @@ enum FalhaDoDocumento {
     },
 }
 
-impl relogin_cli::FalhaPublicavel for FalhaDoDocumento {
-    fn sessao_encerrada(&self) -> bool {
-        match self {
-            Self::Sessao(falha) => crate::erro_publico::Causa::sessao_encerrada(falha),
-            Self::Documento { erro, .. } => crate::erro_publico::Causa::sessao_encerrada(erro),
-        }
-    }
-    fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Sessao(falha) => falha.mensagem(),
-            Self::Documento { erro, .. } => erro.mensagem(),
-        }
-    }
-    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Sessao(falha) => falha.status_http(),
-            Self::Documento { erro, .. } => erro.status_http(),
-        }
-    }
-}
-
 /// O arquivo de cada documento em `DIR`: nome, bytes, SHA-256 e se foi
 /// gravado agora (`false`: já existia igual).
 #[derive(Debug, PartialEq, Eq)]

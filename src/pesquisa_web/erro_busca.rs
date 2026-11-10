@@ -3,7 +3,6 @@
 use super::formulario_pesquisa::ErroPesquisaProtocolo;
 use super::link_da_pesquisa::ErroLinkDaPesquisa;
 use super::paginacao::ErroPaginacaoDaPesquisa;
-use super::resposta::ErroRespostaDaPesquisa;
 use crate::erro_web::ErroCaixa;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
@@ -22,30 +21,6 @@ pub(crate) enum ErroBuscaDeProcesso {
 }
 
 impl ErroBuscaDeProcesso {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.mensagem(),
-            Self::Controle(_) => "Controle de Processos não reconhecido",
-            Self::UnidadeDoControleDiferenteDaSolicitada => {
-                "a unidade do Controle difere da solicitada"
-            }
-            Self::CharsetDaTelaNaoSuportado | Self::Link(_) => {
-                "a tela de pesquisa não foi obtida como observado"
-            }
-            Self::Pesquisa(ErroPesquisaProtocolo::Submissao(
-                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_),
-            )) => "o SEI recusou a pesquisa",
-            Self::Pesquisa(ErroPesquisaProtocolo::Resposta(
-                ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
-            )) => "a resposta da pesquisa não foi reconhecida",
-            Self::Pesquisa(_) => "a pesquisa não foi concluída como observado",
-            Self::Paginacao(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo { .. }) => {
-                "a página pedida não existe no resultado da pesquisa"
-            }
-            Self::Paginacao(_) => "a página pedida da pesquisa não foi obtida",
-        }
-    }
-
     /// Status e mensagem do SEI, da requisição recusada.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {

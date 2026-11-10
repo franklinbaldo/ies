@@ -10,8 +10,6 @@ use crate::processo_concluir::{
 use crate::processo_obter::SessaoDoProcesso;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, transporte};
-#[path = "processo_concluir_cli/falha.rs"]
-pub(crate) mod falha;
 
 /// `Some` só para `ies processo concluir`.
 pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
@@ -78,8 +76,8 @@ fn concluir_na_sessao(
 
 /// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
 /// seus dados observáveis na fronteira JSON.
-pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
-    crate::saida_erro::FalhaPublica::nova(falha.status_http())
+pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida::FalhaPublica {
+    crate::saida::FalhaPublica::nova(falha.status_http())
 }
 
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
@@ -91,7 +89,7 @@ struct ResultadoConclusao<'a> {
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<crate::saida::FalhaPublica>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,

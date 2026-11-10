@@ -20,6 +20,6 @@ pub(super) fn assinaturas_publicas(lista: &[Assinante]) -> Vec<AssinantePublico<
         .collect()
 }
 
-pub(super) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
-    crate::saida_erro::FalhaPublica::nova(falha.status_http())
+pub(super) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida::FalhaPublica {
+    crate::saida::FalhaPublica::nova(falha.status_http())
 }

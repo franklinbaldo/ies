@@ -28,7 +28,7 @@ use crate::formulario_web::{
 };
 use crate::nivel_de_detalhe::ErroNivelDeDetalhe;
 use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::ColunasDefinidas;
@@ -130,27 +130,7 @@ pub(crate) enum ErroVisaoDoControle {
     Html(#[from] ErroHtml),
 }
 
-impl ErroVisaoDoControle {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Html(e) => e.mensagem,
-            Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
-            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
-            Self::Transporte(erro) => erro.mensagem(),
-            _ => "a visão do Controle de Processos não foi obtida como esperado",
-        }
-    }
-
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            Self::Pagina(erro) => erro.status_http(),
-            Self::Transporte(erro) => erro.status_http(),
-            _ => None,
-        }
-    }
-}
+impl ErroVisaoDoControle {}
 
 #[cfg(test)]
 mod acervo;

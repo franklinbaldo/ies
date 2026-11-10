@@ -121,8 +121,6 @@ mod propriedades_processo;
 mod relogin_cli;
 mod rodape_do_documento;
 mod saida;
-mod saida_erro;
-pub(crate) use saida_erro::erro_fonte;
 mod sessao_login;
 mod sessao_login_cli;
 mod setup_cli;
@@ -149,7 +147,6 @@ mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 pub(crate) use cli_documento::DocumentoAcao;
 pub(crate) use cli_processo::{Processo, ProcessoAcao};
@@ -479,15 +476,6 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 struct ComandoSemImplementacaoNoSei(String);
-
-/// Ponte para os módulos ainda não convertidos (#695): eles já imprimiram a
-/// própria falha; aqui só o código de saída é preservado.
-pub(crate) fn legado(codigo: ExitCode) -> anyhow::Result<()> {
-    if codigo == ExitCode::SUCCESS {
-        return Ok(());
-    }
-    std::process::exit(if codigo == ExitCode::from(2) { 2 } else { 1 })
-}
 
 /// O erro que sobe é impresso pelo próprio Rust (`Error: …`, com o `Debug`
 /// e a cadeia de causas) e sai com 1; uso inválido é do clap (saída 2).

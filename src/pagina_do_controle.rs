@@ -91,19 +91,6 @@ pub(crate) enum ErroPaginaDoControle {
     Caixa(#[from] ErroCaixa),
 }
 
-impl ErroPaginaDoControle {
-    /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
-    pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
-
-    /// Status e mensagem do SEI quando o POST foi recusado pelo status.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
-        }
-    }
-}
-
 /// O que a tela de origem exige para mostrar a página N.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PlanoDaPagina {
