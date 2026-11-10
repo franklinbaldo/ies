@@ -165,7 +165,8 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str) {
         let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
         assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
         let identidade = crate::documento_web::identidade_do_titulo(html).unwrap();
-        assert_eq!((&identidade.numero, &identidade.tipo), (&numero_observado, tipo_original));
+        assert_eq!(identidade.numero.as_str(), numero.as_str());
+        assert_eq!(&identidade.tipo, tipo_original);
         assert_eq!(
             crate::rodape_do_documento::versao_do_rodape(html)
                 .map(crate::documento_versoes::VersaoDocumento::numero),
