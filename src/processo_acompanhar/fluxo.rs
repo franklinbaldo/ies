@@ -174,7 +174,9 @@ fn selecionar_previa(
             return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
         }
         let alvo = if antes.is_empty()
-            || pedido.grupo.is_some_and(|grupo| !antes.iter().any(|a| a.grupo == grupo))
+            || pedido
+                .grupo
+                .is_some_and(|grupo| !antes.iter().any(|a| a.grupo == grupo))
         {
             None
         } else {
