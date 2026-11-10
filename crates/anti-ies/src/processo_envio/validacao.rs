@@ -15,8 +15,8 @@ pub fn responder(
     instalacao: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    let Some(id) = unico(alvo, "id_procedimento")
-        .filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
+    let Some(id) =
+        unico(alvo, "id_procedimento").filter(|id| id.bytes().all(|b| b.is_ascii_digit()))
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

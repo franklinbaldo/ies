@@ -7,7 +7,6 @@
 //! todas as Pastas". Sem retry, sem redirect seguido; cada palpite errado
 //! do índice é esquecido e o comando segue.
 mod abertura;
-mod validacao_acesso;
 #[cfg(test)]
 mod acervo;
 #[cfg(test)]
@@ -26,6 +25,7 @@ pub(crate) mod login;
 mod marcadores;
 mod pastas;
 mod propriedades;
+mod validacao_acesso;
 
 #[cfg(test)]
 mod tests_consulta_parcial;

@@ -2,11 +2,12 @@
 //! O formulário da modal ainda é hipótese: não há POST observado em cassette GO.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
-use crate::arvore_processo::{ErroTelaDoProcesso, endereco::conferir_endereco_relativo, ler_tela_do_processo};
+use crate::arvore_processo::{
+    ErroTelaDoProcesso, endereco::conferir_endereco_relativo, ler_tela_do_processo,
+};
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    derivar_submissao, enviar_submissao_via,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
+    RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::sessao_login::Credenciais;
@@ -56,7 +57,9 @@ pub(super) fn validar<V: EnvioDoProcesso>(
     let url = link_modal(html, contexto, id)?;
     let (html, mime) = match rede.get(&url)? {
         Lida::Html { html, mime } => (html, mime),
-        Lida::Redirecionamento(_) => return Err(E::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso)),
+        Lida::Redirecionamento(_) => {
+            return Err(E::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso));
+        }
         Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => return Err(E::Transporte(falha)),
     };

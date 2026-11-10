@@ -80,9 +80,13 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         // nenhum outro caminho pode contornar essa recusa de acesso.
         Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
             return crate::processo_obter::validacao_acesso::validar_e_abrir(
-                rede, contexto, link.url(), &html, &id,
+                rede,
+                contexto,
+                link.url(),
+                &html,
+                &id,
             )
-                .map(|(arvore, unidade)| Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
+            .map(|(arvore, unidade)| Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
         }
         Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
             return Err(E::Tela(erro));
