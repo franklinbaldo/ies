@@ -3,6 +3,9 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::anexacoes;
+use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
+use iesei::editor_documento::{self, Oferta};
+use std::num::NonZeroU32;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -160,6 +163,7 @@ enum Modo {
     Aceite,
     RespostaIncerta,
     Previa,
+    PreviaPendencia,
     JaAnexado,
 }
 
@@ -186,7 +190,37 @@ fn executar(modo: Modo) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado();
+        let (mut banco, instalacao) = estado();
+        if matches!(modo, Modo::PreviaPendencia) {
+            documento_versoes::guardar(
+                &mut banco,
+                CENARIO,
+                &DocumentoSimulado {
+                    instalacao: instalacao.clone(),
+                    id_documento: "77".into(),
+                    id_procedimento: "22".into(),
+                    numero_processo: ANEXADO.into(),
+                    numero: "770000".into(),
+                    tipo: "Despacho".into(),
+                    revisoes: vec![Revisao {
+                        versao: NonZeroU32::new(1).unwrap(),
+                        usuario: "TESTE".into(),
+                        unidade: "TESTE".into(),
+                        modificacao: "10/11/2026".into(),
+                        html_corpo: "<p>Documento de ensaio ainda não assinado</p>".into(),
+                    }],
+                },
+            )
+            .unwrap();
+            editor_documento::registrar_oferta(
+                &banco,
+                &instalacao,
+                CENARIO,
+                "77",
+                Oferta { editavel: true, assinaturas: 0 },
+            )
+            .unwrap();
+        }
         if matches!(modo, Modo::JaAnexado) {
             anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
         }
@@ -235,7 +269,7 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-        Modo::Previa | Modo::JaAnexado => {
+        Modo::Previa | Modo::PreviaPendencia | Modo::JaAnexado => {
             &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
         }
     };
@@ -269,7 +303,7 @@ fn conferir_resultados(
     pedidos: &[String],
 ) {
     let esperado = match modo {
-        Modo::Aceite | Modo::Previa => 0,
+        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia => 0,
         Modo::RespostaIncerta => 3,
         Modo::JaAnexado => 1,
     };
@@ -298,6 +332,13 @@ fn conferir_resultados(
             assert_eq!(saida_json["principal"], PRINCIPAL);
             assert_eq!(saida_json["anexado"], ANEXADO);
             assert_eq!(saida_json["documentos_assinados"], true);
+            assert_eq!(saida_json["confirmado"], false);
+            assert_eq!(saida_json["alterado"], false);
+        }
+        Modo::PreviaPendencia => {
+            assert_eq!(saida_json["principal"], PRINCIPAL);
+            assert_eq!(saida_json["anexado"], ANEXADO);
+            assert_eq!(saida_json["documentos_assinados"], false);
             assert_eq!(saida_json["confirmado"], false);
             assert_eq!(saida_json["alterado"], false);
         }
@@ -346,6 +387,11 @@ fn bdd_270_02_efeito_incerto_sem_retry_de_anexacao() {
 #[test]
 fn bdd_270_01_previa_nao_anexa_e_preserva_o_principal() {
     executar(Modo::Previa);
+}
+
+#[test]
+fn bdd_270_01_previa_avisa_documento_sem_assinatura_e_nao_anexa() {
+    executar(Modo::PreviaPendencia);
 }
 
 #[test]
