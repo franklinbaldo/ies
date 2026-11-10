@@ -1,4 +1,4 @@
-//! #60 / BDD-60-05: links de versão com id_documento duplicado.
+//! #60 / BDD-60-05: links de versão com `id_documento` duplicado.
 //! A duplicação concordante vem da forma observada nos links de versões;
 //! as contradições abaixo são hipóteses sintéticas, não capturas do SEI.
 use super::*;
