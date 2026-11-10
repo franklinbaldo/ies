@@ -18,7 +18,11 @@ fn html(configuracao: &Configuracao) -> String {
     for opcao in &configuracao.opcoes {
         let campo = opcao.coluna.campo();
         let rotulo = escapar(opcao.coluna.rotulo());
-        let checked = if opcao.marcada { " checked='checked'" } else { "" };
+        let checked = if opcao.marcada {
+            " checked='checked'"
+        } else {
+            ""
+        };
         write!(
             pagina,
             "<div><input type='checkbox' id='{campo}' name='{campo}' class='infraCheckbox'{checked}>\
