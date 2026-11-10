@@ -91,7 +91,7 @@ fn enviar(
     confirmar: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // Limite inviolável: escrita só em instalação de treinamento.
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
         if remover_anotacoes
             && confirmar
             && crate::origem_de_treinamento::exigir(

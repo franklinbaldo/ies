@@ -53,7 +53,9 @@ impl Escrita {
     /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
     /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`;
     /// - relacionar e andamento:
-    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`.
+    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`;
+    /// - enviar removendo anotações:
+    ///   `docs/validacao-live/2026-11-10-processo-enviar-remover-anotacoes-unb.md`.
     fn aprovada_em_treinamento(self) -> bool {
         matches!(
             self,
@@ -61,6 +63,7 @@ impl Escrita {
                 | Self::ProcessoPrazo
                 | Self::ProcessoRelacionar
                 | Self::ProcessoAndamento
+                | Self::ProcessoEnviarRemovendoAnotacoes
         )
     }
 }
@@ -111,6 +114,13 @@ mod tests {
             assert!(exigir(Escrita::ProcessoPrazo, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoRelacionar, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoAndamento, producao_ou_parecida).is_ok());
+            assert!(
+                exigir(
+                    Escrita::ProcessoEnviarRemovendoAnotacoes,
+                    producao_ou_parecida
+                )
+                .is_ok()
+            );
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
     }
