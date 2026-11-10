@@ -291,7 +291,6 @@ Nos[0].html = '{situacao}';
     ))
 }
 
-
 /// Consulta a árvore ou a tela de trabalho sem efeito; ausência do processo
 /// delega à rota de documentos existente do mesmo cenário.
 #[must_use]
