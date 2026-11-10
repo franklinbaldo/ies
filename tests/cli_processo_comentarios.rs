@@ -11,9 +11,16 @@ fn bdd_257_01_expoe_leitura_comentarios_mas_nao_a_escrita() {
         .expect("CLI deve iniciar");
     assert!(saida.status.success());
     let ajuda = String::from_utf8(saida.stdout).expect("ajuda UTF-8");
-    assert!(!ajuda.contains("comentar"));
+    let comandos: Vec<_> = ajuda
+        .lines()
+        .filter_map(|linha| linha.split_whitespace().next())
+        .collect();
     assert!(
-        ajuda.contains("comentarios"),
+        !comandos.contains(&"comentar"),
+        "a escrita não pode ser publicada como subcomando"
+    );
+    assert!(
+        comandos.contains(&"comentarios"),
         "leitura de comentários deve ser pública"
     );
 }
