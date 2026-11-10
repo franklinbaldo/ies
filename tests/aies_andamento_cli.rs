@@ -1,4 +1,4 @@
-//! BDD-259-01: prévia da CLI real contra HTTPS local, anti-IES e SQLite.
+//! BDD-259-01/02/03: CLI real contra HTTPS local, anti-IES e SQLite.
 //! Hipótese sintética, não prova paridade com uma instalação SEI.
 #![cfg(unix)]
 use anti_ies::atender_http;
@@ -140,7 +140,7 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-fn executar(confirmar: bool) {
+fn executar(confirmar: bool, falha_releitura: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -173,8 +173,11 @@ fn executar(confirmar: bool) {
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos = Arc::clone(&trilha);
     let sinal = Arc::clone(&parar);
+    let falha_aplicada = Arc::new(AtomicBool::new(false));
+    let injecao = Arc::clone(&falha_aplicada);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(tls_id).unwrap();
+        let mut post_confirmado = false;
         while let Some(mut tcp) = aceitar(&proxy, &sinal) {
             let (connect, _) = pedido_http(&mut tcp);
             assert!(connect.starts_with(b"CONNECT"));
@@ -182,11 +185,29 @@ fn executar(confirmar: bool) {
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (req, evento) = pedido_http(&mut canal);
+            if falha_releitura
+                && post_confirmado
+                && !injecao.load(Ordering::SeqCst)
+                && evento.starts_with("GET ")
+            {
+                // O POST chegou ao anti-IES e persistiu no SQLite. Só a
+                // primeira leitura posterior fica indisponível (hipótese).
+                pedidos.lock().unwrap().push(evento);
+                injecao.store(true, Ordering::SeqCst);
+                canal
+                    .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    .unwrap();
+                canal.flush().unwrap();
+                continue;
+            }
             let mut destino = TcpStream::connect(endereco).unwrap();
             destino.write_all(&req).unwrap();
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            if evento == "POST procedimento_atualizar_andamento" {
+                post_confirmado = true;
+            }
             pedidos.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -221,7 +242,12 @@ fn executar(confirmar: bool) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap();
-    verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
+    if falha_releitura {
+        assert!(falha_aplicada.load(Ordering::SeqCst), "falha pós-POST não exercitada");
+        verificar_incerto(&saida, segunda.as_ref(), &persistido, &pedidos);
+    } else {
+        verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
+    }
 }
 
 fn segunda_leitura(
@@ -351,12 +377,53 @@ fn verificar(
     }
 }
 
+fn verificar_incerto(
+    saida: &Output,
+    segunda: Option<&Output>,
+    persistido: &Historico,
+    pedidos: &[String],
+) {
+    assert_eq!(saida.status.code(), Some(3), "stdout={} stderr={}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr));
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["subcodigo"], "efeito_incerto_no_andamento");
+    let mensagem = json["erro"].as_str().unwrap();
+    assert!(mensagem.contains("não repita --confirmar"), "{mensagem}");
+    assert!(mensagem.contains("histórico"), "{mensagem}");
+
+    // A falha na releitura da primeira CLI não reverte o POST já aplicado.
+    // A segunda CLI é independente e consulta o mesmo SQLite.
+    assert_eq!(persistido.total_declarado, 2);
+    assert_eq!(persistido.linhas.len(), 2);
+    assert_eq!(persistido.linhas[0].descricao, TEXTO);
+    assert_eq!(persistido.linhas[1].descricao, "Andamento anterior");
+    assert_eq!(pedidos.iter().filter(|p| p.as_str() ==
+        "POST procedimento_atualizar_andamento").count(), 1, "{pedidos:?}");
+    let leitura = segunda.expect("consulta independente do histórico");
+    assert_eq!(leitura.status.code(), Some(0), "stdout={} stderr={}",
+        String::from_utf8_lossy(&leitura.stdout),
+        String::from_utf8_lossy(&leitura.stderr));
+    let historico: serde_json::Value = serde_json::from_slice(&leitura.stdout).unwrap();
+    let itens = historico["andamentos"]["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["descricao"].as_str().unwrap().split_whitespace()
+        .collect::<Vec<_>>(), TEXTO.split_whitespace().collect::<Vec<_>>());
+    assert_eq!(itens[1]["descricao"], "Andamento anterior");
+}
+
 #[test]
 fn bdd_259_01_previa_nao_escreve_no_historico() {
-    executar(false);
+    executar(false, false);
 }
 
 #[test]
 fn bdd_259_02_confirmacao_unica_com_releitura_da_cli() {
-    executar(true);
+    executar(true, false);
+}
+
+#[test]
+fn bdd_259_03_efeito_incerto_sem_reenvio_e_consulta_independente() {
+    executar(true, true);
 }
