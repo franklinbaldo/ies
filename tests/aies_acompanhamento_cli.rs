@@ -193,6 +193,15 @@ fn executar_com_falha(
     confirmar: bool,
     falha_na_releitura: bool,
 ) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
+    executar_com_falha_modo(estado, confirmar, falha_na_releitura, false)
+}
+
+fn executar_com_falha_modo(
+    estado: EstadoInicial,
+    confirmar: bool,
+    falha_na_releitura: bool,
+    modo_humano: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
     let pasta = Pasta::nova();
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let _origem = pasta.privado("origem", ORIGEM);
@@ -271,6 +280,9 @@ fn executar_com_falha(
     ];
     if confirmar {
         args.push("--confirmar");
+    }
+    if modo_humano {
+        args.remove(0); // --json: exercitar a saída humana do mesmo BDD.
     }
     let saida = executar_cli(&pasta, porta, &certificado, &args);
     // Outra invocação da CLI, após a escrita, deve comprovar o novo estado.
@@ -455,4 +467,30 @@ fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_1() {
     let relida: serde_json::Value = serde_json::from_slice(&outra.stdout).unwrap();
     assert_eq!(relida["ja_estava"], true);
     assert_eq!(relida["alterado"], false);
+}
+
+#[test]
+fn bdd_348_02_saida_humana_retirada_confirmada_nao_anuncia_previa() {
+    let (saida, eventos, depois, _) =
+        executar_com_falha_modo(EstadoInicial::GrupoG, true, false, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let humano = String::from_utf8(saida.stdout).unwrap();
+    assert!(humano.contains("Retirado acompanhamento do grupo: G"), "{humano}");
+    assert!(humano.contains("Acompanhamento retirado e confirmado por leitura."), "{humano}");
+    assert!(!humano.contains("Retiraria o acompanhamento"), "{humano}");
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|evento| evento.as_str() == "POST acompanhamento_excluir")
+            .count(),
+        1
+    );
+    let restante = depois.unwrap().itens;
+    assert_eq!(restante.len(), 1);
+    assert_eq!(restante[0].grupo, "H");
 }
