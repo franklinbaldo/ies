@@ -211,7 +211,13 @@ fn ordenar_campos<'c>(
             continue;
         }
         let oculto = operacao.campos_ocultos_reescritos.contains(nome);
-        if !oculto && !operacao.campos_usuario.contains(nome) {
+        let usuario = operacao.campos_usuario.iter().any(|permitido| {
+            *permitido == *nome
+                || permitido
+                    .strip_suffix('*')
+                    .is_some_and(|prefixo| nome.starts_with(prefixo))
+        });
+        if !oculto && !usuario {
             return Err(E::CampoForaDaListaDaOperacao { campo });
         }
         let publicados: Vec<_> = controles
