@@ -6,6 +6,7 @@ use crate::entidades_html::decodificar_texto;
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
+mod exclusao;
 mod fluxo;
 mod submissao;
 pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
@@ -28,6 +29,7 @@ pub(crate) enum ErroAcompanhar {
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
     AcompanhamentoNaoConfirmado,
+    ExclusaoNaoOferecida,
     Html(#[from] ErroHtml),
 }
 
@@ -309,7 +311,6 @@ pub(crate) fn conferir_inclusao(
 }
 
 /// Só remova quando a identidade exata desaparecer e todo o resto for idêntico.
-#[cfg(test)]
 pub(crate) fn conferir_remocao(
     antes: &[Acompanhamento],
     depois: &[Acompanhamento],

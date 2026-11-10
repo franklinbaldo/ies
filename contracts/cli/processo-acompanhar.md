@@ -1,14 +1,14 @@
 ---
 type: CommandContract
 title: Acompanhamento Especial por prévia e confirmação observada
-description: Prévia de inclusão e retirada; POST único e releitura para inclusão
+description: Prévia de inclusão e retirada; confirmação causal com POST único, restrita ao treinamento para retirada
 operation: processo.acompanhar
 command: ies processo acompanhar NUP [--grupo G] [--observacao T] [--deixar] [--confirmar]
 effect: write-process-state
 implementation: partial
 ---
 
-# `ies processo acompanhar NUP` — prévia e inclusão confirmada (Refs #254)
+# `ies processo acompanhar NUP` — prévia e confirmação por leitura (Refs #254, #348)
 
 O comando abre a árvore do processo e confere a unidade da sessão.
 Lê o link assinado `acompanhamento_gerenciar` publicado na barra da raiz.
@@ -43,16 +43,25 @@ ser enviado, independentemente da observação.
   explícita do gerenciador prova uma única linha nova com grupo e
   observação pedidos, preservadas as linhas anteriores. Falha no POST
   também exige releitura: se a alteração não puder ser comprovada,
-  saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
+  saída **1** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
   A inclusão já existente resulta em sucesso sem POST.
-- **Retirada:** `--deixar` tem somente prévia; `--confirmar --deixar`
-  continua bloqueado antes da sessão até a derivação segura do
-  formulário de exclusão da linha escolhida.
-- **Orçamento:** na bancada sintética sem índice quente, 3 GETs de
-  abertura + 1 GET gerenciar + 1 GET cadastro + 1 POST + 1 GET
-  de verificação = **7 requisições** para inclusão confirmada;
-  a prévia usa **5 GETs e 0 POST**. O custo de abertura real varia
-  com o índice local. Nenhum retry.
+- **Retirada `--deixar --confirmar`:** restrita a instalações públicas
+  de treinamento e ao anti-IES (`sei.test`). A oferta da linha e a action
+  assinada `acompanhamento_excluir` são reconhecidas na própria tela
+  servida. O envio reescreve somente `hdnInfraItemId`, executa **um POST**
+  e faz GET novo do gerenciador: só há confirmação quando exatamente a
+  identidade solicitada desapareceu e todas as outras foram preservadas.
+  Grupo solicitado já ausente é no-op sem POST. Resposta/estado incerto
+  produz saída **1**, sem retry. Redirecionamento 302 após excluir a
+  última linha não comprova lista vazia sozinho e permanece incerto.
+  A comprovação aqui é sintética (CLI ↔ anti-IES ↔ SQLite); confrontos
+  semânticos independentes com cassettes e treinamento/live são pendentes.
+- **Orçamento:** na bancada sintética sem índice quente, a inclusão
+  confirmada usa 3 requisições de abertura + GET gerenciar + GET cadastro
+  + POST + GET de verificação = **7 requisições**. Retirada de uma linha
+  com outras remanescentes usa 3 requisições de abertura + GET gerenciar
+  + POST + GET de verificação = **6 requisições**. O custo de abertura
+  real varia com o índice local; nunca há retry.
 - **Fonte:** observação histórica do Todos na UnB em 15/10/2026
   (`tests/test_processo_acompanhar_010.py` @323eb01), cassettes
   `processo-acompanhar-*` e suas demais variantes.
@@ -67,8 +76,7 @@ Os erros, por variante (a saída pública traz só a mensagem):
 `grupo_de_acompanhamento_ambiguo`,
 `lista_de_acompanhamentos_nao_publicada`,
 `linha_de_acompanhamento_invalida`,
-`acompanhamento_para_remover_ambiguo` e
-`confirmacao_de_acompanhamento_ainda_bloqueada`, entre outros
+`acompanhamento_para_remover_ambiguo`, entre outros
 em `src/processo_acompanhar.rs`.
 
 Todos os URLs assinados e cookies ficam privados; nenhuma saída ou
@@ -88,7 +96,6 @@ A coluna literal abaixo é normativa e verificável pelo gate de subcódigos.
 | `cadastro_de_acompanhamento_de_outro_processo` | Identidade do processo divergente no cadastro |
 | `cadastro_de_acompanhamento_nao_publicado` | Formulário de cadastro ausente |
 | `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
-| `confirmacao_de_acompanhamento_ainda_bloqueada` | Confirmação da retirada ainda bloqueada antes da sessão |
 | `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
 | `grupo_de_acompanhamento_ambiguo` | O nome informado corresponde a mais de uma opção |
 | `grupo_de_acompanhamento_nao_oferecido` | Grupo solicitado não é oferecido na tela |

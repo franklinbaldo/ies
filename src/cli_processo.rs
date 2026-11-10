@@ -111,7 +111,7 @@ pub(crate) enum ProcessoAcao {
         #[arg(long)]
         confirmar: bool,
     },
-    /// Prévia Web de Acompanhamento Especial (escrita indisponível até reconciliação comprovada)
+    /// Acompanhamento Especial: prévia e confirmação verificada por releitura
     Acompanhar {
         numero: String,
         /// Grupo exatamente como a tela do SEI oferece
@@ -123,7 +123,7 @@ pub(crate) enum ProcessoAcao {
         /// Retira acompanhamento (sem grupo, exige um único acompanhamento)
         #[arg(long)]
         deixar: bool,
-        /// Confirmação de escrita ainda bloqueada por segurança
+        /// Confirma a escrita; retirada somente em treinamento, com POST único e releitura
         #[arg(long)]
         confirmar: bool,
     },

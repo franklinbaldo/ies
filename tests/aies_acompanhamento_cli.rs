@@ -177,6 +177,31 @@ fn executar_cli(pasta: &Pasta, porta: u16, cert: &std::path::Path, args: &[&str]
 }
 
 fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) {
+    let (saida, eventos, estado, _) = executar_com(estado, false);
+    (saida, eventos, estado)
+}
+
+fn executar_com(
+    estado: EstadoInicial,
+    confirmar: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
+    executar_com_falha(estado, confirmar, false)
+}
+
+fn executar_com_falha(
+    estado: EstadoInicial,
+    confirmar: bool,
+    falha_na_releitura: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
+    executar_com_falha_modo(estado, confirmar, falha_na_releitura, false)
+}
+
+fn executar_com_falha_modo(
+    estado: EstadoInicial,
+    confirmar: bool,
+    falha_na_releitura: bool,
+    modo_humano: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
     let pasta = Pasta::nova();
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let _origem = pasta.privado("origem", ORIGEM);
@@ -209,6 +234,8 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
     let parar_proxy = Arc::clone(&parar);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
+        let mut post_recebido = false;
+        let mut leitura_interceptada = false;
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = ler_pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.treinamento.unb.br:443 HTTP/1.1\r\n"));
@@ -216,6 +243,22 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = ler_pedido(&mut canal);
+            let interceptar = falha_na_releitura
+                && post_recebido
+                && !leitura_interceptada
+                && evento == "GET acompanhamento_gerenciar";
+            if interceptar {
+                leitura_interceptada = true;
+                eventos_proxy.lock().unwrap().push(evento);
+                canal.write_all(
+                    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                ).unwrap();
+                canal.flush().unwrap();
+                continue;
+            }
+            if evento == "POST acompanhamento_excluir" {
+                post_recebido = true;
+            }
             let mut backend = TcpStream::connect(endereco).unwrap();
             backend.write_all(&bytes).unwrap();
             backend.shutdown(Shutdown::Write).unwrap();
@@ -226,24 +269,34 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
             canal.flush().unwrap();
         }
     });
-    let saida = executar_cli(
-        &pasta,
-        porta,
-        &certificado,
-        &[
-            "--json",
-            "processo",
-            "acompanhar",
-            NUP,
-            "--deixar",
-            "--grupo",
-            "G",
-        ],
-    );
+    let mut args = vec![
+        "--json",
+        "processo",
+        "acompanhar",
+        NUP,
+        "--deixar",
+        "--grupo",
+        "G",
+    ];
+    if confirmar {
+        args.push("--confirmar");
+    }
+    if modo_humano {
+        args.remove(0); // --json: exercitar a saída humana do mesmo BDD.
+    }
+    let saida = executar_cli(&pasta, porta, &certificado, &args);
+    // Outra invocação da CLI, após a escrita, deve comprovar o novo estado.
+    let verificacao =
+        confirmar.then(|| executar_cli(&pasta, porta, &certificado, &args[..args.len() - 1]));
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let resultado = servidor.join().unwrap();
-    (saida, eventos.lock().unwrap().clone(), resultado)
+    (
+        saida,
+        eventos.lock().unwrap().clone(),
+        resultado,
+        verificacao,
+    )
 }
 
 #[test]
@@ -342,3 +395,6 @@ fn observacao_explicitamente_vazia_permite_no_op_sem_escrita() {
         "{eventos:?}"
     );
 }
+
+#[path = "aies_acompanhamento_cli/confirmacao.rs"]
+mod confirmacao;

@@ -53,6 +53,7 @@ pub(crate) enum Escrita {
     ProcessoAnexar,
     ProcessoAnotar,
     ProcessoComentar,
+    ProcessoAcompanharDeixar,
     ProcessoEnviarRemovendoAnotacoes,
 }
 
@@ -93,6 +94,18 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retirada_de_acompanhamento_somente_no_treinamento() {
+        assert!(exigir(Escrita::ProcessoAcompanharDeixar, "https://sei.test/sei").is_ok());
+        assert!(matches!(
+            exigir(
+                Escrita::ProcessoAcompanharDeixar,
+                "https://sei.exemplo.gov.br/sei"
+            ),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        ));
+    }
 
     #[test]
     fn comentarios_sao_restritos_a_treinamento() {

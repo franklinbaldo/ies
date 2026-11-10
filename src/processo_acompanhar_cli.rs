@@ -24,14 +24,6 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => {
-            // A exclusão ainda não possui formulário de envio validado.
-            // Bloqueá-la antes de ler credenciais ou abrir conexão.
-            if *confirmar && *deixar {
-                return Some(publicar_erro(
-                    cli.json,
-                    &ErroPrevia::ConfirmacaoNaoImplementada,
-                ));
-            }
             let pedido = Pedido {
                 nup: &nup,
                 unidade: cli.unidade.as_deref(),
@@ -41,6 +33,15 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
                 confirmar: *confirmar,
             };
             com_sessao(cli, |sessao, indice| {
+                if *deixar
+                    && *confirmar
+                    && let Err(causa) = crate::origem_de_treinamento::exigir(
+                        crate::origem_de_treinamento::Escrita::ProcessoAcompanharDeixar,
+                        sessao.origem,
+                    )
+                {
+                    return crate::origem_de_treinamento::recusa(cli.json, causa);
+                }
                 match previa(sessao, &pedido, indice, &mut EnvioHttps) {
                     Ok(plano) => publicar_previa(cli.json, &plano),
                     Err(erro) => publicar_erro(cli.json, &erro),
@@ -82,11 +83,15 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         );
         if plano.estado.ja_estava() {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
+        } else if plano.estado.alterado() {
+            if plano.operacao == "deixar" {
+                println!("Retirado acompanhamento do grupo: {}", plano.grupo);
+            } else {
+                println!("Incluído acompanhamento no grupo: {}", plano.grupo);
+                println!("Observação: {}", plano.observacao);
+            }
         } else if plano.operacao == "deixar" {
             println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
-        } else if plano.estado.alterado() {
-            println!("Incluído acompanhamento no grupo: {}", plano.grupo);
-            println!("Observação: {}", plano.observacao);
         } else {
             println!("Incluiria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
@@ -95,7 +100,14 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             if let Some(id) = &plano.id_de_remocao {
                 println!("ID observado na releitura: {id}");
             }
-            println!("Acompanhamento incluído e confirmado por leitura.");
+            println!(
+                "Acompanhamento {} e confirmado por leitura.",
+                if plano.operacao == "deixar" {
+                    "retirado"
+                } else {
+                    "incluído"
+                }
+            );
         } else {
             println!("Nenhuma escrita executada.");
         }
@@ -109,11 +121,11 @@ fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
     let valor = json!({
         "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
         "erro": if incerto {
-            "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
+            "A alteração pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
         } else {
             "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
         },
         "retentavel": false
     });
-    publicar_valor_da_falha(json_mode, &valor, if incerto { 3 } else { 1 })
+    publicar_valor_da_falha(json_mode, &valor, 1)
 }
