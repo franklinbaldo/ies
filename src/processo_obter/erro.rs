@@ -75,13 +75,15 @@ impl ErroProcessoObter {
             }
             Self::CharsetDoControleNaoSuportado => "o charset do Controle não é suportado",
             Self::Formulario(_) => "a pesquisa rápida não foi enviada como observado",
-            Self::ValidacaoDeAcesso(super::validacao_acesso::ErroValidacaoAcesso::Credenciais(_)) => {
-                "o arquivo de credenciais privado está ausente, inseguro ou inválido"
-            }
+            Self::ValidacaoDeAcesso(super::validacao_acesso::ErroValidacaoAcesso::Credenciais(
+                _,
+            )) => "o arquivo de credenciais privado está ausente, inseguro ou inválido",
             Self::ValidacaoDeAcesso(erro) if erro.status_http().is_some() => {
                 "o SEI recusou a validação de acesso; não repetir"
             }
-            Self::ValidacaoDeAcesso(_) => "a modal de validação de acesso não foi servida como esperado",
+            Self::ValidacaoDeAcesso(_) => {
+                "a modal de validação de acesso não foi servida como esperado"
+            }
             Self::Tela(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
                 "a unidade da tela do processo difere da solicitada"
             }
