@@ -164,3 +164,56 @@ fn bdd_381_02_inclusao_documental_causal_e_persistente() {
         1
     );
 }
+
+/// O formulário oferece dois documentos: a primeira caixa vem marcada,
+/// mas DOC é a segunda. Só DOC pode chegar ao bloco (mesmo SQLite).
+#[test]
+fn bdd_381_02_caixa_posterior_nao_inclui_documento_vizinho() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    documento_versoes::guardar(
+        &mut banco,
+        CENARIO,
+        &DocumentoSimulado {
+            instalacao,
+            id_documento: "41".into(),
+            id_procedimento: "7".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0011518".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Ana".into(),
+                unidade: "TESTE".into(),
+                modificacao: "01/11/2026".into(),
+                html_corpo: "<p>Documento anterior</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+    drop(banco);
+    let saida = executar(
+        &pasta,
+        &["--json", "bloco", "incluir", BLOCO, "--documento", DOC, "--confirmar"],
+        REQUISICOES_DA_PREVIA + 4,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    assert_eq!(json(&saida)["alterado"], true);
+    let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    assert_eq!(leitura.status.code(), Some(0));
+    let itens = json(&leitura)["bloco"]["itens"].as_array().unwrap().to_vec();
+    assert_eq!(itens.iter().filter(|i| i["documento"] == DOC).count(), 1);
+    assert_eq!(itens.iter().filter(|i| i["documento"] == "0011518").count(), 0);
+    let (banco, instalacao) = estado(&caminho, true, 0, false);
+    let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
+        .unwrap().unwrap();
+    assert_eq!(detalhe.total, 2);
+}

@@ -38,6 +38,21 @@ pub(crate) fn responder(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let linhas = pagina.map(|p| p.linhas).unwrap_or_default();
+    // Documentos do processo publicados no mesmo estado derivado.
+    let Ok(ids) = documento_versoes::ids_do_processo(banco, instalacao, cenario, id_procedimento)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let mut documentos = Vec::new();
+    for id in ids {
+        match documento_versoes::ler(banco, instalacao, cenario, &id) {
+            Ok(Some(d)) if d.id_procedimento == id_procedimento => documentos.push(d),
+            _ => return Resposta::nova(Estado::DadosInsuficientes),
+        }
+    }
+    if documentos.is_empty() {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    }
     if metodo == "POST" {
         let campo = |nome| crate::documentos::campo_formulario_unico(corpo, nome);
         let (Some(numero), Some(checkbox), Some(selecionados), Some(botao)) = (
@@ -82,17 +97,29 @@ pub(crate) fn responder(
     }
     let id = escapar(&documento.id_documento);
     let p = escapar(id_procedimento);
+    let ids = documentos.iter().map(|d| d.id_documento.as_str()).collect::<Vec<_>>().join(",");
+    let mut caixas = String::new();
+    for (i, d) in documentos.iter().enumerate() {
+        writeln!(
+            caixas,
+            r#"<tr><td><input {marcado} class="infraCheckbox" id="chkDocumentosItem{i}" name="chkDocumentosItem{i}" title="{numero}" type="checkbox" value="{valor}"/></td></tr>"#,
+            marcado = if i == 0 { "checked=\"checked\"" } else { "" },
+            numero = escapar(&d.numero),
+            valor = escapar(&d.id_documento),
+        ).expect("escrever em String");
+    }
+    let primeiro = escapar(&documentos[0].id_documento);
     Resposta::html(format!(
         r#"<html><body>
 <form id="frmBlocoEscolher" method="post" action="controlador.php?acao=bloco_escolher&acao_origem=bloco_escolher&arvore=1&id_procedimento={p}&id_documento={id}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH}">
 <select id="selBloco" name="selBloco" class="infraSelect">
 {opcoes}</select>
 <button type="submit" name="sbmIncluir" id="sbmIncluir" value="Incluir">Incluir</button>
-<table><tr><td><input checked="checked" class="infraCheckbox" id="chkDocumentosItem0" name="chkDocumentosItem0" title="{numero}" type="checkbox" value="{id}"/></td></tr></table>
-<input type="hidden" id="hdnDocumentosNroItens" name="hdnDocumentosNroItens" value="1" />
-<input type="hidden" id="hdnDocumentosItens" name="hdnDocumentosItens" value="{id}" />
-<input type="hidden" id="hdnDocumentosItensSelecionados" name="hdnDocumentosItensSelecionados" value="{id}" />
+<table>{caixas}</table>
+<input type="hidden" id="hdnDocumentosNroItens" name="hdnDocumentosNroItens" value="{quantos}" />
+<input type="hidden" id="hdnDocumentosItens" name="hdnDocumentosItens" value="{ids}" />
+<input type="hidden" id="hdnDocumentosItensSelecionados" name="hdnDocumentosItensSelecionados" value="{primeiro}" />
 </form></body></html>"#,
-        numero = escapar(&documento.numero),
+        quantos = documentos.len(),
     ))
 }
