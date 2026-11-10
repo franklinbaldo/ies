@@ -327,7 +327,11 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::CatalogoDaUnidadeNaoObservado,
+            rede.feitas(),
+        );
     }
     let aceito = matches!(
         resposta,
@@ -335,9 +339,7 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
             if aceite_da_atribuicao(redir, id)
     );
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
-    let presente = releitura_comprova(
-        sessao, indice, pedido, rede, (id, unidade), (rotulo, texto),
-    );
+    let presente = releitura_comprova(sessao, indice, pedido, rede, (id, unidade), (rotulo, texto));
     if !aceito || presente != Some(true) {
         return efeito_incerto(cli, rede.feitas(), presente);
     }

@@ -401,8 +401,8 @@ fn executar(caso: Caso) {
     let controles = controles.lock().unwrap().clone();
     // Uma atribuição altera o estado: o GET inicial é 302, mas a releitura
     // posterior ao POST já pode renderizar a tabela com seus controles.
-    let gerenciador_servido = !sem_marcadores
-        || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
+    let gerenciador_servido =
+        !sem_marcadores || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
     conferir_controles(&controles, !gerenciador_servido);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
