@@ -87,12 +87,20 @@ envolvente devolve o próprio `Enum` e o `?` não está numa closure.
 
 Restam à mão:
 - **Variantes com `&'static str`** (o leitor devolve o subcódigo como
-  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura`,
-  `ErroCriar::Transporte`, e o padrão aninhado de
-  `processo_andamento_registrar::Erro`.
+  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura` e o
+  padrão aninhado de `processo_andamento_registrar::Erro`.
+  `ErroCriar::Transporte` já guarda a causa (`FalhaTransporte`,
+  `ErroSubmissaoFormulario`); os motivos da releitura da ciência são
+  `VerificacaoDaCiencia` e `VerificacaoDaCienciaDoDocumento`.
 - **Etapas achatadas** (tipo interno repetido): `ErroLogin` e
   `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
   (`ErroSubmissaoFormulario`).
+
+Terceira passada (10/11/2026): o derive deixou de aceitar
+`#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o
+`snake_case` da variante, e para mudá-lo renomeia-se a variante. O relogin
+das leituras passou a decidir por `#[causa(sessao_encerrada)]` em vez de
+comparar o texto do subcódigo.
 
 ## Forma não observada
 

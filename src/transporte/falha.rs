@@ -22,9 +22,7 @@ impl StatusHttpRecusado {
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaTransporte {
-    #[causa(nome = "chave_de_consulta_do_controle_nao_canonica")]
     ChaveDeConsultaNaoCanonica,
-    #[causa(nome = "separador_de_consulta_do_controle_ambiguo")]
     SeparadorDeConsultaAmbiguo,
     OrigemNaoAutorizada,
     /// URL assinada inválida: falha da validação do transporte.
@@ -38,7 +36,6 @@ pub enum FalhaTransporte {
     ArquivoPrivadoAusenteOuInacessivel,
     #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
-    #[causa(nome = "caminho_nao_eh_arquivo")]
     CaminhoDeArquivoNaoEhArquivo,
     ArquivoPrivadoLinkSimbolico,
     ArquivoPrivadoVazio,
@@ -48,19 +45,19 @@ pub enum FalhaTransporte {
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
     /// Status HTTP 401 ou 403.
-    #[causa(http, nome = "sessao_nao_autorizada", acao = "relogar")]
+    #[causa(http, acao = "relogar")]
     AcessoNegado(StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
     /// sessão não venceu; não há relogin nem nova tentativa.
     #[causa(http, acao = "trocar_instalacao")]
     BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
     /// Status HTTP 3xx; o corpo não é lido.
-    #[causa(http, nome = "redirecionamento_recusado")]
+    #[causa(http)]
     Redirecionamento(StatusHttpRecusado),
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
     /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
-    #[causa(http, nome = "sessao_encerrada_rode_ies_login", acao = "relogar")]
+    #[causa(http, acao = "relogar", sessao_encerrada)]
     ControleRedirecionadoParaOLogin(StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
     #[causa(http)]
@@ -73,10 +70,9 @@ pub enum FalhaTransporte {
     StatusHttpDiferenteDe200(StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
     CorpoNaoDecodificavelNoCharsetDeclarado,
-    #[causa(acao = "relogar")]
+    #[causa(acao = "relogar", sessao_encerrada)]
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
-    #[causa(nome = "falha_de_rede")]
     Rede,
     /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
     #[causa(interna)]

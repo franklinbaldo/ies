@@ -11,9 +11,13 @@ mod documento;
 mod fluxo;
 mod lista;
 mod lista_autoria;
+#[cfg(test)]
+pub(crate) use documento::VerificacaoDaCienciaDoDocumento;
 pub(crate) use documento::{
     CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
 };
+#[cfg(test)]
+pub(crate) use fluxo::VerificacaoDaCiencia;
 pub(crate) use fluxo::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
@@ -30,25 +34,12 @@ pub(crate) enum AlvoDaCiencia<'a> {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCiencia {
     AceiteSemAtividade,
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,
     AtividadesRepetidasNaLista,
-}
-
-impl ErroCiencia {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::AceiteSemAtividade => "aceite_da_ciencia_sem_atividade",
-            Self::AtividadesAmbiguas => "atividades_da_ciencia_ambiguas",
-            Self::ListaDeCienciasForaDaFormaObservada => {
-                "lista_de_ciencias_fora_da_forma_observada"
-            }
-            Self::AtividadesRepetidasNaLista => "atividades_repetidas_na_lista_de_ciencias",
-        }
-    }
 }
 
 /// Só admite o valor da chave com uma única ocorrência. Uma chave duplicada

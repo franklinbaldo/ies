@@ -31,7 +31,6 @@ impl CategoriaLista {
 
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum FalhaCategoria {
-    #[causa(nome = "identificacao_da_unidade_ausente_no_controle")]
     UnidadeNaoObservada,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
     #[causa(interna)]
@@ -194,7 +193,7 @@ mod tests {
         );
         assert_eq!(
             FalhaCategoria::UnidadeNaoObservada.subcodigo(),
-            "identificacao_da_unidade_ausente_no_controle"
+            "unidade_nao_observada"
         );
     }
 

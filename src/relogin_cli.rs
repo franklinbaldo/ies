@@ -20,6 +20,8 @@ pub(crate) trait FalhaPublicavel {
     fn subcodigo(&self) -> &'static str;
     fn mensagem(&self) -> &'static str;
     fn status_http(&self) -> Option<&StatusHttpRecusado>;
+    /// O fato tipado que dispara o relogin único.
+    fn sessao_encerrada(&self) -> bool;
 }
 
 macro_rules! publicavel {
@@ -33,6 +35,9 @@ macro_rules! publicavel {
             }
             fn status_http(&self) -> Option<&StatusHttpRecusado> {
                 <$tipo>::status_http(self)
+            }
+            fn sessao_encerrada(&self) -> bool {
+                crate::erro_publico::Causa::sessao_encerrada(self)
             }
         }
     )*};
@@ -69,7 +74,7 @@ pub(crate) fn ler<T, E: FalhaPublicavel>(
         &contexto,
         &mut HttpsDoLogin,
         &cliente_https::pedidos_do_processo,
-        E::subcodigo,
+        E::sessao_encerrada,
         ler,
     )
 }

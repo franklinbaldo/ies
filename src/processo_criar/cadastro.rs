@@ -5,18 +5,12 @@ use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCadastro {
-    #[causa(nome = "tipo_do_cadastro_divergente")]
     TipoDeCadastroDivergente,
-    #[causa(nome = "nivel_de_acesso_nao_oferecido")]
     NivelNaoOferecido,
-    #[causa(nome = "nivel_de_acesso_desabilitado")]
     NivelDesabilitado,
-    #[causa(nome = "assunto_sugerido_desabilitado")]
     AssuntoDesabilitado,
-    #[causa(nome = "hipotese_legal_desabilitada")]
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
-    #[causa(nome = "especificacao_acima_do_limite_do_cadastro")]
     EspecificacaoAcimaDoLimite {
         limite: usize,
         tamanho: usize,

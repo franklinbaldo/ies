@@ -12,18 +12,6 @@ use crate::indice_local::IndiceLocal;
 use std::path::Path;
 use std::time::Duration;
 
-/// Os subcódigos da falha tipada de sessão encerrada. Nenhum outro
-/// (403, WAF, 3xx, transporte, tela inesperada) dispara relogin.
-pub(crate) const SUBCODIGOS_DE_SESSAO_ENCERRADA: [&str; 2] = [
-    "pagina_de_login_recebida_no_controle",
-    "sessao_encerrada_rode_ies_login",
-];
-
-/// `true` só para a falha tipada de sessão encerrada.
-pub(crate) fn sessao_encerrada(subcodigo: &str) -> bool {
-    SUBCODIGOS_DE_SESSAO_ENCERRADA.contains(&subcodigo)
-}
-
 /// A leitura recomeçou: `relogin` diz se ESTE processo logou (com a
 /// geração já trocada por outro, `false`); `antes` conta os pedidos da
 /// primeira tentativa e do login; `releitura`, os da segunda tentativa.
@@ -75,7 +63,7 @@ pub(crate) fn ler_com_relogin<T, E, L: TransporteDeLogin>(
     contexto: &ContextoDoRelogin<'_>,
     transporte: &mut L,
     medidor: &dyn Fn() -> usize,
-    subcodigo: impl Fn(&E) -> &'static str,
+    sessao_encerrada: impl Fn(&E) -> bool,
     mut ler: impl FnMut() -> Result<T, E>,
 ) -> Result<(T, Option<NotaDoRelogin>), FalhaDaLeitura<E>> {
     let inicio = medidor();
@@ -85,7 +73,9 @@ pub(crate) fn ler_com_relogin<T, E, L: TransporteDeLogin>(
         Err(erro) => erro,
     };
     let credenciais = credenciais_presentes(contexto.credenciais);
-    if !sessao_encerrada(subcodigo(&erro)) || credenciais.is_none() {
+    // Só o fato tipado `#[causa(sessao_encerrada)]` dispara; nenhum outro
+    // (403, WAF, 3xx, transporte, tela inesperada) reloga.
+    if !sessao_encerrada(&erro) || credenciais.is_none() {
         return Err(FalhaDaLeitura::Leitura { erro, nota: None });
     }
     let pedido = PedidoDeLogin {

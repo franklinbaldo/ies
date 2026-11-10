@@ -28,7 +28,7 @@ fn motivo_em_branco_e_erro_de_uso_sem_rede() {
 fn nup_invalido_prioritario_antes_da_sessao() {
     let saida = sem_sessao(&["processo", "sobrestar", " ", "--motivo", "teste", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "numero_processo_vazio");
+    assert_eq!(json(&saida)["subcodigo"], "vazio");
 }
 #[test]
 fn motivo_obrigatorio_no_clap() {

@@ -1,8 +1,8 @@
 //! `#[derive(Causa)]`: a identidade pública de um erro sai da própria
 //! variante, declarada uma vez, ao lado de onde o erro é levantado.
 //!
-//! - O nome é o `snake_case` da variante (`LinkAusente` → `link_ausente`).
-//! - `#[causa(nome = "...")]` registra uma exceção histórica.
+//! - O nome é o `snake_case` da variante (`LinkAusente` → `link_ausente`),
+//!   sem exceção em texto: para mudar o nome, renomeie a variante.
 //! - `#[causa(interna)]`, numa variante de tupla com um campo, compõe: o
 //!   caminho continua no erro interno e a ação e o status vêm dele.
 //! - `#[causa(acao = "relogar")]` fixa a ação de recuperação.
@@ -14,6 +14,9 @@
 //!   caminho; o tipo interno já se nomeia (`Html(ErroHtml)` → `html/...`).
 //! - `#[causa(http)]`, numa variante de tupla com um `StatusHttpRecusado`,
 //!   publica status e mensagem do SEI.
+//! - `#[causa(sessao_encerrada)]` marca o fato "a sessão do SEI acabou":
+//!   `sessao_encerrada()` decide o relogin pelo tipo, sem comparar texto;
+//!   as composições perguntam ao erro interno.
 //!
 //! Sem `syn`/`quote`: lê só os tokens do `enum`, e o código gerado é texto.
 use proc_macro::{Delimiter, TokenStream, TokenTree};
@@ -21,8 +24,8 @@ use std::fmt::Write as _;
 
 #[derive(Default)]
 struct Atributos {
-    nome: Option<String>,
     acao: Option<String>,
+    sessao_encerrada: bool,
     ligacoes: Vec<Ligacao>,
 }
 
@@ -191,27 +194,24 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
             "transparente" => destino.ligacoes.push(Ligacao::Transparente),
             "fonte" => destino.ligacoes.push(Ligacao::Fonte),
             "http" => destino.ligacoes.push(Ligacao::Http),
-            chave @ ("nome" | "acao") => {
+            "sessao_encerrada" => destino.sessao_encerrada = true,
+            "acao" => {
                 let igual = args.next();
                 let valor = args.next();
                 let (Some(TokenTree::Punct(p)), Some(TokenTree::Literal(literal))) = (igual, valor)
                 else {
-                    return Err(format!("Causa: use {chave} = \"...\""));
+                    return Err("Causa: use acao = \"...\"".to_owned());
                 };
                 if p.as_char() != '=' {
-                    return Err(format!("Causa: use {chave} = \"...\""));
+                    return Err("Causa: use acao = \"...\"".to_owned());
                 }
                 let texto = literal.to_string();
                 let texto = texto
                     .strip_prefix('"')
                     .and_then(|t| t.strip_suffix('"'))
-                    .ok_or_else(|| format!("Causa: {chave} precisa de string"))?
+                    .ok_or_else(|| "Causa: acao precisa de string".to_owned())?
                     .to_owned();
-                if chave == "nome" {
-                    destino.nome = Some(texto);
-                } else {
-                    destino.acao = Some(texto);
-                }
+                destino.acao = Some(texto);
             }
             outra => return Err(format!("Causa: argumento desconhecido `{outra}`")),
         }
@@ -233,14 +233,6 @@ fn validar(v: &Variante) -> Result<(), String> {
             "Causa: {} aceita só um de interna/transparente/fonte/http",
             v.ident
         ));
-    }
-    if let Some(nome) = &v.atributos.nome
-        && (nome.is_empty()
-            || !nome
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_'))
-    {
-        return Err(format!("Causa: nome inválido em {}", v.ident));
     }
     Ok(())
 }
@@ -294,8 +286,9 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
     let mut acao = String::new();
     let mut http = String::new();
     let mut folha = String::new();
+    let mut encerrada = String::new();
     for v in variantes {
-        let rotulo = v.atributos.nome.clone().unwrap_or_else(|| snake(&v.ident));
+        let rotulo = snake(&v.ident);
         let compoe = v.atributos.interna() || v.atributos.tem(Ligacao::Fonte);
         let ligado = compoe || v.atributos.tem(Ligacao::Http);
         let p = padrao(v, ligado);
@@ -325,6 +318,11 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
             (None, false) => format!("{T}::Acao::Reportar"),
         };
         let _ = writeln!(acao, "{} => {a},", padrao(v, compoe));
+        if v.atributos.sessao_encerrada {
+            let _ = writeln!(encerrada, "{} => true,", padrao(v, false));
+        } else if compoe {
+            let _ = writeln!(encerrada, "{p} => {T}::Causa::sessao_encerrada(interna),");
+        }
         if v.atributos.tem(Ligacao::Http) {
             let _ = writeln!(http, "{p} => Some(interna),");
         } else if compoe {
@@ -368,6 +366,10 @@ impl {T}::Causa for {nome} {{
     #[allow(unreachable_patterns, unused_variables)]
     fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {{
         match self {{ {http} _ => None }}
+    }}
+    #[allow(unreachable_patterns, unused_variables)]
+    fn sessao_encerrada(&self) -> bool {{
+        match self {{ {encerrada} _ => false }}
     }}
 }}"
     )

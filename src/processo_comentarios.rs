@@ -42,10 +42,8 @@ pub enum TelaDosComentarios {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroComentarios {
-    #[causa(nome = "visao_dos_comentarios_nao_publicada")]
     VisaoNaoPublicada,
     TextoDoComentarioNaoPublicado,
-    #[causa(nome = "lista_de_comentarios_incompleta")]
     ListaIncompleta,
     #[causa(transparente)]
     Html(ErroHtml),
@@ -134,7 +132,6 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 /// Falhas verificáveis ao procurar a ação publicada na barra do processo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkDosComentarios {
-    #[causa(nome = "endereco_dos_comentarios_de_outro_processo")]
     EnderecoDeOutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

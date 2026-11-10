@@ -55,9 +55,7 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroPaginaDoControle {
-    #[causa(nome = "pagina_do_controle_exige_visao_resumida")]
     PaginaExigeVisaoResumida,
-    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     PaginaAtualDaTabelaIlegivel {
         categoria: Categoria,
@@ -68,7 +66,6 @@ pub(crate) enum ErroPaginaDoControle {
     PaginaAtualDaTabelaIncompativelComAFaixa {
         categoria: Categoria,
     },
-    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         categoria: Categoria,
         solicitada: usize,
@@ -87,7 +84,6 @@ pub(crate) enum ErroPaginaDoControle {
     FaixaDaRespostaDiferenteDaPaginaSolicitada {
         categoria: Categoria,
     },
-    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
     #[causa(interna)]
     Formulario(ErroControleDoFormulario),

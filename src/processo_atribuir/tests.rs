@@ -132,13 +132,10 @@ fn subcodigos_publicos_do_leitor_sao_estaveis() {
         E::UsuarioNaoAtribuivel.subcodigo(),
         "usuario_nao_atribuivel"
     );
-    assert_eq!(
-        E::UsuarioAmbiguo.subcodigo(),
-        "usuario_ambiguo_na_atribuicao"
-    );
+    assert_eq!(E::UsuarioAmbiguo.subcodigo(), "usuario_ambiguo");
     assert_eq!(
         E::SituacaoNaoObservada.subcodigo(),
-        "situacao_da_atribuicao_nao_observada"
+        "situacao_nao_observada"
     );
     assert_eq!(
         E::AtribuicaoJaAplicada.subcodigo(),

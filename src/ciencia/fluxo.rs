@@ -29,9 +29,9 @@ pub(crate) struct CienciaDoProcesso {
 pub(crate) enum FalhaDoAceiteProcesso {
     #[causa(interna)]
     Transporte(FalhaTransporte),
-    #[causa(http, nome = "validacao_da_infra_na_ciencia_do_processo")]
+    #[causa(http)]
     ValidacaoDaInfra(StatusHttpRecusado),
-    #[causa(nome = "atividade_do_aceite_do_processo_nao_reconhecida")]
+    #[causa(interna)]
     Aceite(super::ErroCiencia),
 }
 
@@ -46,46 +46,55 @@ impl FalhaDoAceiteProcesso {
 
     pub(crate) fn detalhe(&self) -> Option<&'static str> {
         match self {
-            Self::Aceite(erro) => Some(erro.subcodigo()),
+            Self::Aceite(erro) => Some(crate::erro_publico::folha(erro)),
             _ => None,
         }
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum ErroCienciaProcesso {
+/// Por que a releitura não comprovou a ciência do processo depois do GET
+/// mutador. Cada etapa guarda o erro original e sobe com `?`.
+#[derive(Debug, crate::erro_publico::Causa)]
+pub(crate) enum VerificacaoDaCiencia {
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
+    IdentidadeDoProcessoAlteradaNaReleitura,
+    AceiteSemIdDeAtividade,
+    #[causa(interna)]
+    Barra(ErroCienciaNaArvore),
+    ListaDeCienciasNaoPublicadaNaArvoreRelida,
+    #[causa(interna)]
+    Transporte(FalhaTransporte),
+    #[causa(interna)]
+    Lista(super::ErroCiencia),
+    AtividadeNaoEncontradaNaListaRelida,
+}
+
+#[derive(Debug, crate::erro_publico::Causa)]
+pub(crate) enum ErroCienciaProcesso {
+    #[causa(interna)]
+    Abertura(ErroProcessoObter),
+    #[causa(interna)]
     Barra(ErroCienciaNaArvore),
     CienciaNaoOferecida,
     UnidadeNaoPublicada,
     OrigemNaoAutorizada,
+    #[causa(interna)]
     Cookie(FalhaTransporte),
+    #[causa(interna)]
     Tela(FalhaTransporte),
     TelaRedirecionada,
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     /// A escrita pode ter ocorrido. NUNCA repetir; revisar a lista manualmente.
     EfeitoIncerto {
-        motivo: &'static str,
+        motivo: VerificacaoDaCiencia,
         requisicoes: u8,
         falha_do_aceite: Option<FalhaDoAceiteProcesso>,
     },
 }
 
 impl ErroCienciaProcesso {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(e) => e.subcodigo(),
-            Self::Barra(e) => e.subcodigo(),
-            Self::CienciaNaoOferecida => "ciencia_nao_oferecida_na_barra",
-            Self::UnidadeNaoPublicada => "unidade_nao_publicada_antes_da_ciencia",
-            Self::OrigemNaoAutorizada => "origem_nao_autorizada",
-            Self::Cookie(e) | Self::Tela(e) => e.subcodigo(),
-            Self::TelaRedirecionada => "tela_de_ciencia_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::EfeitoIncerto { .. } => "efeito_incerto_na_ciencia",
-        }
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Abertura(e) => e.mensagem(),
@@ -208,7 +217,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
             Ok(resultado)
         }
         Ok((false, _)) => Err(E::EfeitoIncerto {
-            motivo: "atividade_da_ciencia_nao_encontrada_na_lista_relida",
+            motivo: VerificacaoDaCiencia::AtividadeNaoEncontradaNaListaRelida,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
@@ -255,33 +264,27 @@ fn verificar<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     id_original: &str,
     atividade: Option<&str>,
-) -> Result<(bool, Option<String>), &'static str> {
+) -> Result<(bool, Option<String>), VerificacaoDaCiencia> {
     let (novo, acoes) = abrir_para_escrever(
         sessao,
         &leitura(pedido.nup, pedido.unidade, false),
         indice,
         rede,
-    )
-    .map_err(|_| "arvore_nao_relida_depois_da_ciencia")?;
+    )?;
     if novo.arvore.processo.id != id_original {
-        return Err("identidade_do_processo_alterada_na_releitura");
+        return Err(VerificacaoDaCiencia::IdentidadeDoProcessoAlteradaNaReleitura);
     }
     let Some(atividade) = atividade else {
-        return Err("aceite_sem_id_de_atividade_depois_da_escrita");
+        return Err(VerificacaoDaCiencia::AceiteSemIdDeAtividade);
     };
     let lista = acoes
-        .lista_ciencias
-        .map_err(|_| "lista_de_ciencias_fora_da_forma")?
-        .ok_or("lista_de_ciencias_nao_publicada_na_arvore_relida")?;
-    let resposta = rede
-        .get_sem_seguir(lista.as_str(), cookie)
-        .map_err(|_| "releitura_da_lista_de_ciencias_falhou")?;
-    let html = decodificar_resposta(resposta.resposta)
-        .map_err(|_| "resposta_da_lista_de_ciencias_nao_lida")?;
-    let presente = atividade_na_lista(&html, atividade).map_err(super::ErroCiencia::subcodigo)?;
+        .lista_ciencias?
+        .ok_or(VerificacaoDaCiencia::ListaDeCienciasNaoPublicadaNaArvoreRelida)?;
+    let resposta = rede.get_sem_seguir(lista.as_str(), cookie)?;
+    let html = decodificar_resposta(resposta.resposta)?;
+    let presente = atividade_na_lista(&html, atividade)?;
     let usuario = if presente {
-        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
-            .map_err(super::ErroCiencia::subcodigo)?
+        super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)?
     } else {
         None
     };

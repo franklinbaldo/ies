@@ -105,7 +105,7 @@ fn ablacao_de_verificacao_de_contexto_nao_e_segura() {
     let erro = juntar(&[primeira, outra_unidade], Some("TESTE"))
         .err()
         .unwrap();
-    assert_eq!(erro.subcodigo(), "contexto_divergente");
+    assert_eq!(erro.subcodigo(), "contexto_da_pagina_diferente_do_anterior");
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn recusa_troca_conteudo_total_e_identidade_repetida() {
     let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
     assert_eq!(
         juntar(&[a, b], None).err().unwrap().subcodigo(),
-        "total_divergente"
+        "totais_declarados_diferentes_entre_paginas"
     );
     let a = html((4, 1, 2, &[1, 2]), (1, 1, 1, &[11]));
     let b = html((4, 3, 4, &[2, 4]), (1, 1, 1, &[11]));
@@ -185,7 +185,7 @@ fn unidades_distintas_nao_podem_ser_mescladas() {
     let b = b.replace(">TESTE</a>", ">OUTRA</a>");
     assert_eq!(
         juntar(&[a, b], None).err().unwrap().subcodigo(),
-        "contexto_divergente"
+        "contexto_da_pagina_diferente_do_anterior"
     );
 }
 
@@ -201,7 +201,7 @@ fn filtros_e_modo_divergentes_bloqueiam_juncao() {
         .err()
         .unwrap()
         .subcodigo(),
-        "contexto_divergente"
+        "contexto_da_pagina_diferente_do_anterior"
     );
     let b = html((4, 3, 4, &[3, 4]), (1, 1, 1, &[11]));
     assert_eq!(
@@ -209,7 +209,7 @@ fn filtros_e_modo_divergentes_bloqueiam_juncao() {
             .err()
             .unwrap()
             .subcodigo(),
-        "contexto_divergente"
+        "contexto_da_pagina_diferente_do_anterior"
     );
 }
 

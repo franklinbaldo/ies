@@ -64,6 +64,9 @@ impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
     fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         ErroPaginaWeb::status_http(self)
     }
+    fn sessao_encerrada(&self) -> bool {
+        crate::erro_publico::Causa::sessao_encerrada(self)
+    }
 }
 
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,

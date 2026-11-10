@@ -11,9 +11,7 @@ pub struct IdentidadeDoDocumento {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroTituloDocumento {
-    #[causa(nome = "titulo_documento_sem_numero_sei")]
     TituloSemNumeroSei,
-    #[causa(nome = "titulo_documento_sem_tipo")]
     TituloSemTipoDocumento,
     #[causa(transparente)]
     Html(ErroHtml),
@@ -224,11 +222,8 @@ mod tests {
 /// Erros de extração textual; não convertidos em mensagens livres.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroCorpoDocumento {
-    #[causa(nome = "corpo_documento_vazio")]
     CorpoVazio,
-    #[causa(nome = "corpo_documento_contem_script_ou_estilo")]
     CorpoComConteudoExecutavel,
-    #[causa(nome = "texto_documento_acima_do_limite")]
     TextoAcimaDoLimite,
     #[causa(transparente)]
     Html(ErroHtml),

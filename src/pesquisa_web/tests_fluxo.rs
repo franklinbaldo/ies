@@ -338,10 +338,7 @@ fn pagina_fora_do_intervalo_falha_antes_do_post_de_pagina() {
             ok(resultado("00001", 1, 10, "1.234")),
         ],
     );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pagina_da_pesquisa_fora_do_intervalo"
-    );
+    assert_eq!(r.unwrap_err().subcodigo(), "pagina_fora_do_intervalo");
     assert_eq!(pedidos, tres_pedidos());
 }
 
@@ -535,10 +532,7 @@ fn lista_numa_pagina_publica_total_e_nao_tem_pagina_2() {
         None,
         vec![ok(controle_com_menu()), ok(tela_de_pesquisa()), resposta()],
     );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "pagina_da_pesquisa_fora_do_intervalo"
-    );
+    assert_eq!(r.unwrap_err().subcodigo(), "pagina_fora_do_intervalo");
     assert_eq!(pedidos, tres_pedidos());
 }
 

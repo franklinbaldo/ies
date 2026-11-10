@@ -69,7 +69,7 @@ fn bdd_88_02_cli_preserva_foto_local_coerente_mas_editada() {
     // provada ao confrontar o conteúdo com a versão no anti-IES.
     let segunda = executar(&pasta, &args, 6);
     assert_eq!(segunda.status.code(), Some(1));
-    assert_eq!(json(&segunda)["subcodigo"], "foto_local_divergente");
+    assert_eq!(json(&segunda)["subcodigo"], "foto_divergente");
     assert_eq!(fs::read_to_string(&foto).unwrap(), html_editado);
 }
 

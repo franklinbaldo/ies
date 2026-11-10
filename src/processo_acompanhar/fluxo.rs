@@ -23,11 +23,8 @@ use crate::visao_do_controle::EnvioDoControle as _;
 pub(crate) enum ErroPrevia {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(nome = "origem_do_acompanhamento_nao_autorizada")]
     OrigemNaoAutorizada,
-    #[causa(nome = "unidade_do_acompanhamento_nao_publicada")]
     UnidadeNaoPublicada,
-    #[causa(nome = "acompanhamento_nao_publicado_na_barra")]
     LinkNaoPublicado,
     #[causa(interna)]
     Barra(ErroAcompanharNaBarra),
@@ -37,9 +34,7 @@ pub(crate) enum ErroPrevia {
     Estrutura(ErroAcompanhar),
     #[causa(interna)]
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
-    #[causa(nome = "confirmacao_de_acompanhamento_ainda_bloqueada")]
     ConfirmacaoNaoImplementada,
-    #[causa(nome = "acompanhamento_nao_confirmado_por_leitura")]
     EfeitoIncerto,
     #[causa(transparente)]
     Html(ErroHtml),

@@ -117,11 +117,9 @@ fn get<V: EnvioDoControle>(
     requisicoes: &mut u32,
 ) -> Result<Tela, ErroCriar> {
     *requisicoes += 1;
-    let resposta = envio
-        .get(url, cookie)
-        .map_err(|f| ErroCriar::de_transporte(&f))?;
+    let resposta = envio.get(url, cookie).map_err(ErroCriar::Transporte)?;
     let mime = resposta.mime.clone();
-    let html = decodificar_resposta(resposta).map_err(|f| ErroCriar::de_transporte(&f))?;
+    let html = decodificar_resposta(resposta).map_err(ErroCriar::Transporte)?;
     Ok(Tela {
         url: url.to_owned(),
         html,
@@ -160,10 +158,7 @@ fn enviada<V: EnvioDoControle>(
         if eh_escrita && tentou {
             ErroCriar::EfeitoIncerto
         } else {
-            ErroCriar::Transporte {
-                subcodigo: erro.subcodigo(),
-                http: erro.status_http().cloned(),
-            }
+            ErroCriar::Submissao(erro)
         }
     })
 }
@@ -201,8 +196,8 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
 ) -> Result<Criacao, ErroCriar> {
     use ErroCriar as E;
     *requisicoes = 0;
-    let instalacao = Instalacao::interpretar(origem).ok_or_else(E::local)?;
-    let cookie_valor = cookie.valor().map_err(|_| E::local())?;
+    let instalacao = Instalacao::interpretar(origem).ok_or(E::SessaoLocalIlegivel)?;
+    let cookie_valor = cookie.valor().map_err(|_| E::SessaoLocalIlegivel)?;
     let controle = get(envio, url_controle, cookie_valor, requisicoes)?;
     let unidade = crate::controle_reconhecido::unidade_do_controle(&controle.html)
         .map_err(|_| E::UnidadeDiferente)?;

@@ -27,7 +27,7 @@ fn uso_invalido_sai_com_2_antes_da_configuracao() {
     for (args, subcodigo) in [
         (
             vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
-            "numero_processo_vazio",
+            "vazio",
         ),
         (
             vec!["processo", "enviar", NUP, "--para", " ", "--json"],

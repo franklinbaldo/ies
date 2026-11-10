@@ -29,13 +29,9 @@ pub(crate) enum Desfecho {
 
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConferencia {
-    #[causa(nome = "candidato_sem_leitura_verificadora")]
     LeituraAusente,
-    #[causa(nome = "leitura_verificadora_repetida")]
     LeituraRepetida,
-    #[causa(nome = "leitura_verificadora_de_outro_processo")]
     IdentidadeDivergente,
-    #[causa(nome = "propriedades_do_candidato_nao_observadas")]
     PropriedadesNaoObservadas,
 }
 

@@ -9,17 +9,11 @@ use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTela {
-    #[causa(nome = "tela_de_sobrestar_nao_interpretada")]
     NaoInterpretada,
-    #[causa(nome = "formulario_de_sobrestar_ausente")]
     FormularioAusente,
-    #[causa(nome = "formulario_de_sobrestar_de_outro_processo")]
     OutroProcesso,
-    #[causa(nome = "opcao_somente_sobrestar_nao_oferecida")]
     OpcaoNaoOferecida,
-    #[causa(nome = "tela_de_sobrestar_com_destino_preenchido")]
     DestinoPreenchido,
-    #[causa(nome = "campo_inesperado_na_tela_de_sobrestar")]
     CampoInesperado,
 }
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {

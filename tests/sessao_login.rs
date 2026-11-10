@@ -81,10 +81,7 @@ fn sem_configuracao_falha_tipada() {
         .output()
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "caminho_url_controle_nao_informado"
-    );
+    assert_eq!(json(&saida)["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -94,7 +91,7 @@ fn sem_arquivo_de_credenciais_nada_e_pedido_nem_gravado() {
     assert_eq!(saida.status.code(), Some(1));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["subcodigo"], "caminho_credenciais_nao_informado");
+    assert_eq!(valor["subcodigo"], "caminho_das_credenciais_nao_informado");
     assert!(!pasta.0.join("cookie").exists());
     assert!(!pasta.0.join("url-controle").exists());
 }

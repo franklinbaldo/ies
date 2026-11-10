@@ -14,7 +14,7 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_chamada};
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCienciaNaArvore {
     BarraDeCienciaForaDaForma,
     CienciaRepetidaNaBarra,
@@ -26,25 +26,6 @@ pub(crate) enum ErroCienciaNaArvore {
     ListaDeCienciasRepetidaNaArvore,
     ListaDeCienciasForaDaForma,
     EnderecoDaListaDeCienciasNaoReconhecido,
-}
-
-impl ErroCienciaNaArvore {
-    pub(crate) const fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraDeCienciaForaDaForma => "barra_de_ciencia_fora_da_forma",
-            Self::CienciaRepetidaNaBarra => "ciencia_repetida_na_barra",
-            Self::TelaDeCienciaNaoPublicada => "tela_de_ciencia_nao_publicada",
-            Self::FuncaoDeCienciaAusenteNaTela => "funcao_de_ciencia_ausente_na_tela",
-            Self::FuncaoDeCienciaForaDaForma => "funcao_de_ciencia_fora_da_forma",
-            Self::FuncoesDeCienciaRepetidas => "funcoes_de_ciencia_repetidas",
-            Self::EnderecoDaCienciaNaoReconhecido => "endereco_da_ciencia_nao_reconhecido",
-            Self::ListaDeCienciasRepetidaNaArvore => "lista_de_ciencias_repetida_na_arvore",
-            Self::ListaDeCienciasForaDaForma => "lista_de_ciencias_fora_da_forma",
-            Self::EnderecoDaListaDeCienciasNaoReconhecido => {
-                "endereco_da_lista_de_ciencias_nao_reconhecido"
-            }
-        }
-    }
 }
 
 /// A barra só oferece ciência quando existe exatamente um botão da função.

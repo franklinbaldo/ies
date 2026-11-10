@@ -15,9 +15,7 @@ pub(crate) enum ErroBuscaDeProcesso {
     /// O Controle não foi reconhecido em nenhuma visão.
     #[causa(interna)]
     Controle(ErroCaixa),
-    #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDoControleDiferenteDaSolicitada,
-    #[causa(nome = "charset_da_tela_da_pesquisa_nao_suportado")]
     CharsetDaTelaNaoSuportado,
     #[causa(interna)]
     Link(ErroLinkDaPesquisa),

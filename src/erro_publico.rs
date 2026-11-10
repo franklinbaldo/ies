@@ -50,6 +50,9 @@ pub(crate) trait Causa {
     #[allow(dead_code)] // consumido pelo piloto (processo concluir), na PR seguinte.
     fn acao(&self) -> Acao;
     fn status_http(&self) -> Option<&StatusHttpRecusado>;
+    /// A sessão do SEI acabou (`#[causa(sessao_encerrada)]`): decide o
+    /// relogin das leituras pelo tipo.
+    fn sessao_encerrada(&self) -> bool;
 }
 
 pub(crate) fn caminho_de(erro: &impl Causa) -> Vec<&'static str> {

@@ -19,10 +19,7 @@ fn bdd_60_05_cli_recusa_titulo_divergente_apos_arvore_sem_fallback() {
         String::from_utf8_lossy(&saida.stderr)
     );
     let erro = json(&saida);
-    assert_eq!(
-        erro["subcodigo"], "titulo_do_conteudo_de_outro_documento",
-        "{erro}"
-    );
+    assert_eq!(erro["subcodigo"], "titulo_de_outro_documento", "{erro}");
     assert_eq!(erro["documento"], DOC_A, "{erro}");
     assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
     assert!(erro.get("documentos").is_none(), "vazou conteúdo: {erro}");

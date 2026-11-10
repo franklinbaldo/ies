@@ -129,11 +129,11 @@ fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
 #[test]
 fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
     for (status, falha) in [
-        (301, "redirecionamento_recusado"),
-        (303, "redirecionamento_recusado"),
-        (307, "redirecionamento_recusado"),
-        (401, "sessao_nao_autorizada"),
-        (403, "sessao_nao_autorizada"),
+        (301, "redirecionamento"),
+        (303, "redirecionamento"),
+        (307, "redirecionamento"),
+        (401, "acesso_negado"),
+        (403, "acesso_negado"),
     ] {
         let (r, n) = enviar_com(status, "");
         let E::Transporte(obtida) = r.unwrap_err() else {

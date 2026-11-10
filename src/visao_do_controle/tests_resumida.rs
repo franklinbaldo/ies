@@ -148,7 +148,7 @@ fn pagina_fora_do_intervalo_vista_na_r_fica_na_r() {
     );
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pagina_da_caixa_fora_do_intervalo");
+    assert_eq!(erro.subcodigo(), "pagina_fora_do_intervalo");
     // Ao vivo (PEN1, 04/11/2026) a recusa saía como "visão não obtida",
     // embora a troca para R tivesse passado: a mensagem é a da página da R.
     assert_eq!(

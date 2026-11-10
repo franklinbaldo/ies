@@ -37,7 +37,7 @@ fn recusa_numero_invalido_sem_tocar_na_sessao() {
     assert_eq!(r.status.code(), Some(2));
     let valor = json(&r);
     assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "numero_documento_nao_numerico");
+    assert_eq!(valor["subcodigo"], "nao_numerico");
 }
 
 #[test]
