@@ -146,7 +146,7 @@ pub(crate) enum ErroFuncaoDeConcluir {
 
 impl ErroFuncaoDeConcluir {}
 
-const CONFIRM: &str = "//if (confirm(";
+const CONFIRM: &str = "if (confirm(";
 const LOCATION: &str = "location.href = '";
 
 /// A definição de uma função da tela do nó fora da forma de três linhas.
@@ -154,13 +154,15 @@ pub(super) struct FuncaoForaDaForma;
 
 /// As URLs de `location.href` de cada `function {nome}(){` da tela do nó,
 /// na forma observada no SEI 4.0: a linha da função, a do `confirm`
-/// comentado e a do `location.href = '…';` (também a de reabrir).
+/// (comentado ou ativo, como na retirada do sobrestamento da `UnB`) e a do
+/// `location.href = '…';` (também a de reabrir).
 pub(super) fn urls_das_funcoes<'h>(
     html: &'h str,
     nome: &str,
 ) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
     let funcao = format!("function {nome}(){{");
-    let prefixo = format!("function {nome}");
+    // Com o parêntese: `cienciaProcessoAnexado` não é `cienciaProcesso`.
+    let prefixo = format!("function {nome}(");
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
@@ -168,11 +170,37 @@ pub(super) fn urls_das_funcoes<'h>(
             continue;
         }
         let confirm = linhas.get(i + 1).copied().unwrap_or_default();
+        let confirm = confirm.strip_prefix("//").unwrap_or(confirm);
         let url = (*linha == funcao && confirm.starts_with(CONFIRM) && confirm.ends_with("){"))
             .then(|| linhas.get(i + 2))
             .flatten()
             .and_then(|l| l.strip_prefix(LOCATION))
             .and_then(|resto| resto.strip_suffix("';"))
+            .ok_or(FuncaoForaDaForma)?;
+        achados.push(url);
+    }
+    Ok(achados)
+}
+
+/// As URLs de `var {nome} = '…';` da tela do nó (SEI 4.1 e 5.0). Outra
+/// variável com o mesmo prefixo (`linkCienciaProcessoAnexado`) não conta.
+pub(super) fn urls_das_variaveis<'h>(
+    html: &'h str,
+    nome: &str,
+) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
+    let declaracao = format!("var {nome}");
+    let ate_a_url = format!("var {nome} = '");
+    let mut achados = Vec::new();
+    for linha in html.lines().map(str::trim) {
+        let Some(resto) = linha.strip_prefix(&declaracao) else {
+            continue;
+        };
+        if !resto.starts_with([' ', '=']) {
+            continue;
+        }
+        let url = linha
+            .strip_prefix(&ate_a_url)
+            .and_then(|s| s.strip_suffix("';"))
             .ok_or(FuncaoForaDaForma)?;
         achados.push(url);
     }

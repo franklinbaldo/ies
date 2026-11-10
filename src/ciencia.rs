@@ -7,9 +7,9 @@
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
 mod documento;
 mod fluxo;
+mod lista;
 mod lista_autoria;
 pub(crate) use documento::{
     CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
@@ -17,6 +17,7 @@ pub(crate) use documento::{
 pub(crate) use fluxo::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
+pub(crate) use lista::atividade_na_lista;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AlvoDaCiencia<'a> {
@@ -119,8 +120,43 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // O corpo observado começa com a recarga. Não interpretar fluxo JS:
     // return, throw, condicionais ou qualquer outra instrução anterior
     // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
-    assinatura == b"functioninicializar()"
-        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || separador_vazio(bytes[i]))
+    assinatura == b"functioninicializar()" && so_chamadas_simples(script, abertura + 1, posicao)
+}
+
+/// Antes da recarga, o corpo de `inicializar()` só pode ter instruções
+/// sem desvio de fluxo (`UnB` 4.0.9: `exibirLinkVoltarArvoreVisualizar();`;
+/// SEI 5: `HTML = "";` e `exibirVoltarAcoes(true);`). Retorno, exceção,
+/// condição, laço ou bloco tornam o alcance da recarga incerto.
+fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
+    const DESVIOS: [&str; 12] = [
+        "return", "throw", "if", "else", "for", "while", "do", "switch", "try", "catch", "break",
+        "continue",
+    ];
+    // Sem comentários; literais ficam, mas não decidem o fluxo.
+    let mut ativo = String::new();
+    let mut resto = &script[inicio..fim];
+    while !resto.is_empty() {
+        if let Some(depois) = resto.strip_prefix("//") {
+            resto = depois.split_once('\n').map_or("", |(_, r)| r);
+        } else if let Some(depois) = resto.strip_prefix("/*") {
+            let Some((_, r)) = depois.split_once("*/") else {
+                return false;
+            };
+            resto = r;
+        } else {
+            let mut letras = resto.chars();
+            ativo.extend(letras.next());
+            resto = letras.as_str();
+        }
+    }
+    !ativo.contains(['{', '}'])
+        && ativo.split(';').map(str::trim).all(|instrucao| {
+            let palavra = instrucao
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .next()
+                .unwrap_or_default();
+            !DESVIOS.contains(&palavra)
+        })
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
@@ -246,7 +282,18 @@ pub(crate) fn atividade_do_aceite(
         if atributos.presente("src") || !script_classico {
             continue;
         }
-        for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {
+        // Texto e fonte bruta: a `UnB` 4.0.9 envolve o script em
+        // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026);
+        // um `<script>` dentro de literal JS, ao contrário, trunca a fonte bruta.
+        let texto = tag.inner_text(parser);
+        let fonte = tag.raw().as_utf8_str();
+        let bruto = fonte.split_once('>').map_or("", |(_, resto)| {
+            resto.rsplit_once("</").map_or(resto, |(c, _)| c)
+        });
+        for url in [texto.as_ref(), bruto]
+            .into_iter()
+            .flat_map(literais_de_atualizar_arvore)
+        {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
             };
@@ -262,99 +309,12 @@ pub(crate) fn atividade_do_aceite(
     }
 }
 
-/// Verifica a atividade no único `table#tblAndamentos` da Lista de Ciências
-/// que o processo/documento publicou na **releitura**. O chamador deve antes
-/// conferir a URL da lista contra o alvo e a sessão: o HTML isolado não prova
-/// qual processo serviu a tabela. Não deduz usuário nem data não observados.
-pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, ErroCiencia> {
-    use ErroCiencia as E;
-    if !identificador(atividade) {
-        return Err(E::ListaDeCienciasForaDaFormaObservada);
-    }
-    let fora = E::ListaDeCienciasForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
-    let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(|_| fora)?;
-    let [unica] = tabelas.as_slice() else {
-        return Err(fora);
-    };
-    let tabela = unica.get(parser).and_then(tl::Node::as_tag).ok_or(fora)?;
-    if tabela.name().as_utf8_str() != "table" {
-        return Err(fora);
-    }
-    // O SEI depende de JavaScript ativo. Mesmo que o parser HTML indexe
-    // a tabela ou o checkbox dentro de <template> ou <noscript>, o navegador
-    // não os usa como a Lista de Ciências publicada quando JS está ativo.
-    // Recusar tanto os ancestrais da tabela como os fragmentos descendentes:
-    // uma atividade antiga num nó inerte não prova o efeito do GET atual.
-    for seletor in ["template", "noscript"] {
-        let ancestral_inerte = dom
-            .query_selector(seletor)
-            .into_iter()
-            .flatten()
-            .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
-            .any(|inerte| {
-                inerte
-                    .query_selector(parser, "table")
-                    .into_iter()
-                    .flatten()
-                    .any(|no| no == *unica)
-            });
-        let descendente_inerte = tabela
-            .query_selector(parser, seletor)
-            .into_iter()
-            .flatten()
-            .next()
-            .is_some();
-        if ancestral_inerte || descendente_inerte {
-            return Err(fora);
-        }
-    }
-    let legendas: Vec<String> = tabela
-        .query_selector(parser, "caption")
-        .into_iter()
-        .flatten()
-        .filter_map(|no| no.get(parser))
-        .map(|no| no.inner_text(parser).into_owned())
-        .collect();
-    if legendas.as_slice() != ["Lista de Ciências:"] {
-        return Err(fora);
-    }
-    let mut ocorrencias = 0;
-    for no in tabela.query_selector(parser, "input").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            return Err(fora);
-        };
-        let tipo = valor_do_atributo(tag, "type").map_err(|_| fora)?;
-        if tipo.as_deref() != Some("checkbox") {
-            continue;
-        }
-        let nome = valor_do_atributo(tag, "name").map_err(|_| fora)?;
-        let valor = valor_do_atributo(tag, "value").map_err(|_| fora)?;
-        let Some(nome) = nome else {
-            return Err(fora);
-        };
-        let Some(resto) = nome.strip_prefix("chkInfraItem") else {
-            continue;
-        };
-        if !resto.bytes().all(|c| c.is_ascii_digit()) {
-            return Err(fora);
-        }
-        if valor.as_deref() == Some(atividade) {
-            ocorrencias += 1;
-        }
-    }
-    match ocorrencias {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => Err(E::AtividadesRepetidasNaLista),
-    }
-}
-
 #[cfg(test)]
 mod acervo;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_aceite_unb;
 #[cfg(test)]
 mod tests_documento;
 #[cfg(test)]

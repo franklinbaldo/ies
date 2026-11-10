@@ -14,7 +14,7 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, decodificar_resposta_xml};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
@@ -149,7 +149,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_identidade_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = decodificar_resposta_xml(resposta.resposta).map_err(E::ConsultaResposta)?;
     let anexado = ler_destino(&xml).map_err(E::Estrutura)?;
     if anexado.nup != pedido.anexado.as_str() {
         return Err(E::Estrutura("nup_do_anexado_diferente_do_solicitado"));
@@ -171,7 +171,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_assinaturas_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = decodificar_resposta_xml(resposta.resposta).map_err(E::ConsultaResposta)?;
     let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
     Ok(Previa {
         principal: pedido.principal.as_str().to_owned(),

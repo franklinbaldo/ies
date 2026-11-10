@@ -163,3 +163,12 @@ fn consulta_ajax_exige_literal_unico_e_endereco_relativo() {
         Err("consulta_de_anexacao_fora_da_forma_observada")
     );
 }
+#[test]
+fn botao_submit_da_unb_conta_como_controle_de_anexar() {
+    // UnB 4.0.9 ao vivo (10/11/2026): <button type="submit" name="sbmAnexar">.
+    let tela = html().replace(
+        r#"<input name="sbmAnexar" type="submit" value="Anexar">"#,
+        r#"<button type="submit" name="sbmAnexar" id="sbmAnexar" value="Anexar">Anexar</button>"#,
+    );
+    assert_eq!(ler_tela(&tela).unwrap().anexados, vec!["22"]);
+}

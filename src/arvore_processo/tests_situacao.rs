@@ -270,6 +270,18 @@ fn sobrestado_numa_unidade_nas_formas_do_acervo() {
     assert_eq!(lida.documentos.len(), 1);
 }
 
+/// UFRJ e GO ao vivo (10/11/2026): o sobrestamento traz a atribuição.
+#[test]
+fn sobrestado_com_atribuicao_e_lido() {
+    let u1 = ancora("Administração Central", "ADCENTRAL");
+    let pessoa = ancora("Usuário teste 1", "servidor1");
+    let caso = format!("Processo sobrestado na unidade {u1} (atribuído para {pessoa}).<br />");
+    assert_eq!(
+        ler_sobrestamento(&caso),
+        Some(vec![sobrestada("ADCENTRAL", "Administração Central")])
+    );
+}
+
 #[test]
 fn sobrestamento_fora_da_forma_observada_nao_e_lido() {
     let u1 = ancora("Unidade1", "Unidade1");
@@ -279,7 +291,6 @@ fn sobrestamento_fora_da_forma_observada_nao_e_lido() {
         format!("Processo sobrestado na unidade {u1}<br />"),
         format!("Processo sobrestado na unidade {u1}."),
         format!("{}x", sobrestado(&u1)),
-        format!("Processo sobrestado na unidade {u1} (atribuído para {u2}).<br />"),
         format!("Processo sobrestado nas unidades:<br />{u1}<br />{u2}<br /><br />"),
         format!("Processo sobrestado na unidade {u1}{u2}.<br />"),
         sobrestado("<a alt=\"A\" title=\"B\" class=\"ancoraSigla\">U</a>"),

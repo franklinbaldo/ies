@@ -78,3 +78,23 @@ fn subcodigos_das_recusas_de_resposta_sao_distintos() {
     subcodigos.dedup();
     assert_eq!(subcodigos.len(), variantes.len());
 }
+
+#[test]
+fn consulta_ajax_aceita_so_xml_com_o_mesmo_status_e_charset() {
+    // UnB 4.0.9 ao vivo (10/11/2026): protocolo_RI1023 da anexação é XML.
+    let xml = b"<?xml version=\"1.0\" encoding=\"iso-8859-1\"?><complementos/>";
+    for mime in ["application/xml; charset=iso-8859-1", "text/xml"] {
+        assert!(
+            decodificar_resposta_xml(resposta(200, mime, xml)).is_ok(),
+            "{mime}"
+        );
+    }
+    assert_eq!(
+        decodificar_resposta_xml(resposta(200, "text/html", xml)),
+        Err(FalhaTransporte::TipoDeConteudoNaoXml)
+    );
+    assert!(matches!(
+        decodificar_resposta_xml(resposta(500, "application/xml", xml)),
+        Err(FalhaTransporte::StatusHttpDeErroDoServidor(_))
+    ));
+}

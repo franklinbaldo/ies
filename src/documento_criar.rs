@@ -95,7 +95,8 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = decodificar_atributo(&nome).ok_or(err)?;
+        // Texto, não atributo: o SEI 5 publica "Nome&nbsp;(Formulário)".
+        let nome = crate::entidades_html::decodificar_texto(&nome);
         if !nome.is_empty() {
             tipos.push(nome);
         }
@@ -116,15 +117,24 @@ pub(crate) fn conferir_criacao(
     depois: &[DocumentoNaArvore],
     tipo: &str,
 ) -> Result<String, ErroCriar> {
-    conferir_criacao_com_rotulo(antes, depois, |numero| format!("{tipo} {numero}"))
+    conferir_criacao_com_rotulo(antes, depois, |rotulo, numero| {
+        // `Despacho 0012274` (UnB, PEN, UFRJ) ou, com numeração própria do
+        // tipo, `Despacho 1407 (8446460)` (GO 5.0.3, live de 10/11/2026).
+        rotulo == format!("{tipo} {numero}")
+            || rotulo
+                .strip_prefix(tipo)
+                .and_then(|resto| resto.strip_prefix(' '))
+                .and_then(|resto| resto.strip_suffix(&format!(" ({numero})")))
+                .is_some_and(|serie| !serie.is_empty() && serie.bytes().all(|b| b.is_ascii_digit()))
+    })
 }
 
-/// Como [`conferir_criacao`], com o rótulo que a árvore publica para o
-/// documento novo. Externo na `UnB` (SEI 4.0.9): `Anexo (0011862)`.
+/// Como [`conferir_criacao`], com a conferência do rótulo que a árvore
+/// publica para o documento novo (rótulo, número SEI). Externo na `UnB` (SEI 4.0.9): `Anexo (0011862)`.
 pub(crate) fn conferir_criacao_com_rotulo(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
-    rotulo_esperado: impl Fn(&str) -> String,
+    rotulo_confere: impl Fn(&str, &str) -> bool,
 ) -> Result<String, ErroCriar> {
     use ErroCriar as E;
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
@@ -160,7 +170,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
         .ok_or(E::EfeitoIncerto)?;
-    if novo.rotulo != rotulo_esperado(numero)
+    if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
             .any(|d| d.numero_sei.as_deref() == Some(numero))
@@ -222,12 +232,17 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
 
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
+/// O parâmetro chama `id` (4.1) ou `idSerie` (SEI 5: PEN, UFRJ e GO).
 fn script_prova_escolha(html: &str) -> bool {
-    guarda_navegacao::script_publica_funcao_de_navegacao(
-        html,
-        "functionescolher(",
-        "functionescolher(id){document.getElementById('hdnIdSerie').value=id;document.getElementById('frmDocumentoEscolherTipo').submit();}",
-    )
+    ["id", "idSerie"].iter().any(|parametro| {
+        guarda_navegacao::script_publica_funcao_de_navegacao(
+            html,
+            "functionescolher(",
+            &format!(
+                "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
+            ),
+        )
+    })
 }
 
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
@@ -276,6 +291,11 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
         .ok_or(E::LinkDoTipoNaoNavegavel)?;
     let onclick = decodificar_atributo(&onclick).ok_or(E::ListaForaDaForma)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
+    // Filtro da sessão já em "todos": o botão volta a oferecer só os
+    // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
+    if chamada == "exibirSeries('U')" || chamada == "exibirSeries(\"U\")" {
+        return Ok(false);
+    }
     if (href != "#" && href != "javascript:void(0);")
         || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
     {
@@ -332,7 +352,7 @@ pub(crate) fn escolha_do_tipo(
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = decodificar_atributo(&nome).ok_or(E::ListaForaDaForma)?;
+        let nome = crate::entidades_html::decodificar_texto(&nome);
         if nome != tipo {
             continue;
         }
@@ -385,6 +405,8 @@ pub(crate) fn cadastro_redirecionado(
 mod tests;
 #[cfg(test)]
 mod tests_scripts_inertes;
+#[cfg(test)]
+mod tests_telas_reais;
 
 #[cfg(test)]
 #[path = "documento_criar/tests_anties.rs"]
