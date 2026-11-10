@@ -77,6 +77,21 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), OrigemForaDoT
 mod tests {
     use super::*;
 
+    // Aceite técnico da #620: a causa publicada vem do tipo via Serde.
+    // Este teste entra em RED antes da implementação.
+    #[test]
+    fn causa_de_origem_serde_direto_preserva_identidade_legacy() {
+        let erro = exigir(
+            Escrita::ProcessoAndamento,
+            "https://sei.exemplo.gov.br/sei",
+        )
+        .unwrap_err();
+        assert_eq!(
+            serde_json::to_value(erro).unwrap(),
+            serde_json::json!("origem_fora_do_treinamento")
+        );
+    }
+
     #[test]
     fn aceita_so_instalacoes_de_treinamento_e_a_bancada() {
         for origem in ORIGENS {
