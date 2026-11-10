@@ -9,9 +9,14 @@ use crate::bloco::TipoBloco;
 use crate::bloco_cli::{FalhaLeitura, Leitura, ler_tipado_via};
 use crate::documento::NumeroDocumento;
 use crate::erro_html::ErroHtml;
-use crate::formulario_web::decodificar_atributo;
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
+    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+};
 use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
+use crate::pagina_do_controle::codificacao_da_tela;
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::escrita::{
     Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
@@ -22,6 +27,7 @@ use crate::processo_obter::{
 };
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
+use crate::visao_do_controle::EnvioDoControle as _;
 
 /// Blocos e documentos oferecidos pelo `frmBlocoEscolher`.
 #[derive(Debug, PartialEq, Eq)]
@@ -40,6 +46,9 @@ pub(crate) struct PreviaDocumental {
     /// `None`: o detalhe observado não é completo e não contém o documento.
     pub(crate) presente_antes: Option<bool>,
     pub(crate) requisicoes: usize,
+    pub(crate) confirmado: bool,
+    pub(crate) alterado: bool,
+    pub(crate) presente_depois: Option<bool>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -58,6 +67,10 @@ pub(crate) enum ErroIncluir {
     DocumentoForaDaTela,
     LeituraDoBloco(#[from] FalhaLeitura),
     Transporte(#[from] FalhaTransporte),
+    Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
+    CharsetNaoSuportado,
+    PertencimentoNaoObservado,
+    NaoConfirmado,
 }
 
 impl ErroIncluir {
@@ -74,6 +87,12 @@ impl ErroIncluir {
             }
             Self::DocumentoForaDaTela => {
                 "a tela de escolha de bloco não lista o documento pedido; nada foi incluído".to_owned()
+            }
+            Self::PertencimentoNaoObservado => {
+                "não se comprovou que o documento esteja ausente do bloco; nenhuma escrita realizada".to_owned()
+            }
+            Self::NaoConfirmado => {
+                "inclusão não confirmada; consulte o bloco antes de tentar novamente".to_owned()
             }
             Self::LeituraDoBloco(e) => e.mensagem().to_owned(),
             Self::Transporte(e) => e.mensagem().to_owned(),
@@ -147,13 +166,14 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
     Ok(TelaDeEscolha { blocos, documentos })
 }
 
-/// Prévia: abertura do documento, tela de escolha e detalhe do bloco; sem POST.
+/// Prévia ou confirmação: formulário fresco, no máximo um POST, releitura.
 pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     referencias: &ReferenciasDaSessao,
     unidade: Option<&str>,
     bloco: &str,
     documento: &NumeroDocumento,
+    confirmar: bool,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<PreviaDocumental, ErroIncluir> {
@@ -176,7 +196,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     )?
     .ok_or(ErroIncluir::AcaoNaoOferecidaNaBarra)?;
     let cookie = ler_cookie(sessao)?;
-    let (html, _) = obter_tela(&mut rede, &cookie, link.as_str())?;
+    let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let tela = ler_tela_de_escolha(&html)?;
     if !tela.blocos.iter().any(|b| b == bloco) {
         return Err(ErroIncluir::BlocoNaoOferecido);
@@ -200,12 +220,100 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         .iter()
         .any(|item| item.documento.as_deref() == Some(aberto.numero.as_str()));
     let completo = detalhe.itens.len() == detalhe.total_declarado;
+    let presente_antes = (presente || completo).then_some(presente);
+    let mut alterado = false;
+    let mut presente_depois = None;
+    if confirmar && presente_antes == Some(false) {
+        let instalacao = Instalacao::interpretar(sessao.origem)
+            .ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
+        let codificacao = codificacao_da_tela(&mime).ok_or(ErroIncluir::CharsetNaoSuportado)?;
+        let servida = TelaServida {
+            url: link.as_str(),
+            html: &html,
+            codificacao,
+        };
+        let submissao = derivar_submissao(
+            &INCLUIR_DOCUMENTO,
+            &instalacao,
+            &servida,
+            "",
+            &[("selBloco", bloco), ("chkDocumentosItem0", &aberto.id_documento)],
+        )?;
+        // A submissão é consumida; não existe segundo envio, mesmo após
+        // transporte falho ou leitura inconclusiva.
+        let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
+            rede.post(sub, cookie)
+        });
+        let aceita = match resposta {
+            Ok(RespostaDoEnvio::Redirecionamento(r)) => {
+                redirecionamento_da_inclusao(
+                    r.localizacao(), r.url_do_envio(), &aberto.processo.id, &aberto.id_documento,
+                )
+            }
+            _ => false,
+        };
+        let relido = ler_tipado_via(
+            referencias, unidade, TipoBloco::Assinatura, Some(bloco), None, &mut rede,
+        );
+        let conferido = matches!(
+            relido,
+            Ok(crate::bloco_cli::Lido { leitura: Leitura::Detalhe(ref detalhe), .. })
+                if detalhe.itens.iter().any(|item| {
+                    item.documento.as_deref() == Some(aberto.numero.as_str())
+                })
+        );
+        if !aceita || !conferido {
+            return Err(ErroIncluir::NaoConfirmado);
+        }
+        alterado = true;
+        presente_depois = Some(true);
+    } else if confirmar && presente_antes.is_none() {
+        return Err(ErroIncluir::PertencimentoNaoObservado);
+    }
     Ok(PreviaDocumental {
         bloco: bloco.to_owned(),
         documento: aberto.numero,
-        presente_antes: (presente || completo).then_some(presente),
+        presente_antes,
+        confirmado: confirmar,
+        alterado,
+        presente_depois,
         requisicoes: usize::from(rede.feitas()),
     })
+}
+
+const INCLUIR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "bloco_escolher",
+    formulario: "frmBlocoEscolher",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmIncluir"),
+    campos_ocultos_exigidos: &["hdnDocumentosItens", "hdnDocumentosItensSelecionados"],
+    campos_ocultos_reescritos: &[],
+    campos_usuario: &["selBloco", "chkDocumentosItem0"],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::DocumentoIncluidoNoBloco,
+    },
+};
+
+/// O 302 é apenas aceitação causal da inclusão quando vinculado à mesma
+/// identidade e à ação publicada, sem seguir redirecionamento.
+fn redirecionamento_da_inclusao(
+    location: Option<&str>,
+    url_do_envio: &str,
+    id_procedimento: &str,
+    id_documento: &str,
+) -> bool {
+    let Some(consulta) = location.and_then(|loc| consulta_do_controlador(loc, url_do_envio))
+    else {
+        return false;
+    };
+    let valores = |campo: &str| -> Vec<&str> {
+        consulta.split('&').filter_map(|item| item.split_once('='))
+            .filter(|(nome, _)| *nome == campo).map(|(_, valor)| valor).collect()
+    };
+    valores("acao") == ["bloco_escolher"]
+        && valores("id_procedimento") == [id_procedimento]
+        && valores("id_documento") == [id_documento]
 }
 
 #[cfg(test)]
