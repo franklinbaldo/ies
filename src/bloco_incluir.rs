@@ -11,13 +11,13 @@ use crate::documento::NumeroDocumento;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
+    decodificar_atributo, derivar_submissao, enviar_submissao_via,
 };
 use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
-use crate::pagina_do_controle::codificacao_da_tela;
 use crate::instalacao::Instalacao;
+use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{
     Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
 };
@@ -224,8 +224,8 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     let mut alterado = false;
     let mut presente_depois = None;
     if confirmar && presente_antes == Some(false) {
-        let instalacao = Instalacao::interpretar(sessao.origem)
-            .ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
+        let instalacao =
+            Instalacao::interpretar(sessao.origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
         let codificacao = codificacao_da_tela(&mime).ok_or(ErroIncluir::CharsetNaoSuportado)?;
         let servida = TelaServida {
             url: link.as_str(),
@@ -237,7 +237,10 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
             &instalacao,
             &servida,
             "",
-            &[("selBloco", bloco), ("chkDocumentosItem0", &aberto.id_documento)],
+            &[
+                ("selBloco", bloco),
+                ("chkDocumentosItem0", &aberto.id_documento),
+            ],
         )?;
         // A submissão é consumida; não existe segundo envio, mesmo após
         // transporte falho ou leitura inconclusiva.
@@ -245,15 +248,21 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
             rede.post(sub, cookie)
         });
         let aceita = match resposta {
-            Ok(RespostaDoEnvio::Redirecionamento(r)) => {
-                redirecionamento_da_inclusao(
-                    r.localizacao(), r.url_do_envio(), &aberto.processo.id, &aberto.id_documento,
-                )
-            }
+            Ok(RespostaDoEnvio::Redirecionamento(r)) => redirecionamento_da_inclusao(
+                r.localizacao(),
+                r.url_do_envio(),
+                &aberto.processo.id,
+                &aberto.id_documento,
+            ),
             _ => false,
         };
         let relido = ler_tipado_via(
-            referencias, unidade, TipoBloco::Assinatura, Some(bloco), None, &mut rede,
+            referencias,
+            unidade,
+            TipoBloco::Assinatura,
+            Some(bloco),
+            None,
+            &mut rede,
         );
         let conferido = matches!(
             relido,
@@ -303,13 +312,16 @@ fn redirecionamento_da_inclusao(
     id_procedimento: &str,
     id_documento: &str,
 ) -> bool {
-    let Some(consulta) = location.and_then(|loc| consulta_do_controlador(loc, url_do_envio))
-    else {
+    let Some(consulta) = location.and_then(|loc| consulta_do_controlador(loc, url_do_envio)) else {
         return false;
     };
     let valores = |campo: &str| -> Vec<&str> {
-        consulta.split('&').filter_map(|item| item.split_once('='))
-            .filter(|(nome, _)| *nome == campo).map(|(_, valor)| valor).collect()
+        consulta
+            .split('&')
+            .filter_map(|item| item.split_once('='))
+            .filter(|(nome, _)| *nome == campo)
+            .map(|(_, valor)| valor)
+            .collect()
     };
     valores("acao") == ["bloco_escolher"]
         && valores("id_procedimento") == [id_procedimento]
