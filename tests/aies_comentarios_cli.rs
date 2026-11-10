@@ -64,7 +64,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
         cabecalho.push(byte[0]);
     }
     let texto = std::str::from_utf8(&cabecalho).unwrap();
-    let metodo = texto.split_whitespace().next().unwrap();
+    let metodo = texto.split_whitespace().next().unwrap().to_owned();
     let acao = texto
         .lines()
         .next()
@@ -75,7 +75,8 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
                 .split('&')
                 .find_map(|campo| campo.strip_prefix("acao="))
         })
-        .unwrap_or("sem_acao");
+        .unwrap_or("sem_acao")
+        .to_owned();
     let tamanho = texto
         .lines()
         .find_map(|linha| {
