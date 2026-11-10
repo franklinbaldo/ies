@@ -4,7 +4,7 @@ use crate::erro_html::ErroHtml;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{
-    Contador, FalhaDaTela, ler_cookie, leitura, obter_tela, siglas_abertas,
+    Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
@@ -58,16 +58,11 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, Erro> {
     let mut rede = Contador::novo(envio);
-    let (aberto, acoes) = abrir_para_escrever(
-        sessao,
-        &leitura(nup, unidade, true),
-        indice,
-        &mut rede,
-    )
-    .map_err(Erro::Abertura)?;
+    let (aberto, acoes) =
+        abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)
+            .map_err(Erro::Abertura)?;
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
-    let abertas =
-        siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| Erro::SituacaoNaoLida)?;
+    let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| Erro::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
         return Err(Erro::ProcessoForaDaUnidade);
     }
