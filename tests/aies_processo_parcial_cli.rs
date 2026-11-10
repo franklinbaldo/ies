@@ -32,6 +32,7 @@ enum Cena {
     IdentidadeDivergente,
     PastaPendente,
     DocumentosVisiveisComPastaPendente,
+    ValidacaoExigida,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -94,16 +95,12 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, format!("{evento} {acao}"))
 }
 
-fn estado(cena: Cena) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
-
+fn guardar_controle_parcial(banco: &mut Connection, instalacao: &Instalacao) {
     // O Controle observa PEDIDO, porém apenas uma página de duas linhas.
     // A projeção de processos não pode substituir a identidade observada
     // numa página parcial pela identidade divergente da árvore.
     banco_cassettes::guardar(
-        &mut banco,
+        banco,
         CENARIO,
         &ControleResumido {
             instalacao: instalacao.clone(),
@@ -123,6 +120,14 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+}
+
+fn estado(cena: Cena) -> (Connection, Instalacao) {
+    let mut banco = Connection::open_in_memory().unwrap();
+    banco_cassettes::iniciar(&banco).unwrap();
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+
+    guardar_controle_parcial(&mut banco, &instalacao);
     processos::guardar(
         &mut banco,
         &instalacao,
@@ -142,7 +147,10 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
-    if !matches!(cena, Cena::IdentidadeDivergente) {
+    if matches!(
+        cena,
+        Cena::PastaPendente | Cena::DocumentosVisiveisComPastaPendente
+    ) {
         // Estado de falha inventado somente onde os cards UnB não cobrem
         // a transição; a resposta HTML vem do modelo tipado no SQLite.
         pastas_incompletas::guardar(
@@ -154,6 +162,16 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
                 indice: 1,
                 protocolo_declarado: "900".into(),
             },
+        )
+        .unwrap();
+    }
+    if matches!(cena, Cena::ValidacaoExigida) {
+        iesei::validacao_acesso::guardar(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "10",
+            iesei::validacao_acesso::Validacao::Exigida,
         )
         .unwrap();
     }
@@ -235,6 +253,12 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
+        if matches!(cena, Cena::ValidacaoExigida) {
+            assert_eq!(
+                iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
+                Some(iesei::validacao_acesso::Validacao::Exigida),
+            );
+        }
         (controle.recebidos.linhas[0].numero.clone(), processo.numero)
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
@@ -398,3 +422,6 @@ fn bdd_342_01_documentos_visiveis_nao_vazam_com_pasta_pendente() {
         "leitura não deve produzir escrita: {pedidos:?}"
     );
 }
+
+#[path = "aies_processo_parcial_cli/bdd_633.rs"]
+mod bdd_633;

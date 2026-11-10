@@ -6,6 +6,8 @@ use super::{
 };
 use rusqlite::Connection;
 use std::fmt::Write as _;
+mod trabalho;
+use trabalho::trabalho_do_processo;
 
 /// Renderização da hipótese sintética de pasta declarada, mas não carregada.
 /// Os cards `UnB` mostram `PASTA`/`AGUARDE` e abertura bem-sucedida; a ausência
@@ -289,32 +291,6 @@ Nos[0].html = '{situacao}';
     ))
 }
 
-fn trabalho_do_processo(processo: &ProcessoSimulado, unidade_atual: &str) -> String {
-    let id = &processo.id;
-    // A pesquisa por id_protocolo não pode perder a ação documental
-    // já oferecida antes da tramitação. A unidade fechada não a publica.
-    // A inclusão em unidade de destino exige a capacidade documental
-    // correspondente, ainda não simulada fora da origem.
-    let incluir = if processo.pode_incluir_documento(unidade_atual) {
-        format!(
-            "<a id='incluirDocumento' href='controlador.php?acao=documento_escolher_tipo&amp;id_procedimento={id}&amp;infra_hash={}'>Incluir Documento</a>",
-            crate::protocolo_sintetico::INFRA_HASH
-        )
-    } else {
-        String::new()
-    };
-    format!(
-        "<html><head><title>SEI - Processo</title></head><body>\
-         <a id='lnkInfraUnidade'>{}</a>\
-         <iframe id='ifrArvore' name='ifrArvore' \
-         src='controlador.php?acao=procedimento_visualizar&amp;id_procedimento={id}&amp;infra_hash={}'></iframe>\
-         <iframe id='ifrVisualizacao' src='about:blank'></iframe>\
-         {incluir}</body></html>",
-        html(unidade_atual),
-        crate::protocolo_sintetico::INFRA_HASH
-    )
-}
-
 /// Consulta a árvore ou a tela de trabalho sem efeito; ausência do processo
 /// delega à rota de documentos existente do mesmo cenário.
 #[must_use]
@@ -363,9 +339,13 @@ pub fn navegacao(
         Err(estado) => return Some(Resposta::nova(estado)),
     };
     if acao == "procedimento_trabalhar" {
+        let Ok(validacao) = iesei::validacao_acesso::ler(banco, instalacao, cenario, id) else {
+            return Some(Resposta::nova(Estado::DadosInsuficientes));
+        };
         return Some(resposta_html(trabalho_do_processo(
             &processo,
             &unidade_atual,
+            validacao,
         )));
     }
     Some(
