@@ -254,7 +254,7 @@ fn conciliar(
         });
     }
     feito.resultado = ResultadoDaAssinatura::Comprovada {
-        assinaturas_depois: depois.clone(),
+        assinatura_depois: depois[0].clone(),
         edicao_depois,
         reconciliado_por: falha,
     };
