@@ -191,6 +191,59 @@ fn bdd_381_03_idempotencia_sem_nova_acao_oferecida() {
 /// a tela de escolha nem chega a ser solicitada.
 const REQUISICOES_SEM_ACAO: usize = REQUISICOES_DA_PREVIA - 1;
 
+/// O bloco 7737 existe somente na lista de blocos internos. A forma
+/// documental não pode interpretá-lo como assinatura ou disparar POST.
+#[test]
+fn bdd_381_03_recusa_bloco_de_tipo_inadequado_sem_inclusao() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    blocos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Interno,
+            total: 1,
+            faixa: Some((1, 1)),
+            linhas: vec![LinhaBloco {
+                numero: "7737".into(),
+                estado: "Gerado".into(),
+                descricao: "Bloco interno".into(),
+            }],
+        },
+    )
+    .unwrap();
+    drop(banco);
+    // Quatro leituras da identidade do DOC e dois GETs da listagem de
+    // assinatura: a recusa impede formulário e qualquer POST mutador.
+    let saida = executar(
+        &pasta,
+        &[
+            "bloco",
+            "incluir",
+            "7737",
+            "--documento",
+            DOC,
+            "--confirmar",
+        ],
+        REQUISICOES_SEM_ACAO - 1,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(1),
+        "stdout={}; stderr={}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert!(!saida.stderr.is_empty());
+    let consulta = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    assert_eq!(consulta.status.code(), Some(0));
+    let itens = json(&consulta)["bloco"]["itens"].as_array().unwrap().clone();
+    assert!(itens.iter().all(|item| item["documento"] != DOC));
+}
+
 /// Pesquisa, Controle até a árvore do documento, tela de escolha; Controle,
 /// lista e detalhe do bloco.
 const REQUISICOES_DA_PREVIA: usize = 8;
