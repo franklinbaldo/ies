@@ -1,5 +1,5 @@
 //! #60 / BDD-60-05: identidade de protocolo ambigua nao e campo ausente.
-//! A cassette UnB observa procedimento_trabalhar, mas nao essas repeticoes:
+//! A cassette `UnB` observa `procedimento_trabalhar`, mas nao essas repeticoes:
 //! as recusas deste teste sao hipoteses sinteticas, nao replay do SEI.
 use super::*;
 
