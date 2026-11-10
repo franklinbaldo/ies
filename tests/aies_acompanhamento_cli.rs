@@ -185,6 +185,14 @@ fn executar_com(
     estado: EstadoInicial,
     confirmar: bool,
 ) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
+    executar_com_falha(estado, confirmar, false)
+}
+
+fn executar_com_falha(
+    estado: EstadoInicial,
+    confirmar: bool,
+    falha_na_releitura: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
     let pasta = Pasta::nova();
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let _origem = pasta.privado("origem", ORIGEM);
@@ -217,6 +225,8 @@ fn executar_com(
     let parar_proxy = Arc::clone(&parar);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade_tls).unwrap();
+        let mut post_recebido = false;
+        let mut leitura_interceptada = false;
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = ler_pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.treinamento.unb.br:443 HTTP/1.1\r\n"));
@@ -224,6 +234,22 @@ fn executar_com(
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = ler_pedido(&mut canal);
+            let interceptar = falha_na_releitura
+                && post_recebido
+                && !leitura_interceptada
+                && evento == "GET acompanhamento_gerenciar";
+            if interceptar {
+                leitura_interceptada = true;
+                eventos_proxy.lock().unwrap().push(evento);
+                canal.write_all(
+                    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                ).unwrap();
+                canal.flush().unwrap();
+                continue;
+            }
+            if evento == "POST acompanhamento_excluir" {
+                post_recebido = true;
+            }
             let mut backend = TcpStream::connect(endereco).unwrap();
             backend.write_all(&bytes).unwrap();
             backend.shutdown(Shutdown::Write).unwrap();
@@ -397,4 +423,33 @@ fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
     assert_eq!(relida["ja_estava"], true);
     assert_eq!(relida["alterado"], false);
     assert!(relida["id_acompanhamento"].is_null());
+}
+
+#[test]
+fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_3() {
+    let (saida, eventos, depois, segunda_cli) =
+        executar_com_falha(EstadoInicial::GrupoG, true, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(3),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let erro: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(erro["codigo"], "efeito_incerto");
+    assert_eq!(erro["retentavel"], false);
+    assert_eq!(
+        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        1,
+        "não se reenvia exclusão com resultado incerto: {eventos:?}"
+    );
+    let itens = depois.unwrap().itens;
+    assert_eq!(itens.len(), 1);
+    assert_eq!(itens[0].id, "832");
+    assert_eq!(itens[0].grupo, "H");
+    let outra = segunda_cli.unwrap();
+    assert_eq!(outra.status.code(), Some(0));
+    let relida: serde_json::Value = serde_json::from_slice(&outra.stdout).unwrap();
+    assert_eq!(relida["ja_estava"], true);
+    assert_eq!(relida["alterado"], false);
 }
