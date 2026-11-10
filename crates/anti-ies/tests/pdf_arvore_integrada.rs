@@ -322,3 +322,97 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
     assert!(resposta.contains("anotacao_registrar"));
     servidor.join().unwrap();
 }
+
+
+/// BDD-60-05: identidade de PDF em outra árvore conhecida não autoriza
+/// fallback para o processo pedido. A recusa é hipótese sintética:
+/// a cassette UnB registra navegação, não esta seleção cruzada.
+#[test]
+fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
+    let banco = Connection::open_in_memory().unwrap();
+    iniciar(&banco).unwrap();
+    let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
+    let tipo = TipoExterno {
+        id: "293".into(),
+        nome: "Anexo".into(),
+        limite_bytes: 100_000,
+    };
+    let mut registrados = Vec::new();
+    for (id, nup, nome) in [
+        ("7", "00001.000001/2026-01", "primeiro.pdf"),
+        ("8", "00001.000002/2026-02", "segundo.pdf"),
+    ] {
+        externo::semear(
+            &banco,
+            &origem,
+            "identidades",
+            &Processo {
+                id: id.into(),
+                nup: nup.into(),
+                unidade: "TESTE".into(),
+            },
+            &tipo,
+        )
+        .unwrap();
+        let temporario = externo::receber_conteudo(
+            &banco,
+            &origem,
+            "identidades",
+            id,
+            nome,
+            b"%PDF-1.7\nconteudo",
+        )
+        .unwrap();
+        registrados.push(
+            externo::cadastrar(&banco, &origem, "identidades", id, "293", temporario.id)
+                .unwrap(),
+        );
+    }
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let servidor = std::thread::spawn(move || {
+        for _ in 0..4 {
+            let mut conexao = aceitar(&escuta);
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "identidades")))
+                .unwrap();
+        }
+        for processo in ["7", "8"] {
+            assert_eq!(
+                externo::documentos(&banco, &origem, "identidades", processo)
+                    .unwrap()
+                    .len(),
+                1,
+                "GET e recusa não alteram o SQLite"
+            );
+        }
+    });
+
+    let url_primeiro = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento={}",
+        registrados[0].id_publico()
+    );
+    let url_cruzado = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento={}",
+        registrados[1].id_publico()
+    );
+    let url_segundo = format!(
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=8&id_documento={}",
+        registrados[1].id_publico()
+    );
+    let primeiro = pedir(endereco, &url_primeiro);
+    let cruzado = pedir(endereco, &url_cruzado);
+    let segundo = pedir(endereco, &url_segundo);
+    let novamente = pedir(endereco, &url_primeiro);
+    servidor.join().unwrap();
+
+    assert!(primeiro.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(primeiro.contains(&registrados[0].numero_sei));
+    assert!(segundo.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(segundo.contains(&registrados[1].numero_sei));
+    assert!(
+        cruzado.starts_with("HTTP/1.1 404 Not Found\r\n"),
+        "PDF de outro processo conhecido deve recusar, sem resposta ambígua: {cruzado}"
+    );
+    assert!(!cruzado.contains(&registrados[1].numero_sei));
+    assert_eq!(primeiro, novamente, "recusa não modifica a árvore original");
+}
