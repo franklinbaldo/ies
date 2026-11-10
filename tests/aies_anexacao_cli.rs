@@ -171,7 +171,7 @@ enum Modo {
 fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
     if matches!(modo, Modo::PreviaPendencia) {
         documento_versoes::guardar(
-            &mut banco,
+            banco,
             CENARIO,
             &DocumentoSimulado {
                 instalacao: instalacao.clone(),
