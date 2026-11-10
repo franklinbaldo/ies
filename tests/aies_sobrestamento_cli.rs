@@ -246,7 +246,19 @@ fn executar(sobrestado: bool, confirmar: bool) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    let esperado = if !confirmar { sobrestado } else { !sobrestado };
+    verificar(sobrestado, confirmar, &saida, releitura.as_ref(), persistido, &pedidos);
+
+}
+
+fn verificar(
+    sobrestado: bool,
+    confirmar: bool,
+    saida: &Output,
+    releitura: Option<&Output>,
+    persistido: Option<Sobrestamento>,
+    pedidos: &[String],
+) {
+    let esperado = if confirmar { !sobrestado } else { sobrestado };
     assert_eq!(
         persistido.is_some(),
         esperado,
