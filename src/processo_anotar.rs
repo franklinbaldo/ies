@@ -6,14 +6,14 @@ use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, enviar_submissao_via,
 };
+use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_enviar::REGISTRAR_ANOTACAO;
-use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
+use crate::processo_enviar::REGISTRAR_ANOTACAO;
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
@@ -99,8 +99,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         if !crate::processo_enviar::salvar_oferecido(&html) {
             return Err(Erro::SalvarNaoOferecido);
         }
-        let instalacao = Instalacao::interpretar(sessao.origem)
-            .ok_or(Erro::OrigemNaoAutorizada)?;
+        let instalacao = Instalacao::interpretar(sessao.origem).ok_or(Erro::OrigemNaoAutorizada)?;
         let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;
         let servida = TelaServida {
             url: &url,
@@ -124,9 +123,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             Ok(RespostaDoEnvio::Redirecionamento(ref r)) => {
                 redirecionamento_esperado(r.localizacao(), r.url_do_envio(), &id)
             }
-            Ok(RespostaDoEnvio::Html(_)) | Err(_) if enviada => false,
-            Err(erro) => return Err(Erro::Formulario(erro)),
             Ok(_) => false,
+            Err(_) if enviada => false,
+            Err(erro) => return Err(Erro::Formulario(erro)),
         };
         // A resposta recusada não prova autoria, mesmo se um GET posterior
         // encontrar o texto desejado. Não repetir o POST em nenhum caso.
@@ -151,9 +150,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
 
 /// O 302 não é seguido. A identidade e a ação precisam concordar.
 fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> bool {
-    let Some(consulta) =
-        localizacao.and_then(|l| consulta_do_controlador(l, url))
-    else {
+    let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url)) else {
         return false;
     };
     let valores = |chave: &str| -> Vec<&str> {
