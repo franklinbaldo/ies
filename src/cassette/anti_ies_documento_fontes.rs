@@ -60,7 +60,8 @@ fn revisoes_da_cassette(
                 usuario: entrada.usuario.clone(),
                 unidade: entrada.unidade.clone(),
                 modificacao: entrada.modificacao.clone(),
-                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
+                // Só o metadado da versão foi capturado: nenhum texto de corpo é prova.
+                html_corpo: "<p></p>".to_owned(),
             });
         }
     }

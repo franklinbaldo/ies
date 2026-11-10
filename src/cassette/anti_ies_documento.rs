@@ -205,6 +205,10 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         .expect("histórico não vazio")
         .numero();
     let (revisoes, versoes) = revisoes_da_cassette(&historico_original);
+    assert!(
+        revisoes.iter().all(|r| r.html_corpo == "<p></p>"),
+        "o replay da lista não pode atribuir prosa inventada a versões sem corpo capturado"
+    );
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),

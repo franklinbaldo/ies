@@ -147,6 +147,9 @@ pub(crate) fn responder(
         {
             crate::blocos::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("rel_bloco_protocolo_listar") if eh_controlador_sei(alvo) => {
+            crate::bloco_detalhe::responder(metodo, alvo, banco, instalacao, cenario)
+        }
         Some("retorno_programado_listar") => {
             retorno_programado(metodo, alvo, banco, instalacao, cenario)
         }

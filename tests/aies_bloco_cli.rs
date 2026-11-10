@@ -4,6 +4,7 @@
 
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::bloco_detalhe::{self, Detalhe, Item};
 use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{TabelaObservada, UnidadeExibida};
@@ -125,7 +126,7 @@ fn cabecalho(fluxo: &mut impl Read) -> Vec<u8> {
     buf
 }
 
-fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bool) {
+fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bool, detalhe: bool) {
     blocos::guardar(
         banco,
         instalacao,
@@ -199,6 +200,38 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
         )
         .unwrap();
     }
+    if detalhe {
+        registrar_detalhe(banco, instalacao);
+    }
+}
+
+fn registrar_detalhe(banco: &mut Connection, instalacao: &Instalacao) {
+    bloco_detalhe::guardar(
+        banco,
+        instalacao,
+        CENARIO,
+        &Detalhe {
+            numero: "2195".into(),
+            tipo: Tipo::Assinatura,
+            total: 2,
+            faixa: Some((1, 2)),
+            itens: vec![
+                Item {
+                    processo: "0000.01/2026-01".into(),
+                    documento: Some("100001".into()),
+                    tipo: Some("Despacho".into()),
+                    anotacoes: "Revisão inicial".into(),
+                },
+                Item {
+                    processo: "0000.02/2026-02".into(),
+                    documento: Some("100002".into()),
+                    tipo: Some("Ofício".into()),
+                    anotacoes: String::new(),
+                },
+            ],
+        },
+    )
+    .unwrap();
 }
 
 fn iniciar_tunel(
@@ -251,8 +284,9 @@ fn iniciar_tunel(
     })
 }
 
-fn executar(interno: bool) -> (Output, Vec<String>) {
-    let esperados = if interno { 3usize } else { 2usize };
+fn executar(interno: bool, numero: Option<&str>) -> (Output, Vec<String>) {
+    let detalhe = numero == Some("2195");
+    let esperados = if interno || detalhe { 3usize } else { 2usize };
     let pasta = Pasta::nova();
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
@@ -283,7 +317,7 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
             },
         )
         .unwrap();
-        registrar_blocos(&mut banco, &instalacao, interno);
+        registrar_blocos(&mut banco, &instalacao, interno, detalhe);
         for _ in 0..esperados {
             let mut fluxo = aceitar(&servidor);
             atender_http(&mut fluxo, Some((&banco, &instalacao, CENARIO))).unwrap();
@@ -294,7 +328,9 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     let porta = proxy.local_addr().unwrap().port();
     let tunel = iniciar_tunel(proxy, identidade, endereco, esperados);
 
-    let argumentos: Vec<&str> = if interno {
+    let argumentos: Vec<&str> = if let Some(numero) = numero {
+        vec!["--json", "bloco", numero]
+    } else if interno {
         vec![
             "--json", "bloco", "listar", "--tipo", "interno", "--pagina", "2",
         ]
@@ -321,7 +357,10 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     let pedidos = tunel.join().expect("GET HTTPS");
     simulador.join().expect("GET anti-IES");
     assert_eq!(pedidos.len(), esperados);
-    assert_eq!(pedidos.iter().filter(|p| p.starts_with("GET ")).count(), 2);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("GET ")).count(),
+        if detalhe { 3 } else { 2 }
+    );
     assert_eq!(
         pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
         usize::from(interno)
@@ -334,6 +373,10 @@ fn executar(interno: bool) -> (Output, Vec<String>) {
     }));
     if interno {
         assert!(pedidos[2].contains("acao=bloco_interno_listar"));
+    }
+    if detalhe {
+        assert!(pedidos[2].contains("acao=rel_bloco_protocolo_listar"));
+        assert!(pedidos[2].contains("id_bloco=2195"));
     }
     (saida, pedidos)
 }
@@ -350,7 +393,7 @@ fn json(saida: &Output) -> Value {
 // Expectativas sobre o contrato da CLI, nao geradas a partir do HTML do servidor.
 #[test]
 fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
-    let (saida, pedidos) = executar(false);
+    let (saida, pedidos) = executar(false, None);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -385,7 +428,7 @@ fn bdd_256_01_cli_real_lista_somente_pagina_observada_no_sqlite() {
 /// A expectativa nao e derivada do HTML gerado pelo anti-IES.
 #[test]
 fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
-    let (saida, pedidos) = executar(true);
+    let (saida, pedidos) = executar(true, None);
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -409,5 +452,53 @@ fn bdd_256_02_cli_real_pagina_2_interna_sqlite() {
     assert!(itens.iter().all(|x| x["quantidade_itens"].is_null()));
     assert!(!valor.to_string().contains("3001"));
     assert!(!valor.to_string().contains("3002"));
+    assert!(!valor.to_string().contains("infra_hash"));
+}
+
+/// BDD-256-03: detalhe do bloco publicado na pagina observada pela CLI real.
+/// Expectativas definidas independentemente do HTML gerado pelo simulador.
+#[test]
+fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
+    let (saida, pedidos) = executar(false, Some("2195"));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    assert_eq!(pedidos.len(), 3);
+    let valor = json(&saida);
+    assert_eq!(valor["unidade"], "TESTE");
+    assert_eq!(valor["requisicoes"], 3);
+    assert_eq!(valor["bloco"]["numero"], "2195");
+    assert_eq!(valor["bloco"]["tipo"], "assinatura");
+    assert_eq!(valor["bloco"]["estado"], "Gerado");
+    assert_eq!(valor["bloco"]["total_declarado"], 2);
+    assert_eq!(valor["bloco"]["faixa_observada"]["inicio"], 1);
+    assert_eq!(valor["bloco"]["faixa_observada"]["fim"], 2);
+    let itens = valor["bloco"]["itens"].as_array().unwrap();
+    assert_eq!(itens.len(), 2);
+    assert_eq!(itens[0]["processo"], "0000.01/2026-01");
+    assert_eq!(itens[0]["documento"], "100001");
+    assert_eq!(itens[0]["tipo"], "Despacho");
+    assert_eq!(itens[0]["anotacoes"], "Revisão inicial");
+    assert_eq!(itens[1]["processo"], "0000.02/2026-02");
+    assert_eq!(itens[1]["documento"], "100002");
+    assert_eq!(itens[1]["anotacoes"], "");
+    assert!(!valor.to_string().contains("infra_hash"));
+    assert!(!valor.to_string().contains("PHPSESSID"));
+}
+
+/// O numero nao visto nesta pagina nao pode virar inexistencia global.
+#[test]
+fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
+    let (saida, pedidos) = executar(false, Some("9999"));
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(pedidos.len(), 2);
+    let valor = json(&saida);
+    assert_eq!(valor["codigo"], "fonte_invalida");
+    assert_eq!(valor["subcodigo"], "bloco_nao_encontrado_na_pagina");
+    assert!(valor["erro"].as_str().unwrap().contains("página"));
     assert!(!valor.to_string().contains("infra_hash"));
 }
