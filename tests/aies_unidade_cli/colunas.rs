@@ -1,5 +1,5 @@
 //! BDD-565-01, hipótese de colunas sem cassette específica:
- //! CLI real -> HTTPS local -> anti-IES -> SQLite; duas leituras independentes.
+//! CLI real -> HTTPS local -> anti-IES -> SQLite; duas leituras independentes.
 use super::*;
 use iesei::colunas_detalhe::{self, Coluna, Configuracao, Opcao};
 use std::os::unix::fs::PermissionsExt as _;
@@ -23,9 +23,18 @@ fn configurar_banco(banco: &mut Connection, instalacao: &Instalacao) {
         &Configuracao {
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             opcoes: vec![
-                Opcao { coluna: Coluna::Atribuicao, marcada: true },
-                Opcao { coluna: Coluna::Anotacao, marcada: false },
-                Opcao { coluna: Coluna::TipoProcesso, marcada: false },
+                Opcao {
+                    coluna: Coluna::Atribuicao,
+                    marcada: true,
+                },
+                Opcao {
+                    coluna: Coluna::Anotacao,
+                    marcada: false,
+                },
+                Opcao {
+                    coluna: Coluna::TipoProcesso,
+                    marcada: false,
+                },
             ],
         },
     )
@@ -74,7 +83,15 @@ fn encaminhar_quatro_gets(proxy: TcpListener, destino: std::net::SocketAddr, ide
     assert!(rotas[3].contains("acao=procedimento_configurar_detalhe"));
 }
 
-fn cli_colunas(pasta: &Pasta, cert: &Path, proxy_porta: u16, url: &Path, cookie: &Path, origem: &Path, definir: bool) -> Output {
+fn cli_colunas(
+    pasta: &Pasta,
+    cert: &Path,
+    proxy_porta: u16,
+    url: &Path,
+    cookie: &Path,
+    origem: &Path,
+    definir: bool,
+) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_ies"));
     if definir {
         cmd.args(["--json", "unidade", "colunas", "--definir", "todas"]);
@@ -107,7 +124,10 @@ fn bdd_565_01_previa_nao_grava_e_segunda_cli_rele_original() {
     let hash = ["infra", "hash"].join("_");
     let url = pasta.privado(
         "url",
-        &format!("{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash}={}", "a".repeat(64)),
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash}={}",
+            "a".repeat(64)
+        ),
     );
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -118,22 +138,39 @@ fn bdd_565_01_previa_nao_grava_e_segunda_cli_rele_original() {
     let tunel = thread::spawn(move || encaminhar_quatro_gets(proxy, destino, identidade));
 
     let previa = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, true);
-    assert_eq!(previa.status.code(), Some(0), "{:?}", String::from_utf8_lossy(&previa.stderr));
+    assert_eq!(
+        previa.status.code(),
+        Some(0),
+        "{:?}",
+        String::from_utf8_lossy(&previa.stderr)
+    );
     let valor = json(&previa);
     assert_eq!(valor["antes"], serde_json::json!(["atribuicao"]));
-    assert_eq!(valor["alvo"], serde_json::json!(["atribuicao", "anotacao", "tipo"]));
+    assert_eq!(
+        valor["alvo"],
+        serde_json::json!(["atribuicao", "anotacao", "tipo"])
+    );
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
     assert_eq!(valor["depois"], Value::Null);
     assert_eq!(valor["envio"]["metodo"], "POST");
 
     let releitura = cli_colunas(&pasta, &cert, porta, &url, &cookie, &origem, false);
-    assert_eq!(releitura.status.code(), Some(0), "{:?}", String::from_utf8_lossy(&releitura.stderr));
+    assert_eq!(
+        releitura.status.code(),
+        Some(0),
+        "{:?}",
+        String::from_utf8_lossy(&releitura.stderr)
+    );
     let valor = json(&releitura);
     assert_eq!(valor["unidade"], "TESTE");
     // O GET independente publica os mesmos checks do SQLite, nunca o plano da prévia.
-    let opcoes = valor["opcoes"].as_array().or_else(|| valor["colunas"].as_array());
-    assert!(opcoes.is_some(), "estrutura pública não encontrada: {valor}");
+    let opcoes = valor["opcoes"].as_array().unwrap();
+    assert_eq!(opcoes.iter().filter(|o| o["marcada"] == true).count(), 1);
+    assert_eq!(opcoes[0]["coluna"], "atribuicao");
+    assert_eq!(opcoes[0]["marcada"], true);
+    assert_eq!(opcoes[1]["marcada"], false);
+    assert_eq!(opcoes[2]["marcada"], false);
     tunel.join().unwrap();
     backend.join().unwrap();
 }
