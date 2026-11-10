@@ -78,13 +78,13 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 erro.mensagem(),
                 erro.status_http(),
             ),
-            Err(erro) => falha_da_previa(cli, erro),
+            Err(erro) => falha_da_previa(cli, &erro),
         },
     ))
 }
 
 /// Emite a causa tipada sem catálogo de subcódigos por operação.
-fn falha_da_previa(cli: &Cli, erro: Erro) -> ExitCode {
+fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     use crate::erro_publico::Causa;
     let causa = crate::erro_publico::caminho_de(&erro);
     let motivo_situacao = match &erro {
