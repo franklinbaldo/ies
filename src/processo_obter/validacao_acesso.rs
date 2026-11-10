@@ -4,6 +4,7 @@
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{conferir_endereco_relativo, ler_tela_do_processo};
+use crate::erro_publico::Causa;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -34,6 +35,8 @@ pub(super) enum ErroValidacaoAcesso {
     Credenciais(#[from] ErroLogin),
     Formulario(#[from] ErroSubmissaoFormulario),
     RedirecionamentoSemProva,
+    /// A sessao mudou depois do POST; nao reiniciar a operacao nem reenviar senha.
+    ReleituraNaoConfirmada,
 }
 
 impl ErroValidacaoAcesso {
@@ -136,11 +139,11 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
             validar(rede, contexto, id, html)?;
             let (nova_tela, novo_mime) = match rede.get(trabalho)? {
                 Lida::Html { html, mime } => (html, mime),
-                Lida::Redirecionamento(local) => {
-                    return Err(super::abertura::fora_de_palpite(local.as_deref()));
+                Lida::Redirecionamento(_) | Lida::Login => {
+                    return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
                 }
-                Lida::Login => {
-                    return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
+                Lida::Falha(falha) if falha.sessao_encerrada() => {
+                    return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
                 }
                 Lida::Falha(falha) => return Err(E::Transporte(falha)),
             };
@@ -150,7 +153,12 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
                 id,
                 contexto.unidade_pedida,
             )?;
-            return rede.abrir_da_tela(contexto, trabalho, (&nova_tela, &novo_mime), validada, id);
+            let resultado =
+                rede.abrir_da_tela(contexto, trabalho, (&nova_tela, &novo_mime), validada, id);
+            if resultado.as_ref().is_err_and(|erro| erro.sessao_encerrada()) {
+                return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
+            }
+            return resultado;
         }
         Err(erro) => return Err(E::Tela(erro)),
     };
