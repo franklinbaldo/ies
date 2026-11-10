@@ -40,7 +40,7 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         ));
     }
     Some(com_sessao(cli, |sessao, indice| {
-        // Limite inviolável: escrita só em instalação de treinamento.
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
         if *confirmar
             && let Err(causa) = crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoRelacionar,

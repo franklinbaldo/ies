@@ -47,9 +47,17 @@ pub(crate) enum Escrita {
 impl Escrita {
     /// Ensaio ao vivo aprovado em treinamento, com relatório:
     /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
-    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`.
+    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`;
+    /// - relacionar e andamento:
+    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`.
     fn aprovada_em_treinamento(self) -> bool {
-        matches!(self, Self::DocumentoIncluirExterno | Self::ProcessoPrazo)
+        matches!(
+            self,
+            Self::DocumentoIncluirExterno
+                | Self::ProcessoPrazo
+                | Self::ProcessoRelacionar
+                | Self::ProcessoAndamento
+        )
     }
 }
 
@@ -73,12 +81,10 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem
 mod tests {
     use super::*;
 
-    // Aceite técnico da #620: a causa publicada vem do tipo via Serde.
-    // O RED original apontou falta de serde::Serialize.
     #[test]
     fn causa_de_origem_serde_direto_preserva_identidade_legada() {
         let erro =
-            exigir(Escrita::ProcessoAndamento, "https://sei.exemplo.gov.br/sei").unwrap_err();
+            exigir(Escrita::ProcessoAtribuir, "https://sei.exemplo.gov.br/sei").unwrap_err();
         assert_eq!(
             serde_json::to_value(erro).unwrap(),
             serde_json::json!("origem_fora_do_treinamento")
@@ -89,7 +95,7 @@ mod tests {
     fn aceita_so_instalacoes_de_treinamento_e_a_bancada() {
         for origem in ORIGENS {
             assert!(
-                exigir(Escrita::ProcessoAndamento, origem).is_ok(),
+                exigir(Escrita::ProcessoAtribuir, origem).is_ok(),
                 "{origem}"
             );
         }
@@ -103,12 +109,14 @@ mod tests {
         ] {
             assert!(
                 matches!(
-                    exigir(Escrita::ProcessoAndamento, producao_ou_parecida),
+                    exigir(Escrita::ProcessoAtribuir, producao_ou_parecida),
                     Err(CausaDaOrigem::OrigemForaDoTreinamento)
                 ),
                 "{producao_ou_parecida}"
             );
             assert!(exigir(Escrita::ProcessoPrazo, producao_ou_parecida).is_ok());
+            assert!(exigir(Escrita::ProcessoRelacionar, producao_ou_parecida).is_ok());
+            assert!(exigir(Escrita::ProcessoAndamento, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
     }
