@@ -39,15 +39,15 @@ fn conferir_recusas_da_tela(endereco: SocketAddr, id: &str, processo: &str, url:
     );
 }
 
-#[test]
-#[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
-fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
+// A mesma comparação vale para as três instalações com a pesquisa por número SEI
+// capturada. A identidade de cada uma vem do seu ZIP original.
+fn confrontar_tela_de_pesquisa_com_cassette(caminho_card: &str) {
     use crate::arvore_processo::{
         ler_arvore, ler_tela_do_documento, nup_declarado_na_arvore,
     };
 
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let card = raiz.join("cassettes/unb/documento-numero-e-busca-unb--f1b386d8e7bc.md");
+    let card = raiz.join(caminho_card);
     let cache = std::env::var_os("IES_ACERVO_CACHE").map_or_else(
         || std::path::PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/ies"),
         std::path::PathBuf::from,
@@ -148,4 +148,28 @@ fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
 
     conferir_recusas_da_tela(endereco, id, processo, &url);
     tarefa.join().unwrap();
+}
+
+#[test]
+#[ignore = "ZIP original UnB SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/unb/documento-numero-e-busca-unb--f1b386d8e7bc.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original GO SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/go/documento-numero-e-busca-go--f26b4140acb8.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original UFRJ SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/ufrj/documento-numero-e-busca-ufrj--d0b23f01b824.md",
+    );
 }
