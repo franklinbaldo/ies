@@ -243,8 +243,7 @@ pub fn atribuir(
         return Err(Falha::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let observacao = ler(&tx, origem, cenario, id, unidade)?
-        .ok_or(Falha::ProcessoNaoObservado)?;
+    let observacao = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
     if observacao.itens.iter().any(|m| m.id == id_marcador) {
         return Err(Falha::DadoInvalido);
     }
