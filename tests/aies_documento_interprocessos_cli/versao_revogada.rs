@@ -4,16 +4,15 @@ use super::*;
 
 #[test]
 fn bdd_60_05_cli_recusa_versao_revogada_entre_lista_e_corpo() {
-    let (saida, trilha) = apoio::executar_versao_revogada_ao_visualizar(&[
-        "--json",
-        "documento",
-        DOC_A,
-        "--processo",
-        NUP_A,
-        "--versao",
-        "1",
-        "--sem-cache",
-    ]);
+    for ocultar in [false, true] {
+        let mut argumentos = vec![
+            "--json", "documento", DOC_A, "--processo", NUP_A,
+            "--versao", "1", "--sem-cache",
+        ];
+        if ocultar {
+            argumentos.push("--ocultar-inacessiveis");
+        }
+        let (saida, trilha) = apoio::executar_versao_revogada_ao_visualizar(&argumentos);
     assert_eq!(
         saida.status.code(),
         Some(1),
@@ -47,4 +46,70 @@ fn bdd_60_05_cli_recusa_versao_revogada_entre_lista_e_corpo() {
         }),
         "a recusa não autoriza escrita: {trilha:?}"
     );
+    }
+}
+
+
+/// Uma recusa após o histórico não pode produzir nem sobrescrever foto
+/// local, inclusive quando a opção de ocultar inacessíveis está ativa.
+#[test]
+fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
+    struct PastaTemporaria(std::path::PathBuf);
+    impl Drop for PastaTemporaria {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    for ocultar in [false, true] {
+        let agora = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let pasta = PastaTemporaria(std::env::temp_dir().join(format!(
+            "ies-bdd60-revogacao-foto-{}-{agora}", std::process::id()
+        )));
+        std::fs::create_dir(&pasta.0).unwrap();
+        let foto = pasta.0.join(format!("{DOC_A}.v1.html"));
+        let conteudo_local = b"<html><body>edicao local nao substituivel</body></html>";
+        std::fs::write(&foto, conteudo_local).unwrap();
+        let dir = pasta.0.to_str().unwrap();
+        let mut argumentos = vec![
+            "--json", "documento", DOC_A, "--processo", NUP_A,
+            "--versao", "1", "--saida", dir, "--sem-cache",
+        ];
+        if ocultar {
+            argumentos.push("--ocultar-inacessiveis");
+        }
+
+        let (saida, trilha) = apoio::executar_versao_revogada_ao_visualizar(&argumentos);
+        assert_eq!(
+            saida.status.code(),
+            Some(1),
+            "a recusa não pode ser ocultada: stderr={} trilha={trilha:?}",
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let erro = json(&saida);
+        assert_eq!(erro["status_http"], 403, "{erro}");
+        assert_eq!(erro["documento"], DOC_A, "{erro}");
+        assert!(erro.get("documentos").is_none(), "{erro}");
+        assert_eq!(std::fs::read(&foto).unwrap(), conteudo_local);
+        assert!(!pasta.0.join(format!("{DOC_A}.v2.html")).exists());
+        assert_eq!(
+            trilha.iter().filter(|pedido| pedido.as_str() == "GET documento_versao_listar").count(),
+            1,
+            "histórico antes da negativa: {trilha:?}"
+        );
+        assert_eq!(
+            trilha.iter().filter(|pedido| pedido.as_str() == "GET documento_visualizar").count(),
+            1,
+            "sem retry nem fallback para outra revisão: {trilha:?}"
+        );
+        assert!(
+            trilha.iter().all(|pedido| {
+                pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"
+            }),
+            "não executar POST mutador: {trilha:?}"
+        );
+    }
 }
