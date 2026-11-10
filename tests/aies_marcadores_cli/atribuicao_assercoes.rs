@@ -42,3 +42,20 @@ pub(super) fn conferir_atribuicao(
         assert_eq!(json["texto"], "Nova revisão");
     }
 }
+
+/// A interface observada muda depois da atribuição, não antes da tentativa.
+pub(super) fn conferir_controles(controles: &[(bool, bool, bool)], sem_tela_gerenciamento: bool) {
+    if sem_tela_gerenciamento {
+        assert!(
+            controles.is_empty(),
+            "zero marcadores usa 302 sem formulário de gerenciamento"
+        );
+    } else {
+        assert!(!controles.is_empty(), "gerenciamento não foi servido");
+        assert!(
+            controles.iter().all(|vistos| *vistos == (true, true, true)),
+            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
+        );
+    }
+}
+

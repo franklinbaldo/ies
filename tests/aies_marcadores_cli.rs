@@ -279,21 +279,6 @@ fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incer
     }
 }
 
-fn conferir_controles(controles: &[(bool, bool, bool)], sem_tela_gerenciamento: bool) {
-    if sem_tela_gerenciamento {
-        assert!(
-            controles.is_empty(),
-            "zero marcadores usa 302 sem formulário de gerenciamento"
-        );
-    } else {
-        assert!(!controles.is_empty(), "gerenciamento não foi servido");
-        assert!(
-            controles.iter().all(|vistos| *vistos == (true, true, true)),
-            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
-        );
-    }
-}
-
 fn preparar_sessao() -> (
     Pasta,
     std::path::PathBuf,
@@ -423,7 +408,7 @@ fn executar(caso: Caso) {
 }
 #[path = "aies_marcadores_cli/atribuicao_assercoes.rs"]
 mod atribuicao_assercoes;
-use atribuicao_assercoes::conferir_atribuicao;
+use atribuicao_assercoes::{conferir_atribuicao, conferir_controles};
 
 fn conferir(
     saida: &Output,
