@@ -176,13 +176,13 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
 fn saida_previa(
     cli: &Cli,
     nup: &NumeroProcesso,
-    id: &str,
-    unidade: &str,
+    destino: (&str, &str),
     rotulo: &Rotulo,
     texto: Option<&str>,
     nada_a_fazer: bool,
     requisicoes: u8,
 ) -> ExitCode {
+    let (id, unidade) = destino;
     if cli.json {
         println!(
             "{}",
@@ -265,8 +265,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         return saida_previa(
             cli,
             nup,
-            &aberto.arvore.processo.id,
-            unidade,
+            (&aberto.arvore.processo.id, unidade),
             rotulo,
             texto,
             true,
@@ -291,8 +290,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         return saida_previa(
             cli,
             nup,
-            &aberto.arvore.processo.id,
-            unidade,
+            (&aberto.arvore.processo.id, unidade),
             rotulo,
             texto,
             false,
