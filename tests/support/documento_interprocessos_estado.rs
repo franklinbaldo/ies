@@ -38,9 +38,11 @@ pub(super) enum EstadoExtra {
     SemSrc,
     Cancelado,
     NumeroRepetido,
+    NumeroIgualEmOutroProcesso,
     RevogadoAoVisualizar,
     TituloTrocadoAoVisualizar,
     SessaoRevogadaAoVisualizar,
+    SessaoRevogadaAntesDaLista,
     VersaoRevogadaAoVisualizar,
     SemListaNaUnidade,
     CanceladoAntesDaLista,
@@ -134,6 +136,30 @@ fn revisoes_para(id: &str, modo: EstadoExtra, corpo: &str) -> Vec<Revisao> {
     revisoes
 }
 
+fn semear_segundo_processo_se_necessario(
+    banco: &mut Connection,
+    origem: &Instalacao,
+    modo: EstadoExtra,
+) {
+    if !matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+        return;
+    }
+    processos::guardar(
+        banco,
+        origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "8".into(),
+            numero: NUP_B.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+}
+
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -170,6 +196,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         },
     )
     .unwrap();
+    semear_segundo_processo_se_necessario(&mut banco, &origem, modo);
     for (id, processo, nup, numero, corpo) in [
         (
             "42",
@@ -197,7 +224,11 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
                 id_documento: id.into(),
                 id_procedimento: processo.into(),
                 numero_processo: nup.into(),
-                numero: numero.into(),
+                numero: if id == "43" && matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+                    DOC_A.into()
+                } else {
+                    numero.into()
+                },
                 tipo: "Despacho".into(),
                 revisoes: revisoes_para(id, modo, corpo),
             },
@@ -210,9 +241,11 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         | EstadoExtra::RevogadoAoVisualizar
         | EstadoExtra::TituloTrocadoAoVisualizar
         | EstadoExtra::SessaoRevogadaAoVisualizar
+        | EstadoExtra::SessaoRevogadaAntesDaLista
         | EstadoExtra::VersaoRevogadaAoVisualizar
         | EstadoExtra::SemListaNaUnidade
-        | EstadoExtra::CanceladoAntesDaLista => {}
+        | EstadoExtra::CanceladoAntesDaLista
+        | EstadoExtra::NumeroIgualEmOutroProcesso => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(

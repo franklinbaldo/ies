@@ -166,6 +166,12 @@ pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
+/// Mesmo número SEI em processos distintos: o NUP explícito delimita
+/// a identidade, sem recuperar o corpo pertencente ao outro processo.
+pub(super) fn executar_numero_igual_em_outro_processo(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::NumeroIgualEmOutroProcesso, args)
+}
+
 /// Documento interno e PDF externo publicam o mesmo número SEI na árvore.
 /// O conflito não foi capturado na `UnB`: é uma hipótese testável no SQLite.
 pub(super) fn executar_pdf_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
@@ -186,6 +192,12 @@ pub(super) fn executar_titulo_trocado(args: &[&str]) -> (Output, Vec<String>) {
 /// A árvore era legível, mas a sessão é revogada antes do GET documental.
 pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
+}
+
+/// A árvore já ofereceu o histórico, mas a sessão expira antes do GET da lista.
+/// Esta corrida é sintética; não foi capturada na cassette `UnB`.
+pub(super) fn executar_sessao_revogada_antes_da_lista(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SessaoRevogadaAntesDaLista, args)
 }
 
 /// O processo existe e o documento continua legível, mas a unidade
