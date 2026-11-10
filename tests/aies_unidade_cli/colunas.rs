@@ -114,7 +114,14 @@ fn cli_colunas(
             cmd.args(["--json", "unidade", "colunas", "--definir", "todas"]);
         }
         ComandoColunas::Confirmar => {
-            cmd.args(["--json", "unidade", "colunas", "--definir", "todas", "--confirmar"]);
+            cmd.args([
+                "--json",
+                "unidade",
+                "colunas",
+                "--definir",
+                "todas",
+                "--confirmar",
+            ]);
         }
     }
     cmd.env("IES_URL_CONTROLE_FILE", url)
