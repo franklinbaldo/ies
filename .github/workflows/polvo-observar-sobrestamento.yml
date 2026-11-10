@@ -1,0 +1,59 @@
+name: Polvo - observar sobrestamento (temporario)
+on:
+  push:
+    branches: [codex/polvo-bdd269-confronto-cassettes]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  observar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Conferir cassettes publicas e observar so nomes/estrutura
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, html.parser, json, pathlib, urllib.request, zipfile
+          cards = [
+              "cassettes/unb/processo-sobrestar-retomar-unb--cde2a847ebd8.md",
+              "cassettes/go/processo-sobrestar-retomar-go--4fb6c8fe18df.md",
+          ]
+          class Formas(html.parser.HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.forms=[]; self.current=None
+              def handle_starttag(self, tag, attrs):
+                  a=dict(attrs)
+                  if tag == 'form':
+                      self.current={"id":a.get("id"),"name":a.get("name"),"method":a.get("method"),"campos":[]}
+                      self.forms.append(self.current)
+                  if tag in ("input","button","select","textarea") and self.current is not None:
+                      self.current["campos"].append((tag,a.get("type"),a.get("name"),a.get("value") if a.get("name") in ("rdoSobrestar","sbmSalvar","hdnInfraTipoPagina") else None))
+              def handle_endtag(self,tag):
+                  if tag=="form": self.current=None
+          for path in cards:
+              card=pathlib.Path(path).read_text()
+              meta=dict(line.split(': ',1) for line in card.split('---',2)[1].strip().splitlines() if ': ' in line)
+              zip_path=pathlib.Path('/tmp')/pathlib.Path(meta["source_zip"]).name
+              urllib.request.urlretrieve(meta["source_zip"], zip_path)
+              assert hashlib.sha1(zip_path.read_bytes()).hexdigest()==meta["archive_sha1"]
+              with zipfile.ZipFile(zip_path) as z: raw=z.read(meta["archive_member"])
+              assert hashlib.sha256(raw.replace(b'\r\n',b'\n')).hexdigest()==meta["cassette_sha256_lf"]
+              j=json.loads(raw)
+              assert j["schema_version"]==1 and j["complete"] is True
+              print("CASSETTE",meta["installation"],"interacoes",len(j["interactions"]))
+              for idx,it in enumerate(j["interactions"]):
+                  q=it["request"];r=it["response"]
+                  op=q.get("operation",""); meth=q.get("method",""); status=r.get("status_code")
+                  if op not in ("procedimento_sobrestar","procedimento_remover_sobrestamento"): continue
+                  print("PASSO",idx,op,meth,status)
+                  if meth=="GET" and op=="procedimento_sobrestar" and status==200:
+                      body=base64.b64decode(r.get("body_base64",""))
+                      try: dec=body.decode('utf-8')
+                      except UnicodeDecodeError: dec=body.decode('latin1')
+                      parser=Formas();parser.feed(dec)
+                      for form in parser.forms:
+                          print("FORM",form)
+          PY
