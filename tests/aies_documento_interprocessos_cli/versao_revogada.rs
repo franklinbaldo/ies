@@ -110,8 +110,16 @@ fn bdd_60_05_cli_versao_revogada_nao_cria_foto() {
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
         assert_eq!(std::fs::read(&rascunho).unwrap(), conteudo_local);
-        assert!(!pasta.0.join(format!("{DOC_A}.v1.html")).exists());
-        assert!(!pasta.0.join(format!("{DOC_A}.v2.html")).exists());
+        // Conferir toda a pasta: um nome inesperado também seria uma foto indevida.
+        let arquivos: Vec<_> = std::fs::read_dir(&pasta.0)
+            .unwrap()
+            .map(|entrada| entrada.unwrap().file_name())
+            .collect();
+        assert_eq!(
+            arquivos,
+            [std::ffi::OsString::from("rascunho.html")],
+            "a recusa não pode criar qualquer novo arquivo local"
+        );
         assert_eq!(
             trilha
                 .iter()
