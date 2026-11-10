@@ -11,15 +11,11 @@ pub struct TipoDeProcesso {
     pub assunto: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroCriacaoProcesso {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn validar(tipo: &TipoDeProcesso) -> bool {
@@ -40,9 +36,9 @@ pub fn registrar(
     instalacao: &Instalacao,
     cenario: &str,
     tipo: &TipoDeProcesso,
-) -> Result<(), Falha> {
+) -> Result<(), ErroCriacaoProcesso> {
     if cenario.is_empty() || !validar(tipo) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroCriacaoProcesso::DadoInvalido);
     }
     banco.execute(
         "INSERT INTO tipo_processo_simulado

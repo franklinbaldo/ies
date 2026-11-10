@@ -51,10 +51,13 @@ pub(crate) fn responder(
             Ok(()) => Resposta::redirecionar(format!(
                 "controlador.php?acao=arvore_visualizar&acao_origem=procedimento_atribuicao_cadastrar&id_procedimento={id}"
             )),
-            Err(atribuicoes::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
-            Err(atribuicoes::Falha::Sqlite(_) | atribuicoes::Falha::ProcessoNaoObservado) => {
-                Resposta::nova(Estado::DadosInsuficientes)
+            Err(atribuicoes::ErroAtribuicoes::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
             }
+            Err(
+                atribuicoes::ErroAtribuicoes::Sqlite(_)
+                | atribuicoes::ErroAtribuicoes::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
     let hash = crate::protocolo_sintetico::INFRA_HASH;

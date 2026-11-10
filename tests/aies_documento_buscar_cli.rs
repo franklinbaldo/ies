@@ -405,9 +405,7 @@ fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
             "termo={termo:?}: {}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro: Value = serde_json::from_slice(&saida.stdout).unwrap();
-        assert_eq!(erro["codigo"], "entrada_invalida");
-        assert_eq!(erro["retentavel"], false);
+        assert_eq!(saida.stdout, b"", "uso inválido é recusado pelo clap");
     }
 }
 

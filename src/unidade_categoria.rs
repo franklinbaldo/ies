@@ -5,10 +5,9 @@ mod pagina_web;
 
 use crate::paginas::Leitura;
 use crate::relogin_cli::{self, NotaDoRelogin};
-use crate::{arquivo_caixa, configuracao, erro_fonte, paginas};
+use crate::{arquivo_caixa, configuracao, paginas};
 use serde_json::{Value, json};
 use std::path::Path;
-use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CategoriaLista {
@@ -35,14 +34,6 @@ pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
     FaixaNaoPublicavel(#[from] crate::erro_web::ErroCaixa),
-}
-impl FalhaCategoria {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
-            Self::UnidadeNaoObservada => "a unidade não está identificada no Controle de Processos",
-        }
-    }
 }
 
 /// A lista da categoria na forma única, com a página observada.
@@ -75,37 +66,26 @@ pub(crate) fn publicar_lista(
     json_mode: bool,
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
-) -> ExitCode {
-    let Ok(leitura) = paginas::juntar(&[html.to_owned()], unidade) else {
-        return erro_fonte(json_mode, "Controle de Processos não reconhecido");
-    };
-    let mut modelo = match selecionar(&leitura, categoria, "web") {
-        Ok(modelo) => modelo,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let leitura = paginas::juntar(&[html.to_owned()], unidade)?;
+    let mut modelo = selecionar(&leitura, categoria, "web")?;
     if let Some(caminho) = destino {
-        return match arquivo_caixa::gravar(caminho, &modelo) {
-            Ok(bytes) => {
-                if json_mode {
-                    // O arquivo guarda só a lista; `relogin` vai em stdout.
-                    let mut valor = json!({
-                        "arquivo":"gravado",
-                        "bytes":bytes,
-                        "escopo":"categoria_verificada",
-                        "categoria":categoria.rotulo()
-                    });
-                    relogin_cli::anotar_com_total(&mut valor, nota);
-                    println!("{valor}");
-                } else {
-                    relogin_cli::avisar(json_mode, nota);
-                    println!(
-                        "IES: categoria verificada gravada em arquivo privado ({bytes} bytes)."
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => erro_fonte(json_mode, erro.mensagem()),
-        };
+        let bytes = arquivo_caixa::gravar(caminho, &modelo)?;
+        if json_mode {
+            // O arquivo guarda só a lista; `relogin` vai em stdout.
+            let mut valor = json!({
+                "arquivo":"gravado",
+                "bytes":bytes,
+                "escopo":"categoria_verificada",
+                "categoria":categoria.rotulo()
+            });
+            relogin_cli::anotar_com_total(&mut valor, nota);
+            println!("{valor}");
+        } else {
+            relogin_cli::avisar(json_mode, nota);
+            println!("IES: categoria verificada gravada em arquivo privado ({bytes} bytes).");
+        }
+        return Ok(());
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut modelo, nota);
@@ -126,7 +106,7 @@ pub(crate) fn publicar_lista(
             }
         );
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 /// Um GET; com `--pagina N`, no máximo um POST do paginador da categoria;
@@ -137,21 +117,17 @@ pub(crate) fn listar_categoria(
     destino: Option<&Path>,
     categoria: CategoriaLista,
     pagina: Option<usize>,
-) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão e colhe na geração gravada agora.
-    let lido = relogin_cli::ler(&arquivos, unidade, || {
-        pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina)
-    });
-    match lido {
-        Ok((html, nota)) => {
-            publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
-        }
-        Err(falha) => relogin_cli::publicar_falha(json_mode, &falha),
-    }
+    let (html, nota) = relogin_cli::ler(
+        &arquivos,
+        unidade,
+        pagina_web::ErroPaginaWeb::sessao_encerrada,
+        || pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina),
+    )
+    .map_err(relogin_cli::subir)?;
+    publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
 }
 
 #[cfg(test)]
@@ -284,7 +260,7 @@ mod tests {
     fn exportar_lista(
         unidade: Option<&str>,
         categoria: CategoriaLista,
-    ) -> (ExitCode, Option<Value>) {
+    ) -> (anyhow::Result<()>, Option<Value>) {
         let html = "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
@@ -308,10 +284,15 @@ mod tests {
     #[test]
     fn lista_confere_unidade_global_antes_de_publicar() {
         let (codigo, valor) = exportar_lista(Some("OUTRA"), CategoriaLista::Recebidos);
-        assert_eq!(codigo, ExitCode::from(1));
+        assert_eq!(
+            codigo
+                .unwrap_err()
+                .downcast_ref::<crate::erro_web::ErroCaixa>(),
+            Some(&crate::erro_html::ErroHtml::valor("unidade_inesperada").into())
+        );
         assert!(valor.is_none());
         let (codigo, valor) = exportar_lista(Some("PPI"), CategoriaLista::Gerados);
-        assert_eq!(codigo, ExitCode::SUCCESS);
+        codigo.unwrap();
         let valor = valor.unwrap();
         assert_eq!(valor["categoria"], "gerados");
         assert_eq!(valor["total_declarado"], 0);
@@ -321,7 +302,7 @@ mod tests {
     #[test]
     fn lista_exportada_e_um_objeto_e_nao_um_array() {
         let (codigo, valor) = exportar_lista(None, CategoriaLista::Recebidos);
-        assert_eq!(codigo, ExitCode::SUCCESS);
+        codigo.unwrap();
         let valor = valor.unwrap();
         assert!(valor.is_object());
         assert_eq!(valor["categoria"], "recebidos");

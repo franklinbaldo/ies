@@ -1,6 +1,7 @@
 //! Configuração mínima por caminhos privados, sem segredos em argumentos CLI.
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct ArquivosDeAcesso {
     pub url_controle: PathBuf,
     pub cookie: PathBuf,
@@ -18,27 +19,6 @@ pub enum ErroConfiguracao {
     ArquivoConfiguracaoLinkSimbolico,
     ArquivoConfiguracaoJsonInvalido,
     ArquivoConfiguracaoCampoInvalido,
-}
-
-impl ErroConfiguracao {
-    pub fn mensagem(self) -> &'static str {
-        match self {
-            Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
-            Self::CookieSemCaminhoConfigurado => "defina IES_COOKIE_FILE",
-            Self::OrigemAutorizadaNaoConfigurada => "defina IES_ORIGEM_FILE",
-            Self::ArquivoDeConfiguracaoNaoPodeSerLido => {
-                "arquivo IES_CONFIG_FILE ausente, não regular, excessivo ou ilegível"
-            }
-            Self::ArquivoConfiguracaoPermissoesAbertas => {
-                "IES_CONFIG_FILE tem permissões inseguras"
-            }
-            Self::ArquivoConfiguracaoLinkSimbolico => "IES_CONFIG_FILE é link simbólico",
-            Self::ArquivoConfiguracaoJsonInvalido => "IES_CONFIG_FILE não contém JSON válido",
-            Self::ArquivoConfiguracaoCampoInvalido => {
-                "IES_CONFIG_FILE contém campo de caminho inválido"
-            }
-        }
-    }
 }
 
 fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfiguracao> {
@@ -81,47 +61,60 @@ fn arquivo_de_configuracao() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+/// Por que `ies setup` não gravou a configuração (nenhum caminho privado
+/// ou conteúdo vai no erro).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroGravacaoDaConfiguracao {
+    CaminhoPrivadoAusenteOuNaoAbsoluto,
+    ArquivoPrivadoNaoLido,
+    PermissoesDeArquivoPrivadoInseguras,
+    ConfiguracaoDeveTerCaminhoAbsoluto,
+    ConfiguracaoNaoSerializada,
+    ConfiguracaoNaoGravada,
+    ConfiguracaoJaExisteOuSemPermissao,
+}
+
 pub fn salvar_arquivos_de_acesso(
     destino: &std::path::Path,
     arquivos: &ArquivosDeAcesso,
-) -> Result<(), &'static str> {
+) -> Result<(), ErroGravacaoDaConfiguracao> {
     use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
+    use ErroGravacaoDaConfiguracao as E;
     let campos = [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem];
     if campos.iter().any(|p| !p.is_absolute() || !p.is_file()) {
-        return Err("caminho_privado_ausente_ou_nao_absoluto");
+        return Err(E::CaminhoPrivadoAusenteOuNaoAbsoluto);
     }
     #[cfg(unix)]
     for path in campos {
         use std::os::unix::fs::PermissionsExt;
         let perms = std::fs::metadata(path)
-            .map_err(|_| "arquivo_privado_nao_lido")?
+            .map_err(|_| E::ArquivoPrivadoNaoLido)?
             .permissions();
         if perms.mode() & 0o077 != 0 {
-            return Err("permissoes_de_arquivo_privado_inseguras");
+            return Err(E::PermissoesDeArquivoPrivadoInseguras);
         }
     }
     if !destino.is_absolute() {
-        return Err("configuracao_deve_ter_caminho_absoluto");
+        return Err(E::ConfiguracaoDeveTerCaminhoAbsoluto);
     }
     let config = ConfiguracaoLocal {
         url_controle: arquivos.url_controle.clone(),
         cookie: arquivos.cookie.clone(),
         origem: arquivos.origem.clone(),
     };
-    let data = serde_json::to_vec_pretty(&config).map_err(|_| "configuracao_nao_serializada")?;
+    let data = serde_json::to_vec_pretty(&config).map_err(|_| E::ConfiguracaoNaoSerializada)?;
     // Gravação privada única (#211): arquivo novo 0600, sem link no
     // destino, em diretório fechado a outros, publicado inteiro ou não.
     arquivo_privado::gravar(destino, &data, Politica::exclusiva().diretorio_do_ies()).map_err(
         |falha| match falha {
-            F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => {
-                "configuracao_nao_gravada"
-            }
+            F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => E::ConfiguracaoNaoGravada,
             F::SemNomeDeArquivo
             | F::DiretorioAusente
             | F::DiretorioGravavelPorOutros
             | F::DestinoJaExiste
             | F::DestinoNaoEhArquivoRegular
-            | F::CriacaoFalhou => "configuracao_ja_existe_ou_sem_permissao",
+            | F::CriacaoFalhou => E::ConfiguracaoJaExisteOuSemPermissao,
         },
     )
 }
@@ -251,15 +244,6 @@ pub enum ArquivoPrivado {
     Cookie,
     Origem,
 }
-impl ArquivoPrivado {
-    pub fn rotulo(self) -> &'static str {
-        match self {
-            Self::UrlControle => "url_controle",
-            Self::Cookie => "cookie",
-            Self::Origem => "origem",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -272,19 +256,6 @@ pub enum ErroArquivoPrivado {
     #[cfg_attr(not(unix), allow(dead_code))]
     PermissoesInseguras(ArquivoPrivado),
     MetadadosNaoLidos(ArquivoPrivado),
-}
-impl ErroArquivoPrivado {
-    pub fn arquivo(self) -> ArquivoPrivado {
-        match self {
-            Self::CaminhoNaoAbsoluto(a)
-            | Self::Ausente(a)
-            | Self::LinkSimbolico(a)
-            | Self::NaoRegular(a)
-            | Self::Vazio(a)
-            | Self::PermissoesInseguras(a)
-            | Self::MetadadosNaoLidos(a) => a,
-        }
-    }
 }
 
 /// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.

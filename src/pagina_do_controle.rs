@@ -92,14 +92,27 @@ pub(crate) enum ErroPaginaDoControle {
 }
 
 impl ErroPaginaDoControle {
-    /// Mensagem humana, a mesma com a sessão na R ou vinda da D.
-    pub(crate) const MENSAGEM: &'static str = "a página pedida do Controle não foi obtida";
-
-    /// Status e mensagem do SEI quando o POST foi recusado pelo status.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::PaginaExigeVisaoResumida
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::PaginaAtualDaTabelaIlegivel { .. }
+            | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
+            | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaTabelaNaoPublicado { .. }
+            | Self::UnidadeAlteradaAposPaginar
+            | Self::VisualizacaoAlteradaAposPaginar
+            | Self::CriteriosRecebidosAlteradosAposPaginar
+            | Self::CriteriosGeradosAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar { .. }
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. }
+            | Self::RedirecionamentoAposPaginar
+            | Self::Formulario(_)
+            | Self::Caixa(_) => false,
         }
     }
 }

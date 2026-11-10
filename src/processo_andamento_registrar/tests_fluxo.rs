@@ -1,6 +1,8 @@
 //! Casos sintéticos de transporte: prévia, POST único, releitura e incerto.
 //! Casos derivados de Todos src/todos/andamento.py @323eb01.
-use super::{Erro, ErroTela, registrar};
+use super::{
+    ErroRegistrarAndamento, ErroTela, IncertezaDoAndamento, RespostaInesperada, registrar,
+};
 use crate::arvore_processo::tests_concluir::absoluta;
 use crate::historico_processo::tests_apoio::{
     com_link, forma_go, link_do_historico, pagina_do_historico,
@@ -63,7 +65,7 @@ fn rodar(
     confirmar: bool,
     respostas: Vec<Resposta>,
 ) -> (
-    Result<super::Resultado, Erro>,
+    Result<super::Resultado, ErroRegistrarAndamento>,
     Vec<crate::processo_concluir::tests_apoio::Pedido>,
 ) {
     rodar_com(amb, respostas, |sessao, nup, indice, roteiro| {
@@ -121,7 +123,7 @@ fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
     let feito = resultado.expect("reconciliação pela leitura");
     assert_eq!(
         feito.resposta_inesperada,
-        Some("resposta_do_andamento_nao_esperada")
+        Some(RespostaInesperada::RespostaDoAndamentoNaoEsperada)
     );
     assert_eq!(feito.requisicoes, 9);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -139,7 +141,13 @@ fn se_historico_nao_mudou_o_efeito_e_incerto_sem_retry() {
     respostas.push(ok(tree()));
     respostas.push(ok(pagina(1)));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
-    assert!(matches!(resultado, Err(Erro::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroRegistrarAndamento::NaoConfirmado {
+            causa: IncertezaDoAndamento::AndamentoNaoInseridoUmaVez,
+            ..
+        })
+    ));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 9);
 }
@@ -153,7 +161,9 @@ fn formulario_de_outro_processo_recusa_sem_post() {
     let (resultado, pedidos) = rodar(&amb, true, respostas);
     assert!(matches!(
         resultado,
-        Err(Erro::FormatoDaTela(ErroTela::ProtocoloDiferente))
+        Err(ErroRegistrarAndamento::FormatoDaTela(
+            ErroTela::ProtocoloDiferente
+        ))
     ));
     assert_eq!(pedidos.len(), 5);
     assert!(pedidos.iter().all(|p| p.metodo == "GET"));
@@ -184,7 +194,13 @@ fn post_preserva_espacos_e_quebra_de_linha_sem_repetir_escrita() {
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
         registrar(sessao, nup, "  novo\ntexto  ", true, None, indice, roteiro)
     });
-    assert!(matches!(resultado, Err(Erro::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroRegistrarAndamento::NaoConfirmado {
+            causa: IncertezaDoAndamento::Releitura(_),
+            ..
+        })
+    ));
     let postagens: Vec<_> = pedidos
         .iter()
         .filter(|pedido| pedido.metodo == "POST")

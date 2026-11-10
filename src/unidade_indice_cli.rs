@@ -2,9 +2,8 @@
 //! Sem requisição Web quando há snapshot.
 use crate::indice_caminho_cli;
 use crate::{Cli, Domain, Indice, IndiceAcao};
-use std::process::ExitCode;
 
-pub(super) fn tentar_consulta_local(cli: &Cli) -> Option<ExitCode> {
+pub(super) fn tentar_consulta_local(cli: &Cli) -> Option<anyhow::Result<()>> {
     match &cli.command {
         Domain::Indice(Indice {
             acao: Some(IndiceAcao::Caminho),

@@ -38,10 +38,24 @@ pub(crate) struct Previa {
     pub(crate) alterado: bool,
 }
 
+/// `--texto` vazio ou só com espaços.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TextoDaAnotacaoVazio;
+
+/// `--texto`: o clap recusa o vazio (saída 2) antes da sessão.
+pub(crate) fn texto_da_anotacao(texto: &str) -> Result<String, TextoDaAnotacaoVazio> {
+    if texto.trim().is_empty() {
+        Err(TextoDaAnotacaoVazio)
+    } else {
+        Ok(texto.to_owned())
+    }
+}
+
 /// Uma variante por causa; o diagnóstico é derivado do tipo Rust.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum Erro {
+pub(crate) enum ErroAnotar {
     Abertura(#[from] ErroProcessoObter),
     /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
     Html(#[from] ErroHtml),
@@ -69,7 +83,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<Previa, Erro> {
+) -> Result<Previa, ErroAnotar> {
     let (texto, confirmar, remover) = match intencao {
         Intencao::Consulta => ("", false, false),
         Intencao::Registro { texto, confirmar } => (*texto, *confirmar, false),
@@ -78,19 +92,19 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)?;
-    let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
-    let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(Erro::SituacaoNaoLida)?;
+    let unidade = aberto.unidade.ok_or(ErroAnotar::UnidadeNaoPublicada)?;
+    let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(ErroAnotar::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
-        return Err(Erro::ProcessoForaDaUnidade);
+        return Err(ErroAnotar::ProcessoForaDaUnidade);
     }
     let id = aberto.arvore.processo.id;
-    let url = acoes.anotacoes?.ok_or(Erro::AnotacaoNaoOferecida)?;
+    let url = acoes.anotacoes?.ok_or(ErroAnotar::AnotacaoNaoOferecida)?;
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
-        FalhaDaTela::Redirecionada => Erro::TelaRedirecionada,
+        FalhaDaTela::Transporte(erro) => ErroAnotar::Transporte(erro),
+        FalhaDaTela::Redirecionada => ErroAnotar::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            Erro::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroAnotar::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     })?;
     let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
@@ -98,13 +112,14 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     // Retirada com anotação comprovadamente vazia dispensa POST.
     if confirmar && (!remover || !anotacao_antes.is_empty()) {
         if !remover && !anotacao_antes.trim().is_empty() {
-            return Err(Erro::AnotacaoJaPresente);
+            return Err(ErroAnotar::AnotacaoJaPresente);
         }
         if !crate::processo_enviar::salvar_oferecido(&html) {
-            return Err(Erro::SalvarNaoOferecido);
+            return Err(ErroAnotar::SalvarNaoOferecido);
         }
-        let instalacao = Instalacao::interpretar(sessao.origem).ok_or(Erro::OrigemNaoAutorizada)?;
-        let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;
+        let instalacao =
+            Instalacao::interpretar(sessao.origem).ok_or(ErroAnotar::OrigemNaoAutorizada)?;
+        let codificacao = codificacao_da_tela(&mime).ok_or(ErroAnotar::CharsetNaoSuportado)?;
         let servida = TelaServida {
             url: &url,
             html: &html,
@@ -128,7 +143,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             }
             Ok(_) => false,
             Err(_) if enviada => false,
-            Err(erro) => return Err(Erro::Formulario(erro)),
+            Err(erro) => return Err(ErroAnotar::Formulario(erro)),
         };
         // A resposta recusada não prova autoria, mesmo se um GET posterior
         // encontrar o texto desejado. Não repetir o POST em nenhum caso.
@@ -136,7 +151,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             .ok()
             .and_then(|(html, _)| crate::processo_enviar::texto_anotacao(&html, &id).ok());
         if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
-            return Err(Erro::NaoConfirmado);
+            return Err(ErroAnotar::NaoConfirmado);
         }
         alterado = true;
     }

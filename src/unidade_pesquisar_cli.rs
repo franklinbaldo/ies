@@ -2,44 +2,54 @@
 //! A identidade da instalação e da unidade é derivada dos arquivos privados
 //! da sessão. URL assinada, cookie e `infra_hash` nunca são publicados.
 use crate::configuracao::{self, ArquivosDeAcesso};
-use crate::erro_fonte;
 use crate::indice_local::{self, IndiceLocal, ListaGuardada};
 use crate::instalacao::Instalacao;
+use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
+use crate::unidade_lupa::FalhaDaLupa;
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
-type ErroLocal = (&'static str, &'static str);
+/// Por que a lista de unidades não foi publicada.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroDasUnidades {
+    Sessao(#[from] FalhaTransporte),
+    /// A origem da sessão não identifica uma instalação HTTPS válida.
+    OrigemNaoAutorizada,
+    /// A URL local do Controle não identifica uma única unidade ativa.
+    UnidadeDaSessaoNaoIdentificada,
+    /// `--unidade` não se confere sem consultar a tela do SEI.
+    UnidadePedidaNaoVerificavelOffline,
+    IndiceLocalDesligado,
+    IndiceLocalIndisponivel,
+    ListaDeUnidadesNaoGuardada,
+    /// A lupa não devolveu lista integral; as tentativas feitas vão junto.
+    LupaSemListaIntegral {
+        #[source]
+        falha: FalhaDaLupa,
+        requisicoes: usize,
+    },
+}
 
 /// A URL privada do Controle contém a unidade ativa (ID opaco). Sem essa
 /// informação não se pode misturar snapshots de unidades distintas.
 /// Não há pedido HTTP nem login, e a validade remota não é presumida.
-fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), ErroLocal> {
+fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), ErroDasUnidades> {
     let referencias =
-        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(|e| (e.mensagem(), e.mensagem()))?;
-    referencias
-        .conferir_controle()
-        .map_err(|e| (e.mensagem(), e.mensagem()))?;
-    let instalacao = Instalacao::interpretar(referencias.origem()).ok_or((
-        "origem_nao_autorizada",
-        "a origem da sessão não identifica uma instalação HTTPS válida",
-    ))?;
-    let unidade = indice_local::unidade_dos_links(referencias.url_do_controle()).ok_or((
-        "unidade_da_sessao_nao_identificada",
-        "a URL local do Controle não identifica uma única unidade ativa",
-    ))?;
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    referencias.conferir_controle()?;
+    let instalacao = Instalacao::interpretar(referencias.origem())
+        .ok_or(ErroDasUnidades::OrigemNaoAutorizada)?;
+    let unidade = indice_local::unidade_dos_links(referencias.url_do_controle())
+        .ok_or(ErroDasUnidades::UnidadeDaSessaoNaoIdentificada)?;
     Ok((instalacao.url_base().clone(), unidade))
 }
 
 /// Falha fechada: em uma consulta offline não se confere o rótulo da
 /// unidade na tela. A opção global --unidade nunca é ignorada.
-fn conferir_unidade_pedida(unidade: Option<&str>) -> Result<(), ErroLocal> {
+fn conferir_unidade_pedida(unidade: Option<&str>) -> Result<(), ErroDasUnidades> {
     if unidade.is_some() {
-        Err((
-            "unidade_pedida_nao_verificavel_offline",
-            "não é possível conferir --unidade sem consultar a tela do SEI",
-        ))
+        Err(ErroDasUnidades::UnidadePedidaNaoVerificavelOffline)
     } else {
         Ok(())
     }
@@ -50,27 +60,18 @@ fn ler_guardadas(
     instalacao: &str,
     unidade: &str,
     termo: Option<&str>,
-) -> Result<ListaGuardada, ErroLocal> {
+) -> Result<ListaGuardada, ErroDasUnidades> {
     if !indice.ligado() {
-        return Err((
-            "indice_local_desligado",
-            "o índice local está desligado; a leitura Web ainda não foi integrada",
-        ));
+        return Err(ErroDasUnidades::IndiceLocalDesligado);
     }
     let resultado = match termo {
         Some(termo) => indice.pesquisar_unidades_guardadas(instalacao, unidade, termo),
         None => indice.lista_de_unidades(instalacao, unidade),
     };
     if !indice.ligado() {
-        return Err((
-            "indice_local_indisponivel",
-            "não foi possível consultar o índice local; a leitura Web ainda não foi integrada",
-        ));
+        return Err(ErroDasUnidades::IndiceLocalIndisponivel);
     }
-    resultado.ok_or((
-        "lista_unidades_nao_guardada",
-        "não há snapshot de unidades para esta instalação e unidade; a leitura Web está pendente",
-    ))
+    resultado.ok_or(ErroDasUnidades::ListaDeUnidadesNaoGuardada)
 }
 
 fn json_da_lista(lista: &ListaGuardada, unidade: &str) -> Value {
@@ -98,25 +99,24 @@ fn json_da_lista(lista: &ListaGuardada, unidade: &str) -> Value {
 
 /// Consulta Web completa quando não há snapshot ou --atualizar foi pedido.
 /// A falha do índice não impede a leitura; somente impede persistir.
-type FalhaWebContada = (crate::unidade_lupa::FalhaDaLupa, usize);
-
 /// As falhas de preflight contam zero; as da rede preservam tentativas feitas.
 fn atualizar_por_web(
     arquivos: &ArquivosDeAcesso,
     indice: &IndiceLocal,
     instalacao: &str,
     unidade: &str,
-) -> Result<(ListaGuardada, usize, bool), FalhaWebContada> {
+) -> Result<(ListaGuardada, usize, bool), ErroDasUnidades> {
+    let lupa = |falha, requisicoes| ErroDasUnidades::LupaSemListaIntegral { falha, requisicoes };
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
+            .map_err(|e| lupa(FalhaDaLupa::Transporte(e), 0))?;
     referencias
         .conferir_controle()
-        .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
+        .map_err(|e| lupa(FalhaDaLupa::Transporte(e), 0))?;
     let cookie = referencias
         .cookie()
         .valor()
-        .map_err(|e| (crate::unidade_lupa::FalhaDaLupa::Transporte(e), 0))?;
+        .map_err(|e| lupa(FalhaDaLupa::Transporte(e), 0))?;
     let mut requisicoes = 0;
     let lida = crate::unidade_lupa::ler_integral_com_contador(
         &mut crate::unidade_lupa::HttpsLupa,
@@ -125,7 +125,7 @@ fn atualizar_por_web(
         cookie,
         &mut requisicoes,
     )
-    .map_err(|e| (e, requisicoes))?;
+    .map_err(|e| lupa(e, requisicoes))?;
     let total = lida.total;
     let persistida = indice.guardar_lista_de_unidades(instalacao, unidade, &lida.unidades, total);
     let lida_em = std::time::SystemTime::now()
@@ -139,54 +139,15 @@ fn atualizar_por_web(
     Ok((lista, lida.requisicoes, persistida))
 }
 
-/// Nao perde a contagem quando a coleta e recusada. Somente numero
-/// de tentativas e subcodigo/status saneados aparecem na saida.
-fn json_da_falha_web(falha: &crate::unidade_lupa::FalhaDaLupa, requisicoes: usize) -> Value {
-    let mut valor = crate::saida_erro::json_de_erro_fonte(
-        "a lupa não devolveu uma lista integral verificável",
-        falha.status_http(),
-    );
-    valor["requisicoes"] = json!(requisicoes);
-    valor
-}
-
-fn publicar_falha_web(
-    json_mode: bool,
-    falha: &crate::unidade_lupa::FalhaDaLupa,
-    requisicoes: usize,
-) -> ExitCode {
-    if json_mode {
-        println!("{}", json_da_falha_web(falha, requisicoes));
-    } else {
-        eprintln!(
-            "{} ({} requisições)",
-            crate::saida_erro::linha_humana(
-                "a lupa não devolveu uma lista integral verificável",
-                falha.status_http(),
-            ),
-            requisicoes
-        );
-    }
-    ExitCode::from(1)
-}
-
 fn executar(
     json_mode: bool,
     unidade_esperada: Option<&str>,
     termo: Option<&str>,
     atualizar: bool,
-) -> ExitCode {
-    if let Err((_, mensagem)) = conferir_unidade_pedida(unidade_esperada) {
-        return erro_fonte(json_mode, mensagem);
-    }
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
-    let (instalacao, unidade) = match escopo_da_sessao(&arquivos) {
-        Ok(escopo) => escopo,
-        Err((_, mensagem)) => return erro_fonte(json_mode, mensagem),
-    };
+) -> anyhow::Result<()> {
+    conferir_unidade_pedida(unidade_esperada)?;
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let (instalacao, unidade) = escopo_da_sessao(&arquivos)?;
     let indice = IndiceLocal::da_configuracao(&arquivos);
     let guardada = if atualizar {
         None
@@ -197,12 +158,7 @@ fn executar(
         (lista, "indice", 0, true)
     } else {
         let (lista, requisicoes, persistida) =
-            match atualizar_por_web(&arquivos, &indice, &instalacao, &unidade) {
-                Ok(resultado) => resultado,
-                Err((falha, requisicoes)) => {
-                    return publicar_falha_web(json_mode, &falha, requisicoes);
-                }
-            };
+            atualizar_por_web(&arquivos, &indice, &instalacao, &unidade)?;
         let lista = match termo {
             Some(t) => crate::indice_local::filtrar_lista(lista, t),
             None => lista,
@@ -230,17 +186,23 @@ fn executar(
             );
         }
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
-pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar: bool) -> ExitCode {
+pub(super) fn listar(
+    json_mode: bool,
+    unidade_esperada: Option<&str>,
+    atualizar: bool,
+) -> anyhow::Result<()> {
     executar(json_mode, unidade_esperada, None, atualizar)
 }
 
-pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
-    if termo.is_empty() {
-        return erro_fonte(json_mode, "termo de pesquisa vazio");
-    }
+/// `termo` não vazio: conferido pelo clap.
+pub(super) fn pesquisar(
+    json_mode: bool,
+    unidade_esperada: Option<&str>,
+    termo: &str,
+) -> anyhow::Result<()> {
     executar(json_mode, unidade_esperada, Some(termo), false)
 }
 
@@ -271,25 +233,11 @@ mod tests {
     }
 
     #[test]
-    fn falha_web_publica_contador_sem_url_cookie_ou_hash() {
-        let falha = crate::unidade_lupa::FalhaDaLupa::FormularioInesperado;
-        let valor = json_da_falha_web(&falha, 5);
-        assert_eq!(valor["requisicoes"], 5);
-        assert!(valor.get("cookie").is_none());
-        assert!(valor.get("url").is_none());
-        assert!(valor.get("infra_hash").is_none());
-
-        let outra = crate::unidade_lupa::FalhaDaLupa::LinkAmbiguo;
-        let valor = json_da_falha_web(&outra, 1);
-        assert_eq!(valor["requisicoes"], 1);
-    }
-
-    #[test]
     fn filtro_global_de_unidade_nunca_eh_ignorado() {
         assert_eq!(conferir_unidade_pedida(None), Ok(()));
         assert_eq!(
-            conferir_unidade_pedida(Some("PPI")).unwrap_err().0,
-            "unidade_pedida_nao_verificavel_offline"
+            conferir_unidade_pedida(Some("PPI")),
+            Err(ErroDasUnidades::UnidadePedidaNaoVerificavelOffline)
         );
     }
 }

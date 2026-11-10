@@ -81,7 +81,6 @@ pub(crate) enum ErroIncluir {
     NaoConfirmado,
 }
 
-impl ErroIncluir {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
     let fora = || ErroHtml::valor("tela_de_escolher_bloco_fora_da_forma_observada");

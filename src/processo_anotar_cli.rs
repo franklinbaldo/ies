@@ -4,7 +4,6 @@ use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_anotar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -22,28 +21,6 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let nup = numero.clone();
     let texto = texto.as_deref();
-    let entrada_invalida = if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
-        Some("o texto da anotação não pode ser vazio")
-    } else if *confirmar && texto.is_none() && !*remover {
-        Some("a confirmação exige --texto ou --remover")
-    } else {
-        None
-    };
-    if let Some(mensagem) = entrada_invalida {
-        if cli.json {
-            println!(
-                "{}",
-                json!({
-                    "codigo": "entrada_invalida",
-                    "erro": mensagem,
-                    "retentavel": false
-                })
-            );
-        } else {
-            eprintln!("IES: {mensagem}");
-        }
-        return Some(crate::legado(ExitCode::from(2)));
-    }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
             && let Err(causa) = crate::origem_de_treinamento::exigir(

@@ -5,54 +5,21 @@
 //! comandos de leitura chamam [`ler`]; escrita e prévia nunca.
 use crate::configuracao::ArquivosDeAcesso;
 use crate::indice_local::IndiceLocal;
-use crate::saida_erro;
 use crate::sessao_login::http::HttpsDoLogin;
 use crate::sessao_login::relogin::{ContextoDoRelogin, ler_com_relogin};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, cliente_https};
+use crate::transporte::cliente_https;
 use serde_json::{Value, json};
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
-
-/// Falha de leitura publicável como `fonte_invalida`.
-pub(crate) trait FalhaPublicavel {
-    fn mensagem(&self) -> &'static str;
-    fn status_http(&self) -> Option<&StatusHttpRecusado>;
-    /// O fato tipado que dispara o relogin único.
-    fn sessao_encerrada(&self) -> bool;
-}
-
-macro_rules! publicavel {
-    ($($tipo:ty),*) => {$(
-        impl FalhaPublicavel for $tipo {
-            fn mensagem(&self) -> &'static str {
-                <$tipo>::mensagem(self)
-            }
-            fn status_http(&self) -> Option<&StatusHttpRecusado> {
-                <$tipo>::status_http(self)
-            }
-            fn sessao_encerrada(&self) -> bool {
-                crate::erro_publico::Causa::sessao_encerrada(self)
-            }
-        }
-    )*};
-}
-
-publicavel!(
-    FalhaTransporte,
-    crate::processo_obter::ErroProcessoObter,
-    crate::processo_obter::ErroDocumentoObter,
-    crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso,
-    crate::visao_do_controle::ErroVisaoDoControle
-);
 
 /// A leitura com o relogin único: credenciais só de `IES_CREDENCIAIS_FILE`
 /// (ausente: comportamento sem relogin), lock do `ies login` e a contagem
 /// de todos os pedidos do processo.
-pub(crate) fn ler<T, E: FalhaPublicavel>(
+pub(crate) fn ler<T, E>(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
+    sessao_encerrada: fn(&E) -> bool,
     ler: impl FnMut() -> Result<T, E>,
 ) -> Result<(T, Option<NotaDoRelogin>), FalhaDaLeitura<E>> {
     let credenciais = std::env::var_os("IES_CREDENCIAIS_FILE")
@@ -70,9 +37,32 @@ pub(crate) fn ler<T, E: FalhaPublicavel>(
         &contexto,
         &mut HttpsDoLogin,
         &cliente_https::pedidos_do_processo,
-        E::sessao_encerrada,
+        sessao_encerrada,
         ler,
     )
+}
+
+/// A leitura falhou depois de recomeçar com a sessão nova: o fato da nota
+/// (relogin feito aqui ou por outro processo e os pedidos já feitos) sobe
+/// junto com o erro da releitura.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct LeituraRefeitaAposRelogin(pub(crate) NotaDoRelogin);
+
+/// A falha que sobe: a do relogin, ou a da leitura com a nota como contexto
+/// quando a leitura recomeçou.
+pub(crate) fn subir<E>(falha: FalhaDaLeitura<E>) -> anyhow::Error
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    match falha {
+        FalhaDaLeitura::Relogin(erro) => erro.into(),
+        FalhaDaLeitura::Leitura { erro, nota: None } => erro.into(),
+        FalhaDaLeitura::Leitura {
+            erro,
+            nota: Some(nota),
+        } => anyhow::Error::from(erro).context(LeituraRefeitaAposRelogin(nota)),
+    }
 }
 
 /// `requisicoes` próprias da releitura mais as da primeira tentativa e do
@@ -117,37 +107,6 @@ pub(crate) fn avisar(json_mode: bool, nota: Option<&NotaDoRelogin>) {
             "IES: a sessão tinha vencido e outro processo já tinha relogado; leitura refeita com a sessão nova ({} requisições no total).",
             nota.total()
         );
-    }
-}
-
-/// O JSON da falha de leitura, com `relogin` quando houve relogin.
-pub(crate) fn json_da_falha(
-    mensagem: &str,
-    http: Option<&StatusHttpRecusado>,
-    nota: Option<&NotaDoRelogin>,
-) -> Value {
-    let mut valor = saida_erro::json_de_erro_fonte(mensagem, http);
-    anotar(&mut valor, nota);
-    valor
-}
-
-/// Imprime a falha (da leitura ou do relogin) e devolve a saída 1.
-pub(crate) fn publicar_falha<E: FalhaPublicavel>(
-    json_mode: bool,
-    falha: &FalhaDaLeitura<E>,
-) -> ExitCode {
-    match falha {
-        FalhaDaLeitura::Relogin(erro) => crate::sessao_login_cli::falhar(json_mode, erro),
-        FalhaDaLeitura::Leitura { erro, nota } => {
-            let (msg, http) = (erro.mensagem(), erro.status_http());
-            if json_mode {
-                println!("{}", json_da_falha(msg, http, nota.as_ref()));
-            } else {
-                avisar(json_mode, nota.as_ref());
-                eprintln!("{}", saida_erro::linha_humana(msg, http));
-            }
-            ExitCode::from(1)
-        }
     }
 }
 

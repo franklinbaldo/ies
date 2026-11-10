@@ -43,9 +43,10 @@ pub struct PedidoEnvio<'a> {
     pub remover_anotacoes: bool,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroProcessos {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoEncontrado,
     OrigemNaoAberta,
@@ -54,17 +55,11 @@ pub enum Falha {
     AnotacaoNaoObservada,
 }
 
-impl From<rusqlite::Error> for Falha {
-    fn from(falha: rusqlite::Error) -> Self {
-        Self::Sqlite(falha)
-    }
-}
-
 fn id_valido(id: &str) -> bool {
     !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())
 }
 
-fn validar(processo: &ProcessoSimulado) -> Result<(), Falha> {
+fn validar(processo: &ProcessoSimulado) -> Result<(), ErroProcessos> {
     if !id_valido(&processo.id)
         || processo.numero.is_empty()
         || processo.unidade_origem.is_empty()
@@ -74,11 +69,11 @@ fn validar(processo: &ProcessoSimulado) -> Result<(), Falha> {
             .iter()
             .any(|d| !id_valido(&d.id) || d.sigla.is_empty() || d.descricao.is_empty())
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroProcessos::DadoInvalido);
     }
     for (i, unidade) in processo.aberto_em.iter().enumerate() {
         if processo.aberto_em[..i].contains(unidade) {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroProcessos::DadoInvalido);
         }
     }
     for (i, destino) in processo.destinos.iter().enumerate() {
@@ -86,7 +81,7 @@ fn validar(processo: &ProcessoSimulado) -> Result<(), Falha> {
             .iter()
             .any(|anterior| anterior.id == destino.id || anterior.sigla == destino.sigla)
         {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroProcessos::DadoInvalido);
         }
     }
     Ok(())
@@ -101,10 +96,10 @@ pub fn guardar(
     instalacao: &Instalacao,
     cenario: &str,
     processo: &ProcessoSimulado,
-) -> Result<(), Falha> {
+) -> Result<(), ErroProcessos> {
     validar(processo)?;
     if cenario.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroProcessos::DadoInvalido);
     }
     let origem = instalacao.url_base();
     let tx = banco.transaction()?;
@@ -143,7 +138,7 @@ pub fn guardar(
         params![origem, cenario, processo.id],
     )?;
     for (posicao, unidade) in processo.aberto_em.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroProcessos::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_abertura
              (origem, cenario, id_procedimento, posicao, unidade)
@@ -179,7 +174,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<ProcessoSimulado>, Falha> {
+) -> Result<Option<ProcessoSimulado>, ErroProcessos> {
     let origem = instalacao.url_base();
     let cabecalho: Option<(String, String, Option<String>)> = banco
         .query_row(
@@ -238,7 +233,7 @@ pub fn enviar(
     instalacao: &Instalacao,
     cenario: &str,
     pedido: PedidoEnvio<'_>,
-) -> Result<ProcessoSimulado, Falha> {
+) -> Result<ProcessoSimulado, ErroProcessos> {
     enviar_com_unidade(banco, instalacao, cenario, pedido, None)
 }
 
@@ -253,7 +248,7 @@ pub fn enviar_da_unidade(
     cenario: &str,
     pedido: PedidoEnvio<'_>,
     unidade: &str,
-) -> Result<ProcessoSimulado, Falha> {
+) -> Result<ProcessoSimulado, ErroProcessos> {
     enviar_com_unidade(banco, instalacao, cenario, pedido, Some(unidade))
 }
 
@@ -263,30 +258,30 @@ fn enviar_com_unidade(
     cenario: &str,
     pedido: PedidoEnvio<'_>,
     unidade: Option<&str>,
-) -> Result<ProcessoSimulado, Falha> {
+) -> Result<ProcessoSimulado, ErroProcessos> {
     let tx = banco.unchecked_transaction()?;
     let mut processo =
-        ler(&tx, instalacao, cenario, pedido.id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
+        ler(&tx, instalacao, cenario, pedido.id)?.ok_or(ErroProcessos::ProcessoNaoEncontrado)?;
     let unidade_atual = unidade.unwrap_or(&processo.unidade_origem).to_owned();
     if !processo.aberto_em.contains(&unidade_atual) {
-        return Err(Falha::OrigemNaoAberta);
+        return Err(ErroProcessos::OrigemNaoAberta);
     }
     let destino = processo
         .destinos
         .iter()
         .find(|d| d.id == pedido.id_destino)
-        .ok_or(Falha::DestinoNaoOferecido)?;
+        .ok_or(ErroProcessos::DestinoNaoOferecido)?;
     if processo.aberto_em.contains(&destino.sigla) {
-        return Err(Falha::DestinoJaAberto);
+        return Err(ErroProcessos::DestinoJaAberto);
     }
     if pedido.remover_anotacoes {
         if unidade_atual != processo.unidade_origem {
-            return Err(Falha::AnotacaoNaoObservada);
+            return Err(ErroProcessos::AnotacaoNaoObservada);
         }
         let anotacao = processo
             .anotacao_origem
             .as_mut()
-            .ok_or(Falha::AnotacaoNaoObservada)?;
+            .ok_or(ErroProcessos::AnotacaoNaoObservada)?;
         anotacao.clear();
     }
     let sigla = destino.sigla.clone();
@@ -308,7 +303,7 @@ fn enviar_com_unidade(
         params![origem, cenario, pedido.id],
     )?;
     for (i, unidade) in processo.aberto_em.iter().enumerate() {
-        let i = i64::try_from(i).map_err(|_| Falha::DadoInvalido)?;
+        let i = i64::try_from(i).map_err(|_| ErroProcessos::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_abertura
              (origem, cenario, id_procedimento, posicao, unidade)
@@ -329,7 +324,7 @@ pub fn limpar_anotacao(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroProcessos> {
     registrar_anotacao(banco, instalacao, cenario, id, "")
 }
 
@@ -345,13 +340,14 @@ pub fn registrar_anotacao(
     cenario: &str,
     id: &str,
     texto: &str,
-) -> Result<(), Falha> {
-    let processo = ler(banco, instalacao, cenario, id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
+) -> Result<(), ErroProcessos> {
+    let processo =
+        ler(banco, instalacao, cenario, id)?.ok_or(ErroProcessos::ProcessoNaoEncontrado)?;
     if !processo.aberto_em.contains(&processo.unidade_origem) {
-        return Err(Falha::OrigemNaoAberta);
+        return Err(ErroProcessos::OrigemNaoAberta);
     }
     if processo.anotacao_origem.is_none() {
-        return Err(Falha::AnotacaoNaoObservada);
+        return Err(ErroProcessos::AnotacaoNaoObservada);
     }
     banco.execute(
         "UPDATE processo_simulado SET anotacao_origem=?4
@@ -374,10 +370,10 @@ fn pagina_inteira(tabela: &TabelaObservada<Linha>) -> bool {
     }
 }
 
-fn tabela_atualizada(linhas: Vec<Linha>) -> Result<TabelaObservada<Linha>, Falha> {
+fn tabela_atualizada(linhas: Vec<Linha>) -> Result<TabelaObservada<Linha>, ErroProcessos> {
     let tamanho = linhas.len();
     TabelaObservada::nova(Some(tamanho), FaixaObservada::nova(1, tamanho), linhas)
-        .map_err(|_| Falha::DadoInvalido)
+        .map_err(|_| ErroProcessos::DadoInvalido)
 }
 
 /// Projeta as transições do SQLite no Controle R da unidade ativa.
@@ -393,7 +389,7 @@ pub fn controle_da_unidade(
     instalacao: &Instalacao,
     cenario: &str,
     mut controle: ControleResumido,
-) -> Result<ControleResumido, Falha> {
+) -> Result<ControleResumido, ErroProcessos> {
     if !pagina_inteira(&controle.recebidos) || !pagina_inteira(&controle.gerados) {
         return Ok(controle);
     }
@@ -462,7 +458,7 @@ pub fn destinos_do_cenario(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<Option<Vec<Destino>>, Falha> {
+) -> Result<Option<Vec<Destino>>, ErroProcessos> {
     let origem = instalacao.url_base();
     let observado: i64 = banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_simulado WHERE origem=?1 AND cenario=?2)",

@@ -4,7 +4,6 @@
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
 use crate::arvore_processo::{conferir_endereco_relativo, ler_tela_do_processo};
-use crate::erro_publico::Causa;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -40,6 +39,16 @@ pub(crate) enum ErroValidacaoAcesso {
 }
 
 impl ErroValidacaoAcesso {
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Credenciais(erro) => erro.sessao_encerrada(),
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+            Self::ModalNaoReconhecida
+            | Self::RedirecionamentoSemProva
+            | Self::ReleituraNaoConfirmada => false,
+        }
+    }
+
     pub(super) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),

@@ -40,7 +40,8 @@ pub(crate) struct PdfLocal {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaPdf {
     Ausente,
     NaoRegular,

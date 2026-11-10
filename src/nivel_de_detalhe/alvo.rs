@@ -27,19 +27,6 @@ pub(crate) enum ErroDaListaDeColunas {
     },
 }
 
-impl ErroDaListaDeColunas {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::ListaDeColunasVazia => "--definir exige `todas` ou uma lista de colunas",
-            Self::ItemVazioNaListaDeColunas => "a lista de --definir tem um item vazio",
-            Self::ColunaDesconhecida { .. } => {
-                "coluna desconhecida em --definir (`ies unidade colunas` lista as chaves)"
-            }
-            Self::ColunaRepetidaNaLista { .. } => "coluna repetida na lista de --definir",
-        }
-    }
-}
-
 /// Opção pedida que a tela desta instalação não publica.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ColunaIndisponivelNestaInstalacao {

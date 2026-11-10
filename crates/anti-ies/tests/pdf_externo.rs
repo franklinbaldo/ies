@@ -180,7 +180,7 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
     assert_eq!(vazio, []);
     assert!(matches!(
         modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", 999),
-        Err(modelo::Falha::UploadAusente)
+        Err(modelo::ErroPdfExterno::UploadAusente)
     ));
     assert!(matches!(
         modelo::receber(
@@ -191,7 +191,7 @@ fn bdd_332_04_upload_rejeitado_nao_cadastra_e_cenario_isolado_nao_vaza() {
             "maior.pdf",
             201 * 1024 * 1024
         ),
-        Err(modelo::Falha::LimiteExcedido)
+        Err(modelo::ErroPdfExterno::LimiteExcedido)
     ));
     assert_eq!(
         modelo::documentos(&banco, &origem, "outro", "7")
@@ -226,7 +226,7 @@ fn recibo_legado_sem_bytes_nao_publica_pdf_sem_download() {
     let resultado = modelo::cadastrar(&banco, &origem, "ensaio", "7", "293", recibo.id);
     assert!(matches!(
         resultado,
-        Err(modelo::Falha::UploadSemConteudoRecuperavel)
+        Err(modelo::ErroPdfExterno::UploadSemConteudoRecuperavel)
     ));
     let cadastro = anti_ies::pdf_externo::atender(
         "POST",
@@ -418,7 +418,7 @@ fn falha_ao_persistir_os_bytes_nao_deixa_upload_parcial() {
     modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "primeiro.pdf", bytes).unwrap();
     assert!(matches!(
         modelo::receber_conteudo(&banco, &origem, "ensaio", "7", "segundo.pdf", bytes),
-        Err(modelo::Falha::Sqlite(_))
+        Err(modelo::ErroPdfExterno::Sqlite(_))
     ));
     let uploads: i64 = banco
         .query_row("SELECT count(*) FROM externo_upload", [], |r| r.get(0))

@@ -15,10 +15,9 @@ use crate::processo_obter::{
 };
 use crate::propriedades_processo::PropriedadesLidas;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, configuracao, erro_fonte, relogin_cli, transporte};
+use crate::{Cli, Domain, Processo, configuracao, relogin_cli, transporte};
 use serde_json::{Value, json};
 use std::fmt::Write as _;
-use std::process::ExitCode;
 
 /// As propriedades lidas; ids de assunto e de contato não são publicados.
 fn json_das_propriedades(lidas: &PropriedadesLidas) -> Value {
@@ -384,29 +383,9 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
     texto
 }
 
-fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
-}
-
-fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
-    if comando.andamentos_completos && comando.sem_andamentos {
-        return erro_de_uso(
-            cli.json,
-            "--sem-andamentos e --andamentos-completos são incompatíveis",
-        );
-    }
+/// NUP e opções já conferidos pelo clap (`--sem-andamentos` exclui
+/// `--andamentos-completos`).
+fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<()> {
     let andamentos = if comando.sem_andamentos {
         PedidoDeAndamentos::Omitidos
     } else if comando.andamentos_completos {
@@ -414,10 +393,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     } else {
         PedidoDeAndamentos::VisaoServida
     };
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
-    };
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let pedido = PedidoDoProcesso {
         nup,
         unidade: cli.unidade.as_deref(),
@@ -428,49 +404,79 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Informativa,
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
-    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )
-        .map_err(ErroProcessoObter::Transporte)?;
-        let sessao = SessaoDoProcesso {
-            url_do_controle: referencias.url_do_controle(),
-            origem: referencias.origem(),
-            cookie: referencias.cookie(),
-        };
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        crate::processo_obter::consulta_parcial::obter_processo_informativo(
-            &sessao,
-            &pedido,
-            &indice,
-            &mut EnvioHttps,
-        )
-    });
-    match lido {
-        Ok((mut aberto, nota)) => {
-            aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
-            if cli.json {
-                let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
-                relogin_cli::anotar(&mut valor, nota.as_ref());
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&valor).expect("JSON serializável")
-                );
-            } else {
-                relogin_cli::avisar(cli.json, nota.as_ref());
-                println!("{}", humano(nup, &aberto, comando.sem_documentos));
-            }
-            ExitCode::SUCCESS
+    let (mut aberto, nota) = relogin_cli::ler(
+        &arquivos,
+        cli.unidade.as_deref(),
+        ErroProcessoObter::sessao_encerrada,
+        || {
+            let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
+            .map_err(ErroProcessoObter::Transporte)?;
+            let sessao = SessaoDoProcesso {
+                url_do_controle: referencias.url_do_controle(),
+                origem: referencias.origem(),
+                cookie: referencias.cookie(),
+            };
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            crate::processo_obter::consulta_parcial::obter_processo_informativo(
+                &sessao,
+                &pedido,
+                &indice,
+                &mut EnvioHttps,
+            )
+        },
+    )
+    .map_err(validacao_sem_credenciais)?;
+    aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
+    if cli.json {
+        let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
+        relogin_cli::anotar(&mut valor, nota.as_ref());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&valor).expect("JSON serializável")
+        );
+    } else {
+        relogin_cli::avisar(cli.json, nota.as_ref());
+        println!("{}", humano(nup, &aberto, comando.sem_documentos));
+    }
+    Ok(())
+}
+
+/// O SEI exige validar o acesso com a senha e não há arquivo de credenciais
+/// privado (`IES_CREDENCIAIS_FILE`); o IES ainda não faz essa validação.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct ValidacaoDeAcessoSemArquivoDeCredenciais;
+
+/// A falha que sobe; a da validação de acesso leva junto a ausência do
+/// arquivo de credenciais, quando é o caso.
+fn validacao_sem_credenciais(
+    falha: relogin_cli::FalhaDaLeitura<ErroProcessoObter>,
+) -> anyhow::Error {
+    let exige_validacao = matches!(
+        &falha,
+        relogin_cli::FalhaDaLeitura::Leitura {
+            erro: ErroProcessoObter::Tela(
+                crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso
+            ),
+            ..
         }
-        Err(falha) => relogin_cli::publicar_falha(cli.json, &falha),
+    );
+    let sem_credenciais =
+        std::env::var_os("IES_CREDENCIAIS_FILE").is_none_or(|caminho| caminho.is_empty());
+    let erro = relogin_cli::subir(falha);
+    if exige_validacao && sem_credenciais {
+        erro.context(ValidacaoDeAcessoSemArquivoDeCredenciais)
+    } else {
+        erro
     }
 }
 
-/// `Some` só para `ies processo NUP`; NUP inválido fica para a validação
-/// comum (saída 2).
-pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
+/// `Some` só para `ies processo NUP`.
+pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(
         comando @ Processo {
             numero: Some(numero),
@@ -481,34 +487,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = NumeroProcesso::novo(numero).ok()?;
-    Some(obter(cli, comando, &nup))
-}
-
-/// NUP inválido de `ies processo NUP`: saída 2 tipada, antes da configuração.
-pub(crate) fn validar_numero(cli: &Cli) -> Option<ExitCode> {
-    let Domain::Processo(Processo {
-        numero: Some(numero),
-        acao: None,
-        ..
-    }) = &cli.command
-    else {
-        return None;
-    };
-    let erro = NumeroProcesso::novo(numero).err()?;
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": "número de processo inválido",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: número de processo inválido ({erro:?})");
-    }
-    Some(ExitCode::from(2))
+    Some(obter(cli, comando, numero))
 }
 
 #[path = "processo_obter_cli/saida_da_arvore.rs"]

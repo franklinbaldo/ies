@@ -2,7 +2,7 @@
 //! em SQLite. Sem cookies, URLs reais, nem rede externa.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
-use iesei::pdf_externo::{self as modelo, Falha, TipoExterno};
+use iesei::pdf_externo::{self as modelo, ErroPdfExterno, TipoExterno};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
@@ -14,16 +14,16 @@ fn erro(estado: Estado) -> Resposta {
     Resposta::nova(estado)
 }
 
-fn falha(causa: &Falha) -> Resposta {
+fn falha(causa: &ErroPdfExterno) -> Resposta {
     match causa {
-        Falha::Sqlite(_) => erro(Estado::DadosInsuficientes),
-        Falha::ProcessoAusente => erro(Estado::NaoEncontrado),
-        Falha::ProcessoNaoAbertoNaUnidade
-        | Falha::TipoAusente
-        | Falha::UploadAusente
-        | Falha::UploadSemConteudoRecuperavel
-        | Falha::LimiteExcedido
-        | Falha::EntradaInvalida => erro(Estado::RequisicaoInvalida),
+        ErroPdfExterno::Sqlite(_) => erro(Estado::DadosInsuficientes),
+        ErroPdfExterno::ProcessoAusente => erro(Estado::NaoEncontrado),
+        ErroPdfExterno::ProcessoNaoAbertoNaUnidade
+        | ErroPdfExterno::TipoAusente
+        | ErroPdfExterno::UploadAusente
+        | ErroPdfExterno::UploadSemConteudoRecuperavel
+        | ErroPdfExterno::LimiteExcedido
+        | ErroPdfExterno::EntradaInvalida => erro(Estado::RequisicaoInvalida),
     }
 }
 
@@ -303,7 +303,7 @@ pub(crate) fn baixar(
     match modelo::conteudo_do_anexo(banco, origem, cenario, id_anexo) {
         Ok(Some(bytes)) => Resposta::pdf(bytes),
         Ok(None) => erro(Estado::NaoEncontrado),
-        Err(Falha::EntradaInvalida) => erro(Estado::RequisicaoInvalida),
+        Err(ErroPdfExterno::EntradaInvalida) => erro(Estado::RequisicaoInvalida),
         Err(e) => falha(&e),
     }
 }

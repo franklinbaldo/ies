@@ -265,10 +265,9 @@ fn mes_invalido_recusado_antes_de_acesso_a_sessao() {
     for valor in [
         "2026-00", "2026-13", "2026-1", "2026/10", "abcd-10", "0000-10",
     ] {
-        assert!(mes_pedido(Some(valor)).is_err(), "{valor}");
+        assert!(mes_da_cli(valor).is_err(), "{valor}");
     }
-    assert!(matches!(mes_pedido(Some("2026-10")), Ok(Some((2026, 10)))));
-    assert!(matches!(mes_pedido(None), Ok(None)));
+    assert!(matches!(mes_da_cli("2026-10"), Ok((2026, 10))));
 }
 
 #[test]

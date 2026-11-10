@@ -11,16 +11,11 @@ pub enum EstadoDoPrazo {
     Concluido,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroPrazos {
+    Sqlite(#[from] rusqlite::Error),
     EstadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Persiste uma observação de prazo tipada, isolada por instalação e cenário.
@@ -33,9 +28,9 @@ pub fn guardar(
     cenario: &str,
     id: &str,
     estado: &EstadoDoPrazo,
-) -> Result<(), Falha> {
+) -> Result<(), ErroPrazos> {
     if cenario.is_empty() || id.is_empty() {
-        return Err(Falha::EstadoInvalido);
+        return Err(ErroPrazos::EstadoInvalido);
     }
     let (vence_em, concluido, dias): (Option<&str>, bool, Option<i64>) = match estado {
         EstadoDoPrazo::SemPrazo => (None, false, None),
@@ -43,7 +38,7 @@ pub fn guardar(
         EstadoDoPrazo::Dias(dias) if (1..=999).contains(dias) => {
             (None, false, Some(i64::from(*dias)))
         }
-        EstadoDoPrazo::Data(_) | EstadoDoPrazo::Dias(_) => return Err(Falha::EstadoInvalido),
+        EstadoDoPrazo::Data(_) | EstadoDoPrazo::Dias(_) => return Err(ErroPrazos::EstadoInvalido),
         EstadoDoPrazo::Concluido => (None, true, None),
     };
     banco.execute(
@@ -74,7 +69,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<EstadoDoPrazo>, Falha> {
+) -> Result<Option<EstadoDoPrazo>, ErroPrazos> {
     let linha: Option<(Option<String>, bool, Option<i64>)> = banco
         .query_row(
             "SELECT vence_em, concluido, dias FROM prazo_processo
@@ -89,9 +84,9 @@ pub fn ler(
             (Some(data), false, None) if !data.is_empty() => Ok(EstadoDoPrazo::Data(data)),
             (None, false, Some(dias @ 1..=999)) => u16::try_from(dias)
                 .map(EstadoDoPrazo::Dias)
-                .map_err(|_| Falha::EstadoInvalido),
+                .map_err(|_| ErroPrazos::EstadoInvalido),
             (None, true, None) => Ok(EstadoDoPrazo::Concluido),
-            _ => Err(Falha::EstadoInvalido),
+            _ => Err(ErroPrazos::EstadoInvalido),
         })
         .transpose()
 }
@@ -112,7 +107,7 @@ pub fn listar(
     instalacao: &Instalacao,
     cenario: &str,
     unidade: &str,
-) -> Result<Vec<LinhaDePrazo>, Falha> {
+) -> Result<Vec<LinhaDePrazo>, ErroPrazos> {
     let mut consulta = banco.prepare(
         "SELECT prazo.id_procedimento, base.nup, prazo.vence_em, prazo.dias
          FROM prazo_processo prazo
@@ -142,10 +137,10 @@ pub fn listar(
         .map(|(id_procedimento, nup, data, dias)| {
             let estado = match (data, dias) {
                 (Some(data), None) if !data.is_empty() => EstadoDoPrazo::Data(data),
-                (None, Some(dias @ 1..=999)) => {
-                    EstadoDoPrazo::Dias(u16::try_from(dias).map_err(|_| Falha::EstadoInvalido)?)
-                }
-                _ => return Err(Falha::EstadoInvalido),
+                (None, Some(dias @ 1..=999)) => EstadoDoPrazo::Dias(
+                    u16::try_from(dias).map_err(|_| ErroPrazos::EstadoInvalido)?,
+                ),
+                _ => return Err(ErroPrazos::EstadoInvalido),
             };
             Ok(LinhaDePrazo {
                 id_procedimento,
@@ -166,7 +161,7 @@ pub fn excluir(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<bool, Falha> {
+) -> Result<bool, ErroPrazos> {
     let linhas = banco.execute(
         "UPDATE prazo_processo
          SET vence_em=NULL, dias=NULL, concluido=0

@@ -113,18 +113,6 @@ pub(crate) enum ErroPropriedades {
 }
 
 impl ErroPropriedades {
-    /// Recusas do link na barra (o resto é da tela).
-    pub(crate) fn do_link(self) -> bool {
-        matches!(
-            self,
-            Self::BarraDoProcessoForaDaFormaObservada
-                | Self::BarrasDoProcessoRepetidasNaArvore
-                | Self::LinksDasPropriedadesRepetidosNaBarra
-                | Self::EnderecoDasPropriedadesNaoReconhecido
-                | Self::EnderecoDasPropriedadesDeOutroProcesso
-        )
-    }
-
     /// A página não é o formulário deste processo: um link guardado errou.
     pub(crate) fn link_envelhecido(self) -> bool {
         matches!(

@@ -24,19 +24,14 @@ pub struct Documento {
     pub descricao: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroDocumentosSimulados {
+    Sqlite(#[from] rusqlite::Error),
     EntradaInvalida,
     TipoIndisponivel,
     ProcessoIndisponivel,
     ProcessoNaoAbertoNaUnidade,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(causa: rusqlite::Error) -> Self {
-        Self::Sqlite(causa)
-    }
 }
 
 fn escopo_valido(cenario: &str, id: &str) -> bool {
@@ -52,12 +47,12 @@ pub fn registrar_processo(
     origem: &Instalacao,
     cenario: &str,
     processo: &Processo,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDocumentosSimulados> {
     if !escopo_valido(cenario, &processo.id)
         || processo.nup.is_empty()
         || processo.unidade.is_empty()
     {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroDocumentosSimulados::EntradaInvalida);
     }
     banco.execute(
         "INSERT INTO sim_processo (origem, cenario, id_procedimento, nup, unidade)
@@ -85,12 +80,12 @@ pub fn registrar_tipo(
     cenario: &str,
     id_procedimento: &str,
     tipo: &Tipo,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDocumentosSimulados> {
     if !escopo_valido(cenario, id_procedimento)
         || !escopo_valido(cenario, &tipo.id)
         || tipo.nome.trim().is_empty()
     {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroDocumentosSimulados::EntradaInvalida);
     }
     banco.execute(
         "INSERT INTO sim_tipo (origem, cenario, id_procedimento, id_serie, nome)
@@ -189,9 +184,9 @@ pub fn conferir_abertura(
     origem: &Instalacao,
     cenario: &str,
     id_procedimento: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDocumentosSimulados> {
     let processo = ler_processo(banco, origem, cenario, id_procedimento)?
-        .ok_or(Falha::ProcessoIndisponivel)?;
+        .ok_or(ErroDocumentosSimulados::ProcessoIndisponivel)?;
     let (tem_tramitacao, aberto): (bool, bool) = banco.query_row(
         "SELECT
            EXISTS(SELECT 1 FROM processo_simulado
@@ -207,7 +202,7 @@ pub fn conferir_abertura(
         |linha| Ok((linha.get(0)?, linha.get(1)?)),
     )?;
     if tem_tramitacao && !aberto {
-        return Err(Falha::ProcessoNaoAbertoNaUnidade);
+        return Err(ErroDocumentosSimulados::ProcessoNaoAbertoNaUnidade);
     }
     Ok(())
 }
@@ -253,9 +248,9 @@ pub fn criar(
     id_procedimento: &str,
     id_serie: &str,
     descricao: &str,
-) -> Result<Documento, Falha> {
+) -> Result<Documento, ErroDocumentosSimulados> {
     if !escopo_valido(cenario, id_procedimento) || !escopo_valido(cenario, id_serie) {
-        return Err(Falha::EntradaInvalida);
+        return Err(ErroDocumentosSimulados::EntradaInvalida);
     }
     conferir_abertura(banco, origem, cenario, id_procedimento)?;
     // Criação e cancelamento precisam compartilhar a identidade documental.
@@ -276,7 +271,7 @@ pub fn criar(
         ],
     )?;
     if quantidade != 1 {
-        return Err(Falha::TipoIndisponivel);
+        return Err(ErroDocumentosSimulados::TipoIndisponivel);
     }
     let id = transacao.last_insert_rowid();
     let numero_sei = format!("{:07}", 1_000_000 + id);
@@ -355,7 +350,7 @@ mod tests {
         );
         assert!(matches!(
             criar(&banco, &origem, "bdd-246", "10", "999", "X"),
-            Err(Falha::TipoIndisponivel)
+            Err(ErroDocumentosSimulados::TipoIndisponivel)
         ));
         assert_eq!(
             documentos(&banco, &origem, "bdd-246", "10").unwrap().len(),
@@ -384,7 +379,7 @@ mod tests {
         // Uma série órfã não permite criar documento sem processo existente.
         assert!(matches!(
             criar(&banco, &origem, "c", "10", "291", "Sem processo"),
-            Err(Falha::ProcessoIndisponivel)
+            Err(ErroDocumentosSimulados::ProcessoIndisponivel)
         ));
         assert_eq!(documentos(&banco, &origem, "c", "10").unwrap(), []);
     }

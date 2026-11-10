@@ -1,12 +1,9 @@
 //! `ies documento cancelar DOC --motivo T [--confirmar]` (#273).
 //! Números são validados antes da sessão; o motivo segue como texto opaco.
 use crate::documento_cancelar::{DocumentoCancelado, PedidoDoCancelamento, cancelar_documento};
-use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
-use serde_json::json;
-use std::process::ExitCode;
 
 /// Só responde quando o comando é documento cancelar.
 pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<anyhow::Result<()>> {
@@ -23,20 +20,9 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
-    let numero = numero.clone();
-    let processo = match processo.as_deref().map(NumeroProcesso::novo) {
-        None => None,
-        Some(Ok(n)) => Some(n),
-        Some(Err(_)) => {
-            return Some(crate::legado(uso_invalido(
-                cli.json,
-                "número de processo inválido",
-            )));
-        }
-    };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDoCancelamento {
-            numero: &numero,
+            numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
             motivo,
@@ -63,18 +49,6 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<anyhow::Result<()>> {
     }))
 }
 
-fn uso_invalido(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({"codigo":"entrada_invalida","erro":mensagem,"retentavel":false})
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
-}
-
 /// Exposição pública sem os demais campos internos de `ProcessoNaArvore`.
 #[derive(serde::Serialize)]
 struct ProcessoCanceladoPublico<'a> {
@@ -87,7 +61,7 @@ struct ResultadoCancelamento<'a> {
     alterado: bool,
     confirmado: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<crate::saida::FalhaPublica>,
     id_documento: &'a str,
     motivo: &'a str,
     numero: &'a str,
@@ -105,7 +79,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
         falha_do_envio: feito
             .resultado
             .falha_do_envio()
-            .map(|f| crate::saida_erro::FalhaPublica::nova(f.status_http())),
+            .map(|f| crate::saida::FalhaPublica::nova(f.status_http())),
         id_documento: &feito.id_documento,
         motivo: &feito.motivo,
         numero: &feito.numero,

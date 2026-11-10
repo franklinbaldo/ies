@@ -39,7 +39,6 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
     Html(#[from] ErroHtml),
 }
-impl ErroBloco {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct BlocoLido {

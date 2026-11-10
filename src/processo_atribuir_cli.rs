@@ -7,7 +7,6 @@ use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -41,7 +40,8 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let feito = executar_previa(sessao, &pedido, indice, &mut EnvioHttps)?;
-        crate::legado(publicar_previa(cli.json, &feito))
+        publicar_previa(cli.json, &feito);
+        Ok(())
     }))
 }
 
@@ -98,11 +98,10 @@ pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
     linhas.join("\n")
 }
 
-fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) -> ExitCode {
+fn publicar_previa(json_mode: bool, feito: &ProcessoAtribuido) {
     if json_mode {
         println!("{}", json_da_previa(feito));
     } else {
         println!("{}", texto_humano(feito));
     }
-    ExitCode::SUCCESS
 }

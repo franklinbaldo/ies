@@ -3,7 +3,7 @@
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
 use iesei::processos::{
-    Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, registrar_anotacao,
+    ErroProcessos, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, registrar_anotacao,
 };
 use rusqlite::Connection;
 use std::fmt::Write;
@@ -125,14 +125,16 @@ fn redirecionado(acao: &str, id: &str) -> Resposta {
     }
 }
 
-fn estado_da_falha(falha: &Falha) -> Estado {
+fn estado_da_falha(falha: &ErroProcessos) -> Estado {
     match falha {
-        Falha::ProcessoNaoEncontrado | Falha::Sqlite(_) => Estado::DadosInsuficientes,
-        Falha::DadoInvalido
-        | Falha::OrigemNaoAberta
-        | Falha::DestinoNaoOferecido
-        | Falha::DestinoJaAberto
-        | Falha::AnotacaoNaoObservada => Estado::RequisicaoInvalida,
+        ErroProcessos::ProcessoNaoEncontrado | ErroProcessos::Sqlite(_) => {
+            Estado::DadosInsuficientes
+        }
+        ErroProcessos::DadoInvalido
+        | ErroProcessos::OrigemNaoAberta
+        | ErroProcessos::DestinoNaoOferecido
+        | ErroProcessos::DestinoJaAberto
+        | ErroProcessos::AnotacaoNaoObservada => Estado::RequisicaoInvalida,
     }
 }
 

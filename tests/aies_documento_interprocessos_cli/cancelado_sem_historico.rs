@@ -25,9 +25,7 @@ fn bdd_60_05_cli_recusa_versao_de_documento_cancelado_sem_consultar_historico() 
             "versão de DOC cancelado foi oferecida: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "DocumentoCancelado");
         assert!(
             trilha
                 .iter()

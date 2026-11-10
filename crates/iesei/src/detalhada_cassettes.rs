@@ -19,24 +19,19 @@ pub struct ControleDetalhado {
     pub processos: TabelaObservada<LinhaDetalhada>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroDetalhadaCassettes {
+    Sqlite(#[from] rusqlite::Error),
     ObservacaoInvalida,
 }
 
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
+fn inteiro(valor: usize) -> Result<i64, ErroDetalhadaCassettes> {
+    i64::try_from(valor).map_err(|_| ErroDetalhadaCassettes::ObservacaoInvalida)
 }
 
-fn inteiro(valor: usize) -> Result<i64, Falha> {
-    i64::try_from(valor).map_err(|_| Falha::ObservacaoInvalida)
-}
-
-fn natural(valor: i64) -> Result<usize, Falha> {
-    usize::try_from(valor).map_err(|_| Falha::ObservacaoInvalida)
+fn natural(valor: i64) -> Result<usize, ErroDetalhadaCassettes> {
+    usize::try_from(valor).map_err(|_| ErroDetalhadaCassettes::ObservacaoInvalida)
 }
 
 /// Persiste a página D ativa e desativa a R anterior no mesmo cenário.
@@ -46,11 +41,13 @@ pub fn guardar(
     banco: &mut Connection,
     cenario: &str,
     controle: &ControleDetalhado,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDetalhadaCassettes> {
     let tabela = &controle.processos;
-    let total = tabela.total_declarado.ok_or(Falha::ObservacaoInvalida)?;
+    let total = tabela
+        .total_declarado
+        .ok_or(ErroDetalhadaCassettes::ObservacaoInvalida)?;
     if cenario.is_empty() || !tabela.pagina_verificavel() {
-        return Err(Falha::ObservacaoInvalida);
+        return Err(ErroDetalhadaCassettes::ObservacaoInvalida);
     }
     for linha in &tabela.linhas {
         if linha.id.is_empty()
@@ -58,7 +55,7 @@ pub fn guardar(
             || linha.numero.is_empty()
             || linha.visualizado.is_some() != linha.sigiloso.is_some()
         {
-            return Err(Falha::ObservacaoInvalida);
+            return Err(ErroDetalhadaCassettes::ObservacaoInvalida);
         }
     }
     let origem = controle.instalacao.url_base();
@@ -126,7 +123,7 @@ pub fn ler(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<Option<ControleDetalhado>, Falha> {
+) -> Result<Option<ControleDetalhado>, ErroDetalhadaCassettes> {
     let origem = instalacao.url_base();
     let meta: Option<(String, i64, Option<i64>, Option<i64>)> = banco
         .query_row(
@@ -139,13 +136,14 @@ pub fn ler(
     let Some((nome, total, inicio, fim)) = meta else {
         return Ok(None);
     };
-    let unidade = UnidadeExibida::nova(&nome).ok_or(Falha::ObservacaoInvalida)?;
+    let unidade = UnidadeExibida::nova(&nome).ok_or(ErroDetalhadaCassettes::ObservacaoInvalida)?;
     let faixa = match (inicio, fim) {
         (None, None) => None,
-        (Some(i), Some(f)) => {
-            Some(FaixaObservada::nova(natural(i)?, natural(f)?).ok_or(Falha::ObservacaoInvalida)?)
-        }
-        _ => return Err(Falha::ObservacaoInvalida),
+        (Some(i), Some(f)) => Some(
+            FaixaObservada::nova(natural(i)?, natural(f)?)
+                .ok_or(ErroDetalhadaCassettes::ObservacaoInvalida)?,
+        ),
+        _ => return Err(ErroDetalhadaCassettes::ObservacaoInvalida),
     };
     let mut consulta = banco.prepare(
         "SELECT id, numero, visualizado, sigiloso
@@ -163,9 +161,9 @@ pub fn ler(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let tabela = TabelaObservada::nova(Some(natural(total)?), faixa, linhas)
-        .map_err(|_| Falha::ObservacaoInvalida)?;
+        .map_err(|_| ErroDetalhadaCassettes::ObservacaoInvalida)?;
     if !tabela.pagina_verificavel() {
-        return Err(Falha::ObservacaoInvalida);
+        return Err(ErroDetalhadaCassettes::ObservacaoInvalida);
     }
     Ok(Some(ControleDetalhado {
         instalacao: instalacao.clone(),
@@ -245,7 +243,7 @@ mod tests {
         incompleta.processos.faixa_observada = None;
         assert!(matches!(
             guardar(&mut banco, "sessao", &incompleta),
-            Err(Falha::ObservacaoInvalida)
+            Err(ErroDetalhadaCassettes::ObservacaoInvalida)
         ));
         assert!(ler(&banco, &origem, "sessao").unwrap().is_none());
     }

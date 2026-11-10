@@ -121,7 +121,7 @@ fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
 /// Requisição 1 do comando: transporte, unidade reconhecida e link do menu.
 fn controle(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     let lido = decodificar_resposta(web(r))
-        .map_err(|f| f.mensagem())
+        .map_err(|f| f.rotulo())
         .and_then(|html| {
             let unidade = unidade_do_controle(&html).map_err(|e| e.rotulo())?;
             link_da_pesquisa(&c.instalacao, &url(r), &html).map_err(|e| e.rotulo())?;
@@ -165,7 +165,7 @@ fn derivar<T>(
     f: impl FnOnce(&TelaServida<'_>) -> Result<T, &'static str>,
 ) -> Result<T, &'static str> {
     let mime = gravacao::mime(r.item);
-    let html = decodificar_resposta(web(r)).map_err(|f| f.mensagem())?;
+    let html = decodificar_resposta(web(r)).map_err(|f| f.rotulo())?;
     let codificacao = codificacao_da_tela(&mime)
         .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.rotulo())?;
     f(&TelaServida {

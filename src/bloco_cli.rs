@@ -26,7 +26,6 @@ pub(crate) enum FalhaLeitura {
     Submissao(#[from] ErroSubmissaoFormulario),
     Html(#[source] ErroHtml),
 }
-impl FalhaLeitura {}
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
     Lista(crate::bloco::ListaDeBlocos),
