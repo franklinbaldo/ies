@@ -330,6 +330,22 @@ pub fn limpar_anotacao(
     cenario: &str,
     id: &str,
 ) -> Result<(), Falha> {
+    registrar_anotacao(banco, instalacao, cenario, id, "")
+}
+
+/// Registra texto livre, preservando a diferença entre dado desconhecido
+/// e uma anotação explicitamente observada como vazia. Um único UPDATE
+/// torna o texto visível para leituras seguintes no mesmo SQLite.
+///
+/// # Errors
+/// Recusa processo sem observação de anotação ou origem fechada.
+pub fn registrar_anotacao(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    texto: &str,
+) -> Result<(), Falha> {
     let processo = ler(banco, instalacao, cenario, id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
     if !processo.aberto_em.contains(&processo.unidade_origem) {
         return Err(Falha::OrigemNaoAberta);
@@ -338,9 +354,9 @@ pub fn limpar_anotacao(
         return Err(Falha::AnotacaoNaoObservada);
     }
     banco.execute(
-        "UPDATE processo_simulado SET anotacao_origem='' 
+        "UPDATE processo_simulado SET anotacao_origem=?4
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
-        params![instalacao.url_base(), cenario, id],
+        params![instalacao.url_base(), cenario, id, texto],
     )?;
     Ok(())
 }

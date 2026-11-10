@@ -122,12 +122,11 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-#[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "uma prova vertical única pela CLI real, TLS, anti-IES e SQLite, com contagem de GET e ausência de POST"
+    reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn bdd_anot_01_previa_publica_texto_sem_escrever() {
+fn executar_caso(confirmar: bool, resposta_recusada: bool) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -175,20 +174,33 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            let recusado = resposta_recusada && evento == "POST anotacao_registrar";
             pedidos.lock().unwrap().push(evento);
-            canal.write_all(&resposta).unwrap();
+            if recusado {
+                canal
+                    .write_all(
+                        b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    )
+                    .unwrap();
+            } else {
+                canal.write_all(&resposta).unwrap();
+            }
             canal.flush().unwrap();
         }
     });
+    let mut argumentos = vec![
+        "--json",
+        "processo",
+        "anotar",
+        NUP,
+        "--texto",
+        "Revisar minuta",
+    ];
+    if confirmar {
+        argumentos.push("--confirmar");
+    }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args([
-            "--json",
-            "processo",
-            "anotar",
-            NUP,
-            "--texto",
-            "Revisar minuta",
-        ])
+        .args(argumentos)
         .env("IES_URL_CONTROLE_FILE", &controle)
         .env("IES_COOKIE_FILE", &cookie)
         .env("IES_ORIGEM_FILE", &origem)
@@ -210,25 +222,55 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
     let pedidos = trilha.lock().unwrap().clone();
     assert_eq!(
         saida.status.code(),
-        Some(0),
+        Some(if resposta_recusada { 3 } else { 0 }),
         "stdout={} stderr={} HTTP={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nup"], NUP);
-    assert_eq!(json["texto"], "Revisar minuta");
-    assert_eq!(json["anotacao_antes"], "");
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
-    assert_eq!(persistido.as_deref(), Some(""));
+    if resposta_recusada {
+        // O servidor aplicou, mas o túnel devolveu 403: estado final não prova autoria.
+        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["retentavel"], false);
+    } else {
+        assert_eq!(json["nup"], NUP);
+        assert_eq!(json["texto"], "Revisar minuta");
+        assert_eq!(json["anotacao_antes"], "");
+        assert_eq!(json["confirmado"], confirmar);
+        assert_eq!(json["alterado"], confirmar);
+        assert_eq!(json["requisicoes"], pedidos.len());
+    }
+    assert_eq!(
+        persistido.as_deref(),
+        Some(if confirmar { "Revisar minuta" } else { "" })
+    );
     assert_eq!(
         pedidos
             .iter()
             .filter(|e| *e == "GET anotacao_registrar")
             .count(),
-        1
+        if confirmar { 2 } else { 1 }
     );
-    assert_eq!(pedidos.iter().filter(|e| e.starts_with("POST ")).count(), 0);
-    assert_eq!(json["requisicoes"], pedidos.len());
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|e| *e == "POST anotacao_registrar")
+            .count(),
+        usize::from(confirmar)
+    );
+}
+
+#[test]
+fn bdd_anot_01_previa_publica_texto_sem_escrever() {
+    executar_caso(false, false);
+}
+
+#[test]
+fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
+    executar_caso(true, false);
+}
+
+#[test]
+fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
+    executar_caso(true, true);
 }
