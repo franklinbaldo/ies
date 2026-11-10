@@ -65,6 +65,8 @@ mod paginacao_controle;
 mod paginas;
 mod pesquisa_web;
 mod processo;
+mod processo_anotar;
+mod processo_anotar_cli;
 mod processo_acompanhar;
 mod processo_acompanhar_cli;
 mod processo_andamento_registrar;
@@ -363,6 +365,7 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
         .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
