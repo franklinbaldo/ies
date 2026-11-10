@@ -196,7 +196,15 @@ fn bdd_381_02_caixa_posterior_nao_inclui_documento_vizinho() {
     drop(banco);
     let saida = executar(
         &pasta,
-        &["--json", "bloco", "incluir", BLOCO, "--documento", DOC, "--confirmar"],
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO,
+            "--documento",
+            DOC,
+            "--confirmar",
+        ],
         REQUISICOES_DA_PREVIA + 4,
     );
     assert_eq!(
@@ -209,11 +217,18 @@ fn bdd_381_02_caixa_posterior_nao_inclui_documento_vizinho() {
     assert_eq!(json(&saida)["alterado"], true);
     let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);
     assert_eq!(leitura.status.code(), Some(0));
-    let itens = json(&leitura)["bloco"]["itens"].as_array().unwrap().to_vec();
+    let itens = json(&leitura)["bloco"]["itens"]
+        .as_array()
+        .unwrap()
+        .to_vec();
     assert_eq!(itens.iter().filter(|i| i["documento"] == DOC).count(), 1);
-    assert_eq!(itens.iter().filter(|i| i["documento"] == "0011518").count(), 0);
+    assert_eq!(
+        itens.iter().filter(|i| i["documento"] == "0011518").count(),
+        0
+    );
     let (banco, instalacao) = estado(&caminho, true, 0, false);
     let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
-        .unwrap().unwrap();
+        .unwrap()
+        .unwrap();
     assert_eq!(detalhe.total, 2);
 }

@@ -1,8 +1,8 @@
 //! Tela `bloco_escolher` ("Incluir em Bloco de Assinatura", #381) gerada do
 //! SQLite: `frmBlocoEscolher` com `selBloco` (blocos de assinatura da
-//! unidade) e a caixa do documento, na forma do card
-//! `bloco-incluir-anotar-retirar-unb`. Hipótese sintética; o POST de
-//! inclusão é a próxima fatia (BDD-381-02) e aqui é recusado.
+//! unidade) e as caixas dos documentos do processo, na forma do card
+//! `bloco-incluir-anotar-retirar-unb`. POST de inclusão causal sintética;
+//! nomes e seleção são derivados do conjunto de documentos no SQLite.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::bloco_detalhe::{self, Item};
 use iesei::blocos::{self, Tipo};
@@ -55,19 +55,30 @@ pub(crate) fn responder(
     }
     if metodo == "POST" {
         let campo = |nome| crate::documentos::campo_formulario_unico(corpo, nome);
-        let (Some(numero), Some(checkbox), Some(selecionados), Some(botao)) = (
+        let (Some(numero), Some(selecionados), Some(botao)) = (
             campo("selBloco"),
-            campo("chkDocumentosItem0"),
             campo("hdnDocumentosItensSelecionados"),
             campo("sbmIncluir"),
         ) else {
             return Resposta::nova(Estado::RequisicaoInvalida);
         };
+        let marcados: Vec<_> = documentos
+            .iter()
+            .enumerate()
+            .filter_map(|(i, d)| campo(&format!("chkDocumentosItem{i}")).map(|id| (d, id)))
+            .collect();
+        let todos = documentos
+            .iter()
+            .map(|d| d.id_documento.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
         if !linhas.iter().any(|b| b.numero == numero)
-            || checkbox != documento.id_documento
+            || marcados.len() != 1
+            || marcados[0].0.id_documento != documento.id_documento
+            || marcados[0].1 != documento.id_documento
             || selecionados != documento.id_documento
             || botao != "Incluir"
-            || campo("hdnDocumentosItens").as_deref() != Some(documento.id_documento.as_str())
+            || campo("hdnDocumentosItens").as_deref() != Some(todos.as_str())
         {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
@@ -97,7 +108,11 @@ pub(crate) fn responder(
     }
     let id = escapar(&documento.id_documento);
     let p = escapar(id_procedimento);
-    let ids = documentos.iter().map(|d| d.id_documento.as_str()).collect::<Vec<_>>().join(",");
+    let ids = documentos
+        .iter()
+        .map(|d| d.id_documento.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
     let mut caixas = String::new();
     for (i, d) in documentos.iter().enumerate() {
         writeln!(

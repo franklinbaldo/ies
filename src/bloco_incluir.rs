@@ -34,8 +34,16 @@ use crate::visao_do_controle::EnvioDoControle as _;
 pub(crate) struct TelaDeEscolha {
     /// Números dos blocos de `selBloco` (sem a opção vazia).
     pub(crate) blocos: Vec<String>,
-    /// Número SEI (`title`) de cada caixa `chkDocumentosItemN`.
-    pub(crate) documentos: Vec<String>,
+    /// Cada caixa preserva o vínculo entre nome do controle, ID e número SEI.
+    pub(crate) documentos: Vec<DocumentoOferecido>,
+}
+
+/// Controle efetivamente oferecido pelo formulário, não um índice presumido.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct DocumentoOferecido {
+    nome: String,
+    id: String,
+    numero: String,
 }
 
 /// Prévia da inclusão: o que foi observado, sem gravar.
@@ -126,15 +134,29 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
         }
         blocos.push(valor);
     }
-    let mut documentos = Vec::new();
-    for caixa in tags("input") {
-        let Some(id) = atributo(caixa, "id")? else {
+    let mut documentos: Vec<DocumentoOferecido> = Vec::new();
+    for caixa in tags("form#frmBlocoEscolher input") {
+        let Some(nome) = atributo(caixa, "name")? else {
             continue;
         };
-        if !id.starts_with("chkDocumentosItem") {
+        let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
             continue;
+        };
+        if indice.is_empty() || !indice.bytes().all(|b| b.is_ascii_digit())
+            || atributo(caixa, "id")?.as_deref() != Some(nome.as_str())
+            || atributo(caixa, "type")?.as_deref() != Some("checkbox")
+        {
+            return Err(fora());
         }
-        documentos.push(atributo(caixa, "title")?.ok_or_else(fora)?);
+        let id = atributo(caixa, "value")?.ok_or_else(fora)?;
+        let numero = atributo(caixa, "title")?.ok_or_else(fora)?;
+        if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || numero.is_empty() {
+            return Err(fora());
+        }
+        if documentos.iter().any(|d| d.nome == nome || d.id == id || d.numero == numero) {
+            return Err(ErroHtml::repetido("caixas_de_documentos_ambiguas"));
+        }
+        documentos.push(DocumentoOferecido { nome, id, numero });
     }
     Ok(TelaDeEscolha { blocos, documentos })
 }
@@ -182,7 +204,12 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     if !tela.blocos.iter().any(|b| b == bloco) {
         return Err(ErroIncluir::BlocoNaoOferecido);
     }
-    if !tela.documentos.contains(&aberto.numero) {
+    let mut caixas = tela.documentos.iter().filter(|d| d.numero == aberto.numero);
+    let caixa = caixas.next().ok_or(ErroIncluir::DocumentoForaDaTela)?;
+    if caixas.next().is_some() {
+        return Err(ErroHtml::repetido("caixas_do_documento_pedido").into());
+    }
+    if caixa.id != aberto.id_documento {
         return Err(ErroIncluir::DocumentoForaDaTela);
     }
     let lido = ler_tipado_via(
@@ -211,6 +238,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
             unidade,
             bloco,
             &aberto,
+            &caixa.nome,
             &TelaDaInclusao {
                 url: link.as_str(),
                 html: &html,
@@ -249,6 +277,7 @@ fn confirmar_documento<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     bloco: &str,
     aberto: &DocumentoNaArvoreAberto,
+    nome_da_caixa: &str,
     tela: &TelaDaInclusao<'_>,
     rede: &mut Contador<'_, V>,
 ) -> Result<(), ErroIncluir> {
@@ -267,7 +296,8 @@ fn confirmar_documento<V: EnvioDoProcesso>(
         "",
         &[
             ("selBloco", bloco),
-            ("chkDocumentosItem0", &aberto.id_documento),
+            (nome_da_caixa, &aberto.id_documento),
+            ("hdnDocumentosItensSelecionados", &aberto.id_documento),
         ],
     )?;
     // Submissão consumida, sem possibilidade de segundo POST.
@@ -309,8 +339,8 @@ const INCLUIR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
     formulario: "frmBlocoEscolher",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmIncluir"),
     campos_ocultos_exigidos: &["hdnDocumentosItens", "hdnDocumentosItensSelecionados"],
-    campos_ocultos_reescritos: &[],
-    campos_usuario: &["selBloco", "chkDocumentosItem0"],
+    campos_ocultos_reescritos: &["hdnDocumentosItensSelecionados"],
+    campos_usuario: &["selBloco", "chkDocumentosItem*"],
     resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
     unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
     efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {

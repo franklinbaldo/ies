@@ -8,7 +8,12 @@ const TELA_UNB: &str = include_str!("tela_unb.html");
 fn tela_da_unb_oferece_blocos_e_documentos_do_processo() {
     let tela = ler_tela_de_escolha(TELA_UNB).unwrap();
     assert_eq!(tela.blocos, ["2195", "2135", "2093", "2092", "1485"]);
-    assert_eq!(tela.documentos, ["0011392", "0011393"]);
+    assert_eq!(
+        tela.documentos.iter().map(|d| d.numero.as_str()).collect::<Vec<_>>(),
+        ["0011392", "0011393"]
+    );
+    assert_eq!(tela.documentos[0].nome, "chkDocumentosItem0");
+    assert_eq!(tela.documentos[1].id, "50692");
 }
 
 #[test]
