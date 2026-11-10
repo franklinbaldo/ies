@@ -351,7 +351,10 @@ pub fn navegacao(
     // Nao se pode contornar a modal pedindo diretamente a arvore.
     if matches!(
         validacao,
-        Some(iesei::validacao_acesso::Validacao::Exigida | iesei::validacao_acesso::Validacao::Recusada)
+        Some(
+            iesei::validacao_acesso::Validacao::Exigida
+                | iesei::validacao_acesso::Validacao::Recusada
+        )
     ) {
         return Some(Resposta::nova(Estado::AcessoNegado));
     }
