@@ -565,3 +565,6 @@ mod remocao;
 
 #[path = "aies_processo_enviar_cli/duas_unidades.rs"]
 mod duas_unidades;
+
+#[path = "aies_processo_enviar_cli/anotacao_preexistente.rs"]
+mod anotacao_preexistente;
