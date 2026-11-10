@@ -60,7 +60,7 @@ impl ErroMarcar {
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
             Self::EscritaAindaFechada => {
                 "a confirmação de marcador ainda não está disponível; execute sem --confirmar para ver a prévia"
-            },
+            }
         }
     }
 }
