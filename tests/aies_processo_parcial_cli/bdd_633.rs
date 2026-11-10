@@ -99,7 +99,6 @@ fn bdd_633_03_cli_real_recusa_validacao_sem_repetir_post() {
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
 }
 
-
 /// BDD-633-01: POST com 302 não prova sucesso nem autoriza repetição.
 /// A confirmação vem do GET independente do trabalho e da árvore.
 /// 302 após validação é hipótese sintética, ausente das cassettes GO.
