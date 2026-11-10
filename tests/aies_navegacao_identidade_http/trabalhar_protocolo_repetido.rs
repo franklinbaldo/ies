@@ -48,8 +48,14 @@ fn http_trabalhar_recusa_protocolo_ou_procedimento_repetido_sem_fallback() {
             &format!("id_documento={id}&id_procedimento=7"),
         );
         assert!(resposta.starts_with("HTTP/1.1 200 OK\r\n"), "{resposta}");
-        assert!(resposta.contains(&format!("id_documento={id}")), "{resposta}");
-        assert!(!resposta.contains(&format!("id_documento={outro}")), "{resposta}");
+        assert!(
+            resposta.contains(&format!("id_documento={id}")),
+            "{resposta}"
+        );
+        assert!(
+            !resposta.contains(&format!("id_documento={outro}")),
+            "{resposta}"
+        );
     }
 
     let metodo = pedir_rota(
