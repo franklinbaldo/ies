@@ -6,6 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Validacao {
     Exigida,
+    Recusada,
     Realizada,
 }
 
@@ -13,6 +14,7 @@ impl Validacao {
     fn como_sql(self) -> &'static str {
         match self {
             Self::Exigida => "exigida",
+            Self::Recusada => "recusada",
             Self::Realizada => "realizada",
         }
     }
@@ -84,6 +86,7 @@ pub fn ler(
     match estado.as_deref() {
         None => Ok(None),
         Some("exigida") => Ok(Some(Validacao::Exigida)),
+        Some("recusada") => Ok(Some(Validacao::Recusada)),
         Some("realizada") => Ok(Some(Validacao::Realizada)),
         _ => Err(Falha::EstadoInvalido),
     }
