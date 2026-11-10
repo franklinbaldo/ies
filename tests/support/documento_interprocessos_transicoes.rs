@@ -214,13 +214,8 @@ pub(super) fn conferir_estado_apos_cli(
         assert_eq!(pdfs.len(), 1, "o PDF continua cadastrado no SQLite");
         assert_eq!(pdfs[0].numero_sei, DOC_A);
         assert_eq!(
-            iesei::pdf_externo::conteudo_do_anexo(
-                db,
-                instalacao,
-                CENARIO,
-                &pdfs[0].id.to_string()
-            )
-            .unwrap(),
+            iesei::pdf_externo::conteudo_do_anexo(db, instalacao, CENARIO, &pdfs[0].id.to_string())
+                .unwrap(),
             Some(b"%PDF-1.4\n%%EOF\n".to_vec()),
             "a recusa da CLI não altera os bytes do anexo"
         );
