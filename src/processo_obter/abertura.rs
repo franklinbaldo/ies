@@ -11,7 +11,7 @@ use crate::arvore_processo::{
     ler_andamento_da_barra, ler_anexar_da_barra, ler_atribuir_da_barra, ler_concluir_da_barra,
     ler_destinos_dos_movidos, ler_enviar_da_barra, ler_link_das_propriedades,
     ler_link_dos_comentarios, ler_link_dos_marcadores, ler_reabrir_da_barra,
-    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_tela_do_processo,
+    ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra,
     ler_vinculo_de_anexacao,
 };
 use crate::erro_html::ErroHtml;
