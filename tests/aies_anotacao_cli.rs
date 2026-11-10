@@ -126,7 +126,12 @@ fn estado(texto_anotacao: &str) -> (Connection, Instalacao) {
     clippy::too_many_lines,
     reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn executar_caso(confirmar: bool, resposta_recusada: bool, consulta: Option<&str>, modo_json: bool) {
+fn executar_caso(
+    confirmar: bool,
+    resposta_recusada: bool,
+    consulta: Option<&str>,
+    modo_json: bool,
+) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -232,11 +237,14 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool, consulta: Option<&str
         if modo_json {
             let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
             assert_eq!(json["nup"], NUP);
-            assert_eq!(json["anotacao"], if texto.trim().is_empty() {
-                serde_json::Value::Null
-            } else {
-                serde_json::json!(texto)
-            });
+            assert_eq!(
+                json["anotacao"],
+                if texto.trim().is_empty() {
+                    serde_json::Value::Null
+                } else {
+                    serde_json::json!(texto)
+                }
+            );
             assert_eq!(json["alterado"], false);
             assert_eq!(json["requisicoes"], pedidos.len());
         } else {
@@ -245,8 +253,17 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool, consulta: Option<&str
             assert!(humana.contains("Nenhuma alteração"), "{humana}");
         }
         assert_eq!(persistido.as_deref(), Some(texto));
-        assert!(pedidos.iter().all(|evento| evento.starts_with("GET ")), "{pedidos:?}");
-        assert_eq!(pedidos.iter().filter(|e| *e == "GET anotacao_registrar").count(), 1);
+        assert!(
+            pedidos.iter().all(|evento| evento.starts_with("GET ")),
+            "{pedidos:?}"
+        );
+        assert_eq!(
+            pedidos
+                .iter()
+                .filter(|e| *e == "GET anotacao_registrar")
+                .count(),
+            1
+        );
         return;
     }
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
