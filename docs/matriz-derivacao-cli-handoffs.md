@@ -9,6 +9,10 @@ description: Notas de handoff das fatias parciais de processo, separadas da matr
 Complementa a [matriz principal](matriz-derivacao-cli.md). Cada seção
 registra o estado de uma fatia de handoff, sem promover NOT_RUN a PASS.
 
+## Handoff #638 — anotar processo (PR Draft #646)
+
+`ies processo anotar NUP --texto T` está **PENDENTE PR** em relação à main. BDD-ANOT-01: prévia Web da anotação atual de um processo aberto na unidade da sessão, com GET do formulário `frmAnotacaoCadastro` e **zero POST**. O anti-IES serve o mesmo formulário a partir da observação explícita no SQLite. E2E CLI real → HTTPS local → anti-IES → SQLite sintético; confronto semântico com cassettes UnB/GO ainda NOT_RUN; live NOT_RUN. BDDs de registro, consulta direta e remoção continuam pendentes. [Contrato](../contracts/cli/processo-anotar.md) · [decisão](decisoes/processo-anotar.md) · [PR](https://github.com/franklinbaldo/ies/pull/646).
+
 ## Handoff #332 — incluir PDF externo (PR Draft #352)
 
 `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO [--confirmar]` está em **PENDENTE PR / PARCIAL LOCAL**: inspeciona apenas o arquivo, publica SHA-256 e tamanho, sem sessão, HTTP ou alegar prévia remota. `--confirmar` recusa antes da rede. Ainda faltam observar cadastro, limites e tipos servidos, upload temporário multipart, cadastro definitivo (duas etapas potencialmente mutadoras), releitura independente e ensaio em treinamento. [Contrato](../contracts/cli/documento-incluir-externo.md) · [decisão](decisoes/documento-incluir-externo.md).
