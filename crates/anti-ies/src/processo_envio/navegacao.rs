@@ -89,6 +89,37 @@ fn literal_js(texto: &str) -> String {
         .replace('\n', "\\n")
 }
 
+/// Projeta nós de anexação sem misturar índices da pasta pendente.
+fn nos_anexados(id: &str, primeiro_anexado: usize, anexados: &[iesei::anexacoes::Anexado]) -> String {
+    let mut nos = String::new();
+    for (posicao, anexado) in anexados.iter().enumerate() {
+        let numero = literal_js(&anexado.numero)
+            .replace('"', r#"\\""#)
+            .replace('<', r"\u003c");
+        let id_anexado = &anexado.id;
+        let indice = primeiro_anexado + posicao;
+        let hash = crate::protocolo_sintetico::INFRA_HASH;
+        write!(nos, r#"Nos[{indice}] = new infraArvoreNo("PROCESSO_ANEXADO","{id_anexado}","{id}","controlador.php?acao=arvore_visualizar&acao_origem=procedimento_visualizar&id_procedimento={id}&id_procedimento_anexado={id_anexado}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}","ifrVisualizacao","{numero}","Processo Sintético","svg/processo_anexado.svg","svg/processo_anexado.svg","svg/processo_anexado.svg",true,true,null,null,null,"{numero}");
+Nos[{indice}].acoes = '';
+Nos[{indice}].src = '';
+Nos[{indice}].html = '';
+"#).expect("formatação String");
+    }
+    nos
+}
+
+/// Ação condicional de ciência da árvore, sem afirmar registro inexistente.
+fn acao_ciencia(id: &str, ciencia: &iesei::ciencia_processo::Estado) -> String {
+    if matches!(ciencia, iesei::ciencia_processo::Estado::Registrada { .. }) {
+        format!(
+            "NosAcoes[31] = new infraArvoreAcao(\"CIENCIAS\",\"C\",\"{id}\",\"controlador.php?acao=protocolo_ciencia_listar&id_procedimento={id}&infra_hash={}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
+            crate::protocolo_sintetico::INFRA_HASH
+        )
+    } else {
+        String::new()
+    }
+}
+
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
@@ -110,20 +141,8 @@ fn arvore_do_processo(
     let anexados = iesei::anexacoes::listar(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .ok_or(Estado::DadosInsuficientes)?;
-    let primeiro_anexado = proximo_indice + usize::from(pasta_presente) * 2;
-    for (posicao, anexado) in anexados.iter().enumerate() {
-        let numero = literal_js(&anexado.numero)
-            .replace('"', r#"\\""#)
-            .replace('<', r"\u003c");
-        let id_anexado = &anexado.id;
-        let indice = primeiro_anexado + posicao;
-        let hash = crate::protocolo_sintetico::INFRA_HASH;
-        write!(nos, r#"Nos[{indice}] = new infraArvoreNo("PROCESSO_ANEXADO","{id_anexado}","{id}","controlador.php?acao=arvore_visualizar&acao_origem=procedimento_visualizar&id_procedimento={id}&id_procedimento_anexado={id_anexado}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}","ifrVisualizacao","{numero}","Processo Sintético","svg/processo_anexado.svg","svg/processo_anexado.svg","svg/processo_anexado.svg",true,true,null,null,null,"{numero}");
-Nos[{indice}].acoes = '';
-Nos[{indice}].src = '';
-Nos[{indice}].html = '';
-"#).expect("formatação String");
-    }
+    let inicio_anexados = proximo_indice + usize::from(pasta_presente) * 2;
+    nos.push_str(&nos_anexados(id, inicio_anexados, &anexados));
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
@@ -143,14 +162,7 @@ Nos[{indice}].html = '';
     let ciencia = iesei::ciencia_processo::consultar(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .ok_or(Estado::DadosInsuficientes)?;
-    let lista_ciencia = if let iesei::ciencia_processo::Estado::Registrada { .. } = ciencia {
-        format!(
-            "NosAcoes[31] = new infraArvoreAcao(\"CIENCIAS\",\"C\",\"{id}\",\"controlador.php?acao=protocolo_ciencia_listar&id_procedimento={id}&infra_hash={}\",\"ifrVisualizacao\",\"Visualizar Ciências\",\"svg/ciencia.svg\",true);\n",
-            crate::protocolo_sintetico::INFRA_HASH
-        )
-    } else {
-        String::new()
-    };
+    let lista_ciencia = acao_ciencia(id, &ciencia);
     let historico_observado = iesei::andamentos::ler(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?
         .is_some();
@@ -163,7 +175,6 @@ Nos[{indice}].html = '';
         &ciencia,
         sobrestamento.as_ref(),
     );
-    let hash = crate::protocolo_sintetico::INFRA_HASH;
     let marcadores = iesei::marcadores::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let hash = crate::protocolo_sintetico::INFRA_HASH;
