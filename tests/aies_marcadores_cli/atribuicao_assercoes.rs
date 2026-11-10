@@ -24,7 +24,10 @@ pub(super) fn conferir_atribuicao(
     assert_eq!(persistido.total_declarado, 1);
     assert_eq!(persistido.itens[0].texto.as_deref(), Some("Nova revisão"));
     assert_eq!(
-        pedidos.iter().filter(|p| p.as_str() == "POST andamento_marcador_cadastrar").count(),
+        pedidos
+            .iter()
+            .filter(|p| p.as_str() == "POST andamento_marcador_cadastrar")
+            .count(),
         1,
         "atribuição precisa de um POST, sem retry: {pedidos:?}"
     );
@@ -39,4 +42,3 @@ pub(super) fn conferir_atribuicao(
         assert_eq!(json["texto"], "Nova revisão");
     }
 }
-
