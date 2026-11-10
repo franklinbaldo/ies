@@ -239,7 +239,7 @@ fn executar_caso(
             assert_eq!(json["nup"], NUP);
             assert_eq!(
                 json["anotacao"],
-                if texto.trim().is_empty() {
+                if texto.is_empty() {
                     serde_json::Value::Null
                 } else {
                     serde_json::json!(texto)
@@ -250,6 +250,10 @@ fn executar_caso(
         } else {
             let humana = String::from_utf8_lossy(&saida.stdout);
             assert!(humana.contains(texto), "{humana}");
+            if !texto.is_empty() {
+                assert!(humana.contains("Anotação atual do processo"), "{humana}");
+                assert!(humana.contains(&format!("{texto:?}")), "{humana}");
+            }
             assert!(humana.contains("Nenhuma alteração"), "{humana}");
         }
         assert_eq!(persistido.as_deref(), Some(texto));
@@ -318,6 +322,8 @@ fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
 fn bdd_anot_03_consulta_texto_publicado_sem_post() {
     executar_caso(false, false, Some("Revisar minuta"), true);
     executar_caso(false, false, Some("Revisar minuta"), false);
+    executar_caso(false, false, Some("   "), true);
+    executar_caso(false, false, Some("   "), false);
 }
 
 #[test]
