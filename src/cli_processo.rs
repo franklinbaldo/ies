@@ -27,6 +27,8 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Lista os comentários comprovadamente publicados do processo, sem escrita.
+    Comentarios { numero: String },
     /// Prévia de anotação na unidade; com --confirmar, grava e relê uma vez.
     Anotar {
         numero: String,

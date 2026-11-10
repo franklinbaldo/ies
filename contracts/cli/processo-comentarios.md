@@ -8,10 +8,12 @@ description: Contrato da operação processo comentarios e processo comentar com
 
 # Comentários do processo (#257)
 
-Comandos pretendidos: `ies processo comentarios NUP [--json]` e
-`ies processo comentar NUP --texto T [--confirmar]`. A CLI Web ainda **não
-está conectada** nesta fatia; os leitores e a conferência da escrita
-são código Rust compilado e exercitado em testes sintéticos.
+`ies processo comentarios NUP --json` está conectado à leitura Web:
+abre a árvore pela identidade do processo, exige o link `comentario_listar`
+publicado na barra, faz um GET e só declara `lista_completa=true` quando a
+tabela e o total foram integralmente conferidos. A ausência de link não vira
+lista vazia. `ies processo comentar NUP --texto T [--confirmar]` permanece
+**indisponível**: nenhum POST de comentários foi habilitado.
 
 ## Observação
 
@@ -30,20 +32,21 @@ própria linha.
 
 ## Leitura
 
-A leitura deverá abrir o processo por um caminho autorizado já observado,
-seguir exclusivamente o link publicado, conferir a identidade do processo,
-e projetar id, data/hora, unidade, usuário e texto; protocolo e tipo
-apenas se publicados. O leitor offline:
+A leitura abre o processo por um caminho autorizado já observado,
+segue exclusivamente o link publicado na árvore conferida, sem reconstruir
+assinaturas, e projeta id, data/hora, unidade, usuário e texto; protocolo
+e tipo apenas quando publicados. O leitor estrutural:
 - recusa lista sem tabela, cabeçalho, legenda ou visão identificável;
 - recusa ids duplicados, texto sem linha correspondente, divergências
   entre total da legenda e número de linhas (inclusive paginação);
 - distingue formulário de cadastro vazio de lista;
 - não transforma `null` ou tabela ausente em lista vazia.
 
-Orçamento esperado da leitura Web: abertura do processo
-(1 a 4 requisições segundo o caminho do índice) + um GET
-`comentario_listar` quando há lista. Desvios e eventual 302 ao cadastro
-exigem regra por operação antes da integração.
+Orçamento de leitura: abertura do processo pelo fluxo comum (a depender
+do índice) e **um GET** `comentario_listar` quando a barra publica o link.
+Lista truncada, ausência de ação, resposta 302 para cadastro e telas não
+reconhecidas são recusadas com erro tipado, **sem afirmar lista vazia**.
+A interpretação positiva do redirecionamento ao cadastro continua pendente.
 
 ## Escrita
 
@@ -85,8 +88,13 @@ O fluxo Web ainda não está implementado: **não há POST habilitado**.
 
 ## Estado e gates
 
-**Fatia parcial offline**. Os módulos `src/processo_comentarios.rs` e
-`src/processo_comentar.rs` são componentes funcionais, mas
-nenhum comando do usuário é declarado implementado até a conexão com
-árvore, transporte, formulários e testes de orçamento. Replay e live
-seguem NOT_RUN. Não validar integração apenas pela compilação.
+**Fatia parcial com leitura Web (BDD-257-01)**. O leitor offline
+`src/processo_comentarios.rs` foi conectado em
+`src/processo_comentarios_web.rs` / `src/processo_comentarios_cli.rs`,
+com SQLite evolutivo v33 e projeção do anti-IES. Os testes de integração
+`tests/aies_comentarios_cli.rs` exercitam CLI real ↔ HTTPS local ↔
+anti-IES ↔ SQLite, incluindo recusa de foto desconhecida e página parcial.
+São hipóteses **sintéticas** e não demonstram paridade independente com
+respostas de cassette. A inspeção estrutural das cassettes UnB/GO soma 76
+interações, SHA-1/SHA-256 conferidos; confronto semântico independente e
+SEI live: **NOT_RUN**. BDD-257-02/03 e escrita permanecem pendentes.
