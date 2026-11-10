@@ -72,7 +72,6 @@ fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
     .unwrap();
 }
 
-
 fn semear_pdf_numero_repetido(banco: &Connection, origem: &Instalacao) {
     // A UnB registra documentos internos e uploads externos, mas não uma
     // colisão de número SEI entre os dois tipos. Esta é hipótese mínima
@@ -103,19 +102,12 @@ fn semear_pdf_numero_repetido(banco: &Connection, origem: &Instalacao) {
         b"%PDF-1.4\n%%EOF\n",
     )
     .unwrap();
-    let pdf = pdf_externo::cadastrar(banco, origem, CENARIO, "7", "293", upload.id)
-        .unwrap();
+    let pdf = pdf_externo::cadastrar(banco, origem, CENARIO, "7", "293", upload.id).unwrap();
     let alterados = banco
         .execute(
             "UPDATE externo_documento SET numero_sei=?1
              WHERE origem=?2 AND cenario=?3 AND id=?4 AND numero_sei=?5",
-            rusqlite::params![
-                DOC_A,
-                origem.url_base(),
-                CENARIO,
-                pdf.id,
-                pdf.numero_sei
-            ],
+            rusqlite::params![DOC_A, origem.url_base(), CENARIO, pdf.id, pdf.numero_sei],
         )
         .unwrap();
     assert_eq!(alterados, 1, "apenas o PDF do ensaio é renumerado");
