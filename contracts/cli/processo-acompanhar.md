@@ -43,7 +43,7 @@ ser enviado, independentemente da observação.
   explícita do gerenciador prova uma única linha nova com grupo e
   observação pedidos, preservadas as linhas anteriores. Falha no POST
   também exige releitura: se a alteração não puder ser comprovada,
-  saída **3** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
+  saída **1** (`acompanhamento_nao_confirmado_por_leitura`, sem retry).
   A inclusão já existente resulta em sucesso sem POST.
 - **Retirada `--deixar --confirmar`:** restrita a instalações públicas
   de treinamento e ao anti-IES (`sei.test`). A oferta da linha e a action
@@ -52,7 +52,7 @@ ser enviado, independentemente da observação.
   e faz GET novo do gerenciador: só há confirmação quando exatamente a
   identidade solicitada desapareceu e todas as outras foram preservadas.
   Grupo solicitado já ausente é no-op sem POST. Resposta/estado incerto
-  produz saída **3**, sem retry. Redirecionamento 302 após excluir a
+  produz saída **1**, sem retry. Redirecionamento 302 após excluir a
   última linha não comprova lista vazia sozinho e permanece incerto.
   A comprovação aqui é sintética (CLI ↔ anti-IES ↔ SQLite); confrontos
   semânticos independentes com cassettes e treinamento/live são pendentes.

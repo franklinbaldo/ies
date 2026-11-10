@@ -57,7 +57,7 @@ pub(crate) enum FalhaRelacionar {
     DestinoDaConsultaDivergente,
     ConsultaNaoXml,
     /// O POST pode ter sido enviado; causa preservada quando disponível.
-    EfeitoIncerto(Option<ErroSubmissaoFormulario>),
+    NaoConfirmado(Option<ErroSubmissaoFormulario>),
 }
 impl FalhaRelacionar {
     /// O que aconteceu, a partir do erro interno quando há um.
@@ -80,21 +80,13 @@ impl FalhaRelacionar {
             Self::RemocaoNaoOferecida => "a remoção do relacionamento não é oferecida".to_owned(),
             Self::DestinoDaConsultaDivergente => "a consulta devolveu outro processo".to_owned(),
             Self::ConsultaNaoXml => "a consulta não respondeu em XML".to_owned(),
-            Self::EfeitoIncerto(_) => "o relacionamento não foi confirmado".to_owned(),
-        }
-    }
-
-    pub(crate) const fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto(_)) {
-            3
-        } else {
-            1
+            Self::NaoConfirmado(_) => "o relacionamento não foi confirmado".to_owned(),
         }
     }
 
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
-            Self::EfeitoIncerto(Some(causa)) => causa.status_http(),
+            Self::NaoConfirmado(Some(causa)) => causa.status_http(),
             _ => None,
         }
     }

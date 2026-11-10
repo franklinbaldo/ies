@@ -29,16 +29,6 @@ pub(crate) enum ErroConfirmacaoExterna {
     Sequencia(FalhaConfirmacao),
 }
 impl ErroConfirmacaoExterna {
-    pub(crate) fn codigo_saida(&self) -> u8 {
-        match self {
-            Self::Pdf(_) => 2,
-            Self::Previa(_)
-            | Self::EnderecoDeUploadNaoObservado
-            | Self::CampoCadastroNaoOferecido(_) => 1,
-            Self::Sequencia(e) => e.codigo_saida(),
-        }
-    }
-
     pub(crate) fn etapa(&self) -> &'static str {
         match self {
             Self::Pdf(_) => "arquivo_local",
@@ -55,7 +45,7 @@ impl ErroConfirmacaoExterna {
             Self::Sequencia(FalhaConfirmacao::TemporarioSemCadastro(_)) => "preparo_do_cadastro",
             Self::Sequencia(FalhaConfirmacao::CadastroIncerto(_)) => "cadastro_definitivo",
             Self::Sequencia(
-                FalhaConfirmacao::ReleituraIncerta(_) | FalhaConfirmacao::EfeitoIncerto,
+                FalhaConfirmacao::ReleituraIncerta(_) | FalhaConfirmacao::NaoConfirmado,
             ) => "releitura_independente",
         }
     }
@@ -70,7 +60,7 @@ impl ErroConfirmacaoExterna {
             Self::Sequencia(
                 FalhaConfirmacao::CadastroIncerto(_)
                     | FalhaConfirmacao::ReleituraIncerta(_)
-                    | FalhaConfirmacao::EfeitoIncerto
+                    | FalhaConfirmacao::NaoConfirmado
             )
         )
     }

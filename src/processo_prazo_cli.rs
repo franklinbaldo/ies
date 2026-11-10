@@ -169,8 +169,8 @@ fn previsualizar(
             Err(FalhaConfirmacao::Formulario) => {
                 return recusar(cli.json, "submissão de prazo recusada");
             }
-            Err(FalhaConfirmacao::EfeitoIncerto(causa)) => {
-                return efeito_incerto(cli.json, causa.as_ref());
+            Err(FalhaConfirmacao::NaoConfirmado(causa)) => {
+                return nao_confirmado(cli.json, causa.as_ref());
             }
         }
     } else {
@@ -251,7 +251,7 @@ const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
 enum FalhaConfirmacao {
     Preparo,
     Formulario,
-    EfeitoIncerto(Option<ErroSubmissaoFormulario>),
+    NaoConfirmado(Option<ErroSubmissaoFormulario>),
 }
 
 /// O 302 deve nomear uma única ação, o resultado e o mesmo processo.
@@ -314,7 +314,7 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            FalhaConfirmacao::EfeitoIncerto(Some(erro))
+            FalhaConfirmacao::NaoConfirmado(Some(erro))
         } else {
             FalhaConfirmacao::Formulario
         }
@@ -328,28 +328,28 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         // processo-prazo-unb, interações 12 e 19; live de 10/11/2026): a
         // prova fica com a releitura independente abaixo.
         RespostaDoEnvio::Html(_) => {}
-        RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaConfirmacao::EfeitoIncerto(None)),
+        RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaConfirmacao::NaoConfirmado(None)),
     }
     let (nova, _) =
-        obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
-    let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
+        obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
+    let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
     let hoje = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |agora| {
             i64::try_from(agora.as_secs() / 86_400).unwrap_or(0)
         });
     if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {
-        return Err(FalhaConfirmacao::EfeitoIncerto(None));
+        return Err(FalhaConfirmacao::NaoConfirmado(None));
     }
     Ok(verificada)
 }
 
-fn efeito_incerto(json_mode: bool, causa: Option<&ErroSubmissaoFormulario>) -> ExitCode {
+fn nao_confirmado(json_mode: bool, causa: Option<&ErroSubmissaoFormulario>) -> ExitCode {
     let mensagem =
         "O POST pode ter produzido efeito, mas a releitura não confirmou; não repita a operação";
     if json_mode {
         let mut resposta = json!({
-            "codigo": "efeito_incerto",
+            "codigo": "nao_confirmado",
             "erro": mensagem,
             "retentavel": false
         });
@@ -363,7 +363,7 @@ fn efeito_incerto(json_mode: bool, causa: Option<&ErroSubmissaoFormulario>) -> E
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 #[cfg(test)]

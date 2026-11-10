@@ -13,7 +13,7 @@ Parte do [guia de erros tipados](../erros-tipados.md), separada por responsabili
 `ErroConcluir` (`src/processo_concluir/erro.rs`) separa o que impede a
 escrita (abertura, situação não lida, barra, tela, função, derivação:
 saída 1, nada enviado) do resultado depois dela: `ConclusaoNaoAplicada`
-(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 3,
+(a leitura ainda lista a unidade) e `EfeitoIncertoNaConclusao` (saída 1,
 com `VerificacaoPorLeitura`). `FalhaDoEnvio` classifica a resposta não
 esperada da escrita sem decidir o efeito: quem decide é a leitura, uma vez,
 sem retry ([contrato](../../contracts/cli/processo-concluir.md)).
@@ -24,7 +24,7 @@ sem retry ([contrato](../../contracts/cli/processo-concluir.md)).
 que impede a escrita (abertura, situação não lida, barra, tela do nó,
 cookie: saída 1, nada enviado) e o resultado depois dela,
 `ReaberturaNaoAplicada` (a leitura não lista a unidade) e
-`EfeitoIncertoNaReabertura` (saída 3). A resposta não esperada é a mesma
+`EfeitoIncertoNaReabertura` (saída 1). A resposta não esperada é a mesma
 `FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
 a verificação é a mesma `VerificacaoPorLeitura`
 ([contrato](../../contracts/cli/processo-reabrir.md)).
@@ -37,7 +37,7 @@ caneta, tela do documento, `ErroLinkDeAssinar`, `ErroTelaDeAssinatura`,
 `cargo_nao_oferecido_pela_tela`, `documento_assinado_por_outro_usuario`,
 derivação: saída 1, nada enviado) do resultado depois dela:
 `AssinaturaNaoAplicada` (a caneta relida é a de antes) e
-`EfeitoIncertoNaAssinatura` (saída 3, com `VerificacaoDaAssinatura`).
+`EfeitoIncertoNaAssinatura` (saída 1, com `VerificacaoDaAssinatura`).
 `FalhaDoEnvio` da assinatura (`redirecionamento_apos_assinar`,
 `resposta_da_assinatura_sem_finalizacao` ou o erro do primitivo) não
 decide o efeito: a leitura decide, uma vez, sem retry
@@ -61,7 +61,7 @@ antes do POST (abertura, situação, barra `ErroEnviarNaBarra`, tela
 repetido, já aberto no destino, derivação: saída 1, nada enviado) e depois
 dele: `EnvioNaoAplicado` (sem o destino), `SituacaoDaOrigemDiferenteDaPedidaAposEnvio`
 (o destino abriu, mas a unidade da sessão não ficou como `--manter-aberto`
-pediu) e `EfeitoIncertoNoEnvio` (saída 3). A resposta não esperada é a
+pediu) e `EfeitoIncertoNoEnvio` (saída 1). A resposta não esperada é a
 `FalhaDoEnvio` de concluir, com `RedirecionamentoNaoReconhecidoAposEnviar`
 e `RespostaDoEnvioSemRedirecionamento`
 ([contrato](../../contracts/cli/processo-enviar.md)).

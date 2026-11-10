@@ -175,7 +175,7 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
                 });
             }
             None => {
-                return Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
+                return Err(C::NaoConfirmadoNaRemocaoDeAnotacoes {
                     depois: feito.depois,
                 });
             }
@@ -307,7 +307,7 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
     match conferir_anotacao_depois(rede, cookie, link, id, None) {
         Ok(()) => Ok(()),
         Err(C::AnotacoesNaoRemovidasAposEnvio { .. }) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
-        Err(_) => Err(C::EfeitoIncertoNaLimpezaDaAnotacao),
+        Err(_) => Err(C::NaoConfirmadoNaLimpezaDaAnotacao),
     }
 }
 
@@ -325,7 +325,7 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
         Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
-        None => Err(C::EfeitoIncertoNaRemocaoDeAnotacoes {
+        None => Err(C::NaoConfirmadoNaRemocaoDeAnotacoes {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
     }
@@ -431,7 +431,7 @@ fn conciliar(
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoEnviado, C> {
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
-        return Err(C::EfeitoIncertoNoEnvio {
+        return Err(C::NaoConfirmadoNoEnvio {
             aberto_em: feito.aberto_em,
             anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,

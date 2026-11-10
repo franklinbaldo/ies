@@ -131,13 +131,13 @@ fn erro_incerto_json(
     nup: &NumeroProcesso,
 ) -> serde_json::Value {
     let mut saida = json!({
-        "codigo": "efeito_incerto",
+        "codigo": "nao_confirmado",
         "erro": MENSAGEM_INCERTEZA,
         "verificar_com": format!("ies processo {}", nup.as_str()),
         "retentavel": false,
         "requisicoes": requisicoes
     });
-    if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
+    if let ErroPreviaCriacao::NaoConfirmadoNaReleitura(causa) = erro {
         saida["causa_releitura"] = json!(causa.mensagem());
     }
     if let Some(http) = erro.status_http() {
@@ -187,9 +187,9 @@ fn publicar_erro(
 ) -> ExitCode {
     if matches!(
         erro,
-        ErroPreviaCriacao::EfeitoIncerto
-            | ErroPreviaCriacao::EfeitoIncertoNoEnvio(_)
-            | ErroPreviaCriacao::EfeitoIncertoNaReleitura(_)
+        ErroPreviaCriacao::NaoConfirmado
+            | ErroPreviaCriacao::NaoConfirmadoNoEnvio(_)
+            | ErroPreviaCriacao::NaoConfirmadoNaReleitura(_)
     ) {
         if json_mode {
             println!("{}", erro_incerto_json(erro, requisicoes, nup));
@@ -206,7 +206,7 @@ fn publicar_erro(
                     )
                 );
             }
-            if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
+            if let ErroPreviaCriacao::NaoConfirmadoNaReleitura(causa) = erro {
                 eprintln!(
                     "{}",
                     saida_erro::linha_humana(
@@ -216,7 +216,7 @@ fn publicar_erro(
                 );
             }
         }
-        return ExitCode::from(3);
+        return ExitCode::from(1);
     }
     saida_erro::erro_fonte_http(json_mode, mensagem_da_recusa(erro), erro.status_http())
 }
@@ -252,34 +252,34 @@ mod tests {
     }
 
     #[test]
-    fn efeito_incerto_preserva_status_200_da_validacao_infra() {
+    fn nao_confirmado_preserva_status_200_da_validacao_infra() {
         use crate::formulario_web::ErroSubmissaoFormulario;
         use crate::transporte::StatusHttpRecusado;
 
         // HTTP 200 de validação é uma recusa real, não ausência de status.
         // Sem rede: a fronteira só apresenta a causa do único envio tentado.
-        let erro = ErroPreviaCriacao::EfeitoIncertoNoEnvio(
+        let erro = ErroPreviaCriacao::NaoConfirmadoNoEnvio(
             ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
                 status: 200,
                 mensagem_do_servidor: Some("Descrição obrigatória".to_owned()),
             }),
         );
         let saida = erro_incerto_json(&erro, 6, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["codigo"], "nao_confirmado");
         assert_eq!(saida["status_http"], 200);
         assert_eq!(saida["mensagem_do_servidor"], "Descrição obrigatória");
         assert_eq!(saida["requisicoes"], 6);
         assert_eq!(saida["retentavel"], false);
         assert_eq!(
             publicar_erro(false, &erro, 6, &nup_de_teste()),
-            ExitCode::from(3)
+            ExitCode::from(1)
         );
     }
 
     #[test]
-    fn efeito_incerto_publica_requisicoes_realmente_tentadas() {
-        let saida = erro_incerto_json(&ErroPreviaCriacao::EfeitoIncerto, 7, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
+    fn nao_confirmado_publica_requisicoes_realmente_tentadas() {
+        let saida = erro_incerto_json(&ErroPreviaCriacao::NaoConfirmado, 7, &nup_de_teste());
+        assert_eq!(saida["codigo"], "nao_confirmado");
         assert_eq!(
             saida["requisicoes"], 7,
             "null não informa a contagem já observada"
@@ -288,11 +288,11 @@ mod tests {
     }
 
     #[test]
-    fn efeito_incerto_da_releitura_preserva_http_e_contagem_sem_retry() {
+    fn nao_confirmado_da_releitura_preserva_http_e_contagem_sem_retry() {
         use crate::processo_obter::ErroProcessoObter;
         use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-        let erro = ErroPreviaCriacao::EfeitoIncertoNaReleitura(ErroProcessoObter::Transporte(
+        let erro = ErroPreviaCriacao::NaoConfirmadoNaReleitura(ErroProcessoObter::Transporte(
             FalhaTransporte::AcessoNegado(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("leitura recusada".to_owned()),
@@ -306,15 +306,15 @@ mod tests {
         assert_eq!(saida["retentavel"], false);
         assert_eq!(
             publicar_erro(false, &erro, 7, &nup_de_teste()),
-            ExitCode::from(3)
+            ExitCode::from(1)
         );
     }
     #[test]
-    fn efeito_incerto_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
+    fn nao_confirmado_orienta_a_conferir_o_processo_antes_de_outra_criacao() {
         // Teste auxiliar do BDD-246-04: efeito incerto exige leitura independente.
-        let erro = ErroPreviaCriacao::EfeitoIncerto;
+        let erro = ErroPreviaCriacao::NaoConfirmado;
         let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
-        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["codigo"], "nao_confirmado");
         assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
         assert!(
             saida["erro"]
@@ -324,20 +324,20 @@ mod tests {
         assert_eq!(saida["retentavel"], false);
         assert_eq!(
             publicar_erro(false, &erro, 7, &nup_de_teste()),
-            ExitCode::from(3)
+            ExitCode::from(1)
         );
     }
 
     #[test]
-    fn bdd_246_04_efeito_incerto_indica_nup_real_na_releitura() {
+    fn bdd_246_04_nao_confirmado_indica_nup_real_na_releitura() {
         // Dado um efeito incerto ao incluir documento em um processo conhecido;
         // Quando a CLI apresenta o erro; Então oferece comando de leitura copiável.
         let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
-        let erro = ErroPreviaCriacao::EfeitoIncerto;
+        let erro = ErroPreviaCriacao::NaoConfirmado;
         let saida = erro_incerto_json(&erro, 7, &nup);
         assert_eq!(saida["verificar_com"], "ies processo 00001.000001/2026-01");
         assert_eq!(saida["retentavel"], false);
-        assert_eq!(saida["codigo"], "efeito_incerto");
+        assert_eq!(saida["codigo"], "nao_confirmado");
     }
 
     #[test]

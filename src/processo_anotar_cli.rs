@@ -201,15 +201,15 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
         Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
         _ => None,
     };
-    let incerto = matches!(erro, Erro::EfeitoIncerto);
+    let incerto = matches!(erro, Erro::NaoConfirmado);
     let mensagem = if incerto {
-        "efeito incerto após tentativa de escrita; não repita --confirmar; consulte a anotação"
+        "escrita não confirmada; não repita --confirmar; consulte a anotação"
     } else {
         "o SEI não publicou as condições para anotar este processo nesta unidade"
     };
     if cli.json {
         let mut saida = json!({
-            "codigo": if incerto { "efeito_incerto" } else { "fonte_invalida" },
+            "codigo": if incerto { "nao_confirmado" } else { "fonte_invalida" },
             "erro": mensagem,
             "retentavel": false
         });
@@ -230,5 +230,5 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(if incerto { 3 } else { 1 })
+    ExitCode::from(1)
 }

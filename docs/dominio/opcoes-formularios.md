@@ -58,7 +58,7 @@ do domínio, ainda que como enum/valor e não entidade persistida.
 `processo.enviar`:
 - Destinatários explícitos, opção `manter_aberto`, retorno programado
   opcional e confirmação de efeitos por unidade.
-- Nunca presumir recebimento com o envio nem repetir em efeito incerto.
+- Nunca presumir recebimento com o envio nem repetir em escrita não confirmada.
 
 `processo.criar`:
 - Tipo escolhido, assunto(s), interessado(s), especificação e

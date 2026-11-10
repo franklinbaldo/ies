@@ -39,7 +39,7 @@ sem declarar ciência a partir de conteúdo não executado ou não exibido.
 Acesso sem botão, tela inválida e cookie recusado falham com saída 1
 **antes** de enviar a escrita. Depois do GET mutador, nenhuma falha
 pode provocar nova escrita: a árvore é relida, e ausência de prova
-sai 3 `efeito_incerto`, nunca sucesso presumido. Antes de tentar
+sai 3 `nao_confirmado`, nunca sucesso presumido. Antes de tentar
 outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 
 ## Subcódigos observáveis ou de recusa
@@ -63,7 +63,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 | `atividades_da_ciencia_ambiguas` | Aceite com múltiplas atividades |
 | `lista_de_ciencias_fora_da_forma_observada` | HTML da lista não reconhecido |
 | `atividades_repetidas_na_lista_de_ciencias` | Checkbox duplicado |
-| `efeito_incerto_na_ciencia` | Escrita sem verificação conclusiva |
+| `nao_confirmado_na_ciencia` | Escrita sem verificação conclusiva |
 | `validacao_da_infra_na_ciencia_do_processo` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
 | `atividade_do_aceite_do_processo_nao_reconhecida` | Resposta do GET mutador sem identidade de atividade comprovável |
 
@@ -86,7 +86,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 - `atividades_da_ciencia_ambiguas`
 - `lista_de_ciencias_fora_da_forma_observada`
 - `atividades_repetidas_na_lista_de_ciencias`
-- `efeito_incerto_na_ciencia`
+- `nao_confirmado_na_ciencia`
 - `validacao_da_infra_na_ciencia_do_processo`
 - `atividade_do_aceite_do_processo_nao_reconhecida`
 
@@ -141,7 +141,7 @@ A atividade do aceite não é reconhecida em `<script type="application/json">`,
 `<script type="text/plain">` ou conteúdo inline de `<script src="...">`:
 esses textos não são executados pelo navegador. O fluxo conserva a
 releitura independente, mas não consulta a lista sem `id_atividade`
-comprovada e retorna efeito incerto (saída 3), sem segundo GET mutador.
+comprovada e retorna escrita não confirmada (saída 1), sem segundo GET mutador.
 Scripts inline sem `type` ou com `type="text/javascript"` continuam
 reconhecidos quando satisfazem a forma observada.
 
@@ -153,7 +153,7 @@ A forma observada do SEI é atualizarArvore('url'), com um
 como prova da atividade: JavaScript avalia esse argumento antes
 de chamar a função, e uma exceção pode impedir a recarga.
 Após o único GET potencialmente mutador, essa resposta leva à
-releitura independente e **efeito incerto (saída 3)**, sem consultar
+releitura independente e **escrita não confirmada (saída 1)**, sem consultar
 a Lista de Ciências antiga nem repetir a escrita.
 
 ## Segunda ciência e HTML inerte (#271, 06/11/2026)
@@ -163,13 +163,13 @@ ciência **no mesmo dia** é recusada pelo SEI com validação Infra HTTP 200
 e mensagem «Usuário já deu ciência no processo hoje.». A resposta não publica
 `id_atividade` e não equivale a sucesso. O IES preserva a causa e a
 mensagem saneada, faz somente a releitura de reconciliação e devolve
-`efeito_incerto_na_ciencia` (saída 3): **6 GET sintéticos, exatamente
+`nao_confirmado_na_ciencia` (saída 1): **6 GET sintéticos, exatamente
 um GET mutador, nenhum retry**. Não classificar a recusa pelo texto.
 
 Também é inerte a Lista de Ciências que o parser encontra inteiramente
 dentro de `<noscript>` (ou um checkbox nele), com scripts habilitados.
 A recusa conservadora é a mesma já aplicada a `<template>`: após o GET
-único, ausência de prova visível da atividade retorna saída 3, sem
+único, ausência de prova visível da atividade retorna saída 1, sem
 transformar uma ciência antiga em confirmação da tentativa. Esse controle
 não adiciona requisições. Live e replay específico ainda pendentes.
 
@@ -180,7 +180,7 @@ A resposta do GET mutador também não comprova `id_atividade` quando
 `<noscript>` (com JavaScript habilitado). Assim como `<template>`,
 o contêiner não executa a recarga, embora o parser encontre a chamada.
 A verificação lê novamente a árvore, não usa a lista antiga sem aceite
-válido e retorna **efeito incerto (3)**: 6 GET sintéticos, exatamente
+válido e retorna **escrita não confirmada (3)**: 6 GET sintéticos, exatamente
 um potencialmente mutador e zero retry. Testes RED de leitor e fluxo
 foram publicados antes da correção, no [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489)
 (2 FAIL / 1.775 PASS / 22 ignored anteriores).
@@ -221,15 +221,15 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 ## Recusa Infra HTTP 200 na apresentação (#271)
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
-com HTTP **200**. A saída `--json` publica `codigo: efeito_incerto`,
+com HTTP **200**. A saída `--json` publica `codigo: nao_confirmado`,
 `status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
 observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
-A saída humana mantém a mensagem de recusa e o aviso de efeito incerto.
+A saída humana mantém a mensagem de recusa e o aviso de escrita não confirmada.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
 
-## Orientação de efeito incerto no processo (#271, 07/11/2026)
+## Orientação de escrita não confirmada no processo (#271, 07/11/2026)
 
 Se o GET de escrita foi enviado e a nova Lista de Ciências não comprovou a
 atividade, a mensagem humana informa que a ciência pode ter sido registrada
@@ -238,10 +238,10 @@ separado fornece o número de requisições realmente contabilizado e diz
 explicitamente **não repetir a escrita**. Uma nova prévia de leitura não é
 proibida. Erros anteriores à escrita não recebem esse aviso.
 
-A saída JSON permanece com `efeito_incerto`, `requisicoes` e
+A saída JSON permanece com `nao_confirmado`, `requisicoes` e
 `retentavel: false`, além da causa HTTP quando observada. Não há novo
 GET, retry, alteração de subcódigo, orçamento sintético ou mudança do código
-de saída 3; ensaio real em treinamento permanece NOT_RUN.
+de saída 1; ensaio real em treinamento permanece NOT_RUN.
 
 ## Instruções vazias no aceite (WIP #271)
 

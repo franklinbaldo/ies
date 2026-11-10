@@ -48,15 +48,7 @@ pub(crate) enum VerificacaoDaAssinatura {
     LeituraFalhou(ErroDocumentoObter),
 }
 
-impl VerificacaoDaAssinatura {
-    pub(crate) fn motivo(&self) -> Option<&'static str> {
-        match self {
-            Self::Lida(_) => None,
-            Self::ArvoreNaoLida(erro) => Some(erro.onde),
-            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
-        }
-    }
-}
+impl VerificacaoDaAssinatura {}
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAssinar {
@@ -100,7 +92,7 @@ pub(crate) enum ErroAssinar {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaAssinatura {
+    NaoConfirmadoNaAssinatura {
         antes: Vec<Assinante>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoDaAssinatura>,
@@ -114,16 +106,8 @@ impl ErroAssinar {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::AssinaturaNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncertoNaAssinatura { .. } => "efeito_incerto",
+            Self::NaoConfirmadoNaAssinatura { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaAssinatura { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -134,7 +118,7 @@ impl ErroAssinar {
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::AssinaturaNaoAplicada { falha_do_envio, .. }
-            | Self::EfeitoIncertoNaAssinatura { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNaAssinatura { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -176,7 +160,7 @@ impl ErroAssinar {
             Self::AssinaturaNaoAplicada { .. } => {
                 "a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado"
             }
-            Self::EfeitoIncertoNaAssinatura { .. } => {
+            Self::NaoConfirmadoNaAssinatura { .. } => {
                 "não se sabe se o documento foi assinado; confira a árvore antes de repetir"
             }
         }

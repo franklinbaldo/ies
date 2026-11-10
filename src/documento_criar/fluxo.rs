@@ -128,18 +128,18 @@ pub(crate) enum ErroPreviaCriacao {
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
     FotoInicialInconsistente,
-    EfeitoIncerto,
+    NaoConfirmado,
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
-    EfeitoIncertoNoEnvio(ErroSubmissaoFormulario),
+    NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
     /// O GET de reconciliação falhou após o POST; preservar a causa
     /// observada, sem inferir que o documento deixou de ser criado.
-    EfeitoIncertoNaReleitura(ErroProcessoObter),
+    NaoConfirmadoNaReleitura(ErroProcessoObter),
 }
 impl ErroPreviaCriacao {
     pub(crate) fn causa_envio(&self) -> Option<&ErroSubmissaoFormulario> {
         match self {
-            Self::EfeitoIncertoNoEnvio(causa) => Some(causa),
+            Self::NaoConfirmadoNoEnvio(causa) => Some(causa),
             _ => None,
         }
     }
@@ -151,8 +151,8 @@ impl ErroPreviaCriacao {
             Self::Abertura(erro) => erro.status_http(),
             Self::Formulario(erro) => erro.status_http(),
             Self::TelaTransporte(erro) => erro.status_http(),
-            Self::EfeitoIncertoNoEnvio(causa) => causa.status_http(),
-            Self::EfeitoIncertoNaReleitura(causa) => causa.status_http(),
+            Self::NaoConfirmadoNoEnvio(causa) => causa.status_http(),
+            Self::NaoConfirmadoNaReleitura(causa) => causa.status_http(),
             _ => None,
         }
     }

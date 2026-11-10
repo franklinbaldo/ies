@@ -68,7 +68,7 @@ pub(crate) enum ErroProcessoAtribuir {
     Preparacao(ErroAtribuir),
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    EfeitoIncertoNaAtribuicao {
+    NaoConfirmadoNaAtribuicao {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,
         atribuicao_relida: Option<String>,
@@ -80,7 +80,7 @@ impl ErroProcessoAtribuir {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),
-            Self::EfeitoIncertoNaAtribuicao {
+            Self::NaoConfirmadoNaAtribuicao {
                 falha_do_envio,
                 leitura,
                 ..
@@ -92,14 +92,6 @@ impl ErroProcessoAtribuir {
                 // Não apagar o status e a mensagem dessa última falha.
                 .or_else(|| leitura.as_deref().and_then(ErroProcessoObter::status_http)),
             _ => crate::erro_publico::Causa::status_http(self),
-        }
-    }
-
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncertoNaAtribuicao { .. }) {
-            3
-        } else {
-            1
         }
     }
 
@@ -128,7 +120,7 @@ impl ErroProcessoAtribuir {
             }
             Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
             Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
-            Self::EfeitoIncertoNaAtribuicao { .. } => {
+            Self::NaoConfirmadoNaAtribuicao { .. } => {
                 "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo"
             }
         }
@@ -246,7 +238,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     if !resposta_permite_confirmar
         || atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or(""))
     {
-        return Err(E::EfeitoIncertoNaAtribuicao {
+        return Err(E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: falha_do_envio.map(Box::new),
             leitura: leitura.map(Box::new),
             atribuicao_relida,

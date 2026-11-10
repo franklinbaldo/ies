@@ -44,7 +44,7 @@ pub(crate) enum EtapaNaoComprovada {
 pub(crate) enum FalhaAnexar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
-    EfeitoIncerto(EtapaNaoComprovada),
+    NaoConfirmado(EtapaNaoComprovada),
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
     LinkNaoPublicado,
@@ -71,7 +71,7 @@ impl FalhaAnexar {
             Self::LinkNaoPublicado => "a barra não publica a ação".to_owned(),
             Self::TelaRedirecionada => "a tela da ação foi redirecionada".to_owned(),
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login".to_owned(),
-            Self::EfeitoIncerto(etapa) => format!("a anexação não foi confirmada ({etapa:?})"),
+            Self::NaoConfirmado(etapa) => format!("a anexação não foi confirmada ({etapa:?})"),
         }
     }
 }
@@ -130,7 +130,7 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
         indice,
         rede,
     )
-    .map_err(|_| FalhaAnexar::EfeitoIncerto(EtapaNaoComprovada::ArvoreDoPrincipal))?;
+    .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ArvoreDoPrincipal))?;
     let depois = &lido.arvore.anexados;
     if !depois
         .iter()
@@ -139,7 +139,7 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
             .iter()
             .all(|id| depois.iter().any(|p| &p.id == id))
     {
-        return Err(FalhaAnexar::EfeitoIncerto(
+        return Err(FalhaAnexar::NaoConfirmado(
             EtapaNaoComprovada::ArvoreDoPrincipal,
         ));
     }

@@ -96,7 +96,7 @@ fn conciliar(
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoReaberto, R> {
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
-        return Err(R::EfeitoIncertoNaReabertura {
+        return Err(R::NaoConfirmadoNaReabertura {
             aberto_em: feito.aberto_em,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),

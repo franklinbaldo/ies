@@ -34,7 +34,7 @@ Contrato: [relogin único nas leituras](../../../contracts/cli/sessao-login.md#r
   Dois agentes que veem a mesma sessão vencida fariam dois logins
   seguidos; o segundo descartaria a sessão que o primeiro acabou de gravar.
 - **relogin-tambem-na-escrita:** relogar no `--confirmar` ou na prévia.
-  Misturaria sessões entre a prévia e a escrita, e um efeito incerto não
+  Misturaria sessões entre a prévia e a escrita, e uma escrita não confirmada não
   pode ser repetido (AGENTS.md). Rejeitada no desenho.
 - **relogin-por-qualquer-falha-de-sessao:** relogar também em 401/403,
   3xx, WAF ou tela inesperada. O 403 da borda (GO, Cloudflare) não é

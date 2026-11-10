@@ -29,17 +29,7 @@ pub(crate) enum VerificacaoDoCancelamento {
     },
     LeituraFalhou(ErroDocumentoObter),
 }
-impl VerificacaoDoCancelamento {
-    pub(crate) fn motivo(&self) -> Option<&'static str> {
-        match self {
-            Self::Lida {
-                cancelado: None, ..
-            } => Some("estado_de_cancelamento_nao_observado"),
-            Self::Lida { .. } => None,
-            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
-        }
-    }
-}
+impl VerificacaoDoCancelamento {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ErroCancelar {
@@ -62,7 +52,7 @@ pub(crate) enum ErroCancelar {
         falha_do_envio: Option<FalhaDoCancelamento>,
     },
     /// Depois da escrita houve mudança ambígua ou a leitura não pôde decidir.
-    EfeitoIncerto {
+    NaoConfirmado {
         falha_do_envio: Option<FalhaDoCancelamento>,
         verificacao: Box<VerificacaoDoCancelamento>,
     },
@@ -71,14 +61,8 @@ impl ErroCancelar {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::CancelamentoNaoAplicado { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncerto { .. } => "efeito_incerto",
+            Self::NaoConfirmado { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncerto { .. } => 3,
-            _ => 1,
         }
     }
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
@@ -88,7 +72,7 @@ impl ErroCancelar {
             Self::TelaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(e) => e.status_http().cloned(),
             Self::CancelamentoNaoAplicado { falha_do_envio }
-            | Self::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio
+            | Self::NaoConfirmado { falha_do_envio, .. } => falha_do_envio
                 .as_ref()
                 .and_then(FalhaDoCancelamento::status_http),
             _ => None,
@@ -125,7 +109,7 @@ impl ErroCancelar {
             Self::CancelamentoNaoAplicado { .. } => {
                 "a árvore relida não mostra o documento cancelado; nenhum retry foi feito"
             }
-            Self::EfeitoIncerto { .. } => {
+            Self::NaoConfirmado { .. } => {
                 "não é possível comprovar o cancelamento; confira a árvore antes de qualquer nova ação"
             }
         }

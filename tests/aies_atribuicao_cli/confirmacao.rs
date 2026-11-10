@@ -94,7 +94,7 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
 fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     let (escrita, releitura, eventos, _, estado) =
         executar_cenario_com_resposta(true, false, None, true, RespostaPost::Recusa403);
-    assert_eq!(escrita.status.code(), Some(3));
+    assert_eq!(escrita.status.code(), Some(1));
     let erro: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
     assert_eq!(erro["atribuicao_relida"], "aluno2");
     assert_eq!(
@@ -121,7 +121,7 @@ fn bdd_264_02_03_302_historico_informa_estado_relido_sem_falsa_confirmacao() {
     for (remover, esperado) in [(false, "aluno2"), (true, "")] {
         let (escrita, releitura, eventos, _, estado) =
             executar_cenario_com_resposta(false, remover, None, true, RespostaPost::Historico302);
-        assert_eq!(escrita.status.code(), Some(3));
+        assert_eq!(escrita.status.code(), Some(1));
         let texto = String::from_utf8_lossy(&escrita.stderr);
         assert!(
             texto.contains("não repita a confirmação"),
@@ -166,7 +166,7 @@ fn bdd_264_02_03_302_historico_preserva_erro_json_e_orcamento() {
     for (remover, esperado) in [(false, "aluno2"), (true, "")] {
         let (escrita, _, eventos, _, estado) =
             executar_cenario_com_resposta(true, remover, None, true, RespostaPost::Historico302);
-        assert_eq!(escrita.status.code(), Some(3));
+        assert_eq!(escrita.status.code(), Some(1));
         let json: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
         assert_eq!(json["atribuicao_relida"], esperado);
         assert_eq!(json["requisicoes"], 10);

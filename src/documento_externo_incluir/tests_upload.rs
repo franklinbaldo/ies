@@ -135,6 +135,6 @@ fn falha_de_rede_no_upload_temporario_eh_incerta_sem_reenvio() {
     assert_eq!(tentativas, 1);
     assert!(matches!(
         resultado,
-        Err(FalhaUpload::EfeitoIncerto { status_http: None })
+        Err(FalhaUpload::NaoConfirmado { status_http: None })
     ));
 }

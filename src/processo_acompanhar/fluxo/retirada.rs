@@ -2,7 +2,7 @@
 use super::*;
 
 /// Depois do único POST, comprovar a perda exclusiva da linha escolhida.
-/// Resposta do POST ou releitura insuficiente devolvem efeito incerto (saída 3).
+/// Resposta do POST ou releitura insuficiente devolvem escrita não confirmada (saída 1).
 #[allow(clippy::too_many_arguments)] // Contexto exato da mesma leitura e submissão.
 pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
@@ -66,7 +66,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
             .is_ok()
         });
     if !confirmado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        return Err(ErroPrevia::NaoConfirmado);
     }
     plano.estado = EstadoDoAcompanhamento::Removido;
     plano.requisicoes = rede.feitas();

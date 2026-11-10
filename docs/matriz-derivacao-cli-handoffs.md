@@ -41,7 +41,7 @@ O comando de escrita novo, autorizado apenas em treinamento, lê a barra do proc
 A PR #279 entregou prévia com três GET e sem escrita;
 a PR #284 implementa `--confirmar` para sobrestar e retomar:
 uma única escrita derivada do formulário ou função do SEI,
-seguida de releitura obrigatória do estado; saída 3 quando incerto.
+seguida de releitura obrigatória do estado; saída 1 quando incerto.
 Orçamento em teste sintético frio: seis requisições para cada
 operação, sendo um POST no sobrestar e um GET mutável no retomar.
 RED da #284: quatro falhas novas antes do código.

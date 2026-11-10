@@ -19,7 +19,7 @@ Essa exceção de teste não libera produção ou treinamento. A prévia sem
 `--confirmar` permanece disponível.
 Uma relação já existente é `sem_efeito` sem escrita. O aceite do POST
 mutador deve ser explícito e a leitura independente precisa comprovar
-o estado pretendido; caso contrário, saída 3, sem repetição.
+o estado pretendido; caso contrário, saída 1, sem repetição.
 
 Abertura com a unidade da sessão exigida: a barra do nó PROCESSO fornece
 procedimento_relacionar como URL assinada. GET da tela de relacionamentos,
@@ -68,7 +68,7 @@ Orçamento: abertura + 1 GET da tela, sem POST.
 e o NUP de destino na tabela. Aceita somente 302 de retorno à ação
 `procedimento_relacionar`, com `resultado=1`; um HTTP 200 genérico,
 403, transporte falho, 302 divergente ou vínculo ausente na releitura
-resulta em `efeito_incerto`, saída 3. Orçamento sintético a frio:
+resulta em `nao_confirmado`, saída 1. Orçamento sintético a frio:
 **4 GET + 1 POST de consulta + 1 POST modificador + 1 GET**.
 O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
 sem alegação de validação ao vivo nas demais instalações.
@@ -81,7 +81,7 @@ precisa devolver 302 sem seguir o redirecionamento, para a própria tela
 deve constatar a ausência do vínculo. Orçamento sintético a frio:
 **4 GET + 1 POST mutador + 1 GET de verificação**. Se o envio falhar,
 retornar 200 genérico, 302 inválido ou a releitura não comprovar a remoção,
-o efeito é **incerto, saída 3, sem retry**, preservando o status HTTP quando
+o efeito é **incerto, saída 1, sem retry**, preservando o status HTTP quando
 conhecido. Mesmo a ausência da linha depois de falha do POST não comprova
 o nosso envio (possível alteração concorrente).
 
@@ -91,7 +91,7 @@ Campos de sucesso JSON: `nup`, `id_procedimento`, `destino`, `id_destino`
 `requisicoes`. Os três indicadores decorrem de um único estado de domínio:
 prévia, sem efeito ou confirmação conferida. Nunca expor URL, `infra_hash`,
 cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
-1 recusa pré-envio, 2 uso inválido, 3 efeito incerto após envio.
+1 recusa pré-envio, 2 uso inválido, 3 escrita não confirmada após envio.
 
 ## Evidência
 
@@ -128,7 +128,7 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 | `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
 | `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
 | `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
-| `efeito_incerto` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 3 |
+| `nao_confirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.

@@ -63,7 +63,7 @@ O modo `--confirmar` faz no máximo um POST observado, sem retry. A resposta ace
 A reconciliação exige nova leitura completa com uma única ocorrência
 do id aceito **e texto igual byte a byte ao pedido**.
 Resposta 5xx, falha de transporte após POST, ausência de id ou impossibilidade
-de releitura resultam em **efeito incerto (saída 3)**, sem repetir escrita.
+de releitura resultam em **escrita não confirmada (saída 1)**, sem repetir escrita.
 **O POST está disponível exclusivamente em treinamento**; o CI exercita a
 hipótese sintética em HTTPS local, mas não a validação live.
 
@@ -106,5 +106,5 @@ respostas de cassette. A inspeção estrutural das cassettes UnB/GO soma 76
 interações, SHA-1/SHA-256 conferidos; confronto semântico independente e
 SEI live: **NOT_RUN**. O caso de lista vazia/redirecionamento permanece pendente. O BDD-257-03
 possui regressão sintética de 503 durante a releitura após o POST,
-com saída 3 e nenhuma repetição, e depende de gate verde no head final.
+com saída 1 e nenhuma repetição, e depende de gate verde no head final.
 Não foi realizado teste live.

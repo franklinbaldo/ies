@@ -339,13 +339,12 @@ fn unidade_ainda_aberta_depois_e_nao_aplicada() {
 }
 
 #[test]
-fn leitura_que_falha_ou_nao_le_a_situacao_e_efeito_incerto() {
+fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, feitos) = tela_com(r302(&volta_a_arvore()), Err(FalhaTransporte::Rede));
-    let Err(erro @ C::EfeitoIncertoNaConclusao { .. }) = r else {
+    let Err(erro @ C::NaoConfirmadoNaConclusao { .. }) = r else {
         panic!("esperava efeito incerto: {r:?}");
     };
-    assert_eq!(erro.saida(), 3);
-    let C::EfeitoIncertoNaConclusao { verificacao, .. } = &erro else {
+    let C::NaoConfirmadoNaConclusao { verificacao, .. } = &erro else {
         unreachable!()
     };
     assert_eq!(
@@ -364,7 +363,7 @@ fn leitura_que_falha_ou_nao_le_a_situacao_e_efeito_incerto() {
     let (r, _) = tela_com(r302(&volta_a_arvore()), ok(sobrestado));
     assert_eq!(
         r,
-        Err(C::EfeitoIncertoNaConclusao {
+        Err(C::NaoConfirmadoNaConclusao {
             aberto_em: siglas(&[UNIDADE]),
             falha_do_envio: None,
             verificacao: Box::new(V::SituacaoNaoLida(

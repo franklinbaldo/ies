@@ -32,22 +32,22 @@ fn falhas_da_assinatura_serializam_direto_com_goldens_fixos() {
             r#"{"assinaturas":[],"codigo":"escrita_nao_aplicada","erro":"a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado","retentavel":false}"#,
         ),
         (
-            ErroAssinar::EfeitoIncertoNaAssinatura {
+            ErroAssinar::NaoConfirmadoNaAssinatura {
                 antes: vec![],
                 falha_do_envio: None,
                 verificacao: Box::new(VerificacaoDaAssinatura::Lida(vec![])),
             },
-            r#"{"assinaturas":[],"assinaturas_depois":[],"codigo":"efeito_incerto","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","retentavel":false,"verificacao":null}"#,
+            r#"{"assinaturas":[],"assinaturas_depois":[],"codigo":"nao_confirmado","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","retentavel":false}"#,
         ),
         (
-            ErroAssinar::EfeitoIncertoNaAssinatura {
+            ErroAssinar::NaoConfirmadoNaAssinatura {
                 antes: vec![],
                 falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
                 verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
                     "assinatura_da_arvore_ausente",
                 ))),
             },
-            r#"{"assinaturas":[],"codigo":"efeito_incerto","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302,"verificacao":"assinatura_da_arvore_ausente"}"#,
+            r#"{"assinaturas":[],"codigo":"nao_confirmado","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302}"#,
         ),
     ];
     for (erro, esperado) in casos {
@@ -71,14 +71,13 @@ fn apresentacao_humana_parte_do_erro_tipado() {
             "IES: cargos da tela: Cargo A; Cargo B",
         ]
     );
-    let incerto = ErroAssinar::EfeitoIncertoNaAssinatura {
+    let _incerto = ErroAssinar::NaoConfirmadoNaAssinatura {
         antes: vec![],
         falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
         verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
             "assinatura_da_arvore_ausente",
         ))),
     };
-    assert_eq!(incerto.saida(), 3);
 }
 
 #[test]
@@ -107,7 +106,6 @@ fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
         ),
     ];
     for (erro, esperado) in casos {
-        assert_eq!(erro.saida(), 1);
         assert_eq!(
             serde_json::to_string(&json_de_falha(&erro)).unwrap(),
             esperado

@@ -43,7 +43,7 @@ normaliza URLs assinadas e usa `html_atributos`.
 A confirmação por data ou dias foi implementada **somente no binário
 debug com origem reservada `https://sei.test/sei`**. Envia um único
 POST, exige resposta 302 compatível e relê o prazo exato no mesmo
-SQLite do anti-IES; uma resposta inconclusiva produz saída 3 e nenhum
+SQLite do anti-IES; uma resposta inconclusiva produz saída 1 e nenhum
 retry. O binário release recusa toda confirmação antes da rede,
 assim como a exclusão não implementada. Essa emulação não comprova
 o comportamento do SEI externo.

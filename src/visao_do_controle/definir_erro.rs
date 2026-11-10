@@ -75,7 +75,7 @@ pub(crate) enum ErroDefinirColunas {
         observadas: Vec<ColunaDoDetalhe>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaConfiguracaoDeColunas {
+    NaoConfirmadoNaConfiguracaoDeColunas {
         plano: Box<PlanoDasColunas>,
         falha_do_salvar: Option<FalhaDoSalvar>,
         verificacao: Box<VerificacaoDasColunas>,
@@ -89,15 +89,7 @@ impl ErroDefinirColunas {
             Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. } => "fonte_invalida",
             Self::ConfiguracaoDeColunasNaoAplicada { .. } => "escrita_nao_aplicada",
             Self::MarcasDiferentesDoAlvoAposSalvar { .. } => "escrita_diferente_da_solicitada",
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => "efeito_incerto",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => 3,
-            _ => 1,
+            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => "nao_confirmado",
         }
     }
 
@@ -113,7 +105,7 @@ impl ErroDefinirColunas {
             Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
                 "a configuração lida depois de salvar não é a pedida nem a de antes"
             }
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => {
+            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => {
                 "não se sabe se as colunas foram alteradas; confira com `ies unidade colunas` antes de repetir"
             }
         }

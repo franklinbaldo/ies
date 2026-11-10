@@ -42,7 +42,7 @@ pub(crate) enum Erro {
     Cadastro,
     Formulario,
     Charset,
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 pub(crate) struct Previa {
@@ -120,24 +120,24 @@ fn confirmar<V: EnvioDoProcesso>(
     })
     .map_err(|_| {
         if enviou {
-            Erro::EfeitoIncerto
+            Erro::NaoConfirmado
         } else {
             Erro::Formulario
         }
     })?;
     let RespostaDoEnvio::Redirecionamento(redir) = retorno else {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     };
     let id_aceito = redir
         .localizacao()
         .and_then(|local| id_do_aceite(local, redir.url_do_envio(), id_processo))
-        .ok_or(Erro::EfeitoIncerto)?;
-    let (html, _) = obter_tela(rede, cookie, link_lista).map_err(|_| Erro::EfeitoIncerto)?;
-    let TelaDosComentarios::Lista(relidos) = ler_tela(&html).map_err(|_| Erro::EfeitoIncerto)?
+        .ok_or(Erro::NaoConfirmado)?;
+    let (html, _) = obter_tela(rede, cookie, link_lista).map_err(|_| Erro::NaoConfirmado)?;
+    let TelaDosComentarios::Lista(relidos) = ler_tela(&html).map_err(|_| Erro::NaoConfirmado)?
     else {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     };
-    conferir_efeito(&relidos, id_aceito, texto).map_err(|_| Erro::EfeitoIncerto)
+    conferir_efeito(&relidos, id_aceito, texto).map_err(|_| Erro::NaoConfirmado)
 }
 
 /// Abre o formulário publicado pela lista do processo; grava só se confirmado.

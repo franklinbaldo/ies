@@ -172,7 +172,7 @@ consulta AJAX. A alternativa segue o manual oficial do SEI: quando a tela oferec
 `txaDescricao=""` e faz GET independente para confirmar que ficou vazio.
 Somente após essa confirmação executa o POST único de envio e a
 releitura da árvore. Se a anotação já estava vazia, não grava a limpeza.
-Se o estado da limpeza é inconclusivo, interrompe com saída 3 sem enviar
+Se o estado da limpeza é inconclusivo, interrompe com saída 1 sem enviar
 nem repetir o POST. Dois efeitos mutadores distintos podem deixar
 estado parcial se a tramitação seguinte falhar, o que deve aparecer
 honestamente no resultado; a validação live desse fallback ainda é

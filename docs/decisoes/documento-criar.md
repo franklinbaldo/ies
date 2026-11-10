@@ -39,7 +39,7 @@ cadastro; a captura UnB 4.0.9 mostra `txtDescricao`,
 | Comprova número SEI na árvore | sim | não | não observado |
 | Exige POST de criação | sim | sim | não avaliado |
 | Usa URL assinada servida | sim | sim | não avaliado |
-| Permite recusar efeito incerto | sim | não | não observado |
+| Permite recusar escrita não confirmada | sim | não | não observado |
 
 ## Decisão e limites
 
@@ -103,7 +103,7 @@ que a URL absoluta HTTPS ou relativa aponte para o mesmo
 `controlador.php` da submissão e contenha exatamente uma ação não vazia.
 A validação é sintática, sem seguir o redirecionamento ou executar JS.
 Se a resposta não satisfizer essa condição, a verificação por leitura
-ainda ocorre, mas o efeito permanece **incerto (saída 3)**, sem retry.
+ainda ocorre, mas o efeito permanece **incerto (saída 1)**, sem retry.
 
 Testes sintéticos em `src/documento_criar/tests_confirmacao.rs` afirmam
 um POST e um GET de releitura tanto na recusa da Location externa quanto
@@ -258,9 +258,9 @@ uma ação arbitrária do controlador. **Decisão:** aceitar como indício
 positivo apenas 302 para `documento_visualizar` com `id_documento`
 único e correspondente ao nó novo da árvore. HTML 200 sem marcador de
 aceite observado é inconclusivo. Não executar scripts nem seguir o 302.
-Se o POST falhar, ainda reler a árvore, mas devolver saída 3 com causa
+Se o POST falhar, ainda reler a árvore, mas devolver saída 1 com causa
 tipada original do envio e diagnóstico HTTP, sem retry. Preservar o
-subcódigo público `efeito_incerto_na_criacao_de_documento`.
+subcódigo público `nao_confirmado_na_criacao_de_documento`.
 A validação real de retorno da instalação continua pendente; não inventar
 marcador HTML de sucesso.
 
@@ -287,7 +287,7 @@ ausentes/divergentes/ocultos, fieldset disabled, template inerte,
 identidade do processo, oferta do tipo, erros tipados e formulário servido.
 Permanece a verificação causal: um POST, 302 para documento_visualizar
 com id_documento correspondente, releitura independente do número SEI
-e saída 3 após efeito incerto, sem retry. O leitor de script usado para
+e saída 1 após escrita não confirmada, sem retry. O leitor de script usado para
 navegação entre tipos continua em guarda_navegacao.rs nesta fatia.
 
 **Risco conscientemente aceito:** a lógica do navegador pode divergir

@@ -35,7 +35,7 @@ exige cassette verificável, com revisão/hash exatos.
 
 Implementar a menor lógica observável que satisfaça o contrato, preferindo
 Web quando demonstrado. Eliminar requests duplicados com ablação controlada
-e jamais remover uma verificação de efeito incerto. Rodar
+e jamais remover uma verificação de escrita não confirmada. Rodar
 `cargo test --locked --workspace --all-targets`, Clippy, rustfmt e o único
 gate canônico `uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files`.
 Refatorar com tudo verde; não aprovar PR com checks obrigatórios vermelhos.

@@ -31,7 +31,7 @@ enum Modo {
     Desconhecida,
     Previa,
     Confirmar,
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -185,7 +185,7 @@ fn atender_conexao_tunel(
     let mut resposta = Vec::new();
     destino.read_to_end(&mut resposta).unwrap();
     vistos.lock().unwrap().push(evento.clone());
-    if matches!(modo, Modo::EfeitoIncerto)
+    if matches!(modo, Modo::NaoConfirmado)
         && estado.post_realizado
         && !estado.leitura_interrompida
         && evento == "GET comentario_listar"
@@ -261,7 +261,7 @@ fn executar(modo: Modo) {
             .output()
             .unwrap()
     };
-    let comando: &[&str] = if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto) {
+    let comando: &[&str] = if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::NaoConfirmado) {
         &[
             "--json",
             "processo",
@@ -282,14 +282,14 @@ fn executar(modo: Modo) {
         " Comentário novo ",
         "--confirmar",
     ];
-    let saida: Output = if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+    let saida: Output = if matches!(modo, Modo::Confirmar | Modo::NaoConfirmado) {
         chamar(&comando_confirmado)
     } else {
         chamar(comando)
     };
     // A segunda invocação confere o estado SQLite após a operação,
     // sem confiar apenas no resultado declarado pela primeira CLI.
-    let posterior = matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto)
+    let posterior = matches!(modo, Modo::Previa | Modo::Confirmar | Modo::NaoConfirmado)
         .then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
@@ -306,14 +306,14 @@ fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
     assert_eq!(posterior.status.code(), Some(0));
     let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
     assert_eq!(foto["lista_completa"], true);
-    let total = if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+    let total = if matches!(modo, Modo::Confirmar | Modo::NaoConfirmado) {
         2
     } else {
         1
     };
     assert_eq!(foto["total"], total);
     assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
-    if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+    if matches!(modo, Modo::Confirmar | Modo::NaoConfirmado) {
         assert_eq!(foto["comentarios"][1]["texto"], " Comentário novo ");
         assert_ne!(foto["comentarios"][1]["id"], "42");
     }
@@ -326,8 +326,7 @@ fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
     let esperado = match modo {
-        Modo::Parcial | Modo::Desconhecida => 1,
-        Modo::EfeitoIncerto => 3,
+        Modo::Parcial | Modo::Desconhecida | Modo::NaoConfirmado => 1,
         Modo::Completa | Modo::Previa | Modo::Confirmar => 0,
     };
     assert_eq!(
@@ -338,8 +337,8 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::EfeitoIncerto) {
-        assert_eq!(json["codigo"], "efeito_incerto");
+    if matches!(modo, Modo::NaoConfirmado) {
+        assert_eq!(json["codigo"], "nao_confirmado");
         assert_eq!(json["retentavel"], false);
         let orientacao = json["erro"].as_str().unwrap();
         assert!(orientacao.contains("ies processo comentarios"));
@@ -373,7 +372,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         .count();
     assert_eq!(
         posts,
-        usize::from(matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto)),
+        usize::from(matches!(modo, Modo::Confirmar | Modo::NaoConfirmado)),
         "um único POST somente na confirmação: {eventos:?}"
     );
     assert!(
@@ -382,7 +381,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
             .all(|e| e.starts_with("GET ") || e == "POST comentario_cadastrar"),
         "transição inesperada: {eventos:?}"
     );
-    if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto) {
+    if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::NaoConfirmado) {
         assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
     }
     let listagens = eventos
@@ -394,7 +393,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         match modo {
             Modo::Desconhecida => 0,
             Modo::Previa => 2,
-            Modo::Confirmar | Modo::EfeitoIncerto => 3,
+            Modo::Confirmar | Modo::NaoConfirmado => 3,
             Modo::Completa | Modo::Parcial => 1,
         },
         "a segunda CLI relê os comentários após a prévia"
@@ -426,5 +425,5 @@ fn bdd_257_02_confirmacao_post_unico_e_releitura_independente() {
 
 #[test]
 fn bdd_257_03_releitura_503_apos_post_nao_repete_escrita() {
-    executar(Modo::EfeitoIncerto);
+    executar(Modo::NaoConfirmado);
 }

@@ -56,39 +56,39 @@ para dois logins diferentes é recusado: não há identidade unívoca.
 O fluxo interno injetável faz **um único POST** e lê novamente a árvore para
 conferir a atribuição do processo, inclusive se a resposta do POST falhar.
 Se a atribuição relida for diferente, faltar a unidade ou a leitura falhar,
-o desfecho é `efeito_incerto_na_atribuicao` com saída 3 e sem retry.
+o desfecho é `nao_confirmado_na_atribuicao` com saída 1 e sem retry.
 Uma recusa HTTP 5xx na releitura **interrompe** a resolução pelo índice,
 sem buscar outra rota por tratá-la como link envelhecido. A falha tipada
 preserva o status HTTP e a mensagem saneada da releitura quando a resposta
 do POST não os forneceu, inclusive após erro de rede no POST. O JSON de
-`efeito_incerto_na_atribuicao` publica também `requisicoes` com a contagem
+`nao_confirmado_na_atribuicao` publica também `requisicoes` com a contagem
 real tentada, incluindo o POST único e o GET independente de prova;
 a contagem não implica que a escrita foi aplicada.
 **Releitura coincidente não converte recusa do POST em sucesso.** HTTP 403,
 validação expressa da Infra (ainda que HTTP 200), demais respostas recusadas
 um 302 com destino inesperado **ou HTML 200 genérico sem marcador
-positivo de aceite** continuam como efeito incerto (saída 3), mesmo
+positivo de aceite** continuam coma escrita não confirmada (saída 1), mesmo
 quando outro agente deixou a árvore no estado solicitado. A causa,
 o status e a mensagem saneada da recusa expressa são preservados.
 A observação UnB registrada no Todos @323eb01 mostra aceite por 302;
 um HTML 200 genérico não identifica quem alterou a árvore. **Somente um 302 positivamente identificado** (ação, processo e origem)
 permite confirmar o efeito depois da leitura. Um POST sem resposta é
-**sempre efeito incerto (saída 3)**, mesmo que a árvore passe a mostrar
+**sempre escrita não confirmada (saída 1)**, mesmo que a árvore passe a mostrar
 o usuário pedido ou a remoção: outro agente pode ter realizado a
 mudança no intervalo. A leitura nova ainda registra
 `atribuicao_relida` no JSON (`null` = não observada, texto vazio =
 remoção observada), como **possível resíduo e não prova de autoria**.
 O erro original do envio fica preservado no erro tipado, sem retry.
 A mensagem humana e o campo `erro` do JSON orientam **não repetir a
-confirmação de efeito incerto**, mesmo quando a releitura mostra o estado
+confirmação de escrita não confirmada**, mesmo quando a releitura mostra o estado
 pedido. Consulte o processo para verificar o possível resíduo, não para
 transformar a tentativa inconclusiva em autorização de retry. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
 solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 3 após a leitura única. As duas ações são
 genéricas sem identidade: a releitura coincidente pode ser efeito de
-outro agente, inclusive na remoção. Sem ID, o resultado é efeito incerto
-(saída 3), sem novo POST. A forma de `arvore_visualizar` com ID foi
+outro agente, inclusive na remoção. Sem ID, o resultado é escrita não confirmada
+(saída 1), sem novo POST. A forma de `arvore_visualizar` com ID foi
 observada no caso `ACEITE` do Todos @323eb01.
 **Na CLI pública, `--confirmar` passa em qualquer das
 [instalações públicas de treinamento](../../docs/interfaces/credenciais-de-treinamento.md)**
@@ -99,7 +99,7 @@ recebe `origem_fora_do_treinamento` **antes de qualquer
 requisição de rede**. A origem precisa ser idêntica, não apenas um host
 parecido. A CLI chama o mesmo fluxo tipado de POST único e verificação por
 nova leitura. O ensaio de 09/11/2026 em treinamento resultou em
-**efeito incerto (saída 3)** após um único POST. A releitura observou o
+**escrita não confirmada (saída 1)** após um único POST. A releitura observou o
 login solicitado, mas não demonstrou que o POST provocou a alteração.
 O PASS sintético não comprova causalidade no SEI.
 
@@ -122,7 +122,7 @@ Os testes de transporte sintético da prévia usam exatamente 4 GET e 0 POST a f
 nessa ordem. Em origens diferentes da UnB de treinamento a confirmação
 continua fechada antes da rede, preservando o subcódigo existente.
 RED de transporte: [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454), **4 testes novos FAIL, 1.689 PASS**.
-Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Prévia live na UnB: **PASS** no [ensaio 42205702494](https://github.com/franklinbaldo/ies/actions/runs/42205702494), com login de 5 requisições e 4 GET de prévia, **0 POST de atribuição e 0 resíduo**. Prévia na segunda instalação: **PASS** em GO 5.0.3 (`--remover`, 5 requisições; [evidência](../../docs/validacao-live/2026-11-06-processo-atribuir-go.md)). Em 09/11/2026 ocorreu um POST de atribuição em treinamento, com resultado **INCONCLUSIVO (saída 3)**; remoção live **NOT_RUN**.
+Replay obrigatório das sete cassettes: **PASS** no [CI 42201836542](https://github.com/franklinbaldo/ies/actions/runs/42201836542), com 42 respostas classificadas, 28 formulários GET aceitos e 14 POSTs históricos sem prova de efeito; **0 HTTP real**. Prévia live na UnB: **PASS** no [ensaio 42205702494](https://github.com/franklinbaldo/ies/actions/runs/42205702494), com login de 5 requisições e 4 GET de prévia, **0 POST de atribuição e 0 resíduo**. Prévia na segunda instalação: **PASS** em GO 5.0.3 (`--remover`, 5 requisições; [evidência](../../docs/validacao-live/2026-11-06-processo-atribuir-go.md)). Em 09/11/2026 ocorreu um POST de atribuição em treinamento, com resultado **INCONCLUSIVO (saída 1)**; remoção live **NOT_RUN**.
 RED da regressão de `principal` sem identidade: [CI 42204843683](https://github.com/franklinbaldo/ies/actions/runs/42204843683), **1 FAIL novo, 1.706 PASS, 23 ignored preexistentes**. Nenhuma escrita no SEI.
 
 [Decisão](../../docs/decisoes/processo-atribuir.md),
@@ -131,7 +131,7 @@ RED da regressão de `principal` sem identidade: [CI 42204843683](https://github
 
 ## Atualização de evidência externa — UnB, 09/11/2026
 
-O [ensaio da CLI real](../../docs/validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md), incorporado na [PR #605](https://github.com/franklinbaldo/ies/pull/605), executou login (6 requisições), descoberta de processo elegível, uma prévia independente (3 requisições) e uma segunda prévia antes da confirmação (3 requisições). Ambas as prévias passaram sem POST. A confirmação realizou **um único POST**, terminou com **saída 3** após 5 requisições e publicou `atribuicao_relida=aluno2`. A operação inversa não foi chamada.
+O [ensaio da CLI real](../../docs/validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md), incorporado na [PR #605](https://github.com/franklinbaldo/ies/pull/605), executou login (6 requisições), descoberta de processo elegível, uma prévia independente (3 requisições) e uma segunda prévia antes da confirmação (3 requisições). Ambas as prévias passaram sem POST. A confirmação realizou **um único POST**, terminou com **saída 1** após 5 requisições e publicou `atribuicao_relida=aluno2`. A operação inversa não foi chamada.
 
 O estado relido é **um possível resíduo**, não prova de autoria: a resposta do envio não forneceu a identidade causal exigida por este contrato. A instalação é compartilhada e outra sessão pode produzir o mesmo estado. Não repetir a atribuição para tentar obter saída 0; qualquer eventual remoção exige decisão separada, leitura e prévia atuais. O registro privado `0600` foi preservado pelo executor de ensaio. Nenhuma operação em produção ocorreu.
 

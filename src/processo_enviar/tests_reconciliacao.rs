@@ -154,7 +154,7 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
             falha_do_envio: None,
         }
     );
-    assert_eq!((erro.codigo(), erro.saida()), ("escrita_nao_aplicada", 1));
+    assert_eq!(erro.codigo(), "escrita_nao_aplicada");
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
 }
 
@@ -180,15 +180,12 @@ fn origem_diferente_do_pedido_e_escrita_diferente() {
                 falha_do_envio: None,
             }
         );
-        assert_eq!(
-            (erro.codigo(), erro.saida()),
-            ("escrita_diferente_da_solicitada", 1)
-        );
+        assert_eq!(erro.codigo(), "escrita_diferente_da_solicitada");
     }
 }
 
 #[test]
-fn leitura_que_falha_e_efeito_incerto_sem_retry() {
+fn leitura_que_falha_e_nao_confirmado_sem_retry() {
     let (r, feitos) = rodar_envio(
         DESTINO,
         false,
@@ -203,11 +200,11 @@ fn leitura_que_falha_e_efeito_incerto_sem_retry() {
     assert!(
         matches!(
             &erro,
-            R::EfeitoIncertoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
+            R::NaoConfirmadoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
                 if matches!(**verificacao, V::LeituraFalhou(_))
         ),
         "{erro:?}"
     );
-    assert_eq!((erro.codigo(), erro.saida()), ("efeito_incerto", 3));
+    assert_eq!(erro.codigo(), "nao_confirmado");
     assert_eq!(feitos, pedidos_da_escrita(Versao::V41, false));
 }

@@ -426,17 +426,17 @@ fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
 }
 
 #[test]
-fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_3() {
+fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_1() {
     let (saida, eventos, depois, segunda_cli) =
         executar_com_falha(EstadoInicial::GrupoG, true, true);
     assert_eq!(
         saida.status.code(),
-        Some(3),
+        Some(1),
         "stderr={} eventos={eventos:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
     let erro: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(erro["codigo"], "efeito_incerto");
+    assert_eq!(erro["codigo"], "nao_confirmado");
     assert_eq!(erro["retentavel"], false);
     assert_eq!(
         eventos

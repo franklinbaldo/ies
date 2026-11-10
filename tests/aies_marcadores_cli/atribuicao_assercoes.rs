@@ -7,11 +7,11 @@ pub(super) fn conferir_atribuicao(
     persistido: &Observacao,
     pedidos: &[String],
     json: &serde_json::Value,
-    efeito_incerto: bool,
+    nao_confirmado: bool,
 ) {
     assert_eq!(
         saida.status.code(),
-        Some(if efeito_incerto { 3 } else { 0 }),
+        Some(i32::from(nao_confirmado)),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
@@ -31,8 +31,8 @@ pub(super) fn conferir_atribuicao(
         1,
         "atribuição precisa de um POST, sem retry: {pedidos:?}"
     );
-    if efeito_incerto {
-        assert_eq!(json["codigo"], "efeito_incerto");
+    if nao_confirmado {
+        assert_eq!(json["codigo"], "nao_confirmado");
         assert_eq!(json["retentavel"], false);
         assert!(json["erro"].as_str().unwrap().contains("não repita"));
     } else {

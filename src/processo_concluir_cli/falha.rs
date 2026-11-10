@@ -27,12 +27,6 @@ pub(crate) struct FalhaDaSituacao<'a> {
     status_http: Option<u16>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) sugestoes_guardadas: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[expect(
-        clippy::option_option,
-        reason = "o contrato distingue campo ausente de verificação nula"
-    )]
-    pub(crate) verificacao: Option<Option<&'static str>>,
 }
 
 impl<'a> FalhaDaSituacao<'a> {
