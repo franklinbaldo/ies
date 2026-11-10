@@ -172,6 +172,17 @@ fn inserir_acao_marcadores(
     Ok(())
 }
 
+/// Consulta ao histórico publicada somente quando a lista foi observada.
+fn link_consulta_historico(id: &str, historico_observado: bool) -> String {
+    if !historico_observado {
+        return String::new();
+    }
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    format!(
+        r##"<div id="divConsultarAndamento"><a href="#" onclick="consultarAndamento('controlador.php?acao=procedimento_consultar_historico&amp;acao_origem=arvore_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}');">Consultar Andamento</a></div>"##
+    )
+}
+
 fn arvore_do_processo(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
@@ -265,13 +276,7 @@ fn arvore_do_processo(
         ).expect("formatacao String");
     }
     let barra = literal_js(&acoes);
-    let link_historico = if historico_observado {
-        format!(
-            r##"<div id="divConsultarAndamento"><a href="#" onclick="consultarAndamento('controlador.php?acao=procedimento_consultar_historico&amp;acao_origem=arvore_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}');">Consultar Andamento</a></div>"##
-        )
-    } else {
-        String::new()
-    };
+    let link_historico = link_consulta_historico(id, historico_observado);
     Ok(format!(
         r#"<html><head><script>
 var Nos = new Array();
