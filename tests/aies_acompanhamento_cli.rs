@@ -235,20 +235,30 @@ fn executar_com(
         }
     });
     let mut args = vec![
-        "--json", "processo", "acompanhar", NUP, "--deixar", "--grupo", "G",
+        "--json",
+        "processo",
+        "acompanhar",
+        NUP,
+        "--deixar",
+        "--grupo",
+        "G",
     ];
     if confirmar {
         args.push("--confirmar");
     }
     let saida = executar_cli(&pasta, porta, &certificado, &args);
     // Outra invocação da CLI, após a escrita, deve comprovar o novo estado.
-    let verificacao = confirmar.then(|| {
-        executar_cli(&pasta, porta, &certificado, &args[..args.len() - 1])
-    });
+    let verificacao =
+        confirmar.then(|| executar_cli(&pasta, porta, &certificado, &args[..args.len() - 1]));
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let resultado = servidor.join().unwrap();
-    (saida, eventos.lock().unwrap().clone(), resultado, verificacao)
+    (
+        saida,
+        eventos.lock().unwrap().clone(),
+        resultado,
+        verificacao,
+    )
 }
 
 #[test]
