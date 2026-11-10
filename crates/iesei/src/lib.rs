@@ -30,3 +30,4 @@ pub mod relacionamentos;
 pub mod retornos_cassettes;
 pub mod sobrestamentos;
 pub mod sqlite;
+pub mod validacao_acesso;
