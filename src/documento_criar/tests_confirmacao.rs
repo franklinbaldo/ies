@@ -4,7 +4,7 @@ use super::*;
 use crate::arvore_processo::{DocumentoNaArvore, NaturezaDoDocumento};
 use crate::formulario_web::{CodificacaoDaTela, RespostaDoPost};
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{FalhaTransporte, RespostaWeb};
+use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::io::Cursor;
 
 #[derive(Default)]
@@ -431,12 +431,10 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
         |rede, submissao, _| {
             rede.chamadas.push("POST criador");
             rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(
-                crate::transporte::StatusHttpRecusado {
-                    status: 403,
-                    mensagem_do_servidor: Some("acesso negado sintético".to_owned()),
-                },
-            ))
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("acesso negado sintético".to_owned()),
+            }))
         },
         |rede| {
             rede.chamadas.push("GET arvore");
@@ -444,11 +442,14 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
         },
     );
     let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
-    let http = erro.status_http().expect("preservar status HTTP do POST");
-    assert_eq!(http.status, 403);
     assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("acesso negado sintético")
+        erro,
+        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::Status(StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("acesso negado sintético".into()),
+            })
+        ))
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
@@ -467,12 +468,10 @@ fn falha_http_503_do_post_preserva_mensagem_saneada() {
         |rede, submissao, _| {
             rede.chamadas.push("POST criador");
             rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(
-                crate::transporte::StatusHttpRecusado {
-                    status: 503,
-                    mensagem_do_servidor: Some("indisponibilidade sintética".to_owned()),
-                },
-            ))
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(StatusHttpRecusado {
+                status: 503,
+                mensagem_do_servidor: Some("indisponibilidade sintética".to_owned()),
+            }))
         },
         |rede| {
             rede.chamadas.push("GET arvore");
@@ -480,11 +479,14 @@ fn falha_http_503_do_post_preserva_mensagem_saneada() {
         },
     );
     let erro = resultado.expect_err("HTTP 503 não confirma efeito");
-    let http = erro.status_http().expect("preservar causa HTTP 503");
-    assert_eq!(http.status, 503);
     assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("indisponibilidade sintética")
+        erro,
+        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
+            FalhaTransporte::Status(StatusHttpRecusado {
+                status: 503,
+                mensagem_do_servidor: Some("indisponibilidade sintética".into()),
+            })
+        ))
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
@@ -564,15 +566,14 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
         },
     );
     let erro = resultado.expect_err("validacao Infra 200 e escrita incerta");
-    assert!(matches!(
-        erro.causa_envio(),
-        Some(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
-    ));
-    let status = erro.status_http().expect("causa de validacao preservada");
-    assert_eq!(status.status, 200);
     assert_eq!(
-        status.mensagem_do_servidor.as_deref(),
-        Some("Recusa sintética")
+        erro,
+        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+            StatusHttpRecusado {
+                status: 200,
+                mensagem_do_servidor: Some("Recusa sintética".into()),
+            }
+        ))
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);

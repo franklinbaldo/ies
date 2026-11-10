@@ -22,16 +22,7 @@ pub(crate) enum FalhaCache {
     ConteudoInseguro,
 }
 
-impl FalhaCache {
-    pub(crate) fn mensagem(self) -> &'static str {
-        match self {
-            Self::Diretorio => "diretório do cache local indisponível ou inseguro",
-            Self::Gravacao => "não foi possível gravar o cache privado",
-            Self::ArquivoDivergente => "cópia existente no cache diverge do SHA-256",
-            Self::ConteudoInseguro => "conteúdo com link assinado não pode ir para o cache",
-        }
-    }
-}
+impl FalhaCache {}
 
 /// A flag prevalece sobre o ambiente; só o valor literal 0 desativa.
 pub(crate) fn habilitado(sem_cache: bool, ambiente: Option<&str>) -> bool {

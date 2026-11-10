@@ -25,11 +25,7 @@ fn bdd_60_05_cli_recusa_versao_revogada_entre_lista_e_corpo() {
             "a versão recusada não pode ser substituída: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["status_http"], 403, "{erro}");
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "Status");
         assert_eq!(
             trilha
                 .iter()
@@ -105,10 +101,7 @@ fn bdd_60_05_cli_versao_revogada_nao_cria_foto() {
             "a recusa não pode ser ocultada: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["status_http"], 403, "{erro}");
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "Status");
         assert_eq!(std::fs::read(&rascunho).unwrap(), conteudo_local);
         // Conferir toda a pasta: um nome inesperado também seria uma foto indevida.
         let arquivos: Vec<_> = std::fs::read_dir(&pasta.0)

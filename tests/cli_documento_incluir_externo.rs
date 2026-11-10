@@ -17,6 +17,10 @@ fn executar(args: &[&str]) -> Output {
         .expect("ies deve iniciar")
 }
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn json(saida: &Output) -> serde_json::Value {
     serde_json::from_slice(&saida.stdout).expect("saída deve ser JSON")
 }
@@ -89,7 +93,7 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
     let falso = PdfTeste::com_conteudo("pdf", b"texto, nao PDF");
     let extensao = PdfTeste::com_conteudo("txt", b"%PDF-1.4\n1 0 obj\n%%EOF\n");
     // A inspeção local é pré-condição até mesmo da consulta e da confirmação.
-    for (arquivo, _causa) in [(&falso, "Conteudo"), (&extensao, "Extensao")] {
+    for (arquivo, causa) in [(&falso, "Conteudo"), (&extensao, "Extensao")] {
         for modo in [None, Some("--consultar-sei"), Some("--confirmar")] {
             let mut args = vec![
                 "--json",
@@ -105,20 +109,10 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
             if let Some(modo) = modo {
                 args.push(modo);
             }
+            // Sem arquivos de sessão válidos, só a inspeção local poderia
+            // produzir esta variante: nenhuma requisição foi feita.
             let saida = executar(&args);
-            assert_eq!(
-                saida.status.code(),
-                Some(2),
-                "modo={modo:?} stderr={:?}",
-                saida.stderr
-            );
-            let valor = json(&saida);
-            assert_eq!(valor["retentavel"], false);
-            assert_eq!(
-                valor["requisicoes"], 0,
-                "modo={modo:?}: nenhuma requisição permitida"
-            );
-            assert_eq!(valor["escrita_remota"], false);
+            falha(&saida, causa);
         }
     }
 }
@@ -132,7 +126,7 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
     let diretorio = pdf.0.with_extension("diretorio.pdf");
     symlink(&pdf.0, &link).unwrap();
     fs::create_dir(&diretorio).unwrap();
-    for (caminho, _causa) in [(&link, "LinkSimbolico"), (&diretorio, "NaoRegular")] {
+    for (caminho, causa) in [(&link, "LinkSimbolico"), (&diretorio, "NaoRegular")] {
         let saida = executar(&[
             "--json",
             "documento",
@@ -144,10 +138,7 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
             "--tipo",
             "Anexo",
         ]);
-        assert_eq!(saida.status.code(), Some(2), "stderr={:?}", saida.stderr);
-        let valor = json(&saida);
-        assert_eq!(valor["requisicoes"], 0);
-        assert_eq!(valor["escrita_remota"], false);
+        falha(&saida, causa);
     }
     fs::remove_file(link).unwrap();
     fs::remove_dir(diretorio).unwrap();
@@ -186,7 +177,7 @@ fn arquivo_local_ausente_e_recusado_sem_sessao() {
         "--tipo",
         "Anexo",
     ]);
-    assert_eq!(saida.status.code(), Some(2));
+    falha(&saida, "Ausente");
 }
 
 #[test]
@@ -209,7 +200,7 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         "--tipo",
         "Anexo",
     ]);
-    assert_eq!(saida.status.code(), Some(2));
+    falha(&saida, "NomeInvalido");
 }
 
 #[test]

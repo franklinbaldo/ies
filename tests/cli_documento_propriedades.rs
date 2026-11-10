@@ -15,11 +15,16 @@ fn documento_com_propriedades_usa_leitura_web_e_nao_stub() {
         .env_remove("IES_ORIGEM_FILE")
         .output()
         .expect("o binário do IES deve iniciar");
-    assert_eq!(saida.status.code(), Some(1));
-    let valor: serde_json::Value =
-        serde_json::from_slice(&saida.stdout).expect("falha da CLI em JSON");
-    assert_ne!(
-        valor["codigo"], "nao_implementado",
-        "as propriedades precisam passar pelo leitor Web: {valor}"
+    // O stub de capacidade não implementada publicava JSON no stdout;
+    // a leitura Web falha tipada, com stdout vazio.
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert_eq!(saida.status.code(), Some(1), "{erro}");
+    assert_eq!(
+        saida.stdout, b"",
+        "as propriedades precisam passar pelo leitor Web"
+    );
+    assert!(
+        erro.starts_with("Error: "),
+        "as propriedades precisam passar pelo leitor Web: {erro}"
     );
 }

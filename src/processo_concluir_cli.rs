@@ -13,7 +13,6 @@ use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, saida_erro, trans
 #[path = "processo_concluir_cli/falha.rs"]
 pub(crate) mod falha;
 use falha::FalhaDaSituacao;
-use serde_json::json;
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo concluir`.
@@ -27,22 +26,6 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let nup = numero.clone();
     Some(concluir(cli, &nup, *confirmar))
-}
-
-pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": "número de processo inválido",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: número de processo inválido");
-    }
-    ExitCode::from(2)
 }
 
 /// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha

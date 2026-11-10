@@ -18,7 +18,7 @@ mod tests_fluxo;
 #[cfg(test)]
 mod tests_tela;
 
-pub(crate) use erro::{ErroAssinar, FalhaDoEnvio, VerificacaoDaAssinatura};
+pub(crate) use erro::{ErroAssinar, FalhaDoEnvio};
 pub(crate) use fluxo::assinar_documento;
 
 use crate::arvore_processo::{Assinante, EdicaoNaBarra, ProcessoNaArvore};
