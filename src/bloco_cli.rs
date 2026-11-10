@@ -1,17 +1,20 @@
 //! CLI Web de blocos: GET Controle, GET lista e, para bloco N, GET detalhe.
-//! Zero POST, JS, retry ou restauração da tela.
+//! Paginação interna com um POST de formulário observado, sem JS, retry ou restauração.
 use crate::bloco::{self, ErroBloco, TipoBloco};
 use crate::bloco_detalhe::{self};
 use crate::configuracao;
 use crate::controle_reconhecido;
 use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
+use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::transporte::{self, FalhaTransporte};
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 use crate::{Bloco, BlocoAcao, Cli, erro_fonte};
 use serde_json::{Value, json};
+mod paginacao;
 use std::process::ExitCode;
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -24,6 +27,8 @@ enum FalhaLeitura {
     Bloco(ErroBloco),
     #[causa(interna)]
     Detalhe(ErroHtml),
+    #[causa(interna)]
+    Submissao(ErroSubmissaoFormulario),
     #[causa(transparente)]
     Html(ErroHtml),
 }
@@ -38,11 +43,13 @@ impl FalhaLeitura {
             Self::Controle(_) => "Controle não reconhecido na leitura de blocos",
             Self::Bloco(e) => e.mensagem(),
             Self::Detalhe(_) => "a tabela de documentos ou processos do bloco não foi reconhecida",
+            Self::Submissao(_) => "o formulário de paginação de blocos não foi aceito",
         }
     }
     fn status_http(&self) -> Option<&transporte::StatusHttpRecusado> {
         match self {
             Self::Transporte(e) => e.status_http(),
+            Self::Submissao(e) => e.status_http(),
             _ => None,
         }
     }
@@ -79,8 +86,21 @@ fn ler_via<V: EnvioDoControle>(
     let cookie = sessao.cookie().valor()?;
     requisicoes += 1;
     let resposta = envio.get(&url_lista, cookie)?;
+    let codificacao = codificacao_da_tela(&resposta.mime);
     let html = transporte::decodificar_resposta(resposta)?;
-    let lista = bloco::ler_lista(&html, tipo)?;
+    let mut lista = bloco::ler_lista(&html, tipo)?;
+    if pagina == Some(2) && tipo == TipoBloco::Interno {
+        lista = paginacao::ler_pagina_dois(
+            &lista,
+            &html,
+            &url_lista,
+            codificacao,
+            &controle.instalacao,
+            sessao,
+            envio,
+        )?;
+        requisicoes += 1;
+    }
     if pagina == Some(1)
         && lista
             .lista
@@ -127,7 +147,7 @@ fn executar_leitura(
             "número de bloco deve ser decimal",
         );
     }
-    if pagina.is_some_and(|p| p != 1) {
+    if pagina.is_some_and(|p| p > 2) || (pagina == Some(2) && tipo != TipoBloco::Interno) {
         return erro_fonte(
             cli.json,
             ErroBloco::PaginaDeBlocosNaoImplementada.subcodigo(),
@@ -177,7 +197,7 @@ fn executar_leitura(
                 );
             } else {
                 println!(
-                    "IES: blocos {}: {} na página observada de {} declarados; {} GET(s).",
+                    "IES: blocos {}: {} na página observada de {} declarados; {} requisição(ões).",
                     tipo.rotulo(),
                     valor["lista"]["itens"].as_array().map_or(0, Vec::len),
                     valor["lista"]["total_declarado"],

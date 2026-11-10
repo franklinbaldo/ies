@@ -1,4 +1,4 @@
-//! #332: comando externo inspeciona PDF offline e recusa escrita sem sessão.
+//! #332: comando externo inspeciona PDF offline; --confirmar exige sessão.
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -10,7 +10,6 @@ fn executar(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
         .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_ANTI_IES_TESTE")
         .env("IES_URL_CONTROLE_FILE", "/nao/existe/url")
         .env("IES_COOKIE_FILE", "/nao/existe/cookie")
         .env("IES_ORIGEM_FILE", "/nao/existe/origem")
@@ -159,7 +158,7 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
 }
 
 #[test]
-fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
+fn confirmar_vai_a_sessao_e_sem_ela_falha_antes_da_rede() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",
@@ -173,8 +172,13 @@ fn confirmar_recusa_antes_de_ler_sessao_inexistente() {
         "Anexo",
         "--confirmar",
     ]);
+    // A escrita não depende de chave de ensaio: --confirmar segue para a
+    // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "arquivo_privado_ausente_ou_inacessivel"
+    );
 }
 
 #[test]
@@ -304,7 +308,7 @@ fn dado_pedido_de_previa_web_quando_sem_sessao_entao_nao_finge_inspecao_local() 
 }
 
 #[test]
-fn dado_confirmar_com_previa_web_quando_cadastro_incompleto_entao_recusa_antes_da_sessao() {
+fn dado_confirmar_com_previa_web_quando_sem_sessao_entao_falha_antes_da_rede() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",
@@ -319,6 +323,11 @@ fn dado_confirmar_com_previa_web_quando_cadastro_incompleto_entao_recusa_antes_d
         "--consultar-sei",
         "--confirmar",
     ]);
+    // A escrita não depende de chave de ensaio: --confirmar segue para a
+    // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["causa"], "CadastroNaoValidado");
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "arquivo_privado_ausente_ou_inacessivel"
+    );
 }

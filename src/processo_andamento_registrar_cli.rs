@@ -37,14 +37,17 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             "Texto do andamento deve conter entre 1 e 500 caracteres",
         ));
     }
-    // Recusa origem explicitamente não autorizada antes de carregar a sessão.
-    // A origem efetiva também é conferida antes de qualquer request.
-    if *confirmar && origem_explicita_nao_autorizada() {
-        return Some(escrita_fechada(cli.json));
-    }
     Some(com_sessao(cli, |sessao, indice| {
-        if *confirmar && !origem_permitida(sessao.origem) {
-            return escrita_fechada(cli.json);
+        if *confirmar
+            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
+                cli.json,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
+            );
         }
         match processo_andamento_registrar::registrar(
             sessao,
@@ -118,39 +121,4 @@ fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
         eprintln!("IES: {mensagem} [{subcodigo}]");
     }
     ExitCode::from(2)
-}
-
-/// A origem literal, e não um sufixo parcial, delimita o ensaio:
-/// simulador reservado e duas instalações de treinamento com evidência.
-/// Nunca autorizar uma origem externa por conter apenas "treinamento".
-fn origem_permitida(origem: &str) -> bool {
-    let Some(instalacao) = crate::instalacao::Instalacao::interpretar(origem) else {
-        return false;
-    };
-    matches!(
-        instalacao.url_base(),
-        "https://sei.test/sei"
-            | "https://sei.treinamento.unb.br/sei"
-            | "https://seitreinamento.go.gov.br/sei"
-    )
-}
-
-/// Se o usuário especificou arquivo de origem, recuse uma origem inválida
-/// antes da sessão; no modo de configuração a checagem segue na sessão.
-fn origem_explicita_nao_autorizada() -> bool {
-    let Some(caminho) = std::env::var_os("IES_ORIGEM_FILE") else {
-        return false;
-    };
-    !std::fs::read_to_string(caminho)
-        .ok()
-        .is_some_and(|origem| origem_permitida(origem.trim()))
-}
-
-fn escrita_fechada(json_mode: bool) -> ExitCode {
-    let erro = Erro::EscritaAindaFechada;
-    publicar_valor_da_falha(
-        json_mode,
-        &json_base_da_falha("fonte_invalida", erro.subcodigo(), erro.mensagem(), None),
-        erro.saida(),
-    )
 }

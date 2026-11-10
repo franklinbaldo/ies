@@ -53,26 +53,38 @@ pub fn guardar(
     id: &str,
     historico: &Historico,
 ) -> Result<(), Falha> {
+    let tx = banco.unchecked_transaction()?;
+    guardar_no_banco(&tx, instalacao, cenario, id, historico)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn guardar_no_banco(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    historico: &Historico,
+) -> Result<(), Falha> {
     if cenario.is_empty() || !valido(id, historico) {
         return Err(Falha::DadoInvalido);
     }
     let origem = instalacao.url_base();
     let total = i64::try_from(historico.total_declarado).map_err(|_| Falha::DadoInvalido)?;
-    let tx = banco.unchecked_transaction()?;
-    tx.execute(
+    banco.execute(
         "INSERT INTO andamento_historico (origem, cenario, id_procedimento, total_declarado)
          VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT (origem, cenario, id_procedimento) DO UPDATE SET
          total_declarado=excluded.total_declarado",
         params![origem, cenario, id, total],
     )?;
-    tx.execute(
+    banco.execute(
         "DELETE FROM andamento_linha
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
         params![origem, cenario, id],
     )?;
     for (posicao, linha) in historico.linhas.iter().enumerate() {
-        tx.execute(
+        banco.execute(
             "INSERT INTO andamento_linha
              (origem, cenario, id_procedimento, posicao, ocorrido_em, unidade, usuario, descricao)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -88,7 +100,6 @@ pub fn guardar(
             ],
         )?;
     }
-    tx.commit()?;
     Ok(())
 }
 
@@ -104,7 +115,12 @@ pub fn acrescentar(
     id: &str,
     linha: Linha,
 ) -> Result<(), Falha> {
-    let Some(mut historico) = ler(banco, instalacao, cenario, id)? else {
+    // Serializa escritores antes da leitura, evitando atualizações perdidas.
+    let tx = rusqlite::Transaction::new_unchecked(
+        banco,
+        rusqlite::TransactionBehavior::Immediate,
+    )?;
+    let Some(mut historico) = ler(&tx, instalacao, cenario, id)? else {
         return Err(Falha::DadoInvalido);
     };
     historico.total_declarado = historico
@@ -112,7 +128,9 @@ pub fn acrescentar(
         .checked_add(1)
         .ok_or(Falha::DadoInvalido)?;
     historico.linhas.insert(0, linha);
-    guardar(banco, instalacao, cenario, id, &historico)
+    guardar_no_banco(&tx, instalacao, cenario, id, &historico)?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Reconstrói somente a observação presente e validada.

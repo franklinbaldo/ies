@@ -257,7 +257,6 @@ fn executar(
         .map(|args| {
             Command::new(env!("CARGO_BIN_EXE_ies"))
                 .args(*args)
-                .env("IES_ANTI_IES_TESTE", "1")
                 .env("IES_URL_CONTROLE_FILE", &controle)
                 .env("IES_COOKIE_FILE", &cookie)
                 .env("IES_ORIGEM_FILE", &origem)

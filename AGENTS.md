@@ -75,8 +75,8 @@ Estas regras são a **fonte única** dos prompts curtos das automações.
    atendido; `CLI:` comando e resultado; `CONTINUAR:` próximo ID já
    previsto. Após a integração, a issue volta à fila se houver BDD pendente.
 5. **Revisão e integração:** 🦅 avalia a PR contra o BDD prévio;
-   🐘/🦡 integram com gates verdes. Preservar testes existentes e
-   `--confirmar` seguro até a validação em treinamento.
+   🐘/🦡 integram com gates verdes. Preservar testes existentes;
+   `--confirmar` grava em treinamento, sem trava de ensaio.
 6. **Capacidades primeiro:** implementar o caminho mais simples para
    o comportamento contratado, sem hardening especulativo, sem romper
    limites invioláveis nem gates.

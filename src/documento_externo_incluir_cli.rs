@@ -16,18 +16,6 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-// A escrita externa continua fechada. O ensaio opt-in somente pode tentar
-// confirmação contra o domínio reservado .test com proxy TLS em loopback.
-fn ensaio_local_habilitado() -> bool {
-    std::env::var("IES_ANTI_IES_TESTE").as_deref() == Ok("1")
-}
-
-// Ensaio live autorizado da #332: opt-in explícito por variável; a origem
-// exata de treinamento é exigida depois, ao ler a sessão, antes da rede.
-fn ensaio_treinamento_habilitado() -> bool {
-    std::env::var("IES_ENSAIO_TREINAMENTO").as_deref() == Ok("332")
-}
-
 #[derive(Debug, Serialize)]
 enum FalhaTipoExterno {
     Vazio,
@@ -39,7 +27,6 @@ enum FalhaInclusaoExterna {
     Processo(NumeroProcessoInvalido),
     Tipo(FalhaTipoExterno),
     Pdf(FalhaPdf),
-    CadastroNaoValidado,
 }
 
 fn validar_tipo(tipo: &str) -> Result<(), FalhaTipoExterno> {
@@ -115,24 +102,13 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
             ));
         }
     };
-    // Não habilita escrita em SEI: somente a bancada isolada pode
-    // exercitar a confirmação já existente.
-    if *confirmar && (ensaio_local_habilitado() || ensaio_treinamento_habilitado()) {
+    if *confirmar {
         return Some(confirmar_remoto::executar(
             cli,
             &processo,
             tipo,
             &pdf,
             Path::new(arquivo),
-            ensaio_treinamento_habilitado(),
-        ));
-    }
-    if *confirmar {
-        return Some(recusa(
-            cli.json,
-            &FalhaInclusaoExterna::CadastroNaoValidado,
-            "confirmação fechada antes da sessão e da rede: faltam formulário, upload e releitura observados",
-            1,
         ));
     }
     if *consultar_sei {

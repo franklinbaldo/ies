@@ -11,6 +11,8 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::num::NonZeroU32;
 
+include!("anti_ies_documento_fontes.rs");
+
 fn escapar(texto: &str) -> String {
     texto
         .replace('&', "&amp;")
@@ -31,47 +33,33 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     resposta
 }
 
-/// Cruza a identidade do GET de conteúdo com uma árvore registrada na
-/// mesma cassette. Sem a árvore, não se atribui um NUP ao documento.
-fn processo_observado_da_arvore(
-    json: &serde_json::Value,
-    id_documento: &str,
-    numero: &str,
-) -> (String, String) {
-    let mut vistos = Vec::new();
-    for resposta in gravacao::respostas(json) {
-        if resposta.operacao != "procedimento_visualizar"
-            || resposta.metodo != "GET"
-            || resposta.status != 200
-        {
-            continue;
+/// Serve a revisão observada e confere que GET e POST recusado não a alteram.
+fn servir_conteudo_observado(
+    documento: DocumentoSimulado,
+    instalacao: iesei::instalacao::Instalacao,
+) -> (SocketAddr, std::thread::JoinHandle<()>) {
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
+        for _ in 0..3 {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
+                .unwrap();
         }
-        let Some(id) = gravacao::id_procedimento(resposta.item) else {
-            continue;
-        };
-        let Ok(html) = html_da_resposta(resposta.item) else {
-            continue;
-        };
-        let Some(nup) = crate::arvore_processo::nup_declarado_na_arvore(&html) else {
-            continue;
-        };
-        let Ok(arvore) = crate::arvore_processo::ler_arvore(&html, &nup, &id) else {
-            continue;
-        };
-        if arvore
-            .documentos
-            .iter()
-            .any(|doc| doc.id == id_documento && doc.numero_sei.as_deref() == Some(numero))
-        {
-            vistos.push((id, nup));
-        }
-    }
-    let primeiro = vistos
-        .first()
-        .expect("árvore original liga DOC ao processo")
-        .clone();
-    assert!(vistos.iter().all(|identidade| identidade == &primeiro));
-    primeiro
+        assert_eq!(
+            banco
+                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            1,
+            "GET e POST recusado não modificam o SQLite"
+        );
+    });
+
+    (endereco, tarefa)
 }
 
 /// Extrai só a região editável: o rodapé do anti-IES não é conteúdo do documento.
@@ -119,6 +107,14 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     assert!(!texto_original.contains("infra_hash"));
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
+    let revisao = revisao_do_conteudo_observado(
+        &captura.json,
+        id_observado,
+        &identidade.numero,
+        &html_original,
+        &texto_original,
+    );
+    let numero_versao = revisao.versao.get();
 
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -127,41 +123,22 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         numero_processo: nup_observado.clone(),
         numero: identidade.numero.clone(),
         tipo: identidade.tipo.clone(),
-        revisoes: vec![Revisao {
-            versao: NonZeroU32::new(1).unwrap(),
-            usuario: "SIMULADO".to_owned(),
-            unidade: "SIMULADO".to_owned(),
-            modificacao: "09/11/2026".to_owned(),
-            html_corpo: format!("<p>{}</p>", escapar(&texto_original)),
-        }],
+        revisoes: vec![revisao],
     };
-    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = escuta.local_addr().unwrap();
-    let tarefa = std::thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
-        for _ in 0..3 {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
-                .unwrap();
-        }
-        assert_eq!(
-            banco
-                .query_row("SELECT count(*) FROM documento_revisao", [], |r| r
-                    .get::<_, i64>(0))
-                .unwrap(),
-            1,
-            "GET e POST recusado não modificam o SQLite"
-        );
-    });
+    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao);
     let url = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}"
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao={numero_versao}&id_procedimento={processo_observado}"
     );
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let identidade_anti = crate::documento_web::identidade_do_titulo(html_anti).unwrap();
+    assert_eq!(
+        crate::rodape_do_documento::versao_do_rodape(html_anti)
+            .map(crate::documento_versoes::VersaoDocumento::numero),
+        Some(numero_versao),
+        "o anti-IES precisa devolver a versão observada, não uma revisão suposta"
+    );
     assert_eq!(
         identidade_anti, identidade,
         "número/tipo vêm da fonte original"
@@ -178,7 +155,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         endereco,
         "GET",
         &format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao=1&id_procedimento={processo_observado}0"
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao={numero_versao}&id_procedimento={processo_observado}0"
         ),
     );
     assert!(
@@ -187,48 +164,6 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     );
     assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
-}
-
-/// Reconstrói apenas versões/metadados observados, sem inventar corpo histórico.
-fn revisoes_da_cassette(
-    historico: &crate::documento_versoes::HistoricoDocumento,
-) -> (Vec<Revisao>, Vec<u32>) {
-    let atual = historico.atual().expect("histórico não vazio").numero();
-    let mut revisoes = Vec::new();
-    let mut versoes = Vec::new();
-    for n in 1..=atual {
-        let versao = crate::documento_versoes::VersaoDocumento::nova(n).unwrap();
-        if let Ok(entrada) = historico.selecionar(versao) {
-            versoes.push(n);
-            revisoes.push(Revisao {
-                versao: NonZeroU32::new(n).unwrap(),
-                usuario: entrada.usuario.clone(),
-                unidade: entrada.unidade.clone(),
-                modificacao: entrada.modificacao.clone(),
-                html_corpo: "<p>Conteúdo não observado nesta versão.</p>".to_owned(),
-            });
-        }
-    }
-    assert_eq!(revisoes.len(), historico.len());
-    (revisoes, versoes)
-}
-
-/// O número e o tipo da mesma identidade vêm do conteúdo gravado, não da fixture.
-fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (String, String) {
-    let conteudos: Vec<_> = gravacao::respostas(json)
-        .into_iter()
-        .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
-        .collect();
-    assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
-    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
-    assert!(
-        !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
-        "histórico e conteúdo precisam referir o mesmo id_documento"
-    );
-    let identidade =
-        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
-            .unwrap();
-    (identidade.numero, identidade.tipo)
 }
 
 #[test]

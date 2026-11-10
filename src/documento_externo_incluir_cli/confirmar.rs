@@ -1,5 +1,5 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
-//! A rotina de chamada permanece fechada até ensaio real em TREINAMENTO.
+//! Validada ao vivo na `UnB` de treinamento (09/11/2026, saída 0).
 use crate::Cli;
 use crate::documento_externo_incluir::{
     PdfLocal,
@@ -21,23 +21,17 @@ pub(super) fn executar(
     tipo: &str,
     pdf: &PdfLocal,
     caminho_pdf: &Path,
-    ensaio_treinamento: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // O marker opt-in, sozinho, não autoriza tocar em instalações reais.
-        // Exigir origem reservada e proxy exclusivamente na máquina local
-        // antes da primeira requisição, inclusive GET; ou, no ensaio live
-        // autorizado, a origem exata da UnB de treinamento.
-        let proxy_local =
-            std::env::var("https_proxy").is_ok_and(|proxy| proxy.starts_with("http://127.0.0.1:"));
-        let bancada = sessao.origem == "https://sei.test/sei" && proxy_local;
-        let treinamento = ensaio_treinamento && origem_unb_de_treinamento(sessao.origem);
-        if !bancada && !treinamento {
-            return super::recusa(
+        // Limite inviolável do AGENTS.md: só treinamento/homologação.
+        if let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+            crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
                 cli.json,
-                &super::FalhaInclusaoExterna::CadastroNaoValidado,
-                "ensaio de confirmação somente em sei.test com proxy loopback ou na UnB de treinamento",
-                1,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
             );
         }
         let mut envio = EnvioHttps;
@@ -105,13 +99,6 @@ pub(super) fn executar(
     })
 }
 
-/// Identidade exata da instalação de treinamento em que o oráculo Todos
-/// observou o cadastro externo (SEI 4); hosts semelhantes não passam.
-fn origem_unb_de_treinamento(origem: &str) -> bool {
-    crate::instalacao::Instalacao::interpretar(origem)
-        .is_some_and(|instalacao| instalacao.url_base() == "https://sei.treinamento.unb.br/sei")
-}
-
 fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
     json!({
         "confirmado": false,
@@ -141,22 +128,6 @@ mod tests {
         assert_eq!(resultado["cadastro_tentado"], true);
         assert_eq!(resultado["temporario_possivel"], true);
         assert_eq!(resultado["retentavel"], false);
-    }
-
-    #[test]
-    fn ensaio_live_aceita_somente_a_origem_exata_da_unb_de_treinamento() {
-        assert!(origem_unb_de_treinamento(
-            "https://sei.treinamento.unb.br/sei"
-        ));
-        for outra in [
-            "https://sei.unb.br/sei",
-            "https://sei.treinamento.unb.br.exemplo/sei",
-            "https://sei.treinamento.unb.br/outro",
-            "http://sei.treinamento.unb.br/sei",
-            "https://sei.test/sei",
-        ] {
-            assert!(!origem_unb_de_treinamento(outra), "{outra}");
-        }
     }
 
     #[test]

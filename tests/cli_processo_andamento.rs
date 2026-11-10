@@ -21,7 +21,7 @@ fn json(saida: &Output) -> serde_json::Value {
 }
 
 #[test]
-fn confirmar_recusa_antes_da_sessao() {
+fn confirmar_sem_sessao_falha_antes_da_rede() {
     let saida = sem_sessao(&[
         "processo",
         "andamento",
@@ -34,7 +34,7 @@ fn confirmar_recusa_antes_da_sessao() {
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(
         json(&saida)["subcodigo"],
-        "escrita_de_andamento_ainda_fechada"
+        "arquivo_privado_ausente_ou_inacessivel"
     );
 }
 

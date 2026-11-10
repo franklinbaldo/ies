@@ -214,3 +214,12 @@ Emissor: src/arvore_processo/atribuir.rs. Todos os links são conferidos antes d
 | `links_de_atribuir_repetidos_na_barra` | Dois links para a mesma ação. |
 | `endereco_da_atribuicao_nao_reconhecido` | Endereço não assinado ou fora da forma servida. |
 | `endereco_da_atribuicao_de_outro_processo` | Identidade da ação diferente do processo aberto. |
+
+### origem_de_treinamento
+
+Emissor: src/origem_de_treinamento.rs. Conferido em todo `--confirmar` que grava, antes da primeira requisição.
+
+| Subcódigo | Condição |
+| --- | --- |
+| `origem_fora_do_treinamento` | A origem da sessão não é instalação pública de treinamento nem a bancada `sei.test`. |
+| `confirmar_sem_alteracao_de_prazo` | `processo prazo --confirmar` sem `--ate`, `--dias` ou `--excluir`. |

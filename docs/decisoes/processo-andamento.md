@@ -4,7 +4,7 @@ title: Andamento do processo com POST único e prova por histórico
 operation: processo.andamento
 implementation: partial
 status: adopted-for-scope
-scope: prévia Web para todos; confirmação em treinamento UnB/GO ou simulador .test, inclusive release, com releitura; demais origens recusadas
+scope: prévia Web e confirmação exclusivamente em instalações autorizadas de treinamento ou simulador local, com um POST e releitura
 selected_strategy: web-formulario-servido-com-releitura
 alternatives: web-formulario-servido-com-releitura,web-sem-conferencia,rest-wssei
 evidence_level: todos-unb-e-cassettes-de-treinamento
@@ -35,9 +35,9 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 - [Contrato](../../contracts/cli/processo-andamento.md)
 - [Evidências da matriz](../../contracts/evidencias/processo-andamento.md)
 - [Teste da trava de escrita](../../tests/cli_processo_andamento.rs)
-- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. A confirmação possui teste CLI real no anti-IES e testes unitários do fluxo.
+- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs` e E2E CLI real → HTTPS loopback → anti-IES → SQLite em `tests/aies_andamento_cli.rs` para BDD-259-01/02.
 
 ## Limitações e revisão
 
-A confirmação é habilitada somente para as origens exatas UnB/GO de treinamento e o simulador `.test`. A origem é verificada antes da requisição, mesmo no binário de distribuição. O teste BDD-259-02 exercita duas execuções reais da CLI com um SQLite compartilhado, incluindo consulta do histórico completo; comprova somente compatibilidade sintética, não paridade com cassette ou treinamento, ambos NOT_RUN. 
-A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
+Desde 09/11/2026, `--confirmar` grava nas instalações de treinamento sem trava de ensaio (decisão do proprietário); outra origem recebe `origem_fora_do_treinamento` antes da rede. 
+A prova BDD-259-02 é sintética: duas CLIs consultam o mesmo SQLite após um POST único; integridade UnB/GO verificada, mas confronto semântico independente e live permanecem NOT_RUN. A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
