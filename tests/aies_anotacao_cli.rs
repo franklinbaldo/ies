@@ -122,16 +122,33 @@ fn estado(texto_anotacao: &str) -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
+#[derive(Clone, Copy)]
+enum Caso<'a> {
+    Consulta(&'a str),
+    Registro,
+    Retirada,
+}
+
+#[derive(Clone, Copy)]
+enum Resultado {
+    Previa,
+    Confirmado,
+    Recusado,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn executar_caso(
-    confirmar: bool,
-    resposta_recusada: bool,
-    consulta: Option<&str>,
-    modo_json: bool,
-) {
+fn executar_caso(caso: Caso<'_>, resultado: Resultado, modo_json: bool) {
+    let confirmar = !matches!(resultado, Resultado::Previa);
+    let resposta_recusada = matches!(resultado, Resultado::Recusado);
+    let remover = matches!(caso, Caso::Retirada);
+    let consulta = match caso {
+        Caso::Consulta(texto) => Some(texto),
+        Caso::Registro => None,
+        Caso::Retirada => Some("Rascunho"),
+    };
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -199,8 +216,11 @@ fn executar_caso(
     } else {
         vec!["processo", "anotar", NUP]
     };
-    if consulta.is_none() {
+    if consulta.is_none() && !remover {
         argumentos.extend(["--texto", "Revisar minuta"]);
+    }
+    if remover {
+        argumentos.push("--remover");
     }
     if confirmar {
         argumentos.push("--confirmar");
@@ -233,7 +253,7 @@ fn executar_caso(
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    if let Some(texto) = consulta {
+    if !remover && let Some(texto) = consulta {
         if modo_json {
             let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
             assert_eq!(json["nup"], NUP);
@@ -277,16 +297,20 @@ fn executar_caso(
         assert_eq!(json["retentavel"], false);
     } else {
         assert_eq!(json["nup"], NUP);
-        assert_eq!(json["texto"], "Revisar minuta");
-        assert_eq!(json["anotacao_antes"], "");
+        let texto_esperado = if remover { "" } else { "Revisar minuta" };
+        let anotacao_esperada = if remover { "Rascunho" } else { "" };
+        assert_eq!(json["texto"], texto_esperado);
+        assert_eq!(json["anotacao_antes"], anotacao_esperada);
         assert_eq!(json["confirmado"], confirmar);
         assert_eq!(json["alterado"], confirmar);
         assert_eq!(json["requisicoes"], pedidos.len());
     }
-    assert_eq!(
-        persistido.as_deref(),
-        Some(if confirmar { "Revisar minuta" } else { "" })
-    );
+    let anotacao_esperada = match (remover, confirmar) {
+        (true, true) | (false, false) => "",
+        (true, false) => "Rascunho",
+        (false, true) => "Revisar minuta",
+    };
+    assert_eq!(persistido.as_deref(), Some(anotacao_esperada));
     assert_eq!(
         pedidos
             .iter()
@@ -305,28 +329,43 @@ fn executar_caso(
 
 #[test]
 fn bdd_anot_01_previa_publica_texto_sem_escrever() {
-    executar_caso(false, false, None, true);
+    executar_caso(Caso::Registro, Resultado::Previa, true);
 }
 
 #[test]
 fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
-    executar_caso(true, false, None, true);
+    executar_caso(Caso::Registro, Resultado::Confirmado, true);
 }
 
 #[test]
 fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
-    executar_caso(true, true, None, true);
+    executar_caso(Caso::Registro, Resultado::Recusado, true);
 }
 
 #[test]
 fn bdd_anot_03_consulta_texto_publicado_sem_post() {
-    executar_caso(false, false, Some("Revisar minuta"), true);
-    executar_caso(false, false, Some("Revisar minuta"), false);
-    executar_caso(false, false, Some("   "), true);
-    executar_caso(false, false, Some("   "), false);
+    executar_caso(Caso::Consulta("Revisar minuta"), Resultado::Previa, true);
+    executar_caso(Caso::Consulta("Revisar minuta"), Resultado::Previa, false);
+    executar_caso(Caso::Consulta("   "), Resultado::Previa, true);
+    executar_caso(Caso::Consulta("   "), Resultado::Previa, false);
 }
 
 #[test]
 fn bdd_anot_03_consulta_sem_anotacao_publica_null() {
-    executar_caso(false, false, Some(""), true);
+    executar_caso(Caso::Consulta(""), Resultado::Previa, true);
+}
+
+#[test]
+fn bdd_anot_04_previa_remocao_sem_post() {
+    executar_caso(Caso::Retirada, Resultado::Previa, true);
+}
+
+#[test]
+fn bdd_anot_04_remove_uma_vez_e_confere_vazio_por_releitura() {
+    executar_caso(Caso::Retirada, Resultado::Confirmado, true);
+}
+
+#[test]
+fn bdd_anot_04_403_apos_remocao_aplicada_exige_efeito_incerto() {
+    executar_caso(Caso::Retirada, Resultado::Recusado, true);
 }

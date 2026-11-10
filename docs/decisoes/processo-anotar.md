@@ -4,7 +4,7 @@ title: Anotação de processo observada antes e depois de uma escrita
 operation: processo.anotar
 implementation: partial
 status: adopted-for-scope
-scope: consulta sem escrita, prévia e confirmação única com releitura
+scope: consulta, prévia, registro e retirada única com releitura
 selected_strategy: web-formulario-servido-com-identidade
 alternatives: web-formulario-servido-com-identidade,estado-inferido-da-barra,url-assinada-construida
 evidence_level: todos-unb-e-cassettes-publicas
@@ -77,6 +77,12 @@ As duas regressões da CLI real/anti-IES/SQLite distinguem texto, vazio
 explícito e imutabilidade da consulta; não constituem prova de paridade
 com as respostas históricas nem validação externa.
 
+## Extensão BDD-ANOT-04: retirada explícita
+
+A mesma `frmAnotacaoCadastro` publicada para consulta/registro oferece o campo `txaDescricao` e `sbmRegistrarAnotacao`. A hipótese mínima de retirada é submeter texto vazio com o formulário efetivamente servido, somente quando `--remover --confirmar` foi solicitado e a anotação anterior não está comprovadamente vazia. A transição SQLite do anti-IES já suporta esse caso; a CLI exige 302 causal e releitura independente vazia. Recusa depois do efeito não vira sucesso, mesmo se a anotação desaparecer.
+
+**Nível de evidência:** os cards históricos mostram a operação, não a semântica da retirada. Confronto bilateral com cassettes e treinamento permanecem `NOT_RUN` até execução independente.
+
 ## Limitações e revisão
 
-A integração da CLI com o anti-IES/SQLite é sintética. Os ZIPs não provam que a mesma resposta e a projeção do anti-IES coincidem semanticamente, nem provam efeito de POST. Confronto bilateral com cassettes: **NOT_RUN**; treinamento e produção: **NOT_RUN**, sem requisições ou escrita externa. BDD-ANOT-04/05 (retirada e envio) ficam para próximas fatias. Rever o contrato após observação independente do formulário, sem elevar hipótese à condição de fato.
+A integração da CLI com o anti-IES/SQLite é sintética. Os ZIPs não provam que a mesma resposta e a projeção do anti-IES coincidem semanticamente, nem provam efeito de POST. Confronto bilateral com cassettes: **NOT_RUN**; treinamento e produção: **NOT_RUN**, sem requisições ou escrita externa. BDD-ANOT-05 (remoção no envio) fica para a próxima fatia. Rever o contrato após observação independente do formulário, sem elevar hipótese à condição de fato.
