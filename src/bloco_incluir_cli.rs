@@ -31,12 +31,6 @@ pub(crate) fn executar(
     let Some(Ok(documento)) = documento.map(NumeroDocumento::novo) else {
         return uso(cli.json, "número de documento inválido");
     };
-    if confirmar {
-        return erro_fonte(
-            cli.json,
-            "confirmação da inclusão em bloco ainda não implementada; nenhuma requisição enviada",
-        );
-    }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
         Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
@@ -49,6 +43,14 @@ pub(crate) fn executar(
         Ok(referencias) => referencias,
         Err(falha) => return erro_fonte(cli.json, falha.mensagem()),
     };
+    if confirmar
+        && let Err(causa) = crate::origem_de_treinamento::exigir(
+            crate::origem_de_treinamento::Escrita::BlocoIncluirDocumento,
+            referencias.origem(),
+        )
+    {
+        return crate::origem_de_treinamento::recusa(cli.json, causa);
+    }
     let sessao = SessaoDoProcesso {
         url_do_controle: referencias.url_do_controle(),
         origem: referencias.origem(),
@@ -60,10 +62,22 @@ pub(crate) fn executar(
         cli.unidade.as_deref(),
         bloco,
         &documento,
+        confirmar,
         &IndiceLocal::da_configuracao(&arquivos),
         &mut EnvioHttps,
     ) {
         Ok(previa) => publicar(cli.json, &previa),
+        Err(crate::bloco_incluir::ErroIncluir::NaoConfirmado) => {
+            let mensagem = "inclusão não confirmada; consulte o bloco antes de repetir";
+            if cli.json {
+                println!("{}", json!({
+                    "codigo": "nao_confirmado", "erro": mensagem, "retentavel": false
+                }));
+                ExitCode::from(1)
+            } else {
+                erro_fonte(false, mensagem)
+            }
+        }
         Err(erro) => erro_fonte(cli.json, &erro.mensagem()),
     }
 }
@@ -76,13 +90,18 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) -> ExitCode {
                 "bloco": previa.bloco,
                 "tipo_bloco": "assinatura",
                 "alvo": {"documento": previa.documento},
-                "confirmado": false,
-                "alterado": false,
+                "confirmado": previa.confirmado,
+                "alterado": previa.alterado,
                 "presente_antes": previa.presente_antes,
-                "presente_depois": null,
+                "presente_depois": previa.presente_depois,
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
             })
+        );
+    } else if previa.alterado {
+        println!(
+            "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
+            previa.documento, previa.bloco, previa.requisicoes
         );
     } else {
         let antes = match previa.presente_antes {
