@@ -6,7 +6,6 @@ use super::{
     escolher_grupo, grupos_do_cadastro,
 };
 use crate::arvore_processo::ErroAcompanharNaBarra;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, decodificar_atributo, enviar_submissao_via,
 };
@@ -34,7 +33,9 @@ pub(crate) enum ErroPrevia {
     Estrutura(#[from] ErroAcompanhar),
     Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
     NaoConfirmado,
-    Html(#[from] ErroHtml),
+    PedidoDeAcompanhamentoInvalido,
+    RedirecionamentoDeAcompanhamentoInesperado,
+    TelaDeAcompanhamentoInesperada,
 }
 
 pub(crate) struct Pedido<'a> {
@@ -88,11 +89,8 @@ impl EstadoDoAcompanhamento {
 
 fn url_do_cadastro(instalacao: &Instalacao, ref_url: &str, id: &str) -> Result<String, ErroPrevia> {
     use crate::arvore_processo::conferir_endereco_relativo;
-    conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id).map_err(|_| {
-        ErroPrevia::Html(ErroHtml::valor(
-            "redirecionamento_de_acompanhamento_inesperado",
-        ))
-    })
+    conferir_endereco_relativo(instalacao, ref_url, "acompanhamento_cadastrar", id)
+        .map_err(|_| ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado)
 }
 
 fn redirecionamento_do_gerenciar(
@@ -103,41 +101,39 @@ fn redirecionamento_do_gerenciar(
 ) -> Result<String, ErroPrevia> {
     let consulta = loc
         .and_then(|v| crate::formulario_web::consulta_do_controlador(v, origem))
-        .ok_or(ErroHtml::valor(
-            "redirecionamento_de_acompanhamento_inesperado",
-        ))?;
+        .ok_or(ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado)?;
     url_do_cadastro(instalacao, &format!("controlador.php?{consulta}"), id)
 }
 
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroPrevia> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?;
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
         let tag = no
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?;
+            .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(|e| ErroHtml::atributo("tela_de_acompanhamento_inesperada", e))?
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
-        let onclick = decodificar_atributo(&onclick)
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+            .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?
+            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+        let onclick =
+            decodificar_atributo(&onclick).ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         let url = onclick
             .strip_prefix("location.href='")
             .and_then(|v| v.strip_suffix("';").or_else(|| v.strip_suffix("'")))
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         urls.push(url_do_cadastro(instalacao, url, id)?);
     }
     match urls.as_slice() {
         [url] => Ok(url.to_owned()),
-        _ => Err(ErroHtml::valor("tela_de_acompanhamento_inesperada").into()),
+        _ => Err(ErroPrevia::TelaDeAcompanhamentoInesperada),
     }
 }
 
@@ -149,7 +145,7 @@ fn html_da_tela<V: EnvioDoProcesso>(
 ) -> Result<(String, String), ErroPrevia> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
-        return Err(ErroHtml::valor("redirecionamento_de_acompanhamento_inesperado").into());
+        return Err(ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado);
     }
     let mime = resposta.resposta.mime.clone();
     let html = decodificar_resposta(resposta.resposta)?;
@@ -166,7 +162,7 @@ fn selecionar_previa(
 ) -> Result<Previa, ErroPrevia> {
     if pedido.deixar {
         if pedido.observacao.is_some() {
-            return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
+            return Err(ErroPrevia::PedidoDeAcompanhamentoInvalido);
         }
         let alvo = if antes.is_empty()
             || pedido
@@ -192,7 +188,7 @@ fn selecionar_previa(
             requisicoes,
         });
     }
-    let grupos = grupos.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+    let grupos = grupos.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
     let selecionado = escolher_grupo(grupos, pedido.grupo)?;
     Ok(Previa {
         numero: numero.to_owned(),
@@ -242,7 +238,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
                 let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
                 let destino = super::exclusao::destino_oferecido(instalacao, &html, id, &alvo.id)?;
                 let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-                    .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+                    .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
                 let tela = crate::formulario_web::TelaServida {
                     url: link,
                     html: &html,
@@ -275,7 +271,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
     if pedido.deixar && pedido.observacao.is_some() {
-        return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
+        return Err(ErroPrevia::PedidoDeAcompanhamentoInvalido);
     }
     let instalacao =
         Instalacao::interpretar(sessao.origem).ok_or(ErroPrevia::OrigemNaoAutorizada)?;
@@ -307,10 +303,10 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let grupos = if pedido.deixar {
         None
     } else {
-        let url = url_cadastro.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        let url = url_cadastro.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         let (html, mime) = html_da_tela(&mut rede, &cookie, &url)?;
         let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+            .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         // A prévia só é considerada válida se a submissão exata também
         // puder ser derivada, sem escrever e sem construir URL artificial.
         let tela = crate::formulario_web::TelaServida {
@@ -347,7 +343,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Ok(plano);
     }
     if pedido.deixar {
-        let submissao = exclusao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        let submissao = exclusao.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         return confirmar_remocao(
             &mut rede,
             sessao,
@@ -360,7 +356,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
             submissao,
         );
     }
-    let submissao = submissao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+    let submissao = submissao.ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
     confirmar_inclusao(
         &mut rede,
         sessao,
@@ -392,7 +388,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         return Err(ErroPrevia::Formulario(
             resposta
                 .err()
-                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
+                .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?,
         ));
     }
     // O 302 é dado, nunca seguido; só a lista relida pode provar efeito.

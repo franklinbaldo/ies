@@ -7,7 +7,6 @@ use super::{
     Conexao, Credenciais, ErroLogin, MAX_REDIRECIONAMENTOS, PedidoDeLogin, RespostaHttp,
     ResultadoDoLogin, TransporteDeLogin, tela,
 };
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{SubmissaoDerivada, TelaServida};
 use crate::indice_local::IndiceLocal;
@@ -243,9 +242,7 @@ fn tela_inicial<T: TransporteDeLogin>(
         return Err(ErroLogin::SegundoFatorExigido);
     }
     if !crate::tela_login::e_tela_login(&html) {
-        return Err(ErroHtml::valor("tela_de_login_nao_reconhecida")
-            .com_mensagem("a raiz não levou a um formulário de login")
-            .into());
+        return Err(ErroLogin::TelaDeLoginNaoReconhecida);
     }
     Ok((url, html, mime))
 }
@@ -297,18 +294,11 @@ fn autenticar<T: TransporteDeLogin>(
         });
     }
     // Página inicial da conta (Painel de Controle): só o link do menu.
-    let link = tela::link_do_controle(&html)?.ok_or(
-        ErroHtml::valor("tela_apos_o_login_nao_reconhecida")
-            .com_mensagem("a resposta do login não é Controle, Painel nem tela de login"),
-    )?;
-    let destino = resolver_no_host(&url, &link, host).map_err(|_| {
-        ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
-            .com_mensagem("o link do Controle de Processos do menu não é o observado")
-    })?;
-    transporte::validar_origem(&destino, origem).map_err(|_| {
-        ErroHtml::valor("link_do_controle_de_processos_nao_reconhecido")
-            .com_mensagem("o link do Controle de Processos do menu não é o observado")
-    })?;
+    let link = tela::link_do_controle(&html)?.ok_or(ErroLogin::TelaAposOLoginNaoReconhecida)?;
+    let destino = resolver_no_host(&url, &link, host)
+        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+    transporte::validar_origem(&destino, origem)
+        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
     let (url, resposta) = navegar(transporte, &mut pote, host, destino)?;
     let (html, mime) = html_200(resposta)?;
     como_controle(&url, (&html, &mime), origem, &pote).unwrap_or(Err(

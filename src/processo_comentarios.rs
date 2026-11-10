@@ -42,11 +42,20 @@ pub enum TelaDosComentarios {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub enum ErroComentarios {
+pub(crate) enum ErroComentarios {
     VisaoNaoPublicada,
     TextoDoComentarioNaoPublicado,
     ListaIncompleta,
-    Html(#[from] ErroHtml),
+    CabecalhoDosComentariosInvalido,
+    FormulariosDeComentariosRepetidos,
+    HtmlDosComentariosNaoInterpretado,
+    IdDoComentarioRepetido,
+    LegendaDosComentariosInvalida,
+    LinhaDoComentarioInvalida,
+    TabelaDeComentariosAusente,
+    TabelasDeComentariosRepetidas,
+    TelaDeComentariosNaoReconhecida,
+    AtributoDosComentariosIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, tag: &str) -> Vec<Tag<'p>> {
@@ -69,35 +78,28 @@ fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, nome: &str) -> Vec<Tag<'
 fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroComentarios> {
     atributos(tag)
         .and_then(|a| a.valor(nome))
-        .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?
+        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?
         .map(|bruto| {
-            decodificar_atributo(bruto).ok_or(ErroComentarios::Html(ErroHtml::html(
-                "html_dos_comentarios_nao_interpretado",
-            )))
+            decodificar_atributo(bruto).ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado)
         })
         .transpose()
 }
 
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentarios> {
     let bruto = tag.inner_text(parser).replace("&nbsp;", "\u{a0}");
-    decodificar_atributo(&bruto).ok_or(ErroComentarios::Html(ErroHtml::html(
-        "html_dos_comentarios_nao_interpretado",
-    )))
+    decodificar_atributo(&bruto).ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado)
 }
 
 fn tabela_unica<'p>(dom: &'p tl::VDom<'p>, id: &str) -> Result<Option<Tag<'p>>, ErroComentarios> {
-    let nos = nos_com_id(dom, id)
-        .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?;
+    let nos = nos_com_id(dom, id).map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
     match nos.as_slice() {
         [] => Ok(None),
         [um] => um
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
             .map(Some)
-            .ok_or(ErroComentarios::Html(ErroHtml::html(
-                "html_dos_comentarios_nao_interpretado",
-            ))),
-        _ => Err(ErroHtml::repetido("tabelas_de_comentarios_repetidas").into()),
+            .ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado),
+        _ => Err(ErroComentarios::TabelasDeComentariosRepetidas),
     }
 }
 
@@ -158,18 +160,14 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
             .collect();
         match indices.as_slice() {
             [i] => Ok(*i),
-            _ => Err(ErroComentarios::Html(ErroHtml::valor(
-                "cabecalho_dos_comentarios_invalido",
-            ))),
+            _ => Err(ErroComentarios::CabecalhoDosComentariosInvalido),
         }
     };
     let campo_opcional = |nome: &str| -> Result<Option<usize>, ErroComentarios> {
         match cabecalho.iter().filter(|c| *c == nome).count() {
             0 => Ok(None),
             1 => campo(nome).map(Some),
-            _ => Err(ErroComentarios::Html(ErroHtml::valor(
-                "cabecalho_dos_comentarios_invalido",
-            ))),
+            _ => Err(ErroComentarios::CabecalhoDosComentariosInvalido),
         }
     };
     let (data, unidade, usuario) = (campo("Data")?, campo("Unidade")?, campo("Usuário")?);
@@ -179,7 +177,7 @@ fn ler_colunas(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Colunas, Erro
         campo_opcional("Tipo")?,
     );
     if cabecalho.is_empty() || protocolo.is_some() != tipo.is_some() {
-        return Err(ErroHtml::valor("cabecalho_dos_comentarios_invalido").into());
+        return Err(ErroComentarios::CabecalhoDosComentariosInvalido);
     }
     Ok(Colunas {
         data,
@@ -213,38 +211,35 @@ fn ler_itens(
             .collect();
         if caixas.is_empty() {
             let classe = atributos(tr)
-                .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?
+                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?
                 .tem_classe("trComentario")
-                .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?;
+                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
             if aguardando_texto && classe && celulas.len() == 1 {
                 let ultimo = itens
                     .last_mut()
-                    .ok_or(ErroHtml::valor("linha_do_comentario_invalida"))?;
+                    .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
                 ultimo.texto = texto(celulas[0], parser)?;
                 aguardando_texto = false;
             } else if !(total == 0 && texto(tr, parser)?.contains("Nenhum registro")) {
-                return Err(ErroHtml::valor("linha_do_comentario_invalida").into());
+                return Err(ErroComentarios::LinhaDoComentarioInvalida);
             }
             continue;
         }
         if caixas.len() != 1 || aguardando_texto || celulas.len() != colunas.total {
-            return Err(ErroHtml::valor("linha_do_comentario_invalida").into());
+            return Err(ErroComentarios::LinhaDoComentarioInvalida);
         }
-        let id =
-            atributo(caixas[0], "value")?.ok_or(ErroHtml::valor("linha_do_comentario_invalida"))?;
+        let id = atributo(caixas[0], "value")?.ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroHtml::valor("linha_do_comentario_invalida").into());
+            return Err(ErroComentarios::LinhaDoComentarioInvalida);
         }
         if !ids.insert(id.clone()) {
-            return Err(ErroHtml::repetido("id_do_comentario_repetido").into());
+            return Err(ErroComentarios::IdDoComentarioRepetido);
         }
         let valor = |i: usize| -> Result<String, ErroComentarios> {
             celulas
                 .get(i)
                 .map(|td| texto(td, parser))
-                .ok_or(ErroComentarios::Html(ErroHtml::valor(
-                    "linha_do_comentario_invalida",
-                )))?
+                .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?
         };
         itens.push(ComentarioLido {
             id,
@@ -284,35 +279,35 @@ fn ler_lista<'p>(
         },
         _ => return Err(ErroComentarios::VisaoNaoPublicada),
     };
-    let tabela = tabela_unica(dom, "tblComentarios")?
-        .ok_or(ErroHtml::ausente("tabela_de_comentarios_ausente"))?;
+    let tabela =
+        tabela_unica(dom, "tblComentarios")?.ok_or(ErroComentarios::TabelaDeComentariosAusente)?;
     if tabela.name() != "table" {
-        return Err(ErroHtml::ausente("tabela_de_comentarios_ausente").into());
+        return Err(ErroComentarios::TabelaDeComentariosAusente);
     }
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
-        return Err(ErroHtml::valor("legenda_dos_comentarios_invalida").into());
+        return Err(ErroComentarios::LegendaDosComentariosInvalida);
     };
     let legenda = texto(caption, parser)?;
     let (prefixo, resto) = legenda
         .rsplit_once('(')
-        .ok_or(ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
+        .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
     if !prefixo.to_lowercase().contains("coment") {
-        return Err(ErroHtml::valor("legenda_dos_comentarios_invalida").into());
+        return Err(ErroComentarios::LegendaDosComentariosInvalida);
     }
     let resto = resto
         .strip_suffix("):")
         .or_else(|| resto.strip_suffix(')'))
-        .ok_or(ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
+        .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
     let numero = resto
         .strip_suffix(" registros")
         .or_else(|| resto.strip_suffix(" registro"))
-        .ok_or(ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
+        .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
     if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(ErroHtml::valor("legenda_dos_comentarios_invalida").into());
+        return Err(ErroComentarios::LegendaDosComentariosInvalida);
     }
     let total_declarado = numero
         .parse::<usize>()
-        .map_err(|_| ErroHtml::valor("legenda_dos_comentarios_invalida"))?;
+        .map_err(|_| ErroComentarios::LegendaDosComentariosInvalida)?;
     let colunas = ler_colunas(tabela, parser)?;
     let itens = ler_itens(tabela, parser, &colunas, total_declarado)?;
     Ok(TelaDosComentarios::Lista(ComentariosLidos {
@@ -329,19 +324,19 @@ fn ler_lista<'p>(
 ///
 /// Recusa telas sem forma observada, controles repetidos, tabelas ausentes,
 /// dados incompletos ou ids de comentários não inequívocos.
-pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
+pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_dos_comentarios_nao_interpretado"))?;
+        .map_err(|_| ErroComentarios::HtmlDosComentariosNaoInterpretado)?;
     let parser = dom.parser();
     let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
-        .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?;
+        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
     let listas = nos_com_id(&dom, "frmComentarioLista")
-        .map_err(|e| ErroHtml::atributo("html_dos_comentarios_nao_interpretado", e))?;
+        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
     if cadastros.len() == 1 && listas.is_empty() {
         let form = cadastros[0]
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("tela_de_comentarios_nao_reconhecida"))?;
+            .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;
         if form.name() == "form" {
             let areas = descendentes(form, parser, "textarea");
             let botoes = descendentes(form, parser, "input");
@@ -361,21 +356,21 @@ pub fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
                 return Ok(TelaDosComentarios::CadastroSemComentarios);
             }
         }
-        return Err(ErroHtml::valor("tela_de_comentarios_nao_reconhecida").into());
+        return Err(ErroComentarios::TelaDeComentariosNaoReconhecida);
     }
     let [formulario] = listas.as_slice() else {
         return Err(if listas.is_empty() {
-            ErroComentarios::Html(ErroHtml::valor("tela_de_comentarios_nao_reconhecida"))
+            ErroComentarios::TelaDeComentariosNaoReconhecida
         } else {
-            ErroComentarios::Html(ErroHtml::repetido("formularios_de_comentarios_repetidos"))
+            ErroComentarios::FormulariosDeComentariosRepetidos
         });
     };
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::valor("tela_de_comentarios_nao_reconhecida"))?;
+        .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;
     if form.name() != "form" || !cadastros.is_empty() {
-        return Err(ErroHtml::valor("tela_de_comentarios_nao_reconhecida").into());
+        return Err(ErroComentarios::TelaDeComentariosNaoReconhecida);
     }
     ler_lista(&dom, form)
 }

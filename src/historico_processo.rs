@@ -17,7 +17,6 @@ mod tests_link;
 mod tests_lista;
 #[cfg(test)]
 mod tests_visao;
-use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 use crate::processo::Andamento;
 pub(crate) use link::{EnderecoDoHistorico, ler_link_do_historico};
@@ -58,7 +57,10 @@ pub(crate) struct AndamentosLidos {
 pub(crate) enum ErroLinkDoHistorico {
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    EnderecoDoHistoricoNaoReconhecido,
+    HtmlDaArvoreNaoInterpretado,
+    LinkDoHistoricoForaDaFormaObservada,
+    LinksDoHistoricoRepetidosNaArvore,
 }
 
 /// Falhas da página do histórico e da troca de visão.
@@ -72,7 +74,8 @@ pub(crate) enum ErroAndamentos {
     CharsetDoHistoricoNaoSuportado,
     RegraDeVerHistoricoNaoObservada,
     VisaoDoHistoricoDiferenteDaPedida,
-    Html(#[from] ErroHtml),
+    LegendaDosAndamentosAusente,
+    LegendaDosAndamentosForaDaFormaObservada,
 }
 
 impl ErroAndamentos {

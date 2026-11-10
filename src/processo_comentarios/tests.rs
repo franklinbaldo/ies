@@ -76,9 +76,7 @@ fn cadastro_de_lista_vazia_nao_se_confunde_com_tela_desconhecida() {
     );
     assert_eq!(
         ler_tela("<form id='frmComentarioCadastro'></form>"),
-        Err(ErroComentarios::Html(ErroHtml::valor(
-            "tela_de_comentarios_nao_reconhecida"
-        )))
+        Err(ErroComentarios::TelaDeComentariosNaoReconhecida)
     );
 }
 
@@ -87,9 +85,7 @@ fn tabela_ausente_nao_significa_lista_vazia() {
     let html = lista_41().replace("<table id=\"tblComentarios\">", "<table>");
     assert_eq!(
         ler_tela(&html),
-        Err(ErroComentarios::Html(ErroHtml::ausente(
-            "tabela_de_comentarios_ausente"
-        )))
+        Err(ErroComentarios::TabelaDeComentariosAusente)
     );
 }
 
@@ -110,9 +106,7 @@ fn dois_comentarios_com_mesmo_id_sao_recusados() {
         .replace("</tbody>", &format!("{linha}</tbody>"));
     assert_eq!(
         ler_tela(&html),
-        Err(ErroComentarios::Html(ErroHtml::repetido(
-            "id_do_comentario_repetido"
-        )))
+        Err(ErroComentarios::IdDoComentarioRepetido)
     );
 }
 
@@ -121,9 +115,7 @@ fn linha_de_4x_sem_texto_e_recusada() {
     let html = lista_41().replace("class=\"trComentario\"", "class=\"outra\"");
     assert_eq!(
         ler_tela(&html),
-        Err(ErroComentarios::Html(ErroHtml::valor(
-            "linha_do_comentario_invalida"
-        )))
+        Err(ErroComentarios::LinhaDoComentarioInvalida)
     );
 }
 
@@ -142,20 +134,17 @@ fn visao_ausente_ou_repetida_e_recusada() {
 fn id_do_checkbox_deve_ser_decimal_e_inequivoco() {
     assert_eq!(
         ler_tela(&lista_41().replace("value=\"42\"", "value=\"42?\"")),
-        Err(ErroComentarios::Html(ErroHtml::valor(
-            "linha_do_comentario_invalida"
-        )))
+        Err(ErroComentarios::LinhaDoComentarioInvalida)
     );
     assert_eq!(
         ler_tela(&lista_41().replace(
             "<input type=\"checkbox\" value=\"42\">",
             "<input type=\"checkbox\" value=\"42\" value=\"43\">"
         )),
-        // A tag ilegível sobe como causa (`Problema::Atributo`); `onde` fica.
-        Err(ErroComentarios::Html(ErroHtml::atributo(
-            "html_dos_comentarios_nao_interpretado",
+        // A tag ilegível sobe como causa.
+        Err(ErroComentarios::AtributoDosComentariosIlegivel(
             crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "value" }
-        )))
+        ))
     );
 }
 

@@ -3,7 +3,6 @@
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_processo};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 const ID: &str = "10";
@@ -65,9 +64,7 @@ fn as_duas_formas_juntas_sao_recusa() {
     let (_, corpo) = forma_go(&url);
     assert_eq!(
         ler(&[(script, corpo)]),
-        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore"
-        )))
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -76,15 +73,11 @@ fn link_repetido_e_recusa() {
     let url = link_do_historico(ID);
     assert_eq!(
         ler(&[forma_go(&url), forma_go(&url)]),
-        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore"
-        )))
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
     assert_eq!(
         ler(&[forma_unb(&url), forma_unb(&url)]),
-        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore"
-        )))
+        Err(super::ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore)
     );
 }
 
@@ -99,9 +92,7 @@ fn onclick_fora_das_formas_e_recusa() {
     ] {
         assert_eq!(
             ler(&[(String::new(), trocado)]),
-            Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
-                "link_do_historico_fora_da_forma_observada"
-            )))
+            Err(super::ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)
         );
     }
 }
@@ -113,9 +104,7 @@ fn funcao_sem_a_linha_do_src_e_recusa() {
     let trocado = script.replace("parent.document", "window.parent.document");
     assert_eq!(
         ler(&[(trocado, corpo)]),
-        Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
-            "link_do_historico_fora_da_forma_observada"
-        )))
+        Err(super::ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)
     );
 }
 
@@ -136,9 +125,7 @@ fn url_fora_da_conferencia_e_recusa() {
     ] {
         assert_eq!(
             ler(&[forma_go(&trocada)]),
-            Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
-                "endereco_do_historico_nao_reconhecido"
-            ))),
+            Err(super::ErroLinkDoHistorico::EnderecoDoHistoricoNaoReconhecido),
             "{trocada}"
         );
     }

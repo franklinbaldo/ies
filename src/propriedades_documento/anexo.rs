@@ -1,8 +1,7 @@
 //! Download de anexo externo publicado no cadastro do SEI (#60).
 //! Fonte: Todos `tests/paginas_reais/documento_alterar_recebido.html`.
-use super::{campo, ler_formulario, valor};
+use super::{ErroPropriedadesDocumento, campo, ler_formulario, valor};
 use crate::arvore_processo::EnderecoDoConteudo;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
 
@@ -12,19 +11,19 @@ pub(crate) fn ler_anexo_publicado(
     html: &str,
     documento: &str,
     processo: &str,
-) -> Result<Option<EnderecoDoConteudo>, ErroHtml> {
+) -> Result<Option<EnderecoDoConteudo>, ErroPropriedadesDocumento> {
     let _ = ler_formulario(html, documento, processo)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("cadastro_documento_ilegivel"))?;
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "frmDocumentoCadastro")
-        .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     let Some(form) = nos
         .first()
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
     else {
-        return Err(ErroHtml::ausente("formulario_cadastro_documento_ausente"));
+        return Err(ErroPropriedadesDocumento::FormularioCadastroDocumentoAusente);
     };
     let lista = valor(campo(form, parser, "hdnAnexos")?)?;
     let mut encontrado = None;
@@ -45,12 +44,12 @@ pub(crate) fn ler_anexo_publicado(
             continue;
         }
         if !lista.starts_with(&format!("{id_anexo}±")) {
-            return Err(ErroHtml::valor("anexo_do_cadastro_divergente"));
+            return Err(ErroPropriedadesDocumento::AnexoDoCadastroDivergente);
         }
         let link = EnderecoDoConteudo::do_cadastro(instalacao, href, id_anexo)
-            .map_err(|_| ErroHtml::valor("link_anexo_cadastro_invalido"))?;
+            .map_err(|_| ErroPropriedadesDocumento::LinkAnexoCadastroInvalido)?;
         if encontrado.replace(link).is_some() {
-            return Err(ErroHtml::repetido("links_anexo_cadastro_repetidos"));
+            return Err(ErroPropriedadesDocumento::LinksAnexoCadastroRepetidos);
         }
     }
     Ok(encontrado)

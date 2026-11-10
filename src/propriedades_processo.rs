@@ -10,7 +10,6 @@ pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_propriedades;
 
 /// Qual tela a barra publicou (e o `acao` do link guardado no índice).
@@ -109,7 +108,15 @@ pub(crate) enum ErroPropriedades {
     ListaOcultaDasPropriedadesNaoObservada,
     NivelDeAcessoNaoMarcado,
     TextoDasPropriedadesNaoDecodificado,
-    Html(#[from] ErroHtml),
+    AssuntoForaDaFormaObservada,
+    CampoDasPropriedadesAusente,
+    CampoDasPropriedadesRepetido,
+    DataDeGeracaoForaDaFormaObservada,
+    FormulariosDasPropriedadesRepetidos,
+    HtmlDasPropriedadesNaoInterpretado,
+    InteressadoForaDaFormaObservada,
+    NivelDeAcessoForaDaFormaObservada,
+    OpcoesMarcadasRepetidas,
 }
 
 impl ErroPropriedades {
