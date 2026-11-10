@@ -3,6 +3,7 @@
 //! `FalhaDoEnvio` de `processo concluir`, e a verificação, a mesma leitura.
 use crate::arvore_processo::{ErroEnderecoDeReabrir, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -29,7 +30,7 @@ pub(crate) enum ErroReabrir {
     Barra(ErroHtml),
     /// O cookie não pôde ser lido antes da tela do nó.
     #[causa(interna)]
-    Cookie(FalhaTransporte),
+    Cookie(CookieIlegivel),
     /// GET da tela do nó, antes da escrita.
     #[causa(interna)]
     TelaDoNo(FalhaTransporte),
@@ -77,7 +78,8 @@ impl ErroReabrir {
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::Cookie(falha) | Self::TelaDoNo(falha) => falha.status_http().cloned(),
+            Self::Cookie(falha) => falha.status_http().cloned(),
+            Self::TelaDoNo(falha) => falha.status_http().cloned(),
             Self::TelaDoNoRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::ReaberturaNaoAplicada { falha_do_envio, .. }
             | Self::EfeitoIncertoNaReabertura { falha_do_envio, .. } => {

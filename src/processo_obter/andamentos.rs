@@ -17,6 +17,23 @@ use crate::historico_processo::{
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::transporte::StatusHttpRecusado;
 
+/// O formulário `verHistorico('P')` não foi derivado nem enviado como
+/// observado. Tipo próprio da etapa do histórico completo, distinto da
+/// pesquisa rápida; o nome público é o do formulário (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum HistoricoNaoPedido {
+    #[causa(transparente)]
+    Formulario(ErroSubmissaoFormulario),
+}
+
+impl HistoricoNaoPedido {
+    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
+        match self {
+            Self::Formulario(erro) => erro.status_http(),
+        }
+    }
+}
+
 /// O pedido e o que o fluxo já sabe ao chegar aqui.
 pub(super) struct Leitura<'a> {
     pub(super) pedido: PedidoDeAndamentos,
@@ -148,7 +165,7 @@ fn ver_completo<V: EnvioDoProcesso>(
         unidade,
         &[(CAMPO_TIPO, "P")],
     )
-    .map_err(E::FormularioDoHistorico)?;
+    .map_err(HistoricoNaoPedido::Formulario)?;
     rede.requisicoes.registrar();
     let envio = &mut *rede.envio;
     let html = match enviar_submissao_via(submissao, contexto.cookie, |s, c| envio.post(s, c)) {
@@ -165,7 +182,7 @@ fn ver_completo<V: EnvioDoProcesso>(
             return Err(E::SessaoEncerrada);
         }
         Err(ErroSubmissaoFormulario::Transporte(falha)) => return Err(E::Transporte(falha)),
-        Err(outro) => return Err(E::FormularioDoHistorico(outro)),
+        Err(outro) => return Err(HistoricoNaoPedido::Formulario(outro).into()),
     };
     let lidos = ler_andamentos(&html, contexto.nup)?;
     if lidos.tipo != TipoDoHistorico::Completo {

@@ -4,6 +4,7 @@ use crate::arvore_processo::{
     AbertoEm, EnderecoDeEscrita, ErroAcaoSobrestar, ErroEnderecoDeRetomar, MotivoAbertoEm,
 };
 use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::transporte::FalhaTransporte;
 mod fluxo;
 use crate::indice_local::IndiceLocal;
@@ -65,6 +66,9 @@ impl EstadoDaMudanca {
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroSobrestamento {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     UnidadeNaoPublicada,
@@ -100,6 +104,7 @@ impl ErroSobrestamento {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Cookie(e) => e.mensagem(),
             Self::Abertura(e) => e.mensagem(),
             Self::UnidadeNaoPublicada => "o SEI não publicou a unidade da sessão",
             Self::SituacaoNaoLida(_) => "a situação do processo não foi observada com segurança",

@@ -16,6 +16,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
@@ -73,6 +74,8 @@ pub(crate) struct CadastroPreparado {
 
 #[derive(Debug)]
 pub(crate) enum ErroPreviaExterna {
+    /// O cookie privado da sessão não pôde ser lido.
+    Cookie(CookieIlegivel),
     Abertura(ErroProcessoObter),
     Transporte(FalhaTransporte),
     UnidadeNaoPublicada,
@@ -92,7 +95,7 @@ impl ErroPreviaExterna {
     pub(crate) fn causa(&self) -> &'static str {
         match self {
             Self::Abertura(_) => "abertura_do_processo",
-            Self::Transporte(_) => "transporte",
+            Self::Transporte(_) | Self::Cookie(_) => "transporte",
             Self::UnidadeNaoPublicada => "unidade_nao_publicada",
             Self::ProcessoNaoAbertoNaUnidade => "processo_fora_da_unidade",
             Self::LinkNaoPublicado => "incluir_documento_nao_oferecido",
@@ -187,7 +190,7 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
         .incluir
         .map_err(|_| E::LinkNaoConferido)?
         .ok_or(E::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
+    let cookie = ler_cookie(sessao)?;
     let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;
     let id_procedimento = &aberto.arvore.processo.id;
     let destino = match escolher_externo(&lista).map_err(|_| E::EscolhaNaoConferida)? {
@@ -272,3 +275,9 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+impl From<CookieIlegivel> for ErroPreviaExterna {
+    fn from(erro: CookieIlegivel) -> Self {
+        Self::Cookie(erro)
+    }
+}

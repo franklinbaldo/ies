@@ -159,7 +159,7 @@ fn previsualizar(
         Err(erro) => {
             return saida_erro::erro_fonte_http(
                 cli.json,
-                erro.subcodigo(),
+                crate::erro_publico::folha(&erro),
                 erro.mensagem(),
                 erro.status_http(),
             );
