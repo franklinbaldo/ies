@@ -58,7 +58,7 @@ fn corpo_da_cassette(
     numero_observado: &str,
     exigir_corpo: bool,
 ) -> Option<(u32, String, String)> {
-    let originais: Vec<_> = gravacao::respostas(&captura.json)
+    let originais: Vec<_> = gravacao::respostas(captura)
         .into_iter()
         .filter(|r| {
             r.operacao == "documento_visualizar"
@@ -92,7 +92,7 @@ fn confrontar_corpo_observado_http(
     numero: &NumeroDocumento,
     conteudo: &Option<(u32, String, String)>,
 ) {
-    if let Some((versao, tipo_original, texto_original)) = &conteudo {
+    if let Some((versao, tipo_original, texto_original)) = conteudo {
         let alvo = format!(
             "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
         );
