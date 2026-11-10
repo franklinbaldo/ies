@@ -242,19 +242,20 @@ fn conciliar(
             falha_do_envio: falha,
         });
     }
-    let esperada = match depois.as_slice() {
-        [nova] => nova.nome == feito.assinante && Some(&nova.cargo) == feito.cargo.as_ref(),
-        _ => false,
+    let nova = match depois.as_slice() {
+        [nova] if nova.nome == feito.assinante && Some(&nova.cargo) == feito.cargo.as_ref() => {
+            nova.clone()
+        }
+        _ => {
+            return Err(A::EfeitoIncertoNaAssinatura {
+                antes,
+                falha_do_envio: falha,
+                verificacao: Box::new(verificacao),
+            });
+        }
     };
-    if !esperada {
-        return Err(A::EfeitoIncertoNaAssinatura {
-            antes,
-            falha_do_envio: falha,
-            verificacao: Box::new(verificacao),
-        });
-    }
     feito.resultado = ResultadoDaAssinatura::Comprovada {
-        assinatura_depois: depois[0].clone(),
+        assinatura_depois: nova,
         edicao_depois,
         reconciliado_por: falha,
     };
