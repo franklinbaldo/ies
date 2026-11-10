@@ -85,8 +85,14 @@ fn bdd_348_02_saida_humana_retirada_confirmada_nao_anuncia_previa() {
         String::from_utf8_lossy(&saida.stderr)
     );
     let humano = String::from_utf8(saida.stdout).unwrap();
-    assert!(humano.contains("Retirado acompanhamento do grupo: G"), "{humano}");
-    assert!(humano.contains("Acompanhamento retirado e confirmado por leitura."), "{humano}");
+    assert!(
+        humano.contains("Retirado acompanhamento do grupo: G"),
+        "{humano}"
+    );
+    assert!(
+        humano.contains("Acompanhamento retirado e confirmado por leitura."),
+        "{humano}"
+    );
     assert!(!humano.contains("Retiraria o acompanhamento"), "{humano}");
     assert_eq!(
         eventos
