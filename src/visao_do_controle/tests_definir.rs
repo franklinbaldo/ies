@@ -386,8 +386,17 @@ fn erro_5xx_no_salvar_reconcilia_por_leitura_sem_repetir_o_post() {
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let feito = ok(&rodada);
     assert!(feito.alterado);
-    let por = feito.reconciliado_por.as_ref().unwrap();
-    assert_eq!(por.status_http().map(|h| h.status), Some(500));
+    assert!(matches!(
+        feito.reconciliado_por,
+        Some(FalhaDoSalvar::Envio(
+            crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                crate::transporte::FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                    status: 500,
+                    ..
+                })
+            )
+        ))
+    ));
 }
 
 #[test]
@@ -493,10 +502,6 @@ fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
             ..
         }
     ));
-    assert_eq!(
-        FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.status_http(),
-        None
-    );
 }
 
 #[test]

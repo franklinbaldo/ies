@@ -39,10 +39,7 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
             else {
                 panic!("{erro:?}");
             };
-            assert_eq!(
-                recusa.mensagem_do_servidor.as_deref(),
-                Some("Solicitacao recusada")
-            );
+            assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
             assert!(matches!(
                 erro,
                 E::NaoConfirmado {
@@ -124,10 +121,7 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     else {
         panic!("{erro:?}");
     };
-    assert_eq!(
-        recusa.mensagem_do_servidor.as_deref(),
-        Some("Solicitacao recusada")
-    );
+    assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

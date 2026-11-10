@@ -22,6 +22,12 @@ testes e pelas instalações reais.
   `Debug` (os tipos que as carregam o redigem). Combinação inválida de
   argumentos que o clap não declara sai pelo próprio clap (`UsoInvalido`),
   com saída 2.
+- Sucesso reconciliado: quando a releitura comprova uma escrita cujo POST
+  respondeu fora do observado, `falha_do_envio` (ou `falha_do_salvar`) é o
+  mesmo `Debug` do erro tipado do POST, como string; por exemplo
+  `"Envio(Transporte(Status(StatusHttpRecusado { status: 500, … })))"` ou
+  `"RedirecionamentoNaoReconhecido"`. Respostas 200 (validação da Infra,
+  página de exceção) carregam só a mensagem do SEI, nunca um status.
 - Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
 - Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.

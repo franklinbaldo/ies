@@ -217,17 +217,13 @@ fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
     );
     let excecao =
         b"<html><body><div id=\"divInfraExcecao\">Anexo n\xe3o encontrado.</div></body></html>";
-    let Err(ErroAnexo::RecusadoPeloSei(status)) = ler(resposta(
+    let Err(ErroAnexo::RecusadoPeloSei(mensagem)) = ler(resposta(
         &[("content-type", "text/html; charset=iso-8859-1")],
         excecao,
     )) else {
         panic!("esperada a recusa do SEI");
     };
-    assert_eq!(status.status, 200);
-    assert_eq!(
-        status.mensagem_do_servidor.as_deref(),
-        Some("Anexo não encontrado.")
-    );
+    assert_eq!(mensagem.as_deref(), Some("Anexo não encontrado."));
 }
 
 #[test]

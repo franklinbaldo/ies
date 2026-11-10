@@ -46,7 +46,7 @@ pub(crate) enum ErroSubmissaoFormulario {
     MarcadorDeResultadoAusenteNaResposta,
     /// HTTP 200 com `#txaInfraValidacao` não vazio: o SEI recusou o envio
     /// pela validação da Infra. Status 200 e a mensagem saneada.
-    ValidacaoRecusadaPeloSei(StatusHttpRecusado),
+    ValidacaoRecusadaPeloSei(String),
     /// Tag de abertura servida que o tokenizador de atributos recusou.
     AtributoHtml(#[from] ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
@@ -89,11 +89,9 @@ impl ErroSubmissaoFormulario {
 
 impl ErroSubmissaoFormulario {
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
-    /// Na validação da Infra, status 200 e a mensagem do SEI.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
-            Self::ValidacaoRecusadaPeloSei(recusa) => Some(recusa),
             _ => None,
         }
     }

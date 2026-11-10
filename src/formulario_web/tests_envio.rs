@@ -319,11 +319,9 @@ fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
         let (r, n) = enviar_com(200, &com_validacao(corpo, "Protocolo inv&aacute;lido."));
         let erro = r.unwrap_err();
         assert_eq!(n, 1);
-        let http = erro.status_http().expect("mensagem do SEI");
-        assert_eq!(http.status, 200);
         assert_eq!(
-            http.mensagem_do_servidor.as_deref(),
-            Some("Protocolo inválido.")
+            erro,
+            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei("Protocolo inválido.".into())
         );
     }
     // Textarea vazio não é recusa: vale o marcador, como antes.

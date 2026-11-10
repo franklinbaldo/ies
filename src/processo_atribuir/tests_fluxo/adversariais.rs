@@ -52,10 +52,7 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
         E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-                    crate::transporte::StatusHttpRecusado {
-                        status: 200,
-                        mensagem_do_servidor: Some("Atribuição recusada.".into())
-                    }
+                    "Atribuição recusada.".into()
                 )
             )),
             leitura: None,

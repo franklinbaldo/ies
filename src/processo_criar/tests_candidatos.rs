@@ -150,7 +150,6 @@ fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
     });
     let erro = resultado.expect_err("recusa explicita nao confirma escrita");
     assert!(erro.nao_aplicada_comprovada()); // prova expressa de recusa na tela do SEI
-    assert_eq!(erro.status_http().map(|status| status.status), Some(200));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
