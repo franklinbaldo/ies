@@ -23,9 +23,8 @@ pub fn responder(
     if !matches!(ler(banco, instalacao, cenario, id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
-    let situacao = match validacao_acesso::ler(banco, instalacao, cenario, id) {
-        Ok(Some(situacao)) => situacao,
-        _ => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(situacao)) = validacao_acesso::ler(banco, instalacao, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     if metodo == "GET" {
         if situacao != Validacao::Exigida {
@@ -45,7 +44,7 @@ pub fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if situacao != Validacao::Exigida
-        || !campo_unico(&campos, "pwdSenha").is_some_and(|senha| !senha.is_empty())
+        || campo_unico(&campos, "pwdSenha").is_none_or(|senha| senha.is_empty())
         || campo_unico(&campos, "sbmValidar") != Some("Validar")
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
