@@ -65,6 +65,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     nup: &NumeroProcesso,
     texto: &str,
     confirmar: bool,
+    remover: bool,
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
@@ -91,8 +92,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let anotacao_antes =
         crate::processo_enviar::texto_anotacao(&html, &id).map_err(Erro::Leitura)?;
     let mut alterado = false;
-    if confirmar {
-        if !anotacao_antes.trim().is_empty() {
+    // Retirada com ausência já observada é no-op, sem POST.
+    if confirmar && (!remover || !anotacao_antes.is_empty()) {
+        if !remover && !anotacao_antes.trim().is_empty() {
             return Err(Erro::AnotacaoJaPresente);
         }
         if !crate::processo_enviar::salvar_oferecido(&html) {
@@ -110,7 +112,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             &instalacao,
             &servida,
             "",
-            &[("txaDescricao", texto)],
+            &[("txaDescricao", if remover { "" } else { texto })],
         )
         .map_err(Erro::Formulario)?;
         let mut enviada = false;
@@ -131,7 +133,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         let relido = obter_tela(&mut rede, &cookie, &url)
             .ok()
             .and_then(|(html, _)| crate::processo_enviar::texto_anotacao(&html, &id).ok());
-        if !resposta_aceita || relido.as_deref() != Some(texto) {
+        if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
             return Err(Erro::EfeitoIncerto);
         }
         alterado = true;
