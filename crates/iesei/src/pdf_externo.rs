@@ -264,6 +264,38 @@ pub fn conteudo_do_anexo(
     Ok(conteudo.flatten())
 }
 
+/// Processo proprietário de um PDF publicado na árvore.
+/// A identidade pública é derivada do rowid, nunca de uma URL assinada.
+/// Ausência no SQLite significa desconhecido, não prova de inexistência.
+///
+/// # Errors
+/// Propaga a causa SQLite sem reclassificar ausência como erro.
+pub fn processo_do_documento_publico(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id_publico: &str,
+) -> Result<Option<String>, ErroPdfExterno> {
+    let Some(sufixo) = id_publico.strip_prefix('8') else {
+        return Ok(None);
+    };
+    let Ok(id) = sufixo.parse::<i64>() else {
+        return Ok(None);
+    };
+    if format!("8{id:012}") != id_publico {
+        return Ok(None);
+    }
+    banco
+        .query_row(
+            "SELECT id_procedimento FROM externo_documento
+             WHERE origem=?1 AND cenario=?2 AND id=?3",
+            params![origem.url_base(), cenario, id],
+            |linha| linha.get(0),
+        )
+        .optional()
+        .map_err(ErroPdfExterno::from)
+}
+
 /// Um cadastro definitivo consome um recibo existente uma única vez.
 /// A atualização do número é atômica com a criação, sem documento fantasma.
 ///
