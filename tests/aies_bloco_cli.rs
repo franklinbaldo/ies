@@ -207,31 +207,31 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
 
 fn registrar_detalhe(banco: &mut Connection, instalacao: &Instalacao) {
     bloco_detalhe::guardar(
-            banco,
-            instalacao,
-            CENARIO,
-            &Detalhe {
-                numero: "2195".into(),
-                tipo: Tipo::Assinatura,
-                total: 2,
-                faixa: Some((1, 2)),
-                itens: vec![
-                    Item {
-                        processo: "0000.01/2026-01".into(),
-                        documento: Some("100001".into()),
-                        tipo: Some("Despacho".into()),
-                        anotacoes: "Revisão inicial".into(),
-                    },
-                    Item {
-                        processo: "0000.02/2026-02".into(),
-                        documento: Some("100002".into()),
-                        tipo: Some("Ofício".into()),
-                        anotacoes: String::new(),
-                    },
-                ],
-            },
-        )
-        .unwrap();
+        banco,
+        instalacao,
+        CENARIO,
+        &Detalhe {
+            numero: "2195".into(),
+            tipo: Tipo::Assinatura,
+            total: 2,
+            faixa: Some((1, 2)),
+            itens: vec![
+                Item {
+                    processo: "0000.01/2026-01".into(),
+                    documento: Some("100001".into()),
+                    tipo: Some("Despacho".into()),
+                    anotacoes: "Revisão inicial".into(),
+                },
+                Item {
+                    processo: "0000.02/2026-02".into(),
+                    documento: Some("100002".into()),
+                    tipo: Some("Ofício".into()),
+                    anotacoes: String::new(),
+                },
+            ],
+        },
+    )
+    .unwrap();
 }
 
 fn iniciar_tunel(
