@@ -72,7 +72,8 @@ fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
             .unwrap()
             .as_nanos();
         let pasta = PastaTemporaria(std::env::temp_dir().join(format!(
-            "ies-bdd60-revogacao-foto-{}-{agora}", std::process::id()
+            "ies-bdd60-revogacao-foto-{}-{agora}",
+            std::process::id()
         )));
         std::fs::create_dir(&pasta.0).unwrap();
         let foto = pasta.0.join(format!("{DOC_A}.v1.html"));
