@@ -211,7 +211,7 @@ fn previa<E: EnvioDoProcesso>(
         );
     } else {
         println!(
-            "Prévia: retirar marcador {}#{} do processo {} (unidade {}). Requisições: {}. A escrita ainda não está disponível.",
+            "Prévia: retirar marcador {}#{} do processo {} (unidade {}). Requisições: {}. Esta prévia não alterou o processo. Para tentar a remoção, use --confirmar em treinamento; a escrita só ocorre após formulário conferido.",
             rotulo.id,
             rotulo.nome,
             nup.as_str(),
