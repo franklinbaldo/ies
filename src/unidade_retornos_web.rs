@@ -501,7 +501,7 @@ where
     }
     let html = get(link_mes)?;
     requisicoes += 1;
-    let itens = unidade_retornos::extrair_retornos(&html).map_err(E::Tabela)?;
+    let itens = unidade_retornos::extrair_retornos(&html)?;
     Ok(Leitura {
         mes: format!("{:04}-{:02}", alvo.0, alvo.1),
         itens,

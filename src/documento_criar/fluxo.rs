@@ -207,22 +207,21 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         &leitura(pedido.nup, pedido.unidade, true),
         indice,
         &mut rede,
-    )
-    .map_err(E::Abertura)?;
+    )?;
     let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
     let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| E::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
         return Err(E::ProcessoNaoAbertoNaUnidade);
     }
-    let link = acoes.incluir.map_err(E::Link)?.ok_or(E::LinkNaoPublicado)?;
+    let link = acoes.incluir?.ok_or(E::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
-    let mut tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
+    let mut tipos = tipos_oferecidos(&html_lista)?;
     // A lista inicial pode conter só os tipos recentes. Mesmo quando
     // o nome já aparece, a lista completa precisa confirmar sua unicidade:
     // outra série com o mesmo nome pode estar oculta pelo filtro.
-    if filtro_de_todos(&html_lista).map_err(E::Tipo)? {
+    if filtro_de_todos(&html_lista)? {
         let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
         let servida = TelaServida {
             url: link.as_str(),
@@ -235,28 +234,25 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
             &servida,
             &unidade,
             &[("hdnFiltroSerie", "T")],
-        )
-        .map_err(E::Formulario)?;
+        )?;
         let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
             rede.post(post, cookie)
-        })
-        .map_err(E::Formulario)?;
+        })?;
         // A evidência conhecida é o HTML da lista completa. Nunca seguir
         // 302 desconhecido nem repetir o POST da mudança de filtro.
         let RespostaDoEnvio::Html(completa) = resposta else {
             return Err(E::SubmissaoNaoComprovada);
         };
         html_lista = completa;
-        tipos = tipos_oferecidos(&html_lista).map_err(E::Tipo)?;
+        tipos = tipos_oferecidos(&html_lista)?;
     }
-    conferir_tipo(pedido.tipo, &tipos).map_err(E::Tipo)?;
+    conferir_tipo(pedido.tipo, &tipos)?;
     let escolha = escolha_do_tipo(
         &instalacao,
         &html_lista,
         &aberto.arvore.processo.id,
         pedido.tipo,
-    )
-    .map_err(E::Tipo)?;
+    )?;
     let url_do_cadastro = match escolha {
         EscolhaDoDocumento::Link(url) => url,
         EscolhaDoDocumento::Formulario(id_serie) => {
@@ -272,14 +268,12 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 &servida,
                 &unidade,
                 &[("hdnIdSerie", id_serie.as_str())],
-            )
-            .map_err(E::Formulario)?;
+            )?;
             // Escolher o tipo só navega ao cadastro. 302 não é seguido
             // automaticamente; a Location assinada é validada antes do GET.
             let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
                 rede.post(post, cookie)
-            })
-            .map_err(E::Formulario)?;
+            })?;
             let RespostaDoEnvio::Redirecionamento(redirect) = resposta else {
                 return Err(E::SubmissaoNaoComprovada);
             };
@@ -287,14 +281,12 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 &instalacao,
                 redirect.localizacao().ok_or(E::SubmissaoNaoComprovada)?,
                 &aberto.arvore.processo.id,
-            )
-            .map_err(E::Tipo)?
+            )?
         }
     };
     let (html_cadastro, mime_cadastro) =
         obter_tela(&mut rede, &cookie, &url_do_cadastro).map_err(erro_da_tela)?;
-    conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)
-        .map_err(E::Tipo)?;
+    conferir_cadastro(&html_cadastro, pedido.tipo, pedido.descricao, pedido.nivel)?;
     let previa = ResultadoCriacao {
         nup: pedido.nup.as_str().to_owned(),
         tipo: pedido.tipo.to_owned(),
@@ -314,8 +306,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         pedido.tipo,
         pedido.descricao,
         Some("publico"),
-    )
-    .map_err(E::Tipo)?;
+    )?;
     if !cadastro_oferece_salvar(&html_cadastro) {
         return Err(E::SubmissaoNaoComprovada);
     }
@@ -333,8 +324,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     if let Some(descricao) = pedido.descricao {
         campos.push(("txtDescricao", descricao));
     }
-    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &previa.unidade, &campos)
-        .map_err(E::Formulario)?;
+    let submissao = derivar_submissao(&CADASTRAR, &instalacao, &servida, &previa.unidade, &campos)?;
     // O POST é consumido exatamente uma vez. Independentemente da resposta,
     // a conferência seguinte é uma nova leitura do processo, jamais retry.
     let foto_antes = FotoDaCriacao::da_arvore(&aberto.arvore);
