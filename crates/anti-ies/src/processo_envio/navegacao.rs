@@ -338,6 +338,16 @@ pub fn navegacao(
         Ok(unidade) => unidade,
         Err(estado) => return Some(Resposta::nova(estado)),
     };
+    // A árvore não pode contornar a modal por um link guardado antigo.
+    if acao == "procedimento_visualizar" {
+        match iesei::validacao_acesso::ler(banco, instalacao, cenario, id) {
+            Ok(Some(iesei::validacao_acesso::Validacao::Exigida)) => {
+                return Some(Resposta::nova(Estado::AcessoNegado));
+            }
+            Err(_) => return Some(Resposta::nova(Estado::DadosInsuficientes)),
+            _ => {}
+        }
+    }
     if acao == "procedimento_trabalhar" {
         let Ok(validacao) = iesei::validacao_acesso::ler(banco, instalacao, cenario, id) else {
             return Some(Resposta::nova(Estado::DadosInsuficientes));
