@@ -80,8 +80,7 @@ impl ErroProcessoObter {
             Self::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
                 // O fato do SEI é tipado. A ausência da configuração privada
                 // é um detalhe da mensagem, não um novo código de erro.
-                if std::env::var_os("IES_CREDENCIAIS_FILE")
-                    .is_none_or(|caminho| caminho.is_empty())
+                if std::env::var_os("IES_CREDENCIAIS_FILE").is_none_or(|caminho| caminho.is_empty())
                 {
                     "o SEI exige validar o acesso com a senha antes de abrir este processo; falta o arquivo de credenciais privado (IES_CREDENCIAIS_FILE); o IES ainda não faz essa validação"
                 } else {
