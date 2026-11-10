@@ -11,6 +11,7 @@ mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
 pub mod editor_documento;
+mod nivel_de_detalhe;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod prazo_processo;
@@ -359,8 +360,28 @@ pub fn controlar(
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     if let Some(observacao) = detalhe {
+        // A ação só é oferecida quando o estado da tela foi explicitamente
+        // informado no SQLite. Sem linha de configuração, não há link.
+        let Ok(configuracao) = iesei::colunas_detalhe::ler(banco, instalacao, cenario) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        };
+        if configuracao
+            .as_ref()
+            .is_some_and(|c| c.unidade != observacao.unidade)
+        {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        }
         return controle_detalhado::html(&observacao)
-            .map(|html| menu_com_retornos(html, banco, instalacao, cenario))
+            .map(|mut html| {
+                if configuracao.is_some() {
+                    let link = format!(
+                        "<a id='ancNivelDetalhe' onclick=\"acaoConfigurarDetalhe('controlador.php?acao=procedimento_configurar_detalhe&amp;infra_hash={}');\">Configurar detalhe</a>",
+                        protocolo_sintetico::INFRA_HASH
+                    );
+                    html = html.replacen("</body>", &format!("{link}</body>"), 1);
+                }
+                menu_com_retornos(html, banco, instalacao, cenario)
+            })
             .map_or_else(
                 || Resposta::nova(Estado::DadosInsuficientes),
                 Resposta::html,

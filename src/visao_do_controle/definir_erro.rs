@@ -1,5 +1,5 @@
 //! Resultado e recusas de `ies unidade colunas --definir`
-//! (contracts/cli/unidade-definir-colunas.md). Um erro por fato.
+//! (contracts/cli/unidade-definir-colunas.md). Uma variante por fato.
 use super::ErroVisaoDoControle;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
@@ -27,20 +27,70 @@ pub(crate) enum VerificacaoDasColunas {
     LeituraFalhou(ErroVisaoDoControle),
 }
 
-/// Sucesso: prévia, alvo igual ao atual, ou salvo e conferido.
+/// Cada variante representa um único resultado observável da operação.
+/// Uma prévia não pode conter marcas da releitura, nem uma gravação
+/// comprovada existir sem as marcas efetivamente verificadas.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum EstadoDasColunas {
+    Inalteradas {
+        confirmado: bool,
+    },
+    Previa {
+        campos_do_envio: Vec<String>,
+    },
+    Conferidas {
+        campos_do_envio: Vec<String>,
+        depois: Vec<ColunaDoDetalhe>,
+        reconciliado_por: Option<FalhaDoSalvar>,
+    },
+}
+
+/// O resultado da operação mantém identidade e plano comuns aos três casos.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ColunasDefinidas {
     pub(crate) unidade: String,
     pub(crate) plano: PlanoDasColunas,
-    pub(crate) confirmado: bool,
-    /// O POST de salvar foi enviado e a leitura mostrou o alvo.
-    pub(crate) alterado: bool,
-    /// Nomes dos campos do POST, previsto (prévia) ou enviado.
-    pub(crate) campos_do_envio: Option<Vec<String>>,
-    /// Marcas lidas na verificação (só depois de salvar).
-    pub(crate) depois: Option<Vec<ColunaDoDetalhe>>,
-    /// A resposta do salvar não foi a esperada, e a leitura mostrou o alvo.
-    pub(crate) reconciliado_por: Option<FalhaDoSalvar>,
+    pub(crate) estado: EstadoDasColunas,
+}
+
+impl ColunasDefinidas {
+    pub(crate) fn confirmado(&self) -> bool {
+        match &self.estado {
+            EstadoDasColunas::Inalteradas { confirmado } => *confirmado,
+            EstadoDasColunas::Previa { .. } => false,
+            EstadoDasColunas::Conferidas { .. } => true,
+        }
+    }
+
+    pub(crate) fn alterado(&self) -> bool {
+        matches!(self.estado, EstadoDasColunas::Conferidas { .. })
+    }
+
+    pub(crate) fn campos_do_envio(&self) -> Option<&[String]> {
+        match &self.estado {
+            EstadoDasColunas::Inalteradas { .. } => None,
+            EstadoDasColunas::Previa { campos_do_envio }
+            | EstadoDasColunas::Conferidas {
+                campos_do_envio, ..
+            } => Some(campos_do_envio),
+        }
+    }
+
+    pub(crate) fn depois(&self) -> Option<&[ColunaDoDetalhe]> {
+        match &self.estado {
+            EstadoDasColunas::Conferidas { depois, .. } => Some(depois),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn reconciliado_por(&self) -> Option<&FalhaDoSalvar> {
+        match &self.estado {
+            EstadoDasColunas::Conferidas {
+                reconciliado_por, ..
+            } => reconciliado_por.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

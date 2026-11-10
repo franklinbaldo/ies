@@ -145,19 +145,20 @@ pub(crate) fn responder(
     }
     let tem_nos = base.is_some();
     let mut pagina = base.map_or_else(|| raiz(id_processo, &processo.nup), |r| r.corpo);
-    let mut novos = if tem_nos {
-        String::new()
+    // O índice pertence à projeção do estado do SQLite, não à sintaxe do
+    // JavaScript recém-renderizado. Pastas e processos anexados também
+    // ocupam índices; o gerador da navegação já conhece todos eles.
+    let (mut novos, inicio) = if tem_nos {
+        match crate::processo_envio::nos_e_proximo_indice(banco, origem, cenario, id_processo) {
+            Ok((_, proximo)) => (String::new(), proximo),
+            Err(estado) => return Resposta::nova(estado),
+        }
     } else {
-        match documento_arvore::nos_do_processo(banco, origem, cenario, id_processo) {
+        match documento_arvore::nos_com_proximo_indice(banco, origem, cenario, id_processo) {
             Ok(nos) => nos,
             Err(estado) => return Resposta::nova(estado),
         }
     };
-    let inicio = pagina
-        .lines()
-        .chain(novos.lines())
-        .filter(|linha| linha.starts_with("Nos[") && linha.contains(" = new infraArvoreNo("))
-        .count();
     for (deslocamento, documento) in externos.into_iter().enumerate() {
         // Espaço numérico separado: rowids internos e externos são independentes.
         let id = documento.id_publico();

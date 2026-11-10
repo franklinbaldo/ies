@@ -6,10 +6,10 @@ use super::envio::EnvioDoControle;
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual};
 use super::*;
 use crate::erro_html::ErroHtml;
-use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
+use crate::formulario_web::{ErroSubmissaoFormulario as S, RespostaDoPost, SubmissaoDerivada};
 use crate::nivel_de_detalhe::tests_alvo::{HASH_DO_SALVAR, onze, tela_salvavel};
 use crate::nivel_de_detalhe::tests_salvar::resposta_do_salvar;
-use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroNivelDeDetalhe};
+use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe as C, ErroNivelDeDetalhe};
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
 use std::io::Cursor;
@@ -97,11 +97,7 @@ impl EnvioDoControle for EnvioDoSalvar {
     }
 }
 
-const ATUAL: [ColunaDoDetalhe; 3] = [
-    ColunaDoDetalhe::Atribuicao,
-    ColunaDoDetalhe::TipoProcesso,
-    ColunaDoDetalhe::Interessados,
-];
+const ATUAL: [C; 3] = [C::Atribuicao, C::TipoProcesso, C::Interessados];
 const GET_NIVEL: &str = "GET procedimento_configurar_detalhe";
 
 fn d() -> TelaD {
@@ -112,16 +108,13 @@ fn r() -> TelaR {
     TelaR::nova((2, vec![1, 2]), (2, vec![3, 9]))
 }
 
-fn nivel(publicadas: &[ColunaDoDetalhe], marcadas: &[ColunaDoDetalhe]) -> Passo {
+fn nivel(publicadas: &[C], marcadas: &[C]) -> Passo {
     Passo::Html(200, tela_salvavel(publicadas, marcadas, ""))
 }
 
 /// Resposta do salvar que gravou (PEN1 5.0.4): a tela com `'1'=='1'`.
 fn fecha_modal() -> Passo {
-    Passo::Html(
-        200,
-        resposta_do_salvar(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS, "1"),
-    )
+    Passo::Html(200, resposta_do_salvar(&C::TODAS, &C::TODAS, "1"))
 }
 
 struct Rodada {
@@ -154,7 +147,7 @@ fn rodar(tela: String, alvo: &AlvoDasColunas, confirmar: bool, roteiro: Vec<Pass
     }
 }
 
-fn lista(colunas: &[ColunaDoDetalhe]) -> AlvoDasColunas {
+fn lista(colunas: &[C]) -> AlvoDasColunas {
     AlvoDasColunas::Lista(colunas.to_vec())
 }
 
@@ -172,36 +165,33 @@ fn previa_na_d_le_planeja_e_nao_salva() {
         d().html(),
         &AlvoDasColunas::Todas,
         false,
-        vec![nivel(&ColunaDoDetalhe::TODAS, &ATUAL)],
+        vec![nivel(&C::TODAS, &ATUAL)],
     );
     assert_eq!(rodada.registro, [GET_NIVEL]);
     let feito = ok(&rodada);
     assert_eq!(feito.unidade, "TESTE");
-    assert!(!feito.confirmado && !feito.alterado);
+    assert!(!feito.confirmado() && !feito.alterado());
     assert_eq!(feito.plano.antes, ATUAL);
-    assert_eq!(feito.plano.alvo, ColunaDoDetalhe::TODAS);
+    assert_eq!(feito.plano.alvo, C::TODAS);
     let mut esperados = vec!["sbmSalvar".to_owned()];
-    esperados.extend(ColunaDoDetalhe::TODAS.map(|c| c.campo().to_owned()));
+    esperados.extend(C::TODAS.map(|c| c.campo().to_owned()));
     esperados.push("hdnInfraTipoPagina".to_owned());
-    assert_eq!(feito.campos_do_envio.as_deref(), Some(&esperados[..]));
-    assert_eq!(feito.depois, None);
-    assert_eq!(feito.reconciliado_por, None);
+    assert_eq!(feito.campos_do_envio(), Some(&esperados[..]));
+    assert_eq!(feito.depois(), None);
+    assert_eq!(feito.reconciliado_por(), None);
 }
 
 #[test]
 fn previa_na_r_troca_le_e_fica_na_d_sem_salvar() {
     let rodada = rodar(
         r().html(),
-        &lista(&[ColunaDoDetalhe::Marcadores]),
+        &lista(&[C::Marcadores]),
         false,
-        vec![
-            Passo::Html(200, d().html()),
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
-        ],
+        vec![Passo::Html(200, d().html()), nivel(&C::TODAS, &ATUAL)],
     );
     assert_eq!(rodada.registro, ["POST visao=D", GET_NIVEL]);
     let feito = ok(&rodada);
-    assert_eq!(feito.plano.marcar(), [ColunaDoDetalhe::Marcadores]);
+    assert_eq!(feito.plano.marcar(), [C::Marcadores]);
     assert_eq!(feito.plano.desmarcar(), ATUAL);
     assert_eq!(rodada.corpos.len(), 0);
 }
@@ -228,23 +218,23 @@ fn todas_confirmado_na_unb_salva_as_onze_e_confere_por_leitura() {
     corpo.push_str("&hdnInfraTipoPagina=2");
     assert_eq!(rodada.corpos, [corpo]);
     let feito = ok(&rodada);
-    assert!(feito.confirmado && feito.alterado);
-    assert_eq!(feito.plano.indisponiveis, [ColunaDoDetalhe::Prioridade]);
-    assert_eq!(feito.depois.as_deref(), Some(&onze()[..]));
+    assert!(feito.confirmado() && feito.alterado());
+    assert_eq!(feito.plano.indisponiveis, [C::Prioridade]);
+    assert_eq!(feito.depois(), Some(&onze()[..]));
 }
 
 #[test]
 fn lista_confirmada_na_r_salva_confere_e_fica_na_d() {
-    let alvo = [ColunaDoDetalhe::Anotacao, ColunaDoDetalhe::Marcadores];
+    let alvo = [C::Anotacao, C::Marcadores];
     let rodada = rodar(
         r().html(),
         &lista(&alvo),
         true,
         vec![
             Passo::Html(200, d().html()),
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+            nivel(&C::TODAS, &ATUAL),
             fecha_modal(),
-            nivel(&ColunaDoDetalhe::TODAS, &alvo),
+            nivel(&C::TODAS, &alvo),
         ],
     );
     assert_eq!(
@@ -255,7 +245,7 @@ fn lista_confirmada_na_r_salva_confere_e_fica_na_d() {
         rodada.corpos,
         ["sbmSalvar=Salvar&chkSinAnotacao=on&chkSinMarcadores=on&hdnInfraTipoPagina=2"]
     );
-    assert_eq!(ok(&rodada).depois.as_deref(), Some(&alvo[..]));
+    assert_eq!(ok(&rodada).depois(), Some(&alvo[..]));
 }
 
 #[test]
@@ -264,19 +254,19 @@ fn alvo_igual_ao_atual_confirmado_nao_envia_post() {
         d().html(),
         &lista(&ATUAL),
         true,
-        vec![nivel(&ColunaDoDetalhe::TODAS, &ATUAL)],
+        vec![nivel(&C::TODAS, &ATUAL)],
     );
     assert_eq!(rodada.registro, [GET_NIVEL]);
     let feito = ok(&rodada);
-    assert!(feito.confirmado && !feito.alterado);
-    assert_eq!(feito.campos_do_envio, None);
+    assert!(feito.confirmado() && !feito.alterado());
+    assert_eq!(feito.campos_do_envio(), None);
 }
 
 #[test]
 fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
     let rodada = rodar(
         r().html(),
-        &lista(&[ColunaDoDetalhe::Prioridade]),
+        &lista(&[C::Prioridade]),
         true,
         vec![Passo::Html(200, d().html()), nivel(&onze(), &ATUAL)],
     );
@@ -285,7 +275,7 @@ fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
     assert_eq!(
         falha,
         &ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
-            coluna: ColunaDoDetalhe::Prioridade
+            coluna: C::Prioridade
         }
     );
 }
@@ -293,12 +283,11 @@ fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
 #[test]
 fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
     let extra = tela_salvavel(
-        &ColunaDoDetalhe::TODAS,
+        &C::TODAS,
         &ATUAL,
         "<input type=\"text\" name=\"txtNovo\" value=\"\">",
     );
-    let sem_botao =
-        tela_salvavel(&ColunaDoDetalhe::TODAS, &ATUAL, "").replacen("name=\"sbmSalvar\"", "", 1);
+    let sem_botao = tela_salvavel(&C::TODAS, &ATUAL, "").replacen("name=\"sbmSalvar\"", "", 1);
     for (html, esperado) in [
         (
             extra,
@@ -308,7 +297,7 @@ fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
         ),
         (
             sem_botao,
-            ErroVisaoDoControle::Submissao(ErroSubmissaoFormulario::Html(ErroHtml::ausente(
+            ErroVisaoDoControle::Submissao(S::Html(ErroHtml::ausente(
                 "botao_de_envio_ausente_no_formulario",
             ))),
         ),
@@ -336,9 +325,9 @@ fn verificacao_com_as_marcas_de_antes_e_nao_aplicada() {
         &AlvoDasColunas::Todas,
         true,
         vec![
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+            nivel(&C::TODAS, &ATUAL),
             fecha_modal(),
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+            nivel(&C::TODAS, &ATUAL),
         ],
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
@@ -359,16 +348,16 @@ fn verificacao_com_outras_marcas_apos_resposta_esperada_e_falha() {
         &AlvoDasColunas::Todas,
         true,
         vec![
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+            nivel(&C::TODAS, &ATUAL),
             fecha_modal(),
-            nivel(&ColunaDoDetalhe::TODAS, &[ColunaDoDetalhe::Atribuicao]),
+            nivel(&C::TODAS, &[C::Atribuicao]),
         ],
     );
     let falha = erro(&rodada);
     assert!(matches!(
         falha,
         ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar { observadas, .. }
-            if observadas == &[ColunaDoDetalhe::Atribuicao]
+            if observadas == &[C::Atribuicao]
     ));
 }
 
@@ -384,7 +373,7 @@ fn salvar_incerto(falha: Passo, verificacao: Passo) -> Rodada {
         d().html(),
         &AlvoDasColunas::Todas,
         true,
-        vec![nivel(&ColunaDoDetalhe::TODAS, &ATUAL), falha, verificacao],
+        vec![nivel(&C::TODAS, &ATUAL), falha, verificacao],
     )
 }
 
@@ -392,13 +381,13 @@ fn salvar_incerto(falha: Passo, verificacao: Passo) -> Rodada {
 fn erro_5xx_no_salvar_reconcilia_por_leitura_sem_repetir_o_post() {
     let rodada = salvar_incerto(
         Passo::Html(500, "<html>Erro interno.</html>".to_owned()),
-        nivel(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS),
+        nivel(&C::TODAS, &C::TODAS),
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let feito = ok(&rodada);
-    assert!(feito.alterado);
+    assert!(feito.alterado());
     assert!(matches!(
-        feito.reconciliado_por,
+        feito.reconciliado_por(),
         Some(FalhaDoSalvar::Envio(
             crate::formulario_web::ErroSubmissaoFormulario::Transporte(
                 crate::transporte::FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
@@ -414,15 +403,13 @@ fn erro_5xx_no_salvar_reconcilia_por_leitura_sem_repetir_o_post() {
 fn tempo_esgotado_e_leitura_igual_a_antes_e_nao_aplicada() {
     let rodada = salvar_incerto(
         Passo::Falha(FalhaTransporte::Rede),
-        nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+        nivel(&C::TODAS, &ATUAL),
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     assert!(matches!(
         erro(&rodada),
         ErroDefinirColunas::ConfiguracaoDeColunasNaoAplicada {
-            falha_do_salvar: Some(FalhaDoSalvar::Envio(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::Rede
-            ))),
+            falha_do_salvar: Some(FalhaDoSalvar::Envio(S::Transporte(FalhaTransporte::Rede))),
             ..
         }
     ));
@@ -432,7 +419,7 @@ fn tempo_esgotado_e_leitura_igual_a_antes_e_nao_aplicada() {
 fn tempo_esgotado_e_outras_marcas_e_nao_confirmado() {
     let rodada = salvar_incerto(
         Passo::Falha(FalhaTransporte::Rede),
-        nivel(&ColunaDoDetalhe::TODAS, &[ColunaDoDetalhe::Atribuicao]),
+        nivel(&C::TODAS, &[C::Atribuicao]),
     );
     let falha = erro(&rodada);
     assert!(matches!(
@@ -441,7 +428,7 @@ fn tempo_esgotado_e_outras_marcas_e_nao_confirmado() {
             falha_do_salvar: Some(_),
             verificacao,
             ..
-        } if **verificacao == VerificacaoDasColunas::Marcadas(vec![ColunaDoDetalhe::Atribuicao])
+        } if **verificacao == VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])
     ));
 }
 
@@ -453,7 +440,7 @@ fn verificacao_impossivel_apos_5xx_vinda_da_r_e_nao_confirmado_sem_post_de_volta
         true,
         vec![
             Passo::Html(200, d().html()),
-            nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+            nivel(&C::TODAS, &ATUAL),
             Passo::Falha(erro_500()),
             Passo::Falha(FalhaTransporte::Rede),
         ],
@@ -475,13 +462,13 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
     let login =
         "<html><form id='frmLogin' action='login.php'><input name='txtUsuario'></form></html>"
             .to_owned();
-    for passo in [Passo::Html(302, String::new()), Passo::Html(200, login)] {
-        let rodada = salvar_incerto(
-            passo,
-            nivel(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS),
-        );
+    for (passo, _subcodigo) in [
+        (Passo::Html(302, String::new()), "redirecionamento_302"),
+        (Passo::Html(200, login), "tela_de_login_recebida_apos_envio"),
+    ] {
+        let rodada = salvar_incerto(passo, nivel(&C::TODAS, &C::TODAS));
         assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
-        let _por = ok(&rodada).reconciliado_por.as_ref().unwrap();
+        let _por = ok(&rodada).reconciliado_por().unwrap();
     }
 }
 
@@ -503,8 +490,8 @@ fn resposta_esperada_e_verificacao_impossivel_e_nao_confirmado() {
 #[test]
 fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
     let rodada = salvar_incerto(
-        Passo::Html(200, resposta_do_salvar(&ColunaDoDetalhe::TODAS, &ATUAL, "")),
-        nivel(&ColunaDoDetalhe::TODAS, &ATUAL),
+        Passo::Html(200, resposta_do_salvar(&C::TODAS, &ATUAL, "")),
+        nivel(&C::TODAS, &ATUAL),
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let falha = erro(&rodada);
@@ -521,19 +508,16 @@ fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
 fn resposta_200_nao_reconhecida_e_leitura_do_alvo_e_reconciliada() {
     let inventada =
         "<html><body><script>infraFecharJanelaModal();</script></body></html>".to_owned();
-    let rodada = salvar_incerto(
-        Passo::Html(200, inventada),
-        nivel(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS),
-    );
+    let rodada = salvar_incerto(Passo::Html(200, inventada), nivel(&C::TODAS, &C::TODAS));
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
-    let por = ok(&rodada).reconciliado_por.as_ref().unwrap();
+    let por = ok(&rodada).reconciliado_por().unwrap();
     assert_eq!(por, &FalhaDoSalvar::RespostaDoSalvarNaoReconhecida);
 }
 
 #[test]
 fn sem_sinal_e_verificacao_impossivel_e_nao_confirmado_com_a_falha_do_salvar() {
     let rodada = salvar_incerto(
-        Passo::Html(200, resposta_do_salvar(&ColunaDoDetalhe::TODAS, &ATUAL, "")),
+        Passo::Html(200, resposta_do_salvar(&C::TODAS, &ATUAL, "")),
         Passo::Falha(FalhaTransporte::Rede),
     );
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);

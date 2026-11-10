@@ -185,22 +185,20 @@ fn link_consulta_historico(id: &str, historico_observado: bool) -> String {
     )
 }
 
-fn arvore_do_processo(
-    processo: &ProcessoSimulado,
-    unidade_atual: &str,
+/// Projeta nós e informa o primeiro índice livre a partir do SQLite.
+/// A árvore mista usa o índice tipado, nunca reinterpreta o JavaScript gerado.
+pub(crate) fn nos_e_proximo_indice(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<String, Estado> {
+    id: &str,
+) -> Result<(String, usize), Estado> {
     let (mut nos, proximo_indice) =
-        crate::documento_arvore::nos_com_proximo_indice(banco, instalacao, cenario, &processo.id)?;
-    let id = &processo.id;
+        crate::documento_arvore::nos_com_proximo_indice(banco, instalacao, cenario, id)?;
     let pasta_pendente = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
     let pasta_presente = pasta_pendente.is_some();
     if let Some(pasta) = pasta_pendente {
-        // Pastas e documentos coexistem no estado. O índice vem do próprio
-        // gerador dos nós documentais, não da contagem inferida do HTML.
         nos.push_str(&no_pasta_pendente(&pasta, id, proximo_indice));
     }
     let anexados = iesei::anexacoes::listar(banco, instalacao, cenario, id)
@@ -208,6 +206,18 @@ fn arvore_do_processo(
         .ok_or(Estado::DadosInsuficientes)?;
     let inicio_anexados = proximo_indice + usize::from(pasta_presente) * 2;
     nos.push_str(&nos_anexados(id, inicio_anexados, &anexados));
+    Ok((nos, inicio_anexados + anexados.len()))
+}
+
+fn arvore_do_processo(
+    processo: &ProcessoSimulado,
+    unidade_atual: &str,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+) -> Result<String, Estado> {
+    let (nos, _) = nos_e_proximo_indice(banco, instalacao, cenario, &processo.id)?;
+    let id = &processo.id;
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;

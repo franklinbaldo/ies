@@ -2,10 +2,10 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
-    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_andamento,
-    processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao, processo_envio,
-    processo_marcadores, processo_relacionar, processo_sobrestamento, retorno_programado,
-    validacao_acesso,
+    nivel_de_detalhe, parametro_unico, pdf_externo, pesquisa_documento, prazo_processo,
+    processo_andamento, processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao,
+    processo_envio, processo_marcadores, processo_relacionar, processo_sobrestamento,
+    retorno_programado, validacao_acesso,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -111,6 +111,9 @@ pub(crate) fn responder(
             == Some("unidade_auto_completar_envio_processo") =>
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        Some("procedimento_configurar_detalhe") if eh_controlador_sei(alvo) => {
+            nivel_de_detalhe::responder(metodo, banco, instalacao, cenario)
         }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
             processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)

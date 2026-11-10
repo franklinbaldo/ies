@@ -12,6 +12,7 @@ mod formulario;
 mod navegacao;
 use formulario::pagina_de_envio;
 pub use navegacao::navegacao;
+pub(crate) use navegacao::nos_e_proximo_indice;
 
 fn unico<'a>(alvo: &'a str, chave: &str) -> Option<&'a str> {
     let (_, query) = alvo.split_once('?')?;

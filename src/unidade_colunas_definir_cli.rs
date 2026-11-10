@@ -95,25 +95,22 @@ fn chaves_tipadas(colunas: &[ColunaDoDetalhe]) -> Vec<&'static str> {
 fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
     let plano = &feito.plano;
     ResultadoColunas {
-        alterado: feito.alterado,
+        alterado: feito.alterado(),
         alvo: chaves_tipadas(&plano.alvo),
         antes: chaves_tipadas(&plano.antes),
-        confirmado: feito.confirmado,
-        depois: feito.depois.as_deref().map(chaves_tipadas),
+        confirmado: feito.confirmado(),
+        depois: feito.depois().map(chaves_tipadas),
         desmarcar: chaves_tipadas(&plano.desmarcar()),
-        envio: feito
-            .campos_do_envio
-            .as_deref()
-            .map(|campos| EnvioColunasPublico {
-                acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
-                campos,
-                metodo: "POST",
-            }),
-        falha_do_salvar: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
+        envio: feito.campos_do_envio().map(|campos| EnvioColunasPublico {
+            acao: crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            campos,
+            metodo: "POST",
+        }),
+        falha_do_salvar: feito.reconciliado_por().map(|f| format!("{f:?}")),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
         origem: "web",
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
         unidade: &feito.unidade,
     }
 }
@@ -122,31 +119,28 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
 #[cfg(test)]
 fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     let plano = &feito.plano;
-    let envio = feito
-        .campos_do_envio
-        .as_ref()
-        .map_or(Value::Null, |campos| {
-            json!({
-                "metodo": "POST",
-                "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
-                "campos": campos,
-            })
-        });
+    let envio = feito.campos_do_envio().map_or(Value::Null, |campos| {
+        json!({
+            "metodo": "POST",
+            "acao": crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE,
+            "campos": campos,
+        })
+    });
     let mut valor = json!({
         "unidade": feito.unidade,
         "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
+        "confirmado": feito.confirmado(),
+        "alterado": feito.alterado(),
         "antes": chaves(&plano.antes),
         "alvo": chaves(&plano.alvo),
         "marcar": chaves(&plano.marcar()),
         "desmarcar": chaves(&plano.desmarcar()),
         "indisponiveis": chaves(&plano.indisponiveis),
         "envio": envio,
-        "depois": opcional(feito.depois.as_deref()),
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
+        "depois": opcional(feito.depois()),
+        "reconciliado_por_leitura": feito.reconciliado_por().is_some(),
     });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
+    if let (Some(falha), Some(objeto)) = (feito.reconciliado_por(), valor.as_object_mut()) {
         objeto.insert("falha_do_salvar".to_owned(), json!(format!("{falha:?}")));
     }
     valor
@@ -167,7 +161,11 @@ fn linha(rotulo: &str, colunas: &[ColunaDoDetalhe]) -> String {
 
 fn humano(feito: &ColunasDefinidas) -> String {
     let plano = &feito.plano;
-    let cabeca = match (feito.confirmado, feito.alterado, &feito.campos_do_envio) {
+    let cabeca = match (
+        feito.confirmado(),
+        feito.alterado(),
+        feito.campos_do_envio(),
+    ) {
         (_, _, None) => "nada a salvar: o alvo é a configuração atual",
         (false, _, Some(_)) => "prévia, nada foi salvo",
         (true, true, _) => "salvo e conferido por leitura",
@@ -189,15 +187,15 @@ fn humano(feito: &ColunasDefinidas) -> String {
             &plano.indisponiveis,
         ));
     }
-    if let Some(depois) = &feito.depois {
+    if let Some(depois) = feito.depois() {
         linhas.push(linha("Lido depois de salvar", depois));
     }
-    if let Some(falha) = &feito.reconciliado_por {
+    if let Some(falha) = feito.reconciliado_por() {
         linhas.push(format!(
             "IES: a resposta do salvar não foi a esperada ({falha:?}); a leitura mostrou o alvo."
         ));
     }
-    if let (false, Some(campos)) = (feito.confirmado, &feito.campos_do_envio) {
+    if let (false, Some(campos)) = (feito.confirmado(), feito.campos_do_envio()) {
         linhas.push(format!("POST que seria enviado: {}", campos.join(", ")));
         linhas.push("Para aplicar, repita com --confirmar.".to_owned());
     }
