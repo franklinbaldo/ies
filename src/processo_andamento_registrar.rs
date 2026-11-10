@@ -12,6 +12,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
     Andamentos, EnvioDoProcesso, ErroProcessoObter, PedidoDeAndamentos, PedidoDoProcesso,
@@ -156,6 +157,9 @@ pub(crate) struct Resultado {
 }
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum Erro {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     OrigemNaoAutorizada,
@@ -221,8 +225,7 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         return Err(Erro::HistoricoNaoPublicado);
     };
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
-    let cookie =
-        ler_cookie(sessao).map_err(|e| Erro::Formulario(ErroSubmissaoFormulario::Transporte(e)))?;
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str())?;
     conferir_formulario(&html, &aberto.arvore.processo.id)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;

@@ -110,8 +110,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     if aberto.natureza.cancelado != Some(false) {
         return Err(E::EstadoAntesNaoObservado);
     }
-    let cookie =
-        ler_cookie(sessao).map_err(|f| E::Formulario(ErroSubmissaoFormulario::Transporte(f)))?;
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,

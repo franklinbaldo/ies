@@ -39,7 +39,7 @@ impl Credenciais {
     /// Arquivo privado pelas travas do transporte (`0600`, sem link, limite).
     pub(crate) fn ler(caminho: &Path) -> Result<Self, ErroLogin> {
         let texto = crate::transporte::arquivo_privado(caminho, LIMITE_DO_ARQUIVO)
-            .map_err(ErroLogin::ArquivoDeCredenciais)?;
+            .map_err(CredenciaisIlegiveis::Arquivo)?;
         Self::interpretar(&texto)
     }
 
@@ -78,4 +78,12 @@ impl Credenciais {
             orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Orgao))?,
         })
     }
+}
+
+/// O arquivo privado de credenciais ausente, inseguro ou ilegível. Tipo próprio da etapa; o nome
+/// público é o motivo do transporte (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum CredenciaisIlegiveis {
+    #[causa(transparente)]
+    Arquivo(crate::transporte::FalhaTransporte),
 }

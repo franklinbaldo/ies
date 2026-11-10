@@ -3,6 +3,7 @@
 use crate::arvore_processo::{Assinante, ErroLinkDeAssinar};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::sessao_login::ErroLogin;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -69,6 +70,9 @@ impl VerificacaoDaAssinatura {
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAssinar {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     /// A abertura do documento (a de `ies documento DOC`) falhou.
     #[causa(interna)]
     Abertura(ErroDocumentoObter),
@@ -153,6 +157,7 @@ impl ErroAssinar {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Cookie(e) => e.mensagem(),
             Self::Html(e) => e.mensagem,
             Self::Abertura(erro) => erro.mensagem(),
             Self::Credenciais(erro) => erro.mensagem(),

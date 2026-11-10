@@ -14,8 +14,7 @@ use crate::arvore_processo::{
 };
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
-    ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao,
-    enviar_submissao_via,
+    RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -59,8 +58,7 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
                 "a árvore não publica a tela do documento na forma observada; nada foi assinado",
             ),
         ))?;
-    let cookie = ler_cookie(sessao)
-        .map_err(|falha| A::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
+    let cookie = ler_cookie(sessao)?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela_do_doc.as_str()).map_err(da_tela)?;
     let link = ler_link_de_assinar(&instalacao, &html, &id, &id_processo)?;
     let (html_da_tela, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;

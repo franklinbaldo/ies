@@ -13,6 +13,7 @@ use crate::formulario_web::{
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
@@ -21,6 +22,9 @@ use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle as _;
 #[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroPrevia {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Abertura(ErroProcessoObter),
     OrigemNaoAutorizada,

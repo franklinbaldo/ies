@@ -60,8 +60,31 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
 }
 
 /// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
-pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, FalhaTransporte> {
-    sessao.cookie.valor().map(str::to_owned)
+/// O cookie privado da sessão não pôde ser lido, antes de qualquer
+/// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` numa
+/// variante `Cookie`, distinta do transporte das telas; o nome público é o
+/// motivo concreto (`transparente`).
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum CookieIlegivel {
+    #[causa(transparente)]
+    Arquivo(FalhaTransporte),
+}
+
+impl CookieIlegivel {
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::Arquivo(falha) => falha.status_http(),
+        }
+    }
+    pub(crate) fn mensagem(&self) -> &'static str {
+        match self {
+            Self::Arquivo(falha) => falha.mensagem(),
+        }
+    }
+}
+
+pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, CookieIlegivel> {
+    Ok(sessao.cookie.valor()?.to_owned())
 }
 
 /// Por que uma tela pedida antes da escrita não foi servida.
