@@ -16,15 +16,32 @@ Fonte: Todos @323eb01, `src/todos/sei/blocos_lista.py`,
 `tests/test_bloco_de_processos_010.py`. Esses arquivos são somente
 oráculo de formato e de cenário, não arquitetura a portar.
 
-Testes Rust sintéticos em `src/bloco.rs`, `src/bloco_detalhe.rs`
-e `tests/bloco_listar.rs`, sem credenciais em fixtures.
-O cenário feliz lê Controle + lista = **2 GET**; obter detalhe consome
-mais um GET = **3 GET**. Nenhum envio POST. A primeira página não
+Testes Rust sintéticos em `src/bloco.rs`, `src/bloco_detalhe.rs`,
+`tests/bloco_listar.rs` e `tests/aies_bloco_cli.rs`, sem credenciais em
+fixtures. A CLI real foi exercitada no último teste por HTTPS local contra
+anti-IES com SQLite efêmero. A primeira página lê Controle + lista =
+**2 GET, zero POST**; obter detalhe consome mais um GET = **3 GET**.
+A **segunda página interna** deriva **um POST único de navegação** de
+`frmBlocoLista`, após os 2 GET, e exige mesmo total e faixa contígua;
+outras listas na página 2 e páginas acima de 2 continuam recusadas antes
+da rede. Não restaurar página/filtro da sessão. A primeira página não
 é inventada quando a sessão está em outra página.
 
-UnB e Goiás: **NOT_RUN**, sem requisições reais; nenhuma alteração no
-SEI. Replay das cassettes `bloco-lista-obter-buscar-*` e
-`bloco-interno-ciclo-*`: NOT_RUN. RED local: NOT_RUN por falta
-de Rust em sandbox; gates do CI são a fonte de confirmação de testes.
+O card Goiás `bloco-interno-ciclo-go` registra uma transição de faixa
+1–50 para 51–100 após POST de navegação, mas **não preserva o corpo
+original do POST**. Os pares derivados pela CLI são hipótese sintética,
+não equivalência externa demonstrada. No SQLite, página desconhecida
+não vira página vazia; `total_declarado=0`, `faixa_observada=null` e
+`itens=[]` só são publicados quando o vazio foi explicitamente registrado.
 
-PENDENTE_DE_CASSETTE: replay integral, paginação e observação ao vivo em UnB/GO.
+**Três evidências distintas:** testes sintéticos CLI real ↔ anti-IES ↔
+SQLite estão presentes em `tests/aies_bloco_cli.rs` (BDD-256-01/02/03),
+mas não foram reexecutados nesta revisão documental. O confronto
+independente entre leitores IES, anti-IES e corpos originais das cassettes
+`bloco-lista-obter-buscar-*` e `bloco-interno-ciclo-*` é **NOT_RUN**.
+UnB e Goiás ao vivo: **NOT_RUN**, sem requisições externas nem alteração
+no SEI por esta revisão. Os cards e seus hashes publicados não são, por
+si só, prova de replay semântico.
+
+PENDENTE: confronto bilateral de cassettes, paginação além da segunda
+página interna e observação em treinamento.
