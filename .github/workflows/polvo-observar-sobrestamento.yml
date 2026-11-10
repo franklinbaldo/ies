@@ -57,3 +57,11 @@ jobs:
                       for form in parser.forms:
                           print("FORM",form)
           PY
+
+      - name: Instalar Rust fixado para replay offline
+        run: rustup toolchain install 1.99.1 --profile minimal
+      - name: RED - confrontar formularios originais e anti-IES
+        env:
+          IES_ACERVO_CACHE: /tmp
+        run: |
+          cargo +1.99.1 test --locked --bin ies replay_do_formulario_de_sobrestamento_unb_go_contra_anti_ies -- --ignored --nocapture --test-threads=1
