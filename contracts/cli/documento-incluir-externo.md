@@ -61,7 +61,7 @@ conhecido. Ele usa a mesma conexão TLS/proxy dos demais comandos, envia
 `Content-Length` explícito, transmite o PDF em fluxo e não repete a
 requisição. O interpretador consome a resposta HTTP limitada do upload
 temporário, decodifica o charset declarado e distingue recibo válido,
-recusa explícita e efeito incerto, inclusive se o corpo for ilegível.
+recusa explícita e escrita não confirmada, inclusive se o corpo for ilegível.
 
 O cenário BDD no proxy local exercita, numa conexão única:
 **Dado** PDF local e URL sintética de upload, **quando** o envio multipart
@@ -75,7 +75,7 @@ do SEI, não habilita `--confirmar` e não comprova documento criado.
 
 O oráculo [Todos](https://github.com/franklinbaldo/todos/blob/main/src/todos/documento_externo.py) descreve na UnB de TREINAMENTO (11/10/2026) **duas etapas HTTP mutadoras diferentes sob uma única confirmação**: upload temporário multipart `documento_upload_anexo` → recibo → cadastro `documento_receber` com `hdnAnexos` → releitura independente da árvore e metadados do anexo. Não é correto exigir apenas um POST total, nem interpretar recibo de upload como documento já incluído.
 
-A próxima fatia deve observar cada campo e action servidos; conferir os tipos e limites; usar `formulario_web`, origem e identidade; executar um único upload e um único cadastro, **sem retry**; distinguir `anexo confirmado`, `anexo não observado`, `documento criado` e `efeito incerto` com variantes tipadas, preferindo saída 3 a sucesso não provado. O caso [Todos #1246](https://github.com/franklinbaldo/todos/issues/1246) relata anexo somente visível na tela de alteração, não na árvore; **não** autoriza inferir ausência nem repetir POST.
+A próxima fatia deve observar cada campo e action servidos; conferir os tipos e limites; usar `formulario_web`, origem e identidade; executar um único upload e um único cadastro, **sem retry**; distinguir `anexo confirmado`, `anexo não observado`, `documento criado` e `escrita não confirmada` com variantes tipadas, preferindo saída 1 a sucesso não provado. O caso [Todos #1246](https://github.com/franklinbaldo/todos/issues/1246) relata anexo somente visível na tela de alteração, não na árvore; **não** autoriza inferir ausência nem repetir POST.
 
 **Evidência:** os testes sintéticos do núcleo estão em `src/documento_externo_incluir.rs`; live em treinamento: PASS em 09/11/2026 (ver o início deste contrato).
 

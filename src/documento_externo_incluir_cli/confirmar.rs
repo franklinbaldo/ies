@@ -80,16 +80,15 @@ pub(super) fn executar(
                     println!("{}", json_da_falha(&erro, upload_tentado, requisicoes));
                 } else {
                     eprintln!(
-                        "IES: inclusão externa não comprovada na etapa {} (saída {}). Upload tentado: {}; cadastro tentado: {}; resíduo temporário possível: {}; requisições: {}. Não repita automaticamente a escrita.",
+                        "IES: inclusão externa não comprovada na etapa {}. Upload tentado: {}; cadastro tentado: {}; resíduo temporário possível: {}; requisições: {}. Não repita automaticamente a escrita.",
                         erro.etapa(),
-                        erro.codigo_saida(),
                         upload_tentado,
                         erro.cadastro_tentado(),
                         erro.temporario_possivel(),
                         requisicoes
                     );
                 }
-                ExitCode::from(erro.codigo_saida())
+                ExitCode::from(1)
             }
         }
     })
@@ -99,7 +98,6 @@ fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoe
     json!({
         "confirmado": false,
         "etapa": erro.etapa(),
-        "efeito_incerto": erro.codigo_saida() == 3,
         "retentavel": false,
         "upload_tentado": upload_tentado,
         "cadastro_tentado": erro.cadastro_tentado(),
@@ -114,8 +112,8 @@ mod tests {
     use crate::documento_externo_incluir::confirmacao::FalhaConfirmacao;
 
     #[test]
-    fn bdd_332_04_efeito_incerto_informa_etapa_e_residuo_sem_repeticao() {
-        let erro = ErroConfirmacaoExterna::Sequencia(FalhaConfirmacao::EfeitoIncerto);
+    fn bdd_332_04_nao_confirmado_informa_etapa_e_residuo_sem_repeticao() {
+        let erro = ErroConfirmacaoExterna::Sequencia(FalhaConfirmacao::NaoConfirmado);
         let resultado = json_da_falha(&erro, true, 7);
         assert_eq!(resultado["confirmado"], false);
         assert_eq!(resultado["etapa"], "releitura_independente");

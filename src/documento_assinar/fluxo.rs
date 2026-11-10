@@ -221,14 +221,14 @@ fn conciliar(
 ) -> Result<DocumentoAssinado, A> {
     let antes = feito.assinaturas.clone();
     let Vf::Lida(depois) = &verificacao else {
-        return Err(A::EfeitoIncertoNaAssinatura {
+        return Err(A::NaoConfirmadoNaAssinatura {
             antes,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
         });
     };
     let Some(edicao_depois) = edicao_depois else {
-        return Err(A::EfeitoIncertoNaAssinatura {
+        return Err(A::NaoConfirmadoNaAssinatura {
             antes,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
@@ -245,7 +245,7 @@ fn conciliar(
             nova.clone()
         }
         _ => {
-            return Err(A::EfeitoIncertoNaAssinatura {
+            return Err(A::NaoConfirmadoNaAssinatura {
                 antes,
                 falha_do_envio: falha,
                 verificacao: Box::new(verificacao),

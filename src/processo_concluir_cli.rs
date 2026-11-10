@@ -199,13 +199,12 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
             valor.depois = Some(depois);
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroConcluir::EfeitoIncertoNaConclusao {
+        ErroConcluir::NaoConfirmadoNaConclusao {
             aberto_em,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
@@ -223,7 +222,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 /// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
@@ -238,9 +237,6 @@ pub(crate) fn publicar_valor_da_falha(json_mode: bool, valor: &Value, saida: u8)
                 let siglas: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
                 eprintln!("IES: {campo}: {}", lista_humana(&siglas));
             }
-        }
-        if let Some(motivo) = valor["verificacao"].as_str() {
-            eprintln!("IES: verificação: {motivo}");
         }
     }
     ExitCode::from(saida)
@@ -295,7 +291,7 @@ fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
         E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
         | E::ConclusaoNaoPublicadaNaBarra { aberto_em }
         | E::ConclusaoNaoAplicada { aberto_em, .. }
-        | E::EfeitoIncertoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
@@ -310,16 +306,11 @@ fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
     }
     let falha_do_envio = match erro {
         E::ConclusaoNaoAplicada { falha_do_envio, .. }
-        | E::EfeitoIncertoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    if let E::EfeitoIncertoNaConclusao { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
     }
     linhas
 }

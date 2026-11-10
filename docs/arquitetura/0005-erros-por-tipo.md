@@ -34,7 +34,7 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
   contrato de decisão; a causa é diagnóstico.
-- **Sem "efeito incerto".** Uma escrita é descrita por fatos (`enviada`,
+- **Sem "escrita não confirmada".** Uma escrita é descrita por fatos (`enviada`,
   `aplicada`) e pela causa exata; depois de uma falha, a operação lê de
   novo para reconciliar, sem repetir a escrita.
 - **Serde sob demanda.** O domínio propaga `Result`, `Option` e `enum` sem

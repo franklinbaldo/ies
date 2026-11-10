@@ -210,7 +210,7 @@ fn incerto(respostas_depois: Vec<Resposta>) -> (E, usize) {
 // Uma tabela de casos: dividir só repetiria o roteiro.
 #[allow(clippy::too_many_lines)]
 #[test]
-fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
+fn desvios_depois_do_post_sao_nao_confirmado_sem_novo_pedido() {
     let casos: Vec<(Vec<Resposta>, Etapa, F, usize)> = vec![
         (
             vec![html(controle("PR-B", ID_B))],
@@ -302,14 +302,13 @@ fn desvios_depois_do_post_sao_efeito_incerto_sem_novo_pedido() {
         let (erro, pedidos) = incerto(depois);
         assert_eq!(
             erro,
-            E::EfeitoIncerto {
+            E::NaoConfirmado {
                 etapa,
                 falha: falha.clone()
             },
             "{falha:?}"
         );
         assert_eq!(pedidos, n, "{falha:?}");
-        assert_eq!(erro.saida(), 3);
-        assert_eq!(erro.codigo(), "efeito_incerto");
+        assert_eq!(erro.codigo(), "nao_confirmado");
     }
 }

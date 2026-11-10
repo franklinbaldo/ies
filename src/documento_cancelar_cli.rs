@@ -73,7 +73,7 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
                         eprintln!("{linha}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     }))
@@ -108,24 +108,16 @@ fn json_da_falha_do_envio(f: &FalhaDoCancelamento) -> Value {
 
 fn json_da_falha(e: &ErroCancelar) -> Value {
     let mut valor = json_base_da_falha(e.codigo(), e.mensagem(), e.status_http());
-    if let Some(obj) = valor.as_object_mut() {
-        match e {
-            ErroCancelar::CancelamentoNaoAplicado {
-                falha_do_envio: Some(f),
-            } => {
-                obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-            }
-            ErroCancelar::EfeitoIncerto {
-                falha_do_envio,
-                verificacao,
-            } => {
-                obj.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-                if let Some(f) = falha_do_envio {
-                    obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-                }
-            }
-            _ => {}
+    if let Some(obj) = valor.as_object_mut()
+        && let ErroCancelar::CancelamentoNaoAplicado {
+            falha_do_envio: Some(f),
         }
+        | ErroCancelar::NaoConfirmado {
+            falha_do_envio: Some(f),
+            ..
+        } = e
+    {
+        obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
     }
     valor
 }
@@ -199,16 +191,11 @@ fn linhas_da_falha(erro: &ErroCancelar) -> Vec<String> {
     let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     let falha_do_envio = match erro {
         ErroCancelar::CancelamentoNaoAplicado { falha_do_envio }
-        | ErroCancelar::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | ErroCancelar::NaoConfirmado { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    if let ErroCancelar::EfeitoIncerto { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
     }
     linhas
 }

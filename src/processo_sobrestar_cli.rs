@@ -101,12 +101,12 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                if matches!(e, ErroSobrestamento::EfeitoIncerto) {
+                if matches!(e, ErroSobrestamento::NaoConfirmado) {
                     if cli.json {
                         println!(
                             "{}",
                             json!({
-                                "codigo": "efeito_incerto",
+                                "codigo": "nao_confirmado",
                                 "erro": e.mensagem(),
                                 "retentavel": false,
                                 "origem": "web"
@@ -115,7 +115,7 @@ fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: 
                     } else {
                         eprintln!("IES: {} ({})", e.mensagem(), e.mensagem());
                     }
-                    ExitCode::from(3)
+                    ExitCode::from(1)
                 } else {
                     saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http())
                 }

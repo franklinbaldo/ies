@@ -100,7 +100,7 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
 }
 
 #[test]
-fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
+fn bdd_333_04_releitura_indisponivel_falha_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
@@ -112,12 +112,12 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     );
     assert_eq!(
         saidas[0].status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
-    assert_eq!(json(&saidas[0])["codigo"], "efeito_incerto");
+    assert_eq!(json(&saidas[0])["codigo"], "nao_confirmado");
     assert_eq!(
         pedidos
             .iter()

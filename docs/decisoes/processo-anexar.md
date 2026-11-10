@@ -52,7 +52,7 @@ Na prévia, não há POST mutador. Em origens autorizadas de treinamento,
 `--confirmar` deriva a submissão da tela servida, efetua **um único POST**,
 confere o aceite HTTP e só publica sucesso depois de ler novamente a lista
 e a árvore do principal, identificando o anexado. Resposta 302 isolada
-não prova a mudança. Quando a releitura falha, a CLI retorna **saída 3**,
+não prova a mudança. Quando a releitura falha, a CLI retorna **saída 1**,
 sem retry, e informa que não se deve repetir `--confirmar`. A implementação
 passou em teste com CLI Rust real, anti-IES por HTTPS local e SQLite
 compartilhado; **isso é prova sintética, não validação externa do SEI**.
@@ -68,7 +68,7 @@ A [matriz de derivação](../matriz-derivacao-cli.md) registra a fatia.
   argumentos e recusas antes da rede, inclusive a política de origens.
 - [BDD-270-02 em bancada](../../tests/aies_anexacao_cli.rs) executa a CLI
   real contra HTTPS local, anti-IES e SQLite: um POST mutador, releitura
-  independente por segunda invocação e saída 3 após HTTP 503 sintético
+  independente por segunda invocação e saída 1 após HTTP 503 sintético
   posterior à persistência, sem repetição da escrita.
 - [CI oficial #42767244366](https://github.com/franklinbaldo/ies/actions/runs/42767244366):
   7/7 PASS no head `c588b06`, antes desta atualização documental.

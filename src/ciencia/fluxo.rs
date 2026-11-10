@@ -102,7 +102,7 @@ pub(crate) enum ErroCienciaProcesso {
     #[causa(sessao_encerrada)]
     SessaoEncerrada,
     /// A escrita pode ter ocorrido. NUNCA repetir; revisar a lista manualmente.
-    EfeitoIncerto {
+    NaoConfirmado {
         motivo: VerificacaoDaCiencia,
         requisicoes: u8,
         falha_do_aceite: Option<FalhaDoAceiteProcesso>,
@@ -120,12 +120,12 @@ impl ErroCienciaProcesso {
             Self::Cookie(_) => "o arquivo privado da sessão não pôde ser lido",
             Self::Tela(_) | Self::TelaRedirecionada => "a tela de ciência não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
-            Self::EfeitoIncerto { .. } => {
+            Self::NaoConfirmado { .. } => {
                 "a ciência pode ter sido registrada; conferir a Lista de Ciências no SEI antes de nova confirmação"
             }
         };
         match self {
-            Self::EfeitoIncerto { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
+            Self::NaoConfirmado { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
             _ => texto.to_owned(),
         }
     }
@@ -135,7 +135,7 @@ impl ErroCienciaProcesso {
             Self::Abertura(erro) => erro.status_http(),
             Self::Cookie(erro) => erro.status_http(),
             Self::Tela(erro) => erro.status_http(),
-            Self::EfeitoIncerto {
+            Self::NaoConfirmado {
                 falha_do_aceite, ..
             } => falha_do_aceite
                 .as_ref()
@@ -144,17 +144,9 @@ impl ErroCienciaProcesso {
         }
     }
 
-    pub(crate) const fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto { .. }) {
-            3
-        } else {
-            1
-        }
-    }
-
     pub(crate) const fn requisicoes(&self) -> Option<u8> {
         match self {
-            Self::EfeitoIncerto { requisicoes, .. } => Some(*requisicoes),
+            Self::NaoConfirmado { requisicoes, .. } => Some(*requisicoes),
             _ => None,
         }
     }
@@ -232,12 +224,12 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
             resultado.usuario = usuario;
             Ok(resultado)
         }
-        Ok((false, _)) => Err(E::EfeitoIncerto {
+        Ok((false, _)) => Err(E::NaoConfirmado {
             motivo: VerificacaoDaCiencia::AtividadeNaoEncontradaNaListaRelida,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
-        Err(motivo) => Err(E::EfeitoIncerto {
+        Err(motivo) => Err(E::NaoConfirmado {
             motivo,
             requisicoes: rede.feitas(),
             falha_do_aceite,

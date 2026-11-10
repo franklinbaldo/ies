@@ -278,7 +278,6 @@ fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
             coluna: C::Prioridade
         }
     );
-    assert_eq!(falha.saida(), 1);
 }
 
 #[test]
@@ -340,7 +339,7 @@ fn verificacao_com_as_marcas_de_antes_e_nao_aplicada() {
             ..
         }
     ));
-    assert_eq!((falha.codigo(), falha.saida()), ("escrita_nao_aplicada", 1));
+    assert_eq!(falha.codigo(), "escrita_nao_aplicada");
 }
 
 #[test]
@@ -361,7 +360,6 @@ fn verificacao_com_outras_marcas_apos_resposta_esperada_e_falha() {
         ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar { observadas, .. }
             if observadas == &[C::Atribuicao]
     ));
-    assert_eq!(falha.saida(), 1);
 }
 
 fn erro_500() -> FalhaTransporte {
@@ -410,7 +408,7 @@ fn tempo_esgotado_e_leitura_igual_a_antes_e_nao_aplicada() {
 }
 
 #[test]
-fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
+fn tempo_esgotado_e_outras_marcas_e_nao_confirmado() {
     let rodada = salvar_incerto(
         Passo::Falha(FalhaTransporte::Rede),
         nivel(&C::TODAS, &[C::Atribuicao]),
@@ -418,7 +416,7 @@ fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
     let falha = erro(&rodada);
     assert!(matches!(
         falha,
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             falha_do_salvar: Some(_),
             verificacao,
             ..
@@ -427,7 +425,7 @@ fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
 }
 
 #[test]
-fn verificacao_impossivel_apos_5xx_vinda_da_r_e_efeito_incerto_sem_post_de_volta() {
+fn verificacao_impossivel_apos_5xx_vinda_da_r_e_nao_confirmado_sem_post_de_volta() {
     let rodada = rodar(
         r().html(),
         &AlvoDasColunas::Todas,
@@ -444,10 +442,9 @@ fn verificacao_impossivel_apos_5xx_vinda_da_r_e_efeito_incerto_sem_post_de_volta
         ["POST visao=D", GET_NIVEL, "POST salvar", GET_NIVEL]
     );
     let falha = erro(&rodada);
-    assert_eq!(falha.saida(), 3);
     assert!(matches!(
         falha,
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas { verificacao, .. }
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas { verificacao, .. }
             if matches!(**verificacao, VerificacaoDasColunas::LeituraFalhou(_))
     ));
 }
@@ -468,11 +465,11 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
 }
 
 #[test]
-fn resposta_esperada_e_verificacao_impossivel_e_efeito_incerto() {
+fn resposta_esperada_e_verificacao_impossivel_e_nao_confirmado() {
     let rodada = salvar_incerto(fecha_modal(), Passo::Falha(FalhaTransporte::Rede));
     assert!(matches!(
         erro(&rodada),
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             falha_do_salvar: None,
             verificacao,
             ..
@@ -497,7 +494,6 @@ fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
             ..
         }
     ));
-    assert_eq!(falha.saida(), 1);
     assert_eq!(
         FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.status_http(),
         None
@@ -515,7 +511,7 @@ fn resposta_200_nao_reconhecida_e_leitura_do_alvo_e_reconciliada() {
 }
 
 #[test]
-fn sem_sinal_e_verificacao_impossivel_e_efeito_incerto_com_a_falha_do_salvar() {
+fn sem_sinal_e_verificacao_impossivel_e_nao_confirmado_com_a_falha_do_salvar() {
     let rodada = salvar_incerto(
         Passo::Html(200, resposta_do_salvar(&C::TODAS, &ATUAL, "")),
         Passo::Falha(FalhaTransporte::Rede),
@@ -523,7 +519,7 @@ fn sem_sinal_e_verificacao_impossivel_e_efeito_incerto_com_a_falha_do_salvar() {
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     assert!(matches!(
         erro(&rodada),
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
             verificacao,
             ..

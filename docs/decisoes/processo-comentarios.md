@@ -54,7 +54,7 @@ reais da CLI passam por HTTPS local, simulador e SQLite.
 O verificador pós-escrita recebe exclusivamente uma lista relida completa
 e exige id aceito e texto unívocos. A CLI só envia POST após conferir
 o formulário publicado, recebe o 302 sem segui-lo e relê a lista.
-Desvio após a tentativa produz saída 3, sem repetir a escrita. A capacidade
+Desvio após a tentativa produz saída 1, sem repetir a escrita. A capacidade
 continua restrita a origens de treinamento; produção é recusada
 antes da primeira requisição. A confirmação ainda não passou pelo replay
 semântico bilateral das cassettes nem por ensaio live.

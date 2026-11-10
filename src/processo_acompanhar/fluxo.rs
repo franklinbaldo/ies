@@ -39,7 +39,7 @@ pub(crate) enum ErroPrevia {
     #[causa(interna)]
     Formulario(crate::formulario_web::ErroSubmissaoFormulario),
     ConfirmacaoNaoImplementada,
-    EfeitoIncerto,
+    NaoConfirmado,
     #[causa(transparente)]
     Html(ErroHtml),
 }
@@ -350,7 +350,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !verificado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        return Err(ErroPrevia::NaoConfirmado);
     }
     // Somente depois da prova exata podemos publicar o ID observado.
     let novo = depois
@@ -362,7 +362,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
                     && linha.observacao == plano.observacao
             })
         })
-        .ok_or(ErroPrevia::EfeitoIncerto)?;
+        .ok_or(ErroPrevia::NaoConfirmado)?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.estado = EstadoDoAcompanhamento::Incluido;
     plano.requisicoes = rede.feitas();

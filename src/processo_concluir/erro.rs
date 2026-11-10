@@ -70,16 +70,7 @@ pub(crate) enum VerificacaoPorLeitura {
     LeituraFalhou(ErroProcessoObter),
 }
 
-impl VerificacaoPorLeitura {
-    /// Subcódigo (leitura) ou motivo (situação não lida).
-    pub(crate) fn motivo(&self) -> Option<&'static str> {
-        match self {
-            Self::Lida(_) => None,
-            Self::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
-            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
-        }
-    }
-}
+impl VerificacaoPorLeitura {}
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroConcluir {
@@ -124,7 +115,7 @@ pub(crate) enum ErroConcluir {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: a escrita saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaConclusao {
+    NaoConfirmadoNaConclusao {
         aberto_em: Vec<String>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoPorLeitura>,
@@ -136,16 +127,8 @@ impl ErroConcluir {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::ConclusaoNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncertoNaConclusao { .. } => "efeito_incerto",
+            Self::NaoConfirmadoNaConclusao { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaConclusao { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -156,7 +139,7 @@ impl ErroConcluir {
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::ConclusaoNaoAplicada { falha_do_envio, .. }
-            | Self::EfeitoIncertoNaConclusao { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNaConclusao { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -199,7 +182,7 @@ impl ErroConcluir {
             Self::ConclusaoNaoAplicada { .. } => {
                 "a árvore lida depois de concluir ainda lista a unidade da sessão: o processo não foi concluído"
             }
-            Self::EfeitoIncertoNaConclusao { .. } => {
+            Self::NaoConfirmadoNaConclusao { .. } => {
                 "não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir"
             }
         }

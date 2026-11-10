@@ -201,7 +201,7 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
 }
 
 #[test]
-fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
+fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_nao_confirmado() {
     // Dado um 302 arvore_visualizar que aponta para outro id de documento;
     // Quando executo a confirmacao e a releitura mostra um novo documento;
     // Entao nao atribuo causalidade ao POST nem repito a escrita.
@@ -212,7 +212,7 @@ fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
             a::ok(arvore_verificadora(1)),
         ],
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
     esperados.push(a::get(&a::url_arvore()));
@@ -368,7 +368,7 @@ fn incerteza_conserva_contagem_da_rede_externa() {
             let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, true);
             (resultado, contagem.feitas())
         });
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     assert_eq!(
         requisicoes, 7,
         "inclui releitura mesmo após resposta inconclusiva"

@@ -339,18 +339,17 @@ fn bdd_332_03_binario_confirma_upload_cadastro_e_releitura_independente() {
 }
 
 #[test]
-fn bdd_332_04_resposta_sem_autoria_retorna_tres_sem_repetir_post() {
+fn bdd_332_04_resposta_sem_autoria_falha_sem_repetir_post() {
     let (saidas, eventos, total, _) = executar(true, false, false);
     assert_eq!(
         saidas[0].status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={} eventos={eventos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let incerto = json(&saidas[0]);
     assert_eq!(incerto["confirmado"], false);
-    assert_eq!(incerto["efeito_incerto"], true);
     assert_eq!(incerto["retentavel"], false);
     assert_eq!(incerto["cadastro_tentado"], true);
     assert_eq!(total, 1, "efeito existiu mesmo com resposta adulterada");

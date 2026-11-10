@@ -91,7 +91,7 @@ pub(crate) enum ErroCriar {
         correspondentes: Option<Vec<String>>,
         observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     },
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 impl ErroCriar {
@@ -146,19 +146,15 @@ impl ErroCriar {
         )
     }
 
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(
+    pub(crate) fn apos_post(&self) -> bool {
+        matches!(
             self,
-            Self::EfeitoIncerto
+            Self::NaoConfirmado
                 | Self::VerificacaoAposPost(_)
                 | Self::RespostaHttpSemProva(_)
                 | Self::PosEscrita { .. }
                 | Self::PosRespostaInesperada { .. }
-        ) {
-            3
-        } else {
-            1
-        }
+        )
     }
 
     /// O retorno não infere ausência quando não houve candidato novo.

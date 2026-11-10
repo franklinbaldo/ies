@@ -140,7 +140,6 @@ fn upload_recusado_nao_cadastra_nem_rele() {
     )
     .unwrap_err();
     assert!(matches!(erro, FalhaConfirmacao::UploadRecusado(_)));
-    assert_eq!(erro.codigo_saida(), 1);
     assert_eq!(passos, ["upload"]);
 }
 
@@ -176,8 +175,7 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
         },
     )
     .unwrap_err();
-    assert!(matches!(erro, FalhaConfirmacao::EfeitoIncerto));
-    assert_eq!(erro.codigo_saida(), 3);
+    assert!(matches!(erro, FalhaConfirmacao::NaoConfirmado));
     assert!(erro.temporario_possivel());
     assert_eq!(passos, ["upload", "cadastro", "reler"]);
 }
@@ -218,7 +216,6 @@ fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
             },
         )
         .unwrap_err();
-        assert!(matches!(erro, FalhaConfirmacao::EfeitoIncerto));
-        assert_eq!(erro.codigo_saida(), 3);
+        assert!(matches!(erro, FalhaConfirmacao::NaoConfirmado));
     }
 }

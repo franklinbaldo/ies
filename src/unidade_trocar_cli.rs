@@ -116,7 +116,7 @@ pub(crate) fn trocar(
             pedidos,
         ),
         Err(erro) => {
-            if matches!(erro, ErroTroca::EfeitoIncerto { .. }) {
+            if matches!(erro, ErroTroca::NaoConfirmado { .. }) {
                 // A unidade pode ter mudado: nada da anterior é reaproveitado.
                 indice.esquecer_links_da_instalacao(&instalacao);
             }
@@ -363,7 +363,7 @@ fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
         ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
             objeto.insert("candidatas".to_owned(), json_das_unidades(candidatas));
         }
-        ErroTroca::EfeitoIncerto { etapa, .. } => {
+        ErroTroca::NaoConfirmado { etapa, .. } => {
             objeto.insert("etapa".to_owned(), json!(etapa.nome()));
             objeto.insert("escopo".to_owned(), json!("sessao_da_conta"));
         }
@@ -386,7 +386,7 @@ fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
             let siglas: Vec<_> = candidatas.iter().map(|u| u.sigla.as_str()).collect();
             linhas.push(format!("IES: candidatas: {}", siglas.join(", ")));
         }
-        ErroTroca::EfeitoIncerto { etapa, falha } => {
+        ErroTroca::NaoConfirmado { etapa, falha } => {
             linhas.push(format!(
                 "IES: etapa {}: {:?}; {AVISO_DE_ESCOPO}",
                 etapa.nome(),
@@ -407,7 +407,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroTroca, pedidos: u32) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 #[cfg(test)]

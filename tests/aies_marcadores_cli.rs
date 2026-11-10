@@ -214,20 +214,20 @@ enum Caso {
     AtribuirAusente,
     AtribuirSemCatalogo,
     AtribuirConfirmado,
-    AtribuirEfeitoIncerto,
+    AtribuirNaoConfirmado,
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
     RetirarConfirmado,
-    RetirarEfeitoIncerto,
+    RetirarNaoConfirmado,
 }
 
 #[path = "aies_marcadores_cli/pedidos.rs"]
 mod pedidos;
 use pedidos::executar_caso_cli;
 
-fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
-    if efeito_incerto
+fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, nao_confirmado: bool) {
+    if nao_confirmado
         && matches!(
             evento,
             "POST andamento_marcador_remover" | "POST andamento_marcador_cadastrar"
@@ -267,21 +267,21 @@ fn propriedades_do_caso(caso: Caso) -> (bool, bool, bool) {
             | Caso::AtribuirAusente
             | Caso::AtribuirSemCatalogo
             | Caso::AtribuirConfirmado
-            | Caso::AtribuirEfeitoIncerto
+            | Caso::AtribuirNaoConfirmado
     );
     let com_catalogo = matches!(
         caso,
-        Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto
+        Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirNaoConfirmado
     );
-    let efeito_incerto = matches!(
+    let nao_confirmado = matches!(
         caso,
-        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+        Caso::RetirarNaoConfirmado | Caso::AtribuirNaoConfirmado
     );
-    (sem_marcadores, com_catalogo, efeito_incerto)
+    (sem_marcadores, com_catalogo, nao_confirmado)
 }
 
 fn executar(caso: Caso) {
-    let (sem_marcadores, com_catalogo, efeito_incerto) = propriedades_do_caso(caso);
+    let (sem_marcadores, com_catalogo, nao_confirmado) = propriedades_do_caso(caso);
     let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
     let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     backend.set_nonblocking(true).unwrap();
@@ -320,7 +320,7 @@ fn executar(caso: Caso) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
-            injetar_resposta_inconclusiva(&mut resposta, &evento, efeito_incerto);
+            injetar_resposta_inconclusiva(&mut resposta, &evento, nao_confirmado);
             if evento == "GET andamento_marcador_gerenciar"
                 && resposta.starts_with(b"HTTP/1.1 200 ")
             {
@@ -368,7 +368,7 @@ fn executar(caso: Caso) {
     // Uma atribuição altera o estado: o GET inicial é 302, mas a releitura
     // posterior ao POST já pode renderizar a tabela com seus controles.
     let gerenciador_servido =
-        !sem_marcadores || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
+        !sem_marcadores || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirNaoConfirmado);
     conferir_controles(&controles, !gerenciador_servido);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
@@ -385,10 +385,10 @@ fn conferir(
 ) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let retirada_presente = matches!(caso, Caso::RetirarPresente);
-    let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
-    let efeito_incerto = matches!(
+    let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarNaoConfirmado);
+    let nao_confirmado = matches!(
         caso,
-        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+        Caso::RetirarNaoConfirmado | Caso::AtribuirNaoConfirmado
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if matches!(caso, Caso::AtribuirSemCatalogo) {
@@ -413,19 +413,19 @@ fn conferir(
         assert_eq!(releitura.status.code(), Some(0));
         return;
     }
-    if matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
-        conferir_atribuicao(saida, releitura, persistido, pedidos, &json, efeito_incerto);
+    if matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirNaoConfirmado) {
+        conferir_atribuicao(saida, releitura, persistido, pedidos, &json, nao_confirmado);
         return;
     }
     assert_eq!(
         saida.status.code(),
-        Some(if efeito_incerto { 3 } else { 0 }),
+        Some(i32::from(nao_confirmado)),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    if efeito_incerto {
-        assert_eq!(json["codigo"], "efeito_incerto");
+    if nao_confirmado {
+        assert_eq!(json["codigo"], "nao_confirmado");
         assert_eq!(json["retentavel"], false);
         assert_eq!(json["ausente_relido"], true);
         assert!(json["erro"].as_str().unwrap().contains("não repita"));
@@ -501,9 +501,9 @@ fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
 }
 
 #[test]
-fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
+fn bdd_255_02_post_aplicado_com_403_e_nao_confirmado_sem_retry() {
     // Resposta 403 após o POST aplicado não é aceite causal, mesmo com releitura ausente.
-    executar(Caso::RetirarEfeitoIncerto);
+    executar(Caso::RetirarNaoConfirmado);
 }
 
 #[test]
@@ -523,5 +523,5 @@ fn bdd_255_01_confirmar_atribuicao_exige_post_unico_e_releitura_do_texto() {
 
 #[test]
 fn bdd_255_01_403_apos_efeito_aplicado_nao_prova_autoria() {
-    executar(Caso::AtribuirEfeitoIncerto);
+    executar(Caso::AtribuirNaoConfirmado);
 }

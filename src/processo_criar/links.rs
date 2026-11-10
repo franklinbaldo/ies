@@ -60,12 +60,12 @@ pub(super) fn url_do_redirecionamento(
         resolver_link(instalacao, url_envio, localizacao, acao)?
     };
     let partes =
-        crate::url_observada::UrlHttps::interpretar(&absoluta).ok_or(ErroCriar::EfeitoIncerto)?;
+        crate::url_observada::UrlHttps::interpretar(&absoluta).ok_or(ErroCriar::NaoConfirmado)?;
     if !instalacao.autoriza_controlador(partes.host, partes.caminho) {
-        return Err(ErroCriar::EfeitoIncerto);
+        return Err(ErroCriar::NaoConfirmado);
     }
     if !acao_unica(partes.consulta.unwrap_or_default(), acao) {
-        return Err(ErroCriar::EfeitoIncerto);
+        return Err(ErroCriar::NaoConfirmado);
     }
     Ok(absoluta)
 }
@@ -81,21 +81,21 @@ pub(super) fn retorno_da_criacao(
         .split_once('#')
         .map_or(localizacao, |(url, _)| url);
     let url = url_do_redirecionamento(instalacao, localizacao, url_envio, "procedimento_trabalhar")
-        .map_err(|_| ErroCriar::EfeitoIncerto)?;
+        .map_err(|_| ErroCriar::NaoConfirmado)?;
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)
         .and_then(|p| p.consulta)
-        .ok_or(ErroCriar::EfeitoIncerto)?;
+        .ok_or(ErroCriar::NaoConfirmado)?;
     let mut ids = consulta
         .split('&')
         .filter(|par| par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_procedimento");
-    let primeiro = ids.next().ok_or(ErroCriar::EfeitoIncerto)?;
+    let primeiro = ids.next().ok_or(ErroCriar::NaoConfirmado)?;
     if ids.next().is_some() {
-        return Err(ErroCriar::EfeitoIncerto);
+        return Err(ErroCriar::NaoConfirmado);
     }
     let id = primeiro
         .strip_prefix("id_procedimento=")
         .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(ErroCriar::EfeitoIncerto)?
+        .ok_or(ErroCriar::NaoConfirmado)?
         .to_owned();
     Ok((url, id))
 }

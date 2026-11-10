@@ -21,7 +21,7 @@ fn falha_do_post_com_candidato_observado_preserva_orcamento_real() {
         ok(propriedades_correspondentes()),
     ];
     let mut contador = 0;
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar_com_contagem(
             sessao.origem,
             sessao.url_do_controle,
@@ -31,7 +31,6 @@ fn falha_do_post_com_candidato_observado_preserva_orcamento_real() {
             &mut contador,
         )
     });
-    assert_eq!(resultado.unwrap_err().saida(), 3);
     assert_eq!(requests.len(), 8);
     assert_eq!(
         requests.iter().filter(|req| req.metodo == "POST").count(),
@@ -120,8 +119,7 @@ fn previa_recusa_especificacao_acima_do_maxlength_observado() {
             &mut contador,
         )
     });
-    let erro = resultado.expect_err("prévia deve respeitar maxlength da tela");
-    assert_eq!(erro.saida(), 1);
+    let _erro = resultado.expect_err("prévia deve respeitar maxlength da tela");
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
@@ -149,8 +147,7 @@ fn confirmacao_recusa_especificacao_longa_antes_de_post() {
             &mut contador,
         )
     });
-    let erro = resultado.expect_err("maxlength deve impedir a escrita");
-    assert_eq!(erro.saida(), 1);
+    let _erro = resultado.expect_err("maxlength deve impedir a escrita");
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
     assert!(requests.iter().all(|req| req.metodo == "GET"));
@@ -242,7 +239,6 @@ fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
     });
     let erro = resultado.expect_err("falha AJAX impede POST criador");
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
-    assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 4);
     assert_eq!(requests.len(), 4);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);

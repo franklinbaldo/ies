@@ -99,13 +99,13 @@ fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
         && procedimento == Some(id)
 }
 
-fn efeito_incerto(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
+fn nao_confirmado(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
     let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
     if cli.json {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false,
                 "requisicoes": requisicoes,
@@ -115,7 +115,7 @@ fn efeito_incerto(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> E
     } else {
         eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn saida_sem_alteracao(
@@ -347,7 +347,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         _ => None,
     };
     if !aceito || ausente != Some(true) {
-        return efeito_incerto(cli, rede.feitas(), ausente);
+        return nao_confirmado(cli, rede.feitas(), ausente);
     }
     saida_confirmada(
         cli,

@@ -21,7 +21,7 @@ os da tela (`campo_nao_previsto_na_tela_de_conclusao`,
 `opcao_somente_concluir_nao_marcada`, `tela_de_conclusao_com_reabertura_preenchida`, …),
 os da função (`funcao_de_concluir_ausente_na_tela_do_no`, …),
 `conclusao_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
-`efeito_incerto_na_conclusao` (`efeito_incerto`, saída 3).
+`nao_confirmado_na_conclusao` (`nao_confirmado`, saída 1).
 
 ## Reabrir o processo (Refs #172)
 
@@ -36,7 +36,7 @@ por `aberto_em` numa leitura nova. Subcódigos próprios:
 `enderecos_de_reabrir_repetidos_na_tela_do_no`, …),
 `tela_do_no_redirecionada`, `redirecionamento_na_reabertura` (resposta),
 `reabertura_nao_aplicada` (`escrita_nao_aplicada`, saída 1) e
-`efeito_incerto_na_reabertura` (`efeito_incerto`, saída 3).
+`nao_confirmado_na_reabertura` (`nao_confirmado`, saída 1).
 
 ## Enviar o processo (Refs #173)
 
@@ -55,5 +55,5 @@ Subcódigos próprios: `situacao_do_processo_nao_lida_antes_de_enviar`,
 (`oferecidos`), `varios_destinos_com_a_sigla` (`candidatos`),
 `processo_ja_aberto_no_destino`, `envio_nao_aplicado`
 (`escrita_nao_aplicada`, 1), `situacao_da_origem_diferente_da_pedida_apos_envio`
-(`escrita_diferente_da_solicitada`, 1) e `efeito_incerto_no_envio`
-(`efeito_incerto`, 3).
+(`escrita_diferente_da_solicitada`, 1) e `nao_confirmado_no_envio`
+(`nao_confirmado`, 3).
