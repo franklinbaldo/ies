@@ -6,6 +6,7 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
     Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, interpretar_rotulo,
+    previa_atribuicao,
     validar_texto,
 };
 use crate::processo_obter::{
