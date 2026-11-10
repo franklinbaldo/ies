@@ -206,6 +206,20 @@ fn pedido(caso: Caso) -> (&'static str, &'static str) {
     }
 }
 
+fn executar_caso_cli(
+    pasta: &Pasta,
+    arquivos: [&std::path::Path; 4],
+    porta_proxy: u16,
+    caso: Caso,
+) -> Output {
+    let (operacao, marcador) = pedido(caso);
+    let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
+    if matches!(caso, Caso::RetirarConfirmado) {
+        argumentos.push("--confirmar");
+    }
+    executar_cli(pasta, arquivos, porta_proxy, &argumentos)
+}
+
 fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
     if sem_marcadores {
         assert!(
@@ -291,12 +305,7 @@ fn executar(caso: Caso) {
         origem.as_path(),
         cert.as_path(),
     ];
-    let (operacao, marcador) = pedido(caso);
-    let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    if confirmado {
-        argumentos.push("--confirmar");
-    }
-    let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
+    let saida = executar_caso_cli(&pasta, arquivos, porta_proxy, caso);
     if matches!(caso, Caso::RetirarPresente) {
         conferir_previa_humana(&pasta, arquivos, porta_proxy);
     }
