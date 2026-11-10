@@ -236,7 +236,11 @@ pub fn acrescentar(
         .checked_add(1)
         .ok_or(Falha::DadoInvalido)?;
     novo.id = proximo.to_string();
-    let total = foto.total_declarado.checked_add(1).and_then(|valor| i64::try_from(valor).ok()).ok_or(Falha::DadoInvalido)?;
+    let total = foto
+        .total_declarado
+        .checked_add(1)
+        .and_then(|valor| i64::try_from(valor).ok())
+        .ok_or(Falha::DadoInvalido)?;
     let posicao = i64::try_from(foto.itens.len()).map_err(|_| Falha::DadoInvalido)?;
     let atualizadas = tx.execute(
         "UPDATE processo_comentarios_observados SET total_declarado=?4

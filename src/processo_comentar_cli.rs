@@ -28,18 +28,16 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     if texto.trim().is_empty() || texto.contains('\0') {
         return Some(recusa(cli.json, "Informe o texto do comentário."));
     }
-    Some(com_sessao(
-        cli,
-        |sessao, indice| {
-            if *confirmar
-                && let Err(causa) = crate::origem_de_treinamento::exigir(
-                    crate::origem_de_treinamento::Escrita::ProcessoComentar,
-                    sessao.origem,
-                )
-            {
-                return crate::origem_de_treinamento::recusa(cli.json, causa);
-            }
-            match processo_comentar_web::prever(
+    Some(com_sessao(cli, |sessao, indice| {
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoComentar,
+                sessao.origem,
+            )
+        {
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
+        }
+        match processo_comentar_web::prever(
             sessao,
             &numero,
             texto,
@@ -79,11 +77,9 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
             }
             Err(processo_comentar_web::Erro::EfeitoIncerto) => efeito_incerto(cli.json),
             Err(causa) => recusa_previa(cli.json, &causa),
-            }
-        },
-    ))
+        }
+    }))
 }
-
 
 fn efeito_incerto(json_mode: bool) -> ExitCode {
     let mensagem = "O POST pode ter sido aplicado, mas o comentário não foi confirmado pela releitura; consulte ies processo comentarios antes de tentar novamente. Não repita --confirmar.";

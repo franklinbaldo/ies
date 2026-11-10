@@ -55,7 +55,6 @@ fn pagina_cadastro(id: &str) -> Resposta {
     ))
 }
 
-
 /// Hipótese de confirmação: POST único no formulário servido e redirect
 /// para lista com identidade do aceite. A autoria/data são sintéticas.
 fn gravar(
@@ -73,7 +72,8 @@ fn gravar(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    if pares.len() != 2 || campo("sbmCadastrarComentario") != Some("Cadastrar")
+    if pares.len() != 2
+        || campo("sbmCadastrarComentario") != Some("Cadastrar")
         || texto.trim().is_empty()
     {
         return Resposta::nova(Estado::RequisicaoInvalida);

@@ -38,5 +38,10 @@ fn bdd_257_02_expoe_previa_e_recusa_texto_invalido_sem_sessao() {
     assert_eq!(bloqueada.status.code(), Some(1));
     let resposta: serde_json::Value = serde_json::from_slice(&bloqueada.stdout).unwrap();
     assert_eq!(resposta["codigo"], "operacao_recusada");
-    assert!(resposta["erro"].as_str().unwrap().contains("Informe o texto"));
+    assert!(
+        resposta["erro"]
+            .as_str()
+            .unwrap()
+            .contains("Informe o texto")
+    );
 }

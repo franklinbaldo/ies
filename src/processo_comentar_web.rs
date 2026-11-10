@@ -3,8 +3,8 @@
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
-    consulta_do_controlador, decodificar_atributo, derivar_submissao, enviar_submissao_via,
+    OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
+    decodificar_atributo, derivar_submissao, enviar_submissao_via,
 };
 use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
@@ -83,7 +83,6 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
         .map_err(|_| Erro::LinkInvalido)
 }
 
-
 /// Confere a identidade do aceite sem seguir o redirecionamento.
 fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option<&'a str> {
     let consulta = consulta_do_controlador(local, url_post)?;
@@ -100,10 +99,9 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
             _ => {}
         }
     }
-    (acao == Some("comentario_listar")
-        && processo.is_none_or(|processo| processo == id_processo))
-    .then_some(id?)
-    .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
+    (acao == Some("comentario_listar") && processo.is_none_or(|processo| processo == id_processo))
+        .then_some(id?)
+        .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Uma tentativa de POST e uma releitura da lista; jamais reenvia a escrita.
@@ -136,8 +134,7 @@ fn confirmar<V: EnvioDoProcesso>(
         .and_then(|local| id_do_aceite(local, redir.url_do_envio(), id_processo))
         .ok_or(Erro::EfeitoIncerto)?;
     let (html, _) = obter_tela(rede, cookie, link_lista).map_err(|_| Erro::EfeitoIncerto)?;
-    let TelaDosComentarios::Lista(relidos) =
-        ler_tela(&html).map_err(|_| Erro::EfeitoIncerto)?
+    let TelaDosComentarios::Lista(relidos) = ler_tela(&html).map_err(|_| Erro::EfeitoIncerto)?
     else {
         return Err(Erro::EfeitoIncerto);
     };
@@ -202,9 +199,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     conferir_endereco_relativo(&instalacao, endereco, "comentario_cadastrar", id)
         .map_err(|_| Erro::Formulario)?;
     if confirmar_escrita {
-        confirmar(
-            submissao, sessao, &mut rede, &cookie, &link, id, texto,
-        )?;
+        confirmar(submissao, sessao, &mut rede, &cookie, &link, id, texto)?;
     }
     Ok(Previa {
         numero: nup.as_str().to_owned(),
