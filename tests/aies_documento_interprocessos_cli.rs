@@ -355,6 +355,9 @@ mod titulo_trocado;
 #[path = "aies_documento_interprocessos_cli/sessao_revogada.rs"]
 mod sessao_revogada;
 
+#[path = "aies_documento_interprocessos_cli/sessao_revogada_antes_da_lista.rs"]
+mod sessao_revogada_antes_da_lista;
+
 #[path = "aies_documento_interprocessos_cli/versao_revogada.rs"]
 mod versao_revogada;
 

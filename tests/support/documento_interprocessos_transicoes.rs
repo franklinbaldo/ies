@@ -20,6 +20,9 @@ pub(super) fn aplicar_transicao(
         EstadoExtra::SessaoRevogadaAoVisualizar => {
             revogar_sessao_antes_de_servir_corpo(tcp, banco, instalacao)
         }
+        EstadoExtra::SessaoRevogadaAntesDaLista => {
+            revogar_sessao_antes_de_servir_lista(tcp, banco, instalacao)
+        }
         EstadoExtra::VersaoRevogadaAoVisualizar => {
             revogar_versao_antes_de_servir_corpo(tcp, banco, instalacao)
         }
@@ -36,6 +39,13 @@ fn eh_get_de_conteudo(tcp: &TcpStream) -> bool {
     let tamanho = tcp.peek(&mut inicio).unwrap();
     let linha = String::from_utf8_lossy(&inicio[..tamanho]);
     linha.starts_with("GET ") && linha.contains("acao=documento_visualizar")
+}
+
+fn eh_get_de_lista(tcp: &TcpStream) -> bool {
+    let mut inicio = [0_u8; 1024];
+    let tamanho = tcp.peek(&mut inicio).unwrap();
+    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
+    linha.starts_with("GET ") && linha.contains("acao=documento_versao_listar")
 }
 
 /// A árvore já foi publicada; a origem altera o título antes do GET do
@@ -97,6 +107,20 @@ pub(super) fn revogar_sessao_antes_de_servir_corpo(
     true
 }
 
+/// A sessão muda para recusada depois da árvore e antes do histórico.
+/// O SQLite retém os documentos; apenas a autorização é alterada.
+pub(super) fn revogar_sessao_antes_de_servir_lista(
+    tcp: &TcpStream,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> bool {
+    if !eh_get_de_lista(tcp) {
+        return false;
+    }
+    acesso_sessao::bloquear(banco, instalacao, CENARIO).unwrap();
+    true
+}
+
 /// Revoga somente a versão 1 após a publicação da lista de versões.
 /// A revisão 2 permanece disponível. Esta corrida é hipótese sintética.
 pub(super) fn revogar_versao_antes_de_servir_corpo(
@@ -130,10 +154,7 @@ pub(super) fn cancelar_antes_de_servir_lista(
     banco: &Connection,
     instalacao: &Instalacao,
 ) -> bool {
-    let mut inicio = [0_u8; 1024];
-    let tamanho = tcp.peek(&mut inicio).unwrap();
-    let linha = String::from_utf8_lossy(&inicio[..tamanho]);
-    if !linha.starts_with("GET ") || !linha.contains("acao=documento_versao_listar") {
+    if !eh_get_de_lista(tcp) {
         return false;
     }
     assert_eq!(
@@ -198,11 +219,11 @@ pub(super) fn conferir_estado_apos_cli(
             "o cancelamento não afeta o documento de outro processo"
         );
     }
-    if matches!(modo, EstadoExtra::SessaoRevogadaAoVisualizar) {
-        assert!(
-            transicao,
-            "CLI não tentou consultar o corpo depois da árvore"
-        );
+    if matches!(
+        modo,
+        EstadoExtra::SessaoRevogadaAoVisualizar | EstadoExtra::SessaoRevogadaAntesDaLista
+    ) {
+        assert!(transicao, "CLI não seguiu a ação oferecida na árvore");
         assert_eq!(
             acesso_sessao::consultar(db, instalacao, CENARIO).unwrap(),
             acesso_sessao::AcessoSessao::Recusado
