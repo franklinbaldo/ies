@@ -444,7 +444,6 @@ fn conferir_resultados(
     );
 }
 
-
 #[test]
 fn bdd_270_02_confirmacao_e_releitura_independente() {
     executar(Modo::Aceite);
