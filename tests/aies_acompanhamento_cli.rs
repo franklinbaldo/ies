@@ -265,7 +265,12 @@ fn bdd_348_01_previa_identifica_g_sem_remover_h() {
     assert_eq!(itens.len(), 2);
     assert_eq!(itens[0].id, "831");
     assert_eq!(itens[1].id, "832");
-    assert!(eventos.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"), "{eventos:?}");
+    assert!(
+        eventos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{eventos:?}"
+    );
     assert!(eventos.iter().any(|p| p == "GET acompanhamento_gerenciar"));
 }
 
@@ -289,7 +294,12 @@ fn bdd_348_03_grupo_g_ausente_nao_toca_h() {
     assert_eq!(itens.len(), 1);
     assert_eq!(itens[0].id, "832");
     assert_eq!(itens[0].grupo, "H");
-    assert!(eventos.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"), "{eventos:?}");
+    assert!(
+        eventos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{eventos:?}"
+    );
 }
 
 #[test]
@@ -297,5 +307,10 @@ fn observacao_ausente_nao_inventa_lista_vazia() {
     let (saida, eventos, depois) = executar(EstadoInicial::NaoObservado);
     assert_ne!(saida.status.code(), Some(0));
     assert!(depois.is_none());
-    assert!(eventos.iter().all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"), "{eventos:?}");
+    assert!(
+        eventos
+            .iter()
+            .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
+        "{eventos:?}"
+    );
 }
