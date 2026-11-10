@@ -185,7 +185,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            efeito_incerto(json_mode, Some(&erro))
+            nao_confirmado(json_mode, Some(&erro))
         } else {
             recusar(json_mode, "envio de exclusao nao preparado")
         }
@@ -196,30 +196,30 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
                 local.contains("acao=controle_prazo_listar")
                     && local.contains("acao_origem=controle_prazo_excluir")
             }) => {}
-        _ => return Err(efeito_incerto(json_mode, None)),
+        _ => return Err(nao_confirmado(json_mode, None)),
     }
     let (lista_nova, _) =
-        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| efeito_incerto(json_mode, None))?;
+        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| nao_confirmado(json_mode, None))?;
     // A mesma linha do NUP precisa desaparecer da lista relida.
     match id_na_lista(&lista_nova, &dados.nup) {
         Ok(None) => {}
-        Ok(Some(_)) | Err(()) => return Err(efeito_incerto(json_mode, None)),
+        Ok(Some(_)) | Err(()) => return Err(nao_confirmado(json_mode, None)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
     // O link guardado leva `id_controle_prazo` do controle excluido (cassette
     // processo-prazo-excluir-unb, interacoes 11 e 19): reabrir o processo e
     // usar o link novo da barra, como a leitura de `ies processo prazo`.
     let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
-        .map_err(|_| efeito_incerto(json_mode, None))?;
+        .map_err(|_| nao_confirmado(json_mode, None))?;
     let Ok(Some(link_novo)) = acoes.prazo else {
-        return Err(efeito_incerto(json_mode, None));
+        return Err(nao_confirmado(json_mode, None));
     };
     let (formulario, _) = obter_tela(rede, cookie, link_novo.as_str())
-        .map_err(|_| efeito_incerto(json_mode, None))?;
+        .map_err(|_| nao_confirmado(json_mode, None))?;
     let prazo = ler_tela(&formulario, &dados.id_procedimento)
-        .map_err(|_| efeito_incerto(json_mode, None))?;
+        .map_err(|_| nao_confirmado(json_mode, None))?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
-        return Err(efeito_incerto(json_mode, None));
+        return Err(nao_confirmado(json_mode, None));
     }
     Ok(())
 }

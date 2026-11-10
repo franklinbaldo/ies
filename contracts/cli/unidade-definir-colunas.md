@@ -17,8 +17,8 @@ de colunas, aplicado por `--definir todas --confirmar` (decisão do
 proprietário "B", 02/11/2026). Nenhuma leitura muda a configuração sozinha.
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete automaticamente;
-saídas 0 sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Não há troca
+confirmação e verificação; escrita não confirmada nunca se repete automaticamente;
+saídas 0 sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Não há troca
 de backend: só a Web, e a mesma sessão.
 
 ## Entrada
@@ -73,7 +73,7 @@ PEN1): a unidade é a conferida na D que publicou o link, na mesma sessão
 (`ConferenciaDaUnidade::NaTelaDeOrigemDoLink`); se a janela publicar
 `lnkInfraUnidade`, ele também precisa ser a unidade solicitada.
 
-## Resposta do POST e efeito incerto
+## Resposta do POST e escrita não confirmada
 
 A resposta de sucesso observada (PEN1 5.0.4, 02/11/2026, captura privada
 estrutural) é HTML 200, sem redirect, com a **mesma tela** do Nível de
@@ -102,8 +102,8 @@ vez** para reconciliar.
 | Esperada | outras | 1 | `escrita_diferente_da_solicitada` / `marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar` (`observadas`) |
 | Não esperada | alvo | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_salvar` |
 | Não esperada | as de antes | 1 | `configuracao_de_colunas_nao_aplicada`, com `falha_do_salvar` |
-| Não esperada | outras | 3 | `efeito_incerto` / `efeito_incerto_na_configuracao_de_colunas` (`observadas`) |
-| Qualquer | GET falhou ou tela irreconhecível | 3 | `efeito_incerto_na_configuracao_de_colunas` (`verificacao`: subcódigo) |
+| Não esperada | outras | 3 | `nao_confirmado` / `nao_confirmado_na_configuracao_de_colunas` (`observadas`) |
+| Qualquer | GET falhou ou tela irreconhecível | 3 | `nao_confirmado_na_configuracao_de_colunas` (`verificacao`: subcódigo) |
 
 `falha_do_salvar` traz o subcódigo, e `status_http` e `mensagem_do_servidor`
 quando o SEI respondeu com recusa HTTP ([contrato da CLI](../cli.md)). Um
@@ -175,7 +175,7 @@ formulário `frmAcessoExternoCancelar`, caixas `chkSin*` sem `value`, oculto
 formulário; o POST de salvar envia só o oculto, o botão e as marcadas
 `on`; resposta 200 sem redirect que fecha o modal; a D e o GET da tela
 mostram a mudança em seguida. Ensaio deste comando: PASS na PEN1 5.0.4 e na
-UnB 4.0.9 em 02/11/2026 e na UnB em 04/11/2026; **saída 3 na PEN1 em
+UnB 4.0.9 em 02/11/2026 e na UnB em 04/11/2026; **saída 1 na PEN1 em
 04/11/2026**, sem efeito, com causa não registrada
 ([diagnóstico](../../docs/validacao-live/2026-11-04-definir-colunas-pen1.md)),
 e **PASS na PEN4 e na PEN3 5.0.4 em 04/11/2026** pelo roteiro reescrito

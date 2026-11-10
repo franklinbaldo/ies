@@ -14,7 +14,8 @@ use apresentacao::informar_sucesso;
 use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 enum ErroEntradaCriacao {
     Tipo,
     Especificacao,
@@ -177,14 +178,14 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
     if !json_mode {
         eprintln!("IES: {requisicoes} requisições efetivamente tentadas neste fluxo.");
     }
-    if erro.saida() != 3 {
+    if !erro.apos_post() {
         return erro_antes_da_escrita(json_mode, erro, requisicoes);
     }
     // O GET de reconciliação é só observação: sem conferir tipo e
     // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
     if json_mode {
         let mut valor = json!({
-            "codigo": "efeito_incerto",
+            "codigo": "nao_confirmado",
             "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
             "retentavel": false,
             "requisicoes": requisicoes
@@ -238,7 +239,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
@@ -372,7 +373,6 @@ mod tests {
                 mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
             },
         ));
-        assert_eq!(recusada.saida(), 1);
         let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida", 4);
         assert_eq!(json["desfecho"], "nao_aplicada");
         assert_eq!(json["requisicoes"], 4);
@@ -388,7 +388,6 @@ mod tests {
                 mensagem_do_servidor: Some("Proibido".to_owned()),
             }),
         ));
-        assert_eq!(http.saida(), 3); // não autorizar repetição após 403
         let json_http = json_da_recusa_criadora(&http, "Recusa HTTP", 4);
         assert!(json_http.get("desfecho").is_none());
         assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
@@ -422,7 +421,7 @@ mod tests {
 
     #[test]
     fn coincidencia_parcial_no_json_nao_vira_candidatos_ambiguos() {
-        let mut parcial = json!({"codigo": "efeito_incerto"});
+        let mut parcial = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut parcial,
             EvidenciaDeCoincidencia::Parcial,
@@ -435,7 +434,7 @@ mod tests {
         assert!(parcial.get("desfecho").is_none());
         assert!(parcial.get("candidatos_compativeis").is_none());
 
-        let mut completa = json!({"codigo": "efeito_incerto"});
+        let mut completa = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut completa,
             EvidenciaDeCoincidencia::Multiplas,
@@ -447,7 +446,7 @@ mod tests {
             json!(["NUP-sintetico-10", "NUP-sintetico-11"])
         );
         assert!(completa.get("coincidencias_parciais_conferidas").is_none());
-        let mut unica = json!({"codigo": "efeito_incerto"});
+        let mut unica = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut unica,
             EvidenciaDeCoincidencia::UnicaSemProvaCausal,

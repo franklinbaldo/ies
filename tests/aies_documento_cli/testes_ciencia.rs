@@ -263,7 +263,7 @@ fn bdd_271_02_ciencia_guarda_o_usuario_da_sessao_simulada() {
 /// ainda não a publicou. Não inferir fracasso nem reenviar a escrita.
 /// Hipótese de consistência eventual do anti-IES; NÃO é paridade de cassette.
 #[test]
-fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
+fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_falha_sem_retry() {
     let pasta = Pasta::nova();
     let previa = executar(&pasta, &["--json", "documento", "ciente", DOC], 4);
     assert_eq!(previa.status.code(), Some(0));
@@ -291,13 +291,13 @@ fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_retorna_3_sem_retry() {
     );
     assert_eq!(
         resultado.status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={}",
         String::from_utf8_lossy(&resultado.stdout),
         String::from_utf8_lossy(&resultado.stderr)
     );
     let saida = json(&resultado);
-    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["codigo"], "nao_confirmado");
     assert_eq!(saida["retentavel"], false);
     assert_eq!(saida["requisicoes"], 11);
     assert!(

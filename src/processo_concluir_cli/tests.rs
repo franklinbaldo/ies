@@ -52,25 +52,23 @@ fn reconciliado_traz_a_falha_do_envio() {
 }
 
 #[test]
-fn efeito_incerto_sai_com_tres_e_a_verificacao() {
-    let erro = ErroConcluir::EfeitoIncertoNaConclusao {
+fn nao_confirmado_sai_com_um_e_a_verificacao() {
+    let erro = ErroConcluir::NaoConfirmadoNaConclusao {
         aberto_em: vec!["TESTE".into()],
         falha_do_envio: None,
         verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
             MotivoAbertoEm::HtmlDaRaizNaoPublicado,
         )),
     };
-    assert_eq!(erro.saida(), 3);
     let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(valor["codigo"], "nao_confirmado");
     assert_eq!(valor["aberto_em"], json!(["TESTE"]));
-    assert_eq!(valor["verificacao"], "html_da_raiz_nao_publicado");
     let nao = ErroConcluir::ConclusaoNaoAplicada {
         aberto_em: vec!["TESTE".into()],
         depois: vec!["TESTE".into()],
         falha_do_envio: None,
     };
-    assert_eq!((nao.saida(), nao.codigo()), (1, "escrita_nao_aplicada"));
+    assert_eq!(nao.codigo(), "escrita_nao_aplicada");
 }
 
 #[test]
@@ -108,7 +106,7 @@ fn erro_tipado_da_conclusao_publica_situacao_e_resposta_sem_json() {
 
 #[test]
 fn erro_tipado_da_conclusao_conserva_verificacao_sem_situacao_vazia() {
-    let _erro = ErroConcluir::EfeitoIncertoNaConclusao {
+    let _erro = ErroConcluir::NaoConfirmadoNaConclusao {
         aberto_em: Vec::new(),
         falha_do_envio: None,
         verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
@@ -139,20 +137,20 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de concluir ainda lista a unidade da sessão: o processo não foi concluído","retentavel":false}"#,
         ),
         (
-            ErroConcluir::EfeitoIncertoNaConclusao {
+            ErroConcluir::NaoConfirmadoNaConclusao {
                 aberto_em: vec!["TESTE".into()],
                 falha_do_envio: None,
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","retentavel":false,"verificacao":null}"#,
+            r#"{"aberto_em":["TESTE"],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","retentavel":false}"#,
         ),
         (
-            ErroConcluir::EfeitoIncertoNaConclusao {
+            ErroConcluir::NaoConfirmadoNaConclusao {
                 aberto_em: vec!["TESTE".into()],
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302,"verificacao":null}"#,
+            r#"{"aberto_em":["TESTE"],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302}"#,
         ),
     ];
     for (erro, esperado) in casos {
@@ -184,7 +182,7 @@ fn falha_http_preserva_mensagem_status_e_identidade_original() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada."},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"verificacao":"html_da_raiz_nao_publicado"}"#,
+            r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada."},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false}"#,
         ),
         (
             FalhaDoEnvio::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
@@ -193,18 +191,17 @@ fn falha_http_preserva_mensagem_status_e_identidade_original() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500,"verificacao":"html_da_raiz_nao_publicado"}"#,
+            r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500}"#,
         ),
     ];
     for (falha, esperado) in casos {
-        let erro = ErroConcluir::EfeitoIncertoNaConclusao {
+        let erro = ErroConcluir::NaoConfirmadoNaConclusao {
             aberto_em: vec![],
             falha_do_envio: Some(falha),
             verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
                 MotivoAbertoEm::HtmlDaRaizNaoPublicado,
             )),
         };
-        assert_eq!(erro.saida(), 3);
         assert_eq!(
             serde_json::to_string(&super::json_de_falha(&erro)).unwrap(),
             esperado

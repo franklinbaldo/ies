@@ -22,7 +22,7 @@ pub(crate) fn versao_do_rodape(html: &str) -> Option<VersaoDocumento> {
         if lidos.valor("unselectable").ok()? != Some("on") {
             continue;
         }
-        let texto = crate::entidades_html::decodificar_texto(&no.inner_text(parser));
+        let texto = html_escape::decode_html_entities(&no.inner_text(parser)).into_owned();
         let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
         if let Some(versao) = versao_da_linha(&texto) {
             achadas.push(versao);
@@ -41,7 +41,7 @@ pub(crate) fn crc_do_rodape(html: &str) -> Option<String> {
     let parser = dom.parser();
     let mut achados = Vec::new();
     for no in dom.query_selector("p, div")?.filter_map(|h| h.get(parser)) {
-        let texto = crate::entidades_html::decodificar_texto(&no.inner_text(parser));
+        let texto = html_escape::decode_html_entities(&no.inner_text(parser)).into_owned();
         let texto = texto.split_whitespace().collect::<Vec<_>>().join(" ");
         let minusculo = texto.to_lowercase();
         if !minusculo.contains("autenticidade") || !minusculo.contains("código verificador") {

@@ -20,28 +20,21 @@ use crate::processo_obter::{
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle as _;
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPrevia {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
     LinkNaoPublicado,
-    #[causa(interna)]
-    Barra(ErroAcompanharNaBarra),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Estrutura(ErroAcompanhar),
-    #[causa(interna)]
-    Formulario(crate::formulario_web::ErroSubmissaoFormulario),
-    ConfirmacaoNaoImplementada,
-    EfeitoIncerto,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Barra(#[from] ErroAcompanharNaBarra),
+    Transporte(#[from] FalhaTransporte),
+    Estrutura(#[from] ErroAcompanhar),
+    Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
+    NaoConfirmado,
+    Html(#[from] ErroHtml),
 }
 
 pub(crate) struct Pedido<'a> {
@@ -70,6 +63,7 @@ pub(crate) enum EstadoDoAcompanhamento {
     Previa { ja_estava: bool },
     ConfirmadoSemMudanca,
     Incluido,
+    Removido,
 }
 
 impl EstadoDoAcompanhamento {
@@ -81,11 +75,14 @@ impl EstadoDoAcompanhamento {
     }
 
     pub(crate) fn confirmado(self) -> bool {
-        matches!(self, Self::ConfirmadoSemMudanca | Self::Incluido)
+        matches!(
+            self,
+            Self::ConfirmadoSemMudanca | Self::Incluido | Self::Removido
+        )
     }
 
     pub(crate) fn alterado(self) -> bool {
-        matches!(self, Self::Incluido)
+        matches!(self, Self::Incluido | Self::Removido)
     }
 }
 
@@ -211,6 +208,65 @@ fn selecionar_previa(
     })
 }
 
+/// Fotografia e submissão opcional, sempre derivada da mesma tela.
+struct LeituraDoGerenciador {
+    antes: Vec<Acompanhamento>,
+    url_cadastro: Option<String>,
+    exclusao: Option<SubmissaoDerivada>,
+}
+
+/// Lê uma única fotografia e prepara exclusão só da linha solicitada.
+fn ler_estado_gerenciador<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    instalacao: &Instalacao,
+    link: &str,
+    cookie: &str,
+    id: &str,
+    unidade: &str,
+    pedido: &Pedido<'_>,
+) -> Result<LeituraDoGerenciador, ErroPrevia> {
+    let res = rede.get_sem_seguir(link, cookie)?;
+    let mut exclusao = None;
+    let (antes, url_cadastro) = if res.resposta.status_code == 302 {
+        let url = redirecionamento_do_gerenciar(instalacao, res.localizacao.as_deref(), link, id)?;
+        (Vec::new(), Some(url))
+    } else {
+        let mime = res.resposta.mime.clone();
+        let html = decodificar_resposta(res.resposta)?;
+        let antes = acompanhamentos_da_lista(&html)?;
+        if pedido.deixar && pedido.confirmar {
+            let alvo = antes
+                .iter()
+                .any(|linha| pedido.grupo.is_none_or(|grupo| linha.grupo == grupo));
+            if alvo {
+                let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
+                let destino = super::exclusao::destino_oferecido(instalacao, &html, id, &alvo.id)?;
+                let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+                    .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+                let tela = crate::formulario_web::TelaServida {
+                    url: link,
+                    html: &html,
+                    codificacao,
+                };
+                exclusao = Some(super::submissao::derivar_exclusao(
+                    instalacao, &tela, unidade, &alvo.id, &destino,
+                )?);
+            }
+        }
+        let url = if pedido.deixar {
+            None
+        } else {
+            Some(adicionar_da_lista(instalacao, &html, id)?)
+        };
+        (antes, url)
+    };
+    Ok(LeituraDoGerenciador {
+        antes,
+        url_cadastro,
+        exclusao,
+    })
+}
+
 /// Prévia completa sem escrita, no máximo um GET da lista, mais um do cadastro.
 pub(crate) fn previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -218,10 +274,6 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
-    // A exclusão exige formulário próprio; só a inclusão pode confirmar.
-    if pedido.confirmar && pedido.deixar {
-        return Err(ErroPrevia::ConfirmacaoNaoImplementada);
-    }
     if pedido.deixar && pedido.observacao.is_some() {
         return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
     }
@@ -238,25 +290,19 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let id = aberto.arvore.processo.id;
     let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
-    let res = rede.get_sem_seguir(link.as_str(), &cookie)?;
-    let (antes, url_cadastro) = if res.resposta.status_code == 302 {
-        let url = redirecionamento_do_gerenciar(
-            &instalacao,
-            res.localizacao.as_deref(),
-            link.as_str(),
-            &id,
-        )?;
-        (Vec::new(), Some(url))
-    } else {
-        let html = decodificar_resposta(res.resposta)?;
-        let antes = acompanhamentos_da_lista(&html)?;
-        let url = if pedido.deixar {
-            None
-        } else {
-            Some(adicionar_da_lista(&instalacao, &html, &id)?)
-        };
-        (antes, url)
-    };
+    let LeituraDoGerenciador {
+        antes,
+        url_cadastro,
+        exclusao,
+    } = ler_estado_gerenciador(
+        &mut rede,
+        &instalacao,
+        link.as_str(),
+        &cookie,
+        &id,
+        &unidade,
+        pedido,
+    )?;
     let mut submissao: Option<SubmissaoDerivada> = None;
     let grupos = if pedido.deixar {
         None
@@ -299,6 +345,20 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     if plano.estado.ja_estava() {
         plano.estado = EstadoDoAcompanhamento::ConfirmadoSemMudanca;
         return Ok(plano);
+    }
+    if pedido.deixar {
+        let submissao = exclusao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        return confirmar_remocao(
+            &mut rede,
+            sessao,
+            &instalacao,
+            &id,
+            link.as_str(),
+            &cookie,
+            &antes,
+            plano,
+            submissao,
+        );
     }
     let submissao = submissao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
     confirmar_inclusao(
@@ -350,7 +410,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !verificado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        return Err(ErroPrevia::NaoConfirmado);
     }
     // Somente depois da prova exata podemos publicar o ID observado.
     let novo = depois
@@ -362,7 +422,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
                     && linha.observacao == plano.observacao
             })
         })
-        .ok_or(ErroPrevia::EfeitoIncerto)?;
+        .ok_or(ErroPrevia::NaoConfirmado)?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.estado = EstadoDoAcompanhamento::Incluido;
     plano.requisicoes = rede.feitas();
@@ -372,3 +432,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+#[path = "fluxo/retirada.rs"]
+mod retirada;
+use retirada::confirmar_remocao;

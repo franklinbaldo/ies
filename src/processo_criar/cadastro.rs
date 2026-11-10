@@ -3,7 +3,8 @@
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCadastro {
     TipoDeCadastroDivergente,
     NivelNaoOferecido,
@@ -11,12 +12,8 @@ pub(crate) enum ErroCadastro {
     AssuntoDesabilitado,
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
-    EspecificacaoAcimaDoLimite {
-        limite: usize,
-        tamanho: usize,
-    },
-    #[causa(transparente)]
-    Html(ErroHtml),
+    EspecificacaoAcimaDoLimite { limite: usize, tamanho: usize },
+    Html(#[from] ErroHtml),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,8 +224,7 @@ fn conferir_listas(
             }
             let valor = valor_do_atributo(tag, "value")
                 .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
-            let titulo =
-                crate::transporte::texto_de_recusa::decodificar_entidades(&tag.inner_text(parser));
+            let titulo = html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned();
             if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo));
             }

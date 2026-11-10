@@ -37,7 +37,7 @@ O Todos documentou em 11/10/2026, em UnB de treinamento, a seleção do document
 
 A inspeção identifica arquivo regular, nome sem `&#` (restrição observada pelo Todos) nem controles de terminal, extensão PDF, início `%PDF-`, tamanho e SHA-256 em fluxo, sem carregar o documento todo. O prefixo não é validação completa do formato. Uma releitura dos metadados pelo mesmo descritor após o hash recusa alteração detectável durante a inspeção, inclusive quando o tamanho final é idêntico. Isso não torna atômica a resolução de ancestrais e não garante que o arquivo permaneça igual até futuro upload remoto; a implementação do upload deverá vincular os bytes efetivamente enviados à inspeção. A operação rejeita links simbólicos e limites **somente quando recebidos da tela**, sem limite arbitrário. Falhas permanecem no enum tipado `FalhaPdf` e são serializadas pela própria variante com Serde, sem subcódigo paralelo; o comando continua sem mutação de qualquer serviço e sem acesso ao SEI.
 
-O comando `--confirmar` é explicitamente bloqueado antes de ler a sessão. Não há dois POSTs implementados: na próxima fatia, o upload temporário e o cadastro terão efeitos observados e erros distintos, com releitura independente, saída 3 se houver dúvida e nunca retry. Isso é intencional, não uma capacidade declarada como completa.
+O comando `--confirmar` é explicitamente bloqueado antes de ler a sessão. Não há dois POSTs implementados: na próxima fatia, o upload temporário e o cadastro terão efeitos observados e erros distintos, com releitura independente, saída 1 se houver dúvida e nunca retry. Isso é intencional, não uma capacidade declarada como completa.
 
 ## Evidências verificáveis
 

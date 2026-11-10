@@ -2,10 +2,10 @@
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
-use crate::entidades_html::decodificar_texto;
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
+mod exclusao;
 mod fluxo;
 mod submissao;
 pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
@@ -15,7 +15,8 @@ const GRUPO: &str = "selGrupoAcompanhamento";
 const PROTOCOLO: &str = "hdnIdProtocolo";
 const TABELA: &str = "Tabela de Acompanhamentos.";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
@@ -27,8 +28,8 @@ pub(crate) enum ErroAcompanhar {
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
     AcompanhamentoNaoConfirmado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    ExclusaoNaoOferecida,
+    Html(#[from] ErroHtml),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -45,7 +46,8 @@ pub(crate) struct Acompanhamento {
 }
 
 fn texto(texto: &str) -> String {
-    decodificar_texto(texto)
+    html_escape::decode_html_entities(texto)
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -309,7 +311,6 @@ pub(crate) fn conferir_inclusao(
 }
 
 /// Só remova quando a identidade exata desaparecer e todo o resto for idêntico.
-#[cfg(test)]
 pub(crate) fn conferir_remocao(
     antes: &[Acompanhamento],
     depois: &[Acompanhamento],

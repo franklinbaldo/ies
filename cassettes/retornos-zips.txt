@@ -8,3 +8,7 @@ lote-1e2f128fe845906a.zip 1e2f128fe845906a364058f0d5eb22a0308b4095 lotes/lote-1e
 lote-9497057d512230ff.zip 9497057d512230ff7a5e85235569fd1345c6bf6c lotes/lote-9497057d512230ff.zip
 todos-sei-cassettes-go.zip 42a08cd3714bb863d136ed98e517221510a31982 todos-sei-cassettes-go.zip
 todos-sei-cassettes-ufrj.zip 3b29ba3c4e18fa0b336fbec9490c4f59a15d4aa0 todos-sei-cassettes-ufrj.zip
+todos-sei-cassettes-pen1.zip 70841f418106b058c4f81c9b13a1322c51ce8cd0 todos-sei-cassettes-pen1.zip
+todos-sei-cassettes-pen2.zip 32cd3f7feb5a4a80b3b363e9750b9ce0b593d2ff todos-sei-cassettes-pen2.zip
+todos-sei-cassettes-pen3.zip b81b84fca29299f2096fb128593ba52f2ac9a7ab todos-sei-cassettes-pen3.zip
+todos-sei-cassettes-pen4.zip cd48052869dc64fb12c7179e630f3a23c131cbb0 todos-sei-cassettes-pen4.zip

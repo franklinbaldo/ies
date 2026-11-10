@@ -123,7 +123,9 @@ mod testes {
     fn dado_cancelado_ou_sessao_encerrada_quando_oculto_entao_nao_esconde_erro() {
         for erro in [
             ErroDocumentoObter::DocumentoCancelado,
-            ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada),
+            ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            )),
         ] {
             let resultado = ler_lote(&numeros(), true, |_| Err(erro.clone()));
             assert!(matches!(resultado, Err(FalhaDoDocumento::Documento { .. })));

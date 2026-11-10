@@ -9,12 +9,12 @@ pub struct IdentidadeDoDocumento {
     pub tipo: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroTituloDocumento {
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
@@ -218,13 +218,13 @@ mod tests {
 }
 
 /// Erros de extração textual; não convertidos em mensagens livres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroCorpoDocumento {
     CorpoVazio,
     CorpoComConteudoExecutavel,
     TextoAcimaDoLimite,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
@@ -313,7 +313,7 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
     // Entidades decodificadas antes de juntar espaços: `&nbsp;` é espaço.
-    let bruto = crate::entidades_html::decodificar_texto(&bruto);
+    let bruto = html_escape::decode_html_entities(&bruto).into_owned();
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
     if texto.is_empty() {
         return Err(ErroCorpoDocumento::CorpoVazio);

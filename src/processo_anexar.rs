@@ -3,7 +3,6 @@
 //! Nenhum JavaScript executado, atributos só via `html_atributos`.
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::valor_do_atributo;
-use crate::transporte::texto_de_recusa::decodificar_entidades;
 use std::collections::HashSet;
 
 pub(crate) mod fluxo;
@@ -174,7 +173,10 @@ fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, &'static str> {
             continue;
         };
         if let Some(nome) = atributo(tag, "nome")? {
-            valores.push((nome, decodificar_entidades(&tag.inner_text(parser))));
+            valores.push((
+                nome,
+                html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned(),
+            ));
         }
     }
     Ok(valores)

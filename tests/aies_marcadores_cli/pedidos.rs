@@ -7,9 +7,9 @@ fn pedido(caso: Caso) -> (&'static str, &'static str) {
         | Caso::AtribuirAusente
         | Caso::AtribuirSemCatalogo
         | Caso::AtribuirConfirmado
-        | Caso::AtribuirEfeitoIncerto => ("--marcador", "501#Revisão"),
+        | Caso::AtribuirNaoConfirmado => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
+        Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarNaoConfirmado => {
             ("--retirar", "501#Revisão")
         }
     }
@@ -26,9 +26,9 @@ pub(super) fn executar_caso_cli(
     if matches!(
         caso,
         Caso::RetirarConfirmado
-            | Caso::RetirarEfeitoIncerto
+            | Caso::RetirarNaoConfirmado
             | Caso::AtribuirConfirmado
-            | Caso::AtribuirEfeitoIncerto
+            | Caso::AtribuirNaoConfirmado
     ) {
         argumentos.push("--confirmar");
     }
@@ -37,7 +37,7 @@ pub(super) fn executar_caso_cli(
         Caso::AtribuirAusente
             | Caso::AtribuirSemCatalogo
             | Caso::AtribuirConfirmado
-            | Caso::AtribuirEfeitoIncerto
+            | Caso::AtribuirNaoConfirmado
     ) {
         argumentos.extend(["--texto", "Nova revisão"]);
     }

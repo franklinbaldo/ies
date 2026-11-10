@@ -120,7 +120,7 @@ fn falha_no_get_de_escrita_nao_dispara_retry_e_releitura_ocorre() {
         ok(arvore_com_ciencias()),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    let Err(E::EfeitoIncerto { requisicoes, .. }) = resultado else {
+    let Err(E::NaoConfirmado { requisicoes, .. }) = resultado else {
         panic!("escrita sem aceite exige saída 3");
     };
     assert_eq!(requisicoes, 6);
@@ -136,7 +136,7 @@ fn falha_no_get_de_escrita_nao_dispara_retry_e_releitura_ocorre() {
 }
 
 #[test]
-fn atividade_nao_encontrada_na_lista_e_efeito_incerto_nao_sucesso() {
+fn atividade_nao_encontrada_na_lista_e_nao_confirmado_nao_sucesso() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     respostas.extend([
         ok(tela()),
@@ -145,7 +145,7 @@ fn atividade_nao_encontrada_na_lista_e_efeito_incerto_nao_sucesso() {
         ok(lista("42458")),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(E::NaoConfirmado { .. })));
     assert_eq!(pedidos.len(), 7);
     assert_eq!(
         pedidos
@@ -175,7 +175,7 @@ fn funcao_de_ciencia_ausente_na_tela_nao_escreve() {
 /// RED #271: a Lista de Ciências preexistente não pode converter uma
 /// chamada dentro de if(false) em prova do aceite desta tentativa.
 #[test]
-fn aceite_condicional_inativo_mantem_efeito_incerto_sem_retry() {
+fn aceite_condicional_inativo_mantem_nao_confirmado_sem_retry() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     let html = format!(
         "<html><script>function inicializar(){{ if(false) {{ {} }} }}</script></html>",
@@ -184,8 +184,7 @@ fn aceite_condicional_inativo_mantem_efeito_incerto_sem_retry() {
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert!(matches!(erro, E::NaoConfirmado { .. }));
     assert_eq!(
         pedidos.len(),
         6,
@@ -215,8 +214,7 @@ fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("atividade antiga não prova novo aceite");
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert!(matches!(erro, E::NaoConfirmado { .. }));
     assert_eq!(
         pedidos.len(),
         6,
@@ -237,14 +235,13 @@ fn retorno_antes_da_recarga_nao_confirma_ciencia_anterior() {
 // antiga, mesmo contendo a atividade, não pode transformar o aceite
 // inerte em confirmação desta única escrita.
 #[test]
-fn script_inerte_no_aceite_mantem_efeito_incerto_sem_consultar_lista_antiga() {
+fn script_inerte_no_aceite_mantem_nao_confirmado_sem_consultar_lista_antiga() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     let html = aceite("42457").replacen("<script>", "<script type='application/json'>", 1);
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("script de dados não pode publicar ciência");
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert!(matches!(erro, E::NaoConfirmado { .. }));
     assert_eq!(pedidos.len(), 6, "não consultar lista sem atividade válida");
     assert_eq!(
         pedidos
@@ -274,8 +271,7 @@ fn segundo_argumento_que_lanca_excecao_nao_confirma_ciencia_antiga() {
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("recarga não executada não comprova ciência");
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert!(matches!(erro, E::NaoConfirmado { .. }));
     assert_eq!(pedidos.len(), 6, "não consultar lista de ciência antiga");
     assert_eq!(
         pedidos
@@ -305,7 +301,6 @@ fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|s| s.status), Some(200));
     assert_eq!(
         erro.status_http()
@@ -314,7 +309,7 @@ fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
     );
     assert!(matches!(
         erro,
-        E::EfeitoIncerto {
+        E::NaoConfirmado {
             falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
             requisicoes: 6,
             ..
@@ -343,8 +338,7 @@ fn script_inerte_em_noscript_nao_confirma_ciencia_antiga() {
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("script em noscript nao executa");
-    assert_eq!(erro.saida(), 3);
-    assert!(matches!(erro, E::EfeitoIncerto { .. }));
+    assert!(matches!(erro, E::NaoConfirmado { .. }));
     assert_eq!(pedidos.len(), 6, "sem consulta a lista antiga");
     assert_eq!(
         pedidos
@@ -396,8 +390,7 @@ fn mime_javascript_com_parametro_nao_libera_lista_antiga() {
     );
     respostas.extend([ok(tela()), ok(html), ok(arvore_com_ciencias())]);
     let (resultado, pedidos) = rodar(true, respostas);
-    let erro = resultado.expect_err("tipo de script com parâmetro não prova atividade");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("tipo de script com parâmetro não prova atividade");
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

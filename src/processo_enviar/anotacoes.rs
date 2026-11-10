@@ -9,15 +9,13 @@ use crate::formulario_web::{
 
 /// Por que a anotação da origem não foi lida antes de enviar. Etapa
 /// própria: o erro nasce aqui e chega ao envio por `From`.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDasAnotacoes {
-    #[causa(interna)]
-    LinkDasAnotacoes(ErroHtml),
-    #[causa(interna)]
-    TelaDasAnotacoes(crate::transporte::FalhaTransporte),
+    LinkDasAnotacoes(#[source] ErroHtml),
+    TelaDasAnotacoes(#[from] crate::transporte::FalhaTransporte),
     TelaDasAnotacoesRedirecionada,
-    #[causa(interna)]
-    LeituraDasAnotacoes(ErroHtml),
+    LeituraDasAnotacoes(#[source] ErroHtml),
 }
 
 impl ErroDasAnotacoes {
@@ -112,9 +110,8 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroHtml> {
                 ids.push(valor(tag, "value")?);
             }
             "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
-                descricoes.push(crate::transporte::texto_de_recusa::decodificar_entidades(
-                    &tag.inner_text(parser),
-                ));
+                descricoes
+                    .push(html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned());
             }
             _ => {}
         }

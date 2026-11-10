@@ -17,16 +17,13 @@ use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_con
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(super) enum ErroPaginaWeb {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Caixa(ErroCaixa),
-    #[causa(interna)]
-    Pagina(ErroPaginaDoControle),
-    #[causa(interna)]
-    Visao(ErroVisaoDoControle),
+    Transporte(#[from] FalhaTransporte),
+    Caixa(#[from] ErroCaixa),
+    Pagina(#[from] ErroPaginaDoControle),
+    Visao(#[from] ErroVisaoDoControle),
 }
 
 impl ErroPaginaWeb {

@@ -123,7 +123,7 @@ fn post_preserva_texto_e_motivo_remoto_diferente_nao_comprova_cancelamento() {
     let mut respostas = ate_tela(arvore_ativa());
     respostas.extend([r302(&location()), ok(arvore_cancelada())]);
     let (resultado, pedidos) = executar_com_motivo(true, respostas, motivo);
-    assert!(matches!(resultado, Err(ErroCancelar::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(ErroCancelar::NaoConfirmado { .. })));
     let mut esperados = pedidos_previa();
     esperados.push(post(
         &absoluta(&action()),
@@ -172,13 +172,12 @@ fn servidor_falha_depois_do_post_mas_arvore_confirma_sem_retry() {
 }
 
 #[test]
-fn servidor_falha_e_releitura_falha_e_efeito_incerto_saida_tres() {
+fn servidor_falha_e_releitura_falha_e_nao_confirmado_saida_tres() {
     let mut respostas = ate_tela(arvore_ativa());
     respostas.extend([Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert!(matches!(erro, ErroCancelar::EfeitoIncerto { .. }));
-    assert_eq!(erro.saida(), 3);
+    assert!(matches!(erro, ErroCancelar::NaoConfirmado { .. }));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 6);
 }

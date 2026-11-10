@@ -251,7 +251,7 @@ fn bdd_271_01_processo_ciencia_previa_unica_e_lista_distinta() {
 }
 
 #[test]
-fn bdd_271_03_processo_lista_invisivel_e_efeito_incerto_sem_retry() {
+fn bdd_271_03_processo_lista_invisivel_e_nao_confirmado_sem_retry() {
     let pasta = Pasta::nova();
     preparar_processo(&pasta);
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
@@ -265,13 +265,13 @@ fn bdd_271_03_processo_lista_invisivel_e_efeito_incerto_sem_retry() {
     );
     assert_eq!(
         resultado.status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={}",
         String::from_utf8_lossy(&resultado.stdout),
         String::from_utf8_lossy(&resultado.stderr)
     );
     let saida = json(&resultado);
-    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["codigo"], "nao_confirmado");
     assert_eq!(saida["retentavel"], false);
     assert_eq!(saida["requisicoes"], pedidos_confirmacao.len());
     assert_eq!(

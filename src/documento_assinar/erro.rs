@@ -9,13 +9,13 @@ use crate::sessao_login::ErroLogin;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Assinatura de Documento", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDeAssinatura {
     TelaDeAssinaturaDeOutroDocumento,
     AssinanteNaoPublicadoNaTela,
     OrgaoDoAssinanteNaoSelecionado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter
@@ -48,40 +48,25 @@ pub(crate) enum VerificacaoDaAssinatura {
     LeituraFalhou(ErroDocumentoObter),
 }
 
-impl VerificacaoDaAssinatura {
-    pub(crate) fn motivo(&self) -> Option<&'static str> {
-        match self {
-            Self::Lida(_) => None,
-            Self::ArvoreNaoLida(erro) => Some(erro.onde),
-            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
-        }
-    }
-}
+impl VerificacaoDaAssinatura {}
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAssinar {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Cookie(#[from] CookieIlegivel),
     /// A abertura do documento (a de `ies documento DOC`) falhou.
-    #[causa(interna)]
-    Abertura(ErroDocumentoObter),
+    Abertura(#[from] ErroDocumentoObter),
     /// Credenciais (`IES_CREDENCIAIS_FILE`) ilegíveis: nada foi pedido.
-    #[causa(interna)]
-    Credenciais(ErroLogin),
-    #[causa(interna)]
-    Arvore(ErroHtml),
+    Credenciais(#[from] ErroLogin),
+    Arvore(#[source] ErroHtml),
     AssinaturaNaoPublicadaNaBarra,
     /// GET da tela do documento ou da de assinatura, antes da escrita.
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaDaEscritaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
-    #[causa(interna)]
-    LinkDeAssinar(ErroLinkDeAssinar),
-    #[causa(interna)]
-    TelaDeAssinatura(ErroTelaDeAssinatura),
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
+    LinkDeAssinar(#[from] ErroLinkDeAssinar),
+    TelaDeAssinatura(#[from] ErroTelaDeAssinatura),
     CharsetDaTelaNaoSuportado,
     CargoNaoOferecidoPelaTela {
         cargos: Vec<String>,
@@ -92,21 +77,19 @@ pub(crate) enum ErroAssinar {
         antes: Vec<Assinante>,
     },
     /// Derivação do POST ou falha antes de ele sair (cookie).
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     /// A leitura depois do POST mostra as mesmas assinaturas de antes.
     AssinaturaNaoAplicada {
         antes: Vec<Assinante>,
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaAssinatura {
+    NaoConfirmadoNaAssinatura {
         antes: Vec<Assinante>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoDaAssinatura>,
     },
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[source] ErroHtml),
 }
 
 impl ErroAssinar {
@@ -114,16 +97,8 @@ impl ErroAssinar {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::AssinaturaNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncertoNaAssinatura { .. } => "efeito_incerto",
+            Self::NaoConfirmadoNaAssinatura { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaAssinatura { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -134,7 +109,7 @@ impl ErroAssinar {
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::AssinaturaNaoAplicada { falha_do_envio, .. }
-            | Self::EfeitoIncertoNaAssinatura { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNaAssinatura { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -156,7 +131,9 @@ impl ErroAssinar {
             Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
                 "a tela da assinatura não foi servida; nada foi assinado"
             }
-            Self::SessaoEncerrada => "a sessão encerrou; rode `ies login` (nada foi assinado)",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode `ies login` (nada foi assinado)"
+            }
             Self::LinkDeAssinar(_) => {
                 "a tela do documento não publica o link de assinar na forma observada; nada foi assinado"
             }
@@ -176,7 +153,7 @@ impl ErroAssinar {
             Self::AssinaturaNaoAplicada { .. } => {
                 "a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado"
             }
-            Self::EfeitoIncertoNaAssinatura { .. } => {
+            Self::NaoConfirmadoNaAssinatura { .. } => {
                 "não se sabe se o documento foi assinado; confira a árvore antes de repetir"
             }
         }

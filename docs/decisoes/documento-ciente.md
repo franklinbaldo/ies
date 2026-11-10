@@ -44,13 +44,13 @@ vinculadas ao documento e conferidas antes do GET.
 **Escolha:** prévia só da árvore; confirmação por um único GET;
 depois reabrir a árvore e exigir a ação de Lista de Ciências do
 `CD<id>` do documento, com processo idêntico e a atividade exata do
-aceite. Se faltar prova, saída 3. A resposta HTTP, a Lista de Ciências
+aceite. Se faltar prova, saída 1. A resposta HTTP, a Lista de Ciências
 do processo e o histórico genérico não provam. O backend REST/WSSEI
 não foi observado e não é selecionado.
 
 O GET é escrita; falha de rede, validação ou 302 não disparam nova
 tentativa. O resultado do GET é mantido como causa tipada dentro da falha
-de efeito incerto; a prova é sempre a releitura, sem presumir que HTTP
+de escrita não confirmada; a prova é sempre a releitura, sem presumir que HTTP
 403, validação da Infra ou timeout significam não aplicação. A URL
 de <script> aninhado em <template> também é recusada, independentemente
 de o parser expor esse nó. Não restaurar telas. O código reutiliza `formulario_web`
@@ -72,7 +72,7 @@ antes do GET mutador, ainda que haja botão. A regressão está em
 ## Limitações e revisão
 
 **Trade-offs:** mais uma leitura para prova e uma para a lista;
-pode haver efeito incerto e o usuário deve consultar o SEI antes de
+pode haver escrita não confirmada e o usuário deve consultar o SEI antes de
 repetir. A prévia não modifica o documento. Uma instalação não
 comprova todas as demais.
 
@@ -93,7 +93,7 @@ realmente publicada. Um `table#tblAndamentos` sob `<template>` é
 encontrável pelo parser, mas está inerte no DOM do navegador; não prova
 que a ciência foi gravada. Optou-se por **recusar apenas quando o template
 é ancestral ou descendente da tabela de prova**, sem invalidar templates
-sem relação com ela. Teste RED (antes do código) e fluxo de efeito incerto
+sem relação com ela. Teste RED (antes do código) e fluxo de escrita não confirmada
 no relatório live; não há JavaScript executado, retry ou GET extra.
 
 ## Decisão adicional: prova HTML inerte e ciência repetida (06/11/2026)
@@ -102,7 +102,7 @@ no relatório live; não há JavaScript executado, retry ou GET extra.
 não confiável, tal qual `<template>`, somente quando ancestral ou
 descendente da tabela `tblAndamentos`. Com scripts habilitados no SEI,
 uma linha inerte achada pelo parser não demonstra execução nem registro.
-É preferível sair com efeito incerto após uma leitura a aceitar um
+É preferível sair com escrita não confirmada após uma leitura a aceitar um
 falso sucesso. Não interpretar nem executar JavaScript.
 
 Para a segunda ciência, manter a diferença observada no Todos:
@@ -145,5 +145,5 @@ forneceram atividade reconhecida pelo leitor atual; 14 listas ficaram
 sem `id_atividade` verificável. Isso é **evidência de lacuna de
 conformidade**, não prova de falha do SEI. Próxima investigação:
 confrontar, de forma saneada, respostas preparatórias e mutadoras
-das capturas e seus HTMLs; manter saída 3 quando não houver prova.
+das capturas e seus HTMLs; manter saída 1 quando não houver prova.
 O teste offline não substitui prévia nem escrita live.

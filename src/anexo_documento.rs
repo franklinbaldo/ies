@@ -134,14 +134,13 @@ impl ArquivoParcial {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAnexo {
     /// Status, rede, limite de `chunked`, charset.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// HTML 200 que é a tela de login.
-    #[causa(sessao_encerrada)]
-    TelaDeLogin,
+    TelaDeLogin(#[source] crate::erro_publico::SessaoEncerrada),
     SemTipoDeConteudo,
     TipoNaoPermitido,
     CabecalhoRepetido,
@@ -152,8 +151,7 @@ pub(crate) enum ErroAnexo {
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
     RecusadoPeloSei(StatusHttpRecusado),
     /// O texto visível do HTML recebido.
-    #[causa(interna)]
-    Corpo(ErroCorpoDocumento),
+    Corpo(#[from] ErroCorpoDocumento),
     DiretorioAusente,
     ArquivoJaExiste,
     EscritaFalhou,
@@ -163,7 +161,9 @@ impl ErroAnexo {
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(falha) => falha.mensagem(),
-            Self::TelaDeLogin => "a sessão foi encerrada; rode ies login",
+            Self::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão foi encerrada; rode ies login"
+            }
             Self::SemTipoDeConteudo => "o anexo veio sem Content-Type",
             Self::TipoNaoPermitido => "o tipo do anexo não está na lista observada",
             Self::CabecalhoRepetido => "cabeçalho do anexo repetido",
@@ -274,7 +274,7 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
-    let hash = crate::hex::hex_minusculo(&hasher.finalize());
+    let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(
@@ -455,7 +455,7 @@ fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
     use crate::transporte::texto_de_recusa::{e_excecao_do_sei, texto_do_html};
     let html = decodificar(bytes, tipo);
     if crate::tela_login::e_tela_login(&html) {
-        return Err(ErroAnexo::TelaDeLogin);
+        return Err(ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada));
     }
     if e_excecao_do_sei(&html) {
         let mensagem = texto_do_html(&html).and_then(|t| crate::transporte::saneamento::sanear(&t));

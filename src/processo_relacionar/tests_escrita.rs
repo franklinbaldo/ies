@@ -110,7 +110,7 @@ fn dado_post_403_quando_remover_entao_nao_declara_sucesso_causal() {
 /// Dado HTTP 200 genérico no POST mutador, quando o SEI não confirma
 /// o aceite, então nenhuma releitura transforma o POST em sucesso.
 #[test]
-fn dado_post_200_generico_quando_remover_entao_efeito_incerto() {
+fn dado_post_200_generico_quando_remover_entao_nao_confirmado() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina(true)));
     respostas.push(ok(
@@ -220,7 +220,7 @@ fn dado_destino_quando_adicionar_confirmado_entao_post_unico_e_releitura() {
 /// Dado falha 403 do POST mutador, quando confirmo adicionar,
 /// então o IES preserva o efeito incerto sem fazer outra escrita ou releitura.
 #[test]
-fn dado_post_403_quando_adicionar_entao_efeito_incerto_sem_retry() {
+fn dado_post_403_quando_adicionar_entao_nao_confirmado_sem_retry() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina_adicionar(false)));
     respostas.push(ok(xml_destino()));
@@ -228,7 +228,7 @@ fn dado_post_403_quando_adicionar_entao_efeito_incerto_sem_retry() {
     let (resultado, pedidos) = executar_adicao(respostas);
     assert!(matches!(
         resultado,
-        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+        Err(super::FalhaRelacionar::NaoConfirmado(_))
     ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos[5].metodo, "POST");
@@ -247,7 +247,7 @@ fn dado_post_200_generico_quando_adicionar_entao_nao_confirma() {
     let (resultado, pedidos) = executar_adicao(respostas);
     assert!(matches!(
         resultado,
-        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+        Err(super::FalhaRelacionar::NaoConfirmado(_))
     ));
     assert_eq!(pedidos.len(), 6);
 }
@@ -255,7 +255,7 @@ fn dado_post_200_generico_quando_adicionar_entao_nao_confirma() {
 /// Dado o aceite da adição sem vínculo na releitura independente,
 /// quando confirmo, então a saída é 3 e não há segundo POST.
 #[test]
-fn dado_302_aceito_mas_releitura_sem_vinculo_entao_efeito_incerto() {
+fn dado_302_aceito_mas_releitura_sem_vinculo_entao_nao_confirmado() {
     let mut respostas = abertura(arvore(&[UNIDADE], &[acao_da_arvore()]));
     respostas.push(ok(pagina_adicionar(false)));
     respostas.push(ok(xml_destino()));
@@ -266,7 +266,7 @@ fn dado_302_aceito_mas_releitura_sem_vinculo_entao_efeito_incerto() {
     let (resultado, pedidos) = executar_adicao(respostas);
     assert!(matches!(
         resultado,
-        Err(super::FalhaRelacionar::EfeitoIncerto(_))
+        Err(super::FalhaRelacionar::NaoConfirmado(_))
     ));
     assert_eq!(pedidos.len(), 7);
     assert_eq!(pedidos[5].metodo, "POST");
@@ -288,7 +288,7 @@ fn releitura_remocao_nao_confirma_mesmo_nup_em_outro_id() {
     respostas.push(ok(novo_id));
     let (resultado, pedidos) = executar(respostas);
     assert!(
-        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        matches!(resultado, Err(super::FalhaRelacionar::NaoConfirmado(_))),
         "mesmo NUP ainda relacionado: {resultado:?}"
     );
     assert_eq!(pedidos.len(), 6);
@@ -316,7 +316,7 @@ fn releitura_remocao_preserva_relacao_nao_solicitada() {
     respostas.push(ok(pagina(false)));
     let (resultado, pedidos) = executar(respostas);
     assert!(
-        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        matches!(resultado, Err(super::FalhaRelacionar::NaoConfirmado(_))),
         "outro vínculo desapareceu junto: {resultado:?}"
     );
     assert_eq!(pedidos.len(), 6);
@@ -364,7 +364,7 @@ fn releitura_adicao_nao_confirma_perda_de_outro_vinculo() {
     respostas.push(ok(pagina_adicionar(true)));
     let (resultado, pedidos) = executar_adicao(respostas);
     assert!(
-        matches!(resultado, Err(super::FalhaRelacionar::EfeitoIncerto(_))),
+        matches!(resultado, Err(super::FalhaRelacionar::NaoConfirmado(_))),
         "vínculo vizinho perdido: {resultado:?}"
     );
     assert_eq!(pedidos.len(), 7);

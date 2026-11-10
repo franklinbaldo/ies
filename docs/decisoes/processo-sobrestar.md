@@ -70,7 +70,7 @@ um único envio, inclusive na falha e na reconciliação.
 - [Testes do leitor](../../src/arvore_processo/tests_sobrestar.rs)
   e [testes de fluxo](../../src/processo_sobrestar/tests.rs):
   URL assinada e três GET exatos a frio. [Testes de escrita](../../src/processo_sobrestar/tests_escrita.rs)
-  exercitam orçamento de 6 requisições, um POST, sucesso, recusa e efeito incerto.
+  exercitam orçamento de 6 requisições, um POST, sucesso, recusa e escrita não confirmada.
 - [Live](../validacao-live/2026-11-05-processo-sobrestar.md):
   NOT_RUN, zero requisições e nenhum resíduo.
 - [Issue #269](https://github.com/franklinbaldo/ies/issues/269),

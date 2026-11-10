@@ -10,7 +10,6 @@ use crate::formulario_web::{
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::transporte::texto_de_recusa::decodificar_entidades;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
 const ACAO: &str = "procedimento_atribuicao_cadastrar";
@@ -45,17 +44,16 @@ pub(crate) struct TelaDaAtribuicao {
     pub(crate) usuarios: Vec<UsuarioDaAtribuicao>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAtribuir {
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
     CharsetDaTelaNaoSuportado,
-    #[causa(transparente)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Formulario(#[from] ErroSubmissaoFormulario),
+    Html(#[from] ErroHtml),
 }
 
 type E = ErroAtribuir;
@@ -134,7 +132,8 @@ fn ler_opcoes(
         {
             return Err(ErroHtml::valor("tela_da_atribuicao_fora_da_forma").into());
         }
-        let rotulo = decodificar_entidades(&opcao.inner_text(parser))
+        let rotulo = html_escape::decode_html_entities(&opcao.inner_text(parser))
+            .into_owned()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");

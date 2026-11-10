@@ -22,20 +22,19 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroHipotese {
     // Formato de tela não é categoria de domínio: nome da fronteira HTML
     // mantém o subcódigo público, enquanto a causa é tipada por Problema.
-    #[causa(transparente)]
-    Html(crate::erro_html::ErroHtml),
+    Html(#[from] crate::erro_html::ErroHtml),
     OpcaoNaoUnica,
     OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
     EscolhaInlineNaoVerificada,
     // A causa concreta sobe, em vez de extrair nome de texto e
     // reconstruir um snapshot que perderia a variante original.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
 }
 
 impl ErroHipotese {
@@ -118,8 +117,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };
-        let texto =
-            crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
+        let texto = html_escape::decode_html_entities(&opcao.inner_text(parser)).into_owned();
         if texto.trim().is_empty() {
             return Err(E::resposta_nao_reconhecida());
         }

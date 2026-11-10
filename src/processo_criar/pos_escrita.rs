@@ -8,12 +8,11 @@ use crate::instalacao::Instalacao;
 use crate::visao_do_controle::EnvioDoControle;
 use reconciliacao::desfechos::{Desfecho, ProcessoConferido, classificar};
 
-#[derive(crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(super) enum CausaPosEscrita {
-    #[causa(interna)]
-    Transporte(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Resposta(CausaRespostaCriadora),
+    Transporte(#[from] ErroSubmissaoFormulario),
+    Resposta(#[from] CausaRespostaCriadora),
 }
 
 impl CausaPosEscrita {

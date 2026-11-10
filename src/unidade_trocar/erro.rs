@@ -28,12 +28,11 @@ impl EtapaDaTroca {
 }
 
 /// O fato observado depois do POST, sem URL nem corpo.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDepoisDoEnvio {
-    #[causa(interna)]
-    Envio(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Envio(#[from] ErroSubmissaoFormulario),
+    Transporte(#[from] FalhaTransporte),
     /// HTML 200 onde o observado é um 302.
     RespostaSemRedirecionamento,
     /// 302 sem `Location`.
@@ -44,8 +43,7 @@ pub(crate) enum FalhaDepoisDoEnvio {
     LocalizacaoDeOutraUnidade,
     /// Status fora de 200 e 302 (recusa do transporte com o status).
     Status(i32),
-    #[causa(interna)]
-    ControleNaoReconhecido(ErroCaixa),
+    ControleNaoReconhecido(#[from] ErroCaixa),
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
 }
@@ -60,13 +58,12 @@ impl FalhaDepoisDoEnvio {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTroca {
     /// GET do Controle ou da tela de troca, antes do POST.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    ControleNaoReconhecido(ErroCaixa),
+    Transporte(#[from] FalhaTransporte),
+    ControleNaoReconhecido(#[from] ErroCaixa),
     UnidadeExibidaDiferenteDaSolicitada,
     LinksDeTrocaDivergentes,
     ListaDeUnidadesIncompleta,
@@ -78,29 +75,19 @@ pub(crate) enum ErroTroca {
     SiglaDeUnidadeAmbigua {
         candidatas: Vec<UnidadeOferecida>,
     },
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    EfeitoIncerto {
+    Submissao(#[from] ErroSubmissaoFormulario),
+    NaoConfirmado {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,
     },
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroTroca {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
-            Self::EfeitoIncerto { .. } => "efeito_incerto",
+            Self::NaoConfirmado { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncerto { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -131,7 +118,7 @@ impl ErroTroca {
                 "a sigla pedida aparece em mais de uma unidade da tela de troca"
             }
             Self::Submissao(_) => "o formulário de troca de unidade não pôde ser derivado",
-            Self::EfeitoIncerto { .. } => {
+            Self::NaoConfirmado { .. } => {
                 "a troca foi enviada e a resposta não é a observada: a unidade da sessão pode ter mudado; não repita, confira com ies login --forcar"
             }
         }
@@ -141,7 +128,7 @@ impl ErroTroca {
         match self {
             Self::Transporte(falha) => falha.status_http(),
             Self::Submissao(erro) => erro.status_http(),
-            Self::EfeitoIncerto { falha, .. } => falha.status_http(),
+            Self::NaoConfirmado { falha, .. } => falha.status_http(),
             _ => None,
         }
     }

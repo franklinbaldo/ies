@@ -104,41 +104,30 @@ impl Visao {
 }
 
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
     CharsetDaTelaNaoSuportado,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
-    VisaoNaoTrocadaAposEnvio {
-        esperada: Visao,
-    },
+    VisaoNaoTrocadaAposEnvio { esperada: Visao },
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    PaginaForaDoIntervalo {
-        solicitada: usize,
-    },
+    PaginaForaDoIntervalo { solicitada: usize },
     PaginadorDaVisaoDetalhadaNaoPublicado,
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
     RedirecionamentoAposPaginar,
-    #[causa(interna)]
-    Caixa(ErroCaixa),
-    #[causa(interna)]
-    Detalhada(ErroDetalhada),
-    #[causa(interna)]
-    NivelDeDetalhe(ErroNivelDeDetalhe),
-    #[causa(interna)]
-    Formulario(ErroControleDoFormulario),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Pagina(ErroPaginaDoControle),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Caixa(#[from] ErroCaixa),
+    Detalhada(#[from] ErroDetalhada),
+    NivelDeDetalhe(#[from] ErroNivelDeDetalhe),
+    Formulario(#[from] ErroControleDoFormulario),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Pagina(#[from] ErroPaginaDoControle),
+    Transporte(#[from] FalhaTransporte),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroVisaoDoControle {

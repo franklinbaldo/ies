@@ -61,39 +61,17 @@ pub(crate) fn interpretar_pedido(
     Ok(PedidoDePrazo::Ler)
 }
 
+/// Data `DD/MM/AAAA` existente no calendário.
+fn data(valor: &str) -> Option<time::Date> {
+    let formato = time::macros::format_description!("[day]/[month]/[year]");
+    (valor.len() == 10)
+        .then(|| time::Date::parse(valor, formato).ok())
+        .flatten()
+        .filter(|d| d.year() > 0)
+}
+
 fn data_valida(valor: &str) -> bool {
-    let bytes = valor.as_bytes();
-    if bytes.len() != 10
-        || bytes[2] != b'/'
-        || bytes[5] != b'/'
-        || !bytes
-            .iter()
-            .enumerate()
-            .all(|(i, b)| matches!(i, 2 | 5) || b.is_ascii_digit())
-    {
-        return false;
-    }
-    let Some(dia) = valor[0..2].parse::<u32>().ok() else {
-        return false;
-    };
-    let Some(mes) = valor[3..5].parse::<u32>().ok() else {
-        return false;
-    };
-    let Some(ano) = valor[6..10].parse::<u32>().ok() else {
-        return false;
-    };
-    if ano == 0 {
-        return false;
-    }
-    let bissexto = ano % 4 == 0 && (ano % 100 != 0 || ano % 400 == 0);
-    let maximo = match mes {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if bissexto => 29,
-        2 => 28,
-        _ => return false,
-    };
-    (1..=maximo).contains(&dia)
+    data(valor).is_some()
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroPrazo> {
@@ -281,22 +259,9 @@ fn ler_controles_da_tela(
 }
 
 /// Campos do usuário para a derivação segura do formulário observado.
-/// Dias civis desde 1970-01-01 de uma data `DD/MM/AAAA` já validada
-/// (algoritmo de Howard Hinnant, sem dependência de calendário).
-fn dias_civis(data: &str) -> Option<i64> {
-    if !data_valida(data) {
-        return None;
-    }
-    let dia: i64 = data[0..2].parse().ok()?;
-    let mes: i64 = data[3..5].parse().ok()?;
-    let ano: i64 = data[6..10].parse().ok()?;
-    let a = if mes <= 2 { ano - 1 } else { ano };
-    let era = a.div_euclid(400);
-    let ano_da_era = a - era * 400;
-    let mes_deslocado = (mes + 9) % 12;
-    let dia_do_ano = (153 * mes_deslocado + 2) / 5 + dia - 1;
-    let dia_da_era = ano_da_era * 365 + ano_da_era / 4 - ano_da_era / 100 + dia_do_ano;
-    Some(era * 146_097 + dia_da_era - 719_468)
+/// Dias civis desde 1970-01-01 de uma data `DD/MM/AAAA`.
+fn dias_civis(valor: &str) -> Option<i64> {
+    data(valor).map(|d| (d - time::OffsetDateTime::UNIX_EPOCH.date()).whole_days())
 }
 
 /// A releitura confirma o pedido? Para `--dias N`, o SEI da `UnB` guarda e

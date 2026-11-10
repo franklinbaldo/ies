@@ -335,7 +335,7 @@ pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopi
                     println!(
                         "{}",
                         json!({
-                            "codigo": "efeito_incerto",
+                            "codigo": "nao_confirmado",
                             "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
                             "confirmado": false,
                             "retentavel": false
@@ -344,7 +344,7 @@ pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopi
                 } else {
                     eprintln!("IES: edição não comprovada; não repita --confirmar sem releitura.");
                 }
-                ExitCode::from(3)
+                ExitCode::from(1)
             }
         }
     })

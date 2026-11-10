@@ -71,12 +71,12 @@ fn bdd_258_04_post_aceite_inconclusivo_nao_gera_sucesso_nem_retry() {
     let (saida, eventos, vinculos) = executar_com(false, false, false, Modo::AdicaoSemAceite);
     assert_eq!(
         saida.status.code(),
-        Some(3),
+        Some(1),
         "saída: {}",
         String::from_utf8_lossy(&saida.stderr)
     );
     let valor = saida_json(&saida);
-    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(valor["codigo"], "nao_confirmado");
     assert_eq!(valor["retentavel"], false);
     assert_eq!(
         vinculos, 1,

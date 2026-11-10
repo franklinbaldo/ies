@@ -20,13 +20,14 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCriar {
     ListaForaDaForma,
     TipoAusente,
     TipoAmbiguo,
     NaoAplicado,
-    EfeitoIncerto,
+    NaoConfirmado,
     LinkDoTipoNaoNavegavel,
     EnderecoDoTipoNaoReconhecido,
     CadastroForaDaForma,
@@ -81,7 +82,7 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
             .collect::<Vec<_>>()
             .join(" ");
         // Texto, não atributo: o SEI 5 publica "Nome&nbsp;(Formulário)".
-        let nome = crate::entidades_html::decodificar_texto(&nome);
+        let nome = html_escape::decode_html_entities(&nome).into_owned();
         if !nome.is_empty() {
             tipos.push(nome);
         }
@@ -127,18 +128,18 @@ pub(crate) fn conferir_criacao_com_rotulo(
     let mut originais = std::collections::HashSet::new();
     for doc in antes {
         if doc.id.is_empty() || !originais.insert(doc.id.as_str()) {
-            return Err(E::EfeitoIncerto);
+            return Err(E::NaoConfirmado);
         }
     }
     let mut ids = std::collections::HashSet::new();
     for doc in depois {
         if doc.id.is_empty() || !ids.insert(doc.id.as_str()) {
-            return Err(E::EfeitoIncerto);
+            return Err(E::NaoConfirmado);
         }
     }
     for original in antes {
         if !depois.iter().any(|doc| doc == original) {
-            return Err(E::EfeitoIncerto);
+            return Err(E::NaoConfirmado);
         }
     }
     let novos: Vec<_> = depois
@@ -148,13 +149,13 @@ pub(crate) fn conferir_criacao_com_rotulo(
     let novo = match novos.as_slice() {
         [] => return Err(E::NaoAplicado),
         [doc] => *doc,
-        _ => return Err(E::EfeitoIncerto),
+        _ => return Err(E::NaoConfirmado),
     };
     let numero = novo
         .numero_sei
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(E::EfeitoIncerto)?;
+        .ok_or(E::NaoConfirmado)?;
     if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
@@ -165,7 +166,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
             .count()
             != 1
     {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     }
     Ok(numero.to_owned())
 }
@@ -337,7 +338,7 @@ pub(crate) fn escolha_do_tipo(
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = crate::entidades_html::decodificar_texto(&nome);
+        let nome = html_escape::decode_html_entities(&nome).into_owned();
         if nome != tipo {
             continue;
         }

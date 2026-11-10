@@ -8,11 +8,11 @@ use crate::foto_documento::nome;
 use serde::Serialize;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroListagem {
     LimiteDeCopias,
-    #[causa(interna)]
-    CopiaInvalida(ErroCopia),
+    CopiaInvalida(#[from] ErroCopia),
 }
 
 /// Uma versão local, sem o conteúdo.

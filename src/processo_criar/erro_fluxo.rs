@@ -8,14 +8,16 @@ use crate::processo_criar_interessados::ErroInteressado;
 use crate::processo_criar_lista::ErroListaDeTipos;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum CausaRespostaCriadora {
     RespostaInesperada,
     LocalizacaoInvalida,
 }
 
 /// Fato observado na verificação independente após Location legítimo.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ProvaDaCriacao {
     PropriedadesDivergentes,
     IdentidadePreexistente,
@@ -91,7 +93,7 @@ pub(crate) enum ErroCriar {
         correspondentes: Option<Vec<String>>,
         observados_antes_da_falha: Option<Box<[reconciliacao::CandidatoGerado]>>,
     },
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 impl ErroCriar {
@@ -146,19 +148,15 @@ impl ErroCriar {
         )
     }
 
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(
+    pub(crate) fn apos_post(&self) -> bool {
+        matches!(
             self,
-            Self::EfeitoIncerto
+            Self::NaoConfirmado
                 | Self::VerificacaoAposPost(_)
                 | Self::RespostaHttpSemProva(_)
                 | Self::PosEscrita { .. }
                 | Self::PosRespostaInesperada { .. }
-        ) {
-            3
-        } else {
-            1
-        }
+        )
     }
 
     /// O retorno não infere ausência quando não houve candidato novo.

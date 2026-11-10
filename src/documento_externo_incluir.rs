@@ -200,7 +200,7 @@ fn inspecionar_pdf_com_arquivo(
         PdfLocal {
             nome: nome.to_owned(),
             tamanho_bytes: total,
-            sha256: crate::hex::hex_minusculo(&digest.finalize()),
+            sha256: hex::encode(digest.finalize()),
         },
         arquivo,
     ))

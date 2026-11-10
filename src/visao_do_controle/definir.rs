@@ -162,7 +162,7 @@ fn conciliar(
     let observadas: Vec<ColunaDoDetalhe> = match verificacao {
         VerificacaoDasColunas::Marcadas(ref marcadas) => marcadas.clone(),
         VerificacaoDasColunas::LeituraFalhou(_) => {
-            return Err(D::EfeitoIncertoNaConfiguracaoDeColunas {
+            return Err(D::NaoConfirmadoNaConfiguracaoDeColunas {
                 plano,
                 falha_do_salvar: falha,
                 verificacao: Box::new(verificacao),
@@ -183,7 +183,7 @@ fn conciliar(
     }
     match falha {
         None => Err(D::MarcasDiferentesDoAlvoAposSalvar { plano, observadas }),
-        Some(falha) => Err(D::EfeitoIncertoNaConfiguracaoDeColunas {
+        Some(falha) => Err(D::NaoConfirmadoNaConfiguracaoDeColunas {
             plano,
             falha_do_salvar: Some(falha),
             verificacao: Box::new(verificacao),

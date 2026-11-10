@@ -53,11 +53,11 @@ fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
         {
             continue;
         }
-        let nome =
-            crate::transporte::texto_de_recusa::decodificar_entidades(&ancora.inner_text(parser))
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ");
+        let nome = html_escape::decode_html_entities(&ancora.inner_text(parser))
+            .into_owned()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         if !nome.is_empty() {
             nomes.insert(nome);
         }

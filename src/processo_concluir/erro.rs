@@ -8,25 +8,24 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Conclusão de Processo", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode
 /// ter saído): o efeito é decidido pela leitura.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDoEnvio {
     /// POST da tela: rede, tempo, status, MIME, charset, login, validação.
-    #[causa(interna)]
-    Envio(ErroSubmissaoFormulario),
+    Envio(#[from] ErroSubmissaoFormulario),
     /// GET da função: rede, tempo, status, MIME, charset, tamanho.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// GET da função: a tela de login.
     LoginAposEscrita,
     /// 302 para destino fora dos observados (`arvore_visualizar`, `principal`).
@@ -70,25 +69,15 @@ pub(crate) enum VerificacaoPorLeitura {
     LeituraFalhou(ErroProcessoObter),
 }
 
-impl VerificacaoPorLeitura {
-    /// Subcódigo (leitura) ou motivo (situação não lida).
-    pub(crate) fn motivo(&self) -> Option<&'static str> {
-        match self {
-            Self::Lida(_) => None,
-            Self::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
-            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
-        }
-    }
-}
+impl VerificacaoPorLeitura {}
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConcluir {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeConcluir {
@@ -101,22 +90,16 @@ pub(crate) enum ErroConcluir {
     ConclusaoNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
-    #[causa(interna)]
-    Barra(ErroConcluirNaBarra),
+    Barra(#[from] ErroConcluirNaBarra),
     /// GET da tela de conclusão ou da tela do nó, antes da escrita.
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaDaEscritaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     CharsetDaTelaNaoSuportado,
-    #[causa(interna)]
-    TelaDeConclusao(ErroTelaDeConclusao),
-    #[causa(interna)]
-    FuncaoDeConcluir(ErroFuncaoDeConcluir),
+    TelaDeConclusao(#[from] ErroTelaDeConclusao),
+    FuncaoDeConcluir(#[from] ErroFuncaoDeConcluir),
     /// Derivação do POST ou falha antes de ele sair (cookie).
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     /// A leitura depois da escrita ainda lista a unidade da sessão.
     ConclusaoNaoAplicada {
         aberto_em: Vec<String>,
@@ -124,7 +107,7 @@ pub(crate) enum ErroConcluir {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: a escrita saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaConclusao {
+    NaoConfirmadoNaConclusao {
         aberto_em: Vec<String>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoPorLeitura>,
@@ -136,16 +119,8 @@ impl ErroConcluir {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::ConclusaoNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncertoNaConclusao { .. } => "efeito_incerto",
+            Self::NaoConfirmadoNaConclusao { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaConclusao { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -156,7 +131,7 @@ impl ErroConcluir {
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::ConclusaoNaoAplicada { falha_do_envio, .. }
-            | Self::EfeitoIncertoNaConclusao { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNaConclusao { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -185,7 +160,9 @@ impl ErroConcluir {
             Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
                 "a tela da conclusão não foi servida; nada foi concluído"
             }
-            Self::SessaoEncerrada => "a sessão encerrou; rode `ies login` (nada foi concluído)",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode `ies login` (nada foi concluído)"
+            }
             Self::CharsetDaTelaNaoSuportado => {
                 "a tela de conclusão declara um charset não suportado; nada foi concluído"
             }
@@ -199,7 +176,7 @@ impl ErroConcluir {
             Self::ConclusaoNaoAplicada { .. } => {
                 "a árvore lida depois de concluir ainda lista a unidade da sessão: o processo não foi concluído"
             }
-            Self::EfeitoIncertoNaConclusao { .. } => {
+            Self::NaoConfirmadoNaConclusao { .. } => {
                 "não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir"
             }
         }

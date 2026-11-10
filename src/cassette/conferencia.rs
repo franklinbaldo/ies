@@ -24,7 +24,7 @@ impl ZipDoAcervo {
             return Err("ZIP maior que 160 MB".into());
         }
         let raw = std::fs::read(archive).map_err(|_| "falha ao ler ZIP")?;
-        let sha1 = crate::hex::hex_minusculo(&Sha1::digest(&raw));
+        let sha1 = hex::encode(Sha1::digest(&raw));
         Ok(Self { raw, sha1 })
     }
 }
@@ -95,7 +95,7 @@ pub(crate) fn conferir_cassette_ate(
     if json_bytes.len() as u64 > limite {
         return Err(format!("cassette maior que {} MB", limite / 1_000_000));
     }
-    if crate::hex::hex_minusculo(&Sha256::digest(com_lf(&json_bytes))) != expected_json {
+    if hex::encode(Sha256::digest(com_lf(&json_bytes))) != expected_json {
         return Err("SHA-256 da cassette não confere".into());
     }
     let json: serde_json::Value =

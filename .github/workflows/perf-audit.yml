@@ -24,11 +24,16 @@ jobs:
       - name: Compilar IES em release
         run: cargo +1.99.1 build --release --locked --bin ies
 
+      - name: Instalar hyperfine
+        run: sudo apt-get update && sudo apt-get install -y hyperfine
+
       - name: Benchmarks somente locais (inicialização, sem SEI)
         run: |
-          python3 scripts/perf_audit.py \
-            --ies "$PWD/target/release/ies" \
-            --repeticoes 25
+          IES="$PWD/target/release/ies"
+          hyperfine --warmup 3 --runs 25 -N --ignore-failure \
+            --export-markdown "$GITHUB_STEP_SUMMARY" \
+            "$IES --help" "$IES --version" "$IES esquema --json" \
+            "$IES status --json" "$IES documento 0011519 --json"
 
       - name: Medir resposta HTTP simulada, caixa e JSON sem rede
         run: cargo +1.99.1 test --release --locked web_mock -- --nocapture

@@ -204,7 +204,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroAssinar) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 fn linha_das_assinaturas(lista: &[Assinante]) -> String {

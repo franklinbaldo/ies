@@ -24,7 +24,8 @@ pub(crate) struct BlocoDetalhado {
     pub(crate) itens: Vec<ItemDoBloco>,
 }
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
+    html_escape::decode_html_entities(&tag.inner_text(parser))
+        .into_owned()
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()

@@ -16,31 +16,17 @@ pub(super) const CAMPOS_USUARIO: &[&str] = &[
     "selGeradosPaginacaoInferior",
 ];
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroControleDoFormulario {
-    ControleNaoPrevistoNoFormularioDoControle {
-        campo: String,
-    },
-    CaixaDeSelecaoMarcadaNoFormularioDoControle {
-        campo: String,
-    },
-    PaginadorSemOpcaoSelecionada {
-        campo: String,
-    },
-    PaginadorComMaisDeUmaOpcaoSelecionada {
-        campo: String,
-    },
-    OpcaoSelecionadaDoPaginadorSemValor {
-        campo: String,
-    },
-    ControleRepetidoNoFormularioDoControle {
-        campo: String,
-    },
-    EntidadeHtmlDesconhecidaNoControle {
-        campo: String,
-    },
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
+    ControleNaoPrevistoNoFormularioDoControle { campo: String },
+    CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: String },
+    PaginadorSemOpcaoSelecionada { campo: String },
+    PaginadorComMaisDeUmaOpcaoSelecionada { campo: String },
+    OpcaoSelecionadaDoPaginadorSemValor { campo: String },
+    ControleRepetidoNoFormularioDoControle { campo: String },
+    EntidadeHtmlDesconhecidaNoControle { campo: String },
+    AtributoHtml(#[from] ErroAtributoHtml),
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {

@@ -226,7 +226,8 @@ pub(crate) fn observar_cadastro(
             continue;
         }
         // Texto de <option>: `&nbsp;` e entidades Latin-1 servidas pela UnB.
-        let nome = crate::entidades_html::decodificar_texto(&tag.inner_text(dom.parser()))
+        let nome = html_escape::decode_html_entities(&tag.inner_text(dom.parser()))
+            .into_owned()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");

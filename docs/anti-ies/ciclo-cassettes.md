@@ -78,7 +78,7 @@ ao BDD da CLI, ao SHA e à evidência efetivamente executada:
    contrato e com a hipótese do anti-IES. Leitura/GET pode ter efeito.
    Escrita exige prévia → `--confirmar` uma vez → releitura
    independente, com orçamento e resíduo; nunca produção, credenciais
-   em log ou repetição de efeito incerto. Divergência real gera correção
+   em log ou repetição de escrita não confirmada. Divergência real gera correção
    da fatia IES/anti-IES e regressão de cassette quando aplicável.
 
 **A concordância entre os dois programas não prova os níveis 2 ou 3.**

@@ -53,7 +53,7 @@ a origem é conferida **antes de qualquer requisição**; na origem de
 treinamento aceita, o IES só envia uma vez após conferir os campos do
 formulário servido e a ação de `acaoRemover`. Sucesso requer um 302
 identificado como retirada do mesmo processo **mais** a ausência
-comprovada por releitura independente. Efeito incerto sai 3 sem retry.
+comprovada por releitura independente. Escrita não confirmada sai 3 sem retry.
 Atribuir marcador ausente exige prova do catálogo **da unidade** e a
 confirmação de atribuição continua fechada.
 Nenhum novo transporte, cookie próprio ou restaurador de tela.

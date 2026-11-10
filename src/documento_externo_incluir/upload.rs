@@ -45,7 +45,7 @@ pub(crate) fn enviar_via<R: Read>(
         tamanho: plano.tamanho_total(),
         corpo: &mut corpo,
     })
-    .map_err(|_| FalhaUpload::EfeitoIncerto { status_http: None })?;
+    .map_err(|_| FalhaUpload::NaoConfirmado { status_http: None })?;
     interpretar_http(resposta, nome, tamanho_bytes)
 }
 

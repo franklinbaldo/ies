@@ -115,20 +115,20 @@ where
     let depois = reler(transporte);
     let resposta = match resposta {
         Ok(resposta) => resposta,
-        Err(causa) => return Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(causa)),
+        Err(causa) => return Err(ErroPreviaCriacao::NaoConfirmadoNoEnvio(causa)),
     };
-    let depois = depois.map_err(ErroPreviaCriacao::EfeitoIncertoNaReleitura)?;
+    let depois = depois.map_err(ErroPreviaCriacao::NaoConfirmadoNaReleitura)?;
     if depois.pastas_nao_carregadas || antes.id != depois.id {
-        return Err(ErroPreviaCriacao::EfeitoIncerto);
+        return Err(ErroPreviaCriacao::NaoConfirmado);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-        .map_err(|_| ErroPreviaCriacao::EfeitoIncerto)?;
+        .map_err(|_| ErroPreviaCriacao::NaoConfirmado)?;
     let id_novo = depois
         .documentos
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
         .map(|doc| doc.id.as_str())
-        .ok_or(ErroPreviaCriacao::EfeitoIncerto)?;
+        .ok_or(ErroPreviaCriacao::NaoConfirmado)?;
     // HTML 200 genérico não confirma que o servidor aceitou a gravação.
     // Em conta compartilhada, a mudança da árvore pode ser concorrente.
     // Só o redirecionamento observado para o ID do documento novo serve
@@ -142,7 +142,7 @@ where
         }
     };
     if !resposta_conferivel {
-        return Err(ErroPreviaCriacao::EfeitoIncerto);
+        return Err(ErroPreviaCriacao::NaoConfirmado);
     }
     Ok(numero)
 }

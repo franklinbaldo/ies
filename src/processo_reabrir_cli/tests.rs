@@ -70,28 +70,23 @@ fn ja_aberto_e_reaberto_na_saida_humana() {
 
 #[test]
 fn falhas_trazem_a_situacao_e_a_verificacao() {
-    let erro = ErroReabrir::EfeitoIncertoNaReabertura {
+    let erro = ErroReabrir::NaoConfirmadoNaReabertura {
         aberto_em: vec![],
         falha_do_envio: None,
         verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
             MotivoAbertoEm::HtmlDaRaizNaoPublicado,
         )),
     };
-    assert_eq!(erro.saida(), 3);
     let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(valor["codigo"], "nao_confirmado");
     assert_eq!(valor["aberto_em"], json!([]));
-    assert_eq!(valor["verificacao"], "html_da_raiz_nao_publicado");
     let nao = ErroReabrir::ReaberturaNaoAplicada {
         aberto_em: vec![],
         depois: vec!["OUTRA".into()],
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
     };
     let valor = json_de_falha(&nao);
-    assert_eq!(
-        (nao.saida(), valor["codigo"].as_str()),
-        (1, Some("escrita_nao_aplicada"))
-    );
+    assert_eq!(valor["codigo"].as_str(), Some("escrita_nao_aplicada"));
     assert_eq!(valor["depois"], json!(["OUTRA"]));
     assert_eq!(valor["status_http"], 302);
     let ja = ErroReabrir::UnidadeDaSessaoJaNaSituacao {
@@ -119,7 +114,7 @@ fn saida_tipificada_serializa_direto_e_preserva_campos_opcionais() {
 
 #[test]
 fn erro_tipado_da_reabertura_preserva_situacao_resposta_e_verificacao() {
-    let _erro = ErroReabrir::EfeitoIncertoNaReabertura {
+    let _erro = ErroReabrir::NaoConfirmadoNaReabertura {
         aberto_em: vec!["TESTE_1_1".into()],
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
         verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
@@ -159,20 +154,20 @@ fn falha_serializavel_preserva_goldens_compactos_sem_value() {
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de reabrir não lista a unidade da sessão: o processo não foi reaberto","retentavel":false}"#,
         ),
         (
-            ErroReabrir::EfeitoIncertoNaReabertura {
+            ErroReabrir::NaoConfirmadoNaReabertura {
                 aberto_em: vec!["TESTE".into()],
                 falha_do_envio: None,
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","retentavel":false,"verificacao":null}"#,
+            r#"{"aberto_em":["TESTE"],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","retentavel":false}"#,
         ),
         (
-            ErroReabrir::EfeitoIncertoNaReabertura {
+            ErroReabrir::NaoConfirmadoNaReabertura {
                 aberto_em: vec!["TESTE".into()],
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":["TESTE"],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302,"verificacao":null}"#,
+            r#"{"aberto_em":["TESTE"],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302}"#,
         ),
     ];
     for (erro, esperado) in casos {
@@ -204,7 +199,7 @@ fn falha_http_preserva_mensagem_status_e_identidade_original() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada."},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"verificacao":"html_da_raiz_nao_publicado"}"#,
+            r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada."},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false}"#,
         ),
         (
             FalhaDoEnvio::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
@@ -213,18 +208,17 @@ fn falha_http_preserva_mensagem_status_e_identidade_original() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500,"verificacao":"html_da_raiz_nao_publicado"}"#,
+            r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500}"#,
         ),
     ];
     for (falha, esperado) in casos {
-        let erro = ErroReabrir::EfeitoIncertoNaReabertura {
+        let erro = ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em: vec![],
             falha_do_envio: Some(falha),
             verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
                 MotivoAbertoEm::HtmlDaRaizNaoPublicado,
             )),
         };
-        assert_eq!(erro.saida(), 3);
         assert_eq!(
             serde_json::to_string(&super::json_de_falha(&erro)).unwrap(),
             esperado

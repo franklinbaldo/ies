@@ -79,7 +79,6 @@ fn redirect_historico_sem_id_expoe_incerteza_em_vez_de_confirmacao() {
         let (resultado, pedidos) = rodar_confirmacao(usuario, respostas);
         let erro = resultado.unwrap_err();
         let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-        assert_eq!(erro.saida(), 3);
         assert_eq!(publico["atribuicao_relida"], usuario.unwrap_or(""));
         assert!(
             erro.mensagem().contains("efeito desta tentativa"),

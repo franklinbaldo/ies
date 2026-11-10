@@ -78,7 +78,8 @@ pub(crate) fn ler_link_das_anotacoes(
 }
 
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkPrazo {
     BarraNaoInterpretada,
     LinksRepetidos,
@@ -279,7 +280,8 @@ impl std::fmt::Debug for EnderecoDoIncluirDocumento {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkIncluirDocumento {
     BarraForaDaForma,
     BarraRepetida,

@@ -42,6 +42,9 @@ jobs:
         with:
           cache-workspace-crates: true
 
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny@0.20.2
+
       - name: Run canonical prek pre-push gates
         run: uvx --from prek==0.5.7 prek run --hook-stage pre-push --all-files
 
@@ -165,6 +168,11 @@ jobs:
           cargo +1.99.1 test --locked --bin ies cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http: test'
           cargo +1.99.1 test --locked --bin ies cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          for instalacao in pen1 pen2 pen3 pen4; do
+            nome="cassette_${instalacao}_tela_do_documento_preserva_selecao_ate_arvore_http"
+            cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F "cassette::anti_ies_documento::${nome}: test"
+            cargo +1.99.1 test --locked --bin ies "${nome}" -- --ignored --nocapture --test-threads=1
+          done
 
       - name: Confrontar a barra UnB antes/depois da conclusão com HTTP anti-IES
         shell: bash

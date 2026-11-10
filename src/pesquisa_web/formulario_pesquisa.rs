@@ -74,18 +74,14 @@ pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulari
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPesquisaProtocolo {
-    #[causa(interna)]
-    Filtro(ErroFiltro),
-    #[causa(interna)]
-    RegraDoFormulario(ErroRegraDoFormularioDePesquisa),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Redirecionamento(ErroRedirecionamentoDaPesquisa),
-    #[causa(interna)]
-    Resposta(ErroRespostaDaPesquisa),
+    Filtro(#[from] ErroFiltro),
+    RegraDoFormulario(#[from] ErroRegraDoFormularioDePesquisa),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
+    Resposta(#[from] ErroRespostaDaPesquisa),
 }
 
 impl ErroPesquisaProtocolo {

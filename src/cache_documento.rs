@@ -13,7 +13,8 @@ pub(crate) struct Registro {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCache {
     Diretorio,
     Gravacao,
@@ -189,7 +190,7 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
         }
         sha.update(&buffer[..lidos]);
     }
-    Ok(crate::hex::hex_minusculo(&sha.finalize()))
+    Ok(hex::encode(sha.finalize()))
 }
 
 /// Publica o parcial binário já integralmente conferido; seu Drop o elimina.

@@ -65,7 +65,7 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
 }
 
 fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
-    let incerto = erro.saida() == 3;
+    let incerto = matches!(erro, FalhaRelacionar::NaoConfirmado(_));
     let mensagem = if incerto {
         "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita.".to_owned()
     } else {
@@ -73,7 +73,7 @@ fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
     };
     if json_mode {
         let mut resposta = json!({
-            "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
+            "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
             "erro": mensagem,
             "retentavel": false,
         });
@@ -87,7 +87,7 @@ fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {

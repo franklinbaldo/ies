@@ -2,7 +2,6 @@
 //! executado e sem regex; todos os atributos passam por `html_atributos`.
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::html_atributos::valor_do_atributo;
-use crate::transporte::texto_de_recusa::decodificar_entidades;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,7 +114,8 @@ pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, &'static str
             if let Some(href) = atributo(ancora, "href")?
                 && let Some(id) = id_do_processo(&href)
             {
-                let nup = decodificar_entidades(&ancora.inner_text(parser));
+                let nup =
+                    html_escape::decode_html_entities(&ancora.inner_text(parser)).into_owned();
                 if nup.trim().is_empty() {
                     return Err("numero_do_relacionado_ausente");
                 }
@@ -183,7 +183,8 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, &'static str> 
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let valor = decodificar_entidades(&tag.inner_text(parser))
+        let valor = html_escape::decode_html_entities(&tag.inner_text(parser))
+            .into_owned()
             .trim()
             .to_owned();
         match atributo(tag, "nome")?.as_deref() {

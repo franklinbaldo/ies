@@ -72,7 +72,7 @@ fn falha(json_mode: bool, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
-    let FalhaAnexar::EfeitoIncerto(_) = erro else {
+    let FalhaAnexar::NaoConfirmado(_) = erro else {
         return falha(json_mode, &erro.mensagem());
     };
     let mensagem = "O efeito da anexação não pôde ser comprovado. Confira a lista no SEI; não repita --confirmar.";
@@ -82,8 +82,7 @@ fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
-                "escrita": {"envio_tentado": true, "aplicada": null},
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false
             })
@@ -91,7 +90,7 @@ fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {

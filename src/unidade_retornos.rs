@@ -16,7 +16,8 @@ pub(crate) struct Retorno {
     pub(crate) prazo_restante: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRetornos {
     TelaDeRetornosDesconhecida,
     ListaDeRetornosIncompleta,
@@ -40,7 +41,8 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
 }
 
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
+    html_escape::decode_html_entities(&tag.inner_text(parser))
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
