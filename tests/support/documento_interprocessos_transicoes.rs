@@ -209,6 +209,30 @@ pub(super) fn conferir_estado_apos_cli(
             "a revogação da versão 1 não afeta a revisão 2"
         );
     }
+    if matches!(modo, EstadoExtra::PdfNumeroDuplicado) {
+        let pdfs = iesei::pdf_externo::documentos(db, instalacao, CENARIO, "7").unwrap();
+        assert_eq!(pdfs.len(), 1, "o PDF continua cadastrado no SQLite");
+        assert_eq!(pdfs[0].numero_sei, DOC_A);
+        assert_eq!(
+            iesei::pdf_externo::conteudo_do_anexo(
+                db,
+                instalacao,
+                CENARIO,
+                &pdfs[0].id.to_string()
+            )
+            .unwrap(),
+            Some(b"%PDF-1.4\n%%EOF\n".to_vec()),
+            "a recusa da CLI não altera os bytes do anexo"
+        );
+        assert_eq!(
+            documento_versoes::ler(db, instalacao, CENARIO, "42")
+                .unwrap()
+                .unwrap()
+                .numero,
+            DOC_A,
+            "o documento interno permanece íntegro"
+        );
+    }
     if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
         assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
         let observado: String = db
