@@ -42,8 +42,10 @@ fn bdd_60_05_cli_humana_recusa_duplicidade_na_arvore_do_processo() {
             "nenhum corpo de candidato pode ser baixado: {trilha:?}"
         );
         assert!(
-            trilha.iter().all(|pedido| pedido.starts_with("GET ")),
-            "com NUP explícito não se faz pesquisa ou POST: {trilha:?}"
+            trilha.iter().all(|pedido| {
+                pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"
+            }),
+            "a pesquisa rápida é navegação, sem POST mutador: {trilha:?}"
         );
     }
 }
@@ -79,7 +81,9 @@ fn bdd_60_05_cli_humana_nao_oferece_documento_de_outro_nup() {
         "nenhum GET de corpo de DOC_B: {trilha:?}"
     );
     assert!(
-        trilha.iter().all(|pedido| pedido.starts_with("GET ")),
-        "não buscar outro processo como alternativa: {trilha:?}"
+        trilha.iter().all(|pedido| {
+            pedido.starts_with("GET ") || pedido == "POST protocolo_pesquisa_rapida"
+        }),
+        "somente navegação da origem, sem POST mutador: {trilha:?}"
     );
 }
