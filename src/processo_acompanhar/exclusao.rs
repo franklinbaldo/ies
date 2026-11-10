@@ -62,8 +62,7 @@ pub(super) fn destino_oferecido(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let codigo = tag.inner_text(parser);
-        let codigo = codigo.as_ref();
+        let codigo = tag.inner_text(parser).to_string();
         if !codigo.contains("function acaoExcluir(") {
             continue;
         }
