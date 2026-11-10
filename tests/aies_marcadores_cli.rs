@@ -197,6 +197,29 @@ enum Caso {
     RetirarSemMarcadores,
 }
 
+fn pedido(caso: Caso) -> (&'static str, &'static str) {
+    match caso {
+        Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
+        Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
+        Caso::RetirarPresente => ("--retirar", "501#Revisão"),
+    }
+}
+
+fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
+    if sem_marcadores {
+        assert!(
+            controles.is_empty(),
+            "zero marcadores usa 302 sem formulário de gerenciamento"
+        );
+    } else {
+        assert!(!controles.is_empty(), "gerenciamento não foi servido");
+        assert!(
+            controles.iter().all(|vistos| *vistos == (true, true, true)),
+            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
+        );
+    }
+}
+
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let pasta = Pasta::nova();
@@ -266,11 +289,7 @@ fn executar(caso: Caso) {
         origem.as_path(),
         cert.as_path(),
     ];
-    let (operacao, marcador) = match caso {
-        Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
-        Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente => ("--retirar", "501#Revisão"),
-    };
+    let (operacao, marcador) = pedido(caso);
     let argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
     let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
     if matches!(caso, Caso::RetirarPresente) {
@@ -295,18 +314,7 @@ fn executar(caso: Caso) {
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
     let controles = controles.lock().unwrap().clone();
-    if !sem_marcadores {
-        assert!(!controles.is_empty(), "gerenciamento não foi servido");
-        assert!(
-            controles.iter().all(|vistos| *vistos == (true, true, true)),
-            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
-        );
-    } else {
-        assert!(
-            controles.is_empty(),
-            "zero marcadores usa 302 sem formulário de gerenciamento"
-        );
-    }
+    conferir_controles(&controles, sem_marcadores);
     conferir(
         &saida,
         &releitura,
