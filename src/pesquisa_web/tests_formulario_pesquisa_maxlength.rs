@@ -49,8 +49,6 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
     let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
     assert_eq!(
         regra_do_termo(&html, "1"),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
-            "campos_do_termo_repetidos_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::CamposDoTermoRepetidosNaTela
     );
 }

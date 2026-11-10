@@ -5,7 +5,6 @@
 //! antes de `table.pesquisaResultado`; `div.pesquisaSemResultado` sozinho.
 use super::{ErroResultadoPesquisa, ResultadoPesquisa, ler_resultados};
 use crate::dominio::IdProcedimento;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::{ErroAtributoHtml, nos_por_elemento_e_classe};
 use crate::transporte::texto_de_recusa::texto_visivel;
 
@@ -55,7 +54,9 @@ pub(crate) enum ErroRespostaDaPesquisa {
     /// Linha da pesquisa em documentos (`ies documento buscar`).
     Documento(#[from] super::documentos::ErroDocumentoDaPesquisa),
     AtributoHtml(#[from] ErroAtributoHtml),
-    Html(#[from] ErroHtml),
+    BarraDeContagemDaPesquisaAusente,
+    BarrasDeContagemDaPesquisaRepetidas,
+    HtmlDaRespostaDaPesquisaNaoInterpretado,
 }
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
@@ -140,7 +141,7 @@ pub(crate) fn classificar_resposta<T>(
     ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_resposta_da_pesquisa_nao_interpretado"))?;
+        .map_err(|_| ErroRespostaDaPesquisa::HtmlDaRespostaDaPesquisaNaoInterpretado)?;
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
     let avisos = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaSemResultado")?;
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
@@ -158,9 +159,9 @@ pub(crate) fn classificar_resposta<T>(
         }
     }
     let barra = match barras.as_slice() {
-        [] => return Err(ErroHtml::ausente("barra_de_contagem_da_pesquisa_ausente").into()),
+        [] => return Err(ErroRespostaDaPesquisa::BarraDeContagemDaPesquisaAusente),
         [barra] => *barra,
-        _ => return Err(ErroHtml::repetido("barras_de_contagem_da_pesquisa_repetidas").into()),
+        _ => return Err(ErroRespostaDaPesquisa::BarrasDeContagemDaPesquisaRepetidas),
     };
     let texto = html_escape::decode_html_entities(&texto_visivel(barra, dom.parser())).into_owned();
     // `escrita`: a barra escreveu "Exibindo I - F de N"; "N resultados" só

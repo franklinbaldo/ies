@@ -8,7 +8,6 @@
 use super::ErroResultadoPesquisa;
 use super::resposta::FaixaDaPesquisa;
 use crate::dominio::IdProcedimento;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::ErroAtributoHtml;
 use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 
@@ -72,7 +71,15 @@ pub(crate) enum ErroDocumentoDaPesquisa {
     NumeroSeiComLinkDiferenteDoDocumento,
     LinhaDaPesquisaForaDeUmRegistro,
     NumeroDoProcesso(#[from] NumeroProcessoInvalido),
-    Html(#[from] ErroHtml),
+    CelulaDoTituloDoDocumentoAusenteOuRepetida,
+    DataDeInclusaoForaDaFormaObservada,
+    LinkDaLinhaDeDocumentoNaoReconhecido,
+    LinkDoDocumentoAusenteNaLinha,
+    LinksDoDocumentoRepetidosNaLinha,
+    MetadadoDoDocumentoRepetido,
+    NumeroSeiAusenteNaLinha,
+    NumeroSeiRepetidoNaPesquisa,
+    RotuloDoDocumentoAusente,
 }
 
 #[cfg(test)]
