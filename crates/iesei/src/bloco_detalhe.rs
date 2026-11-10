@@ -183,6 +183,68 @@ pub fn ler(
     Ok(Some(detalhe))
 }
 
+/// Confirma a inclusão de documento em um bloco de assinatura já inteiramente
+/// observado. O mesmo SQLite sustenta a releitura e os comandos posteriores.
+/// Não inventa item ausente quando a página do detalhe é parcial.
+///
+/// # Errors
+/// Recusa detalhe ausente/incompleto, item inválido ou erro SQLite.
+pub fn incluir_documento(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    numero: &str,
+    item: &Item,
+) -> rusqlite::Result<bool> {
+    if item.processo.is_empty() || item.documento.as_deref().is_none_or(str::is_empty) {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let tx = banco.unchecked_transaction()?;
+    let detalhe = ler(&tx, instalacao, cenario, Tipo::Assinatura, numero)?
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    if detalhe.itens.iter().any(|i| i.documento == item.documento) {
+        return Ok(false);
+    }
+    if detalhe.total != detalhe.itens.len() {
+        return Err(rusqlite::Error::InvalidQuery);
+    }
+    let novo_total = detalhe
+        .total
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    let total = i64::try_from(novo_total).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    let posicao = i64::try_from(detalhe.itens.len()).map_err(|_| rusqlite::Error::InvalidQuery)?;
+    tx.execute(
+        "INSERT INTO sim_bloco_item(
+           origem,cenario,tipo,numero,posicao,processo,documento,tipo_documento,anotacoes
+         ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+        params![
+            instalacao.url_base(),
+            cenario,
+            Tipo::Assinatura.nome(),
+            numero,
+            posicao,
+            item.processo,
+            item.documento,
+            item.tipo,
+            item.anotacoes
+        ],
+    )?;
+    tx.execute(
+        "UPDATE sim_bloco_detalhe SET total=?5,inicio=1,fim=?5
+         WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND numero=?4",
+        params![
+            instalacao.url_base(),
+            cenario,
+            Tipo::Assinatura.nome(),
+            numero,
+            total
+        ],
+    )?;
+    tx.commit()?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
