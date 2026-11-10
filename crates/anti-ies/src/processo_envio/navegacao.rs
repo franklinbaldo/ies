@@ -200,6 +200,14 @@ fn arvore_do_processo(
         )
         .expect("formatação String");
     }
+    if iesei::comentarios::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .is_some()
+    {
+        write!(acoes,
+            r#"<a href="controlador.php?acao=comentario_listar&amp;acao_origem=arvore_visualizar&amp;acao_retorno=arvore_visualizar&amp;id_procedimento={id}&amp;arvore=1&amp;infra_sistema=100000100&amp;infra_unidade_atual=110000001&amp;infra_hash={hash}">Comentários</a>"#
+        ).expect("formatacao String");
+    }
     let barra = literal_js(&acoes);
     let link_historico = if historico_observado {
         format!(

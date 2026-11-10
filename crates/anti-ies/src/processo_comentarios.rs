@@ -1,0 +1,75 @@
+//! Lista de comentários simulada a partir da fotografia SQLite explícita.
+//! A forma HTML é hipótese local; nunca prova paridade com a cassette original.
+use crate::{Estado, Resposta, escapar, eh_controlador_sei, parametro_unico};
+use iesei::comentarios::{Comentario, Observacao};
+use iesei::instalacao::Instalacao;
+use rusqlite::Connection;
+use std::fmt::Write as _;
+
+fn linha(item: &Comentario, com_texto_na_coluna: bool) -> String {
+    let id = escapar(&item.id);
+    let data = escapar(&item.data_hora);
+    let unidade = escapar(&item.unidade);
+    let usuario = escapar(&item.usuario);
+    let texto = escapar(&item.texto);
+    if com_texto_na_coluna {
+        format!(
+            "<tr><td><input type='checkbox' value='{id}'></td><td>{data}</td><td>{unidade}</td><td>{usuario}</td><td>{}</td><td>{}</td><td>{texto}</td><td></td></tr>",
+            escapar(item.protocolo.as_deref().unwrap_or("")),
+            escapar(item.tipo.as_deref().unwrap_or("")),
+        )
+    } else {
+        format!(
+            "<tr><td><input type='checkbox' value='{id}'></td><td>{data}</td><td>{unidade}</td><td>{usuario}</td><td></td></tr><tr class='trComentario'><td colspan='5'>{texto}</td></tr>"
+        )
+    }
+}
+
+fn tabela(observacao: &Observacao) -> String {
+    let n = observacao.total_declarado;
+    let forma = if n == 1 { "registro" } else { "registros" };
+    let visao = match observacao.visao {
+        iesei::comentarios::Visao::Processo => "P",
+        iesei::comentarios::Visao::Todos => "T",
+    };
+    let com_texto_na_coluna = observacao.itens.iter().all(|item| item.protocolo.is_some())
+        && !observacao.itens.is_empty();
+    let cabecalho = if com_texto_na_coluna {
+        "<th></th><th>Data</th><th>Unidade</th><th>Usuário</th><th>Protocolo</th><th>Tipo</th><th>Texto</th><th>Ações</th>"
+    } else {
+        "<th></th><th>Data</th><th>Unidade</th><th>Usuário</th><th>Ações</th>"
+    };
+    let mut linhas = String::new();
+    for item in &observacao.itens {
+        linhas.push_str(&linha(item, com_texto_na_coluna));
+    }
+    format!(
+        "<html><body><form id='frmComentarioLista'><input type='hidden' name='hdnVisualizacao' value='{visao}'><table id='tblComentarios'><caption>Lista de Comentários ({n} {forma}):</caption><thead><tr>{cabecalho}</tr></thead><tbody>{linhas}</tbody></table></form></body></html>"
+    )
+}
+
+pub(crate) fn responder(
+    metodo: &str, alvo: &str, banco: &Connection,
+    origem: &Instalacao, cenario: &str,
+) -> Resposta {
+    if !eh_controlador_sei(alvo)
+        || parametro_unico(alvo, "acao") != Some("comentario_listar") {
+        return Resposta::nova(Estado::NaoEncontrado);
+    }
+    if metodo != "GET" { return Resposta::nova(Estado::MetodoNaoPermitido); }
+    let Some(id) = parametro_unico(alvo, "id_procedimento")
+        .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
+    else { return Resposta::nova(Estado::RequisicaoInvalida); };
+    match iesei::comentarios::ler(banco, origem, cenario, id) {
+        Ok(Some(foto)) if foto.itens.is_empty() => {
+            // Sem comentários o SEI pode redirecionar ao cadastro; a CLI
+            // não interpreta esse 302 como uma lista vazia comprovada.
+            Resposta::redirecionar(format!(
+                "controlador.php?acao=comentario_cadastrar&id_procedimento={id}&infra_hash={}",
+                crate::protocolo_sintetico::INFRA_HASH,
+            ))
+        }
+        Ok(Some(foto)) => Resposta::html(tabela(&foto)),
+        Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
