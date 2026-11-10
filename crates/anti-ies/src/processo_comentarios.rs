@@ -63,7 +63,10 @@ pub(crate) fn responder(
     cenario: &str,
 ) -> Resposta {
     if !eh_controlador_sei(alvo)
-        || !matches!(parametro_unico(alvo, "acao"), Some("comentario_listar" | "comentario_cadastrar"))
+        || !matches!(
+            parametro_unico(alvo, "acao"),
+            Some("comentario_listar" | "comentario_cadastrar")
+        )
     {
         return Resposta::nova(Estado::NaoEncontrado);
     }
