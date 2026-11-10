@@ -1,5 +1,5 @@
 //! Gerenciamento de marcadores projetado de uma observação SQLite, só GET.
- //! BDD-255-03: leitura idempotente da CLI; nenhum POST de escrita simulada.
+//! BDD-255-03: leitura idempotente da CLI; nenhum POST de escrita simulada.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{Marcador, Observacao};
@@ -29,8 +29,10 @@ fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
 
 fn linha(html: &mut String, m: &Marcador) {
     let (id, nome, cor, data) = (
-        escapar(&m.id), escapar(&m.nome), escapar(&m.cor),
-        escapar(&m.data_hora)
+        escapar(&m.id),
+        escapar(&m.nome),
+        escapar(&m.cor),
+        escapar(&m.data_hora),
     );
     let texto = m.texto.as_deref().map(escapar).unwrap_or_default();
     let usuario = m.usuario.as_deref().map_or_else(String::new, |nome| {
@@ -45,7 +47,8 @@ fn linha(html: &mut String, m: &Marcador) {
          <td><img src='svg/marcador_{cor}.svg' title='{nome}'>{nome}</td>\
          <td id='tdAndamentoMarcador{id}'>{texto}</td>\
          <td>{usuario}</td><td>{data}</td><td></td></tr>"
-    ).expect("String");
+    )
+    .expect("String");
 }
 
 /// Responde à tela de leitura cuja ação foi publicada na barra da árvore.
@@ -73,7 +76,8 @@ pub(crate) fn responder(
         Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
         Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
     };
-    let unidade = match crate::processo_envio::unidade_da_sessao(banco, origem, cenario, &processo) {
+    let unidade = match crate::processo_envio::unidade_da_sessao(banco, origem, cenario, &processo)
+    {
         Ok(unidade) => unidade,
         Err(estado) => return Resposta::nova(estado),
     };
