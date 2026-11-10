@@ -1,7 +1,6 @@
 //! Casos sintéticos da issue #245: oráculo de cenário Todos
 //! `tests/test_processo_criar_escolher_tipo_010.py`, sem portar a arquitetura.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::processo_concluir::tests_apoio::NUP;
 use crate::processo_concluir::tests_apoio::{
     UNIDADE, ambiente, arvore, controle, ok, r302, rodar_com, trabalhar,
@@ -220,10 +219,7 @@ fn interessado_nao_resolvido_nao_cria() {
     assert!(matches!(
         resultado,
         Err(ErroCriar::Interessado(
-            crate::processo_criar_interessados::ErroInteressado::Html(ErroHtml {
-                onde: "interessado_controles_ausentes",
-                ..
-            })
+            crate::processo_criar_interessados::ErroInteressado::InteressadoControlesAusentes
         ))
     ));
     assert_eq!(requests.len(), 3);

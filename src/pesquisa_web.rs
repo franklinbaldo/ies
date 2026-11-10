@@ -1,6 +1,5 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::{
     ErroAtributoHtml, nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias,
     valor_do_atributo,
@@ -31,7 +30,17 @@ pub enum ErroResultadoPesquisa {
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
     /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
-    Html(#[from] ErroHtml),
+    HtmlDePesquisaNaoInterpretado,
+    /// `href` de um `a.protocoloNormal` da linha ilegível.
+    HrefDoLinkDaLinhaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    IdentificadorDoProcessoRepetidoNaPesquisa,
+    LinhaDePesquisaComMaisDeUmLinkDaArvore,
+    LinhaDePesquisaComMaisDeUmLinkDoProcesso,
+    LinkDePesquisaComIdentificadoresRepetidos,
+    LinkDeProcessoForaDaLinhaDePesquisa,
+    NumeroDePesquisaRepetido,
+    TabelaDePesquisaAusente,
+    TabelasDePesquisaRepetidas,
 }
 
 // O controlador PHP decodifica nomes de query e normaliza pontos/espacos
@@ -103,7 +112,7 @@ fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
         .next()
         .ok_or(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso)?;
     if ids.next().is_some() {
-        return Err(ErroHtml::repetido("link_de_pesquisa_com_identificadores_repetidos").into());
+        return Err(ErroResultadoPesquisa::LinkDePesquisaComIdentificadoresRepetidos);
     }
     if primeiro_id.is_empty() {
         return Err(ErroResultadoPesquisa::LinkDePesquisaSemIdentificadorDoProcesso);
@@ -122,9 +131,7 @@ fn contar_arvore_da_linha(
     linha: &tl::HTMLTag<'_>,
     href_do_processo: &str,
 ) -> Result<usize, ErroResultadoPesquisa> {
-    let ilegivel = |_: ErroAtributoHtml| {
-        ErroResultadoPesquisa::Html(ErroHtml::html("html_de_pesquisa_nao_interpretado"))
-    };
+    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
     let arvores =
         nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
@@ -133,15 +140,13 @@ fn contar_arvore_da_linha(
         [] => return Ok(0),
         [arvore] => *arvore,
         _ => {
-            return Err(
-                ErroHtml::repetido("linha_de_pesquisa_com_mais_de_um_link_da_arvore").into(),
-            );
+            return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDaArvore);
         }
     };
     let tag = arvore
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::html("html_de_pesquisa_nao_interpretado"))?;
+        .ok_or(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     if valor_do_atributo(tag, "href").map_err(ilegivel)?.as_deref() != Some(href_do_processo) {
         return Err(ErroResultadoPesquisa::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
     }
@@ -152,24 +157,22 @@ fn contar_arvore_da_linha(
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
 pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_de_pesquisa_nao_interpretado"))?;
+        .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?;
     let parser = dom.parser();
     // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
-    let ilegivel = |_: ErroAtributoHtml| {
-        ErroResultadoPesquisa::Html(ErroHtml::html("html_de_pesquisa_nao_interpretado"))
-    };
+    let ilegivel = |_: ErroAtributoHtml| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado;
     let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")
         .map_err(ilegivel)?
         .as_slice()
     {
-        [] => return Err(ErroHtml::ausente("tabela_de_pesquisa_ausente").into()),
+        [] => return Err(ErroResultadoPesquisa::TabelaDePesquisaAusente),
         [primeira] => *primeira,
-        _ => return Err(ErroHtml::repetido("tabelas_de_pesquisa_repetidas").into()),
+        _ => return Err(ErroResultadoPesquisa::TabelasDePesquisaRepetidas),
     };
     let tabela = primeira
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::ausente("tabela_de_pesquisa_ausente"))?;
+        .ok_or(ErroResultadoPesquisa::TabelaDePesquisaAusente)?;
     let linhas = nos_por_elemento_e_classe(&dom, Some(tabela), "tr", "pesquisaTituloRegistro")
         .map_err(ilegivel)?;
     let mut observados = HashSet::new();
@@ -196,10 +199,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
             [] => return Err(ErroResultadoPesquisa::LinhaDePesquisaSemLinkDoProcesso),
             [link] => *link,
             _ => {
-                return Err(ErroHtml::repetido(
-                    "linha_de_pesquisa_com_mais_de_um_link_do_processo",
-                )
-                .into());
+                return Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso);
             }
         };
         let link = link_no
@@ -219,14 +219,12 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
         links_de_documento += documentos.len();
         let numero = NumeroProcesso::novo(&link.inner_text(parser))?;
         if !observados.insert(numero.as_str().to_owned()) {
-            return Err(ErroHtml::repetido("numero_de_pesquisa_repetido").into());
+            return Err(ErroResultadoPesquisa::NumeroDePesquisaRepetido);
         }
         // O identificador interno é decimal: 7 e 007 denotam a mesma chave.
         // Normalização por string evita overflow em IDs maiores que u64.
         if !ids_observados.insert(primeiro_id.trim_start_matches('0').to_owned()) {
-            return Err(
-                ErroHtml::repetido("identificador_do_processo_repetido_na_pesquisa").into(),
-            );
+            return Err(ErroResultadoPesquisa::IdentificadorDoProcessoRepetidoNaPesquisa);
         }
         arvores += contar_arvore_da_linha(&dom, tag, &href)?;
         resultados.push(ResultadoPesquisa { numero });
@@ -243,7 +241,7 @@ pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultad
     .map_err(ilegivel)?
     .len();
     if links_da_tabela != resultados.len() + links_de_documento {
-        return Err(ErroHtml::valor("link_de_processo_fora_da_linha_de_pesquisa").into());
+        return Err(ErroResultadoPesquisa::LinkDeProcessoForaDaLinhaDePesquisa);
     }
     let links_de_trabalho = links_de_trabalho(parser, tabela)?;
     if links_de_trabalho != resultados.len() + arvores {
@@ -267,7 +265,7 @@ fn links_de_trabalho(
             continue;
         };
         let abre_processo = valor_do_atributo(tag, "href")
-            .map_err(|_| ErroHtml::html("html_de_pesquisa_nao_interpretado"))?
+            .map_err(|_| ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)?
             .is_some_and(|href| {
                 href.strip_prefix("controlador.php?").is_some_and(|query| {
                     query.split('&').enumerate().any(|(indice, campo)| {

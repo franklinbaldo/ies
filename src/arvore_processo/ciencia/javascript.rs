@@ -1,6 +1,8 @@
 //! Identificação conservadora de JavaScript estático da ciência documental.
 //! Sem execução de JS, sem regex e sem interpretar ramos incertos.
 
+use super::ErroCienciaNaArvore;
+
 /// Identifica somente código ativo; comentários, literais e templates
 /// não podem autorizar um GET mutador. Retorna a profundidade dos blocos.
 pub(crate) fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
@@ -75,10 +77,9 @@ pub(crate) fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
 /// templates e condicionais: variável no topo ou função SEI 4.0.
 pub(super) fn urls_ativas_da_ciencia_do_documento(
     script: &str,
-) -> Result<Vec<String>, crate::erro_html::ErroHtml> {
-    let niveis = niveis_js(script).ok_or(crate::erro_html::ErroHtml::valor(
-        "script_da_ciencia_do_documento_fora_da_forma",
-    ))?;
+) -> Result<Vec<String>, ErroCienciaNaArvore> {
+    let niveis =
+        niveis_js(script).ok_or(ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma)?;
     let mut linhas = Vec::new();
     let mut inicio = 0;
     for linha in script.split_inclusive('\n') {
@@ -112,9 +113,7 @@ pub(super) fn urls_ativas_da_ciencia_do_documento(
             let url = resto
                 .strip_suffix("';")
                 .filter(|url| !url.contains('\\') && !url.contains('\''))
-                .ok_or(crate::erro_html::ErroHtml::valor(
-                    "link_de_ciencia_do_documento_fora_da_forma",
-                ))?;
+                .ok_or(ErroCienciaNaArvore::LinkDeCienciaDoDocumentoForaDaForma)?;
             urls.push(url.to_owned());
         }
         if linha == "function cienciaDocumento(){" {
@@ -124,17 +123,13 @@ pub(super) fn urls_ativas_da_ciencia_do_documento(
                 || !confirmacao.ends_with("){")
                 || nivel_destino != Some(1)
             {
-                return Err(crate::erro_html::ErroHtml::valor(
-                    "funcao_de_ciencia_do_documento_fora_da_forma",
-                ));
+                return Err(ErroCienciaNaArvore::FuncaoDeCienciaDoDocumentoForaDaForma);
             }
             let url = destino
                 .strip_prefix("location.href = '")
                 .and_then(|resto| resto.strip_suffix("';"))
                 .filter(|url| !url.contains('\\') && !url.contains('\''))
-                .ok_or(crate::erro_html::ErroHtml::valor(
-                    "funcao_de_ciencia_do_documento_fora_da_forma",
-                ))?;
+                .ok_or(ErroCienciaNaArvore::FuncaoDeCienciaDoDocumentoForaDaForma)?;
             urls.push(url.to_owned());
         }
     }

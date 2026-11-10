@@ -128,21 +128,21 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 
 ## Falhas tipadas
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `versao_documento_invalida` | `--versao 0` (antes de qualquer rede) |
+| `ErroVersao::VersaoDocumentoInvalida` | `--versao 0` (antes de qualquer rede) |
 | `ListaDeVersoesNaoPublicadaNaArvore` | `--versao N` e a barra do documento não publica a lista |
 | `VersaoNaoObservada` | N não está entre as linhas da lista |
 | `VersaoServidaDiferenteDaPedida` | o rodapé da versão servida declara outra versão |
-| `link_das_versoes_*`, `barra_do_documento_*` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
-| `historico_documento_ausente`, `lista_versoes_incompleta`, `colunas_historico_inesperadas`, `linha_historico_incompleta`, `link_versao_ausente_ou_ambiguo`, `link_versao_inseguro`, `identidade_documento_divergente`, `versao_documento_duplicada`, `legendas_historico_versoes_repetidas` | a lista servida fora da forma observada |
+| `ErroDocumentoObter::BarraDoDocumento(ErroBarraDoDocumento::{BarrasRepetidasNaArvore, BarraDoDocumentoForaDaFormaObservada, LinkDasVersoesRepetidoNaBarra, LinkDasVersoesNaoReconhecido, EnderecoDasVersoesDeOutroDocumento})` | barra repetida, fora da forma, link repetido, de outro documento ou processo |
+| `ErroVersao::HistoricoDocumentoAusente`, `ErroVersao::ListaIncompleta`, `ErroVersao::ColunasHistoricoInesperadas`, `ErroVersao::LinhaIncompleta`, `ErroVersao::LinkVersaoAusenteOuAmbiguo`, `ErroVersao::LinkInseguro`, `ErroVersao::DocumentoDivergente`, `ErroVersao::VersaoDocumentoDuplicada`, `ErroVersao::LegendasHistoricoVersoesRepetidas` | a lista servida fora da forma observada |
 | `ErroDocumentoObter::TituloDeOutroDocumento` | a versão servida é de outro número SEI |
 | `ErroDocumentoObter::DocumentoCancelado`, `ConteudoNaoPublicadoNaArvore` | como na leitura Web, antes da lista |
 | `ListaDeVersoesNaoPublicadaNaArvore` | `--saida`, sem rodapé, e a barra não publica a lista |
 | `ConteudoComLinkAssinado` | `--saida` e o HTML servido traz `infra_hash` |
 | `ErroCopia::FotoDivergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
-| `ErroArquivoTexto::DiretorioAusente`, `destino_copia_inseguro` | `DIR` ausente ou não diretório (antes da rede) |
-| `ErroCopia::LinkSimbolico`, `copia_local_permissoes_inseguras`, `leitura_copia_falhou`, `gravacao_foto_falhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
+| `ErroArquivoTexto::DiretorioAusente`, `ErroCopia::DestinoInseguro` | `DIR` ausente ou não diretório (antes da rede) |
+| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::LeituraFalhou`, `ErroCopia::GravacaoFalhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
 
 ## Documento externo
 

@@ -1,7 +1,6 @@
 //! Falhas de `ies processo NUP`: um erro por fato
 //! verificável (contracts/cli/processo-obter-arvore.md).
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::historico_processo::{ErroAndamentos, ErroLinkDoHistorico};
 use crate::marcadores_processo::ErroMarcadores;
@@ -48,7 +47,9 @@ pub(crate) enum ErroProcessoObter {
     Propriedades(#[from] ErroPropriedades),
     /// O link dos marcadores na barra ou a tela deles.
     Marcadores(#[from] ErroMarcadores),
-    Html(#[from] ErroHtml),
+    LinhaDoControleIlegivel,
+    LinksDoProcessoRepetidosNoControle,
+    ProcessoRepetidoNoControle,
 }
 
 impl ErroProcessoObter {
@@ -75,7 +76,9 @@ impl ErroProcessoObter {
             | Self::Andamentos(_)
             | Self::Propriedades(_)
             | Self::Marcadores(_)
-            | Self::Html(_) => false,
+            | Self::LinksDoProcessoRepetidosNoControle
+            | Self::ProcessoRepetidoNoControle
+            | Self::LinhaDoControleIlegivel => false,
         }
     }
 }

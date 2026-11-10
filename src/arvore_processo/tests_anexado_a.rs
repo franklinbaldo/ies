@@ -6,7 +6,6 @@
 //! Ids, números e hashes inventados.
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 pub(crate) const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
@@ -120,9 +119,7 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     for html in casos {
         assert_eq!(
             ler(&html),
-            Err(super::ErroArvore::Html(ErroHtml::valor(
-                "vinculo_de_anexacao_fora_da_forma_observada"
-            ))),
+            Err(super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada),
             "{html}"
         );
     }
@@ -134,9 +131,7 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));
     assert_eq!(
         ler(&dois),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "vinculos_de_anexacao_repetidos"
-        )))
+        Err(super::ErroArvore::VinculosDeAnexacaoRepetidos)
     );
     let duas_linhas = padrao().replace(
         "Nos[0].src = '';",
@@ -144,30 +139,22 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     );
     assert_eq!(
         ler(&duas_linhas),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "vinculos_de_anexacao_repetidos"
-        )))
+        Err(super::ErroArvore::VinculosDeAnexacaoRepetidos)
     );
     let nao_literal = arvore(&[no_processo(0, "10", NUP)])
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
     assert_eq!(
         ler(&nao_literal),
-        Err(super::ErroArvore::Html(ErroHtml::html(
-            "html_do_no_do_processo_fora_da_forma_observada"
-        )))
+        Err(super::ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada)
     );
 }
 
 #[test]
 fn vinculo_fora_da_forma_nao_e_divergencia_do_pedido() {
     for erro in [
-        super::ErroArvore::Html(ErroHtml::valor(
-            "vinculo_de_anexacao_fora_da_forma_observada",
-        )),
-        super::ErroArvore::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
-        super::ErroArvore::Html(ErroHtml::html(
-            "html_do_no_do_processo_fora_da_forma_observada",
-        )),
+        super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada,
+        super::ErroArvore::VinculosDeAnexacaoRepetidos,
+        super::ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada,
     ] {
         assert!(!erro.diverge_do_pedido());
     }

@@ -7,7 +7,6 @@
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_pastas::no_pasta;
 use super::*;
-use crate::erro_html::ErroHtml;
 
 pub(crate) const NUP_ANEXADO: &str = "00002.000002/2026-02";
 
@@ -118,11 +117,11 @@ fn recusas_do_anexado() {
         ),
         (
             vec![p(), a(), no_anexado(2, "20", "10", "00003.000003/2026-03")],
-            super::ErroArvore::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
+            super::ErroArvore::ProcessoAnexadoRepetidoNaArvore,
         ),
         (
             vec![p(), a(), no_anexado(2, "30", "10", NUP_ANEXADO)],
-            super::ErroArvore::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
+            super::ErroArvore::ProcessoAnexadoRepetidoNaArvore,
         ),
         (
             vec![p(), no_anexado(1, "10", "10", NUP_ANEXADO)],
@@ -186,9 +185,7 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
         let html = arvore(&[no_processo(0, "10", NUP), forma.clone()]);
         assert_eq!(
             ler_arvore(&html, NUP, "10"),
-            Err(super::ErroArvore::Html(ErroHtml::valor(
-                "processo_anexado_fora_da_forma_observada"
-            ))),
+            Err(super::ErroArvore::ProcessoAnexadoForaDaFormaObservada),
             "{forma}"
         );
     }
@@ -197,10 +194,10 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
 #[test]
 fn anexado_fora_da_forma_nao_e_divergencia_do_pedido() {
     for erro in [
-        super::ErroArvore::Html(ErroHtml::valor("processo_anexado_fora_da_forma_observada")),
+        super::ErroArvore::ProcessoAnexadoForaDaFormaObservada,
         super::ErroArvore::NupDoNoDoProcessoAnexadoInconsistente,
         super::ErroArvore::ProcessoAnexadoComPaiDiferenteDoProcesso,
-        super::ErroArvore::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
+        super::ErroArvore::ProcessoAnexadoRepetidoNaArvore,
         super::ErroArvore::ProcessoAnexadoIgualAoProcesso,
         super::ErroArvore::NoComPaiNoProcessoAnexado,
     ] {
@@ -237,9 +234,7 @@ fn anexado_marcado_como_visitado_na_arvore_aberta_por_ele_e_aceito() {
         );
         assert_eq!(
             ler_arvore(&html, NUP, "10").map(|_| ()),
-            Err(super::ErroArvore::Html(ErroHtml::valor(
-                "processo_anexado_fora_da_forma_observada"
-            ))),
+            Err(super::ErroArvore::ProcessoAnexadoForaDaFormaObservada),
             "{outro}"
         );
     }

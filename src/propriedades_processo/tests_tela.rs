@@ -2,7 +2,6 @@
 //! 4.0.9, identidade, campos e recusas tipadas. Fixtures sintéticas.
 use super::tests_apoio::{tela_das_propriedades, tela_restrita};
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::com_booleano_antes_dos_atributos;
 
 const NUP: &str = "00001.000001/2026-01";
@@ -111,9 +110,7 @@ fn identidade_e_conferida() {
     );
     assert_eq!(
         ler(&sem),
-        Err(super::ErroPropriedades::Html(ErroHtml::ausente(
-            "campo_das_propriedades_ausente"
-        )))
+        Err(super::ErroPropriedades::CampoDasPropriedadesAusente)
     );
     let repetido = padrao().replace(
         "</form>",
@@ -121,9 +118,7 @@ fn identidade_e_conferida() {
     );
     assert_eq!(
         ler(&repetido),
-        Err(super::ErroPropriedades::Html(ErroHtml::repetido(
-            "campo_das_propriedades_repetido"
-        )))
+        Err(super::ErroPropriedades::CampoDasPropriedadesRepetido)
     );
 }
 
@@ -144,9 +139,7 @@ fn formulario_ausente_ou_repetido() {
     );
     assert_eq!(
         ler(&dois),
-        Err(super::ErroPropriedades::Html(ErroHtml::repetido(
-            "formularios_das_propriedades_repetidos"
-        )))
+        Err(super::ErroPropriedades::FormulariosDasPropriedadesRepetidos)
     );
 }
 
@@ -171,9 +164,7 @@ fn tipo_sem_marcacao_e_nulo_e_id_oculto_diferente_e_recusa() {
     );
     assert_eq!(
         ler(&dois),
-        Err(super::ErroPropriedades::Html(ErroHtml::repetido(
-            "opcoes_marcadas_repetidas"
-        )))
+        Err(super::ErroPropriedades::OpcoesMarcadasRepetidas)
     );
 }
 
@@ -198,9 +189,7 @@ fn assunto_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler(&trocar(de, para)),
-            Err(super::ErroPropriedades::Html(ErroHtml::valor(
-                "assunto_fora_da_forma_observada"
-            ))),
+            Err(super::ErroPropriedades::AssuntoForaDaFormaObservada),
             "{para}"
         );
     }
@@ -211,9 +200,7 @@ fn interessado_sem_texto_e_recusa_e_sem_opcoes_e_lista_vazia() {
     let vazio = trocar("Pessoa Sintetica A", "");
     assert_eq!(
         ler(&vazio),
-        Err(super::ErroPropriedades::Html(ErroHtml::valor(
-            "interessado_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::InteressadoForaDaFormaObservada)
     );
     let sem = trocar(
         "<option value=\"301\">Pessoa Sintetica A</option>\n<option value=\"302\">Entidade Sintetica B</option>\n",
@@ -251,9 +238,7 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
     );
     assert_eq!(
         ler(&dois),
-        Err(super::ErroPropriedades::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
     let valor = trocar(
         "value=\"0\" checked=\"checked\"",
@@ -261,16 +246,12 @@ fn nivel_de_acesso_nao_marcado_ou_fora_da_forma() {
     );
     assert_eq!(
         ler(&valor),
-        Err(super::ErroPropriedades::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
     let id = trocar("id=\"optPublico\"", "id=\"optOutro\"");
     assert_eq!(
         ler(&id),
-        Err(super::ErroPropriedades::Html(ErroHtml::valor(
-            "nivel_de_acesso_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::NivelDeAcessoForaDaFormaObservada)
     );
 }
 
@@ -281,9 +262,7 @@ fn data_de_geracao_vazia_e_nula_e_fora_da_forma_e_recusa() {
     let fora = trocar("value=\"01/02/2026\"", "value=\"2026-02-01\"");
     assert_eq!(
         ler(&fora),
-        Err(super::ErroPropriedades::Html(ErroHtml::valor(
-            "data_de_geracao_fora_da_forma_observada"
-        )))
+        Err(super::ErroPropriedades::DataDeGeracaoForaDaFormaObservada)
     );
 }
 
@@ -309,9 +288,7 @@ fn campos_obrigatorios_ausentes_sao_recusa() {
         let html = trocar(&format!("id=\"{id}\""), "id=\"outro\"");
         assert_eq!(
             ler(&html),
-            Err(super::ErroPropriedades::Html(ErroHtml::ausente(
-                "campo_das_propriedades_ausente"
-            ))),
+            Err(super::ErroPropriedades::CampoDasPropriedadesAusente),
             "{id}"
         );
     }

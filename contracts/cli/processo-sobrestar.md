@@ -72,16 +72,16 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 
 ## Recusas tipadas (contrato de subcódigos)
 
-| Erro ou `onde` (stderr) | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
 | `MotivoDoSobrestamentoVazio` | Não há motivo válido |
 | `ErroSobrestamento::UnidadeNaoPublicada` | Unidade não observada |
 | `ErroSobrestamento::SituacaoNaoLida` | Situação não observada |
-| `barra_do_sobrestamento_nao_interpretada` | Barra fora da forma |
-| `acoes_de_sobrestamento_repetidas_na_barra` | Ações duplicadas |
-| `endereco_do_sobrestamento_nao_reconhecido` | URL inválida |
-| `endereco_do_sobrestamento_de_outro_processo` (sem erro próprio confirmado no código) | ID diferente |
-| `tela_do_no_da_retomada_nao_reconhecida` | URL da raiz não reconhecida |
+| `ErroAcaoSobrestar::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Barra fora da forma |
+| `ErroAcaoSobrestar::AcoesDeSobrestamentoRepetidasNaBarra` | Ações duplicadas |
+| `ErroAcaoSobrestar::EnderecoDoSobrestamentoNaoReconhecido` | URL inválida |
+| `ErroAcaoSobrestar::OutroProcesso` | ID diferente |
+| `ErroAcaoSobrestar::TelaDoNoDaRetomadaNaoReconhecida` | URL da raiz não reconhecida |
 | `ErroSobrestamento::JaSobrestado` | Já sobrestado |
 | `ErroSobrestamento::NaoSobrestado` | Retomada não aplicável |
 | `ErroSobrestamento::ForaDaUnidade` | Outra unidade |
@@ -95,10 +95,10 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 | `ErroTela::OpcaoNaoOferecida` | Rádio S ausente, repetido ou marcado de saída |
 | `ErroTela::DestinoPreenchido` | Vínculo com outro processo preenchido |
 | `ErroTela::CampoInesperado` | Campo extra, ausente, desabilitado ou repetido |
-| `endereco_de_retomar_ausente_na_tela` | Função/variável não publicadas |
-| `endereco_de_retomar_fora_da_forma` | Forma da variável ou função não observada |
-| `enderecos_de_retomar_repetidos_na_tela` | Duas URLs de escrita |
-| `endereco_de_retomar_nao_reconhecido` | URL assinada não reconhecida |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarAusenteNaTela` | Função/variável não publicadas |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarForaDaForma` | Forma da variável ou função não observada |
+| `ErroEnderecoDeRetomar::EnderecosDeRetomarRepetidosNaTela` | Duas URLs de escrita |
+| `ErroEnderecoDeRetomar::EnderecoDeRetomarNaoReconhecido` | URL assinada não reconhecida |
 | `ErroEnderecoDeRetomar::OutroProcesso` | URL de outro id |
 | `ErroSobrestamento::EscritaNaoAplicada` | Leitura confirma que o estado não mudou |
 | `ErroSobrestamento::NaoConfirmado` | Leitura posterior falhou ou não decidiu (saída 1) |

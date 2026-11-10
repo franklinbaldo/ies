@@ -89,7 +89,7 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
         "recusa de identidade, não falha genérica de sessão: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    falha_cli::falha_por(&saida, "Documento", "Html");
+    falha_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
     assert!(
         trilha
             .iter()
@@ -376,7 +376,7 @@ fn bdd_60_05_cli_numero_repetido_na_arvore_recusa_sem_fallback() {
             "ambiguidade não pode escolher corpo: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        falha_cli::falha_por(&saida, "Documento", "Html");
+        falha_cli::falha_por(&saida, "Documento", "NumeroSeiRepetidoNaArvore");
         assert!(
             !trilha.iter().any(|p| p == "GET documento_visualizar"),
             "a recusa deve ocorrer antes de baixar qualquer corpo: {trilha:?}"

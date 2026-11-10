@@ -439,7 +439,7 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
         ])
         .output()
         .unwrap();
-    falha_cli::falha(&output, "Html");
+    falha_cli::falha(&output, "BaseVersaoAusente");
     std::fs::remove_dir_all(pasta).unwrap();
 }
 

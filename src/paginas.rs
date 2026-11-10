@@ -2,7 +2,6 @@
 //! A prova de cobertura vive somente aqui, não em Tabela nem em `CaixaDeEntrada`.
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::nos_com_id;
 use crate::paginacao_controle::{controles_de_paginacao, paginador_da_tabela};
@@ -69,10 +68,10 @@ fn faixa_da_tabela(
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     let parser = dom.parser();
     let tabela = match nos_com_id(&dom, id)
-        .map_err(|e| ErroHtml::atributo("html_da_caixa_invalido", e))?
+        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
         .as_slice()
     {
         // Lista vazia comprovada pela estrutura: a mesma faixa de `0 registros:`.
@@ -323,7 +322,7 @@ pub fn juntar(paginas: &[String], unidade_esperada: Option<&str>) -> Result<Leit
             .as_deref()
             .is_none_or(|atual| !atual.eq_ignore_ascii_case(esperada.trim()))
     {
-        return Err(ErroHtml::valor("unidade_inesperada").into());
+        return Err(ErroCaixa::UnidadeInesperada);
     }
     if paginas.len() > 1 && !contexto_inicial.verificavel() {
         return Err(ErroCaixa::ContextoNaoVerificavel);

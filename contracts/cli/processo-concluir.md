@@ -77,9 +77,9 @@ rádios `rdoConcluir` e `rdoPrazoReaberturaProgramada`; textos
 `chkSinDiasUteisReaberturaProgramada`. Botões `button`/`reset` e
 desabilitados não contam. Além disso:
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
-| Sem o formulário | `formulario_de_conclusao_ausente` |
+| Sem o formulário | `ErroTelaDeConclusao::FormularioDeConclusaoAusente` |
 | `hdnIdProtocolos` diferente do id aberto | `TelaDeConclusaoDeOutroProcesso` |
 | Rádio `rdoConcluir` `S` ausente ou não `checked` | `OpcaoSomenteConcluirNaoMarcada` |
 | Opção do processo `selected`, rádio de prazo ou caixa marcados, texto não vazio | `TelaDeConclusaoComReaberturaPreenchida` |

@@ -2,7 +2,6 @@
 //! Não executa o JavaScript do SEI nem monta URL assinada.
 //! Issue #245: o POST de escolher tipo na 4.1/5.0 abre cadastro;
 //! não é a escrita de criação de processo.
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -11,7 +10,10 @@ pub(crate) enum ErroListaDeTipos {
     TipoNaoOferecido,
     TipoSemAcao,
     ListaIncompleta,
-    Html(#[from] ErroHtml),
+    ListaDeTiposHtmlInvalido,
+    AtributoDaListaDeTiposIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    TabelaDeTiposAusenteOuRepetida,
+    TipoDeProcessoAmbiguo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,28 +69,28 @@ fn link_do_cadastro(href: &str) -> Option<String> {
 /// comum antes da comparação.
 pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, ErroListaDeTipos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("lista_de_tipos_html_invalido"))?;
+        .map_err(|_| ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
-        .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?;
+        .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
     let [tabela] = tabelas.as_slice() else {
-        return Err(ErroHtml::ausente("tabela_de_tipos_ausente_ou_repetida").into());
+        return Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida);
     };
     let parser = dom.parser();
     let tag = tabela
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::html("lista_de_tipos_html_invalido"))?;
+        .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
     if tag.name().as_utf8_str() != "table" {
-        return Err(ErroHtml::ausente("tabela_de_tipos_ausente_ou_repetida").into());
+        return Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida);
     }
     let mut encontrados = Vec::new();
     for handle in tag.query_selector(parser, "a").into_iter().flatten() {
         let ancora = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("lista_de_tipos_html_invalido"))?;
+            .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
         let classe = valor_do_atributo(ancora, "class")
-            .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?;
+            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
         if !classe
             .as_deref()
             .is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao"))
@@ -104,17 +106,16 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
             continue;
         }
         let href = valor_do_atributo(ancora, "href")
-            .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?
+            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?
             .map(|valor| {
-                crate::formulario_web::decodificar_atributo(&valor).ok_or(ErroListaDeTipos::Html(
-                    ErroHtml::html("lista_de_tipos_html_invalido"),
-                ))
+                crate::formulario_web::decodificar_atributo(&valor)
+                    .ok_or(ErroListaDeTipos::ListaDeTiposHtmlInvalido)
             })
             .transpose()?;
         let onclick = valor_do_atributo(ancora, "onclick")
-            .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?;
+            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
         let desabilitada = atributo_presente(ancora, "disabled")
-            .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?;
+            .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
         let escolha = match (
             href.as_deref().and_then(link_do_cadastro),
             onclick.as_deref().and_then(escolher_literal),
@@ -134,7 +135,7 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
     match encontrados.as_slice() {
         [Some(escolhido)] => Ok(escolhido.clone()),
         [None] => Err(ErroListaDeTipos::TipoSemAcao),
-        [_, _, ..] => Err(ErroHtml::repetido("tipo_de_processo_ambiguo").into()),
+        [_, _, ..] => Err(ErroListaDeTipos::TipoDeProcessoAmbiguo),
         [] if lista_completa(html) => Err(ErroListaDeTipos::TipoNaoOferecido),
         [] => Err(ErroListaDeTipos::ListaIncompleta),
     }
@@ -200,9 +201,7 @@ mod tests {
         let link = "<a class='ancoraOpcao' onclick='escolher(1)' href='#'>Ensaio</a>";
         assert_eq!(
             tipo_na_lista(&tela(&format!("{link}{link}"), true), "Ensaio"),
-            Err(ErroListaDeTipos::Html(ErroHtml::repetido(
-                "tipo_de_processo_ambiguo"
-            )))
+            Err(ErroListaDeTipos::TipoDeProcessoAmbiguo)
         );
     }
 
@@ -222,9 +221,7 @@ mod tests {
     fn tabela_ausente_eh_recusada() {
         assert_eq!(
             tipo_na_lista("<div/>", "Ensaio"),
-            Err(ErroListaDeTipos::Html(ErroHtml::ausente(
-                "tabela_de_tipos_ausente_ou_repetida"
-            )))
+            Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida)
         );
     }
 
@@ -233,9 +230,7 @@ mod tests {
         let html = format!("{}{}", tela("", true), tela("", true));
         assert_eq!(
             tipo_na_lista(&html, "Ensaio"),
-            Err(ErroListaDeTipos::Html(ErroHtml::ausente(
-                "tabela_de_tipos_ausente_ou_repetida"
-            )))
+            Err(ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida)
         );
     }
 

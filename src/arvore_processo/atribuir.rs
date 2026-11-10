@@ -1,8 +1,7 @@
 // Link de atribuir publicado na barra do nó PROCESSO (UnB, GO).
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 const ACAO: &str = "procedimento_atribuicao_cadastrar";
@@ -10,8 +9,10 @@ const ACAO: &str = "procedimento_atribuicao_cadastrar";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAtribuirNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    EnderecoDaAtribuicaoNaoReconhecido,
+    LinksDeAtribuirRepetidosNaBarra,
 }
 
 /// Apenas um href assinado e relativo, preso ao ID do processo.
@@ -20,14 +21,7 @@ pub(crate) fn ler_atribuir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => {
-            ErroAtribuirNaBarra::Html(ErroHtml::valor("barra_da_atribuicao_fora_da_forma"))
-        }
-        FalhaDaBarra::Repetidas => {
-            ErroAtribuirNaBarra::Html(ErroHtml::repetido("barras_da_atribuicao_repetidas"))
-        }
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|ancora| ancora.href.as_deref())
@@ -38,11 +32,11 @@ pub(crate) fn ler_atribuir_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|erro| match erro {
-                EnderecoRecusado::NaoReconhecido => ErroAtribuirNaBarra::Html(ErroHtml::valor(
-                    "endereco_da_atribuicao_nao_reconhecido",
-                )),
+                EnderecoRecusado::NaoReconhecido => {
+                    ErroAtribuirNaBarra::EnderecoDaAtribuicaoNaoReconhecido
+                }
                 EnderecoRecusado::DeOutroProcesso => ErroAtribuirNaBarra::EnderecoDeOutroProcesso,
             }),
-        _ => Err(ErroHtml::repetido("links_de_atribuir_repetidos_na_barra").into()),
+        _ => Err(ErroAtribuirNaBarra::LinksDeAtribuirRepetidosNaBarra),
     }
 }

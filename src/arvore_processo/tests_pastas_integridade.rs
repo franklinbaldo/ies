@@ -4,7 +4,6 @@
 use super::tests::NUP;
 use super::tests_pastas::*;
 use super::*;
-use crate::erro_html::ErroHtml;
 
 fn p(k: usize) -> String {
     format!("PASTA{k}")
@@ -52,18 +51,14 @@ fn identidade_e_nao_contagem() {
     faltando.remove(3);
     assert_eq!(
         ler(&aberta(declaradas, faltando)),
-        Err(super::ErroArvore::Html(ErroHtml::ausente(
-            "protocolo_declarado_ausente_da_pasta"
-        )))
+        Err(super::ErroArvore::ProtocoloDeclaradoAusenteDaPasta)
     );
     // O mesmo protocolo duas vezes, com a contagem certa.
     let mut repetido = os_quatro();
     repetido[1] = No::Documento("22", p(1), Some("900"));
     assert_eq!(
         ler(&aberta(declaradas, repetido)),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "protocolo_repetido_na_pasta"
-        )))
+        Err(super::ErroArvore::ProtocoloRepetidoNaPasta)
     );
     // Protocolo de outra pasta.
     let mut de_outra = os_quatro();
@@ -92,33 +87,23 @@ fn declaracoes_das_pastas_conferidas() {
         ),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (3, &["904"])],
-            super::ErroArvore::Html(ErroHtml::ausente(
-                "protocolos_declarados_para_pasta_ausente",
-            )),
+            super::ErroArvore::ProtocolosDeclaradosParaPastaAusente,
         ),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (2, &PASTA2)],
-            super::ErroArvore::Html(ErroHtml::repetido(
-                "protocolos_da_pasta_declarados_mais_de_uma_vez",
-            )),
+            super::ErroArvore::ProtocolosDaPastaDeclaradosMaisDeUmaVez,
         ),
         (
             vec![(1, &["900", "x"]), (2, &PASTA2)],
-            super::ErroArvore::Html(ErroHtml::valor(
-                "protocolos_da_pasta_fora_da_forma_observada",
-            )),
+            super::ErroArvore::ProtocolosDaPastaForaDaFormaObservada,
         ),
         (
             vec![(1, &["900", "900"]), (2, &PASTA2)],
-            super::ErroArvore::Html(ErroHtml::valor(
-                "protocolos_da_pasta_fora_da_forma_observada",
-            )),
+            super::ErroArvore::ProtocolosDaPastaForaDaFormaObservada,
         ),
         (
             vec![(1, &[]), (2, &PASTA2)],
-            super::ErroArvore::Html(ErroHtml::valor(
-                "protocolos_da_pasta_fora_da_forma_observada",
-            )),
+            super::ErroArvore::ProtocolosDaPastaForaDaFormaObservada,
         ),
     ];
     for (declaradas, esperado) in casos {
@@ -134,9 +119,7 @@ fn declaracoes_das_pastas_conferidas() {
     );
     assert_eq!(
         ler(&mal),
-        Err(super::ErroArvore::Html(ErroHtml::valor(
-            "protocolos_da_pasta_fora_da_forma_observada"
-        )))
+        Err(super::ErroArvore::ProtocolosDaPastaForaDaFormaObservada)
     );
 }
 
@@ -160,11 +143,11 @@ fn nos_de_pasta_na_forma_observada() {
         // Ação diferente de abrirFecharPasta da própria pasta.
         (
             base.replace("abrirFecharPasta('PASTA1')", "abrirFecharPasta('PASTA2')"),
-            super::ErroArvore::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
+            super::ErroArvore::PastaForaDaFormaObservada,
         ),
         (
             base.replace("\"PASTA\",\"PASTA1\"", "\"PASTA\",\"P1\""),
-            super::ErroArvore::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
+            super::ErroArvore::PastaForaDaFormaObservada,
         ),
         // A mesma pasta duas vezes.
         (
@@ -172,7 +155,7 @@ fn nos_de_pasta_na_forma_observada() {
                 "\"PASTA2\",\"10\",\"javascript:abrirFecharPasta('PASTA2');\"",
                 "\"PASTA1\",\"10\",\"javascript:abrirFecharPasta('PASTA1');\"",
             ),
-            super::ErroArvore::Html(ErroHtml::repetido("pasta_repetida_na_arvore")),
+            super::ErroArvore::PastaRepetidaNaArvore,
         ),
         // Documento numa pasta que não existe.
         (
@@ -190,9 +173,7 @@ fn aguarde_na_forma_observada() {
     let base = arvore_fechada();
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE1\",\"PASTA2\"")),
-        Err(super::ErroArvore::Html(ErroHtml::valor(
-            "aguarde_fora_da_forma_observada"
-        )))
+        Err(super::ErroArvore::AguardeForaDaFormaObservada)
     );
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE7\",\"PASTA7\"")),
@@ -232,9 +213,7 @@ fn barra_de_documento_de_pasta_fora_da_forma_e_recusa() {
     let html = arvore_aberta().replace("Nos[3].acoes = '", "Nos[3].acoes = x + '");
     assert_eq!(
         ler(&html),
-        Err(super::ErroArvore::Html(ErroHtml::valor(
-            "barra_de_no_fora_da_forma_observada"
-        )))
+        Err(super::ErroArvore::BarraDeNoForaDaFormaObservada)
     );
 }
 
@@ -291,38 +270,38 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let casos = [
         (
             url.replace("abrir_pastas=1", "abrir_pastas=0"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             url.replace("&abrir_pastas=1", ""),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             format!("{url}&fechar_pastas=1"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             format!("{url}&abrir_pastas=1"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             url.replace("id_procedimento=10", "id_procedimento=11"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             url.replace(
                 "acao=procedimento_visualizar&",
                 "acao=procedimento_paginar&",
             ),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             url.replace(&"f".repeat(64), "f"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
         (
             format!("https://outro.exemplo/{url}"),
-            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
         ),
     ];
     for (endereco, esperado) in casos {
@@ -335,9 +314,7 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let duas = format!("{}{}", acoes_das_pastas(&url), acoes_das_pastas(&url));
     assert_eq!(
         ler_acao_de_abrir_pastas(&inst, &com(duas), ID).map(|_| ()),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "acoes_de_abrir_pastas_repetidas"
-        )))
+        Err(super::ErroArvore::AcoesDeAbrirPastasRepetidas)
     );
     for mal in [
         acoes_das_pastas(&url).replace("\"AP10\"", "\"AP11\""),
@@ -347,9 +324,7 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler_acao_de_abrir_pastas(&inst, &com(mal), ID).map(|_| ()),
-            Err(super::ErroArvore::Html(ErroHtml::valor(
-                "acao_de_abrir_pastas_fora_da_forma_observada"
-            )))
+            Err(super::ErroArvore::AcaoDeAbrirPastasForaDaFormaObservada)
         );
     }
 }
@@ -409,9 +384,7 @@ fn contagem_diferente_da_declarada_e_recusa() {
     nos.extend(vazios(2, &["31", "21"]));
     assert_eq!(
         ler(&aberta(declaradas, nos)),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "documento_repetido_na_arvore"
-        )))
+        Err(super::ErroArvore::DocumentoRepetidoNaArvore)
     );
 }
 
@@ -477,15 +450,11 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             No::Documento("32", p(2), Some("902")),
             No::Documento("33", p(2), None),
         ]),
-        Err(super::ErroArvore::Html(ErroHtml::repetido(
-            "protocolo_repetido_na_pasta"
-        )))
+        Err(super::ErroArvore::ProtocoloRepetidoNaPasta)
     );
     // Toda por identidade e faltando um: o erro de identidade.
     assert_eq!(
         com_pasta2(vec![No::Documento("31", p(2), Some("902"))]),
-        Err(super::ErroArvore::Html(ErroHtml::ausente(
-            "protocolo_declarado_ausente_da_pasta"
-        )))
+        Err(super::ErroArvore::ProtocoloDeclaradoAusenteDaPasta)
     );
 }

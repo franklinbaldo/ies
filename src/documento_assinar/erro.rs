@@ -1,7 +1,6 @@
 //! Resultado e recusas de `ies documento assinar`
 //! (contracts/cli/documento-assinar.md). Um erro por fato.
-use crate::arvore_processo::{Assinante, ErroLinkDeAssinar};
-use crate::erro_html::ErroHtml;
+use crate::arvore_processo::{Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar};
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
@@ -15,7 +14,11 @@ pub(crate) enum ErroTelaDeAssinatura {
     TelaDeAssinaturaDeOutroDocumento,
     AssinanteNaoPublicadoNaTela,
     OrgaoDoAssinanteNaoSelecionado,
-    Html(#[from] ErroHtml),
+    CampoDeSenhaAusenteNaTela,
+    CampoNaoPrevistoNaTelaDeAssinatura,
+    FormularioDeAssinaturaAusente,
+    TelaDeAssinaturaNaoInterpretada,
+    TelaDeAssinaturaComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter
@@ -34,7 +37,7 @@ pub(crate) enum FalhaDoEnvio {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum VerificacaoDaAssinatura {
     Lida(Vec<Assinante>),
-    ArvoreNaoLida(ErroHtml),
+    ArvoreNaoLida(ErroAssinaturaNaArvore),
     LeituraFalhou(ErroDocumentoObter),
 }
 
@@ -47,7 +50,7 @@ pub(crate) enum ErroAssinar {
     Abertura(#[from] ErroDocumentoObter),
     /// Credenciais (`IES_CREDENCIAIS_FILE`) ilegíveis: nada foi pedido.
     Credenciais(#[from] ErroLogin),
-    Arvore(#[source] ErroHtml),
+    Arvore(#[source] ErroAssinaturaNaArvore),
     AssinaturaNaoPublicadaNaBarra,
     /// GET da tela do documento ou da de assinatura, antes da escrita.
     TelaDaEscrita(#[from] FalhaTransporte),
@@ -77,5 +80,5 @@ pub(crate) enum ErroAssinar {
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoDaAssinatura>,
     },
-    Html(#[source] ErroHtml),
+    EnderecoDaTelaDoDocumentoNaoReconhecido,
 }

@@ -114,20 +114,20 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 
 ## Subcódigos tipados da fatia
 
-| Erro ou `onde` (stderr) | Condição observável ou regra |
+| Erro (stderr) | Condição observável ou regra |
 | --- | --- |
 | `FalhaRelacionar::LinkNaoPublicado` | A barra do processo não publica `procedimento_relacionar` |
-| `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
-| `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
+| `ErroRelacionarNaBarra::LinksDeRelacionarRepetidosNaBarra` | Mais de um link de relacionar na barra do nó PROCESSO |
+| `ErroRelacionarNaBarra::EnderecoDeRelacionarNaoReconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
 | `ErroRelacionarNaBarra::EnderecoDeOutroProcesso` | O link da barra aponta para outro `id_procedimento` |
 | `FalhaRelacionar::TelaRedirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
 | `RelacionamentoConsigoMesmo` | O destino informado é o próprio processo |
 | `FalhaRelacionar::RemocaoNaoOferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
 | `FalhaRelacionar::DestinoDaConsultaDivergente` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
 | `FalhaRelacionar::ConsultaNaoXml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
-| `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
-| `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
-| `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
+| `FalhaRelacionar::Estrutura("acao_excluir_relacionamento_nao_declarada")` | Handler `acaoRemover` não prova action única com campo e submit |
+| `FalhaRelacionar::Estrutura("id_da_origem_na_action_ausente")` | Link de origem não oferece id para conferir a action |
+| `FalhaRelacionar::Estrutura("action_de_remocao_de_outro_processo")` | Script de remoção aponta para outro processo |
 | `NaoConfirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de

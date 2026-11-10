@@ -3,7 +3,6 @@
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
-use crate::erro_html::ErroHtml;
 use crate::historico::ErroHistorico;
 
 #[test]
@@ -53,10 +52,7 @@ fn pagina_de_outro_nup_diverge_do_pedido() {
         super::ErroAndamentos::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     );
     assert!(erro.diverge_do_pedido());
-    assert!(
-        !super::ErroAndamentos::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente"))
-            .diverge_do_pedido()
-    );
+    assert!(!super::ErroAndamentos::LegendaDosAndamentosAusente.diverge_do_pedido());
 }
 
 #[test]
@@ -68,9 +64,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&sem, NUP),
-        Err(super::ErroAndamentos::Html(ErroHtml::ausente(
-            "legenda_dos_andamentos_ausente"
-        )))
+        Err(super::ErroAndamentos::LegendaDosAndamentosAusente)
     );
     for legenda in [
         "Lista de Andamentos (1 registro - 1 a 1):",
@@ -81,9 +75,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
         let trocada = html.replace("Lista de Andamentos (1 registro):", legenda);
         assert_eq!(
             ler_andamentos(&trocada, NUP),
-            Err(super::ErroAndamentos::Html(ErroHtml::valor(
-                "legenda_dos_andamentos_fora_da_forma_observada"
-            ))),
+            Err(super::ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada),
             "{legenda}"
         );
     }
@@ -93,9 +85,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&duas, NUP),
-        Err(super::ErroAndamentos::Html(ErroHtml::valor(
-            "legenda_dos_andamentos_fora_da_forma_observada"
-        )))
+        Err(super::ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada)
     );
 }
 

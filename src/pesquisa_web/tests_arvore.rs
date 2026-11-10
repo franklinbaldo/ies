@@ -2,7 +2,6 @@
 //! `a.protocoloNormal`, `class` repetido idêntico neste) e das linhas de
 //! Goiás com acerto em documento. HTML sintético.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::tests_fixtures::{linha, numero};
 
 fn tabela(linhas: &str) -> String {
@@ -39,9 +38,7 @@ fn duas_arvores_na_mesma_linha_sao_recusadas() {
     let html = tabela(&original.replacen(arvore, &format!("{arvore}{arvore}"), 1));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::repetido(
-            "linha_de_pesquisa_com_mais_de_um_link_da_arvore"
-        )))
+        Err(ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDaArvore)
     );
 }
 
@@ -54,9 +51,7 @@ fn class_repetido_com_valores_diferentes_continua_recusado() {
     ));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado"
-        )))
+        Err(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
     );
 }
 
@@ -147,8 +142,6 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
     );
     assert_eq!(
         ler_resultados(&tabela(&sem_a_classe)),
-        Err(ErroResultadoPesquisa::Html(ErroHtml::html(
-            "html_de_pesquisa_nao_interpretado"
-        )))
+        Err(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
     );
 }

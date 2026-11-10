@@ -6,7 +6,6 @@ use crate::anexo_documento::ErroAnexo;
 use crate::arvore_processo::{ErroBarraDoDocumento, ErroConteudoNaArvore};
 use crate::documento_versoes::ErroVersao;
 use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
-use crate::erro_html::ErroHtml;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -44,7 +43,12 @@ pub(crate) enum ErroDocumentoObter {
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
-    Html(#[from] ErroHtml),
+    /// O cadastro (propriedades/anexo) publicado fora da forma observada.
+    Cadastro(#[source] crate::propriedades_documento::ErroPropriedadesDocumento),
+    BarraDoDocumentoForaDaFormaObservada,
+    DocumentoAusenteDaArvore,
+    NumeroSeiAusenteDaArvoreDoProcesso,
+    NumeroSeiRepetidoNaArvore,
 }
 
 impl ErroDocumentoObter {
@@ -67,7 +71,11 @@ impl ErroDocumentoObter {
             | Self::Versoes(_)
             | Self::VersaoServidaDiferenteDaPedida
             | Self::ConteudoComLinkAssinado
-            | Self::Html(_) => false,
+            | Self::Cadastro(_)
+            | Self::NumeroSeiAusenteDaArvoreDoProcesso
+            | Self::NumeroSeiRepetidoNaArvore
+            | Self::DocumentoAusenteDaArvore
+            | Self::BarraDoDocumentoForaDaFormaObservada => false,
         }
     }
 }

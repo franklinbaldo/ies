@@ -9,8 +9,8 @@
 //! dois textos vazios (teste do Todos que mediu o envio na UFRJ); o SEI
 //! responde 302 para `arvore_visualizar` (ou `principal`), da conclusão do
 //! mesmo processo.
+use super::erro::ErroTelaDeConclusao;
 use crate::arvore_processo::ACAO_DE_CONCLUIR;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
@@ -55,15 +55,12 @@ pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, "Somente concluir" marcado e nada da
 /// reabertura programada preenchido.
-pub(crate) fn conferir_tela_de_conclusao(
-    html: &str,
-    id: &str,
-) -> Result<(), super::erro::ErroTelaDeConclusao> {
+pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), ErroTelaDeConclusao> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("tela_de_conclusao_nao_interpretada"))?;
+        .map_err(|_| ErroTelaDeConclusao::TelaDeConclusaoNaoInterpretada)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_CONCLUSAO)
-        .map_err(|_| ErroHtml::ausente("formulario_de_conclusao_ausente"))?;
+        .map_err(|_| ErroTelaDeConclusao::FormularioDeConclusaoAusente)?;
     let mut somente_marcado = false;
     let mut outra_marcada = false;
     let mut preenchida = false;
@@ -99,7 +96,7 @@ pub(crate) fn conferir_tela_de_conclusao(
         let servido = valor(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
-                return Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);
+                return Err(ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);
             }
             ("input", "hidden", n) if OCULTOS.contains(&n) => {}
             // `button`/`reset` não participam do envio.
@@ -115,37 +112,24 @@ pub(crate) fn conferir_tela_de_conclusao(
             }
             ("input", "radio", PRAZO) | ("input", "checkbox", UTEIS) => preenchida |= marcado,
             ("input", "text", DATA | DIAS) => preenchida |= !servido.is_empty(),
-            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_conclusao").into()),
+            _ => return Err(ErroTelaDeConclusao::CampoNaoPrevistoNaTelaDeConclusao),
         }
     }
     if !somente_marcado || outra_marcada {
-        return Err(super::erro::ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada);
+        return Err(ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada);
     }
     if preenchida {
-        return Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida);
+        return Err(ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida);
     }
     Ok(())
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, super::erro::ErroTelaDeConclusao> {
-    atributo_presente(tag, nome).map_err(|e| {
-        super::erro::ErroTelaDeConclusao::Html(ErroHtml::atributo(
-            "tela_de_conclusao_nao_interpretada",
-            e,
-        ))
-    })
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeConclusao> {
+    atributo_presente(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
 }
 
-fn valor(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, super::erro::ErroTelaDeConclusao> {
-    valor_do_atributo(tag, nome).map_err(|e| {
-        super::erro::ErroTelaDeConclusao::Html(ErroHtml::atributo(
-            "tela_de_conclusao_nao_interpretada",
-            e,
-        ))
-    })
+fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroTelaDeConclusao> {
+    valor_do_atributo(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`

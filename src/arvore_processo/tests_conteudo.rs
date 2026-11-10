@@ -6,7 +6,6 @@
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::{instalacao, tela_do_processo};
 use super::*;
-use crate::erro_html::ErroHtml;
 
 pub(crate) const HASH_CONTEUDO: &str =
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -97,9 +96,7 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
     ] {
         assert_eq!(
             com(ruim.clone()),
-            Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
-                "endereco_do_conteudo_nao_reconhecido"
-            ))),
+            Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido),
             "{ruim}"
         );
     }
@@ -119,9 +116,7 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&sem_hash, "22"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
-            "endereco_do_conteudo_nao_reconhecido"
-        )))
+        Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
     );
     let outra_acao = com_src(
         &base(),
@@ -130,43 +125,31 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&outra_acao, "22"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
-            "endereco_do_conteudo_nao_reconhecido"
-        )))
+        Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
     );
     let fora = base().replace("Nos[2].src = '';", "Nos[2].src = 'a' + b;");
     assert_eq!(
         ler(&fora, "22"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
-            "link_do_conteudo_fora_da_forma_observada"
-        )))
+        Err(ErroConteudoNaArvore::LinkDoConteudoForaDaFormaObservada)
     );
     let sem = base().replace("Nos[2].src = '';", "");
     assert_eq!(
         ler(&sem, "22"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
-            "link_do_conteudo_ausente_na_arvore"
-        )))
+        Err(ErroConteudoNaArvore::LinkDoConteudoAusenteNaArvore)
     );
     let dois = base().replace("Nos[2].src = '';", "Nos[2].src = '';\nNos[2].src = '';");
     assert_eq!(
         ler(&dois, "22"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::repetido(
-            "link_do_conteudo_repetido_na_arvore"
-        )))
+        Err(ErroConteudoNaArvore::LinkDoConteudoRepetidoNaArvore)
     );
     assert_eq!(
         ler(&base(), "99"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
-            "documento_ausente_da_arvore"
-        )))
+        Err(ErroConteudoNaArvore::DocumentoAusenteDaArvore)
     );
     // O id do nó PROCESSO não é documento.
     assert_eq!(
         ler(&base(), "10"),
-        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
-            "documento_ausente_da_arvore"
-        )))
+        Err(ErroConteudoNaArvore::DocumentoAusenteDaArvore)
     );
 }
 
@@ -204,9 +187,7 @@ fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     );
     assert_eq!(
         ler(dois),
-        Err(ErroTelaDoProcesso::Html(ErroHtml::valor(
-            "endereco_da_arvore_nao_reconhecido"
-        )))
+        Err(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
     );
 }
 

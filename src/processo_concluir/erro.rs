@@ -1,7 +1,6 @@
 //! Resultado e recusas de `ies processo concluir`
 //! (contracts/cli/processo-concluir.md). Um erro por fato.
 use crate::arvore_processo::{ErroConcluirNaBarra, ErroFuncaoDeConcluir, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroProcessoObter;
@@ -14,7 +13,10 @@ pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
-    Html(#[from] ErroHtml),
+    CampoNaoPrevistoNaTelaDeConclusao,
+    FormularioDeConclusaoAusente,
+    TelaDeConclusaoNaoInterpretada,
+    TelaDeConclusaoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode

@@ -117,24 +117,24 @@ observada até cada omissão. Se todos forem omitidos, `documentos: []`.
 Cancelamento, sessão encerrada, falha HTTP/transporte e divergência
 de identidade continuam erros. Sem GET adicional ou retry.
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
 | `UsoInvalido::NumeroSeiRepetido` (saída 2) | o mesmo número duas vezes no pedido |
-| `numero_processo_vazio` / `numero_processo_controle` / `referencia_processo_legada` (saída 2) | `--processo` inválido, como em `processo NUP` |
-| `numero_sei_ausente_da_arvore_do_processo` | `--processo`: a árvore do processo (pastas abertas) não tem o número |
+| `NumeroProcessoInvalido::Vazio` / `NumeroProcessoInvalido::Controle` / `NumeroProcessoInvalido::ReferenciaLegada` (saída 2) | `--processo` inválido, como em `processo NUP` |
+| `ErroDocumentoObter::NumeroSeiAusenteDaArvoreDoProcesso` | `--processo`: a árvore do processo (pastas abertas) não tem o número |
 | `ErroProcessoObter::EntradaPorIdRecusada` | a entrada com documento foi recusada ("Link sem assinatura"): a sessão morreu; a recusa fica no índice |
 | `IdDocumentoDoRedirecionamentoDiferenteDoPedido` | interno: a entrada com documento endereçou outro id; o palpite é esquecido e o comando segue pela pesquisa |
 | `PesquisaRapidaNaoAbriuODocumento` | a pesquisa não respondeu o 302 (visto com número inexistente; o resultado não é lido) |
 | `EnderecoDaArvoreDeOutroDocumento` | a tela não seleciona o documento pesquisado (o número era de um processo) |
 | `NumeroSeiDaArvoreDiferenteDoPedido` | o nó tem outro a15 (por exemplo `11505` pedido, `0011505` na árvore) |
-| `numero_sei_repetido_na_arvore` | dois `DOCUMENTO` com o número pedido |
-| `documento_ausente_da_arvore` | o id não está na árvore, nem com as pastas abertas |
+| `ErroDocumentoObter::NumeroSeiRepetidoNaArvore` | dois `DOCUMENTO` com o número pedido |
+| `ErroDocumentoObter::DocumentoAusenteDaArvore` | o id não está na árvore, nem com as pastas abertas |
 | `ConteudoNaoPublicadoNaArvore` | `.src` vazio: a árvore não publica o conteúdo à sessão (visto com documento não assinado de outra unidade) |
 | `ErroDocumentoObter::DocumentoCancelado` | `.src` vazio num nó cancelado |
-| `link_do_conteudo_*`, `endereco_do_conteudo_*` | `.src` ausente, repetido, fora da forma ou de outro documento |
+| `ErroDocumentoObter::Conteudo(ErroConteudoNaArvore::{LinkDoConteudoAusenteNaArvore, LinkDoConteudoRepetidoNaArvore, LinkDoConteudoForaDaFormaObservada, EnderecoDoConteudoNaoReconhecido, EnderecoDoConteudoDeOutroDocumento})` | `.src` ausente, repetido, fora da forma ou de outro documento |
 | `ErroDocumentoObter::TituloDeOutroDocumento` | o HTML servido é de outro número SEI |
 | `ErroArquivoTexto::DiretorioAusente` | `--saida`: o diretório falta (antes da rede, 0 requisições; link no caminho é aceito e o modo do `DIR` não é conferido) |
-| `ErroCopia::FotoDivergente`, `gravacao_foto_falhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
+| `ErroCopia::FotoDivergente`, `ErroCopia::GravacaoFalhou` e os da foto | `--saida`: `DOC.vN.html` já existe com outro conteúdo, ou a gravação falhou ([versões e foto](documento-obter-versoes.md)) |
 
 Sessão, Controle, formulário, 302, tela, árvore e pastas usam os
 subcódigos de [`processo NUP`](processo-obter-arvore.md), inclusive
@@ -173,7 +173,7 @@ As gravações do cache usam diretórios privados 0700, arquivo 0600
 e nome com SHA-256. Conteúdo com `infra_hash` é recusado; arquivos
 preexistentes têm seu conteúdo confrontado com hash completo.
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
 | `FalhaCache::Diretorio` | caminho ou identidade do cache inválido |
 | `FalhaCache::Gravacao` | não foi possível gravar ou publicar cache privado |

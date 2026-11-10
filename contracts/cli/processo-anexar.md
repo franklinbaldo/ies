@@ -23,27 +23,27 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 
 ## Recusas próprias
 
-`anexacao_ao_mesmo_processo`, `processo_ja_anexado`, `FalhaAnexar::LinkNaoPublicado`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `ErroAnexarNaBarra::EnderecoDeOutroProcesso`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `FalhaAnexar::NaoConfirmado` (legado da fatia de prévia; não é a recusa atual do caminho confirmado). O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
+`FalhaAnexar::AnexacaoAoProprioProcesso`, `processo_ja_anexado`, `FalhaAnexar::LinkNaoPublicado`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `ErroAnexarNaBarra::EnderecoDeOutroProcesso`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `FalhaAnexar::NaoConfirmado` (legado da fatia de prévia; não é a recusa atual do caminho confirmado). O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
 
 ## Subcódigos
 
-| Erro ou `onde` (stderr) | Fato identificado |
+| Erro (stderr) | Fato identificado |
 | --- | --- |
 | `FalhaAnexar::LinkNaoPublicado` | O processo aberto não publica ação de anexar. |
 | `FalhaAnexar::NaoConfirmado` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |
 | `ErroAnexarNaBarra::EnderecoDeOutroProcesso` | Link assinado aponta para outro processo. |
-| `endereco_de_anexar_nao_reconhecido` | Link assinado da ação inválido. |
-| `links_de_anexar_repetidos_na_barra` | Mais de um link de anexar na barra. |
+| `ErroAnexarNaBarra::EnderecoDeAnexarNaoReconhecido` | Link assinado da ação inválido. |
+| `ErroAnexarNaBarra::LinksDeAnexarRepetidosNaBarra` | Mais de um link de anexar na barra. |
 | `FalhaAnexar::TelaRedirecionada` | GET da tela retornou redirecionamento não seguido. |
-| `anexacao_ao_mesmo_processo` | Processo anexado e principal possuem a mesma identidade. |
-| `processo_ja_anexado` | Identificador já consta na lista observada. |
-| `formulario_de_anexacao_ausente_ou_repetido` | Formulário ausente ou duplicado. |
-| `controles_da_anexacao_ausentes_ou_repetidos` | Campos obrigatórios ausentes, duplicados ou com tipo indevido. |
-| `listas_de_anexados_repetidas` | Duas tabelas da lista observadas. |
-| `ids_de_anexados_repetidos` | Mesmo id aparece mais de uma vez na lista. |
-| `processo_a_anexar_nao_identificado` | Consulta não publicou identidade válida. |
-| `identidade_de_anexado_ambigua` | Complementos de identidade repetidos. |
-| `anexacao_nao_verificada` | Consulta de assinatura não publicou S/N únicos. |
+| `FalhaAnexar::AnexacaoAoProprioProcesso` | Processo anexado e principal possuem a mesma identidade. |
+| `FalhaAnexar::Estrutura("processo_ja_anexado")` | Identificador já consta na lista observada. |
+| `FalhaAnexar::Estrutura("formulario_de_anexacao_ausente_ou_repetido")` | Formulário ausente ou duplicado. |
+| `FalhaAnexar::Estrutura("controles_da_anexacao_ausentes_ou_repetidos")` | Campos obrigatórios ausentes, duplicados ou com tipo indevido. |
+| `FalhaAnexar::Estrutura("listas_de_anexados_repetidas")` | Duas tabelas da lista observadas. |
+| `FalhaAnexar::Estrutura("ids_de_anexados_repetidos")` | Mesmo id aparece mais de uma vez na lista. |
+| `FalhaAnexar::Estrutura("processo_a_anexar_nao_identificado")` | Consulta não publicou identidade válida. |
+| `FalhaAnexar::Estrutura("identidade_de_anexado_ambigua")` | Complementos de identidade repetidos. |
+| `FalhaAnexar::Estrutura("anexacao_nao_verificada")` | Consulta de assinatura não publicou S/N únicos. |
 
 ## Critérios ainda pendentes
 

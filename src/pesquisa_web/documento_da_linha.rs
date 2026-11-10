@@ -4,7 +4,6 @@
 //! `a.protocoloNormal` de `documento_visualizar` com o mesmo `id_documento`.
 //! Só essa forma é aceita; o documento não é publicado.
 use super::ErroResultadoPesquisa;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::valor_do_atributo;
 
 /// Campos da consulta de um `href` `controlador.php?`, com a sobra `amp;`
@@ -67,7 +66,7 @@ pub(super) fn separar(
     for no in links {
         let href = match no.get(parser).and_then(tl::Node::as_tag) {
             Some(link) => valor_do_atributo(link, "href")
-                .map_err(|e| ErroHtml::atributo("html_de_pesquisa_nao_interpretado", e))?,
+                .map_err(ErroResultadoPesquisa::HrefDoLinkDaLinhaIlegivel)?,
             None => None,
         };
         match href.as_deref().and_then(documento_visualizado) {

@@ -4,10 +4,9 @@
 //! instalações gravadas: `<a href="controlador.php?acao=procedimento_enviar
 //! &acao_origem=arvore_visualizar&…&id_procedimento=ID&arvore=1&…&infra_hash=…">`,
 //! o link da tela "Enviar Processo". Sem regex e sem JavaScript executado.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 /// A `acao` da tela de envio e do POST.
@@ -17,8 +16,10 @@ pub(crate) const ACAO_DE_ENVIAR: &str = "procedimento_enviar";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviarNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDoEnvioDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    EnderecoDoEnvioNaoReconhecido,
+    LinksDeEnviarRepetidosNaBarra,
 }
 
 /// O link da tela de envio na barra do processo `id`; `Ok(None)` se a
@@ -28,14 +29,7 @@ pub(crate) fn ler_enviar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => {
-            ErroEnviarNaBarra::Html(ErroHtml::valor("barra_do_processo_fora_da_forma_observada"))
-        }
-        FalhaDaBarra::Repetidas => {
-            ErroEnviarNaBarra::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
-        }
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
@@ -47,12 +41,12 @@ pub(crate) fn ler_enviar_da_barra(
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
                 EnderecoRecusado::NaoReconhecido => {
-                    ErroEnviarNaBarra::Html(ErroHtml::valor("endereco_do_envio_nao_reconhecido"))
+                    ErroEnviarNaBarra::EnderecoDoEnvioNaoReconhecido
                 }
                 EnderecoRecusado::DeOutroProcesso => {
                     ErroEnviarNaBarra::EnderecoDoEnvioDeOutroProcesso
                 }
             }),
-        _ => Err(ErroHtml::repetido("links_de_enviar_repetidos_na_barra").into()),
+        _ => Err(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra),
     }
 }

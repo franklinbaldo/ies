@@ -153,13 +153,13 @@ rádios `rdoPrazo`, `rdoPrazoRetornoProgramado`,
 `rdoPrazo`/`txtPrazo`/`txtDias`; 4.1 e 5.0, as de retorno e reabertura
 programados).
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
-| Sem o formulário | `formulario_de_envio_ausente` |
+| Sem o formulário | `ErroTelaDeEnvio::FormularioDeEnvioAusente` |
 | Caixa ou rádio marcado, texto ou `hdnUnidades`/`hdnIdUnidade` não vazio, opção em `selUnidades`, opção `selected` em `selProcedimentos` | `TelaDeEnvioComOpcoesPreenchidas` |
 | Órgão efetivo do `selOrgao` (a última opção `selected`, como o navegador) ausente ou `null` | `OrgaoDaTelaDeEnvioNaoSelecionado` |
 | Sem a linha `objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','…');` única | `AutocompletarDeUnidadeNaoDeclarado` |
-| `prepararExecucao` fora das duas formas observadas, ou repetido | `consulta_do_autocompletar_fora_da_forma_observada` |
+| `prepararExecucao` fora das duas formas observadas, ou repetido | `ErroTelaDeEnvio::ConsultaDoAutocompletarForaDaFormaObservada` |
 
 O POST **sem `--remover-anotacoes`** leva, na ordem do documento: os ocultos como servidos, salvo
 `hdnUnidades` = `ID±DESCRIÇÃO` do item escolhido (a forma do
@@ -179,16 +179,16 @@ presente na unidade de origem. A tela só permite comprovar o **antes**.
 A prévia publica `anotacao_antes` sem converter ausência de observação em
 ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete.
 
-| Forma não observada | Erro ou `onde` (stderr) |
+| Forma não observada | Erro (stderr) |
 | --- | --- |
-| Barra ilegível | `barra_de_anotacoes_nao_interpretada` |
-| Endereço de anotação inválido | `endereco_de_anotacoes_nao_reconhecido` |
-| Links de anotação repetidos | `links_de_anotacoes_repetidos` |
-| HTML de anotação ilegível | `tela_de_anotacoes_nao_interpretada` |
-| Formulário ausente | `formulario_de_anotacoes_ausente` |
-| Campo não publicado | `anotacao_nao_publicada` |
-| Identidade divergente | `anotacao_de_outro_processo` |
-| Campos repetidos | `campos_de_anotacao_repetidos` |
+| Barra ilegível | `ErroLinkDasAnotacoes::BarraDeAnotacoesNaoInterpretada` |
+| Endereço de anotação inválido | `ErroLinkDasAnotacoes::EnderecoDeAnotacoesNaoReconhecido` |
+| Links de anotação repetidos | `ErroLinkDasAnotacoes::LinksDeAnotacoesRepetidos` |
+| HTML de anotação ilegível | `ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada` |
+| Formulário ausente | `ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente` |
+| Campo não publicado | `ErroLeituraDaAnotacao::AnotacaoNaoPublicada` |
+| Identidade divergente | `ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso` |
+| Campos repetidos | `ErroLeituraDaAnotacao::CamposDeAnotacaoRepetidos` |
 
 ## Resposta e escrita não confirmada
 

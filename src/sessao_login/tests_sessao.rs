@@ -4,7 +4,6 @@ use super::cookies::PoteDeCookies;
 use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
 use super::{CampoDasCredenciais, Credenciais, ErroLogin, RespostaHttp, http, tela};
-use crate::erro_html::ErroHtml;
 
 #[test]
 fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
@@ -211,9 +210,7 @@ fn link_do_controle_aceita_so_as_formas_observadas() {
     for ruim in ["abrir('x')", "location.href='a' + b", "location.href=\"x\""] {
         assert_eq!(
             tela::link_do_controle(&painel(ruim)),
-            Err(ErroLogin::Html(ErroHtml::valor(
-                "link_do_controle_de_processos_nao_reconhecido"
-            ))),
+            Err(ErroLogin::LinkDoControleDeProcessosNaoReconhecido),
             "{ruim}"
         );
     }

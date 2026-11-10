@@ -6,7 +6,6 @@
 use super::barra_do_documento::{ErroBarraDoDocumento, barra_do_no};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -18,7 +17,9 @@ pub(crate) const ACAO_DE_ESCOLHER_BLOCO: &str = "bloco_escolher";
 pub(crate) enum ErroBlocoNaBarra {
     EnderecoDeOutroDocumento,
     Barra(#[from] ErroBarraDoDocumento),
-    Html(#[from] ErroHtml),
+    BarraDoDocumentoForaDaFormaObservada,
+    EnderecoDeEscolherBlocoNaoReconhecido,
+    LinksDeEscolherBlocoRepetidosNaBarra,
 }
 
 /// O endereço de `bloco_escolher` da barra do documento `id_documento`;
@@ -29,22 +30,22 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroBlocoNaBarra> {
-    let fora = || ErroHtml::valor("barra_do_documento_fora_da_forma_observada");
+    let fora = ErroBlocoNaBarra::BarraDoDocumentoForaDaFormaObservada;
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(None);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora())?;
+    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora)?;
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora())?;
-        let Some(bruto) = lidos.valor("href").map_err(|_| fora())? else {
+        let lidos = atributos(tag).map_err(|_| fora)?;
+        let Some(bruto) = lidos.valor("href").map_err(|_| fora)? else {
             continue;
         };
-        let href = decodificar_atributo(bruto).ok_or_else(fora)?;
+        let href = decodificar_atributo(bruto).ok_or(fora)?;
         if acao_do_href(&href) == Some(ACAO_DE_ESCOLHER_BLOCO) {
             links.push(href);
         }
@@ -52,12 +53,10 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     let href = match links.as_slice() {
         [] => return Ok(None),
         [href] => href,
-        _ => return Err(ErroHtml::repetido("links_de_escolher_bloco_repetidos_na_barra").into()),
+        _ => return Err(ErroBlocoNaBarra::LinksDeEscolherBlocoRepetidosNaBarra),
     };
     let recusa = |r| match r {
-        EnderecoRecusado::NaoReconhecido => ErroBlocoNaBarra::Html(ErroHtml::valor(
-            "endereco_de_escolher_bloco_nao_reconhecido",
-        )),
+        EnderecoRecusado::NaoReconhecido => ErroBlocoNaBarra::EnderecoDeEscolherBlocoNaoReconhecido,
         EnderecoRecusado::DeOutroProcesso => ErroBlocoNaBarra::EnderecoDeOutroDocumento,
     };
     conferir_endereco_relativo_por(

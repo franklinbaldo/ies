@@ -4,14 +4,14 @@
 //! 4.0.9, PEN1 4.0.12) e a linha `var linkReabrirProcesso` (UFRJ 4.1.5,
 //! PEN2 4.1.5, GO 5.0.3, PEN3 e PEN4 5.0.4). Hosts, hashes e ids inventados.
 use super::reabrir::{
-    ErroEnderecoDeReabrir, FormaDaReabertura, ler_endereco_de_reabrir, ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ler_endereco_de_reabrir,
+    ler_reabrir_da_barra,
 };
 use super::tests::{NUP, arvore, no_processo};
 use super::tests_concluir::{
     ACAO_FUNCAO, absoluta, arvore_para_concluir, link_da_tela_do_no, pela_tela, tela_do_no,
 };
 use super::tests_tela::instalacao;
-use crate::erro_html::ErroHtml;
 use crate::propriedades_processo::tests_apoio::com_barra;
 
 pub(crate) const HASH_REABRIR: &str =
@@ -88,12 +88,12 @@ fn reabrir_repetido_ou_raiz_sem_tela_do_no() {
     let dois = barra(&[ACAO_REABRIR.to_owned(), ACAO_REABRIR.to_owned()]);
     assert_eq!(
         ler_reabrir_da_barra(&instalacao(), &dois, "10"),
-        Err(ErroHtml::repetido("funcoes_de_reabrir_repetidas_na_barra"))
+        Err(ErroReabrirNaBarra::FuncoesDeReabrirRepetidasNaBarra)
     );
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_REABRIR);
     assert_eq!(
         ler_reabrir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(ErroHtml::valor("endereco_da_tela_do_no_nao_reconhecido"))
+        Err(ErroReabrirNaBarra::EnderecoDaTelaDoNoNaoReconhecido)
     );
 }
 
@@ -122,9 +122,7 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
     let sem = variavel.replace("var linkReabrirProcesso = ", "var linkOutraCoisa = ");
     assert_eq!(
         ler(&sem),
-        Err(ErroEnderecoDeReabrir::Html(ErroHtml::ausente(
-            "endereco_de_reabrir_ausente_na_tela_do_no"
-        )))
+        Err(ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo)
     );
     let ativo = funcao.replace(
         "//if (confirm('Confirma reabetura",
@@ -139,24 +137,18 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
     );
     assert_eq!(
         ler(&por_aspas),
-        Err(ErroEnderecoDeReabrir::Html(ErroHtml::valor(
-            "endereco_de_reabrir_fora_da_forma_observada"
-        )))
+        Err(ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada)
     );
     let linha = format!("var linkReabrirProcesso = '{}';\n", link_de_reabrir("10"));
     let duas = variavel.replace("</script>", &format!("{linha}</script>"));
     assert_eq!(
         ler(&duas),
-        Err(ErroEnderecoDeReabrir::Html(ErroHtml::repetido(
-            "enderecos_de_reabrir_repetidos_na_tela_do_no"
-        )))
+        Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo)
     );
     let as_duas_formas = funcao.replace("</script>", &format!("{linha}</script>"));
     assert_eq!(
         ler(&as_duas_formas),
-        Err(ErroEnderecoDeReabrir::Html(ErroHtml::repetido(
-            "enderecos_de_reabrir_repetidos_na_tela_do_no"
-        )))
+        Err(ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo)
     );
     let outro = variavel.replace(
         "id_procedimento=10&atualizar",
@@ -172,8 +164,6 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
     );
     assert_eq!(
         ler(&concluir),
-        Err(ErroEnderecoDeReabrir::Html(ErroHtml::valor(
-            "endereco_da_reabertura_nao_reconhecido"
-        )))
+        Err(ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido)
     );
 }

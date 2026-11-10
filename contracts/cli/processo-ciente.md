@@ -44,11 +44,11 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 
 ## Subcódigos observáveis ou de recusa
 
-| Erro ou `onde` (stderr) | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
 | `ErroCienciaProcesso::CienciaNaoOferecida` | Barra sem ação de ciência |
 | `ErroCienciaProcesso::UnidadeNaoPublicada` | Unidade ausente na abertura |
-| `BarraDeCienciaForaDaForma` | Atributos da barra recusados |
+| `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Atributos da barra recusados |
 | `CienciaRepetidaNaBarra` | Mais de uma ação |
 | `TelaDeCienciaNaoPublicada` | Tela do nó ausente |
 | `FuncaoDeCienciaAusenteNaTela` | Função ausente |
@@ -65,13 +65,12 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 | `ErroCiencia::AtividadesRepetidasNaLista` | Checkbox duplicado |
 | `ErroCienciaProcesso::NaoConfirmado` | Escrita sem verificação conclusiva |
 | `FalhaDoAceiteProcesso::ValidacaoDaInfra` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
-| `atividade_do_aceite_do_processo_nao_reconhecida` (sem erro próprio confirmado no código) | Resposta do GET mutador sem identidade de atividade comprovável |
 
 
 
 - `ErroCienciaProcesso::CienciaNaoOferecida`
 - `ErroCienciaProcesso::UnidadeNaoPublicada`
-- `BarraDeCienciaForaDaForma`
+- `ErroCienciaNaArvore::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)`
 - `CienciaRepetidaNaBarra`
 - `TelaDeCienciaNaoPublicada`
 - `FuncaoDeCienciaAusenteNaTela`

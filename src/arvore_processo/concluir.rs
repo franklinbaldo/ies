@@ -10,10 +10,9 @@
 //!   linhas: a da função, a do `confirm` comentado e a do `location.href`.
 //!
 //! Sem regex e sem JavaScript executado: só essas formas exatas.
-use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_declaracao};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 /// A `acao` da conclusão nas duas formas.
@@ -55,8 +54,11 @@ pub(crate) enum ConcluirNaBarra {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConcluirNaBarra {
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     EnderecoDaConclusaoDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    EnderecoDaConclusaoNaoReconhecido,
+    EnderecoDaTelaDoNoNaoReconhecido,
+    FormasDeConcluirRepetidasNaBarra,
 }
 
 /// A ação de concluir da barra do processo `id`; `Ok(None)` se a barra
@@ -66,14 +68,7 @@ pub(crate) fn ler_concluir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra> {
-    let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => {
-            ErroConcluirNaBarra::Html(ErroHtml::valor("barra_do_processo_fora_da_forma_observada"))
-        }
-        FalhaDaBarra::Repetidas => {
-            ErroConcluirNaBarra::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
-        }
-    })?;
+    let ancoras = ancoras_da_barra(html)?;
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
@@ -88,19 +83,17 @@ pub(crate) fn ler_concluir_da_barra(
         ([href], 0) => conferir_endereco_relativo(instalacao, href, ACAO_DE_CONCLUIR, id)
             .map(|url| Some(ConcluirNaBarra::PelaTela(EnderecoDeEscrita(url))))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => ErroConcluirNaBarra::Html(ErroHtml::valor(
-                    "endereco_da_conclusao_nao_reconhecido",
-                )),
+                EnderecoRecusado::NaoReconhecido => {
+                    ErroConcluirNaBarra::EnderecoDaConclusaoNaoReconhecido
+                }
                 EnderecoRecusado::DeOutroProcesso => {
                     ErroConcluirNaBarra::EnderecoDaConclusaoDeOutroProcesso
                 }
             }),
         ([], 1) => tela_do_no_da_raiz(instalacao, html, id)
             .map(|tela_do_no| Some(ConcluirNaBarra::PelaFuncao { tela_do_no }))
-            .ok_or(ErroConcluirNaBarra::Html(ErroHtml::valor(
-                "endereco_da_tela_do_no_nao_reconhecido",
-            ))),
-        _ => Err(ErroHtml::repetido("formas_de_concluir_repetidas_na_barra").into()),
+            .ok_or(ErroConcluirNaBarra::EnderecoDaTelaDoNoNaoReconhecido),
+        _ => Err(ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra),
     }
 }
 
@@ -142,7 +135,10 @@ pub(super) fn tela_do_no_da_raiz(
 #[error("{self:?}")]
 pub(crate) enum ErroFuncaoDeConcluir {
     EnderecoDaConclusaoDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    EnderecoDaConclusaoNaoReconhecido,
+    FuncaoDeConcluirAusenteNaTelaDoNo,
+    FuncaoDeConcluirForaDaFormaObservada,
+    FuncoesDeConcluirRepetidasNaTelaDoNo,
 }
 
 const CONFIRM: &str = "if (confirm(";
@@ -212,19 +208,18 @@ pub(crate) fn ler_funcao_de_concluir(
     html: &str,
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroFuncaoDeConcluir> {
-    let achados = urls_das_funcoes(html, "concluirProcesso").map_err(|FuncaoForaDaForma| {
-        ErroHtml::valor("funcao_de_concluir_fora_da_forma_observada")
-    })?;
+    let achados = urls_das_funcoes(html, "concluirProcesso")
+        .map_err(|FuncaoForaDaForma| ErroFuncaoDeConcluir::FuncaoDeConcluirForaDaFormaObservada)?;
     let url = match achados.as_slice() {
-        [] => return Err(ErroHtml::ausente("funcao_de_concluir_ausente_na_tela_do_no").into()),
+        [] => return Err(ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo),
         [url] => *url,
-        _ => return Err(ErroHtml::repetido("funcoes_de_concluir_repetidas_na_tela_do_no").into()),
+        _ => return Err(ErroFuncaoDeConcluir::FuncoesDeConcluirRepetidasNaTelaDoNo),
     };
     conferir_endereco_relativo(instalacao, url, ACAO_DE_CONCLUIR, id)
         .map(EnderecoDeEscrita)
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => {
-                ErroFuncaoDeConcluir::Html(ErroHtml::valor("endereco_da_conclusao_nao_reconhecido"))
+                ErroFuncaoDeConcluir::EnderecoDaConclusaoNaoReconhecido
             }
             EnderecoRecusado::DeOutroProcesso => {
                 ErroFuncaoDeConcluir::EnderecoDaConclusaoDeOutroProcesso

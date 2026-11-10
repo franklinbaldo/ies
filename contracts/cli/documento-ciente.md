@@ -49,10 +49,10 @@ reconhecível, no `Debug` do erro. Não confundir ausência de prova com ausênc
 
 ## Subcódigos próprios
 
-| Erro ou `onde` (stderr) | Condição observada |
+| Erro (stderr) | Condição observada |
 | --- | --- |
-| `barra_da_ciencia_do_documento_fora_da_forma` | Atributos da barra inválidos |
-| `botoes_de_ciencia_do_documento_repetidos` | Botão duplicado |
+| `ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma` | Atributos da barra inválidos |
+| `ErroBarraDoDocumento::BotoesDeCienciaDoDocumentoRepetidos` | Botão duplicado |
 
 - `barra_da_ciencia_do_documento_fora_da_forma` — atributos da barra inválidos
 - `botoes_de_ciencia_do_documento_repetidos` — botão duplicado
@@ -61,8 +61,9 @@ reconhecível, no `Debug` do erro. Não confundir ausência de prova com ausênc
 - `tela_da_ciencia_do_documento_redirecionada` — prévia redirecionada
 - `ErroCienciaDocumento::NaoConfirmado` — escrita sem prova posterior
 
-Erros HTML de origem, de duplicidade e atributos têm causa
-`ErroHtml` tipada; erros de transporte conservam a causa original.
+Erros HTML de origem, de duplicidade e atributos são do leitor que os
+detecta (`ErroBarraDoDocumento`, `ErroCienciaNaArvore`); erros de
+transporte conservam a causa original.
 A saída JSON publica documento, processo, unidade se observada,
 `confirmado`, `verificado`, `id_atividade` (`null` quando não observada),
 `usuario` (nome da coluna explícita «Usuário» da mesma linha da atividade na

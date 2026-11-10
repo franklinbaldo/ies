@@ -1,7 +1,6 @@
 //! Tela `procedimento_trabalhar`: a unidade publicada (`#lnkInfraUnidade`)
 //! e o `src` assinado do único `iframe#ifrArvore`, conferido e resolvido.
-use crate::erro_html::ErroHtml;
-use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::html_atributos::{ErroAtributoHtml, nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
 /// URL absoluta da árvore, assinada: `Debug` redigido, sem `Display`.
@@ -42,7 +41,13 @@ pub(crate) enum ErroTelaDoProcesso {
     /// antes de servir a árvore, que vem com `src` vazio (GO 5.0.3, live de
     /// 10/11/2026). A validação em si não é feita pelo IES.
     ProcessoExigeValidacaoDeAcesso,
-    Html(#[from] ErroHtml),
+    ArvoreAusenteNaTelaDoProcesso,
+    ArvoresRepetidasNaTelaDoProcesso,
+    EnderecoDaArvoreNaoReconhecido,
+    HtmlDaTelaDoProcessoNaoInterpretado,
+    IdentificacaoDaUnidadeAusenteNaTelaDoProcesso,
+    IdDeNoDaTela(#[source] ErroAtributoHtml),
+    SrcDaArvore(#[source] ErroAtributoHtml),
 }
 
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
@@ -86,7 +91,7 @@ pub(crate) fn ler_tela_do_documento(
     }
     let [id_procedimento] = valores("id_procedimento")
         .try_into()
-        .map_err(|_| ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
+        .map_err(|_| ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     let arvore = conferir_endereco(instalacao, &src, &id_procedimento)?;
     Ok((
         TelaDoProcesso {
@@ -104,36 +109,33 @@ fn unidade_e_src(
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?;
+        .map_err(|_| ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?;
     let publicada = crate::controle_contexto::unidade_html(&dom)
-        .map_err(|_| ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?
-        .ok_or(ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela_do_processo",
-        ))?;
+        .map_err(|_| ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?
+        .ok_or(ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada
     {
         return Err(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada);
     }
-    let iframes = nos_com_id(&dom, "ifrArvore")
-        .map_err(|e| ErroHtml::atributo("html_da_tela_do_processo_nao_interpretado", e))?;
+    let iframes = nos_com_id(&dom, "ifrArvore").map_err(ErroTelaDoProcesso::IdDeNoDaTela)?;
     let iframe = match iframes.as_slice() {
-        [] => return Err(ErroHtml::ausente("arvore_ausente_na_tela_do_processo").into()),
+        [] => return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso),
         [um] => um
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?,
-        _ => return Err(ErroHtml::repetido("arvores_repetidas_na_tela_do_processo").into()),
+            .ok_or(ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?,
+        _ => return Err(ErroTelaDoProcesso::ArvoresRepetidasNaTelaDoProcesso),
     };
     if iframe.name() != "iframe" {
-        return Err(ErroHtml::ausente("arvore_ausente_na_tela_do_processo").into());
+        return Err(ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso);
     }
     let src = valor_do_atributo(iframe, "src")
-        .map_err(|e| ErroHtml::atributo("html_da_tela_do_processo_nao_interpretado", e))?
-        .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
+        .map_err(ErroTelaDoProcesso::SrcDaArvore)?
+        .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
     let src = crate::formulario_web::decodificar_atributo(&src)
-        .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
+        .ok_or(ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)?;
     if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
         return Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
     }
@@ -151,9 +153,7 @@ fn conferir_endereco(
     conferir_endereco_relativo(instalacao, src, "procedimento_visualizar", id)
         .map(EnderecoDaArvore)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => {
-                ErroTelaDoProcesso::Html(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))
-            }
+            EnderecoRecusado::NaoReconhecido => ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido,
             EnderecoRecusado::DeOutroProcesso => {
                 ErroTelaDoProcesso::EnderecoDaArvoreDeOutroProcesso
             }

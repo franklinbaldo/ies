@@ -7,7 +7,6 @@ use super::{
 };
 use crate::caixa_detalhada::{LeituraDetalhada, ler_paginas};
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::localizar_formulario;
 use crate::pagina_do_controle::{ErroPaginaDoControle, campos_do_usuario};
 
@@ -20,9 +19,10 @@ pub(super) fn unidade_da_tela(
     contexto: &ContextoPagina,
     solicitada: Option<&str>,
 ) -> Result<String, ErroVisaoDoControle> {
-    let unidade = contexto.unidade.clone().ok_or(ErroHtml::ausente(
-        "identificacao_da_unidade_ausente_no_controle",
-    ))?;
+    let unidade = contexto
+        .unidade
+        .clone()
+        .ok_or(ErroVisaoDoControle::IdentificacaoDaUnidadeAusenteNoControle)?;
     if solicitada.is_some_and(|s| s.split_whitespace().collect::<Vec<_>>().join(" ") != unidade) {
         return Err(ErroVisaoDoControle::UnidadeDiferenteDaSolicitada);
     }
@@ -31,11 +31,8 @@ pub(super) fn unidade_da_tela(
 
 /// Controles de usuário que o `submit()` repete, com os valores servidos.
 fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, ErroVisaoDoControle> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        ErroVisaoDoControle::Caixa(crate::erro_web::ErroCaixa::Html(ErroHtml::html(
-            "html_da_caixa_invalido",
-        )))
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroVisaoDoControle::Caixa(crate::erro_web::ErroCaixa::HtmlDaCaixaInvalido))?;
     let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
     campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(ErroVisaoDoControle::Formulario)
 }
