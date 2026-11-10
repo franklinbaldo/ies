@@ -81,7 +81,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (cabecalho, evento)
 }
 
-fn estado() -> (Connection, Instalacao) {
+fn estado(sem_marcadores: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -120,7 +120,20 @@ fn estado() -> (Connection, Instalacao) {
         },
     )
     .unwrap();
-    // Uma marca observada; o pedido de retirar uma outra não assume lista vazia.
+    // Observação explícita: marcada ou vazia. A ausência de registro é desconhecida.
+    let itens = if sem_marcadores {
+        Vec::new()
+    } else {
+        vec![Marcador {
+            id: "501".into(),
+            nome: "Revisão".into(),
+            cor: "azul".into(),
+            texto: Some("Conferir".into()),
+            usuario: Some("aluno1".into()),
+            data_hora: "04/11/2026 09:00".into(),
+        }]
+    };
+    let total_declarado = itens.len();
     marcadores::registrar(
         &mut banco,
         &instalacao,
@@ -128,15 +141,8 @@ fn estado() -> (Connection, Instalacao) {
         "10",
         "TESTE",
         &Observacao {
-            total_declarado: 1,
-            itens: vec![Marcador {
-                id: "501".into(),
-                nome: "Revisão".into(),
-                cor: "azul".into(),
-                texto: Some("Conferir".into()),
-                usuario: Some("aluno1".into()),
-                data_hora: "04/11/2026 09:00".into(),
-            }],
+            total_declarado,
+            itens,
         },
     )
     .unwrap();
@@ -169,7 +175,7 @@ fn executar_cli(
         .unwrap()
 }
 
-fn executar(retirar_ausente: bool) {
+fn executar(retirar_ausente: bool, sem_marcadores: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -188,7 +194,7 @@ fn executar(retirar_ausente: bool) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado();
+        let (banco, instalacao) = estado(sem_marcadores);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -281,13 +287,16 @@ fn executar(retirar_ausente: bool) {
         String::from_utf8_lossy(&releitura.stderr)
     );
     let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
-    assert_eq!(processo["marcadores_total_declarado"], 1);
-    assert_eq!(processo["marcadores"].as_array().unwrap().len(), 1);
-    assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
-    assert_eq!(processo["marcadores"][0]["texto"], "Conferir");
-    assert_eq!(persistido.total_declarado, 1);
-    assert_eq!(persistido.itens.len(), 1);
-    assert_eq!(persistido.itens[0].id, "501");
+    let total = usize::from(!sem_marcadores);
+    assert_eq!(processo["marcadores_total_declarado"], total);
+    assert_eq!(processo["marcadores"].as_array().unwrap().len(), total);
+    assert_eq!(persistido.total_declarado, total);
+    assert_eq!(persistido.itens.len(), total);
+    if !sem_marcadores {
+        assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
+        assert_eq!(processo["marcadores"][0]["texto"], "Conferir");
+        assert_eq!(persistido.itens[0].id, "501");
+    }
     assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 0);
     assert!(
         pedidos
@@ -298,9 +307,15 @@ fn executar(retirar_ausente: bool) {
 }
 #[test]
 fn bdd_255_03_atribuir_marcador_existente_e_idempotente() {
-    executar(false);
+    executar(false, false);
 }
 #[test]
 fn bdd_255_03_retirar_marcador_ausente_e_idempotente() {
-    executar(true);
+    executar(true, false);
+}
+
+#[test]
+fn bdd_255_03_retirar_de_processo_sem_marcadores_nao_inventa_lista() {
+    // Cassette UnB: a tela sem marcadores é 302 para cadastrar, sem POST.
+    executar(true, true);
 }
