@@ -230,6 +230,30 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
+fn identidade_no_estado(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
+    let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
+        .unwrap()
+        .unwrap();
+    let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    if matches!(
+        cena,
+        Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+    ) {
+        assert_eq!(
+            iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
+            Some(match cena {
+                Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
+                Cena::ValidacaoComCredenciais => iesei::validacao_acesso::Validacao::Realizada,
+                Cena::ValidacaoRecusada => iesei::validacao_acesso::Validacao::Recusada,
+                _ => unreachable!(),
+            }),
+        );
+    }
+    (controle.recebidos.linhas[0].numero.clone(), processo.numero)
+}
+
 fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -256,27 +280,7 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         while let Some(mut cliente) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
-            .unwrap()
-            .unwrap();
-        let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap();
-        if matches!(
-            cena,
-            Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
-        ) {
-            assert_eq!(
-                iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
-                Some(match cena {
-                    Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
-                    Cena::ValidacaoComCredenciais => iesei::validacao_acesso::Validacao::Realizada,
-                    Cena::ValidacaoRecusada => iesei::validacao_acesso::Validacao::Recusada,
-                    _ => unreachable!(),
-                }),
-            );
-        }
-        (controle.recebidos.linhas[0].numero.clone(), processo.numero)
+        identidade_no_estado(cena, &banco, &instalacao)
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let registro = Arc::clone(&trilha);
