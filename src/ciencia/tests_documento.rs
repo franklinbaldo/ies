@@ -204,12 +204,6 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|s| s.status), Some(403));
-    assert!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_ref())
-            .is_some()
-    );
     assert!(matches!(
         erro,
         E::NaoConfirmado {
@@ -245,10 +239,15 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    let E::NaoConfirmado {
+        falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(recusa)),
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
     assert_eq!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        recusa.mensagem_do_servidor.as_deref(),
         Some("Solicitacao recusada")
     );
     assert!(matches!(
@@ -459,12 +458,18 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("validacao Infra nao e sucesso");
-    let saida = crate::ciencia_documento_cli::json_da_falha(&erro);
-    assert_eq!(saida["codigo"], "nao_confirmado");
-    assert_eq!(saida["status_http"], serde_json::json!(200));
-    assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
-    assert_eq!(saida["requisicoes"], 6);
-    assert_eq!(saida["retentavel"], false);
+    let E::NaoConfirmado {
+        falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(recusa)),
+        requisicoes: 6,
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
+    assert_eq!(
+        recusa.mensagem_do_servidor.as_deref(),
+        Some("Solicitacao recusada")
+    );
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

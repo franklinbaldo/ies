@@ -1,12 +1,12 @@
 //! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
-use crate::processo_acompanhar::{ErroPrevia, Pedido, Previa, previa};
-use crate::processo_concluir_cli::{com_sessao, publicar_valor_da_falha};
+use crate::processo_acompanhar::{Pedido, Previa, previa};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Acompanhar {
@@ -39,12 +39,10 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
                     sessao.origem,
                 )
             {
-                return crate::origem_de_treinamento::recusa(cli.json, causa);
+                return Err(causa.into());
             }
-            match previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                Ok(plano) => publicar_previa(cli.json, &plano),
-                Err(erro) => publicar_erro(cli.json, &erro),
-            }
+            let plano = previa(sessao, &pedido, indice, &mut EnvioHttps)?;
+            crate::legado(publicar_previa(cli.json, &plano))
         })
     })
 }
@@ -111,18 +109,4 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         println!("Requisições: {}", plano.requisicoes);
     }
     ExitCode::SUCCESS
-}
-
-fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
-    let incerto = matches!(erro, ErroPrevia::NaoConfirmado);
-    let valor = json!({
-        "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
-        "erro": if incerto {
-            "A alteração pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
-        } else {
-            "Não foi possível conferir o Acompanhamento Especial; nenhuma escrita foi enviada."
-        },
-        "retentavel": false
-    });
-    publicar_valor_da_falha(json_mode, &valor, 1)
 }

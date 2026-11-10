@@ -4,11 +4,11 @@ use crate::processo_relacionar::{
     FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, mesmo_protocolo, prever,
 };
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Relacionar {
@@ -27,10 +27,10 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
     if mesmo_protocolo(nup.as_str(), outro.as_str()) {
-        return Some(falha(
+        return Some(crate::legado(falha(
             cli.json,
             &FalhaRelacionar::RelacionamentoConsigoMesmo,
-        ));
+        )));
     }
     Some(com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (10/11/2026): grava também em produção.
@@ -40,7 +40,7 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
         let pedido = Pedido {
             nup: &nup,
@@ -49,13 +49,8 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
             remover: *remover,
             confirmar: *confirmar,
         };
-        match prever(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(preview) => publicar(cli.json, &preview),
-            Err(FalhaRelacionar::Abertura(erro)) => {
-                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-            }
-            Err(erro) => falha(cli.json, &erro),
-        }
+        let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
+        crate::legado(publicar(cli.json, &preview))
     }))
 }
 

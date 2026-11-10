@@ -1,12 +1,12 @@
 //! BDD-ANOT-01/02/03/04: consulta, prévia, registro e retirada conferida.
-use crate::processo_anotar::{self, Erro};
+use crate::processo_anotar::{self};
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_anotar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Anotar {
@@ -42,7 +42,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         } else {
             eprintln!("IES: {mensagem}");
         }
-        return Some(ExitCode::from(2));
+        return Some(crate::legado(ExitCode::from(2)));
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -51,7 +51,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
         let intencao = if *remover {
             processo_anotar::Intencao::Retirada {
@@ -65,29 +65,22 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         } else {
             processo_anotar::Intencao::Consulta
         };
-        match processo_anotar::executar(
+        let preview = processo_anotar::executar(
             sessao,
             &nup,
             &intencao,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
-        ) {
-            Ok(preview) => {
-                if *remover {
-                    exibir_retirada(&preview, *confirmar, cli.json);
-                } else if texto.is_none() {
-                    exibir_consulta(&preview, cli.json);
-                } else {
-                    exibir_registro(&preview, *confirmar, cli.json);
-                }
-                ExitCode::SUCCESS
-            }
-            Err(Erro::Abertura(erro)) => {
-                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-            }
-            Err(erro) => falha_da_previa(cli, &erro),
+        )?;
+        if *remover {
+            exibir_retirada(&preview, *confirmar, cli.json);
+        } else if texto.is_none() {
+            exibir_consulta(&preview, cli.json);
+        } else {
+            exibir_registro(&preview, *confirmar, cli.json);
         }
+        Ok(())
     }))
 }
 
@@ -189,43 +182,4 @@ fn exibir_consulta(preview: &processo_anotar::Previa, modo_json: bool) {
             preview.nup, preview.unidade, preview.requisicoes
         );
     }
-}
-
-/// Emite a causa tipada sem catálogo de subcódigos por operação.
-fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
-    use crate::erro_publico::Causa;
-    let motivo_situacao = match &erro {
-        Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
-        _ => None,
-    };
-    let incerto = matches!(erro, Erro::NaoConfirmado);
-    let mensagem = if incerto {
-        "escrita não confirmada; não repita --confirmar; consulte a anotação"
-    } else {
-        "o SEI não publicou as condições para anotar este processo nesta unidade"
-    };
-    if cli.json {
-        let mut saida = json!({
-            "codigo": if incerto { "nao_confirmado" } else { "fonte_invalida" },
-            "erro": mensagem,
-            "retentavel": false
-        });
-        if let Some(motivo) = motivo_situacao {
-            saida["motivo_situacao"] = json!(motivo);
-        }
-        if let Some(http) = erro.status_http() {
-            if http.status != 200 {
-                saida["status_http"] = json!(http.status);
-            }
-            if let Some(mensagem_do_servidor) = &http.mensagem_do_servidor {
-                saida["mensagem_do_servidor"] = json!(mensagem_do_servidor);
-            }
-        }
-        println!("{saida}");
-    } else if let Some(motivo) = motivo_situacao {
-        eprintln!("IES: {mensagem} ({motivo})");
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
 }

@@ -1,17 +1,13 @@
 //! #332 — conecta a confirmação única do PDF à saída pública.
 //! Validada ao vivo na `UnB` de treinamento (09/11/2026, saída 0).
 use crate::Cli;
-use crate::documento_externo_incluir::{
-    PdfLocal,
-    fluxo_confirmar::{ErroConfirmacaoExterna, executar_confirmacao_https},
-};
+use crate::documento_externo_incluir::{PdfLocal, fluxo_confirmar::executar_confirmacao_https};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
 /// Os contadores incluem as tentativas de rede que falharam. O multipart
 /// usa o mesmo cliente HTTPS, mas não passa pelo Contador dos GET/POST comuns.
@@ -21,14 +17,14 @@ pub(super) fn executar(
     tipo: &str,
     pdf: &PdfLocal,
     caminho_pdf: &Path,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (09/11/2026): grava também em produção.
         if let Err(causa) = crate::origem_de_treinamento::exigir(
             crate::origem_de_treinamento::Escrita::DocumentoIncluirExterno,
             sessao.origem,
         ) {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);
@@ -45,92 +41,49 @@ pub(super) fn executar(
             &mut upload_tentado,
         );
         let requisicoes = contagem.feitas().saturating_add(u8::from(upload_tentado));
-        match resultado {
-            Ok(feito) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "escopo": "confirmacao_web",
-                            "processo": processo.as_str(),
-                            "tipo_solicitado": tipo,
-                            "numero_sei": feito.numero_sei,
-                            "unidade": feito.unidade,
-                            "confirmado": true,
-                            "escrita_remota": true,
-                            "upload_tentado": true,
-                            "cadastro_tentado": true,
-                            "reconciliado_por_leitura": true,
-                            "requisicoes": requisicoes
-                        })
-                    );
-                } else {
-                    println!(
-                        "Documento externo {} incluído no processo {} (unidade {}), comprovado por releitura independente. Upload temporário: 1 tentativa; cadastro definitivo: 1 tentativa. Requisições: {}.",
-                        feito.numero_sei,
-                        processo.as_str(),
-                        feito.unidade,
-                        requisicoes
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => {
-                if cli.json {
-                    println!("{}", json_da_falha(&erro, upload_tentado, requisicoes));
-                } else {
-                    eprintln!(
-                        "IES: inclusão externa não comprovada na etapa {}. Upload tentado: {}; cadastro tentado: {}; resíduo temporário possível: {}; requisições: {}. Não repita automaticamente a escrita.",
-                        erro.etapa(),
-                        upload_tentado,
-                        erro.cadastro_tentado(),
-                        erro.temporario_possivel(),
-                        requisicoes
-                    );
-                }
-                ExitCode::from(1)
+        let feito = resultado.map_err(|erro| {
+            anyhow::Error::from(erro).context(TentativaNaoComprovada {
+                upload_tentado,
+                requisicoes,
+            })
+        })?;
+        {
+            if cli.json {
+                println!(
+                    "{}",
+                    json!({
+                        "escopo": "confirmacao_web",
+                        "processo": processo.as_str(),
+                        "tipo_solicitado": tipo,
+                        "numero_sei": feito.numero_sei,
+                        "unidade": feito.unidade,
+                        "confirmado": true,
+                        "escrita_remota": true,
+                        "upload_tentado": true,
+                        "cadastro_tentado": true,
+                        "reconciliado_por_leitura": true,
+                        "requisicoes": requisicoes
+                    })
+                );
+            } else {
+                println!(
+                    "Documento externo {} incluído no processo {} (unidade {}), comprovado por releitura independente. Upload temporário: 1 tentativa; cadastro definitivo: 1 tentativa. Requisições: {}.",
+                    feito.numero_sei,
+                    processo.as_str(),
+                    feito.unidade,
+                    requisicoes
+                );
             }
         }
+        Ok(())
     })
 }
 
-fn json_da_falha(erro: &ErroConfirmacaoExterna, upload_tentado: bool, requisicoes: u8) -> Value {
-    json!({
-        "confirmado": false,
-        "etapa": erro.etapa(),
-        "retentavel": false,
-        "upload_tentado": upload_tentado,
-        "cadastro_tentado": erro.cadastro_tentado(),
-        "temporario_possivel": erro.temporario_possivel(),
-        "requisicoes": requisicoes,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::documento_externo_incluir::confirmacao::FalhaConfirmacao;
-
-    #[test]
-    fn bdd_332_04_nao_confirmado_informa_etapa_e_residuo_sem_repeticao() {
-        let erro = ErroConfirmacaoExterna::Sequencia(FalhaConfirmacao::NaoConfirmado);
-        let resultado = json_da_falha(&erro, true, 7);
-        assert_eq!(resultado["confirmado"], false);
-        assert_eq!(resultado["etapa"], "releitura_independente");
-        assert_eq!(resultado["requisicoes"], 7);
-        assert_eq!(resultado["upload_tentado"], true);
-        assert_eq!(resultado["cadastro_tentado"], true);
-        assert_eq!(resultado["temporario_possivel"], true);
-        assert_eq!(resultado["retentavel"], false);
-    }
-
-    #[test]
-    fn foto_inicial_incompleta_nao_finge_upload_tentado() {
-        let erro = ErroConfirmacaoExterna::Sequencia(FalhaConfirmacao::FotoInicialIncompleta);
-        let resultado = json_da_falha(&erro, false, 4);
-        assert_eq!(resultado["etapa"], "fotografia_inicial");
-        assert_eq!(resultado["upload_tentado"], false);
-        assert_eq!(resultado["cadastro_tentado"], false);
-        assert_eq!(resultado["temporario_possivel"], false);
-    }
+/// Fatos da tentativa que acompanham a falha: o upload temporário pode ter
+/// deixado resíduo. Não repita a escrita automaticamente.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct TentativaNaoComprovada {
+    upload_tentado: bool,
+    requisicoes: u8,
 }

@@ -44,7 +44,7 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
     }
 }
 
-pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
+pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Salvar {
@@ -60,13 +60,13 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     };
     let documento = numero.clone();
     if *listar_copias {
-        return Some(mostrar_listagem_copias(&documento, cli.json));
+        return Some(crate::legado(mostrar_listagem_copias(&documento, cli.json)));
     }
     let Ok(versao) = versao
         .map(documento_versoes::VersaoDocumento::nova)
         .transpose()
     else {
-        return Some(erro_fonte(cli.json, "versão inválida"));
+        return Some(crate::legado(erro_fonte(cli.json, "versão inválida")));
     };
     let previa = copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao);
     match previa {
@@ -98,10 +98,13 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
                     "Aviso: editar pode remover assinaturas; a oferta de edição do SEI ainda não foi verificada."
                 );
             }
-            Some(ExitCode::SUCCESS)
+            Some(Ok(()))
         }
         Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
-        Err(_) => Some(erro_fonte(cli.json, "cópia local não pode ser conferida")),
+        Err(_) => Some(crate::legado(erro_fonte(
+            cli.json,
+            "cópia local não pode ser conferida",
+        ))),
     }
 }
 

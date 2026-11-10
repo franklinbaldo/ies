@@ -303,50 +303,58 @@ fn executar(
     )
 }
 
-pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopia) -> ExitCode {
+pub(super) fn confirmar(
+    cli: &Cli,
+    numero: &NumeroDocumento,
+    previa: &PreviaCopia,
+) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        match executar(cli, sessao, indice, numero, previa) {
-            Resultado::Confirmado(versao) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "documento": numero.as_str(),
-                            "confirmado": true,
-                            "versao_criada": versao,
-                            "releitura_confirmada": true,
-                            "assinaturas_apos": 0
-                        })
-                    );
-                } else {
-                    println!(
-                        "IES: documento {} salvo na versão {versao}, conferida por releitura.",
-                        numero.as_str()
-                    );
+        crate::legado({
+            match executar(cli, sessao, indice, numero, previa) {
+                Resultado::Confirmado(versao) => {
+                    if cli.json {
+                        println!(
+                            "{}",
+                            json!({
+                                "documento": numero.as_str(),
+                                "confirmado": true,
+                                "versao_criada": versao,
+                                "releitura_confirmada": true,
+                                "assinaturas_apos": 0
+                            })
+                        );
+                    } else {
+                        println!(
+                            "IES: documento {} salvo na versão {versao}, conferida por releitura.",
+                            numero.as_str()
+                        );
+                    }
+                    ExitCode::SUCCESS
                 }
-                ExitCode::SUCCESS
-            }
-            Resultado::Recusado(Falha::Local(causa)) => {
-                erro_fonte(cli.json, Falha::Local(causa).mensagem())
-            }
-            Resultado::Recusado(falha) => erro_fonte(cli.json, falha.mensagem()),
-            Resultado::Incerto => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "codigo": "nao_confirmado",
-                            "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
-                            "confirmado": false,
-                            "retentavel": false
-                        })
-                    );
-                } else {
-                    eprintln!("IES: edição não comprovada; não repita --confirmar sem releitura.");
+                Resultado::Recusado(Falha::Local(causa)) => {
+                    erro_fonte(cli.json, Falha::Local(causa).mensagem())
                 }
-                ExitCode::from(1)
+                Resultado::Recusado(falha) => erro_fonte(cli.json, falha.mensagem()),
+                Resultado::Incerto => {
+                    if cli.json {
+                        println!(
+                            "{}",
+                            json!({
+                                "codigo": "nao_confirmado",
+                                "erro": "edição não comprovada; não repita --confirmar sem releitura independente",
+                                "confirmado": false,
+                                "retentavel": false
+                            })
+                        );
+                    } else {
+                        eprintln!(
+                            "IES: edição não comprovada; não repita --confirmar sem releitura."
+                        );
+                    }
+                    ExitCode::from(1)
+                }
             }
-        }
+        })
     })
 }
 

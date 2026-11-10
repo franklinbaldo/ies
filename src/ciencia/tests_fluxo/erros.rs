@@ -18,7 +18,6 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
     let erro = resultado.unwrap_err();
     match causa {
         FalhaEsperada::Http403 => {
-            assert_eq!(erro.status_http().map(|s| s.status), Some(403));
             assert!(matches!(
                 erro,
                 E::NaoConfirmado {
@@ -30,10 +29,15 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
             ));
         }
         FalhaEsperada::Infra200 => {
-            assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+            let E::NaoConfirmado {
+                falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
+                ..
+            } = &erro
+            else {
+                panic!("{erro:?}");
+            };
             assert_eq!(
-                erro.status_http()
-                    .and_then(|s| s.mensagem_do_servidor.as_deref()),
+                recusa.mensagem_do_servidor.as_deref(),
                 Some("Solicitacao recusada")
             );
             assert!(matches!(
@@ -45,7 +49,6 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
             ));
         }
         FalhaEsperada::Rede => {
-            assert!(erro.status_http().is_none());
             assert!(matches!(
                 erro,
                 E::NaoConfirmado {
@@ -110,12 +113,18 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("recusa HTTP 200 nao equivale a ciencia");
-    let saida = crate::ciencia_cli::json_de_erro(&erro);
-    assert_eq!(saida["codigo"], "nao_confirmado");
-    assert_eq!(saida["status_http"], serde_json::json!(200));
-    assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
-    assert_eq!(saida["requisicoes"], 6);
-    assert_eq!(saida["retentavel"], false);
+    let E::NaoConfirmado {
+        falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
+        requisicoes: 6,
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
+    assert_eq!(
+        recusa.mensagem_do_servidor.as_deref(),
+        Some("Solicitacao recusada")
+    );
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 /// `Some` só para `ies documento assinar`.
-pub(crate) fn tentar_assinar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_assinar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Assinar {
@@ -44,7 +44,10 @@ pub(crate) fn tentar_assinar(cli: &Cli) -> Option<ExitCode> {
         None => None,
         Some(Ok(nup)) => Some(nup),
         Some(Err(_)) => {
-            return Some(invalida(cli.json, "número de processo inválido"));
+            return Some(crate::legado(invalida(
+                cli.json,
+                "número de processo inválido",
+            )));
         }
     };
     let pedido = Entrada {
@@ -54,7 +57,7 @@ pub(crate) fn tentar_assinar(cli: &Cli) -> Option<ExitCode> {
         confirmar: *confirmar,
     };
     Some(com_sessao(cli, |sessao, indice| {
-        assinar_na_sessao(cli, sessao, indice, &pedido)
+        crate::legado(assinar_na_sessao(cli, sessao, indice, &pedido))
     }))
 }
 
@@ -118,10 +121,11 @@ fn assinar_na_sessao(
     match assinar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                if let Err(erro) = crate::saida::imprimir_json(&json_de_sucesso(&feito)) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json_de_sucesso(&feito))
+                        .expect("JSON serializável")
+                );
             } else {
                 println!("{}", humano(&feito));
             }

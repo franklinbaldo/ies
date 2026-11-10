@@ -30,7 +30,8 @@ const COMENTAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, thiserror::Error)]
+#[error("{self:?}")]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Erro {
     Abertura,

@@ -22,7 +22,7 @@ use std::process::ExitCode;
 
 mod exclusao;
 
-pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_prazo(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Prazo {
@@ -39,27 +39,29 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     };
     let nup = numero.clone();
     let Ok(pedido) = interpretar_pedido(ate.as_deref(), *dias, *excluir) else {
-        return Some(uso(cli.json));
+        return Some(crate::legado(uso(cli.json)));
     };
     // Sem --ate, --dias ou --excluir não há o que gravar: uso, antes da rede.
     if *confirmar && pedido == PedidoDePrazo::Ler {
-        return Some(uso(cli.json));
+        return Some(crate::legado(uso(cli.json)));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        // Aprovada em treinamento (10/11/2026): grava também em produção.
-        if *confirmar
-            && let Err(causa) = crate::origem_de_treinamento::exigir(
-                crate::origem_de_treinamento::Escrita::ProcessoPrazo,
-                sessao.origem,
-            )
-        {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
-        }
-        if pedido == PedidoDePrazo::Excluir {
-            exclusao::executar(cli, &nup, *confirmar, sessao, indice)
-        } else {
-            previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
-        }
+        crate::legado({
+            // Aprovada em treinamento (10/11/2026): grava também em produção.
+            if *confirmar
+                && let Err(causa) = crate::origem_de_treinamento::exigir(
+                    crate::origem_de_treinamento::Escrita::ProcessoPrazo,
+                    sessao.origem,
+                )
+            {
+                return Err(causa.into());
+            }
+            if pedido == PedidoDePrazo::Excluir {
+                exclusao::executar(cli, &nup, *confirmar, sessao, indice)
+            } else {
+                previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
+            }
+        })
     }))
 }
 

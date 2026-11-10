@@ -57,10 +57,11 @@ pub(crate) fn definir_colunas(
     ) {
         Ok(feito) => {
             if json_mode {
-                if let Err(erro) = crate::saida::imprimir_json(&resultado_colunas(&feito)) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&resultado_colunas(&feito))
+                        .expect("JSON serializável")
+                );
             } else {
                 println!("{}", humano(&feito));
             }

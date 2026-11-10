@@ -1,8 +1,6 @@
 //! Entrada de `ies documento ciente DOC [--confirmar]`.
 //! A prova é a atividade na Lista de Ciências do documento relida.
-use crate::ciencia::{
-    CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
-};
+use crate::ciencia::{CienciaDoDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::visao_do_controle::EnvioHttps;
@@ -10,7 +8,7 @@ use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao: Some(DocumentoAcao::Ciente { numero, confirmar }),
         processo,
@@ -23,7 +21,7 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(p)) => Some(p),
-        Some(Err(_)) => return Some(erro_de_uso(cli.json)),
+        Some(Err(_)) => return Some(crate::legado(erro_de_uso(cli.json))),
     };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaCienciaDocumento {
@@ -32,10 +30,8 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
             unidade: cli.unidade.as_deref(),
             confirmar: *confirmar,
         };
-        match ciencia_no_documento(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => sucesso(cli.json, &feito),
-            Err(erro) => falha(cli.json, &erro),
-        }
+        let feito = ciencia_no_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
+        crate::legado(sucesso(cli.json, &feito))
     }))
 }
 
@@ -85,51 +81,6 @@ fn texto_da_previa(feito: &CienciaDoDocumento) -> String {
     )
 }
 
-fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
-    let saida = json_da_falha(erro);
-    if json_mode {
-        println!("{saida}");
-    } else {
-        eprintln!(
-            "{}",
-            crate::saida_erro::linha_humana(&erro.mensagem(), erro.status_http())
-        );
-        if let Some(aviso) = aviso_da_falha(erro) {
-            eprintln!("{aviso}");
-        }
-    }
-    ExitCode::from(1)
-}
-
-/// Orienta sobre a escrita incerta com a contagem realmente observada.
-/// A prévia é somente leitura: o que não pode ser repetido é a escrita.
-fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
-    match erro {
-        ErroCienciaDocumento::NaoConfirmado { requisicoes, .. } => Some(format!(
-            "IES: {requisicoes} requisições; não repetir a escrita; conferir a Lista de Ciências no SEI antes de qualquer nova confirmação"
-        )),
-        _ => None,
-    }
-}
-
-pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
-    let mut saida = json!({
-        "codigo": if matches!(erro, ErroCienciaDocumento::NaoConfirmado { .. }) { "nao_confirmado" } else { "fonte_invalida" },
-        "erro": erro.mensagem(),
-        "retentavel": false,
-    });
-    if let ErroCienciaDocumento::NaoConfirmado { requisicoes, .. } = erro {
-        saida["requisicoes"] = json!(requisicoes);
-    }
-    if let Some(http) = erro.status_http() {
-        saida["status_http"] = json!(http.status);
-        if let Some(mensagem) = &http.mensagem_do_servidor {
-            saida["mensagem_do_servidor"] = json!(mensagem);
-        }
-    }
-    saida
-}
-
 #[cfg(test)]
 mod testes_previa {
     use super::*;
@@ -167,49 +118,5 @@ mod testes_previa {
         let texto = texto_da_previa(&feito(None));
         assert!(texto.contains("do processo 0000001-22.2026.4.00.0000."));
         assert!(!texto.contains("na unidade"));
-    }
-
-    /// RED #271: stderr deve informar o custo real da tentativa de escrita
-    /// incerta e não sugerir que a próxima prévia (somente leitura) é proibida.
-    #[test]
-    fn erro_humano_da_ciencia_documental_informa_requests_e_nao_proibe_previa() {
-        let erro = ErroCienciaDocumento::NaoConfirmado {
-            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
-            requisicoes: 6,
-            falha_do_aceite: None,
-        };
-        let aviso = aviso_da_falha(&erro).expect("efeito incerto deve ter aviso");
-        assert!(aviso.contains("6 requisições"), "aviso observado: {aviso}");
-        assert!(
-            aviso.contains("não repetir a escrita"),
-            "orientação de segurança ausente: {aviso}"
-        );
-        assert!(
-            !aviso.contains("nova prévia"),
-            "a prévia de leitura é permitida: {aviso}"
-        );
-    }
-
-    /// RED #271: o JSON não pode instruir "repetir" a escrita incerta.
-    /// O aviso humano já distingue releitura da Lista e nova confirmação.
-    #[test]
-    fn erro_json_documental_orienta_conferir_lista_antes_de_confirmar() {
-        let erro = ErroCienciaDocumento::NaoConfirmado {
-            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
-            requisicoes: 6,
-            falha_do_aceite: None,
-        };
-        let publicado = json_da_falha(&erro);
-        let mensagem = publicado["erro"].as_str().expect("mensagem JSON");
-        assert!(mensagem.contains("Lista de Ciências"), "{mensagem}");
-        assert!(mensagem.contains("antes de nova confirmação"), "{mensagem}");
-        assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
-        assert_eq!(publicado["codigo"], "nao_confirmado");
-        assert_eq!(publicado["requisicoes"], 6);
-    }
-
-    #[test]
-    fn falha_previa_documental_nao_recebe_aviso_de_escrita() {
-        assert!(aviso_da_falha(&ErroCienciaDocumento::CienciaNaoOferecida).is_none());
     }
 }

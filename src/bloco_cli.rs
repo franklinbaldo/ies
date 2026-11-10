@@ -15,7 +15,6 @@ use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
 use crate::{Bloco, BlocoAcao, Cli};
 use serde_json::{Value, json};
 mod paginacao;
-use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -162,7 +161,7 @@ fn executar_leitura(
     tipo: TipoBloco,
     numero: Option<&str>,
     pagina: Option<u32>,
-) -> crate::Saida {
+) -> anyhow::Result<()> {
     if pagina.is_some_and(|p| p > 2) || (pagina == Some(2) && tipo != TipoBloco::Interno) {
         return Err(FalhaLeitura::Bloco(ErroBloco::PaginaDeBlocosNaoImplementada).into());
     }
@@ -178,7 +177,7 @@ fn executar_leitura(
         &mut EnvioHttps,
     )?;
     if cli.json {
-        crate::saida::imprimir_json(&valor)?;
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else if let Some(bloco) = valor.get("bloco") {
         println!(
             "IES: bloco {} ({}) — {} item(ns) observados; {} GET(s).",
@@ -204,9 +203,9 @@ fn executar_leitura(
             }
         }
     }
-    Ok(ExitCode::SUCCESS)
+    Ok(())
 }
-pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> crate::Saida {
+pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> anyhow::Result<()> {
     match (&bloco.numero, &bloco.acao) {
         (None, Some(BlocoAcao::Listar { tipo, pagina })) => {
             executar_leitura(cli, *tipo, None, *pagina)
@@ -231,7 +230,7 @@ pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> crate::Saida {
         }
         (None, None) => {
             crate::esquema_cli::show_noun_help("bloco");
-            Ok(ExitCode::SUCCESS)
+            Ok(())
         }
         (Some(_), Some(_)) => Err(UsoDoBloco::NumeroComSubcomando.into()),
     }

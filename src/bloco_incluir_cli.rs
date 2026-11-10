@@ -10,7 +10,6 @@ use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, configuracao};
 use serde_json::json;
-use std::process::ExitCode;
 
 /// O que esta fatia ainda não faz: recusado antes de qualquer requisição.
 #[derive(Debug, thiserror::Error)]
@@ -26,7 +25,7 @@ pub(crate) fn executar(
     documento: Option<&NumeroDocumento>,
     processo: Option<&str>,
     confirmar: bool,
-) -> crate::Saida {
+) -> anyhow::Result<()> {
     if processo.is_some() {
         return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
     }
@@ -52,7 +51,7 @@ pub(crate) fn executar(
         &mut EnvioHttps,
     )?;
     publicar(cli.json, &previa);
-    Ok(ExitCode::SUCCESS)
+    Ok(())
 }
 
 fn publicar(json_mode: bool, previa: &PreviaDocumental) {

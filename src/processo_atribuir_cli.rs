@@ -1,17 +1,15 @@
 //! Prévia Web de atribuição por login exato; confirmação apenas nas
 //! instalação de treinamento `UnB` com efeito verificado por releitura.
 use crate::processo_atribuir::{
-    ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
-    executar_previa,
+    EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
 };
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
-use crate::saida_erro;
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Atribuir {
@@ -34,7 +32,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
         let pedido = PedidoDaAtribuicao {
             nup: &nup,
@@ -42,70 +40,9 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
             usuario: if *remover { None } else { usuario.as_deref() },
             confirmar: *confirmar,
         };
-        match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => publicar_previa(cli.json, &feito),
-            Err(erro) => publicar_falha(cli.json, &erro),
-        }
+        let feito = executar_previa(sessao, &pedido, indice, &mut EnvioHttps)?;
+        crate::legado(publicar_previa(cli.json, &feito))
     }))
-}
-
-/// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
-/// Fatos de diagnóstico da prévia são publicados sem extrapolar uma unidade
-/// da árvore para outra: lista vazia = observada sem abertos; null = não lida.
-pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
-    let mut valor = json_base_da_falha(
-        "atribuicao_recusada",
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    if let Some(objeto) = valor.as_object_mut() {
-        match erro {
-            ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
-                unidade,
-                aberto_em,
-                motivo,
-                requisicoes,
-            } => {
-                objeto.insert("unidade".to_owned(), json!(unidade));
-                objeto.insert("aberto_em".to_owned(), json!(aberto_em));
-                objeto.insert("motivo".to_owned(), json!(motivo));
-                objeto.insert("requisicoes".to_owned(), json!(requisicoes));
-            }
-            ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
-                requisicoes,
-                atribuicao_relida,
-                ..
-            } => {
-                objeto.insert("requisicoes".to_owned(), json!(requisicoes));
-                // Estado observado após o POST, não evidência de autoria.
-                objeto.insert("atribuicao_relida".to_owned(), json!(atribuicao_relida));
-            }
-            _ => {}
-        }
-    }
-    valor
-}
-
-fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
-    if json_mode {
-        println!("{}", json_de_falha(erro));
-    } else {
-        eprintln!(
-            "{}",
-            saida_erro::linha_humana(erro.mensagem(), erro.status_http())
-        );
-        // O estado observado depois do POST pode ser um resíduo real,
-        // mas não identifica qual sessão provocou a mudança.
-        if let ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
-            atribuicao_relida: Some(login),
-            ..
-        } = erro
-        {
-            let estado = if login.is_empty() { "nenhuma" } else { login };
-            eprintln!("Estado relido: {estado} (não comprova o efeito deste POST).");
-        }
-    }
-    ExitCode::from(1)
 }
 
 /// Traduz o estado único do domínio para os dois campos do contrato JSON legado.
