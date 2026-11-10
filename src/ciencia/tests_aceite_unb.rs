@@ -38,8 +38,8 @@ fn aceite_em_cdata_com_chamada_simples_antes_da_recarga() {
 }
 
 #[test]
-fn instrucao_com_argumento_ou_condicao_antes_da_recarga_nao_prova() {
-    for antes in ["if (x) return;", "return;", "alerta('x');", "x = 1;"] {
+fn desvio_de_fluxo_antes_da_recarga_nao_prova() {
+    for antes in ["if (x) return;", "return;", "throw 1;", "while (x) {}"] {
         assert_eq!(
             atividade_do_aceite(&aceite(antes), processo()),
             Err(E::AceiteSemAtividade),
@@ -55,4 +55,18 @@ fn lista_com_contagem_na_legenda_comprova_atividade() {
     assert_eq!(super::atividade_na_lista(html, "44936"), Ok(true));
     let outra = html.replace("(1 registro)", "(1 andamento)");
     assert!(super::atividade_na_lista(&outra, "44936").is_err());
+}
+
+#[test]
+fn aceite_do_sei_5_com_atribuicao_e_chamada_com_argumento_antes() {
+    // PEN2 5.0.4 ao vivo (10/11/2026).
+    assert_eq!(
+        atividade_do_aceite(
+            &aceite(
+                "HTML = \"\";\n  exibirVoltarAcoes(true);\n  inicializarBotaoEditarComentario();"
+            ),
+            processo()
+        ),
+        Ok("44935".into())
+    );
 }

@@ -123,11 +123,16 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     assinatura == b"functioninicializar()" && so_chamadas_simples(script, abertura + 1, posicao)
 }
 
-/// Antes da recarga, o corpo de `inicializar()` só pode ter chamadas
-/// `nome();` sem argumento (`UnB` 4.0.9: `exibirLinkVoltarArvoreVisualizar();`).
-/// Condição, retorno, atribuição ou argumento tornam o alcance incerto.
+/// Antes da recarga, o corpo de `inicializar()` só pode ter instruções
+/// sem desvio de fluxo (`UnB` 4.0.9: `exibirLinkVoltarArvoreVisualizar();`;
+/// SEI 5: `HTML = "";` e `exibirVoltarAcoes(true);`). Retorno, exceção,
+/// condição, laço ou bloco tornam o alcance da recarga incerto.
 fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
-    // Sem comentários, mas com literais: um argumento recusa a prova.
+    const DESVIOS: [&str; 12] = [
+        "return", "throw", "if", "else", "for", "while", "do", "switch", "try", "catch", "break",
+        "continue",
+    ];
+    // Sem comentários; literais ficam, mas não decidem o fluxo.
     let mut ativo = String::new();
     let mut resto = &script[inicio..fim];
     while !resto.is_empty() {
@@ -144,13 +149,14 @@ fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
             resto = letras.as_str();
         }
     }
-    ativo.split(';').map(str::trim).all(|instrucao| {
-        instrucao.is_empty()
-            || instrucao.strip_suffix("()").is_some_and(|nome| {
-                nome.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-                    && nome.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
-            })
-    })
+    !ativo.contains(['{', '}'])
+        && ativo.split(';').map(str::trim).all(|instrucao| {
+            let palavra = instrucao
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .next()
+                .unwrap_or_default();
+            !DESVIOS.contains(&palavra)
+        })
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com

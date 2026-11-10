@@ -117,15 +117,24 @@ pub(crate) fn conferir_criacao(
     depois: &[DocumentoNaArvore],
     tipo: &str,
 ) -> Result<String, ErroCriar> {
-    conferir_criacao_com_rotulo(antes, depois, |numero| format!("{tipo} {numero}"))
+    conferir_criacao_com_rotulo(antes, depois, |rotulo, numero| {
+        // `Despacho 0012274` (UnB, PEN, UFRJ) ou, com numeração própria do
+        // tipo, `Despacho 1407 (8446460)` (GO 5.0.3, live de 10/11/2026).
+        rotulo == format!("{tipo} {numero}")
+            || rotulo
+                .strip_prefix(tipo)
+                .and_then(|resto| resto.strip_prefix(' '))
+                .and_then(|resto| resto.strip_suffix(&format!(" ({numero})")))
+                .is_some_and(|serie| !serie.is_empty() && serie.bytes().all(|b| b.is_ascii_digit()))
+    })
 }
 
-/// Como [`conferir_criacao`], com o rótulo que a árvore publica para o
-/// documento novo. Externo na `UnB` (SEI 4.0.9): `Anexo (0011862)`.
+/// Como [`conferir_criacao`], com a conferência do rótulo que a árvore
+/// publica para o documento novo (rótulo, número SEI). Externo na `UnB` (SEI 4.0.9): `Anexo (0011862)`.
 pub(crate) fn conferir_criacao_com_rotulo(
     antes: &[DocumentoNaArvore],
     depois: &[DocumentoNaArvore],
-    rotulo_esperado: impl Fn(&str) -> String,
+    rotulo_confere: impl Fn(&str, &str) -> bool,
 ) -> Result<String, ErroCriar> {
     use ErroCriar as E;
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
@@ -161,7 +170,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
         .ok_or(E::EfeitoIncerto)?;
-    if novo.rotulo != rotulo_esperado(numero)
+    if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
             .any(|d| d.numero_sei.as_deref() == Some(numero))

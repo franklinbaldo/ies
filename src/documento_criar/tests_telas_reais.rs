@@ -1,6 +1,7 @@
 //! Telas de escolha do tipo observadas ao vivo em 10/11/2026, sem URLs
 //! assinadas: `UnB` 4.0.9 e as instalações PEN, UFRJ e GO de treinamento.
 use super::*;
+use crate::arvore_processo::NaturezaDoDocumento;
 
 const EXIBIR: &str = "function exibirSeries(tipo) {
         document.getElementById('hdnFiltroSerie').value = tipo;
@@ -44,4 +45,35 @@ function escolher(idSerie){
         escolha_do_tipo(&instalacao, html, "1", "Despacho"),
         Ok(EscolhaDoDocumento::Formulario("5".into()))
     );
+}
+
+#[test]
+fn rotulo_com_numeracao_do_tipo_comprova_o_novo_documento() {
+    // GO 5.0.3 ao vivo (10/11/2026): "Despacho 1407 (8446460)".
+    let doc = |id: &str, numero: &str, rotulo: &str| DocumentoNaArvore {
+        id: id.into(),
+        rotulo: rotulo.into(),
+        numero_sei: Some(numero.into()),
+        pasta: None,
+        natureza: NaturezaDoDocumento {
+            icone: None,
+            cancelado: None,
+            motivo_do_cancelamento: None,
+            dica: None,
+        },
+    };
+    let antes = [doc("1", "8446442", "Anexo (8446442)")];
+    let depois = [
+        antes[0].clone(),
+        doc("2", "8446460", "Despacho 1407 (8446460)"),
+    ];
+    assert_eq!(
+        conferir_criacao(&antes, &depois, "Despacho"),
+        Ok("8446460".into())
+    );
+    let outro = [
+        antes[0].clone(),
+        doc("2", "8446460", "Ofício 1407 (8446460)"),
+    ];
+    assert!(conferir_criacao(&antes, &outro, "Despacho").is_err());
 }
