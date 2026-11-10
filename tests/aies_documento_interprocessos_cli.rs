@@ -452,3 +452,6 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
         "recusa não autoriza POST mutador: {trilha:?}"
     );
 }
+
+#[path = "aies_documento_interprocessos_cli/numero_ambiguo_sem_contexto.rs"]
+mod numero_ambiguo_sem_contexto;
