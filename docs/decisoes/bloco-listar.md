@@ -16,7 +16,9 @@ live_validation: not-run-unb-go
 ## Alternativas consideradas
 
 (a) `web-menu-get`: seguir somente ações servidas na tela do Controle,
-com link e origem validados, incluindo a navegação da segunda página interna por formulário servido quando disponível. (b) `rest-bloco-listar`: consultar um
+com link e origem validados, incluindo navegação da segunda página
+interna por formulário servido, quando disponível. (b) `rest-bloco-listar`:
+consultar um
 endpoint REST não demonstrado em todas as versões. (c) `soap-bloco`:
 usar SOAP apesar de a interface Web já oferecer a lista.
 
