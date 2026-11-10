@@ -62,21 +62,21 @@ restauração de tela.
 
 ## Falhas e subcódigos
 
-| Subcódigo | Condição |
+| Variante ou `onde` (stderr) | Condição |
 | --- | --- |
-| `opcoes_de_prazo_incompativeis` | Combinação de opções mutuamente exclusivas |
-| `data_do_prazo_invalida` | Data não existe |
-| `dias_do_prazo_invalidos` | Contagem fora da faixa |
-| `tela_de_prazo_nao_observada` | Formulário diferente da forma observada |
-| `tela_de_prazo_de_outro_processo` | Identidade distinta |
-| `barra_de_prazo_nao_interpretada` | Barra sem leitura segura |
-| `links_de_prazo_repetidos` | Múltiplas ações de prazo |
-| `endereco_de_prazo_nao_reconhecido` | URL fora da forma segura |
-| `endereco_de_prazo_de_outro_processo` | URL de outro processo |
-| `prazo_nao_publicado_na_barra` | Ação ausente |
-| `tela_de_prazo_redirecionada` | GET não publicou HTML 200 |
-| `sessao_encerrada_ao_ler_prazo` | Login no lugar da tela |
-| `confirmar_sem_alteracao_de_prazo` | `--confirmar` sem `--ate`, `--dias` ou `--excluir` (uso, saída 2) |
+| `ErroPrazo::OpcoesIncompativeis` | Combinação de opções mutuamente exclusivas |
+| `ErroPrazo::DataInvalida` | Data não existe |
+| `ErroPrazo::DiasInvalidos` | Contagem fora da faixa |
+| `ErroPrazo::TelaNaoObservada` | Formulário diferente da forma observada |
+| `ErroPrazo::OutroProcesso` | Identidade distinta |
+| `ErroLinkPrazo::BarraNaoInterpretada` | Barra sem leitura segura |
+| `ErroLinkPrazo::LinksRepetidos` | Múltiplas ações de prazo |
+| `ErroLinkPrazo::EnderecoNaoReconhecido` | URL fora da forma segura |
+| `ErroLinkPrazo::EnderecoDeOutroProcesso` | URL de outro processo |
+| `FalhaDoPrazo::ControleNaoOferecidoNaBarra` | Ação ausente |
+| `tela_de_prazo_redirecionada` (sem variante própria confirmada no código) | GET não publicou HTML 200 |
+| `sessao_encerrada_ao_ler_prazo` (sem variante própria confirmada no código) | Login no lugar da tela |
+| erro do clap (saída 2) | `--confirmar` sem `--ate`, `--dias` ou `--excluir` (uso, saída 2) |
 
 Falhas do transporte e da abertura preservam os subcódigos específicos das
 respectivas peças; não se publicam cookies nem URLs assinadas.
@@ -103,7 +103,7 @@ com controles ativos derivados do SQLite, e a CLI so envia o POST apos
 selecionar a linha pelo NUP. O id do item da lista e hipoteticamente igual
 ao id do processo no simulador, enquanto as capturas reais podem distingui-los.
 A lista e o formulario de definicao sao relidos apos o POST; falha ou efeito
-inconclusivo resulta em saida 3 sem retry. A integridade das cassettes de
+inconclusivo resulta em `FalhaDoPrazo::NaoConfirmado`, saida 1, sem retry. A integridade das cassettes de
 exclusao UnB/UFRJ/PEN3 foi verificada em Actions #42633542261 (73 interacoes,
 POST controle_prazo_excluir em cada uma). Paridade semantica e live NOT_RUN.
 

@@ -123,16 +123,7 @@ fn bdd_272_02_cli_real_confirma_dias_por_post_unico_e_releitura() {
 fn bdd_272_02_post_aplicado_mas_recusado_retorna_nao_confirmado_sem_retry() {
     let (saida, pedidos, estado_final) =
         executar_com_resposta("sem", &["--ate", "20/11/2026", "--confirmar"], true);
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr),
-    );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["codigo"], "nao_confirmado");
-    assert_eq!(json["retentavel"], false);
+    super::support::falha(&saida, "NaoConfirmado");
     assert_eq!(estado_final, (Some("20/11/2026".into()), false));
     assert_eq!(
         pedidos
@@ -196,16 +187,7 @@ fn bdd_272_03_exclui_pela_lista_com_post_unico_e_releitura() {
 fn bdd_272_03_post_exclusao_persistido_sem_aceite_falha_sem_retry() {
     let (saida, pedidos, estado_final) =
         executar_com_resposta("data", &["--excluir", "--confirmar"], true);
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr),
-    );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["codigo"], "nao_confirmado");
-    assert_eq!(json["retentavel"], false);
+    super::support::falha(&saida, "NaoConfirmado");
     assert_eq!(estado_final, (None, false));
     assert_eq!(
         pedidos

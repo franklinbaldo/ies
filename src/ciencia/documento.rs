@@ -45,8 +45,6 @@ pub(crate) enum FalhaDoAceite {
     Aceite(#[from] super::ErroCiencia),
 }
 
-impl FalhaDoAceite {}
-
 /// Por que a releitura não comprovou a ciência do documento depois do GET
 /// mutador. Cada etapa guarda o erro original e sobe com `?`.
 #[derive(Debug, thiserror::Error)]
@@ -61,8 +59,6 @@ pub(crate) enum VerificacaoDaCienciaDoDocumento {
     Lista(#[from] super::ErroCiencia),
     AtividadeNaoEncontradaNaListaDoDocumento,
 }
-
-impl VerificacaoDaCienciaDoDocumento {}
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -83,8 +79,6 @@ pub(crate) enum ErroCienciaDocumento {
         falha_do_aceite: Option<FalhaDoAceite>,
     },
 }
-
-impl ErroCienciaDocumento {}
 
 pub(crate) struct PedidoDaCienciaDocumento<'a> {
     pub(crate) numero: &'a NumeroDocumento,

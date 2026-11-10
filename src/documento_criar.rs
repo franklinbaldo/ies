@@ -10,8 +10,7 @@ mod guarda_script;
 pub(crate) use cadastro::conferir_cadastro;
 mod link_do_tipo;
 pub(crate) use fluxo::{
-    ErroPreviaCriacao, EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao,
-    validar_nivel_de_confirmacao,
+    EstadoCriacao, PedidoCriacao, ResultadoCriacao, executar_criacao, validar_nivel_de_confirmacao,
 };
 
 use crate::arvore_processo::DocumentoNaArvore;

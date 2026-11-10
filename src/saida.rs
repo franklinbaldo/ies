@@ -3,28 +3,9 @@
 //! Gerados são listas independentes, publicadas na mesma forma.
 use crate::dominio::Categoria;
 use crate::paginas::Leitura;
+use crate::transporte::StatusHttpRecusado;
 use serde::Serialize;
 use serde_json::{Value, json};
-
-/// Emissão de JSON pela fronteira da CLI, sem `String` ou `Value` intermediário.
-/// O formato compacto mantém os bytes históricos das mensagens de falha.
-fn escrever_json<T: Serialize>(valor: &T, formatado: bool) -> std::io::Result<()> {
-    use std::io::Write as _;
-
-    let saida = std::io::stdout();
-    let mut bloqueada = saida.lock();
-    if formatado {
-        serde_json::to_writer_pretty(&mut bloqueada, valor).map_err(std::io::Error::from)?;
-    } else {
-        serde_json::to_writer(&mut bloqueada, valor).map_err(std::io::Error::from)?;
-    }
-    bloqueada.write_all(b"\n")
-}
-
-/// Saída JSON compacta das falhas, sem representação intermediária.
-pub(crate) fn imprimir_json_compacto<T: Serialize>(valor: &T) -> std::io::Result<()> {
-    escrever_json(valor, false)
-}
 
 /// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
 /// da legenda, nunca afirmação de lista integral.
@@ -156,3 +137,27 @@ mod tests {
 #[cfg(test)]
 #[path = "saida/tests_golden.rs"]
 mod tests_golden;
+
+/// `falha_do_envio` do JSON de sucesso reconciliado: status e mensagem do
+/// SEI que acompanharam o POST cujo efeito a releitura comprovou.
+#[derive(serde::Serialize)]
+pub(crate) struct FalhaPublica {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mensagem_do_servidor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status_http: Option<u16>,
+}
+
+impl FalhaPublica {
+    pub(crate) fn nova(http: Option<StatusHttpRecusado>) -> Self {
+        let status_http = http
+            .as_ref()
+            .map(|h| h.status)
+            .filter(|status| *status != 200);
+        let mensagem_do_servidor = http.and_then(|h| h.mensagem_do_servidor);
+        Self {
+            mensagem_do_servidor,
+            status_http,
+        }
+    }
+}

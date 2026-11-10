@@ -3,7 +3,7 @@ use super::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
-use crate::visao_do_controle::{EstadoDasColunas, FalhaDoSalvar, VerificacaoDasColunas};
+use crate::visao_do_controle::{EstadoDasColunas, FalhaDoSalvar};
 
 fn plano() -> PlanoDasColunas {
     PlanoDasColunas {
@@ -109,48 +109,6 @@ fn alvo_ja_satisfeito_nao_publica_envio_nem_releitura_ficticios() {
 }
 
 #[test]
-fn nao_confirmado_publica_codigo_causa_e_verificacao() {
-    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
-        plano: Box::new(plano()),
-        falha_do_salvar: Some(erro_500()),
-        verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
-            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
-        )),
-    };
-    let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "nao_confirmado");
-    assert_eq!(valor["retentavel"], false);
-    assert_eq!(valor["antes"], json!(["atribuicao", "tipo"]));
-    assert_eq!(valor["alvo"], json!(["atribuicao", "anotacao"]));
-    assert_eq!(valor["status_http"], 503);
-    assert_eq!(valor["mensagem_do_servidor"], "Serviço indisponível.");
-    assert_eq!(valor["observadas"], Value::Null);
-}
-
-#[test]
-fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
-    let erro = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
-        coluna: C::Prioridade,
-    };
-    let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["coluna"], "prioridade");
-}
-
-#[test]
-fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
-    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
-        plano: Box::new(plano()),
-        falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
-        verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
-            ErroVisaoDoControle::Transporte(FalhaTransporte::Rede),
-        )),
-    };
-    let valor = json_de_falha(&erro);
-    assert_eq!(valor.get("status_http"), None);
-}
-
-#[test]
 fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
     for reconciliar in [false, true] {
         let feito = if reconciliar { conferidas() } else { previa() };
@@ -171,31 +129,4 @@ fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
         }
         assert!(!std::str::from_utf8(&bytes).unwrap().contains("infra_hash"));
     }
-}
-
-#[test]
-fn falhas_de_colunas_sao_apresentadas_sem_interpretar_json() {
-    let antes = plano();
-    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
-        plano: Box::new(antes.clone()),
-        falha_do_salvar: Some(erro_500()),
-        verificacao: Box::new(VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])),
-    };
-    let linhas = linhas_da_falha(&erro);
-    assert_eq!(linhas[1], "IES: antes: atribuicao, tipo");
-    assert_eq!(linhas[2], "IES: alvo: atribuicao, anotacao");
-    assert_eq!(linhas[3], "IES: observadas: atribuicao");
-
-    let diferente = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
-        plano: Box::new(antes),
-        observadas: vec![],
-    };
-    let linhas = linhas_da_falha(&diferente);
-    assert_eq!(linhas[3], "IES: observadas: (nenhuma)");
-    assert_eq!(linhas.len(), 4);
-
-    let so_leitura = ErroDefinirColunas::ColunaIndisponivelNestaInstalacao {
-        coluna: C::Prioridade,
-    };
-    assert_eq!(linhas_da_falha(&so_leitura).len(), 1);
 }

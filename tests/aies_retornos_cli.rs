@@ -19,6 +19,10 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "aies-05-retornos";
 
@@ -294,9 +298,6 @@ fn aies_05_cli_mes_observado_preserva_os_dois_retornos() {
 #[test]
 fn aies_05_cli_mes_nao_observado_nao_vira_lista_vazia() {
     let (saida, pedidos) = executar("2026-09", 2);
-    assert_ne!(saida.status.code(), Some(0));
-    let erro = json(&saida);
-    assert!(erro.get("retornos").is_none());
-    assert!(erro.get("total_declarado").is_none());
+    falha(&saida, "MesDosRetornosInacessivel");
     assert!(!pedidos.iter().any(|p| p.contains("data_inicial=")));
 }

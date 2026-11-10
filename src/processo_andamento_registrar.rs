@@ -113,6 +113,20 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
 pub(crate) fn texto_valido(texto: &str) -> bool {
     !texto.trim().is_empty() && texto.chars().count() <= 500
 }
+
+/// Texto do andamento vazio ou com mais de 500 caracteres.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TextoDoAndamentoInvalido;
+
+/// `--texto`: o clap recusa o inválido (saída 2) antes da sessão.
+pub(crate) fn texto_do_andamento(texto: &str) -> Result<String, TextoDoAndamentoInvalido> {
+    if texto_valido(texto) {
+        Ok(texto.to_owned())
+    } else {
+        Err(TextoDoAndamentoInvalido)
+    }
+}
 fn normalizar(texto: &str) -> String {
     texto.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -154,11 +168,29 @@ pub(crate) struct Resultado {
     pub(crate) requisicoes: u8,
     pub(crate) total_antes: u64,
     pub(crate) total_depois: Option<u64>,
-    pub(crate) resposta_inesperada: Option<&'static str>,
+    pub(crate) resposta_inesperada: Option<RespostaInesperada>,
 }
+/// O POST saiu, mas a resposta não foi o 302 de volta ao processo; a
+/// releitura decide. Publicada no JSON de sucesso (`resposta_inesperada`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum RespostaInesperada {
+    RespostaDoAndamentoNaoEsperada,
+    RespostaDoAndamentoRecusada,
+}
+
+/// Por que o POST enviado não foi comprovado pela releitura do histórico.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum Erro {
+pub(crate) enum IncertezaDoAndamento {
+    Releitura(#[source] ErroProcessoObter),
+    HistoricoNaoRelido,
+    AndamentoNaoInseridoUmaVez,
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroRegistrarAndamento {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
@@ -171,9 +203,14 @@ pub(crate) enum Erro {
     FormatoDaTela(#[from] ErroTela),
     CharsetNaoSuportado,
     Formulario(#[from] ErroSubmissaoFormulario),
-    NaoConfirmado,
+    /// O POST saiu e a releitura não comprovou o andamento: não repita.
+    NaoConfirmado {
+        requisicoes: u8,
+        resposta_inesperada: Option<RespostaInesperada>,
+        #[source]
+        causa: IncertezaDoAndamento,
+    },
 }
-impl Erro {}
 /// Fluxo injetável, sem retries, sem redirecionamentos seguidos.
 pub(crate) fn registrar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
@@ -183,8 +220,9 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<Resultado, Erro> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(Erro::OrigemNaoAutorizada)?;
+) -> Result<Resultado, ErroRegistrarAndamento> {
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(ErroRegistrarAndamento::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let pedido = PedidoDoProcesso {
         nup: numero,
@@ -196,15 +234,20 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
     let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, &mut rede)?;
-    let endereco = acoes.andamento?.ok_or(Erro::AcaoNaoOferecida)?;
+    let endereco = acoes
+        .andamento?
+        .ok_or(ErroRegistrarAndamento::AcaoNaoOferecida)?;
     let Andamentos::Lidos(antes) = aberto.andamentos else {
-        return Err(Erro::HistoricoNaoPublicado);
+        return Err(ErroRegistrarAndamento::HistoricoNaoPublicado);
     };
-    let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
+    let unidade = aberto
+        .unidade
+        .ok_or(ErroRegistrarAndamento::UnidadeNaoPublicada)?;
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str())?;
     conferir_formulario(&html, &aberto.arvore.processo.id)?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;
+    let codificacao =
+        codificacao_da_tela(&mime).ok_or(ErroRegistrarAndamento::CharsetNaoSuportado)?;
     let tela = TelaServida {
         url: endereco.as_str(),
         html: &html,
@@ -238,18 +281,28 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         {
             None
         }
-        Ok(_) => Some("resposta_do_andamento_nao_esperada"),
-        Err(e) if !enviado => return Err(Erro::Formulario(e)),
-        Err(_) => Some("resposta_do_andamento_recusada"),
+        Ok(_) => Some(RespostaInesperada::RespostaDoAndamentoNaoEsperada),
+        Err(e) if !enviado => return Err(ErroRegistrarAndamento::Formulario(e)),
+        Err(_) => Some(RespostaInesperada::RespostaDoAndamentoRecusada),
     };
     // A escrita saiu: mesmo se o POST falhou, jamais repetir.
-    let depois =
-        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::NaoConfirmado)?;
+    let incerto = |rede: &Contador<'_, V>, causa| ErroRegistrarAndamento::NaoConfirmado {
+        requisicoes: rede.feitas(),
+        resposta_inesperada: resultado.resposta_inesperada,
+        causa,
+    };
+    let depois = match obter_processo(sessao, &pedido, indice, &mut rede) {
+        Ok(depois) => depois,
+        Err(erro) => return Err(incerto(&rede, IncertezaDoAndamento::Releitura(erro))),
+    };
     let Andamentos::Lidos(depois) = depois.andamentos else {
-        return Err(Erro::NaoConfirmado);
+        return Err(incerto(&rede, IncertezaDoAndamento::HistoricoNaoRelido));
     };
     if !inserido_uma_vez(&antes, &depois, texto) {
-        return Err(Erro::NaoConfirmado);
+        return Err(incerto(
+            &rede,
+            IncertezaDoAndamento::AndamentoNaoInseridoUmaVez,
+        ));
     }
     resultado.total_depois = Some(depois.total_declarado);
     resultado.requisicoes = rede.feitas();

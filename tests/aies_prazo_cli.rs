@@ -263,3 +263,5 @@ fn executar_sequencia(
 
 #[path = "aies_prazo_cli/cenarios.rs"]
 mod cenarios;
+#[path = "support/falha.rs"]
+mod support;

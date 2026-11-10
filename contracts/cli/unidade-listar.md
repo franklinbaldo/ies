@@ -26,7 +26,7 @@ rede, página ou integridade são recusas tipadas: não se apresenta o
 snapshot anterior como se fosse atualizado. Se o índice estiver
 desligado, a coleta Web continua e avisa que não houve persistência.
 `--unidade` explícita é recusada com
-`unidade_pedida_nao_verificavel_offline`: a CLI não finge ter
+`UnidadePedidaNaoVerificavelOffline`: a CLI não finge ter
 verificado no SEI a sigla exibida. Nenhum caso faz retry.
 
 A integridade, a consulta SQL pública somente leitura e a
@@ -69,26 +69,26 @@ não reconhecidos. A evidência é offline, sem atestar live.
 
 Erros tipados desta operação:
 - `lupa_transporte_recusado`: falha de transporte ou status na navegação/consulta;
-- `link_da_lupa_ausente`: ação obrigatória não foi publicada;
-- `link_da_lupa_ambiguo`: links conflitantes para o mesmo destino;
-- `link_da_lupa_fora_da_instalacao`: link fora da origem permitida;
-- `charset_da_lupa_nao_suportado`: MIME não permite codificação segura;
-- `formulario_da_lupa_inesperado`: controles/action da página não conferem;
-- `pagina_da_lupa_fora_da_forma`: linha, tabela, cabeçalho ou paginação inválida;
-- `lista_unidades_incompleta`: totais, páginas ou IDs não conferem;
-- `lupa_excedeu_orcamento_de_paginas`: número de páginas não foi encerrado.
+- `FalhaDaLupa::LinkAusente`: ação obrigatória não foi publicada;
+- `FalhaDaLupa::LinkAmbiguo`: links conflitantes para o mesmo destino;
+- `FalhaDaLupa::LinkForaDaInstalacao`: link fora da origem permitida;
+- `FalhaDaLupa::CharsetInesperado`: MIME não permite codificação segura;
+- `FalhaDaLupa::FormularioInesperado`: controles/action da página não conferem;
+- `ErroLupa::TabelaForaDaForma`: linha, tabela, cabeçalho ou paginação inválida;
+- `ErroDasUnidades::LupaSemListaIntegral`: totais, páginas ou IDs não conferem;
+- `FalhaDaLupa::ExcessoDePaginas`: número de páginas não foi encerrado.
 
 A lista local é um retrato da leitura, não uma garantia de atualidade.
 
 ## Tabela normativa de recusas da lupa
 
-| Subcódigo | Condição |
+| Variante ou `onde` (stderr) | Condição |
 | --- | --- |
-| `charset_da_lupa_nao_suportado` | Codificação da tela não suportada |
-| `formulario_da_lupa_inesperado` | Formulário servido incompatível |
-| `link_da_lupa_ambiguo` | Mais de um link assinado divergente |
-| `link_da_lupa_ausente` | Link não publicado |
-| `link_da_lupa_fora_da_instalacao` | Link fora da instalação autorizada |
-| `lista_unidades_incompleta` | Inconsistência entre páginas e total |
-| `lupa_excedeu_orcamento_de_paginas` | Limite da coleta excedido |
-| `pagina_da_lupa_fora_da_forma` | Página sem os campos observados |
+| `FalhaDaLupa::CharsetInesperado` | Codificação da tela não suportada |
+| `FalhaDaLupa::FormularioInesperado` | Formulário servido incompatível |
+| `FalhaDaLupa::LinkAmbiguo` | Mais de um link assinado divergente |
+| `FalhaDaLupa::LinkAusente` | Link não publicado |
+| `FalhaDaLupa::LinkForaDaInstalacao` | Link fora da instalação autorizada |
+| `ErroDasUnidades::LupaSemListaIntegral` | Inconsistência entre páginas e total |
+| `FalhaDaLupa::ExcessoDePaginas` | Limite da coleta excedido |
+| `ErroLupa::TabelaForaDaForma` | Página sem os campos observados |

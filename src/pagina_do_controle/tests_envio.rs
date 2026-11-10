@@ -184,8 +184,12 @@ fn erro_503_do_post_com_pagina_valida_e_recusa_com_status_e_mensagem() {
     );
     let erro = obter(2, 503, &corpo, &chamadas).unwrap_err();
     assert_eq!(chamadas.get(), 1, "sem nova tentativa");
-    let http = erro.status_http().expect("status do POST");
+    let E::Submissao(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+        crate::transporte::FalhaTransporte::Status(http),
+    )) = erro
+    else {
+        panic!("esperado o status do POST: {erro:?}");
+    };
     assert_eq!(http.status, 503);
     assert_eq!(http.mensagem_do_servidor.as_deref(), Some("Sobrecarga."));
-    assert_eq!(E::RedirecionamentoAposPaginar.status_http(), None);
 }

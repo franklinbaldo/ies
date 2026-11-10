@@ -18,10 +18,7 @@ fn bdd_60_05_cli_recusa_titulo_divergente_apos_arvore_sem_fallback() {
         "a CLI não pode aceitar o título trocado: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    let erro = json(&saida);
-    assert_eq!(erro["documento"], DOC_A, "{erro}");
-    assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-    assert!(erro.get("documentos").is_none(), "vazou conteúdo: {erro}");
+    falha_cli::falha_por(&saida, "Documento", "TituloDeOutroDocumento");
     assert_eq!(
         trilha
             .iter()

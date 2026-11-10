@@ -24,7 +24,7 @@ pub(crate) struct Resultado {
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(crate) enum Erro {
+pub(crate) enum ErroProcessoComentarios {
     Abertura(#[from] ErroProcessoObter),
     Barra(#[from] ErroLinkDosComentarios),
     Cookie(#[from] CookieIlegivel),
@@ -45,24 +45,26 @@ pub(crate) fn ler<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<Resultado, Erro> {
+) -> Result<Resultado, ErroProcessoComentarios> {
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, false), indice, &mut rede)?;
-    let endereco = acoes.comentarios?.ok_or(Erro::ComentariosNaoOferecidos)?;
+    let endereco = acoes
+        .comentarios?
+        .ok_or(ErroProcessoComentarios::ComentariosNaoOferecidos)?;
     let cookie = ler_cookie(sessao)?;
     let (html, _) =
         obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(|falha| match falha {
-            FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
-            FalhaDaTela::Redirecionada => Erro::RedirecionamentoNaoComprovado,
+            FalhaDaTela::Transporte(erro) => ErroProcessoComentarios::Transporte(erro),
+            FalhaDaTela::Redirecionada => ErroProcessoComentarios::RedirecionamentoNaoComprovado,
             FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                Erro::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                ErroProcessoComentarios::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
         })?;
     // O cadastro vazio não pode ser confundido com uma lista completa:
     // a transição 302/lista vazia receberá tratamento próprio em outra fatia.
     let TelaDosComentarios::Lista(lista) = crate::processo_comentarios::ler_tela(&html)? else {
-        return Err(Erro::RedirecionamentoNaoComprovado);
+        return Err(ErroProcessoComentarios::RedirecionamentoNaoComprovado);
     };
     Ok(Resultado {
         numero: nup.as_str().to_owned(),

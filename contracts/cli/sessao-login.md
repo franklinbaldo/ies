@@ -37,14 +37,14 @@ reescrita.
   O arquivo só é lido quando um login é necessário.
 - `--forcar`: faz um novo login mesmo com sessão válida.
 - `--unidade SIGLA` (global): pré-condição conferida no Controle obtido.
-  Diferença literal falha com `unidade_exibida_diferente_da_solicitada`
+  Diferença literal falha com `UnidadeExibidaDiferenteDaSolicitada`
   e **não grava** a sessão.
 
 ## Fluxo e orçamento
 
 1. Lê a origem e obtém o **lock** entre processos (`<url-controle>.lock`,
    `flock` exclusivo da `std`; espera até 120 s, depois
-   `login_em_andamento_em_outro_processo`).
+   `LoginEmAndamentoEmOutroProcesso`).
 2. Sem `--forcar`, confere a sessão gravada com **um GET** da URL do
    Controle (mesmas travas do GET da caixa). Controle reconhecido →
    `sessao_existente_valida`, sem login (orçamento: 1). Tela de login,
@@ -149,30 +149,30 @@ Os outros comandos leem a sessão sem o lock, num retrato coerente (#222):
 o marcador antes e depois de URL, origem e cookie. Marcador que mudou, ou
 que não confere com URL e cookie lidos, faz reler os arquivos locais uma
 vez (nenhuma requisição); de novo incoerente, a leitura falha com
-`sessao_trocada_durante_a_leitura` (`fonte_invalida`, saída 1, sem relogin;
+`SessaoTrocadaDuranteALeitura` (`FalhaTransporte`, saída 1, sem relogin;
 rodar de novo resolve). Todas as requisições do comando e a colheita do
 índice usam o cookie desse retrato. Sem marcador, a leitura é a de antes
 ([decisão](../../docs/decisoes/sessao-login/leitura-coerente-da-sessao.md)).
 
 ## Falhas tipadas
 
-`caminho_credenciais_nao_informado`, `campo_das_credenciais_ausente`,
-`campo_das_credenciais_repetido`, `campo_das_credenciais_vazio`,
-`linha_das_credenciais_sem_campo_conhecido`, os de arquivo privado
-(`arquivo_privado_*`), `login_em_andamento_em_outro_processo`,
-`arquivo_de_lock_do_login_inacessivel`, `controle_web_nao_reconhecido`
+`caminho_credenciais_nao_informado`, `CampoDasCredenciaisAusente`,
+`CampoDasCredenciaisRepetido`, `CampoDasCredenciaisVazio`,
+`LinhaDasCredenciaisSemCampoConhecido`, os de arquivo privado
+(`arquivo_privado_*`), `LoginEmAndamentoEmOutroProcesso`,
+`ArquivoDeLockDoLoginInacessivel`, `controle_web_nao_reconhecido`
 (sessão existente), `redirecionamento_do_login_sem_localizacao`,
-`localizacao_de_redirecionamento_nao_interpretavel`,
-`redirecionamento_para_fora_da_instalacao`,
-`redirecionamentos_acima_do_limite`,
-`redirecionamento_que_repetiria_o_envio_do_login`,
-`cookie_recebido_fora_do_formato_aceito`, `tela_de_login_nao_reconhecida`,
-`charset_da_tela_de_login_nao_suportado`, `captcha_exigido`,
-`segundo_fator_exigido`, `selecao_de_orgao_ausente_na_tela_de_login`,
+`LocalizacaoDeRedirecionamentoNaoInterpretavel`,
+`RedirecionamentoParaForaDaInstalacao`,
+`RedirecionamentosAcimaDoLimite`,
+`RedirecionamentoQueRepetiriaOEnvioDoLogin`,
+`CookieRecebidoForaDoFormatoAceito`, `tela_de_login_nao_reconhecida`,
+`CharsetDaTelaDeLoginNaoSuportado`, `captcha_exigido`,
+`SegundoFatorExigido`, `selecao_de_orgao_ausente_na_tela_de_login`,
 `selecao_de_orgao_repetida_na_tela_de_login`,
 `orgao_nao_encontrado_na_tela_de_login`,
 `orgao_com_mais_de_uma_opcao_na_tela_de_login`,
-`regra_do_onsubmit_do_login_nao_observada`,
+`RegraDoOnsubmitDoLoginNaoObservada`,
 `botao_de_envio_do_login_nao_reconhecido`, os do primitivo de formulário,
 `credencial_recusada` (com `mensagem_do_servidor` saneada quando a tela
 a declara: primeiro o `#txaInfraValidacao` da
@@ -180,21 +180,22 @@ a declara: primeiro o `#txaInfraValidacao` da
 observado na UnB 4.0.9; senão `divInfraExcecao`, `alert-danger`,
 `infraMensagemErro` ou `infraExcecao`), `tela_apos_o_login_nao_reconhecida`,
 `link_do_controle_de_processos_nao_reconhecido`,
-`controle_apos_o_login_nao_reconhecido`, `cookie_da_sessao_nao_recebido`,
-`destino_da_sessao_nao_eh_arquivo_regular` (o nome final é link ou não
-é arquivo regular), `diretorio_da_sessao_gravavel_por_outros` (o
+`ControleAposOLoginNaoReconhecido`, `CookieDaSessaoNaoRecebido`,
+`DestinoDaSessaoNaoEhArquivoRegular` (o nome final é link ou não
+é arquivo regular), `DiretorioDaSessaoGravavelPorOutros` (o
 diretório real da sessão é gravável por grupo ou outros sem sticky bit;
 link no caminho, como `/home` → `/var/home`, é aceito),
-`gravacao_da_sessao_falhou`,
-`unidade_exibida_diferente_da_solicitada` e os de transporte
-(`status_http_*` com `status_http` e `mensagem_do_servidor`,
-`falha_de_rede`, `tipo_de_conteudo_nao_html`, `resposta_excessiva`) e
+`GravacaoDaSessaoFalhou`,
+`UnidadeExibidaDiferenteDaSolicitada` e os de transporte
+(`Status(StatusHttpRecusado { status, mensagem_do_servidor })`,
+`Rede`, `TipoDeConteudoNaoHtml`, `RespostaExcessiva`) e
 os do proxy (acima).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
-terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
-`status_http` e `mensagem_do_servidor` nas recusas HTTP, só
-`mensagem_do_servidor` em `credencial_recusada` e `campo` (a chave, nunca o valor) nas falhas do
-arquivo de credenciais. Saída 1.
+terminam o comando. A falha sai com 1 e `Error: <variante de ErroLogin>`
+em stderr: `Transporte(Status(StatusHttpRecusado { status, mensagem_do_servidor }))`
+nas recusas HTTP, `CredencialRecusada { mensagem_do_servidor }` e, nas
+falhas do arquivo de credenciais, o campo (a chave, nunca o valor), como
+em `CampoDasCredenciaisAusente(Senha)`.
 
 ## Relogin único nas leituras
 
@@ -208,19 +209,19 @@ prévia e a escrita), saem com o erro tipado e o agente decide.
 
 1. No início do comando, a geração gravada: os SHA-256 do cookie e da URL
    do Controle (os do marcador), lidos dos arquivos, sem rede.
-2. A leitura roda. Só `pagina_de_login_recebida_no_controle` e
-   `sessao_encerrada_rode_ies_login` disparam o relogin. O segundo vale
-   também para o **302 do GET do Controle** cujo `Location`, resolvido
+2. A leitura roda. Só `PaginaDeLoginRecebidaNoControle`,
+   `ControleRedirecionadoParaOLogin` e o marcador `SessaoEncerrada`
+   disparam o relogin (decisão por `match` em cada tipo de erro:
+   `sessao_encerrada()`). `ControleRedirecionadoParaOLogin` é o **302 do GET do Controle** cujo `Location`, resolvido
    contra a instalação (mesmo host; `http://` no mesmo host conta), é uma
    entrada do login dela: `/sip/login.php`, o módulo de Goiás
    (`<base>/modulos/goias/login-sei/MdGoiasLoginSEI.php` ou `login.php`)
    ou a raiz `<base>/`, sem fragmento e sem `msg=Link sem assinatura`;
-   sai com `status_http` 302 e nunca é seguido. Nenhuma outra
-   falha dispara: `sessao_nao_autorizada` (401/403),
-   `bloqueio_de_seguranca_da_instalacao` (WAF), `redirecionamento_recusado`
-   (qualquer outro 3xx, outro host ou caminho, 302 sem `Location`),
-   `status_http_*`, `entrada_por_id_recusada_rode_ies_login`,
-   `tela_de_login_recebida_apos_envio`, rede, proxy e tela inesperada.
+   carrega o status 302 e nunca é seguido. Nenhuma outra
+   falha dispara: `Status` 401/403, `BloqueioDeSegurancaDaInstalacao`
+   (WAF), `Status` 3xx (qualquer outro 3xx, outro host ou caminho, 302
+   sem `Location`), os demais `Status`, `ErroProcessoObter::EntradaPorIdRecusada`,
+   `TelaDeLoginRecebidaAposEnvio`, rede, proxy e tela inesperada.
 3. Sem `IES_CREDENCIAIS_FILE`, ou com o arquivo ausente: comportamento
    anterior, sem lock e sem pedido a mais. Arquivo presente e inválido
    (permissão, link, formato) sai com a falha tipada dele.
@@ -247,10 +248,10 @@ N₁ + N₂. Sem retry de outra natureza.
   com esse total. O arquivo de `--saida` não muda.
 - `relogin: true` quando **este** processo logou; ausente quando a
   geração já tinha trocado.
-- Falha depois do relogin: o `fonte_invalida` da leitura com
-  `relogin: true`. Falha do relogin (`credencial_recusada`,
-  `login_em_andamento_em_outro_processo`,
-  `unidade_exibida_diferente_da_solicitada`...): o JSON de falha do
+- Falha depois do relogin: o erro da leitura com o contexto
+  `LeituraRefeitaAposRelogin(NotaDoRelogin)`. Falha do relogin
+  (`CredencialRecusada`, `LoginEmAndamentoEmOutroProcesso`,
+  `UnidadeExibidaDiferenteDaSolicitada`...): o `ErroLogin` do
   `ies login`, sem reler. Saída 1.
 - Sem `--json`, uma linha em `stderr` diz que a leitura recomeçou, com o
   total de requisições.

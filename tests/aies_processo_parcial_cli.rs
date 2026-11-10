@@ -19,6 +19,19 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::{falha, falha_por};
+
+/// O erro tipado inteiro, como sobe (`Error: <Debug>`, depois a cadeia).
+#[track_caller]
+fn linhas_do_erro(saida: &Output) -> Vec<String> {
+    String::from_utf8_lossy(&saida.stderr)
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
 #[path = "aies_documento_criar_cli/fixture_tls.rs"]
 mod fixture_tls;
 use fixture_tls::{Pasta, identidade};
@@ -450,9 +463,8 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
         pedidos.iter().all(|evento| evento.starts_with("GET ")),
         "uma recusa de leitura não deve escrever: {pedidos:?}"
     );
-    let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_ne!(saida_json["numero"], ALHEIO);
-    assert_ne!(saida_json["documentos_incluidos"], false);
+    // Nada do processo alheio é publicado: a falha é a identidade da árvore.
+    falha_por(&saida, "Arvore", "IdentidadeDoProcessoDiferenteDaPedida");
 }
 
 /// BDD-342-01: o processo e seu NUP são comprovados, mas a lista documental não.

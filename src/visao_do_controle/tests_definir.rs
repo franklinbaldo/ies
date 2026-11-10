@@ -339,7 +339,6 @@ fn verificacao_com_as_marcas_de_antes_e_nao_aplicada() {
             ..
         }
     ));
-    assert_eq!(falha.codigo(), "escrita_nao_aplicada");
 }
 
 #[test]

@@ -64,53 +64,34 @@ pub enum FalhaTransporte {
 }
 
 impl FalhaTransporte {
-    pub fn mensagem(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::ChaveDeConsultaNaoCanonica => {
-                "nome de parâmetro da URL de controle não é canônico"
+            Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
+                true
             }
-            Self::SeparadorDeConsultaAmbiguo => {
-                "separador de parâmetros da URL de controle não é inequívoco"
-            }
-            Self::OrigemNaoAutorizada => "destino HTTPS diferente da origem autorizada da sessão",
-            Self::UrlInvalida => "URL assinada da caixa inválida",
-            Self::CookieInvalido => "formato de cookie de sessão inválido",
-            Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
-            Self::TipoDeConteudoNaoXml => "a consulta não declara Content-Type XML",
-            Self::ArquivoPrivadoAusenteOuInacessivel => {
-                "arquivo privado não encontrado ou sem acesso"
-            }
-            Self::ArquivoPrivadoComPermissoesInseguras => {
-                "arquivo privado permite acesso por outros usuários"
-            }
-            Self::CaminhoDeArquivoNaoEhArquivo => {
-                "caminho informado não aponta para arquivo regular"
-            }
-            Self::ArquivoPrivadoLinkSimbolico => "arquivo privado não pode ser link simbólico",
-            Self::ArquivoPrivadoVazio => "arquivo privado vazio",
-            Self::ArquivoPrivadoAcimaDoLimite => "arquivo privado supera o limite permitido",
-            Self::ArquivoPrivadoNaoPodeSerLido => "não foi possível ler o arquivo privado",
-            Self::SessaoTrocadaDuranteALeitura => {
-                "a sessão local foi regravada durante a leitura, duas vezes; nada foi pedido ao SEI"
-            }
-            Self::Status(_) => "o SEI respondeu com status HTTP diferente de 200",
-            Self::BloqueioDeSegurancaDaInstalacao(_) => {
-                "a política de segurança da instalação bloqueou a requisição; espace as execuções"
-            }
-            Self::ControleRedirecionadoParaOLogin(_) => {
-                "o SEI redirecionou o Controle para a tela de login; rode ies login"
-            }
-            Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
-                "o corpo da resposta não decodifica no charset declarado"
-            }
-            Self::PaginaDeLoginRecebidaNoControle => {
-                "o SEI devolveu formulário de login em vez da caixa"
-            }
-            Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
-            Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
-            Self::Proxy => {
-                "o proxy do ambiente é inválido ou recusou o túnel; nenhum pedido foi repetido"
-            }
+            Self::ChaveDeConsultaNaoCanonica
+            | Self::SeparadorDeConsultaAmbiguo
+            | Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoComPermissoesInseguras
+            | Self::CaminhoDeArquivoNaoEhArquivo
+            | Self::ArquivoPrivadoLinkSimbolico
+            | Self::ArquivoPrivadoVazio
+            | Self::ArquivoPrivadoAcimaDoLimite
+            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::Status(_)
+            | Self::BloqueioDeSegurancaDaInstalacao(_)
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => false,
         }
     }
 }
@@ -118,6 +99,30 @@ impl FalhaTransporte {
 impl FalhaTransporte {
     /// Status e mensagem do SEI, só nas recusas por status HTTP.
     pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        match self {
+            Self::Status(recusa)
+            | Self::BloqueioDeSegurancaDaInstalacao(recusa)
+            | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
+            Self::ChaveDeConsultaNaoCanonica
+            | Self::SeparadorDeConsultaAmbiguo
+            | Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoComPermissoesInseguras
+            | Self::CaminhoDeArquivoNaoEhArquivo
+            | Self::ArquivoPrivadoLinkSimbolico
+            | Self::ArquivoPrivadoVazio
+            | Self::ArquivoPrivadoAcimaDoLimite
+            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::PaginaDeLoginRecebidaNoControle
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => None,
+        }
     }
 }

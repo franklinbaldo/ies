@@ -68,7 +68,7 @@ Orçamento: abertura + 1 GET da tela, sem POST.
 e o NUP de destino na tabela. Aceita somente 302 de retorno à ação
 `procedimento_relacionar`, com `resultado=1`; um HTTP 200 genérico,
 403, transporte falho, 302 divergente ou vínculo ausente na releitura
-resulta em `nao_confirmado`, saída 1. Orçamento sintético a frio:
+resulta em `FalhaRelacionar::NaoConfirmado`, saída 1. Orçamento sintético a frio:
 **4 GET + 1 POST de consulta + 1 POST modificador + 1 GET**.
 O sinal 302 e os campos usados provêm da tela PEN1 e do oráculo Todos,
 sem alegação de validação ao vivo nas demais instalações.
@@ -114,21 +114,21 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 
 ## Subcódigos tipados da fatia
 
-| Subcódigo | Condição observável ou regra |
+| Variante ou `onde` (stderr) | Condição observável ou regra |
 | --- | --- |
-| `relacionar_nao_publicado_na_barra` | A barra do processo não publica `procedimento_relacionar` |
+| `FalhaRelacionar::LinkNaoPublicado` | A barra do processo não publica `procedimento_relacionar` |
 | `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |
 | `endereco_de_relacionar_nao_reconhecido` | O link da barra não tem a forma observada de `procedimento_relacionar` |
-| `endereco_de_relacionar_de_outro_processo` | O link da barra aponta para outro `id_procedimento` |
-| `tela_de_relacionamentos_redirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
-| `relacionamento_consigo_mesmo` | O destino informado é o próprio processo |
-| `remocao_de_relacionamento_nao_oferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
-| `destino_da_consulta_diverge_do_pedido` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
-| `resposta_da_consulta_nao_xml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
+| `ErroRelacionarNaBarra::EnderecoDeOutroProcesso` | O link da barra aponta para outro `id_procedimento` |
+| `FalhaRelacionar::TelaRedirecionada` | O GET da tela de relacionamentos respondeu com redirecionamento |
+| `RelacionamentoConsigoMesmo` | O destino informado é o próprio processo |
+| `FalhaRelacionar::RemocaoNaoOferecida` | A linha do relacionamento existe, mas não traz `acaoRemover('id')` |
+| `FalhaRelacionar::DestinoDaConsultaDivergente` | O XML identificou protocolo que não equivale ao pedido completo (letras e números) |
+| `FalhaRelacionar::ConsultaNaoXml` | A consulta retornou resposta HTTP 200 com mídia diferente de XML |
 | `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
 | `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
 | `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
-| `nao_confirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
+| `NaoConfirmado` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 1 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de
 formulário conservam sua identidade. Recusas não autorizam retry.

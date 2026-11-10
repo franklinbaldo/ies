@@ -26,7 +26,7 @@ A Lista de Ciências do processo ou de outro documento não serve. O SEI
 registra sempre em nome do usuário da sessão; não inferir outros usuários.
 
 Uma recusa, 302, timeout, árvore ou lista ilegível após GET mutador implicam
-`nao_confirmado_na_ciencia_do_documento` e saída 1; jamais repetir escrita
+`ErroCienciaDocumento::NaoConfirmado` e saída 1; jamais repetir escrita
 automaticamente. A prévia nunca consulta `documento_ciencia`. Na apresentação humana, identifica documento, rótulo e processo, acrescentando a unidade apenas quando observada na abertura; separa as frases com espaçamento normal e exibe `--confirmar` e a contagem de requisições. A saída JSON mantém a unidade opcional e não inventa dado ausente. A causa tipada
 do único GET mutador permanece em `falha_do_aceite` na saída JSON:
 transporte/status HTTP, validação da Infra (HTTP 200 com mensagem saneada),
@@ -50,7 +50,7 @@ mostra. Não confundir ausência de prova com ausência de efeito.
 
 ## Subcódigos próprios
 
-| Subcódigo | Condição observada |
+| Variante ou `onde` (stderr) | Condição observada |
 | --- | --- |
 | `barra_da_ciencia_do_documento_fora_da_forma` | Atributos da barra inválidos |
 | `botoes_de_ciencia_do_documento_repetidos` | Botão duplicado |
@@ -60,7 +60,7 @@ mostra. Não confundir ausência de prova com ausência de efeito.
 - `ciencia_nao_oferecida_no_documento` — barra sem botão
 - `tela_da_ciencia_do_documento_nao_publicada` — nó sem tela vinculada
 - `tela_da_ciencia_do_documento_redirecionada` — prévia redirecionada
-- `nao_confirmado_na_ciencia_do_documento` — escrita sem prova posterior
+- `ErroCienciaDocumento::NaoConfirmado` — escrita sem prova posterior
 
 Erros HTML de origem, de duplicidade e atributos têm causa
 `ErroHtml` tipada; erros de transporte conservam a causa original.
@@ -166,21 +166,21 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 ## Recusa Infra HTTP 200 na apresentação (#271)
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
-com HTTP **200**. A saída `--json` publica `codigo: nao_confirmado`,
-`status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
-observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
+com HTTP **200**. A falha sai com 1 e
+`Error: NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(StatusHttpRecusado { status: 200, mensagem_do_servidor })), .. }`
+(`ErroCienciaDocumento`), com as `requisicoes` reais observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
-A saída humana mantém a mensagem de recusa e acrescenta a **contagem de requisições observadas** na escrita não confirmada, orientando a conferir a Lista de Ciências antes de outra confirmação e a **não repetir a escrita**. Não proíbe nova prévia: ela é somente leitura. O JSON mantém o mesmo número de requisições e os campos anteriores.
+A contagem de requisições observadas acompanha a escrita não confirmada; antes de outra confirmação, confira a Lista de Ciências e **não repita a escrita**. Nova prévia continua permitida: ela é somente leitura.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
  
-## Mensagem JSON de escrita não confirmada (#271, 07/11/2026)
+## Escrita não confirmada (#271, 07/11/2026; forma tipada desde o #695)
 
-O campo `erro` do JSON, assim como a apresentação humana, orienta
-consultar a **Lista de Ciências do documento** antes de uma **nova confirmação**
-quando o efeito for incerto. Não sugere repetir a escrita nem proíbe
-nova prévia exclusivamente de leitura. Conserva `codigo=nao_confirmado`,
-saída 1, `requisicoes` observadas, HTTP e causa original, sem GET extra.
+Com efeito incerto, a falha é `ErroCienciaDocumento::NaoConfirmado`,
+saída 1, com `requisicoes` observadas, a verificação e a causa original
+do aceite (incluindo o HTTP), sem GET extra. Antes de uma **nova
+confirmação**, consulte a **Lista de Ciências do documento**; nova prévia
+de leitura continua permitida.
 RED da regressão JSON:
 [CI 42367722667](https://github.com/franklinbaldo/ies/actions/runs/42367722667),
 **1 FAIL novo, 1.872 PASS, 24 ignored**, antes da correção.

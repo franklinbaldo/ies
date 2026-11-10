@@ -2,20 +2,21 @@
 //! O par local é
 //! `DOC.vN.html` (a foto) e `DOC.v(N+1).html` (a edição), #207. Offline:
 //! não lê índice, configuração nem sessão, e não verifica a base.
-use super::{Cli, Documento, DocumentoAcao, Domain, erro_fonte};
+use super::{Cli, Documento, DocumentoAcao, Domain};
 use crate::{copia_documento, copia_listagem, documento, documento_versoes};
 use serde_json::json;
 
 #[path = "documento_salvar_cli/remoto.rs"]
 mod remoto;
-use std::process::ExitCode;
 
-fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
-    let Ok(pasta) = std::env::current_dir() else {
-        return erro_fonte(json_mode, "diretório de trabalho não pode ser lido");
-    };
-    match copia_listagem::listar(&pasta, documento) {
-        Ok(copias) => {
+fn mostrar_listagem_copias(
+    documento: &documento::NumeroDocumento,
+    json_mode: bool,
+) -> anyhow::Result<()> {
+    let pasta = std::env::current_dir()?;
+    {
+        let copias = copia_listagem::listar(&pasta, documento)?;
+        {
             if json_mode {
                 println!(
                     "{}",
@@ -38,10 +39,9 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
                     );
                 }
             }
-            ExitCode::SUCCESS
         }
-        Err(_) => erro_fonte(json_mode, "listagem local de cópias não foi verificada"),
     }
+    Ok(())
 }
 
 pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
@@ -60,15 +60,15 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let documento = numero.clone();
     if *listar_copias {
-        return Some(crate::legado(mostrar_listagem_copias(&documento, cli.json)));
+        return Some(mostrar_listagem_copias(&documento, cli.json));
     }
-    let Ok(versao) = versao
-        .map(documento_versoes::VersaoDocumento::nova)
-        .transpose()
-    else {
-        return Some(crate::legado(erro_fonte(cli.json, "versão inválida")));
+    // A faixa (1..) é do clap.
+    let versao = versao.and_then(|n| documento_versoes::VersaoDocumento::nova(n).ok());
+    let pasta = match std::env::current_dir() {
+        Ok(pasta) => pasta,
+        Err(erro) => return Some(Err(erro.into())),
     };
-    let previa = copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao);
+    let previa = copia_documento::previa_local(&pasta, &documento, versao);
     match previa {
         Ok(dados) if !confirmar => {
             if cli.json {
@@ -101,45 +101,8 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
             Some(Ok(()))
         }
         Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
-        Err(_) => Some(crate::legado(erro_fonte(
-            cli.json,
-            "cópia local não pode ser conferida",
-        ))),
+        Err(erro) => Some(Err(erro.into())),
     }
-}
-
-pub(super) fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<ExitCode> {
-    for numero in numeros {
-        if let Err(erro) = documento::NumeroDocumento::novo(numero) {
-            if json_mode {
-                println!(
-                    "{}",
-                    json!({
-                        "codigo": "entrada_invalida",
-                        "erro": "número SEI de documento inválido",
-                        "retentavel": false
-                    })
-                );
-            } else {
-                eprintln!("IES: número SEI de documento inválido ({erro:?})");
-            }
-            return Some(ExitCode::from(2));
-        }
-    }
-    None
-}
-
-pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
-    if let Domain::Documento(Documento {
-        acao: None,
-        versao: Some(versao),
-        ..
-    }) = &cli.command
-        && let Err(_) = documento_versoes::VersaoDocumento::nova(*versao)
-    {
-        return Some(erro_fonte(cli.json, "versão do documento inválida"));
-    }
-    None
 }
 
 #[cfg(test)]

@@ -6,7 +6,9 @@ use crate::processo_criar_cadastro::ErroCadastro;
 use crate::processo_criar_hipotese::ErroHipotese;
 use crate::processo_criar_interessados::ErroInteressado;
 use crate::processo_criar_lista::ErroListaDeTipos;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
+#[cfg(test)]
+use crate::transporte::StatusHttpRecusado;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -31,6 +33,9 @@ pub(crate) enum EvidenciaDeCoincidencia {
     Parcial,
 }
 
+/// Projeção do erro pós-escrita para os testes de reconciliação; a CLI
+/// publica o próprio erro tipado.
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) evidencia: Option<EvidenciaDeCoincidencia>,
@@ -44,7 +49,8 @@ pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) candidatos_compativeis: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCriar {
     /// Falha de transporte antes da escrita, com a causa original.
     Transporte(FalhaTransporte),
@@ -96,6 +102,8 @@ pub(crate) enum ErroCriar {
     NaoConfirmado,
 }
 
+/// Consultas dos testes sobre o erro tipado; a CLI publica o próprio erro.
+#[cfg(test)]
 impl ErroCriar {
     /// Somente valores numéricos do atributo maxlength observado na tela;
     /// não publica a descrição nem pressupõe limite global.

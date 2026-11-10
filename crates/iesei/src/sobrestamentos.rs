@@ -9,26 +9,17 @@ pub struct Sobrestamento {
     pub motivo: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
-    Processo(processos::Falha),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroSobrestamentos {
+    Sqlite(#[from] rusqlite::Error),
+    Processo(#[from] processos::ErroProcessos),
     ProcessoNaoEncontrado,
     UnidadeNaoAberta,
     JaSobrestado,
     NaoSobrestado,
     OutraUnidade,
     DadoInvalido,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
-}
-impl From<processos::Falha> for Falha {
-    fn from(erro: processos::Falha) -> Self {
-        Self::Processo(erro)
-    }
 }
 fn identidade_valida(id: &str, unidade: &str) -> bool {
     !id.is_empty() && id.bytes().all(|c| c.is_ascii_digit()) && !unidade.is_empty()
@@ -70,17 +61,18 @@ pub fn sobrestar(
     id: &str,
     unidade: &str,
     motivo: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroSobrestamentos> {
     if !identidade_valida(id, unidade) || motivo.trim().is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroSobrestamentos::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let processo = processos::ler(&tx, origem, cenario, id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
+    let processo = processos::ler(&tx, origem, cenario, id)?
+        .ok_or(ErroSobrestamentos::ProcessoNaoEncontrado)?;
     if consultar(&tx, origem, cenario, id)?.is_some() {
-        return Err(Falha::JaSobrestado);
+        return Err(ErroSobrestamentos::JaSobrestado);
     }
     if !processo.aberto_em.iter().any(|u| u == unidade) {
-        return Err(Falha::UnidadeNaoAberta);
+        return Err(ErroSobrestamentos::UnidadeNaoAberta);
     }
     tx.execute(
         "INSERT INTO sim_sobrestamento
@@ -101,15 +93,15 @@ pub fn retomar(
     cenario: &str,
     id: &str,
     unidade: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroSobrestamentos> {
     if !identidade_valida(id, unidade) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroSobrestamentos::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    processos::ler(&tx, origem, cenario, id)?.ok_or(Falha::ProcessoNaoEncontrado)?;
-    let estado = consultar(&tx, origem, cenario, id)?.ok_or(Falha::NaoSobrestado)?;
+    processos::ler(&tx, origem, cenario, id)?.ok_or(ErroSobrestamentos::ProcessoNaoEncontrado)?;
+    let estado = consultar(&tx, origem, cenario, id)?.ok_or(ErroSobrestamentos::NaoSobrestado)?;
     if estado.unidade != unidade {
-        return Err(Falha::OutraUnidade);
+        return Err(ErroSobrestamentos::OutraUnidade);
     }
     tx.execute(
         "DELETE FROM sim_sobrestamento
@@ -151,18 +143,18 @@ mod tests {
         );
         assert!(matches!(
             sobrestar(&banco, &origem, "c1", "10", "TESTE", "Outra"),
-            Err(Falha::JaSobrestado)
+            Err(ErroSobrestamentos::JaSobrestado)
         ));
         assert!(matches!(
             retomar(&banco, &origem, "c1", "10", "OUTRA"),
-            Err(Falha::OutraUnidade)
+            Err(ErroSobrestamentos::OutraUnidade)
         ));
         assert_eq!(consultar(&banco, &origem, "c2", "10").unwrap(), None);
         retomar(&banco, &origem, "c1", "10", "TESTE").unwrap();
         assert_eq!(consultar(&banco, &origem, "c1", "10").unwrap(), None);
         assert!(matches!(
             retomar(&banco, &origem, "c1", "10", "TESTE"),
-            Err(Falha::NaoSobrestado)
+            Err(ErroSobrestamentos::NaoSobrestado)
         ));
         assert_eq!(
             processos::ler(&banco, &origem, "c1", "10")

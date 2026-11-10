@@ -18,8 +18,6 @@ pub(crate) enum ErroDasAnotacoes {
     LeituraDasAnotacoes(#[source] ErroHtml),
 }
 
-impl ErroDasAnotacoes {}
-
 /// POST do botão Salvar no formulário de anotação observado no SEI 4.0.9.
 pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "anotacao_registrar",

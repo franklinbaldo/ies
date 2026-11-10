@@ -25,11 +25,7 @@ fn bdd_60_05_cli_recusa_sessao_revogada_antes_da_lista_sem_fallback() {
             "sessão revogada não deve entregar versão: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["status_http"], 403, "{erro}");
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "Status");
         assert!(
             trilha
                 .iter()

@@ -2,6 +2,10 @@
 //! a foto `DOC.vN.html` conferida antes da rede e o par vN / v(N+1), offline.
 use std::process::Command;
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn ies_sem_sessao(args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
@@ -39,8 +43,7 @@ fn documento_saida_confere_a_foto_e_o_diretorio_antes_da_sessao() {
         "--json",
     ];
     let output = ies_sem_sessao(&args);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "FotoDivergente");
     let ausente = pasta.join("nao-existe");
     let args = [
         "documento",
@@ -50,8 +53,7 @@ fn documento_saida_confere_a_foto_e_o_diretorio_antes_da_sessao() {
         "--json",
     ];
     let output = ies_sem_sessao(&args);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "DiretorioDeSaida");
     std::fs::remove_dir_all(pasta).unwrap();
 }
 
@@ -69,8 +71,8 @@ fn versao_local(pasta: &std::path::Path, n: u32, corpo: &str) {
 /// `ies documento salvar` no diretório `pasta`, sem nenhum arquivo de
 /// configuração ou sessão: `IES_CONFIG_FILE` aponta para um arquivo que
 /// não existe e as demais variáveis somem, como numa máquina limpa.
-fn salvar_offline(pasta: &std::path::Path, extra: &[&str]) -> (Option<i32>, serde_json::Value) {
-    let output = Command::new(env!("CARGO_BIN_EXE_ies"))
+fn salvar_offline(pasta: &std::path::Path, extra: &[&str]) -> std::process::Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
         .current_dir(pasta)
         .env("IES_CONFIG_FILE", pasta.join("nao-existe.json"))
         .env_remove("IES_URL_CONTROLE_FILE")
@@ -80,9 +82,19 @@ fn salvar_offline(pasta: &std::path::Path, extra: &[&str]) -> (Option<i32>, serd
         .args(["documento", "salvar", "0011519", "--json"])
         .args(extra)
         .output()
-        .unwrap();
-    let value = serde_json::from_slice(&output.stdout).unwrap();
-    (output.status.code(), value)
+        .unwrap()
+}
+
+/// O JSON da prévia que saiu com sucesso.
+fn previa_offline(pasta: &std::path::Path, extra: &[&str]) -> serde_json::Value {
+    let output = salvar_offline(pasta, extra);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
 }
 
 fn pasta_vazia(rotulo: &str) -> std::path::PathBuf {
@@ -100,8 +112,7 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
     let pasta = pasta_vazia("offline");
     versao_local(&pasta, 2, "<p>a</p>");
     versao_local(&pasta, 3, "<p>b</p>");
-    let (codigo, value) = salvar_offline(&pasta, &[]);
-    assert_eq!(codigo, Some(0), "{value}");
+    let value = previa_offline(&pasta, &[]);
     let previa = &value["previa"];
     assert_eq!(
         (
@@ -122,8 +133,7 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
     );
     assert!(!value.to_string().contains("<p>"));
     assert!(!pasta.join("ies.sqlite3").exists());
-    let (codigo, value) = salvar_offline(&pasta, &["--listar-copias"]);
-    assert_eq!(codigo, Some(0), "{value}");
+    let value = previa_offline(&pasta, &["--listar-copias"]);
     assert_eq!(value["escopo"], "arquivos_locais");
     assert_eq!(value["versao_remota_confirmada"], false);
     let copias = value["copias"].as_array().unwrap();
@@ -144,13 +154,13 @@ fn salvar_previa_offline_sem_indice_nem_configuracao() {
 #[test]
 fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
     let pasta = pasta_vazia("recusas");
-    let (_codigo, _value) = salvar_offline(&pasta, &[]);
+    falha(&salvar_offline(&pasta, &[]), "Html");
     versao_local(&pasta, 3, "<p>b</p>");
-    let (_codigo, _value) = salvar_offline(&pasta, &["--versao", "2"]);
+    falha(&salvar_offline(&pasta, &["--versao", "2"]), "Html");
     // Só v3: ela é a base e a edição v4 falta.
-    let (_codigo, _value) = salvar_offline(&pasta, &[]);
+    falha(&salvar_offline(&pasta, &[]), "Html");
     versao_local(&pasta, 4, "<p>b</p>");
-    let (_codigo, _value) = salvar_offline(&pasta, &[]);
+    falha(&salvar_offline(&pasta, &[]), "EdicaoIgualABase");
     std::fs::remove_dir_all(pasta).unwrap();
 }
 

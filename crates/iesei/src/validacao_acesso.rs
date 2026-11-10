@@ -20,17 +20,12 @@ impl Validacao {
     }
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroValidacaoAcesso {
+    Sqlite(#[from] rusqlite::Error),
     EstadoInvalido,
     IdentidadeInvalida,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn id_valido(id: &str) -> bool {
@@ -47,9 +42,9 @@ pub fn guardar(
     cenario: &str,
     id: &str,
     estado: Validacao,
-) -> Result<(), Falha> {
+) -> Result<(), ErroValidacaoAcesso> {
     if cenario.is_empty() || !id_valido(id) {
-        return Err(Falha::IdentidadeInvalida);
+        return Err(ErroValidacaoAcesso::IdentidadeInvalida);
     }
     banco.execute(
         "INSERT INTO processo_validacao_acesso
@@ -71,9 +66,9 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<Validacao>, Falha> {
+) -> Result<Option<Validacao>, ErroValidacaoAcesso> {
     if cenario.is_empty() || !id_valido(id) {
-        return Err(Falha::IdentidadeInvalida);
+        return Err(ErroValidacaoAcesso::IdentidadeInvalida);
     }
     let estado: Option<String> = banco
         .query_row(
@@ -88,6 +83,6 @@ pub fn ler(
         Some("exigida") => Ok(Some(Validacao::Exigida)),
         Some("recusada") => Ok(Some(Validacao::Recusada)),
         Some("realizada") => Ok(Some(Validacao::Realizada)),
-        _ => Err(Falha::EstadoInvalido),
+        _ => Err(ErroValidacaoAcesso::EstadoInvalido),
     }
 }

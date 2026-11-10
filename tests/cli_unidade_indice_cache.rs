@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 struct SessaoSintetica {
     pasta: PathBuf,
     url: PathBuf,
@@ -203,6 +207,5 @@ fn listagem_distingue_snapshot_valido_e_unidade_sem_lista() {
 fn opcao_de_unidade_sem_tela_web_recusa_em_vez_de_ignorar() {
     let sessao = SessaoSintetica::nova();
     let saida = sessao.executar(&["--unidade", "PPI", "unidade", "pesquisar", "cde", "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
-    let _valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    falha(&saida, "UnidadePedidaNaoVerificavelOffline");
 }

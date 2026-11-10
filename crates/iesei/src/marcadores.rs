@@ -19,17 +19,12 @@ pub struct Observacao {
     pub itens: Vec<Marcador>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroMarcadores {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn valido(observacao: &Observacao) -> bool {
@@ -68,14 +63,14 @@ pub fn registrar(
     id: &str,
     unidade: &str,
     observacao: &Observacao,
-) -> Result<(), Falha> {
+) -> Result<(), ErroMarcadores> {
     if cenario.is_empty()
         || id.is_empty()
         || !id.bytes().all(|b| b.is_ascii_digit())
         || unidade.is_empty()
         || !valido(observacao)
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     let tx = banco.transaction()?;
     let aberto: bool = tx.query_row(
@@ -85,9 +80,10 @@ pub fn registrar(
         |linha| linha.get(0),
     )?;
     if !aberto {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroMarcadores::ProcessoNaoObservado);
     }
-    let total = i64::try_from(observacao.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    let total =
+        i64::try_from(observacao.total_declarado).map_err(|_| ErroMarcadores::DadoInvalido)?;
     tx.execute(
         "INSERT INTO processo_marcadores_observados
          (origem, cenario, id_procedimento, unidade, total_declarado)
@@ -102,7 +98,7 @@ pub fn registrar(
         params![origem.url_base(), cenario, id, unidade],
     )?;
     for (posicao, marcador) in observacao.itens.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroMarcadores::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_marcador_linha
              (origem, cenario, id_procedimento, unidade, posicao,
@@ -138,7 +134,7 @@ pub fn ler(
     cenario: &str,
     id: &str,
     unidade: &str,
-) -> Result<Option<Observacao>, Falha> {
+) -> Result<Option<Observacao>, ErroMarcadores> {
     let total: Option<i64> = banco
         .query_row(
             "SELECT total_declarado FROM processo_marcadores_observados
@@ -148,7 +144,7 @@ pub fn ler(
         )
         .optional()?;
     let Some(total) = total else { return Ok(None) };
-    let total_declarado = usize::try_from(total).map_err(|_| Falha::DadoInvalido)?;
+    let total_declarado = usize::try_from(total).map_err(|_| ErroMarcadores::DadoInvalido)?;
     let mut consulta = banco.prepare(
         "SELECT id_marcador, nome, cor, texto, usuario, data_hora
          FROM processo_marcador_linha
@@ -172,7 +168,7 @@ pub fn ler(
         itens,
     };
     if !valido(&observacao) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     Ok(Some(observacao))
 }
@@ -189,14 +185,15 @@ pub fn retirar(
     id: &str,
     unidade: &str,
     id_marcador: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroMarcadores> {
     if id_marcador.is_empty() || !id_marcador.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let lidos = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    let lidos =
+        ler(&tx, origem, cenario, id, unidade)?.ok_or(ErroMarcadores::ProcessoNaoObservado)?;
     if !lidos.itens.iter().any(|m| m.id == id_marcador) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     let alteradas = tx.execute(
         "DELETE FROM processo_marcador_linha
@@ -205,9 +202,10 @@ pub fn retirar(
         params![origem.url_base(), cenario, id, unidade, id_marcador],
     )?;
     if alteradas != 1 {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
-    let total_esperado = i64::try_from(lidos.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    let total_esperado =
+        i64::try_from(lidos.total_declarado).map_err(|_| ErroMarcadores::DadoInvalido)?;
     let alteradas = tx.execute(
         "UPDATE processo_marcadores_observados SET total_declarado=total_declarado-1
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
@@ -215,7 +213,7 @@ pub fn retirar(
         params![origem.url_base(), cenario, id, unidade, total_esperado],
     )?;
     if alteradas != 1 {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     tx.commit()?;
     Ok(())
@@ -235,17 +233,18 @@ pub fn atribuir(
     unidade: &str,
     id_marcador: &str,
     texto: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroMarcadores> {
     if id_marcador.is_empty()
         || !id_marcador.bytes().all(|b| b.is_ascii_digit())
         || texto.chars().count() > 250
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     let tx = banco.unchecked_transaction()?;
-    let observacao = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    let observacao =
+        ler(&tx, origem, cenario, id, unidade)?.ok_or(ErroMarcadores::ProcessoNaoObservado)?;
     if observacao.itens.iter().any(|m| m.id == id_marcador) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     // É o catálogo independente, NÃO as associações presentes, que oferece o id.
     let opcao: Option<(String, String)> = tx
@@ -261,9 +260,11 @@ pub fn atribuir(
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .optional()?;
-    let (nome, cor) = opcao.ok_or(Falha::DadoInvalido)?;
-    let posicao = i64::try_from(observacao.itens.len()).map_err(|_| Falha::DadoInvalido)?;
-    let atual = i64::try_from(observacao.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    let (nome, cor) = opcao.ok_or(ErroMarcadores::DadoInvalido)?;
+    let posicao =
+        i64::try_from(observacao.itens.len()).map_err(|_| ErroMarcadores::DadoInvalido)?;
+    let atual =
+        i64::try_from(observacao.total_declarado).map_err(|_| ErroMarcadores::DadoInvalido)?;
     tx.execute(
         "INSERT INTO processo_marcador_linha
          (origem, cenario, id_procedimento, unidade, posicao,
@@ -290,7 +291,7 @@ pub fn atribuir(
         params![origem.url_base(), cenario, id, unidade, atual],
     )?;
     if alteradas != 1 {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroMarcadores::DadoInvalido);
     }
     tx.commit()?;
     Ok(())

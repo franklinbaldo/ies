@@ -29,11 +29,11 @@ O diagnóstico não publica números de processos, HTML, cookies,
 hashes, URLs nem detalhes de outros usuários, somente
 `controle_web: observado`, `unidade_exibida`,
 `conexao: get_realizado` e
-`autenticacao_remota: nao_auditada`. Erros
-`configuracao_invalida`, `transporte_invalido`,
-`controle_web_nao_reconhecido` e
-`identidade_unidade_nao_observada` são variantes
-Rust específicas sem classificar mensagens por regex.
+`autenticacao_remota: nao_auditada`. Falhas (saída 1, stderr): o erro
+tipado da configuração ou do transporte e as variantes de
+`FalhaControleWeb` (`ControleNaoReconhecido`,
+`IdentidadeUnidadeNaoObservada`, `UnidadeExibidaDiferenteDaSolicitada`),
+sem classificar mensagens por regex.
 
 Isso não é login automático, teste de permissões para operações
 protegidas, prova de cobertura/paginação nem certificação de
@@ -47,7 +47,7 @@ o restante da API.
 rótulo da unidade **efetivamente publicado** no Controle de Processos
 antes de relatar sucesso. A opção global `--unidade` não pode ser
 ignorada por este diagnóstico com rede. Em caso de diferença literal,
-retornar `unidade_exibida_diferente_da_solicitada` sem imprimir o
+retornar `UnidadeExibidaDiferenteDaSolicitada` sem imprimir o
 rótulo observado nem dados da sessão. Sem `--unidade`, conservar o
 resultado atual. A comparação é de igualdade exata, sem heurística
 para siglas, normalização ou troca automática de unidade.

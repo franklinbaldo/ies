@@ -29,7 +29,6 @@ pub(crate) enum VerificacaoDoCancelamento {
     },
     LeituraFalhou(ErroDocumentoObter),
 }
-impl VerificacaoDoCancelamento {}
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -58,7 +57,6 @@ pub(crate) enum ErroCancelar {
         verificacao: Box<VerificacaoDoCancelamento>,
     },
 }
-impl ErroCancelar {}
 
 impl From<CookieIlegivel> for ErroCancelar {
     fn from(erro: CookieIlegivel) -> Self {

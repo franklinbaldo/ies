@@ -48,8 +48,6 @@ pub(crate) enum VerificacaoDaAssinatura {
     LeituraFalhou(ErroDocumentoObter),
 }
 
-impl VerificacaoDaAssinatura {}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinar {
@@ -90,72 +88,4 @@ pub(crate) enum ErroAssinar {
         verificacao: Box<VerificacaoDaAssinatura>,
     },
     Html(#[source] ErroHtml),
-}
-
-impl ErroAssinar {
-    /// Categoria pública: o próximo passo de quem chama.
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::AssinaturaNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::NaoConfirmadoNaAssinatura { .. } => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) => falha.status_http().cloned(),
-            Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::Formulario(erro) => erro.status_http().cloned(),
-            Self::AssinaturaNaoAplicada { falha_do_envio, .. }
-            | Self::NaoConfirmadoNaAssinatura { falha_do_envio, .. } => {
-                falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => e.mensagem(),
-            Self::Html(e) => e.mensagem,
-            Self::Abertura(erro) => erro.mensagem(),
-            Self::Credenciais(erro) => erro.mensagem(),
-            Self::Arvore(_) => {
-                "a árvore não mostra a assinatura do documento na forma observada; nada foi assinado"
-            }
-            Self::AssinaturaNaoPublicadaNaBarra => {
-                "a barra do documento não oferece assinar nesta sessão; nada foi assinado"
-            }
-            Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
-                "a tela da assinatura não foi servida; nada foi assinado"
-            }
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode `ies login` (nada foi assinado)"
-            }
-            Self::LinkDeAssinar(_) => {
-                "a tela do documento não publica o link de assinar na forma observada; nada foi assinado"
-            }
-            Self::TelaDeAssinatura(_) => {
-                "a tela Assinatura de Documento não está na forma observada; nada foi enviado"
-            }
-            Self::CharsetDaTelaNaoSuportado => {
-                "a tela de assinatura declara um charset não suportado; nada foi enviado"
-            }
-            Self::CargoNaoOferecidoPelaTela { .. } => {
-                "o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado"
-            }
-            Self::DocumentoAssinadoPorOutroUsuario { .. } => {
-                "o documento já tem assinatura de outro usuário, e a segunda não poderia ser conferida pela árvore; nada foi enviado"
-            }
-            Self::Formulario(_) => "o envio da assinatura não pôde ser montado; nada foi enviado",
-            Self::AssinaturaNaoAplicada { .. } => {
-                "a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado"
-            }
-            Self::NaoConfirmadoNaAssinatura { .. } => {
-                "não se sabe se o documento foi assinado; confira a árvore antes de repetir"
-            }
-        }
-    }
 }

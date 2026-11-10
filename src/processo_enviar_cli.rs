@@ -152,7 +152,7 @@ struct ResultadoEnvio<'a> {
     depois_esperado: Vec<String>,
     destino: DestinoPublico<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<crate::saida::FalhaPublica>,
     id_procedimento: &'a str,
     manter_aberto: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

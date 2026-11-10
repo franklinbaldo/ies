@@ -12,7 +12,7 @@ use rusqlite::Connection;
 use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha;
+use falha_cli::falha_por;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};
@@ -415,7 +415,7 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
 fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     let args = criar(true);
     let (saidas, trilha, quantidade) = executar(&[&args], true);
-    falha(&saidas[0], "NaoConfirmado");
+    falha_por(&saidas[0], "TentativaDeCriacao", "NaoConfirmado");
     assert_eq!(quantidade, 2, "escrita pode ter ocorrido apesar do erro");
     assert_eq!(
         trilha

@@ -16,13 +16,12 @@ use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::SessaoDoProcesso;
 use crate::sessao_login::{Credenciais, ErroLogin};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Documento, DocumentoAcao, Domain, saida_erro};
+use crate::{Cli, Documento, DocumentoAcao, Domain};
 #[path = "documento_assinar_cli/falha.rs"]
 mod falha;
-use falha::{assinaturas_publicas, falha_do_envio_publica, json_de_falha, linhas_da_falha};
+use falha::{assinaturas_publicas, falha_do_envio_publica};
 use serde_json::{Value, json};
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 /// `Some` só para `ies documento assinar`.
 pub(crate) fn tentar_assinar(cli: &Cli) -> Option<anyhow::Result<()>> {
@@ -39,25 +38,14 @@ pub(crate) fn tentar_assinar(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
-    let numero = numero.clone();
-    let processo = match processo.as_deref().map(NumeroProcesso::novo) {
-        None => None,
-        Some(Ok(nup)) => Some(nup),
-        Some(Err(_)) => {
-            return Some(crate::legado(invalida(
-                cli.json,
-                "número de processo inválido",
-            )));
-        }
-    };
     let pedido = Entrada {
-        numero: &numero,
+        numero,
         processo: processo.as_ref(),
         cargo: cargo.as_deref(),
         confirmar: *confirmar,
     };
     Some(com_sessao(cli, |sessao, indice| {
-        crate::legado(assinar_na_sessao(cli, sessao, indice, &pedido))
+        assinar_na_sessao(cli, sessao, indice, &pedido)
     }))
 }
 
@@ -66,22 +54,6 @@ struct Entrada<'a> {
     processo: Option<&'a NumeroProcesso>,
     cargo: Option<&'a str>,
     confirmar: bool,
-}
-
-fn invalida(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
 }
 
 /// As credenciais do arquivo privado, só com `--confirmar`.
@@ -98,12 +70,9 @@ fn assinar_na_sessao(
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
     entrada: &Entrada<'_>,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let lidas = if entrada.confirmar {
-        match credenciais() {
-            Ok(lidas) => Some(lidas),
-            Err(erro) => return publicar_falha(cli.json, &ErroAssinar::Credenciais(erro)),
-        }
+        Some(credenciais().map_err(ErroAssinar::Credenciais)?)
     } else {
         None
     };
@@ -118,24 +87,16 @@ fn assinar_na_sessao(
         cargo: entrada.cargo,
         confirmacao,
     };
-    match assinar_documento(sessao, &pedido, indice, &mut EnvioHttps) {
-        Ok(feito) => {
-            if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json_de_sucesso(&feito))
-                        .expect("JSON serializável")
-                );
-            } else {
-                println!("{}", humano(&feito));
-            }
-            ExitCode::SUCCESS
-        }
-        Err(ErroAssinar::Abertura(erro)) => {
-            saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-        }
-        Err(erro) => publicar_falha(cli.json, &erro),
+    let feito = assinar_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
+    if cli.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json_de_sucesso(&feito))?
+        );
+    } else {
+        println!("{}", humano(&feito));
     }
+    Ok(())
 }
 
 fn json_das_assinaturas(lista: &[Assinante]) -> Value {
@@ -196,19 +157,6 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
     valor
 }
 
-fn publicar_falha(json_mode: bool, erro: &ErroAssinar) -> ExitCode {
-    if json_mode {
-        if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(erro)) {
-            eprintln!("IES: falha ao emitir JSON: {falha}");
-        }
-    } else {
-        for linha in linhas_da_falha(erro) {
-            eprintln!("{linha}");
-        }
-    }
-    ExitCode::from(1)
-}
-
 fn linha_das_assinaturas(lista: &[Assinante]) -> String {
     if lista.is_empty() {
         return "nenhuma".to_owned();
@@ -265,7 +213,3 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
 }
-
-#[cfg(test)]
-#[path = "documento_assinar_cli/tests.rs"]
-mod tests;

@@ -20,10 +20,6 @@ fn ies(args: &[&str], com_arquivos: bool) -> Output {
     comando.output().expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
-}
-
 #[test]
 fn ajuda_mostra_termo_e_pagina() {
     let saida = ies(&["processo", "buscar", "--help"], false);
@@ -41,8 +37,7 @@ fn ajuda_mostra_termo_e_pagina() {
 fn termo_com_controle_e_erro_de_uso_antes_da_configuracao() {
     let saida = ies(&["--json", "processo", "buscar", "000\n01"], false);
     assert_eq!(saida.status.code(), Some(2));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "entrada_invalida");
+    assert_eq!(saida.stdout, b"");
 }
 
 #[test]

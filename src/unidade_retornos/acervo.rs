@@ -103,9 +103,8 @@ fn conferir_calendario_real(
     crate::unidade_retornos_web::conferir_calendario_gravado(html, url_servida, origem)
         .unwrap_or_else(|erro| {
             panic!(
-                "{nome}: calendario passo {} recusado: {}",
-                resposta.passo,
-                erro.mensagem()
+                "{nome}: calendario passo {} recusado: {erro:?}",
+                resposta.passo
             )
         })
 }
@@ -188,11 +187,7 @@ fn replay_retornos_no_acervo() {
                 }
                 Err(erro) => {
                     recusados += 1;
-                    println!(
-                        "{instalacao}: passo {} recusado ({})",
-                        resposta.passo,
-                        erro.mensagem()
-                    );
+                    println!("{instalacao}: passo {} recusado ({erro:?})", resposta.passo);
                 }
             }
         }

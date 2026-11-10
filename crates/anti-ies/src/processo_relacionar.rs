@@ -32,7 +32,8 @@ fn responder_remocao(
             "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
         )),
         Err(
-            relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::ProcessoNaoObservado,
+            relacionamentos::ErroRelacionamentos::DadoInvalido
+            | relacionamentos::ErroRelacionamentos::ProcessoNaoObservado,
         ) => Resposta::nova(Estado::RequisicaoInvalida),
         Err(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
@@ -86,7 +87,10 @@ pub(crate) fn responder(
         let destino = match relacionamentos::identificar(banco, origem, cenario, &numero) {
             Ok(Some(destino)) => destino,
             Ok(None)
-            | Err(relacionamentos::Falha::DadoInvalido | relacionamentos::Falha::DestinoAmbiguo) => {
+            | Err(
+                relacionamentos::ErroRelacionamentos::DadoInvalido
+                | relacionamentos::ErroRelacionamentos::DestinoAmbiguo,
+            ) => {
                 return Resposta::nova(Estado::RequisicaoInvalida);
             }
             Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
@@ -98,7 +102,9 @@ pub(crate) fn responder(
             Ok(()) => Resposta::redirecionar(format!(
                 "controlador.php?acao=procedimento_relacionar&resultado=1&id_procedimento={id}"
             )),
-            Err(relacionamentos::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+            Err(relacionamentos::ErroRelacionamentos::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
             Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }

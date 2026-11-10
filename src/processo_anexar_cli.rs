@@ -1,10 +1,9 @@
 //! CLI de anexação: prévia e confirmação única, com prova independente.
-use crate::processo_anexar::fluxo::{Pedido, Previa, ResultadoAnexacao, prever};
+use crate::processo_anexar::fluxo::{FalhaAnexar, Pedido, Previa, ResultadoAnexacao, prever};
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_anexar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -22,10 +21,7 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let anexado = numero.clone();
     let principal = a.clone();
     if anexado.as_str() == principal.as_str() {
-        return Some(crate::legado(falha(
-            cli.json,
-            "anexação recusada pela tela ou pelos dados informados",
-        )));
+        return Some(Err(FalhaAnexar::AnexacaoAoProprioProcesso.into()));
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -43,26 +39,12 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
-        crate::legado(publicar(cli.json, &preview))
+        publicar(cli.json, &preview);
+        Ok(())
     }))
 }
-fn falha(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "operacao_recusada",
-                "erro": mensagem,
-                "retentavel": false,
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
-}
 
-fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
+fn publicar(json_mode: bool, previa: &Previa) {
     let confirmado = previa.resultado == ResultadoAnexacao::Confirmada;
     if json_mode {
         println!(
@@ -94,5 +76,4 @@ fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {
             previa.requisicoes,
         );
     }
-    ExitCode::SUCCESS
 }

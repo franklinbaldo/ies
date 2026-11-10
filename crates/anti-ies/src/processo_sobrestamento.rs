@@ -2,7 +2,7 @@
 use crate::{Estado, Resposta, eh_controlador_sei, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::processos;
-use iesei::sobrestamentos::{self, Falha};
+use iesei::sobrestamentos::{self, ErroSobrestamentos};
 use rusqlite::Connection;
 
 fn ambiente<'a>(
@@ -42,16 +42,16 @@ fn pagina(id: &str) -> String {
     )
 }
 
-fn erro(erro: &Falha) -> Estado {
+fn erro(erro: &ErroSobrestamentos) -> Estado {
     match erro {
-        Falha::ProcessoNaoEncontrado | Falha::Sqlite(_) | Falha::Processo(_) => {
-            Estado::DadosInsuficientes
-        }
-        Falha::UnidadeNaoAberta
-        | Falha::JaSobrestado
-        | Falha::NaoSobrestado
-        | Falha::OutraUnidade
-        | Falha::DadoInvalido => Estado::RequisicaoInvalida,
+        ErroSobrestamentos::ProcessoNaoEncontrado
+        | ErroSobrestamentos::Sqlite(_)
+        | ErroSobrestamentos::Processo(_) => Estado::DadosInsuficientes,
+        ErroSobrestamentos::UnidadeNaoAberta
+        | ErroSobrestamentos::JaSobrestado
+        | ErroSobrestamentos::NaoSobrestado
+        | ErroSobrestamentos::OutraUnidade
+        | ErroSobrestamentos::DadoInvalido => Estado::RequisicaoInvalida,
     }
 }
 

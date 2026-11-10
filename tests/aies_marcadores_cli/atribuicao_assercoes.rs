@@ -32,9 +32,7 @@ pub(super) fn conferir_atribuicao(
         "atribuição precisa de um POST, sem retry: {pedidos:?}"
     );
     if nao_confirmado {
-        assert_eq!(json["codigo"], "nao_confirmado");
-        assert_eq!(json["retentavel"], false);
-        assert!(json["erro"].as_str().unwrap().contains("não repita"));
+        super::falha(saida, "AtribuicaoNaoConfirmada");
     } else {
         assert_eq!(json["acao"], "atribuir");
         assert_eq!(json["confirmado"], true);
