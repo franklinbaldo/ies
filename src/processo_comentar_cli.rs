@@ -66,10 +66,7 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(_erro) => recusa(
-                cli.json,
-                "O formulário de comentário não foi comprovado; nenhuma escrita realizada.",
-            ),
+            Err(causa) => recusa_previa(cli.json, &causa),
         },
     ))
 }
@@ -86,6 +83,25 @@ fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
         );
     } else {
         eprintln!("IES: {mensagem}");
+    }
+    ExitCode::from(1)
+}
+
+fn recusa_previa(json_mode: bool, causa: &processo_comentar_web::Erro) -> ExitCode {
+    const MENSAGEM: &str =
+        "O formulário de comentário não foi comprovado; nenhuma escrita realizada.";
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "codigo": "operacao_recusada",
+                "causa": causa,
+                "erro": MENSAGEM,
+                "retentavel": false,
+            })
+        );
+    } else {
+        eprintln!("IES: {MENSAGEM}");
     }
     ExitCode::from(1)
 }
