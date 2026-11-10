@@ -97,9 +97,7 @@ fn formulario_adicionar(
     id: &str,
     unidade: &str,
 ) -> Resposta {
-    let Ok(Some(opcoes)) =
-        iesei::catalogo_marcadores::ler(banco, origem, cenario, unidade)
-    else {
+    let Ok(Some(opcoes)) = iesei::catalogo_marcadores::ler(banco, origem, cenario, unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
     let hash = crate::protocolo_sintetico::INFRA_HASH;
