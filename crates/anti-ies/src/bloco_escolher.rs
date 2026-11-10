@@ -65,7 +65,10 @@ pub(crate) fn responder(
         let marcados: Vec<_> = documentos
             .iter()
             .enumerate()
-            .filter_map(|(i, d)| campo(&format!("chkDocumentosItem{i}")).map(|id| (d, id)))
+            .filter_map(|(i, d)| {
+                let nome = format!("chkDocumentosItem{i}");
+                campo(&nome).map(|id| (d, id.to_owned()))
+            })
             .collect();
         let todos = documentos
             .iter()
