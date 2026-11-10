@@ -44,8 +44,12 @@ pub(crate) enum VerificacaoDasColunas {
 /// comprovada existir sem as marcas efetivamente verificadas.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum EstadoDasColunas {
-    Inalteradas { confirmado: bool },
-    Previa { campos_do_envio: Vec<String> },
+    Inalteradas {
+        confirmado: bool,
+    },
+    Previa {
+        campos_do_envio: Vec<String>,
+    },
     Conferidas {
         campos_do_envio: Vec<String>,
         depois: Vec<ColunaDoDetalhe>,
@@ -78,7 +82,9 @@ impl ColunasDefinidas {
         match &self.estado {
             EstadoDasColunas::Inalteradas { .. } => None,
             EstadoDasColunas::Previa { campos_do_envio }
-            | EstadoDasColunas::Conferidas { campos_do_envio, .. } => Some(campos_do_envio),
+            | EstadoDasColunas::Conferidas {
+                campos_do_envio, ..
+            } => Some(campos_do_envio),
         }
     }
 
@@ -91,9 +97,9 @@ impl ColunasDefinidas {
 
     pub(crate) fn reconciliado_por(&self) -> Option<&FalhaDoSalvar> {
         match &self.estado {
-            EstadoDasColunas::Conferidas { reconciliado_por, .. } => {
-                reconciliado_por.as_ref()
-            }
+            EstadoDasColunas::Conferidas {
+                reconciliado_por, ..
+            } => reconciliado_por.as_ref(),
             _ => None,
         }
     }
