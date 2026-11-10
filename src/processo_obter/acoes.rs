@@ -23,7 +23,10 @@ pub(crate) struct AcoesDeEstado {
     /// contracts/cli/processo-enviar.md
     pub(crate) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
     /// Gerenciar marcadores, URL literal publicada na barra da árvore.
-    pub(crate) marcadores: Result<Option<crate::marcadores_processo::EnderecoDosMarcadores>, crate::marcadores_processo::ErroMarcadores>,
+    pub(crate) marcadores: Result<
+        Option<crate::marcadores_processo::EnderecoDosMarcadores>,
+        crate::marcadores_processo::ErroMarcadores,
+    >,
     /// Link das anotações da origem (só pesa no envio com remoção).
     pub(crate) anotacoes: Result<Option<String>, ErroHtml>,
     /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
