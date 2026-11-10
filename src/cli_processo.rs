@@ -147,10 +147,10 @@ pub(crate) enum ProcessoAcao {
         /// Dias corridos positivos (a contagem exata é do SEI)
         #[arg(long, conflicts_with = "excluir")]
         dias: Option<u32>,
-        /// Remove o controle de prazo pela lista da unidade (ainda bloqueado)
+        /// Remove o controle de prazo pela lista da unidade
         #[arg(long)]
         excluir: bool,
-        /// Escrita real; bloqueada até a verificação por leitura estar implementada
+        /// Grava uma única vez e confere por releitura independente
         #[arg(long)]
         confirmar: bool,
     },

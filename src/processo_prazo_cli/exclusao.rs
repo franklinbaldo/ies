@@ -25,7 +25,9 @@ struct ExclusaoPreparada {
     id_controle: String,
     id_procedimento: String,
     nup: String,
-    link_prazo: String,
+    /// Unidade da sessão lida na abertura; a lista a publica em
+    /// `lnkInfraUnidade` e o primitivo de formulário a confere.
+    unidade: String,
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
@@ -122,19 +124,35 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
 
 /// A URL literal do script passa pela mesma validacao da origem e do hash
 /// usada pelo primitivo de formulario, nao por um executor de JavaScript.
+/// A `UnB` publica parametros entre `acao` e `infra_hash` (cassette
+/// processo-prazo-excluir-unb, interacao 13; live de 10/11/2026):
+/// `controlador.php?acao=controle_prazo_excluir&acao_origem=…&infra_hash=…`.
+/// Exige uma unica URL distinta, terminada por `infra_hash` de 64 hex.
 fn action_de_exclusao(html: &str) -> Option<String> {
-    let prefixo = "controlador.php?acao=controle_prazo_excluir&infra_hash=";
-    let resto = html.split_once(prefixo)?.1;
-    let hash = resto
-        .bytes()
-        .take_while(u8::is_ascii_hexdigit)
-        .collect::<Vec<_>>();
-    let hash = String::from_utf8(hash).ok()?;
-    (hash.len() == 64).then(|| format!("{prefixo}{hash}"))
+    let prefixo = "controlador.php?acao=controle_prazo_excluir";
+    let mut encontradas: Vec<&str> = Vec::new();
+    for (inicio, _) in html.match_indices(prefixo) {
+        let resto = &html[inicio..];
+        let fim = resto.find(['\'', '"', ' ', '<', '>', '\n'])?;
+        let url = &resto[..fim];
+        if !encontradas.contains(&url) {
+            encontradas.push(url);
+        }
+    }
+    let [url] = encontradas.as_slice() else {
+        return None;
+    };
+    let consulta = url.strip_prefix(prefixo)?;
+    if !(consulta.is_empty() || consulta.starts_with('&')) {
+        return None;
+    }
+    let hash = url.rsplit_once("&infra_hash=")?.1;
+    (hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())).then(|| (*url).to_owned())
 }
 
 fn escrever_e_verificar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
+    (pedido, indice): (&crate::processo_obter::PedidoDoProcesso<'_>, &IndiceLocal),
     dados: &ExclusaoPreparada,
     rede: &mut Contador<'_, V>,
     cookie: &str,
@@ -165,7 +183,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         &EXCLUIR_PRAZO,
         &instalacao,
         &servida,
-        "",
+        &dados.unidade,
         &[("hdnInfraItemId", dados.id_controle.as_str())],
         Some(&url_declarada),
     )
@@ -208,8 +226,16 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         Ok(Some(_)) | Err(()) => return Err(efeito_incerto(json_mode, None)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
-    let (formulario, _) =
-        obter_tela(rede, cookie, &dados.link_prazo).map_err(|_| efeito_incerto(json_mode, None))?;
+    // O link guardado leva `id_controle_prazo` do controle excluido (cassette
+    // processo-prazo-excluir-unb, interacoes 11 e 19): reabrir o processo e
+    // usar o link novo da barra, como a leitura de `ies processo prazo`.
+    let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
+        .map_err(|_| efeito_incerto(json_mode, None))?;
+    let Ok(Some(link_novo)) = acoes.prazo else {
+        return Err(efeito_incerto(json_mode, None));
+    };
+    let (formulario, _) = obter_tela(rede, cookie, link_novo.as_str())
+        .map_err(|_| efeito_incerto(json_mode, None))?;
     let prazo = ler_tela(&formulario, &dados.id_procedimento)
         .map_err(|_| efeito_incerto(json_mode, None))?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
@@ -274,7 +300,7 @@ pub(super) fn executar(
             );
         }
     };
-    let Ok(Some(link_prazo)) = acoes.prazo else {
+    let Ok(Some(_)) = acoes.prazo else {
         return recusar(
             cli.json,
             "prazo_nao_publicado_na_barra",
@@ -332,12 +358,63 @@ pub(super) fn executar(
         id_controle,
         id_procedimento: aberto.arvore.processo.id.clone(),
         nup: nup.as_str().to_owned(),
-        link_prazo,
+        unidade: aberto.unidade.clone().unwrap_or_default(),
     };
     if confirmar
-        && let Err(erro) = escrever_e_verificar(sessao, &preparada, &mut rede, &cookie, cli.json)
+        && let Err(erro) = escrever_e_verificar(
+            sessao,
+            (&leitura, indice),
+            &preparada,
+            &mut rede,
+            &cookie,
+            cli.json,
+        )
     {
         return erro;
     }
     publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::action_de_exclusao;
+
+    fn hash() -> String {
+        "a".repeat(64)
+    }
+
+    #[test]
+    fn lista_da_unb_com_acao_origem_publica_a_acao_de_exclusao() {
+        let url = format!(
+            "controlador.php?acao=controle_prazo_excluir&acao_origem=controle_prazo_listar&infra_sistema=100000100&infra_unidade_atual=110000847&infra_hash={}",
+            hash()
+        );
+        // A lista repete a mesma URL (duas ocorrências idênticas no script).
+        let html = format!("<script>var a='{url}';\nvar b=\"{url}\";</script>");
+        assert_eq!(action_de_exclusao(&html), Some(url));
+    }
+
+    #[test]
+    fn forma_curta_continua_aceita_e_urls_distintas_sao_recusadas() {
+        let curta = format!(
+            "controlador.php?acao=controle_prazo_excluir&infra_hash={}",
+            hash()
+        );
+        assert_eq!(
+            action_de_exclusao(&format!("'{curta}'")),
+            Some(curta.clone())
+        );
+        let outra = format!(
+            "controlador.php?acao=controle_prazo_excluir&acao_origem=x&infra_hash={}",
+            "b".repeat(64)
+        );
+        assert_eq!(action_de_exclusao(&format!("'{curta}' '{outra}'")), None);
+        let sem_hash = "'controlador.php?acao=controle_prazo_excluir&acao_origem=x'";
+        assert_eq!(action_de_exclusao(sem_hash), None);
+        let colada = format!(
+            "'controlador.php?acao=controle_prazo_excluirX&infra_hash={}'",
+            hash()
+        );
+        assert_eq!(action_de_exclusao(&colada), None);
+    }
 }

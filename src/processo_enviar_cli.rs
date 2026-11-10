@@ -94,15 +94,13 @@ fn enviar(
         // Limite inviolável: escrita só em instalação de treinamento.
         if remover_anotacoes
             && confirmar
-            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
-                crate::origem_de_treinamento::exigir(sessao.origem)
+            && crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoEnviarRemovendoAnotacoes,
+                sessao.origem,
+            )
+            .is_err()
         {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
-                None,
-            );
+            return crate::origem_de_treinamento::recusa(cli.json);
         }
         let pedido = PedidoDoEnvio {
             nup,
