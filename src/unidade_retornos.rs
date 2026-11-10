@@ -24,8 +24,6 @@ pub(crate) enum ErroRetornos {
     PaginacaoDosRetornosNaoObservada,
 }
 
-impl ErroRetornos {}
-
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
     valor_do_atributo(tag, nome).map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)
 }

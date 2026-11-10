@@ -48,8 +48,6 @@ pub(crate) enum VerificacaoDaAssinatura {
     LeituraFalhou(ErroDocumentoObter),
 }
 
-impl VerificacaoDaAssinatura {}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinar {

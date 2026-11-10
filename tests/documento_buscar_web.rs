@@ -21,7 +21,6 @@ fn ies(args: &[&str], com_arquivos: bool) -> Output {
     comando.output().expect("IES deve iniciar")
 }
 
-
 #[test]
 fn ajuda_mostra_termo_e_pagina_sem_assunto() {
     let saida = ies(&["documento", "buscar", "--help"], false);

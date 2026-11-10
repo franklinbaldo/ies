@@ -70,8 +70,6 @@ pub(crate) enum CookieIlegivel {
     Arquivo(#[from] FalhaTransporte),
 }
 
-impl CookieIlegivel {}
-
 pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, CookieIlegivel> {
     Ok(sessao.cookie.valor()?.to_owned())
 }

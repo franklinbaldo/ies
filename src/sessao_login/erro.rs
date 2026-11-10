@@ -15,8 +15,6 @@ pub(crate) enum CampoDasCredenciais {
     Orgao,
 }
 
-impl CampoDasCredenciais {}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLogin {
@@ -60,5 +58,3 @@ pub(crate) enum ErroLogin {
     Transporte(#[from] FalhaTransporte),
     Html(#[from] ErroHtml),
 }
-
-impl ErroLogin {}

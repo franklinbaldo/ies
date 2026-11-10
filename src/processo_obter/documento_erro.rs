@@ -71,5 +71,3 @@ impl ErroDocumentoObter {
         }
     }
 }
-
-impl ErroDocumentoObter {}

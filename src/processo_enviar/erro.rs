@@ -32,8 +32,6 @@ pub(crate) enum FalhaDaConsulta {
     Html(#[from] ErroHtml),
 }
 
-impl FalhaDaConsulta {}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviar {
@@ -122,5 +120,3 @@ pub(crate) enum ErroEnviar {
         verificacao: Box<VerificacaoPorLeitura>,
     },
 }
-
-impl ErroEnviar {}

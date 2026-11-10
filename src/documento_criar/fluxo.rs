@@ -130,7 +130,6 @@ pub(crate) enum ErroPreviaCriacao {
     /// observada, sem inferir que o documento deixou de ser criado.
     NaoConfirmadoNaReleitura(ErroProcessoObter),
 }
-impl ErroPreviaCriacao {}
 
 /// A falha da tela é traduzida para uma causa específica desta operação.
 /// O transporte mantém a causa original; redirecionamento e login são fatos.

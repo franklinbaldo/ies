@@ -180,8 +180,6 @@ impl ErroAnexo {
     }
 }
 
-impl ErroAnexo {}
-
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.
 /// 3xx não chega aqui: quem chama o trata como no resto do fluxo.
 pub(crate) fn ler_anexo<R: Read>(

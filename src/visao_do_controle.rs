@@ -160,8 +160,6 @@ impl ErroVisaoDoControle {
     }
 }
 
-impl ErroVisaoDoControle {}
-
 #[cfg(test)]
 mod acervo;
 

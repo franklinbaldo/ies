@@ -20,7 +20,7 @@ use std::time::Duration;
 
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha;
+use falha_cli::{falha, falha_por};
 
 /// O erro tipado inteiro, como sobe (`Error: <Debug>`, depois a cadeia).
 #[track_caller]
@@ -355,11 +355,7 @@ fn bdd_342_02_cli_recusa_identidade_da_arvore_divergente_do_controle() {
         "uma recusa de leitura não deve escrever: {pedidos:?}"
     );
     // Nada do processo alheio é publicado: a falha é a identidade da árvore.
-    falha(&saida, "Arvore");
-    assert_eq!(
-        linhas_do_erro(&saida)[0],
-        "Error: Arvore(IdentidadeDoProcessoDiferenteDaPedida)"
-    );
+    falha_por(&saida, "Arvore", "IdentidadeDoProcessoDiferenteDaPedida");
 }
 
 /// BDD-342-01: o processo e seu NUP são comprovados, mas a lista documental não.

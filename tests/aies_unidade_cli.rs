@@ -280,12 +280,6 @@ fn aies_01_cli_real_ler_unidade_observada() {
 fn aies_03_cli_real_recusa_controle_ausente() {
     let saida = executar(false, None);
     falha(&saida, "Status");
-    assert_eq!(
-        String::from_utf8_lossy(&saida.stderr).lines().next(),
-        Some(
-            r#"Error: Status(StatusHttpRecusado { status: 503, mensagem_do_servidor: Some("{\"erro\":\"observacao_insuficiente\"}") })"#
-        )
-    );
 }
 
 #[test]

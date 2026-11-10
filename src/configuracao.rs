@@ -1,6 +1,7 @@
 //! Configuração mínima por caminhos privados, sem segredos em argumentos CLI.
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct ArquivosDeAcesso {
     pub url_controle: PathBuf,
     pub cookie: PathBuf,
@@ -19,8 +20,6 @@ pub enum ErroConfiguracao {
     ArquivoConfiguracaoJsonInvalido,
     ArquivoConfiguracaoCampoInvalido,
 }
-
-impl ErroConfiguracao {}
 
 fn caminho(nome: &str, erro: ErroConfiguracao) -> Result<PathBuf, ErroConfiguracao> {
     std::env::var_os(nome)
@@ -245,7 +244,6 @@ pub enum ArquivoPrivado {
     Cookie,
     Origem,
 }
-impl ArquivoPrivado {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -259,7 +257,6 @@ pub enum ErroArquivoPrivado {
     PermissoesInseguras(ArquivoPrivado),
     MetadadosNaoLidos(ArquivoPrivado),
 }
-impl ErroArquivoPrivado {}
 
 /// Consulta apenas metadados: não lê conteúdo, credenciais nem acessa o SEI.
 pub fn verificar_arquivos_privados(arquivos: &ArquivosDeAcesso) -> Result<(), ErroArquivoPrivado> {

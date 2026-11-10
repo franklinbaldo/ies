@@ -177,3 +177,49 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
         0o600
     );
 }
+
+/// Qual arquivo privado falhou é campo do erro (o papel, nunca o caminho).
+#[test]
+fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
+    use super::{
+        ArquivoPrivado as A, ArquivosDeAcesso, ErroArquivoPrivado as E, verificar_arquivos_privados,
+    };
+    let pasta = Pasta::nova();
+    let privado = |nome: &str| {
+        let caminho = pasta.0.join(nome);
+        fs::write(&caminho, "DADO FICTICIO").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        caminho
+    };
+    let completos = ArquivosDeAcesso {
+        url_controle: privado("url"),
+        cookie: privado("cookie"),
+        origem: privado("origem"),
+    };
+    assert_eq!(verificar_arquivos_privados(&completos), Ok(()));
+    let sem_cookie = ArquivosDeAcesso {
+        cookie: pasta.0.join("ausente"),
+        ..completos.clone()
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&sem_cookie),
+        Err(E::Ausente(A::Cookie))
+    );
+    let relativa = ArquivosDeAcesso {
+        url_controle: PathBuf::from("url"),
+        ..completos.clone()
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&relativa),
+        Err(E::CaminhoNaoAbsoluto(A::UrlControle))
+    );
+    fs::write(&completos.origem, "").unwrap();
+    assert_eq!(
+        verificar_arquivos_privados(&completos),
+        Err(E::Vazio(A::Origem))
+    );
+}

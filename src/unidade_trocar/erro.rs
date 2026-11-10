@@ -16,8 +16,6 @@ pub(crate) enum EtapaDaTroca {
     ControleDaUnidadeNova,
 }
 
-impl EtapaDaTroca {}
-
 /// O fato observado depois do POST, sem URL nem corpo.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -38,8 +36,6 @@ pub(crate) enum FalhaDepoisDoEnvio {
     /// O Controle novo mostra outra sigla que a pedida.
     UnidadeDoControleDiferenteDaPedida,
 }
-
-impl FalhaDepoisDoEnvio {}
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -65,5 +61,3 @@ pub(crate) enum ErroTroca {
     },
     Html(#[from] ErroHtml),
 }
-
-impl ErroTroca {}

@@ -7,6 +7,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha_por;
+
 const ORIGEM: &str = "https://sei.exemplo/sei";
 
 struct Ambiente {
@@ -132,13 +136,10 @@ fn binario_real_lista_e_pesquisa_no_indice_sem_cookie_ou_http() {
     let atualizar = ambiente.executar(&["unidade", "listar", "--atualizar", "--json"]);
     assert_eq!(atualizar.status.code(), Some(1));
     assert_eq!(atualizar.stdout, b"", "o cache antigo não é publicado");
-    let recusada = String::from_utf8_lossy(&atualizar.stderr);
-    assert_eq!(
-        recusada.lines().next(),
-        Some(
-            "Error: LupaSemListaIntegral { falha: Transporte(ArquivoPrivadoAusenteOuInacessivel), requisicoes: 0 }"
-        ),
-        "{recusada}"
+    falha_por(
+        &atualizar,
+        "LupaSemListaIntegral",
+        "ArquivoPrivadoAusenteOuInacessivel",
     );
 
     // A tabela documentada é consultável por um agente externo em modo

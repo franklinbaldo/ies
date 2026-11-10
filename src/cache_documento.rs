@@ -22,8 +22,6 @@ pub(crate) enum FalhaCache {
     ConteudoInseguro,
 }
 
-impl FalhaCache {}
-
 /// A flag prevalece sobre o ambiente; só o valor literal 0 desativa.
 pub(crate) fn habilitado(sem_cache: bool, ambiente: Option<&str>) -> bool {
     !sem_cache && ambiente != Some("0")

@@ -27,8 +27,6 @@ pub(crate) enum ErroDaListaDeColunas {
     },
 }
 
-impl ErroDaListaDeColunas {}
-
 /// Opção pedida que a tela desta instalação não publica.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ColunaIndisponivelNestaInstalacao {
