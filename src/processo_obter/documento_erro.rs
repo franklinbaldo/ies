@@ -47,4 +47,29 @@ pub(crate) enum ErroDocumentoObter {
     Html(#[from] ErroHtml),
 }
 
+impl ErroDocumentoObter {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Processo(erro) => erro.sessao_encerrada(),
+            Self::Anexo(erro) => erro.sessao_encerrada(),
+            Self::PesquisaRapidaNaoAbriuODocumento
+            | Self::NumeroSeiDaArvoreDiferenteDoPedido
+            | Self::Conteudo(_)
+            | Self::DocumentoCancelado
+            | Self::ConteudoNaoPublicadoNaArvore { .. }
+            | Self::Titulo(_)
+            | Self::TituloDeOutroDocumento
+            | Self::Corpo(_)
+            | Self::BarraDoDocumento(_)
+            | Self::ListaDeVersoesNaoPublicadaNaArvore
+            | Self::Versoes(_)
+            | Self::VersaoServidaDiferenteDaPedida
+            | Self::ConteudoComLinkAssinado
+            | Self::Html(_) => false,
+        }
+    }
+}
+
 impl ErroDocumentoObter {}

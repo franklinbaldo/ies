@@ -68,7 +68,14 @@ impl ErroHipotese {
 
     #[cfg(test)]
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        match self {
+            Self::Transporte(falha) => falha.status_http(),
+            Self::Html(_)
+            | Self::OpcaoNaoUnica
+            | Self::OpcoesDisponiveis(_)
+            | Self::EscolhaNaoOferecida
+            | Self::EscolhaInlineNaoVerificada => None,
+        }
     }
 
     fn de_transporte(falha: &FalhaTransporte) -> Self {

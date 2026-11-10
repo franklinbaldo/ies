@@ -16,9 +16,10 @@ pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
 /// A leitura com o relogin único: credenciais só de `IES_CREDENCIAIS_FILE`
 /// (ausente: comportamento sem relogin), lock do `ies login` e a contagem
 /// de todos os pedidos do processo.
-pub(crate) fn ler<T, E: crate::erro_publico::Causa>(
+pub(crate) fn ler<T, E>(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
+    sessao_encerrada: fn(&E) -> bool,
     ler: impl FnMut() -> Result<T, E>,
 ) -> Result<(T, Option<NotaDoRelogin>), FalhaDaLeitura<E>> {
     let credenciais = std::env::var_os("IES_CREDENCIAIS_FILE")
@@ -36,7 +37,7 @@ pub(crate) fn ler<T, E: crate::erro_publico::Causa>(
         &contexto,
         &mut HttpsDoLogin,
         &cliente_https::pedidos_do_processo,
-        E::sessao_encerrada,
+        sessao_encerrada,
         ler,
     )
 }

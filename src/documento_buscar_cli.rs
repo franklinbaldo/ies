@@ -177,28 +177,33 @@ fn buscar(
         unidade: cli.unidade.as_deref(),
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
-    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )
-        .map_err(ErroBuscaDeProcesso::Transporte)?;
-        let sessao = SessaoDaBusca {
-            url_do_controle: referencias.url_do_controle(),
-            origem: referencias.origem(),
-            cookie: referencias.cookie(),
-        };
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        let colheita = Colheita::das_referencias(&indice, &referencias);
-        buscar_colhendo_filtrado::<EmDocumentos, _>(
-            &sessao,
-            &pedido,
-            filtros,
-            &colheita,
-            &mut EnvioHttps,
-        )
-    });
+    let lido = relogin_cli::ler(
+        &arquivos,
+        cli.unidade.as_deref(),
+        ErroBuscaDeProcesso::sessao_encerrada,
+        || {
+            let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
+            .map_err(ErroBuscaDeProcesso::Transporte)?;
+            let sessao = SessaoDaBusca {
+                url_do_controle: referencias.url_do_controle(),
+                origem: referencias.origem(),
+                cookie: referencias.cookie(),
+            };
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            let colheita = Colheita::das_referencias(&indice, &referencias);
+            buscar_colhendo_filtrado::<EmDocumentos, _>(
+                &sessao,
+                &pedido,
+                filtros,
+                &colheita,
+                &mut EnvioHttps,
+            )
+        },
+    );
     let (mut busca, nota) = lido.map_err(falha_da_leitura)?;
     busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
     if cli.json {

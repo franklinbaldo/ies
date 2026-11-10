@@ -13,29 +13,37 @@ pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> anyhow:
     let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.
-    let ((rotulo, nivel), nota) = relogin_cli::ler(&arquivos, unidade, || {
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        let sessao =
-            ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-                .map_err(ErroVisaoDoControle::Transporte)?;
-        let colheita = Colheita::das_referencias(&indice, &sessao);
-        let tela = ler_tela_do_controle(&sessao).map_err(ErroVisaoDoControle::Transporte)?;
-        colheita.colher(&tela.html, Some(&tela.mime));
-        let atual = TelaAtual {
-            url: tela.url,
-            html: tela.html,
-            mime: tela.mime,
-        };
-        visao_do_controle::ler_colunas(
-            &tela.instalacao,
-            &atual,
-            unidade,
-            sessao.cookie(),
-            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
-                colheita: &colheita,
-            }),
-        )
-    })
+    let ((rotulo, nivel), nota) = relogin_cli::ler(
+        &arquivos,
+        unidade,
+        ErroVisaoDoControle::sessao_encerrada,
+        || {
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            let sessao = ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
+            .map_err(ErroVisaoDoControle::Transporte)?;
+            let colheita = Colheita::das_referencias(&indice, &sessao);
+            let tela = ler_tela_do_controle(&sessao).map_err(ErroVisaoDoControle::Transporte)?;
+            colheita.colher(&tela.html, Some(&tela.mime));
+            let atual = TelaAtual {
+                url: tela.url,
+                html: tela.html,
+                mime: tela.mime,
+            };
+            visao_do_controle::ler_colunas(
+                &tela.instalacao,
+                &atual,
+                unidade,
+                sessao.cookie(),
+                &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
+                    colheita: &colheita,
+                }),
+            )
+        },
+    )
     .map_err(relogin_cli::subir)?;
     if json_mode {
         let mut valor = json!({"unidade": rotulo, "origem": "web", "opcoes": nivel.json()});

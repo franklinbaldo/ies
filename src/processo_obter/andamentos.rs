@@ -27,6 +27,16 @@ pub(crate) enum HistoricoNaoPedido {
 }
 
 impl HistoricoNaoPedido {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+        }
+    }
+}
+
+impl HistoricoNaoPedido {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),

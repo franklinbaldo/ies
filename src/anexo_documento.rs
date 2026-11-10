@@ -157,6 +157,29 @@ pub(crate) enum ErroAnexo {
     EscritaFalhou,
 }
 
+impl ErroAnexo {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::TelaDeLogin(_) => true,
+            Self::SemTipoDeConteudo
+            | Self::TipoNaoPermitido
+            | Self::CabecalhoRepetido
+            | Self::DisposicaoForaDaFormaObservada
+            | Self::AcimaDoLimite
+            | Self::Vazio
+            | Self::ConteudoComLinkAssinado
+            | Self::RecusadoPeloSei(_)
+            | Self::Corpo(_)
+            | Self::DiretorioAusente
+            | Self::ArquivoJaExiste
+            | Self::EscritaFalhou => false,
+        }
+    }
+}
+
 impl ErroAnexo {}
 
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.

@@ -51,6 +51,34 @@ pub(crate) enum ErroProcessoObter {
 }
 
 impl ErroProcessoObter {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Controle(erro) => erro.sessao_encerrada(),
+            Self::SessaoEncerrada(_) => true,
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+            Self::FormularioDoHistorico(erro) => erro.sessao_encerrada(),
+            Self::EntradaPorIdRecusada
+            | Self::RespostaDaEntradaPorIdNaoReconhecida
+            | Self::PesquisaRapidaSemUrlDeTrabalho
+            | Self::RedirecionamentoNaoReconhecido
+            | Self::Redirecionamento(_)
+            | Self::LinkDoProcessoNoControleNaoReconhecido(_)
+            | Self::CharsetDoControleNaoSuportado
+            | Self::Tela(_)
+            | Self::Arvore(_)
+            | Self::LinkDoHistorico(_)
+            | Self::Andamentos(_)
+            | Self::Propriedades(_)
+            | Self::Marcadores(_)
+            | Self::Html(_) => false,
+        }
+    }
+}
+
+impl ErroProcessoObter {
     /// Status e mensagem do SEI, da requisição recusada.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {

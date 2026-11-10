@@ -26,6 +26,19 @@ pub(super) enum ErroPaginaWeb {
     Visao(#[from] ErroVisaoDoControle),
 }
 
+impl ErroPaginaWeb {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Pagina(erro) => erro.sessao_encerrada(),
+            Self::Visao(erro) => erro.sessao_encerrada(),
+            Self::Caixa(_) => false,
+        }
+    }
+}
+
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
 /// na visão D, a troca para R, que fica (orçamento no contrato). Cada tela
 /// do Controle lida é colhida no índice local, sem requisição a mais.

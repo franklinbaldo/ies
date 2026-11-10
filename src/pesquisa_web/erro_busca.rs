@@ -21,6 +21,22 @@ pub(crate) enum ErroBuscaDeProcesso {
 }
 
 impl ErroBuscaDeProcesso {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Pesquisa(erro) => erro.sessao_encerrada(),
+            Self::Controle(_)
+            | Self::UnidadeDoControleDiferenteDaSolicitada
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::Link(_)
+            | Self::Paginacao(_) => false,
+        }
+    }
+}
+
+impl ErroBuscaDeProcesso {
     /// Status e mensagem do SEI, da requisição recusada.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {

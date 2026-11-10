@@ -23,14 +23,19 @@ pub(super) fn mostrar_unidade_atual(
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão num retrato coerente (#222).
-    let ((sessao, tela), nota) = relogin_cli::ler(&arquivos, unidade_esperada, || {
-        let sessao = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )?;
-        transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
-    })
+    let ((sessao, tela), nota) = relogin_cli::ler(
+        &arquivos,
+        unidade_esperada,
+        crate::transporte::FalhaTransporte::sessao_encerrada,
+        || {
+            let sessao = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )?;
+            transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
+        },
+    )
     .map_err(relogin_cli::subir)?;
     // A colheita usa a geração do cookie que obteve a tela.
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);

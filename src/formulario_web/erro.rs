@@ -54,6 +54,40 @@ pub(crate) enum ErroSubmissaoFormulario {
 }
 
 impl ErroSubmissaoFormulario {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::EfeitoDaOperacaoNaoAvaliado
+            | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::FormulariosComMesmoIdentificadorNaTela
+            | Self::MetodoDoFormularioDiferenteDePost
+            | Self::EnctypeDoFormularioNaoUrlencoded
+            | Self::AcceptCharsetPublicadoNoFormulario
+            | Self::AcaoDoFormularioNaoEhUrlHttps
+            | Self::AcaoDoFormularioForaDaInstalacao
+            | Self::AcaoDoFormularioDiferenteDaOperacao
+            | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
+            | Self::CampoOcultoAusenteNoFormulario { .. }
+            | Self::CampoOcultoRepetidoNoFormulario { .. }
+            | Self::HdnAcaoPublicadoSemRegraDaOperacao
+            | Self::CampoForaDaListaDaOperacao { .. }
+            | Self::CampoNaoPublicadoPeloFormulario { .. }
+            | Self::CampoInformadoMaisDeUmaVez { .. }
+            | Self::CampoCriadoPeloScriptJaPublicado { .. }
+            | Self::ValorNaoRepresentavelNaCodificacao { .. }
+            | Self::TelaDeLoginRecebidaAposEnvio
+            | Self::MarcadorDeResultadoAusenteNaResposta
+            | Self::ValidacaoRecusadaPeloSei(_)
+            | Self::AtributoHtml(_)
+            | Self::Html(_) => false,
+        }
+    }
+}
+
+impl ErroSubmissaoFormulario {
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
     /// Na validação da Infra, status 200 e a mensagem do SEI.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
