@@ -38,6 +38,7 @@ pub(super) enum EstadoExtra {
     SemSrc,
     Cancelado,
     NumeroRepetido,
+    NumeroIgualEmOutroProcesso,
     RevogadoAoVisualizar,
     TituloTrocadoAoVisualizar,
     SessaoRevogadaAoVisualizar,
@@ -170,6 +171,22 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         },
     )
     .unwrap();
+    if matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+        processos::guardar(
+            &mut banco,
+            &origem,
+            CENARIO,
+            &ProcessoSimulado {
+                id: "8".into(),
+                numero: NUP_B.into(),
+                unidade_origem: "TESTE".into(),
+                aberto_em: vec!["TESTE".into()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
+    }
     for (id, processo, nup, numero, corpo) in [
         (
             "42",
@@ -197,7 +214,11 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
                 id_documento: id.into(),
                 id_procedimento: processo.into(),
                 numero_processo: nup.into(),
-                numero: numero.into(),
+                numero: if id == "43" && matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+                    DOC_A.into()
+                } else {
+                    numero.into()
+                },
                 tipo: "Despacho".into(),
                 revisoes: revisoes_para(id, modo, corpo),
             },
@@ -212,7 +233,8 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         | EstadoExtra::SessaoRevogadaAoVisualizar
         | EstadoExtra::VersaoRevogadaAoVisualizar
         | EstadoExtra::SemListaNaUnidade
-        | EstadoExtra::CanceladoAntesDaLista => {}
+        | EstadoExtra::CanceladoAntesDaLista
+        | EstadoExtra::NumeroIgualEmOutroProcesso => {}
         EstadoExtra::SemSrc => semear_documento_sem_src(&banco, &origem),
         EstadoExtra::Cancelado => {
             assert_eq!(
