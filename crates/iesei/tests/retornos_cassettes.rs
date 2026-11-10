@@ -31,7 +31,7 @@ fn reconstroi_meses_e_isola_instalacao_e_periodo() {
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     // A extensão do esquema derivado não altera a identidade dos retornos.
-    assert_eq!(versao, 34);
+    assert_eq!(versao, 35);
     let m = mes();
     assert!(
         ler(
