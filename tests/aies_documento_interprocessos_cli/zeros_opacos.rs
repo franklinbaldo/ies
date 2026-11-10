@@ -1,6 +1,6 @@
 //! BDD-60-05: o SEI pode localizar numero SEI sem zeros iniciais,
 //! mas a CLI nao pode confundir a correspondencia de busca com identidade.
-//! A UnB observou 11505 -> 0011505 em 04/11; os IDs aqui sao sinteticos.
+//! A `UnB` observou 11505 -> 0011505 em 04/11; os IDs aqui sao sinteticos.
 //! Fonte: docs/validacao-live/2026-11-04-documento-obter.md.
 use super::*;
 
