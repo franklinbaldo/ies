@@ -57,11 +57,11 @@ pub fn guardar(
             "SELECT 1 FROM sim_bloco_linha
              WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND numero=?4 LIMIT 1",
             params![
-            instalacao.url_base(),
-            cenario,
-            detalhe.tipo.nome(),
-            detalhe.numero
-        ],
+                instalacao.url_base(),
+                cenario,
+                detalhe.tipo.nome(),
+                detalhe.numero
+            ],
             |r| r.get(0),
         )
         .optional()?;
