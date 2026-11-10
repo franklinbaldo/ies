@@ -58,6 +58,17 @@ fn servir_conteudo_observado(
             1,
             "GET e POST recusado não modificam o SQLite"
         );
+        assert_eq!(
+            iesei::documento_versoes::ler(
+                &banco,
+                &instalacao,
+                "cassette-conteudo",
+                &documento.id_documento,
+            )
+            .unwrap(),
+            Some(documento),
+            "a navegação e as recusas preservam todo o documento",
+        );
     });
 
     (endereco, tarefa)
