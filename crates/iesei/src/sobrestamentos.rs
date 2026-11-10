@@ -132,25 +132,44 @@ mod tests {
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.teste/sei").unwrap();
         let processo = ProcessoSimulado {
-            id: "10".into(), numero: "00001.000001/2026-01".into(),
-            unidade_origem: "TESTE".into(), aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None, destinos: vec![],
+            id: "10".into(),
+            numero: "00001.000001/2026-01".into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
         };
         processos::guardar(&mut banco, &origem, "c1", &processo).unwrap();
         assert_eq!(consultar(&banco, &origem, "c1", "10").unwrap(), None);
         sobrestar(&banco, &origem, "c1", "10", "TESTE", "Aguardando").unwrap();
-        assert_eq!(consultar(&banco, &origem, "c1", "10").unwrap(),
-                   Some(Sobrestamento { unidade: "TESTE".into(), motivo: "Aguardando".into() }));
-        assert!(matches!(sobrestar(&banco, &origem, "c1", "10", "TESTE", "Outra"),
-                         Err(Falha::JaSobrestado)));
-        assert!(matches!(retomar(&banco, &origem, "c1", "10", "OUTRA"),
-                         Err(Falha::OutraUnidade)));
+        assert_eq!(
+            consultar(&banco, &origem, "c1", "10").unwrap(),
+            Some(Sobrestamento {
+                unidade: "TESTE".into(),
+                motivo: "Aguardando".into()
+            })
+        );
+        assert!(matches!(
+            sobrestar(&banco, &origem, "c1", "10", "TESTE", "Outra"),
+            Err(Falha::JaSobrestado)
+        ));
+        assert!(matches!(
+            retomar(&banco, &origem, "c1", "10", "OUTRA"),
+            Err(Falha::OutraUnidade)
+        ));
         assert_eq!(consultar(&banco, &origem, "c2", "10").unwrap(), None);
         retomar(&banco, &origem, "c1", "10", "TESTE").unwrap();
         assert_eq!(consultar(&banco, &origem, "c1", "10").unwrap(), None);
-        assert!(matches!(retomar(&banco, &origem, "c1", "10", "TESTE"),
-                         Err(Falha::NaoSobrestado)));
-        assert_eq!(processos::ler(&banco, &origem, "c1", "10").unwrap().unwrap().aberto_em,
-                   vec!["TESTE"]);
+        assert!(matches!(
+            retomar(&banco, &origem, "c1", "10", "TESTE"),
+            Err(Falha::NaoSobrestado)
+        ));
+        assert_eq!(
+            processos::ler(&banco, &origem, "c1", "10")
+                .unwrap()
+                .unwrap()
+                .aberto_em,
+            vec!["TESTE"]
+        );
     }
 }

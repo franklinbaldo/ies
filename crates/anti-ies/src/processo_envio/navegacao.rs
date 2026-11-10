@@ -57,7 +57,10 @@ fn situacao_da_raiz(
         texto
     };
     if let Some(estado) = sobrestamento {
-        return format!("Processo sobrestado na unidade {}.<br />", ancora(&estado.unidade));
+        return format!(
+            "Processo sobrestado na unidade {}.<br />",
+            ancora(&estado.unidade)
+        );
     }
     match processo.aberto_em.as_slice() {
         [] => "Processo não possui andamentos abertos.<br />".to_owned(),

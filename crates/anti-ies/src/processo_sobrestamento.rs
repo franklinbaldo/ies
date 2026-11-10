@@ -133,8 +133,7 @@ pub(crate) fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
-    let Some(motivo) = campo("txaMotivo")
-        .and_then(crate::processo_envio::decodificar_formulario)
+    let Some(motivo) = campo("txaMotivo").and_then(crate::processo_envio::decodificar_formulario)
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

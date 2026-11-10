@@ -21,7 +21,7 @@ pub mod pdf_externo;
 pub mod pesquisa_documento;
 pub mod prazos;
 pub mod processos;
-pub mod sobrestamentos;
 pub mod relacionamentos;
 pub mod retornos_cassettes;
+pub mod sobrestamentos;
 pub mod sqlite;

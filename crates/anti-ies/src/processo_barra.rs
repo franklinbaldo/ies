@@ -22,7 +22,9 @@ pub(crate) fn acoes_do_processo(
             .expect("formatação String");
     }
     if sobrestamento.is_some_and(|s| s.unidade == unidade_atual) {
-        links.push_str(r##"<a href="#" onclick="removerSobrestamentoProcesso();">Retomar Processo</a>"##);
+        links.push_str(
+            r##"<a href="#" onclick="removerSobrestamentoProcesso();">Retomar Processo</a>"##,
+        );
     }
     if processo
         .aberto_em
