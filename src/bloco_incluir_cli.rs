@@ -1,7 +1,7 @@
 //! CLI de `ies bloco incluir BLOCO --documento DOC | --processo NUP [--confirmar]`
-//! (#381; contracts/cli/bloco-incluir.md). Esta fatia (BDD-381-01) entrega a
-//! prévia documental; `--processo` e `--confirmar` recusam antes da rede.
-use crate::bloco_incluir::{PreviaDocumental, prever_documento};
+//! (#381; contracts/cli/bloco-incluir.md). BDD-381-01/02: prévia, confirmação
+//! documental causal e releitura; `--processo` ainda recusa antes da rede.
+use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::SessaoDoProcesso;
@@ -60,9 +60,11 @@ pub(crate) fn executar(
         &sessao,
         &referencias,
         cli.unidade.as_deref(),
-        bloco,
-        &documento,
-        confirmar,
+        PedidoDaInclusao {
+            bloco,
+            documento: &documento,
+            confirmar,
+        },
         &IndiceLocal::da_configuracao(&arquivos),
         &mut EnvioHttps,
     ) {
