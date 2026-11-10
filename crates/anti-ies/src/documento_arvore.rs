@@ -50,6 +50,7 @@ fn arvore(
     situacao: &Situacao,
     ciencia: &Ciencia,
     lista_visivel: bool,
+    oferecer_inclusao: bool,
 ) -> String {
     let p = &d.id_procedimento;
     let id = &d.id_documento;
@@ -84,7 +85,7 @@ fn arvore(
         String::new()
     };
     // "Incluir em Bloco de Assinatura" (#381), na forma do card UnB.
-    let incluir_em_bloco = if matches!(situacao, Situacao::Disponivel) {
+    let incluir_em_bloco = if oferecer_inclusao && matches!(situacao, Situacao::Disponivel) {
         format!(
             "<a href=\"controlador.php?acao=bloco_escolher&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"453\"><img title=\"Incluir em Bloco de Assinatura\"/></a>"
         )
@@ -248,7 +249,25 @@ pub fn responder(
                 Ok(lista) => lista,
                 Err(estado) => return Resposta::nova(estado),
             };
-            html(arvore(&documento, &situacao, &ciencia, lista))
+            // Hipótese revisável para BDD-381-03: uma tela pode não mais
+            // oferecer inclusão após encontrar o documento em um bloco.
+            // A ausência do link não é evidência de inexistência do DOC.
+            let oferecer_inclusao = match iesei::bloco_detalhe::documento_ja_observado_em_bloco(
+                banco,
+                instalacao,
+                cenario,
+                &documento.numero,
+            ) {
+                Ok(presente) => !presente,
+                Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+            };
+            html(arvore(
+                &documento,
+                &situacao,
+                &ciencia,
+                lista,
+                oferecer_inclusao,
+            ))
         }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
         _ => unreachable!("ação validada"),
