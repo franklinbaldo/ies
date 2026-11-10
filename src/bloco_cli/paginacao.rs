@@ -34,8 +34,7 @@ pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), 
     use crate::html_atributos::valor_do_atributo;
     let ilegivel = || FalhaLeitura::Html(ErroHtml::valor("html_de_blocos_invalido"));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel())?;
-    let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")
-        .map_err(FalhaLeitura::Submissao)?;
+    let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")?;
     let mut achados = 0;
     for no in form
         .query_selector(dom.parser(), "select")
@@ -118,12 +117,10 @@ pub(super) fn ler_pagina_dois<V: EnvioDoControle>(
             ("selInfraPaginacaoSuperior", indice),
             ("selInfraPaginacaoInferior", indice),
         ],
-    )
-    .map_err(FalhaLeitura::Submissao)?;
+    )?;
     let resposta = enviar_submissao_via(submissao, sessao.cookie(), |post, cookie| {
         envio.post(post, cookie)
-    })
-    .map_err(FalhaLeitura::Submissao)?;
+    })?;
     let RespostaDoEnvio::Html(html) = resposta else {
         return Err(FalhaLeitura::Bloco(ErroBloco::FaixaDeBlocosIncoerente));
     };

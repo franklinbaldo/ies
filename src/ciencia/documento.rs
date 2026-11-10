@@ -167,9 +167,8 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         unidade: pedido.unidade,
         anexo: PedidoDoAnexo::default(),
     };
-    let aberto =
-        abrir_documento_na_arvore(sessao, &abertura, indice, &mut rede).map_err(E::Abertura)?;
-    if !ciencia_do_documento_na_barra(&aberto.html, &aberto.id_documento).map_err(E::Barra)? {
+    let aberto = abrir_documento_na_arvore(sessao, &abertura, indice, &mut rede)?;
+    if !ciencia_do_documento_na_barra(&aberto.html, &aberto.id_documento)? {
         return Err(E::CienciaNaoOferecida);
     }
     let mut feito = CienciaDoDocumento {
@@ -263,10 +262,8 @@ fn ler_aceite<V: EnvioDoProcesso>(
     id_procedimento: &str,
     id_documento: &str,
 ) -> Result<String, FalhaDoAceite> {
-    let resposta = rede
-        .get_sem_seguir(url, cookie)
-        .map_err(FalhaDoAceite::Transporte)?;
-    let html = decodificar_resposta(resposta.resposta).map_err(FalhaDoAceite::Transporte)?;
+    let resposta = rede.get_sem_seguir(url, cookie)?;
+    let html = decodificar_resposta(resposta.resposta)?;
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
         return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
             status: 200,

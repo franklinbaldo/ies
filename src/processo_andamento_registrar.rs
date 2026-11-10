@@ -48,11 +48,6 @@ pub(crate) enum ErroTela {
     ProtocoloDiferente,
     CampoInesperado,
 }
-impl ErroTela {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 
 /// Um formulário, dois ocultos de identidade e um botão submit.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
@@ -159,36 +154,29 @@ pub(crate) struct Resultado {
     pub(crate) total_depois: Option<u64>,
     pub(crate) resposta_inesperada: Option<&'static str>,
 }
+#[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum Erro {
+    #[causa(interna)]
     Abertura(ErroProcessoObter),
     OrigemNaoAutorizada,
+    #[causa(interna)]
     Barra(ErroAndamentoNaBarra),
     AcaoNaoOferecida,
     HistoricoNaoPublicado,
     UnidadeNaoPublicada,
+    #[causa(interna)]
     Tela(FalhaDaTela),
+    #[causa(interna)]
     FormatoDaTela(ErroTela),
     CharsetNaoSuportado,
+    #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
+    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
 }
 impl Erro {
     pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Abertura(e) => e.subcodigo(),
-            Self::OrigemNaoAutorizada => "origem_nao_autorizada",
-            Self::Barra(e) => e.subcodigo(),
-            Self::AcaoNaoOferecida => "atualizar_andamento_nao_oferecido",
-            Self::HistoricoNaoPublicado => "historico_nao_publicado_antes_do_andamento",
-            Self::UnidadeNaoPublicada => "unidade_da_sessao_nao_publicada",
-            Self::Tela(FalhaDaTela::Transporte(e)) => e.subcodigo(),
-            Self::Tela(FalhaDaTela::Redirecionada) => "tela_do_andamento_redirecionada",
-            Self::Tela(FalhaDaTela::SessaoEncerrada) => "sessao_encerrada_antes_do_andamento",
-            Self::FormatoDaTela(e) => e.subcodigo(),
-            Self::CharsetNaoSuportado => "charset_do_andamento_nao_suportado",
-            Self::Formulario(e) => e.subcodigo(),
-            Self::EfeitoIncerto => "efeito_incerto_no_andamento",
-        }
+        crate::erro_publico::folha(self)
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
@@ -227,28 +215,23 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         unidade_exigida: true,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &pedido, indice, &mut rede).map_err(Erro::Abertura)?;
-    let endereco = acoes
-        .andamento
-        .map_err(Erro::Barra)?
-        .ok_or(Erro::AcaoNaoOferecida)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, &mut rede)?;
+    let endereco = acoes.andamento?.ok_or(Erro::AcaoNaoOferecida)?;
     let Andamentos::Lidos(antes) = aberto.andamentos else {
         return Err(Erro::HistoricoNaoPublicado);
     };
     let unidade = aberto.unidade.ok_or(Erro::UnidadeNaoPublicada)?;
     let cookie =
         ler_cookie(sessao).map_err(|e| Erro::Formulario(ErroSubmissaoFormulario::Transporte(e)))?;
-    let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(Erro::Tela)?;
-    conferir_formulario(&html, &aberto.arvore.processo.id).map_err(Erro::FormatoDaTela)?;
+    let (html, mime) = obter_tela(&mut rede, &cookie, endereco.as_str())?;
+    conferir_formulario(&html, &aberto.arvore.processo.id)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(Erro::CharsetNaoSuportado)?;
     let tela = TelaServida {
         url: endereco.as_str(),
         html: &html,
         codificacao,
     };
-    let submissao = derivar_submissao(&REGISTRAR, &instalacao, &tela, &unidade, &[(TEXTO, texto)])
-        .map_err(Erro::Formulario)?;
+    let submissao = derivar_submissao(&REGISTRAR, &instalacao, &tela, &unidade, &[(TEXTO, texto)])?;
     let mut resultado = Resultado {
         numero: numero.as_str().to_owned(),
         texto: texto.to_owned(),

@@ -75,7 +75,7 @@ fn rodar(
 fn previa_liga_barra_historico_e_formulario_sem_post() {
     let amb = ambiente();
     let (resultado, pedidos) = rodar(&amb, false, respostas_previa());
-    let feito = resultado.ok().expect("prévia da tela sintética");
+    let feito = resultado.expect("prévia da tela sintética");
     assert!(!feito.confirmado);
     assert_eq!(feito.requisicoes, 5);
     assert_eq!(feito.total_antes, 1);
@@ -97,7 +97,7 @@ fn confirmacao_faz_exatamente_um_post_e_releitura() {
     respostas.push(ok(tree()));
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
-    let feito = resultado.ok().expect("andamento conferido");
+    let feito = resultado.expect("andamento conferido");
     assert!(feito.confirmado);
     assert_eq!(feito.total_depois, Some(2));
     assert_eq!(feito.requisicoes, 9);
@@ -118,7 +118,7 @@ fn resposta_inesperada_mas_releitura_confirma_sem_reenviar() {
     respostas.push(ok(tree()));
     respostas.push(ok(pagina_apos()));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
-    let feito = resultado.ok().expect("reconciliação pela leitura");
+    let feito = resultado.expect("reconciliação pela leitura");
     assert_eq!(
         feito.resposta_inesperada,
         Some("resposta_do_andamento_nao_esperada")
@@ -166,7 +166,7 @@ fn previa_preserva_o_texto_original_do_andamento() {
         rodar_com(&amb, respostas_previa(), |sessao, nup, indice, roteiro| {
             registrar(sessao, nup, texto, false, None, indice, roteiro)
         });
-    let feito = resultado.ok().expect("prévia da tela sintética");
+    let feito = resultado.expect("prévia da tela sintética");
     assert_eq!(feito.texto, texto);
     assert_eq!(pedidos.len(), 5);
     assert!(pedidos.iter().all(|pedido| pedido.metodo == "GET"));

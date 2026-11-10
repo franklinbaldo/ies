@@ -45,12 +45,12 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
-    let cookie = ler_cookie(sessao).map_err(E::TelaDaEscrita)?;
+    let cookie = ler_cookie(sessao)?;
     let resposta_de_escrita_aceita = match acao {
         Acao::Sobrestar => {
             let (html, mime) =
                 obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
-            tela::conferir_formulario(&html, &previa.id_procedimento).map_err(E::TelaSobrestar)?;
+            tela::conferir_formulario(&html, &previa.id_procedimento)?;
             let codificacao = codificacao_da_tela(&mime).ok_or(E::CharsetNaoSuportado)?;
             let tela_servida = TelaServida {
                 url: endereco.as_str(),
@@ -69,8 +69,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 &tela_servida,
                 &previa.unidade,
                 &valores,
-            )
-            .map_err(E::Formulario)?;
+            )?;
             // A submissão é consumida no POST único. Qualquer falha depois
             // do início do envio segue para a leitura de reconciliação.
             let mut enviado = false;
@@ -99,8 +98,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             // da barra é GET de leitura, não a escrita.
             let (html, _) =
                 obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
-            let url = ler_endereco_de_retomar(&instalacao, &html, &previa.id_procedimento)
-                .map_err(E::EnderecoDeRetomar)?;
+            let url = ler_endereco_de_retomar(&instalacao, &html, &previa.id_procedimento)?;
             pela_funcao(
                 &mut rede,
                 &cookie,

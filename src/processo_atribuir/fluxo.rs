@@ -152,8 +152,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     use ErroProcessoAtribuir as E;
     let mut rede = Contador::novo(envio);
     let abertura = leitura(pedido.nup, pedido.unidade, true);
-    let (aberto, acoes) =
-        abrir_para_escrever(sessao, &abertura, indice, &mut rede).map_err(E::Abertura)?;
+    let (aberto, acoes) = abrir_para_escrever(sessao, &abertura, indice, &mut rede)?;
     let unidade = aberto
         .unidade
         .as_deref()
@@ -171,10 +170,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     if ja_aplicada {
         return Err(E::Preparacao(ErroAtribuir::AtribuicaoJaAplicada));
     }
-    let link = acoes
-        .atribuir
-        .map_err(E::Barra)?
-        .ok_or(E::AtribuicaoNaoOferecidaNaBarra)?;
+    let link = acoes.atribuir?.ok_or(E::AtribuicaoNaoOferecidaNaBarra)?;
     let cookie = ler_cookie(sessao).map_err(E::Cookie)?;
     let (html, mime) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
@@ -192,8 +188,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         unidade,
         pedido.usuario,
         Some(atual),
-    )
-    .map_err(E::Preparacao)?;
+    )?;
     let mut feito = ProcessoAtribuido {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: aberto.arvore.processo.id,
