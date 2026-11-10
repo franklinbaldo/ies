@@ -193,15 +193,15 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
         .unwrap();
         if matches!(modo, Modo::PreviaPendencia) {
             editor_documento::registrar_oferta(
-            banco,
-            instalacao,
-            CENARIO,
-            "77",
-            Oferta {
-                editavel: true,
-                assinaturas: 0,
-            },
-        )
+                banco,
+                instalacao,
+                CENARIO,
+                "77",
+                Oferta {
+                    editavel: true,
+                    assinaturas: 0,
+                },
+            )
             .unwrap();
         }
     }
