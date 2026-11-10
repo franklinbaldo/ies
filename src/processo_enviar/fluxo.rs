@@ -11,8 +11,8 @@ use super::tela::{
 };
 use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
-    CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
+    CodificacaoDaTela, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_consulta_ajax,
+    derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -63,11 +63,12 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         .map_err(|motivo| C::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
     let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
     let id = aberto.arvore.processo.id.clone();
-    let cookie = ler_cookie(sessao)
-        .map_err(|falha| C::Formulario(ErroSubmissaoFormulario::Transporte(falha)))?;
+    let cookie = ler_cookie(sessao)?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
     let link_anotacao = if pedido.remover_anotacoes {
-        acoes.anotacoes.map_err(C::LinkDasAnotacoes)?
+        acoes
+            .anotacoes
+            .map_err(super::anotacoes::ErroDasAnotacoes::LinkDasAnotacoes)?
     } else {
         None
     };
@@ -251,12 +252,16 @@ fn ler_anotacao_antes<V: EnvioDoProcesso>(
         return Ok(None);
     };
     let (html, mime) = obter_tela(rede, cookie, link).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(falha) => C::TelaDasAnotacoes(falha),
-        FalhaDaTela::Redirecionada => C::TelaDasAnotacoesRedirecionada,
+        FalhaDaTela::Transporte(falha) => {
+            C::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(falha))
+        }
+        FalhaDaTela::Redirecionada => {
+            C::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada)
+        }
         FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
     })?;
-    let presente =
-        super::anotacoes::anotacao_presente(&html, id).map_err(C::LeituraDasAnotacoes)?;
+    let presente = super::anotacoes::anotacao_presente(&html, id)
+        .map_err(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
     Ok(Some(AnotacaoLida {
         presente,

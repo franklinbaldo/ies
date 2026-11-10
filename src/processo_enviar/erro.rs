@@ -3,6 +3,7 @@
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
@@ -47,6 +48,9 @@ impl FalhaDaConsulta {
 
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroEnviar {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
     #[causa(interna)]
     Abertura(ErroProcessoObter),
@@ -94,13 +98,9 @@ pub(crate) enum ErroEnviar {
         /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.
         depois: Option<Vec<String>>,
     },
+    /// A anotação da origem não foi lida antes de enviar.
     #[causa(interna)]
-    LinkDasAnotacoes(ErroHtml),
-    #[causa(interna)]
-    TelaDasAnotacoes(FalhaTransporte),
-    TelaDasAnotacoesRedirecionada,
-    #[causa(interna)]
-    LeituraDasAnotacoes(ErroHtml),
+    Anotacoes(super::anotacoes::ErroDasAnotacoes),
     DestinoNaoOferecidoPeloSei {
         oferecidos: Vec<String>,
     },
@@ -166,9 +166,8 @@ impl ErroEnviar {
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) | Self::TelaDasAnotacoes(falha) => {
-                falha.status_http().cloned()
-            }
+            Self::TelaDaEscrita(falha) => falha.status_http().cloned(),
+            Self::Anotacoes(erro) => erro.status_http().cloned(),
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Consulta(falha) => falha.status_http(),
             Self::Formulario(erro) => erro.status_http().cloned(),
@@ -183,6 +182,7 @@ impl ErroEnviar {
 
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Cookie(e) => e.mensagem(),
             Self::Abertura(erro) => erro.mensagem(),
             Self::UnidadeDaSessaoNaoPublicada => {
                 "a abertura não publicou a unidade da sessão; nada foi enviado"
@@ -233,15 +233,7 @@ impl ErroEnviar {
             Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. } => {
                 "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
             }
-            Self::LinkDasAnotacoes(_) => {
-                "o link das anotações da origem não está na forma observada; nada foi enviado"
-            }
-            Self::TelaDasAnotacoes(_) | Self::TelaDasAnotacoesRedirecionada => {
-                "a tela das anotações não foi servida; nada foi enviado"
-            }
-            Self::LeituraDasAnotacoes(_) => {
-                "a anotação da origem não pôde ser lida com identidade conferida; nada foi enviado"
-            }
+            Self::Anotacoes(erro) => erro.mensagem(),
             Self::DestinoNaoOferecidoPeloSei { .. } => {
                 "o SEI não oferece unidade de destino com essa sigla; nada foi enviado"
             }

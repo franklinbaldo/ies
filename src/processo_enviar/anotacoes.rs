@@ -7,6 +7,42 @@ use crate::formulario_web::{
     OperacaoDeFormulario, ResultadoDoEnvio,
 };
 
+/// Por que a anotação da origem não foi lida antes de enviar. Etapa
+/// própria: o erro nasce aqui e chega ao envio por `From`.
+#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+pub(crate) enum ErroDasAnotacoes {
+    #[causa(interna)]
+    LinkDasAnotacoes(ErroHtml),
+    #[causa(interna)]
+    TelaDasAnotacoes(crate::transporte::FalhaTransporte),
+    TelaDasAnotacoesRedirecionada,
+    #[causa(interna)]
+    LeituraDasAnotacoes(ErroHtml),
+}
+
+impl ErroDasAnotacoes {
+    pub(crate) fn mensagem(&self) -> &'static str {
+        match self {
+            Self::LinkDasAnotacoes(_) => {
+                "o link das anotações da origem não está na forma observada; nada foi enviado"
+            }
+            Self::TelaDasAnotacoes(_) | Self::TelaDasAnotacoesRedirecionada => {
+                "a tela das anotações não foi servida; nada foi enviado"
+            }
+            Self::LeituraDasAnotacoes(_) => {
+                "a anotação da origem não pôde ser lida com identidade conferida; nada foi enviado"
+            }
+        }
+    }
+
+    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
+        match self {
+            Self::TelaDasAnotacoes(falha) => falha.status_http(),
+            _ => None,
+        }
+    }
+}
+
 /// POST do botão Salvar no formulário de anotação observado no SEI 4.0.9.
 pub(crate) const REGISTRAR_ANOTACAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "anotacao_registrar",

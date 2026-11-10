@@ -6,6 +6,7 @@ use crate::processo_comentarios::{
     ComentarioLido, ErroComentarios, ErroLinkDosComentarios, TelaDosComentarios,
     VisaoDosComentarios,
 };
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
@@ -28,7 +29,7 @@ pub(crate) enum Erro {
     #[causa(interna)]
     Barra(ErroLinkDosComentarios),
     #[causa(interna)]
-    Cookie(FalhaTransporte),
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Transporte(FalhaTransporte),
     #[causa(interna)]
@@ -52,13 +53,9 @@ pub(crate) fn ler<V: EnvioDoProcesso>(
 ) -> Result<Resultado, Erro> {
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
-        abrir_para_escrever(sessao, &leitura(nup, unidade, false), indice, &mut rede)
-            .map_err(Erro::Abertura)?;
-    let endereco = acoes
-        .comentarios
-        .map_err(Erro::Barra)?
-        .ok_or(Erro::ComentariosNaoOferecidos)?;
-    let cookie = ler_cookie(sessao).map_err(Erro::Cookie)?;
+        abrir_para_escrever(sessao, &leitura(nup, unidade, false), indice, &mut rede)?;
+    let endereco = acoes.comentarios?.ok_or(Erro::ComentariosNaoOferecidos)?;
+    let cookie = ler_cookie(sessao)?;
     let (html, _) =
         obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(|falha| match falha {
             FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
@@ -67,9 +64,7 @@ pub(crate) fn ler<V: EnvioDoProcesso>(
         })?;
     // O cadastro vazio não pode ser confundido com uma lista completa:
     // a transição 302/lista vazia receberá tratamento próprio em outra fatia.
-    let TelaDosComentarios::Lista(lista) =
-        crate::processo_comentarios::ler_tela(&html).map_err(Erro::Leitura)?
-    else {
+    let TelaDosComentarios::Lista(lista) = crate::processo_comentarios::ler_tela(&html)? else {
         return Err(Erro::RedirecionamentoNaoComprovado);
     };
     Ok(Resultado {

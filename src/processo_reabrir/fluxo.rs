@@ -68,7 +68,7 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
     if !pedido.confirmar {
         return Ok(feito);
     }
-    let cookie = ler_cookie(sessao).map_err(R::Cookie)?;
+    let cookie = ler_cookie(sessao)?;
     let id = feito.id_procedimento.clone();
     let (html, _) =
         obter_tela(&mut rede, &cookie, acao.tela_do_no.as_str()).map_err(|falha| match falha {

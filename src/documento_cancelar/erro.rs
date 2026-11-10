@@ -1,6 +1,7 @@
 //! Recusas tipadas de documento cancelar. Nenhum tipo armazena URL ou segredo.
 use super::ErroLinkCancelar;
 use crate::formulario_web::ErroSubmissaoFormulario;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
@@ -51,6 +52,8 @@ impl VerificacaoDoCancelamento {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ErroCancelar {
+    /// O cookie privado da sessão não pôde ser lido.
+    Cookie(CookieIlegivel),
     Abertura(ErroDocumentoObter),
     Link(ErroLinkCancelar),
     CancelamentoNaoOferecido,
@@ -76,6 +79,7 @@ pub(crate) enum ErroCancelar {
 impl ErroCancelar {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
+            Self::Cookie(e) => crate::erro_publico::folha(e),
             Self::Abertura(erro) => erro.subcodigo(),
             Self::Link(erro) => erro.subcodigo(),
             Self::CancelamentoNaoOferecido => "cancelamento_nao_oferecido_na_barra",
@@ -120,6 +124,7 @@ impl ErroCancelar {
     }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
+            Self::Cookie(e) => e.mensagem(),
             Self::Abertura(e) => e.mensagem(),
             Self::Link(_) => {
                 "a ação de cancelar na barra está fora da forma observada; nada foi enviado"
@@ -152,5 +157,11 @@ impl ErroCancelar {
                 "não é possível comprovar o cancelamento; confira a árvore antes de qualquer nova ação"
             }
         }
+    }
+}
+
+impl From<CookieIlegivel> for ErroCancelar {
+    fn from(erro: CookieIlegivel) -> Self {
+        Self::Cookie(erro)
     }
 }
