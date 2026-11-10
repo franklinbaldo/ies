@@ -54,6 +54,8 @@ pub(crate) fn data_valida(data: &str) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroFiltro {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
     ControleDeFiltroAmbiguo,
@@ -62,7 +64,7 @@ pub(crate) enum ErroFiltro {
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroFiltro> {
     valor_do_atributo(tag, nome)
-        .map_err(|_| ErroFiltro::AtributoDoFiltroIlegivel)?
+        .map_err(ErroFiltro::Atributo)?
         .map(|v| decodificar_atributo(&v).ok_or(ErroFiltro::AtributoDoFiltroIlegivel))
         .transpose()
 }

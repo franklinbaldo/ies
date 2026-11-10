@@ -46,6 +46,8 @@ pub(crate) struct TelaDaAtribuicao {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAtribuir {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
     SituacaoNaoObservada,
@@ -55,14 +57,13 @@ pub(crate) enum ErroAtribuir {
     TelaDaAtribuicaoForaDaForma,
 }
 
-type E = ErroAtribuir;
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAtribuir> {
     valor_do_atributo(tag, nome)
-        .map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)?
+        .map_err(ErroAtribuir::Atributo)?
         .map(|bruto| decodificar_atributo(&bruto).ok_or(ErroAtribuir::TelaDaAtribuicaoForaDaForma))
         .transpose()
 }
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroAtribuir> {
     atributo_presente(tag, nome).map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)
 }
 
@@ -99,7 +100,7 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
 fn ler_opcoes(
     tag: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
-) -> Result<(Vec<UsuarioDaAtribuicao>, usize), E> {
+) -> Result<(Vec<UsuarioDaAtribuicao>, usize), ErroAtribuir> {
     let mut usuarios: Vec<UsuarioDaAtribuicao> = Vec::new();
     let mut item_nulo = 0;
     for filho in tag.children().all(parser) {
@@ -150,7 +151,7 @@ fn ler_opcoes(
 }
 
 /// Confere a forma observada: POST, identidade, lista simples e opção null.
-pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, E> {
+pub(crate) fn ler_tela(html: &str, id: &str) -> Result<TelaDaAtribuicao, ErroAtribuir> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroAtribuir::TelaDaAtribuicaoForaDaForma)?;
     let parser = dom.parser();
@@ -249,24 +250,24 @@ pub(crate) fn planejar(
     tela: &TelaDaAtribuicao,
     login: Option<&str>,
     atual: Option<&str>,
-) -> Result<String, E> {
-    let atual = atual.ok_or(E::SituacaoNaoObservada)?;
+) -> Result<String, ErroAtribuir> {
+    let atual = atual.ok_or(ErroAtribuir::SituacaoNaoObservada)?;
     let Some(login) = login else {
         if atual.is_empty() {
-            return Err(E::AtribuicaoJaAplicada);
+            return Err(ErroAtribuir::AtribuicaoJaAplicada);
         }
         return Ok(SEM_ATRIBUICAO.to_owned());
     };
     if login.is_empty() {
-        return Err(E::UsuarioNaoAtribuivel);
+        return Err(ErroAtribuir::UsuarioNaoAtribuivel);
     }
     let mut achados = tela.usuarios.iter().filter(|u| u.login == login);
-    let usuario = achados.next().ok_or(E::UsuarioNaoAtribuivel)?;
+    let usuario = achados.next().ok_or(ErroAtribuir::UsuarioNaoAtribuivel)?;
     if achados.next().is_some() {
-        return Err(E::UsuarioAmbiguo);
+        return Err(ErroAtribuir::UsuarioAmbiguo);
     }
     if atual == usuario.login {
-        return Err(E::AtribuicaoJaAplicada);
+        return Err(ErroAtribuir::AtribuicaoJaAplicada);
     }
     Ok(usuario.id.clone())
 }
@@ -283,10 +284,10 @@ pub(crate) fn preparar_submissao(
     unidade: &str,
     login: Option<&str>,
     atual: Option<&str>,
-) -> Result<(String, SubmissaoDerivada), E> {
+) -> Result<(String, SubmissaoDerivada), ErroAtribuir> {
     let tela = ler_tela(html, id)?;
     let valor = planejar(&tela, login, atual)?;
-    let codificacao = codificacao_da_tela(mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+    let codificacao = codificacao_da_tela(mime).ok_or(ErroAtribuir::CharsetDaTelaNaoSuportado)?;
     let servida = TelaServida {
         url,
         html,
@@ -299,7 +300,7 @@ pub(crate) fn preparar_submissao(
         unidade,
         &[(SELECAO, valor.as_str())],
     )
-    .map_err(E::Formulario)?;
+    .map_err(ErroAtribuir::Formulario)?;
     Ok((valor, submissao))
 }
 

@@ -45,7 +45,7 @@ pub(crate) fn conferir_cadastro(
         .ok_or(ErroCriar::CadastroForaDaForma)?;
     if !formulario.name().as_utf8_str().eq_ignore_ascii_case("form")
         || valor_do_atributo(formulario, "method")
-            .map_err(|_| ErroCriar::CadastroForaDaForma)?
+            .map_err(ErroCriar::Atributo)?
             .as_deref()
             != Some("post")
     {
@@ -84,7 +84,7 @@ pub(crate) fn conferir_cadastro(
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
             || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
                 .as_deref()
                 != Some("txtDescricao")
             || crate::html_atributos::atributo_presente(controle, "disabled")
@@ -111,15 +111,15 @@ pub(crate) fn conferir_cadastro(
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
             || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
                 .as_deref()
                 != Some("rdoNivelAcesso")
             || valor_do_atributo(controle, "type")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
                 .as_deref()
                 != Some("radio")
             || valor_do_atributo(controle, "value")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
                 .as_deref()
                 != Some(valor)
             || crate::html_atributos::atributo_presente(controle, "disabled")
@@ -164,15 +164,14 @@ fn conferir_controles_obrigatorios(
         {
             continue;
         }
-        let tipo_controle =
-            valor_do_atributo(tag, "type").map_err(|_| ErroCriar::CadastroForaDaForma)?;
+        let tipo_controle = valor_do_atributo(tag, "type").map_err(ErroCriar::Atributo)?;
         if matches!(
             tipo_controle.as_deref(),
             Some("hidden" | "submit" | "button" | "reset" | "image")
         ) {
             continue;
         }
-        let nome = valor_do_atributo(tag, "name").map_err(|_| ErroCriar::CadastroForaDaForma)?;
+        let nome = valor_do_atributo(tag, "name").map_err(ErroCriar::Atributo)?;
         let atendido = match nome.as_deref() {
             Some("txtDescricao") => descricao.is_some_and(|s| !s.trim().is_empty()),
             Some("rdoNivelAcesso") => nivel.is_some(),

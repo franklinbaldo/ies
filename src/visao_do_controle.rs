@@ -108,14 +108,20 @@ impl Visao {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CharsetDaTelaNaoSuportado,
     UnidadeDiferenteDaSolicitada,
     RedirecionamentoAoTrocarVisao,
-    VisaoNaoTrocadaAposEnvio { esperada: Visao },
+    VisaoNaoTrocadaAposEnvio {
+        esperada: Visao,
+    },
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    PaginaForaDoIntervalo { solicitada: usize },
+    PaginaForaDoIntervalo {
+        solicitada: usize,
+    },
     PaginadorDaVisaoDetalhadaNaoPublicado,
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
@@ -164,6 +170,7 @@ impl ErroVisaoDoControle {
             | Self::LinkDoNivelDeDetalheAusente
             | Self::LinkDoNivelDeDetalheNaoReconhecido
             | Self::LinksDoNivelDeDetalheRepetidos
+            | Self::Atributo(_)
             | Self::VisaoDoControleNaoReconhecida => false,
         }
     }

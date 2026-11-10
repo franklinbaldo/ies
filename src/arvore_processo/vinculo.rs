@@ -31,8 +31,8 @@ pub(crate) fn ler_vinculo_de_anexacao(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(href) = lidos.valor("href").map_err(|_| fora)? else {
+        let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
+        let Some(href) = lidos.valor("href").map_err(ErroArvore::Atributo)? else {
             continue;
         };
         if !pares(href).any(|(chave, _)| chave == CHAVE_DO_ANEXADO) {

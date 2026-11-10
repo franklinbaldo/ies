@@ -13,6 +13,8 @@ pub(crate) enum PedidoDePrazo {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPrazo {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,
@@ -93,7 +95,7 @@ fn data_valida(valor: &str) -> bool {
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroPrazo> {
-    crate::html_atributos::valor_do_atributo(tag, nome).map_err(|_| ErroPrazo::TelaNaoObservada)
+    crate::html_atributos::valor_do_atributo(tag, nome).map_err(ErroPrazo::Atributo)
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {

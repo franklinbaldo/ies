@@ -19,13 +19,15 @@ pub(crate) struct Retorno {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRetornos {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
     ListaDeRetornosIncompleta,
     PaginacaoDosRetornosNaoObservada,
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
-    valor_do_atributo(tag, nome).map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)
+    valor_do_atributo(tag, nome).map_err(ErroRetornos::Atributo)
 }
 
 fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {

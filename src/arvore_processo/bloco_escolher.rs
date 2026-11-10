@@ -15,6 +15,8 @@ pub(crate) const ACAO_DE_ESCOLHER_BLOCO: &str = "bloco_escolher";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBlocoNaBarra {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     EnderecoDeOutroDocumento,
     Barra(#[from] ErroBarraDoDocumento),
     BarraDoDocumentoForaDaFormaObservada,
@@ -41,8 +43,8 @@ pub(crate) fn ler_bloco_escolher_da_barra(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(bruto) = lidos.valor("href").map_err(|_| fora)? else {
+        let lidos = atributos(tag).map_err(ErroBlocoNaBarra::Atributo)?;
+        let Some(bruto) = lidos.valor("href").map_err(ErroBlocoNaBarra::Atributo)? else {
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or(fora)?;

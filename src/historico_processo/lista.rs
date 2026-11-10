@@ -79,11 +79,11 @@ fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
     {
         if valor_do_atributo(tag, "name")
-            .map_err(|_| ausente)?
+            .map_err(ErroAndamentos::Atributo)?
             .as_deref()
             == Some(super::CAMPO_TIPO)
         {
-            let bruto = valor_do_atributo(tag, "value").map_err(|_| ausente)?;
+            let bruto = valor_do_atributo(tag, "value").map_err(ErroAndamentos::Atributo)?;
             valores.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ausente)?);
         }
     }

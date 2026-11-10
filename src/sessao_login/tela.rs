@@ -143,7 +143,7 @@ pub(crate) fn link_do_controle(html: &str) -> Result<Option<String>, ErroLogin> 
             .and_then(tl::Node::as_tag)
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
         let bruto = valor_do_atributo(tag, "onclick")
-            .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?
+            .map_err(ErroLogin::Atributo)?
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
         let onclick = decodificar_atributo(&bruto)
             .ok_or(ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;

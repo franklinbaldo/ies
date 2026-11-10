@@ -61,6 +61,8 @@ pub(crate) struct PreviaDocumental {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroIncluir {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".
@@ -88,8 +90,8 @@ pub(crate) enum ErroIncluir {
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroIncluir> {
     let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
-    let lidos = atributos(tag).map_err(|_| fora())?;
-    match lidos.valor(nome).map_err(|_| fora())? {
+    let lidos = atributos(tag).map_err(ErroIncluir::Atributo)?;
+    match lidos.valor(nome).map_err(ErroIncluir::Atributo)? {
         Some(bruto) => decodificar_atributo(bruto).map(Some).ok_or_else(fora),
         None => Ok(None),
     }

@@ -1,6 +1,6 @@
 //! Identidade e critérios Web do Controle de Processos. Sem rede ou persistência.
 use crate::erro_web::ErroCaixa;
-use crate::html_atributos::{ErroAtributoHtml, nos_com_id, nos_com_id_em, valor_do_atributo};
+use crate::html_atributos::{nos_com_id, nos_com_id_em, valor_do_atributo};
 /// Contexto da página HTML: só é usado para conferir a junção.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContextoPagina {
@@ -52,17 +52,13 @@ impl ContextoPagina {
 
 // `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
 // usa a chave corrompida após atributo booleano sem valor.
-fn ilegivel(_: ErroAtributoHtml) -> ErroCaixa {
-    ErroCaixa::HtmlDaCaixaInvalido
-}
-
 fn primeiro_com_id<'d>(
     dom: &'d tl::VDom<'_>,
     id: &str,
 ) -> Result<Option<&'d tl::HTMLTag<'d>>, ErroCaixa> {
     let parser = dom.parser();
     Ok(nos_com_id(dom, id)
-        .map_err(ilegivel)?
+        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
         .first()
         .and_then(|n| n.get(parser))
         .and_then(tl::Node::as_tag))
@@ -100,7 +96,9 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
     if elemento.name() != "input" {
         return Ok(None);
     }
-    let Some(valor) = valor_do_atributo(elemento, "value").map_err(ilegivel)? else {
+    let Some(valor) =
+        valor_do_atributo(elemento, "value").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
+    else {
         return Ok(None);
     };
     Ok((!valor.is_empty()).then_some(valor))
@@ -131,12 +129,12 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let id = valor_do_atributo(tag, "id").map_err(ilegivel)?;
+        let id = valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
         let do_marcador = id.as_deref().and_then(|i| i.strip_prefix("hdnIdMarcador"));
         if do_marcador
             .is_some_and(|resto| !resto.is_empty() && resto.bytes().all(|b| b.is_ascii_digit()))
             && valor_do_atributo(tag, "value")
-                .map_err(ilegivel)?
+                .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
                 .is_some_and(|valor| !valor.is_empty())
         {
             return Ok(true);
@@ -148,7 +146,10 @@ pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
 // O primeiro ID nunca comprova unicidade. A única exceção de layout
 // é o par móvel/desktop demonstrado pela cassette UnB e02dbcfde8c4.
 fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
-    Ok(nos_com_id(dom, id).map_err(ilegivel)?.len() >= 2)
+    Ok(nos_com_id(dom, id)
+        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
+        .len()
+        >= 2)
 }
 
 /// Falha só por tag ilegível (`HtmlInvalido`) ou por identificações
@@ -162,7 +163,11 @@ pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCai
 
 fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
     let parser = dom.parser();
-    if nos_com_id(dom, "lnkInfraUnidade").map_err(ilegivel)?.len() != 2 {
+    if nos_com_id(dom, "lnkInfraUnidade")
+        .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
+        .len()
+        != 2
+    {
         return Ok(false);
     }
     let mut links = Vec::new();
@@ -174,7 +179,7 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
             return Ok(false);
         };
         let mut achados = nos_com_id_em(barra, parser, "lnkInfraUnidade")
-            .map_err(ilegivel)?
+            .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?
             .into_iter();
         let Some(link) = achados.next() else {
             return Ok(false);
