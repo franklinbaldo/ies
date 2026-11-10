@@ -103,3 +103,23 @@ fn formulario_com_submissao_diferente_do_navegador_recusa() {
         );
     }
 }
+
+#[test]
+fn botao_pesquisar_do_destino_nao_e_campo_enviado() {
+    // UnB 4.0.9 ao vivo (10/11/2026): o form traz o botão btnPesquisar
+    // (type="button") ao lado do processo de destino; ele não vai no POST.
+    let tela = formulario().replace(
+        "</form>",
+        "<button type=\"button\" name=\"btnPesquisar\" id=\"btnPesquisar\" value=\"Pesquisar\">Pesquisar</button></form>",
+    );
+    assert_eq!(conferir_formulario(&tela, ID), Ok(()));
+}
+
+#[test]
+fn somente_sobrestar_ja_marcado_e_a_opcao_enviada() {
+    // UFRJ e GO ao vivo (10/11/2026): optSomenteSobrestar vem checked.
+    let marcado = formulario().replace("value=\"S\" />", "value=\"S\" checked=\"checked\" />");
+    assert_eq!(conferir_formulario(&marcado, ID), Ok(()));
+    let vincular = formulario().replace("value=\"V\" />", "value=\"V\" checked=\"checked\" />");
+    assert!(conferir_formulario(&vincular, ID).is_err());
+}

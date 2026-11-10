@@ -343,13 +343,17 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     if !pedido.confirmar {
         return Ok(feito);
     }
-    // Sem prova de cobertura dos Gerados *antes* do POST, não existe
-    // base segura para comparar o efeito de uma resposta incerta.
+    // A fotografia dos Gerados *antes* do POST só serve para reconciliar
+    // uma resposta incerta. Sem cobertura integral (conta compartilhada com
+    // mais de uma página, PEN1 10/11/2026), a escrita segue: o Location
+    // continua a ser a prova, e uma resposta incerta sai com efeito incerto.
     // Esta leitura usa o Controle que já foi obtido: zero novos requests.
-    // A fotografia será reutilizada na ligação do fluxo de reconciliação.
     let gerados_antes =
-        reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade)
-            .map_err(E::Fotografia)?;
+        match reconciliacao::FotografiaDosGerados::da_tela(&controle.html, &feito.unidade) {
+            Ok(fotografia) => Some(fotografia),
+            Err(reconciliacao::ErroFotografia::CoberturaIncompleta) => None,
+            Err(erro) => return Err(E::Fotografia(erro)),
+        };
     // Não há retry após a submissão.
     let mut tentou = false;
     let resposta = match enviar_submissao_via(submissao, cookie, |s, c| {
@@ -386,7 +390,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
                 url_controle,
                 cookie_valor,
                 &mut feito,
-                &gerados_antes,
+                gerados_antes.as_ref(),
                 pedido.especificacao,
                 requisicoes,
                 pos_escrita::CausaPosEscrita::Transporte(causa_post),
@@ -402,7 +406,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
             url_controle,
             cookie_valor,
             &mut feito,
-            &gerados_antes,
+            gerados_antes.as_ref(),
             pedido.especificacao,
             requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
@@ -424,7 +428,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
             url_controle,
             cookie_valor,
             &mut feito,
-            &gerados_antes,
+            gerados_antes.as_ref(),
             pedido.especificacao,
             requisicoes,
             pos_escrita::CausaPosEscrita::Resposta(
@@ -436,7 +440,10 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     // O Location legítimo também não comprova uma criação nova quando
     // aponta a ID que já existia nos Gerados antes do único POST.
     // Recusar sem abrir processo preexistente nem repetir a escrita.
-    if gerados_antes.contem_id(&id) {
+    if gerados_antes
+        .as_ref()
+        .is_some_and(|antes| antes.contem_id(&id))
+    {
         return Err(E::VerificacaoAposPost(Box::new(E::ProvaDaCriacao(
             erro_fluxo::ProvaDaCriacao::IdentidadePreexistente,
         ))));

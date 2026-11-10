@@ -180,13 +180,36 @@ pub(crate) struct RespostaWeb<R: Read> {
 }
 
 pub(crate) fn decodificar_resposta<R: Read>(
-    mut resposta: RespostaWeb<R>,
+    resposta: RespostaWeb<R>,
 ) -> Result<String, FalhaTransporte> {
+    if resposta.status_code == 200 && !crate::mime_web::e_html(&resposta.mime) {
+        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
+    }
+    let html = decodificar_corpo(resposta)?;
+    if crate::tela_login::e_tela_login(&html) {
+        return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
+    }
+    Ok(html)
+}
+
+/// Resposta XML das consultas AJAX (`controlador_ajax.php`): o mesmo
+/// status, limite e charset da tela HTML, com o MIME XML.
+pub(crate) fn decodificar_resposta_xml<R: Read>(
+    resposta: RespostaWeb<R>,
+) -> Result<String, FalhaTransporte> {
+    let principal = resposta.mime.split(';').next().unwrap_or_default().trim();
+    if resposta.status_code == 200
+        && !principal.eq_ignore_ascii_case("application/xml")
+        && !principal.eq_ignore_ascii_case("text/xml")
+    {
+        return Err(FalhaTransporte::TipoDeConteudoNaoXml);
+    }
+    decodificar_corpo(resposta)
+}
+
+fn decodificar_corpo<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
     if resposta.status_code != 200 {
         return Err(recusar_status(resposta));
-    }
-    if !crate::mime_web::e_html(&resposta.mime) {
-        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
     }
     if resposta
         .content_length
@@ -196,12 +219,8 @@ pub(crate) fn decodificar_resposta<R: Read>(
     }
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    let html = corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)?;
-    if crate::tela_login::e_tela_login(&html) {
-        return Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle);
-    }
-    Ok(html)
+    corpo::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
 }
 
 /// Status diferente de 200: a variante sai do status; o corpo (fora 3xx)

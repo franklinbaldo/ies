@@ -75,6 +75,11 @@ pub(super) fn retorno_da_criacao(
     localizacao: &str,
     url_envio: &str,
 ) -> Result<(String, String), ErroCriar> {
+    // A `UnB` termina o Location com a âncora da árvore (`#ID-<id>`); o
+    // fragmento não vai ao servidor e fica fora da validação.
+    let localizacao = localizacao
+        .split_once('#')
+        .map_or(localizacao, |(url, _)| url);
     let url = url_do_redirecionamento(instalacao, localizacao, url_envio, "procedimento_trabalhar")
         .map_err(|_| ErroCriar::EfeitoIncerto)?;
     let consulta = crate::url_observada::UrlHttps::interpretar(&url)

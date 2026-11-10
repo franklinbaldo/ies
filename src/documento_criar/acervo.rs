@@ -89,9 +89,11 @@ fn replay_documento_criar_go() {
     assert_eq!(respostas_alvo, lidas + recusadas + nao_aplicaveis);
     // Referência observada no replay GO imutável (run 42118476321):
     // sem estes números um leitor quebrado poderia recusar tudo e passar.
+    // As 5 recusas antigas eram listas de tipos com "Nome&nbsp;(Formulário)",
+    // lidas desde a correção do ensaio live de 10/11/2026 (PR #635).
     assert_eq!(respostas_alvo, 15, "mudou o conjunto de respostas-alvo");
-    assert_eq!(lidas, 3, "regressão na leitura de inclusão/cadastro");
-    assert_eq!(recusadas, 5, "mudou a classificação de recusas");
+    assert_eq!(lidas, 8, "regressão na leitura de inclusão/cadastro");
+    assert_eq!(recusadas, 0, "mudou a classificação de recusas");
     assert_eq!(nao_aplicaveis, 7, "mudou a classe não aplicável");
     println!(
         "documento.criar GO: {respostas_alvo} respostas; {lidas} lidas, {recusadas} recusadas, {nao_aplicaveis} não aplicáveis"

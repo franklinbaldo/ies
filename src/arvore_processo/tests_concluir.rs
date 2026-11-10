@@ -201,17 +201,13 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
             "funcao_de_concluir_ausente_na_tela_do_no"
         )))
     );
-    // `confirm` descomentado: forma não observada.
     let ativo = tela.replace(
         "//if (confirm('Confirma conclusão",
         "if (confirm('Confirma conclusão",
     );
-    assert_eq!(
-        ler(&ativo),
-        Err(F::Html(ErroHtml::valor(
-            "funcao_de_concluir_fora_da_forma_observada"
-        )))
-    );
+    // O `confirm` ativo foi observado na `UnB` 4.0.9 (retirada do
+    // sobrestamento, live de 10/11/2026): a mesma forma, aceita.
+    assert!(ler(&ativo).is_ok());
     let duas = tela.replace("</script>", &format!("{}</script>", funcao_extra()));
     assert_eq!(
         ler(&duas),
