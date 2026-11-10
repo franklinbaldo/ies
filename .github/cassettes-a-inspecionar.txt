@@ -1,2 +1,0 @@
-cassettes/unb/documento-escritas-unb--36a904749e20.md
-cassettes/unb/liberacoes-e-versoes-leitura-unb--a781b0fbca8f.md
