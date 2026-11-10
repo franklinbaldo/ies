@@ -15,7 +15,7 @@ pub(crate) enum ErroDocumentoObter {
     /// Sessão, Controle, pesquisa rápida, 302, tela ou árvore.
     Processo(#[from] ErroProcessoObter),
     /// A pesquisa rápida respondeu sem o 302 para a tela de trabalho.
-    PesquisaRapidaNaoAbriuODocumento(StatusHttpRecusado),
+    PesquisaRapidaNaoAbriuODocumento,
     /// O nó do `id_documento` aberto traz outro número SEI (a15).
     NumeroSeiDaArvoreDiferenteDoPedido,
     /// O `.src` do nó (ausente, repetido, fora da forma observada).
@@ -53,7 +53,7 @@ impl ErroDocumentoObter {
         match self {
             Self::Html(e) => e.mensagem,
             Self::Processo(erro) => erro.mensagem(),
-            Self::PesquisaRapidaNaoAbriuODocumento(_) => {
+            Self::PesquisaRapidaNaoAbriuODocumento => {
                 "a pesquisa rápida não abriu o documento (resultado não é lido)"
             }
             Self::NumeroSeiDaArvoreDiferenteDoPedido => {
@@ -90,7 +90,6 @@ impl ErroDocumentoObter {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Processo(erro) => erro.status_http(),
-            Self::PesquisaRapidaNaoAbriuODocumento(status) => Some(status),
             Self::Anexo(erro) => erro.status_http(),
             _ => None,
         }

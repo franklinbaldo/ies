@@ -15,7 +15,7 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
 pub(crate) struct PedidoDaAtribuicao<'a> {
@@ -71,56 +71,7 @@ pub(crate) enum ErroProcessoAtribuir {
     },
 }
 
-impl ErroProcessoAtribuir {
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Formulario(erro) => erro.status_http(),
-            Self::NaoConfirmadoNaAtribuicao {
-                falha_do_envio,
-                leitura,
-                ..
-            } => falha_do_envio
-                .as_deref()
-                .and_then(ErroSubmissaoFormulario::status_http)
-                // O POST pode ter sido aceito ou falhado sem resposta,
-                // enquanto a leitura de prova recebeu recusa HTTP.
-                // Não apagar o status e a mensagem dessa última falha.
-                .or_else(|| leitura.as_deref().and_then(ErroProcessoObter::status_http)),
-            _ => crate::erro_publico::Causa::status_http(self),
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.mensagem(),
-            Self::UnidadeDaSessaoNaoPublicada => "a abertura não publicou a unidade da sessão",
-            Self::SituacaoDaAtribuicaoNaoObservada { .. } => {
-                "a árvore não publicou a atribuição na unidade da sessão"
-            }
-            Self::AtribuicaoNaoOferecidaNaBarra => {
-                "a barra do processo não oferece atribuição nesta unidade"
-            }
-            Self::Barra(_) => "o link de atribuição não foi publicado na forma observada",
-            Self::Cookie(_) => "o arquivo privado não forneceu um cookie válido",
-            Self::Tela(_) => "a tela de atribuição não foi servida",
-            Self::TelaDaAtribuicaoRedirecionada => {
-                "a tela de atribuição redirecionou; nenhum formulário foi enviado"
-            }
-            Self::SessaoEncerradaNaAtribuicao => {
-                "a sessão encerrou antes da atribuição; rode ies login"
-            }
-            Self::OrigemNaoAutorizada => "a origem da sessão não é autorizada",
-            Self::Preparacao(ErroAtribuir::AtribuicaoJaAplicada) => {
-                "a atribuição solicitada já está aplicada"
-            }
-            Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
-            Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
-            Self::NaoConfirmadoNaAtribuicao { .. } => {
-                "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo"
-            }
-        }
-    }
-}
+impl ErroProcessoAtribuir {}
 
 /// A primeira requisição só ocorre depois da conferência da trava de escrita.
 pub(crate) fn executar_previa<V: EnvioDoProcesso>(

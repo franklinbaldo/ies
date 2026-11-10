@@ -172,9 +172,7 @@ fn ver_completo<V: EnvioDoProcesso>(
         Ok(RespostaDoEnvio::Html(html)) => html,
         Ok(RespostaDoEnvio::Redirecionamento(r)) => {
             return Err(match destino(r.localizacao()) {
-                DestinoDoRedirecionamento::Outro => {
-                    E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
-                }
+                DestinoDoRedirecionamento::Outro => E::RedirecionamentoNaoReconhecido,
                 _ => E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
             });
         }

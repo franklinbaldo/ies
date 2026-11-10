@@ -311,8 +311,7 @@ pub(crate) fn preparar_submissao(
 
 mod fluxo;
 pub(crate) use fluxo::{
-    ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
-    executar_previa,
+    EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido, executar_previa,
 };
 
 #[cfg(test)]

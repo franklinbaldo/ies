@@ -72,8 +72,7 @@ fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
         status: 503,
         mensagem_do_servidor: Some("indisponivel".to_owned()),
     };
-    let falha =
-        FalhaDaLupa::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(recusa.clone()));
+    let falha = FalhaDaLupa::Transporte(FalhaTransporte::Status(recusa.clone()));
     assert_eq!(falha.status_http(), Some(&recusa));
     let json = crate::saida_erro::json_de_erro_fonte("recusa na lupa", falha.status_http());
     assert_eq!(json["status_http"], 503);
@@ -275,7 +274,7 @@ fn transporte_recusado_conta_tentativa_sem_retry() {
             _cookie: &str,
         ) -> Result<RespostaDoPost<Self::Corpo>, FalhaTransporte> {
             self.gets += 1;
-            Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+            Err(FalhaTransporte::Status(
                 crate::transporte::StatusHttpRecusado {
                     status: 503,
                     mensagem_do_servidor: Some("serviço indisponível".to_owned()),

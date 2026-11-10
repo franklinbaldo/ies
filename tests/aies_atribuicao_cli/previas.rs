@@ -96,9 +96,7 @@ fn confirmar_publico_sem_sessao_recusa_sem_rede() {
             .env("HOME", "/arquivo/inexistente/ies-home")
             .output()
             .unwrap();
-        assert_eq!(saida.status.code(), Some(1));
-        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-        assert!(json["erro"].is_string(), "recusa deve ser pública: {json}");
+        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
@@ -115,9 +113,7 @@ fn confirmar_publico_sem_sessao_recusa_sem_rede() {
         .env("HOME", "/arquivo/inexistente/ies-home")
         .output()
         .unwrap();
-    assert_eq!(saida.status.code(), Some(1));
-    let erro = String::from_utf8(saida.stderr).unwrap();
-    assert!(erro.contains("IES:"), "recusa humana ausente: {erro}");
+    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]

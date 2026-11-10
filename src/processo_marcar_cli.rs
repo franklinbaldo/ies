@@ -18,7 +18,7 @@ use serde_json::json;
 use std::process::ExitCode;
 
 /// Despacho específico, sem tocar nos outros subcomandos.
-pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_marcar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Marcar {
@@ -33,57 +33,67 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli, "número de processo inválido"));
-    };
+    let nup = numero.clone();
     let (bruto, operacao) = if let Some(rotulo) = marcador {
         (rotulo.as_str(), Operacao::Atribuir)
     } else if let Some(rotulo) = retirar {
         (rotulo.as_str(), Operacao::Retirar)
     } else {
         // O clap exige exatamente um dos dois, sem tentar abrir a sessão.
-        return Some(erro_de_uso(cli, "informe --marcador ou --retirar"));
+        return Some(crate::legado(erro_de_uso(
+            cli,
+            "informe --marcador ou --retirar",
+        )));
     };
     let rotulo = match interpretar_rotulo(bruto) {
         Ok(rotulo) => rotulo,
-        Err(erro) => return Some(erro_de_uso(cli, erro.mensagem())),
+        Err(erro) => return Some(crate::legado(erro_de_uso(cli, erro.mensagem()))),
     };
     if let Some(texto) = texto
         && let Err(erro) = validar_texto(texto)
     {
-        return Some(erro_de_uso(cli, erro.mensagem()));
+        return Some(crate::legado(erro_de_uso(cli, erro.mensagem())));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        if *confirmar
-            && let Err(causa) = crate::origem_de_treinamento::exigir(
-                crate::origem_de_treinamento::Escrita::ProcessoMarcar,
-                sessao.origem,
-            )
-        {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
-        }
-        if operacao == Operacao::Atribuir {
-            return executar_atribuicao(
+        crate::legado({
+            if *confirmar
+                && let Err(causa) = crate::origem_de_treinamento::exigir(
+                    crate::origem_de_treinamento::Escrita::ProcessoMarcar,
+                    sessao.origem,
+                )
+            {
+                return Err(causa.into());
+            }
+            if operacao == Operacao::Atribuir {
+                return crate::legado(executar_atribuicao(
+                    cli,
+                    sessao,
+                    indice,
+                    &nup,
+                    (&rotulo, texto.as_deref(), *confirmar),
+                    &mut EnvioHttps,
+                ));
+            }
+            if *confirmar {
+                return crate::legado(confirmar_retirada(
+                    cli,
+                    sessao,
+                    indice,
+                    &nup,
+                    &rotulo,
+                    &mut EnvioHttps,
+                ));
+            }
+            previa(
                 cli,
                 sessao,
                 indice,
                 &nup,
-                (&rotulo, texto.as_deref(), *confirmar),
+                (&rotulo, operacao),
+                *confirmar,
                 &mut EnvioHttps,
-            );
-        }
-        if *confirmar {
-            return confirmar_retirada(cli, sessao, indice, &nup, &rotulo, &mut EnvioHttps);
-        }
-        previa(
-            cli,
-            sessao,
-            indice,
-            &nup,
-            (&rotulo, operacao),
-            *confirmar,
-            &mut EnvioHttps,
-        )
+            )
+        })
     }))
 }
 

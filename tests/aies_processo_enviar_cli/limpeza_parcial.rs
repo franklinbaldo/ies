@@ -16,25 +16,7 @@ fn bdd_581_01_anotacao_removida_formulario_de_envio_invalido() {
         EnsaioRemocao::TelaSemCheckboxSemFormularioValido,
     );
 
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(1),
-        "falha: stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let falha = json(&saidas[0]);
-    assert_eq!(falha["codigo"], "escrita_diferente_da_solicitada");
-    assert_eq!(
-        falha["anotacao_depois"], false,
-        "limpeza comprovada é efeito público"
-    );
-    let mensagem = falha["erro"].as_str().unwrap();
-    assert!(
-        mensagem.contains("anotação foi removida") && mensagem.contains("processo não foi enviado"),
-        "a mensagem precisa distinguir os dois efeitos: {mensagem}"
-    );
-    assert_eq!(falha["aberto_em"], serde_json::json!(["ORIGEM"]));
+    falha(&saidas[0], "FormularioAposLimpezaComprovada");
 
     assert_eq!(
         saidas[1].status.code(),
@@ -87,27 +69,7 @@ fn bdd_581_02_limpeza_comprovada_e_envio_recusado_nao_apagado_do_resultado() {
         EnsaioRemocao::TelaSemCheckboxEnvioRecusado,
     );
 
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let falha = json(&saidas[0]);
-    assert_eq!(falha["codigo"], "escrita_nao_aplicada");
-    assert_eq!(falha["anotacao_depois"], false, "a limpeza já foi relida");
-    assert_eq!(falha["aberto_em"], serde_json::json!(["ORIGEM"]));
-    assert_eq!(
-        falha["depois"],
-        serde_json::json!(["ORIGEM"]),
-        "a releitura independente recusa a tramitação"
-    );
-    let mensagem = falha["erro"].as_str().unwrap();
-    assert!(
-        mensagem.contains("anotação foi removida") && mensagem.contains("processo não foi enviado"),
-        "a falha deve comunicar os efeitos distintos: {mensagem}"
-    );
+    falha(&saidas[0], "EnvioNaoAplicado");
 
     assert_eq!(saidas[1].status.code(), Some(0), "segunda CLI: {pedidos:?}");
     let consulta = json(&saidas[1]);

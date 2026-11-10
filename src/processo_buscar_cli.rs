@@ -182,10 +182,10 @@ fn buscar(
             if cli.json {
                 let mut valor = json_da_busca(&termo, &busca);
                 relogin_cli::anotar(&mut valor, nota.as_ref());
-                if let Err(erro) = crate::saida::imprimir_json(&valor) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&valor).expect("JSON serializável")
+                );
             } else {
                 relogin_cli::avisar(cli.json, nota.as_ref());
                 println!("{}", humano(&termo, &busca));

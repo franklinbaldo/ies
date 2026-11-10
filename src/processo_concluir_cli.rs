@@ -8,19 +8,16 @@ use crate::processo_concluir::{
     ErroConcluir, FalhaDoEnvio, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
 };
 use crate::processo_obter::SessaoDoProcesso;
-use crate::transporte::StatusHttpRecusado;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{
-    Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, saida_erro, transporte,
-};
+use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, saida_erro, transporte};
 #[path = "processo_concluir_cli/falha.rs"]
 pub(crate) mod falha;
 use falha::FalhaDaSituacao;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::process::ExitCode;
 
 /// `Some` só para `ies processo concluir`.
-pub(crate) fn tentar_concluir(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao: Some(ProcessoAcao::Concluir { numero, confirmar }),
         ..
@@ -28,10 +25,8 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => concluir(cli, &nup, *confirmar),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(concluir(cli, &nup, *confirmar))
 }
 
 pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {
@@ -51,25 +46,17 @@ pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {
 }
 
 /// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha
-/// de configuração sai com 1 `fonte_invalida`, sem rede (também a de
-/// `processo reabrir`).
+/// de configuração ou de sessão sobe até o `main`, sem rede.
 pub(crate) fn com_sessao(
-    cli: &Cli,
-    executar: impl FnOnce(&SessaoDoProcesso<'_>, &IndiceLocal) -> ExitCode,
-) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
-    };
-    let lidos = transporte::sessao::ReferenciasDaSessao::ler(
+    _cli: &Cli,
+    executar: impl FnOnce(&SessaoDoProcesso<'_>, &IndiceLocal) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let referencias = transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
         &arquivos.origem,
         &arquivos.cookie,
-    );
-    let referencias = match lidos {
-        Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.mensagem()),
-    };
+    )?;
     let sessao = SessaoDoProcesso {
         url_do_controle: referencias.url_do_controle(),
         origem: referencias.origem(),
@@ -78,9 +65,9 @@ pub(crate) fn com_sessao(
     executar(&sessao, &IndiceLocal::da_configuracao(&arquivos))
 }
 
-fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
+fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        concluir_na_sessao(cli, sessao, indice, nup, confirmar)
+        crate::legado(concluir_na_sessao(cli, sessao, indice, nup, confirmar))
     })
 }
 
@@ -99,10 +86,11 @@ fn concluir_na_sessao(
     match concluir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
         Ok(feito) => {
             if cli.json {
-                if let Err(erro) = crate::saida::imprimir_json(&resultado_conclusao(&feito)) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&resultado_conclusao(&feito))
+                        .expect("JSON serializável")
+                );
             } else {
                 println!("{}", humano(&feito));
             }
@@ -163,20 +151,9 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
 /// Compatibilidade com os testes de contrato: o runtime serializa a struct
 /// diretamente, sem construir `serde_json::Value` no caminho de sucesso.
 #[cfg(test)]
-pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
+pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> serde_json::Value {
     serde_json::to_value(resultado_conclusao(feito))
         .expect("a projeção tipada de sucesso só possui valores JSON")
-}
-
-/// O corpo comum das falhas depois da abertura (também as de `processo
-/// reabrir`): códigos, mensagem e o status HTTP, quando houver.
-pub(crate) fn json_base_da_falha(
-    codigo: &str,
-    mensagem: &str,
-    status: Option<StatusHttpRecusado>,
-) -> Value {
-    serde_json::to_value(FalhaDaSituacao::nova(codigo, mensagem, status))
-        .expect("a projeção de falha só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
@@ -223,23 +200,6 @@ fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
         }
     }
     ExitCode::from(1)
-}
-
-/// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
-/// a mensagem, as listas, a resposta da escrita e a verificação no stderr.
-pub(crate) fn publicar_valor_da_falha(json_mode: bool, valor: &Value, saida: u8) -> ExitCode {
-    if json_mode {
-        println!("{valor}");
-    } else {
-        eprintln!("IES: {}", valor["erro"].as_str().unwrap_or_default());
-        for campo in ["aberto_em", "depois"] {
-            if let Some(lista) = valor[campo].as_array() {
-                let siglas: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
-                eprintln!("IES: {campo}: {}", lista_humana(&siglas));
-            }
-        }
-    }
-    ExitCode::from(saida)
 }
 
 pub(crate) fn lista_humana(siglas: &[&str]) -> String {

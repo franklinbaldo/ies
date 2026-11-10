@@ -383,7 +383,7 @@ mod tests {
 
         // Um 403 pode vir de intermediário: não confundir com prova do SEI.
         let http = ErroCriar::RespostaHttpSemProva(ErroSubmissaoFormulario::Transporte(
-            crate::transporte::FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+            crate::transporte::FalhaTransporte::Status(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Proibido".to_owned()),
             }),

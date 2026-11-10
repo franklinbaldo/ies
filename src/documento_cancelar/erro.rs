@@ -31,7 +31,8 @@ pub(crate) enum VerificacaoDoCancelamento {
 }
 impl VerificacaoDoCancelamento {}
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCancelar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
@@ -57,64 +58,7 @@ pub(crate) enum ErroCancelar {
         verificacao: Box<VerificacaoDoCancelamento>,
     },
 }
-impl ErroCancelar {
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::CancelamentoNaoAplicado { .. } => "escrita_nao_aplicada",
-            Self::NaoConfirmado { .. } => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Abertura(e) => e.status_http().cloned(),
-            Self::Tela(e) => e.status_http().cloned(),
-            Self::TelaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::Formulario(e) => e.status_http().cloned(),
-            Self::CancelamentoNaoAplicado { falha_do_envio }
-            | Self::NaoConfirmado { falha_do_envio, .. } => falha_do_envio
-                .as_ref()
-                .and_then(FalhaDoCancelamento::status_http),
-            _ => None,
-        }
-    }
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => e.mensagem(),
-            Self::Abertura(e) => e.mensagem(),
-            Self::Link(_) => {
-                "a ação de cancelar na barra está fora da forma observada; nada foi enviado"
-            }
-            Self::CancelamentoNaoOferecido => {
-                "a barra do documento não oferece cancelar; nada foi enviado"
-            }
-            Self::DocumentoJaCancelado => "o documento já está cancelado; nada foi enviado",
-            Self::EstadoAntesNaoObservado => {
-                "a árvore não prova que o documento esteja ativo; nada foi enviado"
-            }
-            Self::Tela(_) | Self::TelaRedirecionada => {
-                "a tela de cancelamento não pôde ser aberta; nada foi enviado"
-            }
-            Self::SessaoEncerrada => {
-                "sessão encerrada; rode ies login, nenhum cancelamento foi enviado"
-            }
-            Self::CharsetNaoSuportado => {
-                "codificação da tela de cancelamento não suportada; nada foi enviado"
-            }
-            Self::Formulario(_)
-            | Self::FormularioDeOutroDocumento
-            | Self::MotivoNaoPublicadoNaTela => {
-                "o formulário de cancelamento não está na forma observada; nada foi enviado"
-            }
-            Self::CancelamentoNaoAplicado { .. } => {
-                "a árvore relida não mostra o documento cancelado; nenhum retry foi feito"
-            }
-            Self::NaoConfirmado { .. } => {
-                "não é possível comprovar o cancelamento; confira a árvore antes de qualquer nova ação"
-            }
-        }
-    }
-}
+impl ErroCancelar {}
 
 impl From<CookieIlegivel> for ErroCancelar {
     fn from(erro: CookieIlegivel) -> Self {

@@ -72,14 +72,7 @@ fn bdd_271_02_ciencia_documental_uma_vez_com_lista_e_sqlite() {
         &["--json", "documento", "ciente", DOC, "--confirmar"],
         4,
     );
-    assert_eq!(
-        repeticao.status.code(),
-        Some(1),
-        "repetição: stdout={} stderr={}",
-        String::from_utf8_lossy(&repeticao.stdout),
-        String::from_utf8_lossy(&repeticao.stderr)
-    );
-    assert_eq!(json(&repeticao)["codigo"], "fonte_invalida");
+    falha(&repeticao, "CienciaNaoOferecida");
     let banco = Connection::open(pasta.0.join("anti-ies.sqlite3")).unwrap();
     let registros_depois: Vec<String> = banco
         .prepare("SELECT id_atividade FROM ciencia_documental WHERE origem=?1 AND cenario=?2 AND id_documento='42' AND id_procedimento='7'")
@@ -289,23 +282,7 @@ fn bdd_271_03_ciencia_persistida_sem_prova_na_lista_falha_sem_retry() {
         &["--json", "documento", "ciente", DOC, "--confirmar"],
         11,
     );
-    assert_eq!(
-        resultado.status.code(),
-        Some(1),
-        "stdout={} stderr={}",
-        String::from_utf8_lossy(&resultado.stdout),
-        String::from_utf8_lossy(&resultado.stderr)
-    );
-    let saida = json(&resultado);
-    assert_eq!(saida["codigo"], "nao_confirmado");
-    assert_eq!(saida["retentavel"], false);
-    assert_eq!(saida["requisicoes"], 11);
-    assert!(
-        saida["erro"]
-            .as_str()
-            .unwrap()
-            .contains("Lista de Ciências")
-    );
+    falha(&resultado, "NaoConfirmado");
 
     let banco = Connection::open(&caminho).unwrap();
     let atividade: String = banco

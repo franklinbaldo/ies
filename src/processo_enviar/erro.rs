@@ -6,7 +6,7 @@ use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -32,15 +32,7 @@ pub(crate) enum FalhaDaConsulta {
     Html(#[from] ErroHtml),
 }
 
-impl FalhaDaConsulta {
-    fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Derivacao(erro) => erro.status_http().cloned(),
-            Self::Transporte(falha) => falha.status_http().cloned(),
-            _ => None,
-        }
-    }
-}
+impl FalhaDaConsulta {}
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -131,131 +123,4 @@ pub(crate) enum ErroEnviar {
     },
 }
 
-impl ErroEnviar {
-    /// Categoria pública: o próximo passo de quem chama.
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::EnvioNaoAplicado { .. } => "escrita_nao_aplicada",
-            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
-            | Self::AnotacoesNaoRemovidasAposEnvio { .. }
-            | Self::AnotacaoNaoLimpaAntesDeEnviar
-            | Self::FormularioAposLimpezaComprovada { .. } => "escrita_diferente_da_solicitada",
-            Self::NaoConfirmadoNoEnvio { .. }
-            | Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
-            | Self::NaoConfirmadoNaLimpezaDaAnotacao => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) => falha.status_http().cloned(),
-            Self::Anotacoes(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::Consulta(falha) => falha.status_http(),
-            Self::Formulario(erro) | Self::FormularioAposLimpezaComprovada { causa: erro, .. } => {
-                erro.status_http().cloned()
-            }
-            Self::EnvioNaoAplicado { falha_do_envio, .. }
-            | Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-            | Self::NaoConfirmadoNoEnvio { falha_do_envio, .. } => {
-                falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => e.mensagem(),
-            Self::Abertura(erro) => erro.mensagem(),
-            Self::UnidadeDaSessaoNaoPublicada => {
-                "a abertura não publicou a unidade da sessão; nada foi enviado"
-            }
-            Self::SituacaoDoProcessoNaoLidaAntesDeEnviar { .. } => {
-                "a árvore não publica onde o processo está aberto, e o envio não poderia ser conferido; nada foi enviado"
-            }
-            Self::ProcessoNaoAbertoNaUnidadeDaSessao { .. } => {
-                "o processo não está aberto na unidade da sessão; nada foi enviado"
-            }
-            Self::UnidadeDaSessaoAusenteDaSituacao { .. } => {
-                "a barra oferece enviar, mas a situação não lista a unidade da sessão; nada foi enviado"
-            }
-            Self::EnvioNaoPublicadoNaBarra { .. } => {
-                "o processo está aberto na unidade, mas a barra não oferece enviar; nada foi enviado"
-            }
-            Self::Barra(_) => {
-                "o link de enviar da barra não está na forma observada; nada foi enviado"
-            }
-            Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
-                "a tela Enviar Processo não foi servida; nada foi enviado"
-            }
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode `ies login` (nada foi enviado)"
-            }
-            Self::CharsetDaTelaNaoSuportado => {
-                "a tela de envio declara um charset não suportado; nada foi enviado"
-            }
-            Self::TelaDeEnvio(_) => {
-                "a tela Enviar Processo não está na forma observada; nada foi enviado"
-            }
-            Self::Consulta(_) => {
-                "a consulta de unidades da tela de envio não respondeu na forma observada; nada foi enviado"
-            }
-            Self::RemocaoDeAnotacoesNaoOferecida => {
-                "a tela de envio não oferece remover anotações; nada foi enviado"
-            }
-            Self::RemocaoDeAnotacoesSemVerificacao => {
-                "a remoção de anotações ainda não foi validada em treinamento; nada foi enviado"
-            }
-            Self::AnotacoesNaoRemovidasAposEnvio { .. } => {
-                "o processo foi enviado, mas a anotação continua presente na origem"
-            }
-            Self::AnotacaoNaoLimpaAntesDeEnviar => {
-                "a anotação continua preenchida; o processo não foi enviado"
-            }
-            Self::NaoConfirmadoNaLimpezaDaAnotacao => {
-                "não foi possível comprovar a limpeza da anotação; o processo não foi enviado; não repita a gravação"
-            }
-            Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. } => {
-                "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
-            }
-            Self::Anotacoes(erro) => erro.mensagem(),
-            Self::DestinoNaoOferecidoPeloSei { .. } => {
-                "o SEI não oferece unidade de destino com essa sigla; nada foi enviado"
-            }
-            Self::VariosDestinosComASigla { .. } => {
-                "o SEI oferece mais de uma unidade com essa sigla; nada foi enviado"
-            }
-            Self::ProcessoJaAbertoNoDestino { .. } => {
-                "o processo já está aberto na unidade de destino; nada foi enviado"
-            }
-            Self::Formulario(_) => "o envio não pôde ser montado; nada foi enviado",
-            Self::FormularioAposLimpezaComprovada { .. } => {
-                "a anotação foi removida e relida, mas o formulário de envio foi recusado; o processo não foi enviado"
-            }
-            Self::EnvioNaoAplicado {
-                anotacao_depois: Some(false),
-                ..
-            } => {
-                "a anotação foi removida e relida, mas a árvore não lista o destino: o processo não foi enviado"
-            }
-            Self::EnvioNaoAplicado { .. } => {
-                "a árvore lida depois de enviar não lista o destino: o processo não foi enviado"
-            }
-            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
-                anotacao_depois: Some(false),
-                ..
-            } => {
-                "a anotação foi removida e relida; o destino recebeu o processo, mas a origem não ficou como pedido (manter aberto)"
-            }
-            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
-                "o processo foi enviado, mas a unidade da sessão não ficou como pedido (manter aberto)"
-            }
-            Self::NaoConfirmadoNoEnvio { .. } => {
-                "não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir"
-            }
-        }
-    }
-}
+impl ErroEnviar {}

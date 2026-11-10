@@ -169,11 +169,11 @@ fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
     );
     assert!(!ErroProcessoObter::EntradaPorIdRecusada.sessao_encerrada());
     for nao in [
-        FalhaTransporte::AcessoNegado(StatusHttpRecusado::sem_mensagem(403)),
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(403)),
         FalhaTransporte::BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado::sem_mensagem(403)),
-        FalhaTransporte::Redirecionamento(status()),
+        FalhaTransporte::Status(status()),
         FalhaTransporte::Rede,
-        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado::sem_mensagem(429)),
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(429)),
         FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
         assert!(!nao.sessao_encerrada(), "{nao:?}");

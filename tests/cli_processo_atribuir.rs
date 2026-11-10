@@ -16,6 +16,17 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
+}
+
 #[test]
 fn confirmar_sem_sessao_nao_tenta_rede() {
     for operacao in [&["--usuario", "fulano"][..], &["--remover"][..]] {
@@ -24,8 +35,7 @@ fn confirmar_sem_sessao_nao_tenta_rede() {
         args.extend_from_slice(&["--confirmar", "--json"]);
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let _valor: serde_json::Value =
-            serde_json::from_slice(&saida.stdout).expect("JSON na saída");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 

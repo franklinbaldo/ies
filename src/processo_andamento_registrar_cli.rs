@@ -1,13 +1,12 @@
 //! CLI do registro de andamento: valida entrada antes da sessão, nunca retry.
-use crate::processo::NumeroProcesso;
-use crate::processo_andamento_registrar::{self, Erro, texto_valido};
-use crate::processo_concluir_cli::{com_sessao, json_base_da_falha, publicar_valor_da_falha};
+use crate::processo_andamento_registrar::{self, texto_valido};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_registrar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Andamento {
@@ -20,14 +19,12 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json, "Número de processo inválido"));
-    };
+    let numero = numero.clone();
     if !texto_valido(texto) {
-        return Some(erro_de_uso(
+        return Some(crate::legado(erro_de_uso(
             cli.json,
             "Texto do andamento deve conter entre 1 e 500 caracteres",
-        ));
+        )));
     }
     Some(com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (10/11/2026): grava também em produção.
@@ -37,9 +34,9 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
-        match processo_andamento_registrar::registrar(
+        let r = processo_andamento_registrar::registrar(
             sessao,
             &numero,
             texto,
@@ -47,53 +44,34 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
-        ) {
-            Ok(r) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "numero": r.numero,
-                            "texto": r.texto,
-                            "confirmado": r.confirmado,
-                            "alterado": r.total_depois.is_some(),
-                            "origem": "web",
-                            "total_antes": r.total_antes,
-                            "total_depois": r.total_depois,
-                            "requisicoes": r.requisicoes,
-                            "resposta_inesperada": r.resposta_inesperada,
-                        })
-                    );
-                } else if r.confirmado {
-                    println!(
-                        "Andamento registrado e conferido no processo {}. Requisições: {}",
-                        r.numero, r.requisicoes
-                    );
-                } else {
-                    println!(
-                        "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
-                        r.numero, r.texto, r.requisicoes
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(Erro::Abertura(e)) => {
-                saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http())
-            }
-            Err(e) => publicar_valor_da_falha(
-                cli.json,
-                &json_base_da_falha(
-                    if matches!(e, Erro::NaoConfirmado) {
-                        "nao_confirmado"
-                    } else {
-                        "fonte_invalida"
-                    },
-                    e.mensagem(),
-                    None,
-                ),
-                1,
-            ),
+        )?;
+        if cli.json {
+            println!(
+                "{}",
+                json!({
+                    "numero": r.numero,
+                    "texto": r.texto,
+                    "confirmado": r.confirmado,
+                    "alterado": r.total_depois.is_some(),
+                    "origem": "web",
+                    "total_antes": r.total_antes,
+                    "total_depois": r.total_depois,
+                    "requisicoes": r.requisicoes,
+                    "resposta_inesperada": r.resposta_inesperada,
+                })
+            );
+        } else if r.confirmado {
+            println!(
+                "Andamento registrado e conferido no processo {}. Requisições: {}",
+                r.numero, r.requisicoes
+            );
+        } else {
+            println!(
+                "Prévia: registrar no processo {} o andamento: {:?}. Nenhuma escrita. Requisições: {}. Para gravar, use --confirmar.",
+                r.numero, r.texto, r.requisicoes
+            );
         }
+        Ok(())
     }))
 }
 

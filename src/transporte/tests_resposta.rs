@@ -78,6 +78,11 @@ fn consulta_ajax_aceita_so_xml_com_o_mesmo_status_e_charset() {
     );
     assert!(matches!(
         decodificar_resposta_xml(resposta(500, "application/xml", xml)),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(_))
+        Err(FalhaTransporte::Status(
+            crate::transporte::StatusHttpRecusado {
+                status: 500..=599,
+                ..
+            }
+        ))
     ));
 }

@@ -110,7 +110,7 @@ Além disso, a resposta 302 observada (abaixo) aponta para
   numa estrutura de `Debug` redigido e sem ler o corpo; os outros 3xx
   continuam `Transporte(Redirecionamento)`. A interpretação é da operação
   (seção abaixo). O GET do Controle não muda: 3xx segue como erro.
-  401/403 é `Transporte(AcessoNegado)`.
+  401/403 é `Transporte(Status(StatusHttpRecusado { status: 401 | 403, .. }))`.
 - Limite de 8 MB durante o recebimento (reuso de `decodificar_resposta`);
   tela de entrada acima do limite também é recusada.
 - Envio por `FnOnce`: a submissão é consumida, sem retry após erro ou

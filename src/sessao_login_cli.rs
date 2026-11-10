@@ -117,12 +117,12 @@ mod tests {
         assert_eq!(valor["codigo"], "fonte_invalida");
         assert_eq!(valor["mensagem_do_servidor"], "Senha inválida.");
         assert!(valor.get("status_http").is_none());
-        let valor = json_do_erro(&ErroLogin::Transporte(
-            FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+        let valor = json_do_erro(&ErroLogin::Transporte(FalhaTransporte::Status(
+            StatusHttpRecusado {
                 status: 502,
                 mensagem_do_servidor: Some("Bad Gateway".to_owned()),
-            }),
-        ));
+            },
+        )));
         assert_eq!(valor["status_http"], 502);
         assert_eq!(valor["mensagem_do_servidor"], "Bad Gateway");
         let valor = json_do_erro(&ErroLogin::CaptchaExigido);

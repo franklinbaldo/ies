@@ -82,9 +82,7 @@ fn resposta_precisa_ser_xml_200() {
     );
     assert!(matches!(
         ler_resposta_da_consulta(resposta(500, XML, "")),
-        Err(F::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
-            _
-        )))
+        Err(F::Transporte(FalhaTransporte::Status(_)))
     ));
 }
 

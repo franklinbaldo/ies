@@ -1,5 +1,5 @@
 //! Casos BDD-246-03 da CLI completa sobre tipos oferecidos pelo anti-IES.
-use super::{criar, executar, executar_com_cena, json};
+use super::{criar, executar, executar_com_cena, falha};
 
 #[test]
 fn bdd_246_03_cli_recusa_tipo_ausente_sem_escrita() {
@@ -9,14 +9,7 @@ fn bdd_246_03_cli_recusa_tipo_ausente_sem_escrita() {
     confirmacao[6] = "Parecer";
     let (saidas, trilha, quantidade) = executar(&[&previa, &confirmacao], false);
     for saida in &saidas {
-        assert_eq!(
-            saida.status.code(),
-            Some(1),
-            "stdout={} trilha={trilha:?}",
-            String::from_utf8_lossy(&saida.stdout)
-        );
-        let resposta = json(saida);
-        assert_eq!(resposta["retentavel"], false);
+        falha(saida, "Tipo");
     }
     assert_eq!(quantidade, 1);
     assert!(
@@ -35,14 +28,7 @@ fn bdd_246_03_cli_expande_lista_e_recusa_tipo_ambiguo_sem_escrita() {
     let confirmacao = criar(true);
     let (saidas, trilha, quantidade) = executar_com_cena(&[&previa, &confirmacao], false, true);
     for saida in &saidas {
-        assert_eq!(
-            saida.status.code(),
-            Some(1),
-            "stdout={} trilha={trilha:?}",
-            String::from_utf8_lossy(&saida.stdout)
-        );
-        let resposta = json(saida);
-        assert_eq!(resposta["retentavel"], false);
+        falha(saida, "Tipo");
     }
     assert_eq!(quantidade, 1, "a lista ambígua não deve criar documento");
     assert!(
