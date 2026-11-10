@@ -142,3 +142,31 @@ pub fn ler(
     }
     Ok(Some(observacao))
 }
+
+/// Remove uma única identidade já observada sem apagar os demais grupos.
+/// Retorna false quando a linha não existe, inclusive em segundo envio.
+///
+/// # Errors
+/// Propaga falha SQLite; recusa identidades inválidas ou fotografia ausente.
+pub fn retirar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    id_alvo: &str,
+) -> Result<bool, Falha> {
+    if cenario.is_empty() || unidade.is_empty() || !id_valido(id) || !id_valido(id_alvo) {
+        return Err(Falha::DadoInvalido);
+    }
+    if ler(banco, origem, cenario, id, unidade)?.is_none() {
+        return Err(Falha::ProcessoNaoObservado);
+    }
+    let removidos = banco.execute(
+        "DELETE FROM processo_acompanhamento_linha
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3
+           AND unidade=?4 AND id_acompanhamento=?5",
+        params![origem.url_base(), cenario, id, unidade, id_alvo],
+    )?;
+    Ok(removidos == 1)
+}
