@@ -197,8 +197,5 @@ fn retomar_get_mutador_recusado_nao_atribui_mudanca_concorrente() {
     let (resultado, pedidos) = rodar(Acao::Retomar, None, true, respostas);
     assert_eq!(resultado, Err(E::EfeitoIncerto));
     assert_eq!(pedidos.len(), 6);
-    assert_eq!(
-        pedidos.iter().filter(|p| p.metodo == "GET").count(),
-        6
-    );
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 6);
 }
