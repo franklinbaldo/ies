@@ -138,7 +138,7 @@ impl ErroProcessoAtribuir {
             Self::Preparacao(_) => "o formulário de atribuição não corresponde ao observado",
             Self::Formulario(_) => "a submissão da atribuição não pôde ser enviada",
             Self::EfeitoIncertoNaAtribuicao { .. } => {
-                "não foi possível comprovar o efeito desta tentativa; consulte o processo antes de repetir"
+                "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo"
             }
         }
     }

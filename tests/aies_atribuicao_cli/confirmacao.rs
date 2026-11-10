@@ -100,6 +100,10 @@ fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
     assert_eq!(erro["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(erro["atribuicao_relida"], "aluno2");
     assert_eq!(
+        erro["erro"],
+        "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo"
+    );
+    assert_eq!(
         eventos
             .iter()
             .filter(|evento| evento.as_str() == "POST procedimento_atribuicao_cadastrar")
@@ -121,6 +125,10 @@ fn bdd_264_02_03_302_historico_informa_estado_relido_sem_falsa_confirmacao() {
             executar_cenario_com_resposta(false, remover, None, true, RespostaPost::Historico302);
         assert_eq!(escrita.status.code(), Some(3));
         let texto = String::from_utf8_lossy(&escrita.stderr);
+        assert!(
+            texto.contains("não repita a confirmação"),
+            "efeito incerto não deve incentivar repetição: {texto}"
+        );
         let estado_publicado = if esperado.is_empty() {
             "nenhuma"
         } else {
