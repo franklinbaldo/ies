@@ -29,6 +29,7 @@ enum Modo {
     Completa,
     Parcial,
     Desconhecida,
+    Previa,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -201,32 +202,63 @@ fn executar(modo: Modo) {
             canal.flush().unwrap();
         }
     });
-    let saida: Output = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "comentarios", NUP])
-        .env("IES_URL_CONTROLE_FILE", &controle)
-        .env("IES_COOKIE_FILE", &cookie)
-        .env("IES_ORIGEM_FILE", &origem)
-        .env("SSL_CERT_FILE", &cert)
-        .env("https_proxy", format!("http://127.0.0.1:{proxy_port}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .unwrap();
+    let chamar = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ies"))
+            .args(args)
+            .env("IES_URL_CONTROLE_FILE", &controle)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{proxy_port}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE")
+            .output()
+            .unwrap()
+    };
+    let comando: &[&str] = if matches!(modo, Modo::Previa) {
+        &[
+            "--json",
+            "processo",
+            "comentar",
+            NUP,
+            "--texto",
+            " Comentário novo ",
+        ]
+    } else {
+        &["--json", "processo", "comentarios", NUP]
+    };
+    let saida: Output = chamar(comando);
+    // A segunda invocação usa o mesmo SQLite e verifica a ausência
+    // de publicação do comentário previsto, sem confiar na saída da prévia.
+    let posterior =
+        matches!(modo, Modo::Previa).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     servidor.join().unwrap();
     let eventos = eventos.lock().unwrap().clone();
     verificar(modo, &saida, &eventos);
+    if let Some(posterior) = posterior {
+        assert_eq!(posterior.status.code(), Some(0));
+        let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
+        assert_eq!(foto["lista_completa"], true);
+        assert_eq!(foto["total"], 1);
+        assert_eq!(foto["comentarios"].as_array().unwrap().len(), 1);
+        assert_eq!(foto["comentarios"][0]["id"], "42");
+        assert_eq!(
+            foto["comentarios"][0]["texto"],
+            "Comentário sintético & conferido"
+        );
+    }
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
-    let esperado = i32::from(!matches!(modo, Modo::Completa));
+    let esperado = i32::from(matches!(modo, Modo::Parcial | Modo::Desconhecida));
     assert_eq!(
         saida.status.code(),
         Some(esperado),
@@ -235,7 +267,12 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::Completa) {
+    if matches!(modo, Modo::Previa) {
+        assert_eq!(json["nup"], NUP);
+        assert_eq!(json["texto"], " Comentário novo ");
+        assert_eq!(json["confirmado"], false);
+        assert_eq!(json["alterado"], false);
+    } else if matches!(modo, Modo::Completa) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["total"], 1);
         assert_eq!(json["lista_completa"], true);
@@ -257,14 +294,21 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         eventos.iter().all(|e| e.starts_with("GET ")),
         "consulta não pode enviar POST: {eventos:?}"
     );
+    if matches!(modo, Modo::Previa) {
+        assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
+    }
     let listagens = eventos
         .iter()
         .filter(|e| e.as_str() == "GET comentario_listar")
         .count();
     assert_eq!(
         listagens,
-        usize::from(!matches!(modo, Modo::Desconhecida)),
-        "link só é consultado quando há observação explícita"
+        match modo {
+            Modo::Desconhecida => 0,
+            Modo::Previa => 2,
+            Modo::Completa | Modo::Parcial => 1,
+        },
+        "a segunda CLI relê os comentários após a prévia"
     );
 }
 
@@ -279,4 +323,9 @@ fn bdd_257_01_pagina_incompleta_nao_e_lista_total() {
 #[test]
 fn bdd_257_01_ausencia_de_foto_nao_e_lista_vazia() {
     executar(Modo::Desconhecida);
+}
+
+#[test]
+fn bdd_257_02_previa_observa_formulario_sem_post() {
+    executar(Modo::Previa);
 }

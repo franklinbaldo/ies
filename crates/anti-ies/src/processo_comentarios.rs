@@ -24,7 +24,7 @@ fn linha(item: &Comentario, com_texto_na_coluna: bool) -> String {
     }
 }
 
-fn tabela(observacao: &Observacao) -> String {
+fn tabela(id: &str, observacao: &Observacao) -> String {
     let n = observacao.total_declarado;
     let forma = if n == 1 { "registro" } else { "registros" };
     let visao = match observacao.visao {
@@ -42,9 +42,17 @@ fn tabela(observacao: &Observacao) -> String {
     for item in &observacao.itens {
         linhas.push_str(&linha(item, com_texto_na_coluna));
     }
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
     format!(
-        "<html><body><form id='frmComentarioLista'><input type='hidden' name='hdnVisualizacao' value='{visao}'><table id='tblComentarios'><caption>Lista de Comentários ({n} {forma}):</caption><thead><tr>{cabecalho}</tr></thead><tbody>{linhas}</tbody></table></form></body></html>"
+        "<html><body><form id='frmComentarioLista'><input type='hidden' name='hdnVisualizacao' value='{visao}'><table id='tblComentarios'><caption>Lista de Comentários ({n} {forma}):</caption><thead><tr>{cabecalho}</tr></thead><tbody>{linhas}</tbody></table><a href='controlador.php?acao=comentario_cadastrar&amp;id_procedimento={id}&amp;infra_hash={hash}'>Novo</a></form></body></html>"
     )
+}
+
+fn pagina_cadastro(id: &str) -> Resposta {
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    Resposta::html(format!(
+        "<html><body><form id='frmComentarioCadastro' method='post' action='controlador.php?acao=comentario_cadastrar&amp;id_procedimento={id}&amp;infra_hash={hash}'><textarea name='txaDescricao'></textarea><input type='submit' name='sbmCadastrarComentario' value='Cadastrar'></form></body></html>"
+    ))
 }
 
 pub(crate) fn responder(
@@ -54,7 +62,12 @@ pub(crate) fn responder(
     origem: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("comentario_listar") {
+    if !eh_controlador_sei(alvo)
+        || !matches!(
+            parametro_unico(alvo, "acao"),
+            Some("comentario_listar" | "comentario_cadastrar")
+        )
+    {
         return Resposta::nova(Estado::NaoEncontrado);
     }
     if metodo != "GET" {
@@ -65,7 +78,9 @@ pub(crate) fn responder(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
+    let cadastro = parametro_unico(alvo, "acao") == Some("comentario_cadastrar");
     match iesei::comentarios::ler(banco, origem, cenario, id) {
+        Ok(Some(_)) if cadastro => pagina_cadastro(id),
         Ok(Some(foto)) if foto.itens.is_empty() => {
             // Sem comentários o SEI pode redirecionar ao cadastro; a CLI
             // não interpreta esse 302 como uma lista vazia comprovada.
@@ -74,7 +89,7 @@ pub(crate) fn responder(
                 crate::protocolo_sintetico::INFRA_HASH,
             ))
         }
-        Ok(Some(foto)) => Resposta::html(tabela(&foto)),
+        Ok(Some(foto)) => Resposta::html(tabela(id, &foto)),
         Ok(None) | Err(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }

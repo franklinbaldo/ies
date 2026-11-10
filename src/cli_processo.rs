@@ -29,6 +29,14 @@ pub(crate) struct Processo {
 pub(crate) enum ProcessoAcao {
     /// Lista os comentários comprovadamente publicados do processo, sem escrita.
     Comentarios { numero: String },
+    /// Prévia de comentário; confirmação só após prova da escrita.
+    Comentar {
+        numero: String,
+        #[arg(long)]
+        texto: String,
+        #[arg(long)]
+        confirmar: bool,
+    },
     /// Prévia de anotação na unidade; com --confirmar, grava e relê uma vez.
     Anotar {
         numero: String,
