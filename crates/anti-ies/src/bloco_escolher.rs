@@ -99,6 +99,16 @@ pub(crate) fn responder(
             Err(_) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
+    tela_de_escolha(id_procedimento, &documento, &linhas, &documentos)
+}
+
+/// Montagem da tela GET, distinta da confirmação POST.
+fn tela_de_escolha(
+    id_procedimento: &str,
+    documento: &documento_versoes::DocumentoSimulado,
+    linhas: &[blocos::Linha],
+    documentos: &[documento_versoes::DocumentoSimulado],
+) -> Resposta {
     let mut opcoes = String::from("<option value=\"null\" selected=\"selected\">&nbsp;</option>\n");
     for linha in &linhas {
         writeln!(

@@ -135,7 +135,7 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
         blocos.push(valor);
     }
     let mut documentos: Vec<DocumentoOferecido> = Vec::new();
-    for caixa in tags("form#frmBlocoEscolher input") {
+    for caixa in tags("input") {
         let Some(nome) = atributo(caixa, "name")? else {
             continue;
         };
@@ -242,11 +242,11 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
             unidade,
             bloco,
             &aberto,
-            &caixa.nome,
             &TelaDaInclusao {
                 url: link.as_str(),
                 html: &html,
                 mime: &mime,
+                nome_da_caixa: &caixa.nome,
             },
             &mut rede,
         )?;
@@ -271,6 +271,7 @@ struct TelaDaInclusao<'a> {
     url: &'a str,
     html: &'a str,
     mime: &'a str,
+    nome_da_caixa: &'a str,
 }
 
 /// Envio causal único e uma leitura independente. Ambos são necessários
@@ -281,7 +282,6 @@ fn confirmar_documento<V: EnvioDoProcesso>(
     unidade: Option<&str>,
     bloco: &str,
     aberto: &DocumentoNaArvoreAberto,
-    nome_da_caixa: &str,
     tela: &TelaDaInclusao<'_>,
     rede: &mut Contador<'_, V>,
 ) -> Result<(), ErroIncluir> {
@@ -300,7 +300,7 @@ fn confirmar_documento<V: EnvioDoProcesso>(
         "",
         &[
             ("selBloco", bloco),
-            (nome_da_caixa, &aberto.id_documento),
+            (tela.nome_da_caixa, &aberto.id_documento),
             ("hdnDocumentosItensSelecionados", &aberto.id_documento),
         ],
     )?;
