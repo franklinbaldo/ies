@@ -199,3 +199,19 @@ fn retomar_get_mutador_recusado_nao_atribui_mudanca_concorrente() {
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 6);
 }
+
+#[test]
+fn sobrestar_post_redirecionado_ao_login_nao_prova_efeito_concorrente() {
+    let (resultado, pedidos) = rodar(
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
+        respostas_sobrestar(
+            r302("controlador.php?acao=login"),
+            ok(sobrestado()),
+        ),
+    );
+    assert_eq!(resultado, Err(E::EfeitoIncerto));
+    assert_eq!(pedidos, pedidos_sobrestar());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}
