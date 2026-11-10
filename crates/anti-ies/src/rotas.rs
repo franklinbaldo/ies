@@ -119,8 +119,10 @@ pub(crate) fn responder(
         {
             processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("acompanhamento_gerenciar") if eh_controlador_sei(alvo) => {
-            crate::processo_acompanhar::responder(metodo, alvo, banco, instalacao, cenario)
+        Some("acompanhamento_gerenciar" | "acompanhamento_excluir")
+            if eh_controlador_sei(alvo) =>
+        {
+            crate::processo_acompanhar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("comentario_listar" | "comentario_cadastrar") if eh_controlador_sei(alvo) => {
             crate::processo_comentarios::responder(metodo, alvo, corpo, banco, instalacao, cenario)
