@@ -24,7 +24,10 @@ fn bdd_581_01_anotacao_removida_formulario_de_envio_invalido() {
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let falha = json(&saidas[0]);
-    assert_eq!(falha["anotacao_depois"], false, "limpeza comprovada é efeito público");
+    assert_eq!(
+        falha["anotacao_depois"], false,
+        "limpeza comprovada é efeito público"
+    );
     let mensagem = falha["erro"].as_str().unwrap();
     assert!(
         mensagem.contains("anotação foi removida") && mensagem.contains("processo não foi enviado"),
@@ -62,7 +65,9 @@ fn bdd_581_01_anotacao_removida_formulario_de_envio_invalido() {
         "sem repetição da limpeza"
     );
     assert!(
-        !pedidos.iter().any(|pedido| pedido == "POST procedimento_enviar"),
+        !pedidos
+            .iter()
+            .any(|pedido| pedido == "POST procedimento_enviar"),
         "o formulário inválido impede a tentativa de tramitação: {pedidos:?}"
     );
 }
