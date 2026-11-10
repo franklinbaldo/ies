@@ -249,7 +249,9 @@ fn executar(caso: Caso) {
     // O mesmo plano de retirada, agora na apresentação humana, ainda sem POST.
     let previa_humana = matches!(caso, Caso::RetirarPresente).then(|| {
         executar_cli(
-            &pasta, arquivos, porta_proxy,
+            &pasta,
+            arquivos,
+            porta_proxy,
             &["processo", "marcar", NUP, "--retirar", "501#Revisão"],
         )
     });
@@ -277,7 +279,14 @@ fn executar(caso: Caso) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    conferir(&saida, &releitura, &persistido, &pedidos, sem_marcadores, matches!(caso, Caso::RetirarPresente));
+    conferir(
+        &saida,
+        &releitura,
+        &persistido,
+        &pedidos,
+        sem_marcadores,
+        matches!(caso, Caso::RetirarPresente),
+    );
 }
 fn conferir(
     saida: &Output,
@@ -296,7 +305,8 @@ fn conferir(
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["nada_a_fazer"], !retirada_presente);
-    assert_eq!(json["retirada_possivel"], retirada_presente);
+    // Presença observada não demonstra que o formulário permite escrever.
+    assert_eq!(json["retirada_possivel"], false);
     assert_eq!(json["confirmado"], false);
     assert_eq!(json["alterado"], false);
     assert!(json["requisicoes"].as_u64().is_some());
