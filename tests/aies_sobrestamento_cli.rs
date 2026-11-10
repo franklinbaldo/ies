@@ -246,8 +246,14 @@ fn executar(sobrestado: bool, confirmar: bool) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    verificar(sobrestado, confirmar, &saida, releitura.as_ref(), persistido, &pedidos);
-
+    verificar(
+        sobrestado,
+        confirmar,
+        &saida,
+        releitura.as_ref(),
+        persistido,
+        &pedidos,
+    );
 }
 
 fn verificar(
