@@ -37,6 +37,7 @@ fn pedir(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
 fn servir_conteudo_observado(
     documento: DocumentoSimulado,
     instalacao: iesei::instalacao::Instalacao,
+    requisicoes: usize,
 ) -> (SocketAddr, std::thread::JoinHandle<()>) {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
@@ -44,7 +45,7 @@ fn servir_conteudo_observado(
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         guardar(&mut banco, "cassette-conteudo", &documento).unwrap();
-        for _ in 0..3 {
+        for _ in 0..requisicoes {
             let (mut fluxo, _) = escuta.accept().unwrap();
             anti_ies::atender_http(&mut fluxo, Some((&banco, &instalacao, "cassette-conteudo")))
                 .unwrap();
@@ -56,6 +57,17 @@ fn servir_conteudo_observado(
                 .unwrap(),
             1,
             "GET e POST recusado não modificam o SQLite"
+        );
+        assert_eq!(
+            iesei::documento_versoes::ler(
+                &banco,
+                &instalacao,
+                "cassette-conteudo",
+                &documento.id_documento,
+            )
+            .unwrap(),
+            Some(documento),
+            "a navegação e as recusas preservam todo o documento",
         );
     });
 
@@ -125,7 +137,7 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         tipo: identidade.tipo.clone(),
         revisoes: vec![revisao],
     };
-    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao);
+    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao, 3);
     let url = format!(
         "/sei/controlador.php?acao=documento_visualizar&id_documento={id_observado}&versao={numero_versao}&id_procedimento={processo_observado}"
     );
@@ -277,3 +289,6 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     assert!(pedir(endereco, "POST", &url).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
 }
+
+// Confronto separado da navegação de pesquisa pelo número SEI.
+include!("anti_ies_documento_navegacao_unb.rs");
