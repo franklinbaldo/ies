@@ -4,7 +4,7 @@
 use std::process::Command;
 
 #[test]
-fn nao_expoe_comentar_antes_do_fluxo_web_conferido() {
+fn bdd_257_01_expoe_leitura_comentarios_mas_nao_a_escrita() {
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["processo", "--help"])
         .output()
@@ -12,5 +12,5 @@ fn nao_expoe_comentar_antes_do_fluxo_web_conferido() {
     assert!(saida.status.success());
     let ajuda = String::from_utf8(saida.stdout).expect("ajuda UTF-8");
     assert!(!ajuda.contains("comentar"));
-    assert!(!ajuda.contains("comentarios"));
+    assert!(ajuda.contains("comentarios"), "leitura de comentários deve ser pública");
 }
