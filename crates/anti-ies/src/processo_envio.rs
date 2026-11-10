@@ -10,6 +10,7 @@ use std::fmt::Write;
 
 mod formulario;
 mod navegacao;
+pub(crate) mod validacao;
 use formulario::pagina_de_envio;
 pub use navegacao::navegacao;
 

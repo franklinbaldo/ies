@@ -108,6 +108,9 @@ pub(crate) fn responder(
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("usuario_validar_acesso") if eh_controlador_sei(alvo) => {
+            processo_envio::validacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
             processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
         }

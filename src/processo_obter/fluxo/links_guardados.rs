@@ -79,8 +79,9 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         // Unidade distinta ou validação de senha não são link envelhecido:
         // nenhum outro caminho pode contornar essa recusa de acesso.
         Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
-            return rede
-                .validar_e_abrir(contexto, link.url(), &html, &id)
+            return crate::processo_obter::validacao_acesso::validar_e_abrir(
+                rede, contexto, link.url(), &html, &id,
+            )
                 .map(|(arvore, unidade)| Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
         }
         Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {

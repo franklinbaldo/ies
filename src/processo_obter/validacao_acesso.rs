@@ -1,8 +1,8 @@
 //! Validação de acesso com senha privada, somente para a modal efetivamente oferecida.
 //! O formulário da modal ainda é hipótese: não há POST observado em cassette GO.
-use super::abertura::{Contexto, Lida, Rede};
+use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::{EnvioDoProcesso, ErroProcessoObter as E};
-use crate::arvore_processo::{ErroTelaDoProcesso, endereco::conferir_endereco_relativo};
+use crate::arvore_processo::{ErroTelaDoProcesso, endereco::conferir_endereco_relativo, ler_tela_do_processo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -79,4 +79,24 @@ pub(super) fn validar<V: EnvioDoProcesso>(
     match resultado {
         RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => Ok(()),
     }
+}
+
+/// Depois de um POST único, exige uma nova leitura independente do trabalho
+/// e da árvore; se a exigência persistir, não repete a submissão.
+pub(super) fn validar_e_abrir<V: EnvioDoProcesso>(
+    rede: &mut Rede<'_, V>,
+    contexto: &Contexto<'_>,
+    trabalho: &str,
+    html: &str,
+    id: &str,
+) -> Result<(ArvoreAberta, String), E> {
+    validar(rede, contexto, html, id)?;
+    let (html, mime) = match rede.get(trabalho)? {
+        Lida::Html { html, mime } => (html, mime),
+        Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
+        Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
+        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+    };
+    let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
+    rede.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
 }

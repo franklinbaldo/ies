@@ -381,31 +381,10 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         let tela = match ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida) {
             Ok(tela) => tela,
             Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
-                return self.validar_e_abrir(contexto, trabalho, &html, id);
+                return super::validacao_acesso::validar_e_abrir(self, contexto, trabalho, &html, id);
             }
             Err(erro) => return Err(E::Tela(erro)),
         };
-        self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
-    }
-
-    /// Valida uma única vez a senha privada, depois relê a mesma tela e a árvore.
-    /// A resposta do POST isolada nunca autoriza publicar o processo.
-    pub(super) fn validar_e_abrir(
-        &mut self,
-        contexto: &Contexto<'_>,
-        trabalho: &str,
-        html: &str,
-        id: &str,
-    ) -> Result<(ArvoreAberta, String), E> {
-        super::validacao_acesso::validar(self, contexto, html, id)?;
-        let (html, mime) = match self.get(trabalho)? {
-            Lida::Html { html, mime } => (html, mime),
-            Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-            Lida::Falha(falha) => return Err(E::Transporte(falha)),
-        };
-        // Se a modal ainda existe, recusar sem novo POST.
-        let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
         self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
     }
 
