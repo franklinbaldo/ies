@@ -56,7 +56,12 @@ pub fn guardar(
         .query_row(
             "SELECT 1 FROM sim_bloco_linha
              WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND numero=?4 LIMIT 1",
-            params![instalacao.url_base(), cenario, detalhe.tipo.nome(), detalhe.numero],
+            params![
+            instalacao.url_base(),
+            cenario,
+            detalhe.tipo.nome(),
+            detalhe.numero
+        ],
             |r| r.get(0),
         )
         .optional()?;
@@ -75,7 +80,12 @@ pub fn guardar(
     tx.execute(
         "DELETE FROM sim_bloco_item
          WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND numero=?4",
-        params![instalacao.url_base(), cenario, detalhe.tipo.nome(), detalhe.numero],
+        params![
+            instalacao.url_base(),
+            cenario,
+            detalhe.tipo.nome(),
+            detalhe.numero
+        ],
     )?;
     tx.execute(
         "INSERT INTO sim_bloco_detalhe(origem,cenario,tipo,numero,total,inicio,fim)
@@ -83,8 +93,13 @@ pub fn guardar(
          ON CONFLICT(origem,cenario,tipo,numero) DO UPDATE SET
          total=excluded.total,inicio=excluded.inicio,fim=excluded.fim",
         params![
-            instalacao.url_base(), cenario, detalhe.tipo.nome(), detalhe.numero,
-            total, inicio, fim
+            instalacao.url_base(),
+            cenario,
+            detalhe.tipo.nome(),
+            detalhe.numero,
+            total,
+            inicio,
+            fim
         ],
     )?;
     for (posicao, item) in detalhe.itens.iter().enumerate() {
@@ -93,9 +108,15 @@ pub fn guardar(
                origem,cenario,tipo,numero,posicao,processo,documento,tipo_documento,anotacoes
              ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
             params![
-                instalacao.url_base(), cenario, detalhe.tipo.nome(), detalhe.numero,
+                instalacao.url_base(),
+                cenario,
+                detalhe.tipo.nome(),
+                detalhe.numero,
                 i64::try_from(posicao).map_err(|_| rusqlite::Error::InvalidQuery)?,
-                item.processo, item.documento, item.tipo, item.anotacoes
+                item.processo,
+                item.documento,
+                item.tipo,
+                item.anotacoes
             ],
         )?;
     }
@@ -195,17 +216,31 @@ mod tests {
                 anotacoes: String::new(),
             }],
         };
-        assert_eq!(ler(&db, &origem, "a", Tipo::Assinatura, "2195").unwrap(), None);
-        assert!(guardar(&mut db, &origem, "a", &Detalhe {
-            numero: "9999".into(),
-            ..detalhe.clone()
-        }).is_err());
+        assert_eq!(
+            ler(&db, &origem, "a", Tipo::Assinatura, "2195").unwrap(),
+            None
+        );
+        assert!(
+            guardar(
+                &mut db,
+                &origem,
+                "a",
+                &Detalhe {
+                    numero: "9999".into(),
+                    ..detalhe.clone()
+                }
+            )
+            .is_err()
+        );
         guardar(&mut db, &origem, "a", &detalhe).unwrap();
         guardar(&mut db, &origem, "a", &detalhe).unwrap();
         assert_eq!(
             ler(&db, &origem, "a", Tipo::Assinatura, "2195").unwrap(),
             Some(detalhe)
         );
-        assert_eq!(ler(&db, &origem, "b", Tipo::Assinatura, "2195").unwrap(), None);
+        assert_eq!(
+            ler(&db, &origem, "b", Tipo::Assinatura, "2195").unwrap(),
+            None
+        );
     }
 }

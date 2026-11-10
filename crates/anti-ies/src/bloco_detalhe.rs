@@ -13,15 +13,19 @@ fn html(d: &Detalhe) -> String {
             saida,
             "<caption>Lista de Processos/Documentos ({} registros - {inicio} a {fim}):</caption>",
             d.total
-        ).expect("escrever em String");
+        )
+        .expect("escrever em String");
     } else {
         write!(
             saida,
             "<caption>Lista de Processos/Documentos ({} registros):</caption>",
             d.total
-        ).expect("escrever em String");
+        )
+        .expect("escrever em String");
     }
-    saida.push_str("<tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr>");
+    saida.push_str(
+        "<tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr>",
+    );
     for i in &d.itens {
         write!(
             saida,
@@ -30,7 +34,8 @@ fn html(d: &Detalhe) -> String {
             escapar(&i.processo),
             escapar(&i.anotacoes),
             escapar(i.tipo.as_deref().unwrap_or(""))
-        ).expect("escrever em String");
+        )
+        .expect("escrever em String");
     }
     saida.push_str("</table></body></html>");
     saida

@@ -201,7 +201,12 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
         .unwrap();
     }
     if detalhe {
-        bloco_detalhe::guardar(
+        registrar_detalhe(banco, instalacao);
+    }
+}
+
+fn registrar_detalhe(banco: &mut Connection, instalacao: &Instalacao) {
+    bloco_detalhe::guardar(
             banco,
             instalacao,
             CENARIO,
@@ -227,7 +232,6 @@ fn registrar_blocos(banco: &mut Connection, instalacao: &Instalacao, interno: bo
             },
         )
         .unwrap();
-    }
 }
 
 fn iniciar_tunel(
