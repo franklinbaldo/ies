@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Inspecao somente leitura de cassettes publicas, com hashes e logs saneados."""
 
+import base64
 import collections
 import hashlib
 import json
@@ -191,6 +192,11 @@ def _diagnostico_bloco_escolher(interacoes):
             and re.fullmatch(r"[a-z_]{1,64}", acao_destino[0]) else None
         )
         dados = req.get("body", req.get("data", req.get("payload", None)))
+        parametro = req.get("operation_parameter")
+        parametros = (
+            sorted(k for k in parametro if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", k))
+            if isinstance(parametro, dict) else []
+        )
         campos = _campos_por_nome(dados)
         anterior = detalhes_requisicao(interacoes[i - 1].get("request"))[:2] if i else None
         posterior = (
@@ -198,20 +204,34 @@ def _diagnostico_bloco_escolher(interacoes):
             if i + 1 < len(interacoes) else None
         )
         corpo_resposta = resp.get("body", "")
-        formulario = (
-            isinstance(corpo_resposta, str)
-            and "frmBlocoEscolher" in corpo_resposta
-        )
+        if isinstance(resp.get("body_base64"), str):
+            try:
+                corpo_resposta = base64.b64decode(
+                    resp["body_base64"], validate=True
+                ).decode("utf-8", errors="replace")
+            except (ValueError, base64.binascii.Error):
+                corpo_resposta = ""
+        formulario = isinstance(corpo_resposta, str) and "frmBlocoEscolher" in corpo_resposta
+        marcas = [
+            nome for nome in (
+                "frmBlocoEscolher", "selBloco", "chkDocumentosItem",
+                "hdnDocumentosItensSelecionados",
+            )
+            if isinstance(corpo_resposta, str) and nome in corpo_resposta
+        ]
         print(
             "BLOCO_ESCOLHER_SHAPE",
             "idx=", i + 1,
             "method=", metodo,
             "status=", resp.get("status_code"),
             "request_keys=", sorted(req.keys()),
+            "operation_parameter_kind=", type(parametro).__name__,
+            "operation_parameter_keys=", parametros,
             "body_kind=", type(dados).__name__,
             "allowed_form_keys=", campos,
             "response_keys=", sorted(resp.keys()),
             "response_form_marker=", formulario,
+            "response_form_markers=", marcas,
             "redirect_action=", acao_segura,
             "previous=", anterior,
             "next=", posterior,
