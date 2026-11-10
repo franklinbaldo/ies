@@ -4,8 +4,8 @@
 //! de reconciliação. Telas sintéticas.
 use super::erro::{ErroAssinar, FalhaDoEnvio, VerificacaoDaAssinatura};
 use super::tests_apoio::*;
+use crate::arvore_processo::ErroAssinaturaNaArvore;
 use crate::arvore_processo::{Assinante, EdicaoNaBarra};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
 
@@ -122,9 +122,9 @@ fn caneta_fora_da_forma_para_na_abertura() {
     let (r, feitos) = rodar_assinar(None, false, abertura(arvore_do_documento('S', &[dupla])));
     assert_eq!(
         r,
-        Err(ErroAssinar::Arvore(ErroHtml::valor(
-            "assinaturas_do_documento_fora_da_forma_observada"
-        )))
+        Err(ErroAssinar::Arvore(
+            ErroAssinaturaNaArvore::AssinaturasDoDocumentoForaDaFormaObservada
+        ))
     );
     assert_eq!(feitos, pedidos_da_abertura());
 }

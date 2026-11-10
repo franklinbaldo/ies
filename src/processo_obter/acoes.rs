@@ -5,7 +5,6 @@ use crate::arvore_processo::{
     ErroConcluirNaBarra, ErroEnviarNaBarra, ErroLinkIncluirDocumento, ErroRelacionarNaBarra,
     ReabrirNaBarra,
 };
-use crate::erro_html::ErroHtml;
 use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 
 /// As ações de estado lidas na barra da árvore aberta; a falha de cada uma
@@ -18,7 +17,7 @@ pub(crate) struct AcoesDeEstado {
     /// contracts/cli/processo-concluir.md
     pub(crate) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// contracts/cli/processo-reabrir.md
-    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, ErroHtml>,
+    pub(crate) reabrir: Result<Option<ReabrirNaBarra>, crate::arvore_processo::ErroReabrirNaBarra>,
     pub(crate) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     pub(crate) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// contracts/cli/processo-enviar.md
@@ -29,7 +28,7 @@ pub(crate) struct AcoesDeEstado {
         crate::marcadores_processo::ErroMarcadores,
     >,
     /// Link das anotações da origem (só pesa no envio com remoção).
-    pub(crate) anotacoes: Result<Option<String>, ErroHtml>,
+    pub(crate) anotacoes: Result<Option<String>, crate::arvore_processo::ErroLinkDasAnotacoes>,
     pub(crate) comentarios: Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios>,
     /// Ciência no processo e sua lista de conferência, ambas da árvore servida.
     pub(crate) ciencia:

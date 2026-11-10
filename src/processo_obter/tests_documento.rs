@@ -199,9 +199,9 @@ fn duplicidade_e_numero_diferente_na_arvore() {
     let ausente = arvore(&[no_processo(0, ID, NUP), no_documento(1, "22", ID, DOC)]);
     assert_eq!(
         recusa(ausente),
-        ErroDocumentoObter::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
-            ErroHtml::ausente("documento_ausente_da_arvore")
-        ))
+        ErroDocumentoObter::Conteudo(
+            crate::arvore_processo::ErroConteudoNaArvore::DocumentoAusenteDaArvore
+        )
     );
 }
 

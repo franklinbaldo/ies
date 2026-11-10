@@ -7,7 +7,6 @@
 //! recusa.
 use super::pastas::{NoDePasta, Pai};
 use super::{ARGUMENTOS, DocumentoLido, ErroArvore, Literal, ProcessoNaArvore};
-use crate::erro_html::ErroHtml;
 use std::collections::HashSet;
 
 /// Um anexado lido, com o pai (a2) ainda não conferido.
@@ -17,7 +16,7 @@ pub(super) struct AnexadoLido {
 }
 
 pub(super) fn ler_anexado(a: &[Literal; ARGUMENTOS]) -> Result<AnexadoLido, ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor("processo_anexado_fora_da_forma_observada"));
+    let fora = ErroArvore::ProcessoAnexadoForaDaFormaObservada;
     let id = super::id(&a[1])?;
     let pai = super::id(&a[2])?;
     if !endereco_observado(super::texto(&a[3])?, &pai, &id) {
@@ -82,7 +81,7 @@ pub(super) fn conferir_anexados(
             return Err(ErroArvore::ProcessoAnexadoIgualAoProcesso);
         }
         if !ids.insert(&a.id) || !nups.insert(&a.nup) {
-            return Err(ErroHtml::repetido("processo_anexado_repetido_na_arvore").into());
+            return Err(ErroArvore::ProcessoAnexadoRepetidoNaArvore);
         }
     }
     let filho_de_anexado = lidos.iter().any(|l| ids.contains(l.pai.as_str()))

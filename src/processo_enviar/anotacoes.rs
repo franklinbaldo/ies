@@ -12,7 +12,7 @@ use crate::formulario_web::{
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDasAnotacoes {
-    LinkDasAnotacoes(#[source] ErroHtml),
+    LinkDasAnotacoes(#[source] crate::arvore_processo::ErroLinkDasAnotacoes),
     TelaDasAnotacoes(#[from] crate::transporte::FalhaTransporte),
     TelaDasAnotacoesRedirecionada,
     LeituraDasAnotacoes(#[source] ErroHtml),

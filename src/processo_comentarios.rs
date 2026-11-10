@@ -127,7 +127,10 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDosComentarios {
     EnderecoDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    BarraDosComentariosForaDaFormaObservada,
+    BarrasDosComentariosRepetidasNaArvore,
+    EnderecoDosComentariosNaoReconhecido,
+    LinksDosComentariosRepetidosNaBarra,
 }
 
 /// Posicionamento das colunas observadas na tela, sem ordem pressuposta.

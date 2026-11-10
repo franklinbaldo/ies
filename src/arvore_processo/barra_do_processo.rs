@@ -7,7 +7,6 @@
 //! classificam nada.
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -59,15 +58,24 @@ pub(crate) fn ler_link_das_propriedades(
         })
 }
 
+/// Recusas da leitura do link de anotações na barra do processo.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroLinkDasAnotacoes {
+    BarraDeAnotacoesNaoInterpretada,
+    EnderecoDeAnotacoesNaoReconhecido,
+    LinksDeAnotacoesRepetidos,
+}
+
 /// Anotações na origem: somente o link servido no nó PROCESSO.
 /// O GET deste endereço abre o formulário, não submete anotação.
 pub(crate) fn ler_link_das_anotacoes(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<Option<String>, ErroHtml> {
+) -> Result<Option<String>, ErroLinkDasAnotacoes> {
     let hrefs =
-        hrefs_da_barra(html).map_err(|_| ErroHtml::html("barra_de_anotacoes_nao_interpretada"))?;
+        hrefs_da_barra(html).map_err(|_| ErroLinkDasAnotacoes::BarraDeAnotacoesNaoInterpretada)?;
     let candidatos: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some("anotacao_registrar"))
@@ -76,8 +84,8 @@ pub(crate) fn ler_link_das_anotacoes(
         [] => Ok(None),
         [href] => conferir_endereco_relativo(instalacao, href, "anotacao_registrar", id)
             .map(Some)
-            .map_err(|_| ErroHtml::valor("endereco_de_anotacoes_nao_reconhecido")),
-        _ => Err(ErroHtml::repetido("links_de_anotacoes_repetidos")),
+            .map_err(|_| ErroLinkDasAnotacoes::EnderecoDeAnotacoesNaoReconhecido),
+        _ => Err(ErroLinkDasAnotacoes::LinksDeAnotacoesRepetidos),
     }
 }
 
@@ -154,12 +162,8 @@ pub(crate) fn ler_link_dos_comentarios(
     id: &str,
 ) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
     let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => ErroLinkDosComentarios::Html(ErroHtml::valor(
-            "barra_dos_comentarios_fora_da_forma_observada",
-        )),
-        FalhaDaBarra::Repetidas => ErroLinkDosComentarios::Html(ErroHtml::repetido(
-            "barras_dos_comentarios_repetidas_na_arvore",
-        )),
+        FalhaDaBarra::Fora => ErroLinkDosComentarios::BarraDosComentariosForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => ErroLinkDosComentarios::BarrasDosComentariosRepetidasNaArvore,
     })?;
     let achados: Vec<_> = hrefs
         .iter()
@@ -168,14 +172,14 @@ pub(crate) fn ler_link_dos_comentarios(
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [unico] => unico,
-        _ => return Err(ErroHtml::repetido("links_dos_comentarios_repetidos_na_barra").into()),
+        _ => return Err(ErroLinkDosComentarios::LinksDosComentariosRepetidosNaBarra),
     };
     conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
         .map(|url| Some(EnderecoDosComentarios::novo(url)))
         .map_err(|falha| match falha {
-            EnderecoRecusado::NaoReconhecido => ErroLinkDosComentarios::Html(ErroHtml::valor(
-                "endereco_dos_comentarios_nao_reconhecido",
-            )),
+            EnderecoRecusado::NaoReconhecido => {
+                ErroLinkDosComentarios::EnderecoDosComentariosNaoReconhecido
+            }
             EnderecoRecusado::DeOutroProcesso => ErroLinkDosComentarios::EnderecoDeOutroProcesso,
         })
 }

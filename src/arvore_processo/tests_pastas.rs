@@ -6,7 +6,6 @@
 //! Ids, números, hashes e rótulos inventados.
 use super::tests::{NUP, interno, no_documento, no_processo};
 use super::*;
-use crate::erro_html::ErroHtml;
 use std::fmt::Write as _;
 
 pub(crate) const ID: &str = "10";
@@ -295,15 +294,11 @@ fn identidade_vem_do_id_rel_protocolo_protocolo_da_barra() {
     );
     assert_eq!(
         id("<a href=\"c.php?a=1&id_rel_protocolo_protocolo=7x\">"),
-        Err(ErroArvore::Html(ErroHtml::valor(
-            "barra_de_no_fora_da_forma_observada"
-        )))
+        Err(ErroArvore::BarraDeNoForaDaFormaObservada)
     );
     assert_eq!(
         id("<a href=\"c.php?a=1&id_rel_protocolo_protocolo=\">"),
-        Err(ErroArvore::Html(ErroHtml::valor(
-            "barra_de_no_fora_da_forma_observada"
-        )))
+        Err(ErroArvore::BarraDeNoForaDaFormaObservada)
     );
 }
 
