@@ -32,19 +32,27 @@ fn bdd_60_05_numero_igual_em_processos_distintos_respeita_nup_explicito() {
         assert_eq!(doc["id_documento"], id, "{valor}");
         let corpo = doc["texto"].as_str().expect("texto da identidade pedida");
         assert!(corpo.contains(trecho), "{valor}");
-        assert!(!corpo.contains(indevido), "não publicar corpo de outro NUP: {valor}");
+        assert!(
+            !corpo.contains(indevido),
+            "não publicar corpo de outro NUP: {valor}"
+        );
         assert_eq!(valor["requisicoes"].as_u64(), Some(trilha.len() as u64));
         assert!(
             trilha.iter().any(|p| p == "GET procedimento_visualizar"),
             "a árvore do NUP explícito deve ter sido consultada: {trilha:?}"
         );
         assert!(
-            trilha.iter().filter(|p| p.as_str() == "GET documento_visualizar").count() == 1,
+            trilha
+                .iter()
+                .filter(|p| p.as_str() == "GET documento_visualizar")
+                .count()
+                == 1,
             "exatamente um corpo, sem fallback ou retry: {trilha:?}"
         );
         assert!(
-            trilha.iter().all(|p| p.starts_with("GET ")
-                || p == "POST protocolo_pesquisa_rapida"),
+            trilha
+                .iter()
+                .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
             "nenhum POST mutador: {trilha:?}"
         );
     }
