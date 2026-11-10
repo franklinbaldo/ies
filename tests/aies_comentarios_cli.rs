@@ -160,6 +160,53 @@ fn estado(modo: Modo) -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+struct TunelEstado {
+    post_realizado: bool,
+    leitura_interrompida: bool,
+}
+
+fn atender_conexao_tunel(
+    mut tcp: TcpStream,
+    tls: &TlsAcceptor,
+    backend_addr: std::net::SocketAddr,
+    vistos: &Mutex<Vec<String>>,
+    modo: Modo,
+    estado: &mut TunelEstado,
+) {
+    let (connect, _) = pedido_http(&mut tcp);
+    assert!(connect.starts_with(b"CONNECT "));
+    tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        .unwrap();
+    let mut canal = tls.accept(tcp).unwrap();
+    let (req, evento) = pedido_http(&mut canal);
+    let mut destino = TcpStream::connect(backend_addr).unwrap();
+    destino.write_all(&req).unwrap();
+    destino.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = Vec::new();
+    destino.read_to_end(&mut resposta).unwrap();
+    vistos.lock().unwrap().push(evento.clone());
+    if matches!(modo, Modo::EfeitoIncerto)
+        && estado.post_realizado
+        && !estado.leitura_interrompida
+        && evento == "GET comentario_listar"
+    {
+        // O POST já foi aplicado. Só a primeira releitura falha;
+        // a segunda CLI deverá enxergar o efeito persistido.
+        estado.leitura_interrompida = true;
+        canal
+            .write_all(
+                b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+            .unwrap();
+    } else {
+        canal.write_all(&resposta).unwrap();
+    }
+    if evento == "POST comentario_cadastrar" {
+        estado.post_realizado = true;
+    }
+    canal.flush().unwrap();
+}
+
 fn executar(modo: Modo) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -187,39 +234,12 @@ fn executar(modo: Modo) {
     let stopped = Arc::clone(&stop);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(tls_id).unwrap();
-        let mut post_realizado = false;
-        let mut leitura_interrompida = false;
-        while let Some(mut tcp) = aceitar(&proxy, &stopped) {
-            let (connect, _) = pedido_http(&mut tcp);
-            assert!(connect.starts_with(b"CONNECT "));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).unwrap();
-            let (req, evento) = pedido_http(&mut canal);
-            let mut destino = TcpStream::connect(backend_addr).unwrap();
-            destino.write_all(&req).unwrap();
-            destino.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            destino.read_to_end(&mut resposta).unwrap();
-            vistos.lock().unwrap().push(evento.clone());
-            if matches!(modo, Modo::EfeitoIncerto)
-                && post_realizado
-                && !leitura_interrompida
-                && evento == "GET comentario_listar"
-            {
-                // O POST já foi aplicado. A primeira releitura recebe uma falha
-                // sintética; a segunda CLI deverá enxergar o efeito persistido.
-                leitura_interrompida = true;
-                canal.write_all(
-                    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                ).unwrap();
-            } else {
-                canal.write_all(&resposta).unwrap();
-            }
-            if evento == "POST comentario_cadastrar" {
-                post_realizado = true;
-            }
-            canal.flush().unwrap();
+        let mut estado = TunelEstado {
+            post_realizado: false,
+            leitura_interrompida: false,
+        };
+        while let Some(tcp) = aceitar(&proxy, &stopped) {
+            atender_conexao_tunel(tcp, &tls, backend_addr, &vistos, modo, &mut estado);
         }
     });
     let chamar = |args: &[&str]| {
