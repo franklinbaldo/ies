@@ -57,8 +57,14 @@ mod tests {
         let config = Configuracao {
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             opcoes: vec![
-                Opcao { coluna: Coluna::Atribuicao, marcada: true },
-                Opcao { coluna: Coluna::Anotacao, marcada: false },
+                Opcao {
+                    coluna: Coluna::Atribuicao,
+                    marcada: true,
+                },
+                Opcao {
+                    coluna: Coluna::Anotacao,
+                    marcada: false,
+                },
             ],
         };
         let html = html(&config);
