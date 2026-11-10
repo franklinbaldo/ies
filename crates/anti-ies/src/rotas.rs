@@ -113,6 +113,9 @@ pub(crate) fn responder(
         {
             processo_envio::autocompletar(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("procedimento_configurar_detalhe") if eh_controlador_sei(alvo) => {
+            nivel_de_detalhe::responder(metodo, banco, instalacao, cenario)
+        }
         Some("procedimento_controlar") if eh_controlador_sei(alvo) => {
             processo_criacao::controle_com_menu(metodo, alvo, banco, instalacao, cenario)
         }
