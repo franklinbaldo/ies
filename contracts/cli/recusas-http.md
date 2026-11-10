@@ -75,7 +75,7 @@ não o republique sem revisar.
 
 Validação da Infra num POST com HTTP 200 (troca de visão, `--pagina N`,
 `colunas --definir`, pesquisa): `#txaInfraValidacao` não vazio é
-`ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado { status: 200, mensagem_do_servidor })`,
+`ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem)`,
 com ou sem o marcador de resultado da operação. Em `colunas
 --definir` o efeito fica incerto e segue para a leitura de verificação.
 Textarea vazio ou ausente não muda a classificação.
