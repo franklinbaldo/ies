@@ -6,8 +6,13 @@ use super::*;
 fn bdd_anot_05_anotacao_preexistente_desaparece_apos_envio() {
     // A anotação não é injetada como estado final: a primeira CLI a grava.
     let registrar = [
-        "--json", "processo", "anotar", NUP, "--texto",
-        "Nota anterior à tramitação", "--confirmar",
+        "--json",
+        "processo",
+        "anotar",
+        NUP,
+        "--texto",
+        "Nota anterior à tramitação",
+        "--confirmar",
     ];
     let consultar = ["--json", "processo", "anotar", NUP];
     let mut enviar = args(true);
@@ -16,13 +21,8 @@ fn bdd_anot_05_anotacao_preexistente_desaparece_apos_envio() {
     // Quatro comandos reais, uma sessão e um banco derivado descartável:
     // registrar -> observar -> enviar removendo -> observar de novo.
     let comandos: &[&[&str]] = &[&registrar, &consultar, &enviar, &consultar];
-    let (saidas, pedidos, depois) = executar_com_ensaio_local(
-        comandos,
-        false,
-        Some(""),
-        true,
-        EnsaioRemocao::Normal,
-    );
+    let (saidas, pedidos, depois) =
+        executar_com_ensaio_local(comandos, false, Some(""), true, EnsaioRemocao::Normal);
 
     for (passo, saida) in saidas.iter().enumerate() {
         assert_eq!(
@@ -49,7 +49,10 @@ fn bdd_anot_05_anotacao_preexistente_desaparece_apos_envio() {
     assert_eq!(resultado["remover_anotacoes"], true);
     assert_eq!(resultado["anotacao_antes"], true);
     assert_eq!(resultado["anotacao_depois"], false);
-    assert_eq!(resultado["depois"], serde_json::json!(["ORIGEM", "DESTINO"]));
+    assert_eq!(
+        resultado["depois"],
+        serde_json::json!(["ORIGEM", "DESTINO"])
+    );
 
     let releitura = json(&saidas[3]);
     assert_eq!(releitura["anotacao"], serde_json::Value::Null);
@@ -69,12 +72,18 @@ fn bdd_anot_05_anotacao_preexistente_desaparece_apos_envio() {
         .expect("a terceira CLI deve tramitar");
     assert!(registro < tramitacao, "ordem causal: {pedidos:?}");
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST anotacao_registrar").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST anotacao_registrar")
+            .count(),
         1,
         "o envio via checkbox não deve salvar anotação separadamente"
     );
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
         1,
         "nenhum envio automático de repetição"
     );
@@ -82,7 +91,8 @@ fn bdd_anot_05_anotacao_preexistente_desaparece_apos_envio() {
         pedidos[tramitacao + 1..]
             .iter()
             .filter(|p| *p == "GET anotacao_registrar")
-            .count() >= 2,
+            .count()
+            >= 2,
         "envio e consulta final devem reler a anotação: {pedidos:?}"
     );
 }
