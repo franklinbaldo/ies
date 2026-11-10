@@ -23,18 +23,18 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 
 ## Recusas próprias
 
-`anexacao_ao_mesmo_processo`, `processo_ja_anexado`, `anexacao_nao_publicada_na_barra`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `endereco_de_anexar_de_outro_processo`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `confirmacao_de_anexacao_nao_validada` (legado da fatia de prévia; não é a recusa atual do caminho confirmado). O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
+`anexacao_ao_mesmo_processo`, `processo_ja_anexado`, `FalhaAnexar::LinkNaoPublicado`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `ErroAnexarNaBarra::EnderecoDeOutroProcesso`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `FalhaAnexar::NaoConfirmado` (legado da fatia de prévia; não é a recusa atual do caminho confirmado). O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
 
 ## Subcódigos
 
-| Subcódigo | Fato identificado |
+| Variante ou `onde` (stderr) | Fato identificado |
 | --- | --- |
-| `anexacao_nao_publicada_na_barra` | O processo aberto não publica ação de anexar. |
-| `confirmacao_de_anexacao_nao_validada` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |
-| `endereco_de_anexar_de_outro_processo` | Link assinado aponta para outro processo. |
+| `FalhaAnexar::LinkNaoPublicado` | O processo aberto não publica ação de anexar. |
+| `FalhaAnexar::NaoConfirmado` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |
+| `ErroAnexarNaBarra::EnderecoDeOutroProcesso` | Link assinado aponta para outro processo. |
 | `endereco_de_anexar_nao_reconhecido` | Link assinado da ação inválido. |
 | `links_de_anexar_repetidos_na_barra` | Mais de um link de anexar na barra. |
-| `tela_de_anexacao_redirecionada` | GET da tela retornou redirecionamento não seguido. |
+| `FalhaAnexar::TelaRedirecionada` | GET da tela retornou redirecionamento não seguido. |
 | `anexacao_ao_mesmo_processo` | Processo anexado e principal possuem a mesma identidade. |
 | `processo_ja_anexado` | Identificador já consta na lista observada. |
 | `formulario_de_anexacao_ausente_ou_repetido` | Formulário ausente ou duplicado. |

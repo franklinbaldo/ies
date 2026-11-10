@@ -70,7 +70,7 @@ chave, como tira `documentos`.
 ## Falhas (saída 1)
 
 `documento_movido_fora_da_forma_observada`,
-`documento_movido_com_pai_diferente_do_processo`,
+`DocumentoMovidoComPaiDiferenteDoProcesso`,
 `documento_movido_repetido_na_arvore`,
 `destino_do_documento_movido_fora_da_forma_observada`,
 `destinos_do_documento_movido_repetidos` (duas tags `<a>` com `href` ou

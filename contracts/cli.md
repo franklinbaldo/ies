@@ -21,8 +21,7 @@ testes e pelas instalações reais.
   mensagem paralela: a variante é a mensagem. Credenciais nunca aparecem no
   `Debug` (os tipos que as carregam o redigem). Combinação inválida de
   argumentos que o clap não declara sai pelo próprio clap (`UsoInvalido`),
-  com saída 2. As seções `codigo`/`retentavel` dos contratos por comando
-  descrevem a forma anterior ao #695.
+  com saída 2.
 - Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
 - Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.
@@ -92,10 +91,10 @@ legado do Todos faz parte do contrato público por pressuposição.
 definido, o IES não recorre aos caminhos individuais quando o arquivo
 é recusado. `arquivo_configuracao_nao_pode_ser_lido` permanece para
 ausência, tipo não regular, tamanho excessivo e erro de leitura; as
-recusas novas são `arquivo_configuracao_link_simbolico`,
+recusas novas são `ArquivoConfiguracaoLinkSimbolico`,
 `arquivo_configuracao_permissoes_inseguras`,
-`arquivo_configuracao_json_invalido` e
-`arquivo_configuracao_campo_invalido`. Os campos do JSON devem
+`ArquivoConfiguracaoJsonInvalido` e
+`ArquivoConfiguracaoCampoInvalido`. Os campos do JSON devem
 conter caminhos absolutos não vazios; não há leitura remota nem
 exposição do caminho recusado. Ver [erros tipados](../docs/erros-tipados.md).
 
@@ -115,8 +114,8 @@ Os três arquivos devem existir e, no Unix, ter permissões privadas; o setup
 confere metadados, não testa a conexão. Grava a configuração local
 com criação exclusiva (não sobrescreve) e permissão 0600 no Unix. Sucesso (0) em JSON:
 `{"configuracao":"gravada","conexao":"nao_verificada"}`.
-Falha operacional usa `fonte_invalida`, mensagem saneada
-e saída 1; opção obrigatória ausente é erro do clap (2).
+Falha ao gravar sai com 1 e o erro tipado (`ErroGravacaoDaConfiguracao`)
+em stderr; opção obrigatória ausente é erro do clap (2).
 
 ## Contratos iniciais de leitura
 
@@ -127,8 +126,8 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
 - [documento.obter](cli/documento-obter.md): conteúdo de um ou mais documentos;
   [versões e cópia de trabalho](cli/documento-obter-versoes.md).
   O externo usa o [GET binário](cli/documento-obter-externo.md), com
-  subcódigos próprios (`tipo_de_anexo_nao_permitido`,
-  `anexo_acima_do_limite`, `anexo_recusado_pelo_sei` e afins).
+  subcódigos próprios (`ErroAnexo::TipoNaoPermitido`,
+  `ErroAnexo::AcimaDoLimite`, `ErroAnexo::RecusadoPeloSei` e afins).
 - [documento.buscar](cli/documento-buscar.md): pesquisa Web em documentos pelo número SEI.
 - [documento.salvar](cli/documento-salvar.md): prévia local de cópia versionada, sem confirmação remota.
 - [unidade.listar_processos](cli/unidade-listar-processos.md): caixa de processos;
@@ -154,7 +153,8 @@ Não fazem escrita; a única escrita é `colunas --definir … --confirmar`, que
 nunca reloga. Os POSTs previstos são os de `--pagina N` (abaixo)
 e os da **troca de visão** R↔D, sem volta: a sessão fica na visão que o
 comando precisou ([visão detalhada](cli/unidade-listar-processos-visao-detalhada.md)).
-Sem esses insumos retorna `nao_implementado`.
+Sem esses insumos, a falha é o erro tipado da configuração ou da sessão
+(por exemplo `ArquivoPrivadoAusenteOuInacessivel`), saída 1, sem rede.
 
 `ies processo buscar TERMO` usa a mesma sessão e as mesmas travas: segue só o
 link `protocolo_pesquisar` publicado pelo Controle; seus POSTs são o da

@@ -63,7 +63,7 @@ nunca participa. Leitura pelo tokenizador de atributos e pela árvore do
 `hdnAssuntos` e `hdnInteressadosProcedimento` vêm **vazios** no HTML
 servido (o `infraLupaSelect` os preenche no navegador): a fonte é o
 `select`. Lista oculta servida não vazia nunca foi observada e é recusa
-(`lista_oculta_das_propriedades_nao_observada`), não palpite.
+(`ListaOcultaDasPropriedadesNaoObservada`), não palpite.
 
 ## Índice local
 
@@ -111,26 +111,26 @@ estado observada; o Todos o usa como leitura). Nada a restaurar.
 
 Link: `barra_do_processo_fora_da_forma_observada`,
 `barras_do_processo_repetidas_na_arvore`,
-`links_das_propriedades_repetidos_na_barra`,
-`endereco_das_propriedades_nao_reconhecido`,
-`endereco_das_propriedades_de_outro_processo`.
+`LinksDasPropriedadesRepetidosNaBarra`,
+`EnderecoDasPropriedadesNaoReconhecido`,
+`EnderecoDasPropriedadesDeOutroProcesso`.
 
 Tela: `html_das_propriedades_nao_interpretado`,
-`formulario_das_propriedades_ausente`,
+`FormularioDasPropriedadesAusente`,
 `formularios_das_propriedades_repetidos`,
 `campo_das_propriedades_ausente`, `campo_das_propriedades_repetido`,
-`numero_das_propriedades_diferente_do_solicitado`,
-`id_das_propriedades_diferente_do_aberto`,
-`tipo_do_processo_inconsistente`, `opcoes_marcadas_repetidas`,
+`NumeroDasPropriedadesDiferenteDoSolicitado`,
+`IdDasPropriedadesDiferenteDoAberto`,
+`TipoDoProcessoInconsistente`, `opcoes_marcadas_repetidas`,
 `assunto_fora_da_forma_observada`,
 `interessado_fora_da_forma_observada`,
-`lista_oculta_das_propriedades_nao_observada`,
-`nivel_de_acesso_nao_marcado`,
+`ListaOcultaDasPropriedadesNaoObservada`,
+`NivelDeAcessoNaoMarcado`,
 `nivel_de_acesso_fora_da_forma_observada`,
 `data_de_geracao_fora_da_forma_observada`,
-`texto_das_propriedades_nao_decodificado`.
+`TextoDasPropriedadesNaoDecodificado`.
 
-Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
+Login fora de palpite: `SessaoEncerrada`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 

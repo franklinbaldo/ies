@@ -46,7 +46,7 @@ anterior não se aplica ou falhou por palpite do índice:
    assinado com o **mesmo** id e sem `acao_origem` → GET → GET da árvore.
    O aceite é registrado. A recusa característica (302 para `login.php`
    com `msg` igual a `Link sem assinatura`) é registrada e encerra o
-   comando com `entrada_por_id_recusada_rode_ies_login`: a recusa derruba
+   comando com `ErroProcessoObter::EntradaPorIdRecusada`: a recusa derruba
    a sessão; não há relogin automático nem nova tentativa.
 3. **Pesquisa rápida guardada** (`"pesquisa_rapida"`): link
    `protocolo_pesquisa_rapida` guardado (objeto vazio). POST de
@@ -65,7 +65,7 @@ O 302 da pesquisa rápida observado em GO
 `procedimento_trabalhar` com `acao_origem=protocolo_pesquisa_rapida` e o
 id em `id_protocolo`; `infra_unidade_atual` e `infra_sistema` têm de ser
 iguais aos do `action`. Qualquer outra resposta à pesquisa rápida é
-`pesquisa_rapida_sem_url_de_trabalho`, com `status_http` e a mensagem da
+`PesquisaRapidaSemUrlDeTrabalho`, com `status_http` e a mensagem da
 validação da Infra quando houver; a página de resultado nunca é lida.
 `ies processo NUP` **nunca** usa a pesquisa avançada: em GO e na PEN1 ela
 não achou NUPs que a pesquisa rápida abriu (medição do agente pai,
@@ -81,7 +81,7 @@ passo 2, 302 para outro id ou árvore de outro NUP apagam a linha do
 processo e o comando segue. No passo 4, árvore de outro NUP é erro e
 apaga a linha do processo (a colheita do mesmo GET a teria gravado). No passo 3, login apaga o link e segue.
 Fora de palpite, login (200 ou 302 sem a mensagem de recusa) é
-`sessao_encerrada_rode_ies_login`. Falha do banco nunca derruba o comando.
+`SessaoEncerrada`. Falha do banco nunca derruba o comando.
 
 **Aprendizado** (só do que o comando já leu): `registrar_processo(NUP, id)`
 e, de cada anexado da árvore conferida, `registrar_processo(a5, a1)`;
@@ -233,38 +233,38 @@ não pede a tela de propriedades.
 
 ## Falhas (saída 1)
 
-Fluxo: `entrada_por_id_recusada_rode_ies_login`,
-`sessao_encerrada_rode_ies_login`,
-`resposta_da_entrada_por_id_nao_reconhecida`,
-`pesquisa_rapida_sem_url_de_trabalho`, `redirecionamento_nao_reconhecido`,
+Fluxo: `ErroProcessoObter::EntradaPorIdRecusada`,
+`SessaoEncerrada`,
+`RespostaDaEntradaPorIdNaoReconhecida`,
+`PesquisaRapidaSemUrlDeTrabalho`, `redirecionamento_nao_reconhecido`,
 `processo_repetido_no_controle`, `links_do_processo_repetidos_no_controle`,
-`link_do_processo_no_controle_nao_reconhecido`,
-`charset_do_controle_nao_suportado`. Os 302 conferidos usam os subcódigos
+`LinkDoProcessoNoControleNaoReconhecido`,
+`CharsetDoControleNaoSuportado`. Os 302 conferidos usam os subcódigos
 de [processo buscar](processo-buscar.md) e mais
-`acao_de_origem_inesperada_no_redirecionamento` e
-`id_procedimento_do_redirecionamento_diferente_do_pedido`; o formulário,
+`AcaoDeOrigemInesperadaNoRedirecionamento` e
+`IdProcedimentoDoRedirecionamentoDiferenteDoPedido`; o formulário,
 os do primitivo de formulário; Controle e transporte, os de sempre.
 
 Tela: `arvore_ausente_na_tela_do_processo`,
 `arvores_repetidas_na_tela_do_processo`,
 `endereco_da_arvore_nao_reconhecido`,
-`endereco_da_arvore_de_outro_processo`,
+`EnderecoDaArvoreDeOutroProcesso`,
 `html_da_tela_do_processo_nao_interpretado`,
 `identificacao_da_unidade_ausente_na_tela_do_processo`,
-`unidade_da_tela_diferente_da_solicitada`.
+`UnidadeDaTelaDiferenteDaSolicitada`.
 
 Árvore: `declaracao_de_no_fora_da_forma_observada`,
-`argumento_de_no_nao_literal`, `texto_de_no_sem_fechamento`,
+`ArgumentoDeNoNaoLiteral`, `TextoDeNoSemFechamento`,
 `escape_de_no_nao_reconhecido`,
-`quantidade_de_argumentos_do_no_diferente_da_observada`,
-`argumento_de_no_com_tipo_diferente_do_observado`,
-`indice_de_no_fora_da_sequencia`, `tipo_de_no_da_arvore_nao_suportado`,
-`no_do_processo_ausente_na_arvore`, `nos_do_processo_repetidos_na_arvore`,
-`no_do_processo_com_pai`, `nup_do_no_do_processo_inconsistente`,
-`id_de_no_nao_decimal`, `documento_com_pai_diferente_do_processo`,
+`QuantidadeDeArgumentosDoNoDiferenteDaObservada`,
+`ArgumentoDeNoComTipoDiferenteDoObservado`,
+`indice_de_no_fora_da_sequencia`, `TipoDeNoDaArvoreNaoSuportado`,
+`NoDoProcessoAusenteNaArvore`, `nos_do_processo_repetidos_na_arvore`,
+`NoDoProcessoComPai`, `NupDoNoDoProcessoInconsistente`,
+`IdDeNoNaoDecimal`, `DocumentoComPaiDiferenteDoProcesso`,
 `documento_repetido_na_arvore`,
-`identidade_do_processo_diferente_da_pedida`,
-`id_do_processo_na_arvore_diferente_do_aberto`.
+`IdentidadeDoProcessoDiferenteDaPedida`,
+`IdDoProcessoNaArvoreDiferenteDoAberto`.
 
 Anexados: `processo_anexado_fora_da_forma_observada`,
 `nup_do_no_do_processo_anexado_inconsistente`,

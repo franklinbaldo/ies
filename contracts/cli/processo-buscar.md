@@ -28,7 +28,7 @@ verbo continua `buscar`, agora com `TERMO` posicional obrigatório e
 
 `TERMO` é texto opaco (NUP inteiro ou parte do número), com as regras de
 `NumeroProcesso`: controles recusados antes de aparar espaços, vazio e
-`sei://` recusados, saída 2 (`entrada_invalida`) **antes** de ler a
+`sei://` recusados, saída 2 (erro do clap) **antes** de ler a
 configuração. `--pagina N` é inteiro ≥ 1. Opções de leitura de
 `ies processo NUP` (`--sem-documentos`, `--andamentos-completos`…) junto com
 `buscar` são `opcoes_incompativeis_com_busca` (saída 2). `--unidade` é
@@ -77,7 +77,7 @@ Controle), `origem: "web"` e `requisicoes`.
   publica as presentes e `linhas_ausentes_da_faixa` = `F - I + 1 -`
   lidas (0 quando completa), sem dizer que está completa. Mais linhas
   que a faixa, ou qualquer diferença com "N resultados", é
-  `linhas_da_tabela_diferentes_da_faixa_da_barra`. A paginação conta
+  `LinhasDaTabelaDiferentesDaFaixaDaBarra`. A paginação conta
   pela barra.
 - **200 com `div.pesquisaSemResultado`** (sem tabela):
   `{"resultado":"sem_resultado","total_declarado":0,"faixa_observada":null,
@@ -85,39 +85,39 @@ Controle), `origem: "web"` e `requisicoes`.
   `processo_inexistente`: significa "a pesquisa não devolveu nada para esta
   conta/unidade", sujeito a permissões e restrições de acesso.
 
-## Erros tipados (saída 1, `fonte_invalida`)
+## Erros tipados (saída 1)
 
-- `validacao_recusada_pelo_sei`: 200 com `txaInfraValidacao`; publica
+- `ValidacaoRecusadaPeloSei`: 200 com `txaInfraValidacao`; carrega
   `mensagem_do_servidor` saneada.
-- `resposta_da_pesquisa_nao_reconhecida`: 200 sem tabela, sem aviso de
+- `RespostaDaPesquisaNaoReconhecida`: 200 sem tabela, sem aviso de
   "sem resultado" e sem validação; também tabela e aviso juntos.
-- `aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta`: aviso de
+- `AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta`: aviso de
   "sem resultado" com barra "Exibindo I - F de N" é ambíguo e não vira
   `sem_resultado`.
-- Termo (antes de qualquer POST): `termo_acima_do_maxlength_da_tela`
+- Termo (antes de qualquer POST): `TermoAcimaDoMaxlengthDaTela`
   (mais unidades UTF-16 que o `maxlength` servido em
-  `txtProtocoloPesquisa`), `maxlength_do_termo_ilegivel_na_tela`,
+  `txtProtocoloPesquisa`), `MaxlengthDoTermoIlegivelNaTela`,
   `campos_do_termo_repetidos_na_tela`. Sem `maxlength` publicado, a tela
   não limita o termo.
 - Link: `link_da_pesquisa_ausente_no_controle`,
   `links_da_pesquisa_repetidos_no_controle`,
-  `link_da_pesquisa_com_endereco_absoluto`,
+  `LinkDaPesquisaComEnderecoAbsoluto`,
   `link_da_pesquisa_nao_reconhecido`.
 - Barra: `barra_de_contagem_da_pesquisa_ausente`,
   `barras_de_contagem_da_pesquisa_repetidas`,
-  `texto_da_barra_de_contagem_fora_do_formato`,
-  `numero_da_barra_de_contagem_fora_do_formato`,
-  `faixa_da_barra_de_contagem_impossivel`,
-  `linhas_da_tabela_diferentes_da_faixa_da_barra`.
+  `TextoDaBarraDeContagemForaDoFormato`,
+  `NumeroDaBarraDeContagemForaDoFormato`,
+  `FaixaDaBarraDeContagemImpossivel`,
+  `LinhasDaTabelaDiferentesDaFaixaDaBarra`.
 - Paginação: `pagina_da_pesquisa_fora_do_intervalo` (antes do POST de página),
-  `regra_de_navegacao_da_pesquisa_nao_observada`,
-  `paginador_da_pesquisa_nao_publicado`,
+  `RegraDeNavegacaoDaPesquisaNaoObservada`,
+  `PaginadorDaPesquisaNaoPublicado`,
   `link_de_paginacao_da_pesquisa_fora_da_regra`,
-  `protocolo_da_tela_de_resultado_diferente_do_pesquisado`,
-  `redirecionamento_ao_paginar_a_pesquisa`,
-  `pagina_da_pesquisa_sem_resultado_apos_paginar`,
-  `total_da_pesquisa_alterado_apos_paginar`,
-  `faixa_da_pesquisa_diferente_da_pagina_solicitada`.
+  `ProtocoloDaTelaDeResultadoDiferenteDoPesquisado`,
+  `RedirecionamentoAoPaginarAPesquisa`,
+  `PaginaDaPesquisaSemResultadoAposPaginar`,
+  `TotalDaPesquisaAlteradoAposPaginar`,
+  `FaixaDaPesquisaDiferenteDaPaginaSolicitada`.
 - Além das recusas existentes do formulário (`regras_formulario`,
   `ErroSubmissaoFormulario`), do 302 (`ErroRedirecionamentoDaPesquisa`),
   das linhas (`ErroResultadoPesquisa`) e do transporte (`status_http`).
@@ -160,7 +160,7 @@ Em Goiás, a linha cujo acerto é um **documento** do processo leva
 (nome e número SEI do documento) que abrem `documento_visualizar`. Esses
 links são aceitos só com uma `acao=documento_visualizar` e o **mesmo**
 `id_documento` decimal do link do processo; senão,
-`link_do_documento_da_linha_diferente_do_processo`. A linha publica só o
+`LinkDoDocumentoDaLinhaDiferenteDoProcesso`. A linha publica só o
 número do processo; o documento não sai.
 
 ## Evidência e validação
@@ -196,19 +196,19 @@ inválida antes da rede. Os filtros não acrescentam GET nem POST (3
 requisições na primeira página; 4 na página N).
 
 A opção `--assunto` existe na borda, mas **recusa por enquanto** com
-`criterio_nao_oferecido_pela_tela`: `txtAssunto` e `hdnIdAssunto`
+`CriterioNaoOferecidoPelaTela`: `txtAssunto` e `hdnIdAssunto`
 formam um autocompletar dependente de identificador, e enviar apenas texto
 não filtra. Não há consulta adicional autorizada para resolver esse ID.
 Também se recusa qualquer campo ausente da tela; tipo sem opção exata é
-`tipo_nao_oferecido_pela_tela`; controles repetidos ou valor diferente
+`TipoNaoOferecidoPelaTela`; controles repetidos ou valor diferente
 na página seguinte são recusados. O ensaio live UnB/PEN3 para os novos
 filtros está **NOT_RUN**; não inferir suporte universal.
 
 ### Recusas próprias dos filtros
 
-- `criterio_nao_oferecido_pela_tela`: controle inexistente ou assunto sem ID resolvido.
-- `tipo_nao_oferecido_pela_tela`: lista sem a opção exata solicitada.
-- `controle_de_filtro_ambiguo`: campos ou opções repetidos.
-- `atributo_do_filtro_ilegivel`: atributo HTML do filtro inválido.
+- `CriterioNaoOferecidoPelaTela`: controle inexistente ou assunto sem ID resolvido.
+- `TipoNaoOferecidoPelaTela`: lista sem a opção exata solicitada.
+- `ControleDeFiltroAmbiguo`: campos ou opções repetidos.
+- `AtributoDoFiltroIlegivel`: atributo HTML do filtro inválido.
 - `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
 - `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.

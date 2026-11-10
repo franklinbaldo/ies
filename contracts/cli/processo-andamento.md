@@ -27,26 +27,26 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 
 [Cassette UnB](../../cassettes/unb/processo-andamento-registrar-unb--111df7e25e1e.md), [cassette GO](../../cassettes/go/processo-andamento-registrar-go--3d46a9421f08.md), [observação](../../docs/como-o-sei-funciona/registro-de-andamento.md), [decisão](../../docs/decisoes/processo-andamento.md).
 
-**BDD-259-01:** teste `tests/aies_andamento_cli.rs` executa o binário `ies` real por HTTPS loopback contra o anti-IES e SQLite efêmero, exige a prévia com o texto original e confirma em releitura independente do SQLite que o histórico permaneceu intacto. É **PASS sintético**, sem POST. Inspeção via GitHub Actions verificou SHA-1/SHA-256 e estrutura dos cards UnB/GO (50 interações); isso **não constitui** confronto semântico independente, replay da CLI nem validação live. **BDD-259-02:** teste `tests/aies_andamento_cli.rs` exercita duas execuções da CLI real sobre HTTPS local e SQLite compartilhado: `--confirmar` envia um único POST, acrescenta um andamento e preserva os anteriores; a segunda CLI consulta `ies processo NUP --andamentos-completos` para conferir o registro. Prova **sintética**, sem confronto semântico independente com cassettes. **BDD-259-03:** o teste `tests/aies_andamento_cli.rs` mantém o POST único já persistido no SQLite e simula HTTP 503 somente na primeira leitura posterior; a CLI deve sair com código 1, orientar explicitamente a não repetir `--confirmar` e consultar o histórico. Uma segunda CLI independente verifica o resíduo no mesmo SQLite, sem nova escrita. É hipótese **sintética**, não um 503 observado na cassette ou no SEI. Confronto semântico com cassettes e treinamento externo: NOT_RUN nesta fatia.
+**BDD-259-01:** teste `tests/aies_andamento_cli.rs` executa o binário `ies` real por HTTPS loopback contra o anti-IES e SQLite efêmero, exige a prévia com o texto original e confirma em releitura independente do SQLite que o histórico permaneceu intacto. É **PASS sintético**, sem POST. Inspeção via GitHub Actions verificou SHA-1/SHA-256 e estrutura dos cards UnB/GO (50 interações); isso **não constitui** confronto semântico independente, replay da CLI nem validação live. **BDD-259-02:** teste `tests/aies_andamento_cli.rs` exercita duas execuções da CLI real sobre HTTPS local e SQLite compartilhado: `--confirmar` envia um único POST, acrescenta um andamento e preserva os anteriores; a segunda CLI consulta `ies processo NUP --andamentos-completos` para conferir o registro. Prova **sintética**, sem confronto semântico independente com cassettes. **BDD-259-03:** o teste `tests/aies_andamento_cli.rs` mantém o POST único já persistido no SQLite e simula HTTP 503 somente na primeira leitura posterior; a CLI deve sair com código 1 e `ErroRegistrarAndamento::NaoConfirmado { causa: Releitura(..), .. }`; não se repete `--confirmar`, e o histórico deve ser consultado. Uma segunda CLI independente verifica o resíduo no mesmo SQLite, sem nova escrita. É hipótese **sintética**, não um 503 observado na cassette ou no SEI. Confronto semântico com cassettes e treinamento externo: NOT_RUN nesta fatia.
 
-## Subcódigos próprios
+## Recusas tipadas próprias
 
-| Subcódigo | Quando ocorre |
+| Variante ou `onde` (stderr) | Quando ocorre |
 | --- | --- |
-| `atualizar_andamento_nao_oferecido` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `barra_do_andamento_fora_da_forma` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `campo_inesperado_no_formulario_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `charset_do_andamento_nao_suportado` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `controles_do_andamento_ausentes_ou_duplicados` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `nao_confirmado_no_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `endereco_de_atualizar_andamento_de_outro_processo` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `endereco_de_atualizar_andamento_nao_reconhecido` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `formulario_do_andamento_ausente_ou_duplicado` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `formulario_do_andamento_de_outro_processo` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `historico_nao_publicado_antes_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `links_de_atualizar_andamento_repetidos` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `sessao_encerrada_antes_do_andamento` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `tela_do_andamento_invalida` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `tela_do_andamento_redirecionada` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `unidade_da_sessao_nao_publicada` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
-| `texto_do_andamento_vazio_ou_maior_que_500_caracteres` | Recusa nomeada na operação de andamento; preserve o subcódigo na saída. |
+| `ErroRegistrarAndamento::AcaoNaoOferecida` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `barra_do_andamento_fora_da_forma` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroTela::CampoInesperado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::CharsetNaoSuportado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroTela::ControleAusenteOuDuplicado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::NaoConfirmado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroAndamentoNaBarra::OutroProcesso` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `endereco_de_atualizar_andamento_nao_reconhecido` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroTela::FormularioAusenteOuDuplicado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroTela::ProtocoloDiferente` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::HistoricoNaoPublicado` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `links_de_atualizar_andamento_repetidos` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::Tela(SessaoEncerrada(..))` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroTela::HtmlInvalido` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::Tela` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| `ErroRegistrarAndamento::UnidadeNaoPublicada` | Recusa nomeada na operação de andamento; a variante sai no stderr. |
+| erro do clap (saída 2) | Texto vazio ou com mais de 500 caracteres. |

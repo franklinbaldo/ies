@@ -14,11 +14,11 @@ O antigo subcódigo único `resposta_inesperada` foi separado, porque o
 ensaio live em Goiás (02/11/2026) não pôde dizer qual verificação
 falhou. Toda resposta do GET Web passa pelas mesmas checagens, na ordem:
 
-| Fato observado | Variante Rust | Subcódigo |
-| --- | --- | --- |
-| Status HTTP diferente de 200 | `Status(StatusHttpRecusado { status, mensagem_do_servidor })` | `status` |
-| `Content-Type` principal diferente de `text/html` | `TipoDeConteudoNaoHtml` | `tipo_de_conteudo_nao_html` |
-| Corpo não decodifica no charset declarado (ou UTF-8) | `CorpoNaoDecodificavelNoCharsetDeclarado` | `corpo_nao_decodificavel_no_charset_declarado` |
+| Fato observado | Variante de `FalhaTransporte` |
+| --- | --- |
+| Status HTTP diferente de 200 | `Status(StatusHttpRecusado { status, mensagem_do_servidor })` |
+| `Content-Type` principal diferente de `text/html` | `TipoDeConteudoNaoHtml` |
+| Corpo não decodifica no charset declarado (ou UTF-8) | `CorpoNaoDecodificavelNoCharsetDeclarado` |
 
 O número do status sobe como o transporte o recebeu: não há uma variante
 por faixa (5xx, 429, 401/403, 3xx). Quem decide pelo status casa o
@@ -32,23 +32,21 @@ nova tentativa automática.
 
 Quem lê a recusa precisa saber **o que o SEI respondeu**, não só a faixa
 do status. Em GO (02/11/2026), dois 5xx no POST de paginação não
-puderam ser explicados. Os subcódigos acima continuam **exatamente os
-mesmos** e são a classificação; o status e a mensagem são apresentação
-e nunca decidem tratamento.
+puderam ser explicados. A variante é a classificação; o status e a
+mensagem são dados dela e nunca decidem tratamento.
 
 Todo comando que faz o GET do Controle ou o POST do paginador (`status
 --verificar-controle-web`, `unidade atual`, `listar-processos`,
-`recebidos`/`gerados [--pagina N]`, `colunas`), inclusive nos POSTs da troca de visão, publica,
-no JSON da falha `fonte_invalida`, dois campos a mais:
+`recebidos`/`gerados [--pagina N]`, `colunas`), inclusive nos POSTs da troca de visão, sai com 1
+e, na cadeia do erro em stderr, `Transporte(Status(StatusHttpRecusado { .. }))`:
 
 | Campo | Quando | Conteúdo |
 | --- | --- | --- |
-| `status_http` | 3xx, 401, 403, 429, 5xx e outro status diferente de 200 | número do status |
-| `mensagem_do_servidor` | só se o corpo da recusa (fora 3xx) rendeu texto | texto saneado |
+| `status` | 3xx, 401, 403, 429, 5xx e outro status diferente de 200 | número do status |
+| `mensagem_do_servidor` | `Some` só se o corpo da recusa (fora 3xx) rendeu texto | texto saneado |
 
 Recusas locais (configuração, arquivos privados, MIME, charset,
-tamanho, login) não ganham esses campos. A saída humana acrescenta
-`(HTTP N: mensagem)` à linha da falha.
+tamanho, login) não carregam `StatusHttpRecusado`.
 
 Leitura do corpo da recusa: no máximo **64 KiB**, lidos em fluxo (o
 resto nunca é lido); uma única tentativa, sem retry nem redirect. 3xx
@@ -77,26 +75,25 @@ não o republique sem revisar.
 
 Validação da Infra num POST com HTTP 200 (troca de visão, `--pagina N`,
 `colunas --definir`, pesquisa): `#txaInfraValidacao` não vazio é
-`validacao_recusada_pelo_sei`, com ou sem o marcador de resultado da
-operação; publica só `mensagem_do_servidor` (sem `status_http`, pois o
-status foi 200) e a linha humana ganha `(SEI: mensagem)`. Em `colunas
+`ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(StatusHttpRecusado { status: 200, mensagem_do_servidor })`,
+com ou sem o marcador de resultado da operação. Em `colunas
 --definir` o efeito fica incerto e segue para a leitura de verificação.
 Textarea vazio ou ausente não muda a classificação.
 
-```json
-{"codigo":"fonte_invalida", "erro":"o SEI respondeu com erro do servidor (5xx)","retentavel":false,
- "status_http":500,"mensagem_do_servidor":"Erro acessando o banco de dados."}
+Na cadeia do erro, um 5xx com texto aparece assim:
+
+```text
+Status(StatusHttpRecusado { status: 500, mensagem_do_servidor: Some("Erro acessando o banco de dados.") })
 ```
 
-401/403 continuam `sessao_nao_autorizada`, agora com `status_http` e a
-mensagem; 3xx continua `redirecionamento_recusado`, com `status_http`,
-salvo o 302 do GET do Controle para a entrada do login da própria
-instalação, que é `sessao_encerrada_rode_ies_login`, também com
-`status_http` 302 ([relogin](sessao-login.md#relogin-único-nas-leituras)).
+401/403 e 3xx são o mesmo `Status`, com o número recebido, salvo o 302
+do GET do Controle para a entrada do login da própria instalação, que é
+`ControleRedirecionadoParaOLogin(StatusHttpRecusado { status: 302, .. })`
+([relogin](sessao-login.md#relogin-único-nas-leituras)).
 O 403 com a página de bloqueio de segurança da instalação (`<title>Acesso
 Negado</title>` e "bloqueada por nossa política de segurança" no texto
 visível; visto em GO), ou a do Cloudflare (`<title>Attention Required! |
 Cloudflare</title>` e "Sorry, you have been blocked"; visto na PEN2 e na PEN3), é
-`bloqueio_de_seguranca_da_instalacao`, com
-`status_http` 403 e a mensagem saneada, que traz o código de bloqueio. A
+`BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado { status: 403, .. })`,
+com a mensagem saneada, que traz o código de bloqueio. A
 sessão não venceu: `ies login` não reloga por ele, e nada é repetido.

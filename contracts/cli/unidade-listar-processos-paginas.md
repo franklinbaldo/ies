@@ -42,13 +42,13 @@ na [forma única](unidade-recebidos-gerados.md):
 
 Continuam recusas tipadas, antes de publicar ou exportar:
 
-| Fato observado | Subcódigo |
+| Fato observado | Variante ou `onde` (stderr) |
 | --- | --- |
-| Legenda sem `registros` (total não declarado) | `total_nao_declarado_na_legenda` |
-| Legenda sem intervalo e total diferente das linhas | `legenda_sem_faixa_com_total_diferente_das_linhas` |
-| Paginador da tabela publicado e legenda sem intervalo | `paginador_da_tabela_sem_faixa_na_legenda` |
-| Faixa inválida, alterada ou páginas não contíguas | `faixa_invalida`, `faixa_alterada`, `faixa_descontinua` |
-| Filtro de marcador ativo (`hdnIdMarcador{unidade}` com valor; a lista é só a do marcador) | `filtro_de_marcador_ativo_no_controle` |
+| Legenda sem `registros` (total não declarado) | `TotalNaoDeclaradoNaLegenda` |
+| Legenda sem intervalo e total diferente das linhas | `LegendaSemFaixaComTotalDiferenteDasLinhas` |
+| Paginador da tabela publicado e legenda sem intervalo | `PaginadorDaTabelaSemFaixaNaLegenda` |
+| Faixa inválida, alterada ou páginas não contíguas | `FaixaInvalida`, `FaixaAlterada`, `FaixaDescontinua` |
+| Filtro de marcador ativo (`hdnIdMarcador{unidade}` com valor; a lista é só a do marcador) | `FiltroDeMarcadorAtivoNoControle` |
 
 Paginadores por tabela reconhecidos pelo `id`: `lnk{T}ProximaPagina*`,
 `lnk{T}PaginaAnterior*`, `lnk{T}PrimeiraPagina*`, `lnk{T}UltimaPagina*` e
@@ -99,30 +99,30 @@ UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista) e na UFRJ
 medidos, página lembrada por lista; GO 5.0.3 PASS (página de 10) na
 terceira tentativa e PEN2 NOT_RUN ([GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
 
-| Recusa antes do POST | Subcódigo |
+| Recusa antes do POST | Variante ou `onde` (stderr) |
 | --- | --- |
-| Visão diferente da resumida | `pagina_do_controle_exige_visao_resumida` |
-| Charset da resposta sem codificação suportada | `charset_da_tela_do_controle_nao_suportado` |
-| `hdn{T}PaginaAtual` ausente ou não decimal | `pagina_atual_da_tabela_ilegivel` |
-| `hdn{T}PaginaAtual` repetido | `campos_de_pagina_atual_da_tabela_repetidos` |
-| Índice incompatível com a faixa | `pagina_atual_da_tabela_incompativel_com_a_faixa` |
-| N maior que o número de páginas | `pagina_da_caixa_fora_do_intervalo` |
-| Tabela com mais de uma página sem paginador publicado | `paginador_da_tabela_nao_publicado` |
-| Controle do formulário fora dos previstos | `controle_nao_previsto_no_formulario_do_controle` |
-| Caixa de seleção marcada na tela | `caixa_de_selecao_marcada_no_formulario_do_controle` |
-| Paginador sem opção selecionada | `paginador_sem_opcao_selecionada` |
-| Paginador com mais de uma opção selecionada | `paginador_com_mais_de_uma_opcao_selecionada` |
-| Opção selecionada sem `value` | `opcao_selecionada_do_paginador_sem_valor` |
-| Controle previsto repetido | `controle_repetido_no_formulario_do_controle` |
+| Visão diferente da resumida | `ErroPaginaDoControle::PaginaExigeVisaoResumida` |
+| Charset da resposta sem codificação suportada | `ErroPaginaDoControle::CharsetDaTelaNaoSuportado` |
+| `hdn{T}PaginaAtual` ausente ou não decimal | `PaginaAtualDaTabelaIlegivel` |
+| `hdn{T}PaginaAtual` repetido | `CamposDePaginaAtualDaTabelaRepetidos` |
+| Índice incompatível com a faixa | `PaginaAtualDaTabelaIncompativelComAFaixa` |
+| N maior que o número de páginas | `ErroPaginaDoControle::PaginaForaDoIntervalo` |
+| Tabela com mais de uma página sem paginador publicado | `PaginadorDaTabelaNaoPublicado` |
+| Controle do formulário fora dos previstos | `ControleNaoPrevistoNoFormularioDoControle` |
+| Caixa de seleção marcada na tela | `CaixaDeSelecaoMarcadaNoFormularioDoControle` |
+| Paginador sem opção selecionada | `PaginadorSemOpcaoSelecionada` |
+| Paginador com mais de uma opção selecionada | `PaginadorComMaisDeUmaOpcaoSelecionada` |
+| Opção selecionada sem `value` | `OpcaoSelecionadaDoPaginadorSemValor` |
+| Controle previsto repetido | `ControleRepetidoNoFormularioDoControle` |
 
-| Recusa após o POST | Subcódigo |
+| Recusa após o POST | Variante ou `onde` (stderr) |
 | --- | --- |
-| Rótulo da unidade diferente | `unidade_alterada_apos_paginar` |
-| `hdnTipoVisualizacao` diferente | `visualizacao_alterada_apos_paginar` |
-| Hash de critérios diferente | `criterios_recebidos_alterados_apos_paginar`, `criterios_gerados_alterados_apos_paginar` |
-| Total diferente | `total_declarado_alterado_apos_paginar` |
+| Rótulo da unidade diferente | `UnidadeAlteradaAposPaginar` |
+| `hdnTipoVisualizacao` diferente | `VisualizacaoAlteradaAposPaginar` |
+| Hash de critérios diferente | `criterios_recebidos_alterados_apos_paginar`, `CriteriosGeradosAlteradosAposPaginar` |
+| Total diferente | `TotalDeclaradoAlteradoAposPaginar` |
 | Faixa diferente da página N | `faixa_da_resposta_diferente_da_pagina_solicitada` |
-| 302 | `redirecionamento_apos_paginar_controle` |
+| 302 | `ErroPaginaDoControle::RedirecionamentoAposPaginar` |
 | Login, 5xx, 429, MIME, charset, tamanho | subcódigos do transporte e do envio |
 
 Um 3xx (fora 302), 401/403, 429, 5xx ou outro status no GET ou no POST
