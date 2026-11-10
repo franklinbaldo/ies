@@ -20,6 +20,7 @@ mod processo_barra;
 mod processo_ciencia;
 mod processo_criacao;
 pub mod processo_envio;
+mod processo_marcadores;
 mod processo_relacionar;
 mod processo_sobrestamento;
 mod protocolo_sintetico;

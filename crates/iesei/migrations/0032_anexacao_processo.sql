@@ -1,4 +1,4 @@
--- 0031: anexações simuladas, dirigidas pelo mesmo estado de processos.
+-- 0032: anexações simuladas, dirigidas pelo mesmo estado de processos.
 -- Ninguém pode ser anexado a si próprio nem pertencer a dois principais.
 CREATE TABLE sim_anexacao (
     origem TEXT NOT NULL,
@@ -13,4 +13,4 @@ CREATE TABLE sim_anexacao (
         REFERENCES sim_processo(origem, cenario, id_procedimento)
 ) STRICT;
 CREATE INDEX sim_anexacao_principal ON sim_anexacao (origem, cenario, id_principal);
-PRAGMA user_version = 31;
+PRAGMA user_version = 32;
