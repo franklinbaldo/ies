@@ -5,7 +5,6 @@ use super::tests_fixtures::{
     numero_sei, nup, resultado_com, resultado_de_documentos, tabela,
 };
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::tests::instalacao;
 use crate::formulario_web::{Redirecionamento302, RespostaDoEnvio};
 use crate::pesquisa_web::alvo::AlvoDaPesquisa;
@@ -115,9 +114,7 @@ fn documento_com_outro_id_ou_acao_desconhecida_e_recusado() {
     let linha = linha_de_documento(1, false).replace(&documento, &acao);
     assert_eq!(
         erro_da_linha(&uma_linha(&linha)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::valor(
-            "link_da_linha_de_documento_nao_reconhecido"
-        ))
+        ErroDocumentoDaPesquisa::LinkDaLinhaDeDocumentoNaoReconhecido
     );
 }
 
@@ -136,7 +133,7 @@ fn numero_sei_com_href_diferente_ou_vazio_e_recusado() {
     let vazio = linha_de_documento(1, false).replace(">0005001</a>", "> </a>");
     assert_eq!(
         erro_da_linha(&uma_linha(&vazio)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::ausente("numero_sei_ausente_na_linha"))
+        ErroDocumentoDaPesquisa::NumeroSeiAusenteNaLinha
     );
 }
 
@@ -145,9 +142,7 @@ fn celula_da_direita_ausente_e_recusada() {
     let linha = linha_de_documento(1, false).replace("pesquisaTituloDireita", "outra");
     assert_eq!(
         erro_da_linha(&uma_linha(&linha)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::ausente(
-            "celula_do_titulo_do_documento_ausente_ou_repetida"
-        ))
+        ErroDocumentoDaPesquisa::CelulaDoTituloDoDocumentoAusenteOuRepetida
     );
 }
 
@@ -156,18 +151,18 @@ fn rotulo_vazio_metadado_repetido_e_data_fora_da_forma_sao_recusados() {
     let vazio = linha_de_documento(1, false).replace(">Despacho 1</a>", "></a>");
     assert_eq!(
         erro_da_linha(&uma_linha(&vazio)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::ausente("rotulo_do_documento_ausente"))
+        ErroDocumentoDaPesquisa::RotuloDoDocumentoAusente
     );
     let repetido =
         linha_de_documento(1, false).replace("<b>Usu&aacute;rio:</b>", "<b>Unidade:</b>");
     assert_eq!(
         erro_da_linha(&uma_linha(&repetido)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::repetido("metadado_do_documento_repetido"))
+        ErroDocumentoDaPesquisa::MetadadoDoDocumentoRepetido
     );
     let data = linha_de_documento(1, false).replace("12/10/2026", "2026-10-12");
     assert_eq!(
         erro_da_linha(&uma_linha(&data)),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::valor("data_de_inclusao_fora_da_forma_observada"))
+        ErroDocumentoDaPesquisa::DataDeInclusaoForaDaFormaObservada
     );
 }
 
@@ -194,7 +189,7 @@ fn linha_antes_do_primeiro_registro_e_numero_repetido_sao_recusados() {
     );
     assert_eq!(
         erro_da_linha(&html),
-        ErroDocumentoDaPesquisa::Html(ErroHtml::repetido("numero_sei_repetido_na_pesquisa"))
+        ErroDocumentoDaPesquisa::NumeroSeiRepetidoNaPesquisa
     );
 }
 
@@ -207,9 +202,9 @@ fn link_do_processo_repetido_reaproveita_a_recusa_da_linha() {
     );
     assert_eq!(
         erro_da_linha(&uma_linha(&linha)),
-        ErroDocumentoDaPesquisa::Linha(ErroResultadoPesquisa::Html(ErroHtml::repetido(
-            "linha_de_pesquisa_com_mais_de_um_link_do_processo"
-        )))
+        ErroDocumentoDaPesquisa::Linha(
+            ErroResultadoPesquisa::LinhaDePesquisaComMaisDeUmLinkDoProcesso
+        )
     );
 }
 

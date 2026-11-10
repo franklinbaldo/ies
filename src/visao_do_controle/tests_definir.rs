@@ -5,7 +5,6 @@
 use super::envio::EnvioDoControle;
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual};
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::nivel_de_detalhe::tests_alvo::{HASH_DO_SALVAR, onze, tela_salvavel};
 use crate::nivel_de_detalhe::tests_salvar::resposta_do_salvar;
@@ -302,15 +301,15 @@ fn formulario_com_campo_nao_previsto_ou_sem_salvar_e_recusado_sem_post() {
     for (html, esperado) in [
         (
             extra,
-            ErroVisaoDoControle::NivelDeDetalhe(ErroNivelDeDetalhe::Html(ErroHtml::valor(
-                "campo_nao_previsto_no_formulario_do_nivel_de_detalhe",
-            ))),
+            ErroVisaoDoControle::NivelDeDetalhe(
+                ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
+            ),
         ),
         (
             sem_botao,
-            ErroVisaoDoControle::Submissao(ErroSubmissaoFormulario::Html(ErroHtml::ausente(
-                "botao_de_envio_ausente_no_formulario",
-            ))),
+            ErroVisaoDoControle::Submissao(ErroSubmissaoFormulario::Html(
+                crate::erro_html::ErroHtml::ausente("botao_de_envio_ausente_no_formulario"),
+            )),
         ),
     ] {
         for confirmar in [false, true] {

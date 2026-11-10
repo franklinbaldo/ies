@@ -10,7 +10,7 @@ use crate::html_atributos::valor_do_atributo;
 fn ilegivel<T>(_: T) -> ErroProcessoObter {
     ErroProcessoObter::Controle(
         crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Controle(
-            crate::erro_web::ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")),
+            crate::erro_web::ErroCaixa::HtmlDaCaixaInvalido,
         ),
     )
 }

@@ -9,7 +9,6 @@ use super::definir_erro::{
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::nivel::{link_do_nivel_de_detalhe, obter_tela_do_nivel};
 use super::passos::{contexto, trocar, unidade_da_tela};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_submissao, enviar_submissao_via,
 };
@@ -47,7 +46,7 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     }
     if !encontrado.eh_resumida() {
         return Err(ErroDefinirColunas::Leitura(
-            super::ErroVisaoDoControle::Html(ErroHtml::valor("visao_do_controle_nao_reconhecida")),
+            super::ErroVisaoDoControle::VisaoDoControleNaoReconhecida,
         ));
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;

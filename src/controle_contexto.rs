@@ -1,5 +1,4 @@
 //! Identidade e critérios Web do Controle de Processos. Sem rede ou persistência.
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{ErroAtributoHtml, nos_com_id, nos_com_id_em, valor_do_atributo};
 /// Contexto da página HTML: só é usado para conferir a junção.
@@ -54,7 +53,7 @@ impl ContextoPagina {
 // `id`, `value` e `href` vêm da fonte da tag: o índice de `id` do tl 0.7.8
 // usa a chave corrompida após atributo booleano sem valor.
 fn ilegivel(_: ErroAtributoHtml) -> ErroCaixa {
-    ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido"))
+    ErroCaixa::HtmlDaCaixaInvalido
 }
 
 fn primeiro_com_id<'d>(
@@ -90,7 +89,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
 #[cfg(test)]
 pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
@@ -109,7 +108,7 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     contexto_do_dom(&dom)
 }
 
@@ -126,7 +125,7 @@ pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, Erro
 /// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
 pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     let parser = dom.parser();
     for no in dom.query_selector("input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -156,7 +155,7 @@ fn id_repetido(dom: &tl::VDom<'_>, id: &str) -> Result<bool, ErroCaixa> {
 /// repetidas fora do par móvel/desktop equivalente.
 pub(crate) fn unidade_html(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa> {
     if id_repetido(dom, "lnkInfraUnidade")? && !par_de_barras_equivalentes(dom)? {
-        return Err(ErroHtml::repetido("identificacoes_da_unidade_repetidas_no_controle").into());
+        return Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle);
     }
     unidade_html_original(dom)
 }
@@ -216,15 +215,9 @@ fn par_de_barras_equivalentes(dom: &tl::VDom<'_>) -> Result<bool, ErroCaixa> {
 fn valor_oculto(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>, ErroCaixa> {
     if id_repetido(dom, id)? {
         return Err(match id {
-            "hdnTipoVisualizacao" => ErroCaixa::Html(ErroHtml::repetido(
-                "tipos_de_visualizacao_repetidos_no_controle",
-            )),
-            "hdnRecebidosHashCriterios" => ErroCaixa::Html(ErroHtml::repetido(
-                "hashes_de_criterios_recebidos_repetidos_no_controle",
-            )),
-            "hdnGeradosHashCriterios" => ErroCaixa::Html(ErroHtml::repetido(
-                "hashes_de_criterios_gerados_repetidos_no_controle",
-            )),
+            "hdnTipoVisualizacao" => ErroCaixa::TiposDeVisualizacaoRepetidosNoControle,
+            "hdnRecebidosHashCriterios" => ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
+            "hdnGeradosHashCriterios" => ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
             _ => ErroCaixa::ContextoNaoVerificavel,
         });
     }
@@ -277,9 +270,7 @@ mod tests {
         let repetido = format!("{html}<input disabled id='hdnTipoVisualizacao' value='D'>");
         assert_eq!(
             contexto_da_pagina(&repetido).unwrap_err(),
-            ErroCaixa::Html(ErroHtml::repetido(
-                "tipos_de_visualizacao_repetidos_no_controle"
-            ))
+            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
         );
     }
 
@@ -288,15 +279,11 @@ mod tests {
         let html = format!("{}<a id='lnkInfraUnidade'>UNIDADE B</a>", controle());
         assert_eq!(
             unidade_exibida_no_controle(&html),
-            Err(ErroCaixa::Html(ErroHtml::repetido(
-                "identificacoes_da_unidade_repetidas_no_controle"
-            )))
+            Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
         );
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
-            ErroCaixa::Html(ErroHtml::repetido(
-                "identificacoes_da_unidade_repetidas_no_controle"
-            ))
+            ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
         );
     }
 
@@ -305,9 +292,7 @@ mod tests {
         let html = format!("{}<input id='hdnTipoVisualizacao' value='D'>", controle());
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
-            ErroCaixa::Html(ErroHtml::repetido(
-                "tipos_de_visualizacao_repetidos_no_controle"
-            ))
+            ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
         );
     }
 
@@ -316,15 +301,11 @@ mod tests {
         for (id, esperado) in [
             (
                 "hdnRecebidosHashCriterios",
-                ErroCaixa::Html(ErroHtml::repetido(
-                    "hashes_de_criterios_recebidos_repetidos_no_controle",
-                )),
+                ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle,
             ),
             (
                 "hdnGeradosHashCriterios",
-                ErroCaixa::Html(ErroHtml::repetido(
-                    "hashes_de_criterios_gerados_repetidos_no_controle",
-                )),
+                ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
             ),
         ] {
             let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
@@ -366,9 +347,7 @@ mod tests {
         ] {
             assert_eq!(
                 unidade_exibida_no_controle(&html),
-                Err(ErroCaixa::Html(ErroHtml::repetido(
-                    "identificacoes_da_unidade_repetidas_no_controle"
-                )))
+                Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
             );
         }
     }

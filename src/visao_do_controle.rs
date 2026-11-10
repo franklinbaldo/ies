@@ -20,7 +20,6 @@ mod plano;
 mod resumida;
 
 use crate::caixa_detalhada::ErroDetalhada;
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -127,7 +126,11 @@ pub(crate) enum ErroVisaoDoControle {
     Submissao(#[from] ErroSubmissaoFormulario),
     Pagina(#[from] ErroPaginaDoControle),
     Transporte(#[from] FalhaTransporte),
-    Html(#[from] ErroHtml),
+    IdentificacaoDaUnidadeAusenteNoControle,
+    LinkDoNivelDeDetalheAusente,
+    LinkDoNivelDeDetalheNaoReconhecido,
+    LinksDoNivelDeDetalheRepetidos,
+    VisaoDoControleNaoReconhecida,
 }
 
 impl ErroVisaoDoControle {
@@ -155,7 +158,11 @@ impl ErroVisaoDoControle {
             | Self::Detalhada(_)
             | Self::NivelDeDetalhe(_)
             | Self::Formulario(_)
-            | Self::Html(_) => false,
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::LinkDoNivelDeDetalheAusente
+            | Self::LinkDoNivelDeDetalheNaoReconhecido
+            | Self::LinksDoNivelDeDetalheRepetidos
+            | Self::VisaoDoControleNaoReconhecida => false,
         }
     }
 }

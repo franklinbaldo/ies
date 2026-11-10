@@ -1,6 +1,5 @@
 //! RED/GREEN do link do menu da pesquisa no Controle. HTML sintético.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::tests_fixtures::{
     ORIGEM, controle, hash, href_do_menu, menu, url_controle, url_da_tela,
 };
@@ -28,9 +27,7 @@ fn link_com_entidades_html_e_decodificado() {
 fn controle_sem_o_menu_da_pesquisa_e_recusado() {
     assert_eq!(
         link(&controle("")),
-        Err(ErroLinkDaPesquisa::Html(ErroHtml::ausente(
-            "link_da_pesquisa_ausente_no_controle"
-        )))
+        Err(ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle)
     );
 }
 
@@ -39,9 +36,7 @@ fn dois_links_da_pesquisa_sao_recusados() {
     let dois = format!("{}{}", menu(&href_do_menu()), menu(&href_do_menu()));
     assert_eq!(
         link(&controle(&dois)),
-        Err(ErroLinkDaPesquisa::Html(ErroHtml::repetido(
-            "links_da_pesquisa_repetidos_no_controle"
-        )))
+        Err(ErroLinkDaPesquisa::LinksDaPesquisaRepetidosNoControle)
     );
 }
 
@@ -85,9 +80,7 @@ fn link_fora_da_forma_observada_e_recusado() {
     ] {
         assert_eq!(
             link(&controle(&menu(&href))),
-            Err(ErroLinkDaPesquisa::Html(ErroHtml::valor(
-                "link_da_pesquisa_nao_reconhecido"
-            ))),
+            Err(ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido),
             "{href}"
         );
     }
@@ -99,8 +92,6 @@ fn acao_parecida_nao_e_o_link_da_pesquisa() {
     let rapida = href_do_menu().replace("protocolo_pesquisar", "protocolo_pesquisa_rapida");
     assert_eq!(
         link(&controle(&menu(&rapida))),
-        Err(ErroLinkDaPesquisa::Html(ErroHtml::ausente(
-            "link_da_pesquisa_ausente_no_controle"
-        )))
+        Err(ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle)
     );
 }

@@ -117,7 +117,7 @@ fn ler_cadastro(html: &str) -> Resultado {
         return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax");
     }
     // Após a mesma validação ter falhado, não invente uma forma:
-    // preserve a causa tipada concreta, inclusive na API ErroHtml atual.
+    // preserve a causa tipada concreta.
     match conferir_cadastro(html, &id, "publico") {
         Ok(_) => Resultado::Lido,
         Err(erro) => Resultado::Recusado(erro.rotulo()),
