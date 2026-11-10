@@ -108,6 +108,19 @@ pub(crate) fn responder(
         .as_ref()
         .is_some_and(|resposta| resposta.estado != Estado::Ok && !cadastrado)
     {
+        // O leitor de versões não conhece PDFs externos. Quando o mesmo
+        // SQLite comprova que o PDF pertence a OUTRO processo, recusar
+        // a identidade cruzada em vez de cair no 503 da rota de versões.
+        // Sem registro do PDF, conservar 503: desconhecido não é ausente.
+        if let Some(id) = selecionado {
+            match externo::processo_do_documento_publico(banco, origem, cenario, id) {
+                Ok(Some(proprietario)) if proprietario != id_processo => {
+                    return Resposta::nova(Estado::NaoEncontrado);
+                }
+                Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+                _ => {}
+            }
+        }
         return original.expect("resposta presente");
     }
 

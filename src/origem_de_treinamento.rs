@@ -33,6 +33,7 @@ pub(crate) enum CausaDaOrigem {
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
+    BlocoIncluirDocumento,
     DocumentoIncluirExterno,
     ProcessoPrazo,
     ProcessoRelacionar,

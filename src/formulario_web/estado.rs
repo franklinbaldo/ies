@@ -27,6 +27,8 @@ pub(crate) enum EstadoDoProcesso {
     AndamentoAbertoNaUnidade,
     /// A assinatura do usuário no documento (não se desfaz).
     AssinaturaDoDocumento,
+    /// Inclusão de documento em bloco de assinatura, provada por releitura do detalhe.
+    DocumentoIncluidoNoBloco,
     /// Inclusão de documento interno, provada por releitura da árvore.
     DocumentoCriadoNoProcesso,
     /// O conteúdo de um documento foi editado e publicado em nova versão.

@@ -1,8 +1,8 @@
 //! CLI de `ies bloco incluir BLOCO --documento DOC | --processo NUP [--confirmar]`
-//! (#381; contracts/cli/bloco-incluir.md). Esta fatia (BDD-381-01) entrega a
-//! prévia documental; `--processo` e `--confirmar` recusam antes da rede.
+//! (#381; contracts/cli/bloco-incluir.md). BDD-381-01/02: prévia e confirmação
+//! causal documental; `--processo` permanece não implementado.
 //! Erros sobem até o `main` (#695).
-use crate::bloco_incluir::{PreviaDocumental, prever_documento};
+use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::SessaoDoProcesso;
@@ -16,7 +16,6 @@ use serde_json::json;
 #[error("{self:?}")]
 enum AindaNaoImplementado {
     InclusaoDeProcesso,
-    Confirmacao,
 }
 
 pub(crate) fn executar(
@@ -30,12 +29,15 @@ pub(crate) fn executar(
         return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
     }
     let documento = documento.ok_or(AindaNaoImplementado::InclusaoDeProcesso)?;
-    if confirmar {
-        return Err(AindaNaoImplementado::Confirmacao.into());
-    }
     let arquivos = configuracao::arquivos_de_acesso()?;
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    if confirmar {
+        crate::origem_de_treinamento::exigir(
+            crate::origem_de_treinamento::Escrita::BlocoIncluirDocumento,
+            referencias.origem(),
+        )?;
+    }
     let sessao = SessaoDoProcesso {
         url_do_controle: referencias.url_do_controle(),
         origem: referencias.origem(),
@@ -45,8 +47,11 @@ pub(crate) fn executar(
         &sessao,
         &referencias,
         cli.unidade.as_deref(),
-        bloco,
-        documento,
+        &PedidoDaInclusao {
+            bloco,
+            documento,
+            confirmar,
+        },
         &IndiceLocal::da_configuracao(&arquivos),
         &mut EnvioHttps,
     )?;
@@ -62,13 +67,18 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
                 "bloco": previa.bloco,
                 "tipo_bloco": "assinatura",
                 "alvo": {"documento": previa.documento},
-                "confirmado": false,
-                "alterado": false,
+                "confirmado": previa.confirmado,
+                "alterado": previa.alterado,
                 "presente_antes": previa.presente_antes,
-                "presente_depois": null,
+                "presente_depois": previa.presente_depois,
                 "origem": "web",
                 "requisicoes": previa.requisicoes,
             })
+        );
+    } else if previa.alterado {
+        println!(
+            "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
+            previa.documento, previa.bloco, previa.requisicoes
         );
     } else {
         let antes = match previa.presente_antes {

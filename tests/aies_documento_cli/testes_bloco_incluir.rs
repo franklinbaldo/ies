@@ -103,3 +103,130 @@ fn bdd_381_01_previa_documental_sem_incluir() {
 /// Pesquisa, Controle até a árvore do documento, tela de escolha; Controle,
 /// lista e detalhe do bloco.
 const REQUISICOES_DA_PREVIA: usize = 8;
+
+/// BDD-381-02: única confirmação oferecida, aceita e comprovada no mesmo
+/// SQLite; o segundo comando lê o estado produzido pelo primeiro.
+#[test]
+fn bdd_381_02_inclusao_documental_causal_e_persistente() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let saida = executar(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO,
+            "--documento",
+            DOC,
+            "--confirmar",
+        ],
+        REQUISICOES_DA_PREVIA + 4, // um POST e três GETs da releitura independente
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let incluido = json(&saida);
+    assert_eq!(incluido["confirmado"], true);
+    assert_eq!(incluido["presente_antes"], false);
+    assert_eq!(incluido["presente_depois"], true);
+    assert_eq!(incluido["alterado"], true);
+
+    let consulta = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    assert_eq!(consulta.status.code(), Some(0));
+    let itens = json(&consulta)["bloco"]["itens"].clone();
+    assert_eq!(
+        itens
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| item["documento"] == DOC)
+            .count(),
+        1,
+        "documento não persistiu no mesmo SQLite: {itens}"
+    );
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (banco, instalacao) = estado(&caminho, true, 0, false);
+    let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
+        .unwrap()
+        .expect("bloco publicado");
+    assert_eq!(detalhe.total, 2);
+    assert_eq!(
+        detalhe
+            .itens
+            .iter()
+            .filter(|i| i.documento.as_deref() == Some(DOC))
+            .count(),
+        1
+    );
+}
+
+/// O formulário oferece dois documentos: a primeira caixa vem marcada,
+/// mas DOC é a segunda. Só DOC pode chegar ao bloco (mesmo SQLite).
+#[test]
+fn bdd_381_02_caixa_posterior_nao_inclui_documento_vizinho() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    documento_versoes::guardar(
+        &mut banco,
+        CENARIO,
+        &DocumentoSimulado {
+            instalacao,
+            id_documento: "41".into(),
+            id_procedimento: "7".into(),
+            numero_processo: "00001.000001/2026-01".into(),
+            numero: "0011518".into(),
+            tipo: "Despacho".into(),
+            revisoes: vec![Revisao {
+                versao: NonZeroU32::new(1).unwrap(),
+                usuario: "Ana".into(),
+                unidade: "TESTE".into(),
+                modificacao: "01/11/2026".into(),
+                html_corpo: "<p>Documento anterior</p>".into(),
+            }],
+        },
+    )
+    .unwrap();
+    drop(banco);
+    let saida = executar(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO,
+            "--documento",
+            DOC,
+            "--confirmar",
+        ],
+        REQUISICOES_DA_PREVIA + 4,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    assert_eq!(json(&saida)["alterado"], true);
+    let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    assert_eq!(leitura.status.code(), Some(0));
+    let relido = json(&leitura);
+    let itens = relido["bloco"]["itens"].as_array().unwrap();
+    assert_eq!(itens.iter().filter(|i| i["documento"] == DOC).count(), 1);
+    assert_eq!(
+        itens.iter().filter(|i| i["documento"] == "0011518").count(),
+        0
+    );
+    let (banco, instalacao) = estado(&caminho, true, 0, false);
+    let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
+        .unwrap()
+        .unwrap();
+    assert_eq!(detalhe.total, 2);
+}
