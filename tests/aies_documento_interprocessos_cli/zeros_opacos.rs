@@ -31,11 +31,15 @@ fn bdd_60_05_cli_recusa_numero_sem_zeros_mesmo_com_ocultacao() {
             "a pesquisa do SEI deve encontrar o documento com zeros: {trilha:?}"
         );
         assert!(
-            trilha.iter().any(|pedido| pedido == "GET procedimento_visualizar"),
+            trilha
+                .iter()
+                .any(|pedido| pedido == "GET procedimento_visualizar"),
             "a recusa deve confrontar a arvore servida, nao falhar antes da selecao: {trilha:?}"
         );
         assert!(
-            !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+            !trilha
+                .iter()
+                .any(|pedido| pedido == "GET documento_visualizar"),
             "nao baixar conteudo quando o numero SEI da arvore diverge: {trilha:?}"
         );
         assert!(
