@@ -67,7 +67,7 @@ pub(crate) fn responder(
             .enumerate()
             .filter_map(|(i, d)| {
                 let nome = format!("chkDocumentosItem{i}");
-                campo(&nome).map(|id| (d, id.to_owned()))
+                crate::documentos::campo_formulario_unico(corpo, &nome).map(|id| (d, id))
             })
             .collect();
         let todos = documentos
