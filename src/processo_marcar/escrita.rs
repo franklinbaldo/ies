@@ -220,13 +220,25 @@ fn preparar_submissao<V: EnvioDoProcesso>(
         }
     };
     let Some(acao) = action_de_remocao(&html, &rotulo.id) else {
-        return Err(falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()));
+        return Err(falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        ));
     };
     let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return Err(falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()));
+        return Err(falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        ));
     };
     let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return Err(falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()));
+        return Err(falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        ));
     };
     let tela = TelaServida {
         url: link,
@@ -287,7 +299,12 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     };
     if decisao == Decisao::NadaAFazer {
         return saida_sem_alteracao(
-            cli, nup, &aberto.arvore.processo.id, unidade, rotulo, rede.feitas(),
+            cli,
+            nup,
+            &aberto.arvore.processo.id,
+            unidade,
+            rotulo,
+            rede.feitas(),
         );
     }
     let Some(link) = acoes.marcadores.ok().flatten() else {
@@ -297,9 +314,8 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
             rede.feitas(),
         );
     };
-    let submissao = match preparar_submissao(
-        cli, sessao, &mut rede, link.as_str(), unidade, rotulo,
-    ) {
+    let submissao = match preparar_submissao(cli, sessao, &mut rede, link.as_str(), unidade, rotulo)
+    {
         Ok(submissao) => submissao,
         Err(saida) => return saida,
     };
@@ -342,5 +358,12 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     if !aceito || ausente != Some(true) {
         return efeito_incerto(cli, rede.feitas(), ausente);
     }
-    saida_confirmada(cli, nup, &aberto.arvore.processo.id, unidade, rotulo, rede.feitas())
+    saida_confirmada(
+        cli,
+        nup,
+        &aberto.arvore.processo.id,
+        unidade,
+        rotulo,
+        rede.feitas(),
+    )
 }
