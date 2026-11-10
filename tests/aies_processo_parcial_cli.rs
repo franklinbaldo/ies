@@ -143,7 +143,10 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
-    if matches!(cena, Cena::PastaPendente | Cena::DocumentosVisiveisComPastaPendente) {
+    if matches!(
+        cena,
+        Cena::PastaPendente | Cena::DocumentosVisiveisComPastaPendente
+    ) {
         // Estado de falha inventado somente onde os cards UnB não cobrem
         // a transição; a resposta HTML vem do modelo tipado no SQLite.
         pastas_incompletas::guardar(
@@ -160,9 +163,13 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
     }
     if matches!(cena, Cena::ValidacaoExigida) {
         iesei::validacao_acesso::guardar(
-            &banco, &instalacao, CENARIO, "10",
+            &banco,
+            &instalacao,
+            CENARIO,
+            "10",
             iesei::validacao_acesso::Validacao::Exigida,
-        ).unwrap();
+        )
+        .unwrap();
     }
     if matches!(cena, Cena::DocumentosVisiveisComPastaPendente) {
         // O corpus registra documentos visíveis e pastas fechadas, mas não
@@ -412,20 +419,5 @@ fn bdd_342_01_documentos_visiveis_nao_vazam_com_pasta_pendente() {
     );
 }
 
-/// BDD-633-02: CLI real, TLS local, modal do anti-IES e SQLite.
-/// Caso sintetico, sem corpo da modal observado em cassette.
-#[test]
-fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
-    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoExigida);
-    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
-    assert_eq!(
-        saida.status.code(), Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert!(json["erro"].as_str().is_some_and(|e| e.contains("validar o acesso")));
-    assert!(json.get("documentos").is_none());
-    assert_eq!(pedidos, ["GET procedimento_controlar", "GET procedimento_trabalhar"]);
-}
+#[path = "aies_processo_parcial_cli/bdd_633.rs"]
+mod bdd_633;
