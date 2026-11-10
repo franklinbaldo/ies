@@ -43,5 +43,5 @@ UnB e Goiás ao vivo: **NOT_RUN**, sem requisições externas nem alteração
 no SEI por esta revisão. Os cards e seus hashes publicados não são, por
 si só, prova de replay semântico.
 
-PENDENTE: confronto bilateral de cassettes, paginação além da segunda
+PENDENTE_DE_CASSETTE: confronto bilateral de cassettes, paginação além da segunda
 página interna e observação em treinamento.
