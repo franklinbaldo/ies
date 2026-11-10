@@ -203,7 +203,7 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
         .unwrap();
     }
     if matches!(modo, Modo::JaAnexado) {
-        anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
+        anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
     }
 }
 
