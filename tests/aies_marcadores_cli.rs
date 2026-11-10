@@ -300,7 +300,10 @@ fn executar(caso: Caso) {
             "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
         );
     } else {
-        assert!(controles.is_empty(), "zero marcadores usa 302 sem formulário de gerenciamento");
+        assert!(
+            controles.is_empty(),
+            "zero marcadores usa 302 sem formulário de gerenciamento"
+        );
     }
     conferir(
         &saida,
