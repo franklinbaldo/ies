@@ -37,6 +37,10 @@ pub(crate) fn acoes_do_processo(
         )
         .expect("formatação de String");
     }
+    if processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        write!(links, r#"<a href="controlador.php?acao=procedimento_anexar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Anexar Processo</a>"#)
+            .expect("formatação String");
+    }
     if processo.pode_incluir_documento(unidade_atual) {
         write!(
             links,

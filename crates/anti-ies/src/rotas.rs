@@ -2,7 +2,7 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
-    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_andamento,
+    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_anexacao, processo_andamento,
     processo_atribuicao, processo_ciencia, processo_criacao, processo_envio, processo_relacionar,
     processo_sobrestamento, retorno_programado,
 };
@@ -119,6 +119,12 @@ pub(crate) fn responder(
         {
             processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("procedimento_anexar") if eh_controlador_sei(alvo) => {
+            processo_anexacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
+        None if parametro_unico(alvo, "acao_ajax") == Some("procedimento_anexacao_verificar") => {
+            processo_anexacao::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("procedimento_sobrestar" | "procedimento_remover_sobrestamento")
             if eh_controlador_sei(alvo) =>
         {
@@ -139,7 +145,8 @@ pub(crate) fn responder(
             processo_relacionar::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {
-            processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+            processo_anexacao::identificar(metodo, alvo, corpo, banco, instalacao, cenario)
+                .unwrap_or_else(|| processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario))
         }
         Some("protocolo_pesquisar") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder_pesquisa(metodo, alvo, corpo, banco, instalacao, cenario)

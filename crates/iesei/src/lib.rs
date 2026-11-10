@@ -1,3 +1,4 @@
+pub mod anexacoes;
 //! Tipos e observações do IES e anti-IES, sem interfaces de rede.
 pub mod acesso_sessao;
 pub mod acesso_versao;

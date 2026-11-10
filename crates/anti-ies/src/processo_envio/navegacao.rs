@@ -99,12 +99,28 @@ fn arvore_do_processo(
     let (mut nos, proximo_indice) =
         crate::documento_arvore::nos_com_proximo_indice(banco, instalacao, cenario, &processo.id)?;
     let id = &processo.id;
-    if let Some(pasta) = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
-        .map_err(|_| Estado::DadosInsuficientes)?
-    {
+    let pasta_pendente = iesei::pastas_incompletas::ler(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?;
+    let pasta_presente = pasta_pendente.is_some();
+    if let Some(pasta) = pasta_pendente {
         // Pastas e documentos coexistem no estado. O índice vem do próprio
         // gerador dos nós documentais, não da contagem inferida do HTML.
         nos.push_str(&no_pasta_pendente(&pasta, id, proximo_indice));
+    }
+    let anexados = iesei::anexacoes::listar(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?
+        .ok_or(Estado::DadosInsuficientes)?;
+    let primeiro_anexado = proximo_indice + usize::from(pasta_presente) * 2;
+    for (posicao, anexado) in anexados.iter().enumerate() {
+        let numero = literal_js(&anexado.numero).replace('"', r#"\\""#).replace('<', r"\u003c");
+        let id_anexado = &anexado.id;
+        let indice = primeiro_anexado + posicao;
+        let hash = crate::protocolo_sintetico::INFRA_HASH;
+        write!(nos, r#"Nos[{indice}] = new infraArvoreNo("PROCESSO_ANEXADO","{id_anexado}","{id}","controlador.php?acao=arvore_visualizar&acao_origem=procedimento_visualizar&id_procedimento={id}&id_procedimento_anexado={id_anexado}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}","ifrVisualizacao","{numero}","Processo Sintético","svg/processo_anexado.svg","svg/processo_anexado.svg","svg/processo_anexado.svg",true,true,null,null,null,"{numero}");
+Nos[{indice}].acoes = '';
+Nos[{indice}].src = '';
+Nos[{indice}].html = '';
+"#).expect("formatação String");
     }
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)

@@ -1,6 +1,6 @@
 //! Prévia Web de anexação: abre principal, lê a tela e consulta somente
 //! a identidade do anexado e sua condição de assinatura. Não grava nada.
-//! O POST de escrita permanece bloqueado até teste de transporte/efeito incerto.
+//! POST de escrita apenas após prévia e confirmação, com releitura de prova.
 use super::{Destino, decidir, ler_confirmacao, ler_destino, ler_tela};
 use crate::arvore_processo::ErroAnexarNaBarra;
 use crate::formulario_web::{
@@ -12,9 +12,10 @@ use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{
-    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
+    EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
-use crate::transporte::{FalhaTransporte, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
+use std::io::Read;
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
@@ -34,7 +35,7 @@ const CONFERIR: ConsultaAjax = ConsultaAjax {
 
 #[derive(Debug)]
 pub(crate) enum FalhaAnexar {
-    ConfirmacaoAindaNaoValidada,
+    EfeitoIncerto,
     Abertura(ErroProcessoObter),
     Barra(ErroAnexarNaBarra),
     LinkNaoPublicado,
@@ -47,9 +48,12 @@ pub(crate) enum FalhaAnexar {
     ConsultaResposta(FalhaTransporte),
 }
 impl FalhaAnexar {
+    pub(crate) fn saida(&self) -> u8 {
+        if matches!(self, Self::EfeitoIncerto) { 3 } else { 1 }
+    }
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::ConfirmacaoAindaNaoValidada => "confirmacao_de_anexacao_nao_validada",
+            Self::EfeitoIncerto => "efeito_incerto",
             Self::Abertura(erro) => erro.subcodigo(),
             Self::Barra(erro) => erro.subcodigo(),
             Self::LinkNaoPublicado => "anexacao_nao_publicada_na_barra",
@@ -63,13 +67,34 @@ impl FalhaAnexar {
         }
     }
 }
+mod escrita;
+
+/// XML de consulta é distinto de HTML de navegação; respeita o MIME servido.
+fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
+    if resposta.status_code != 200 { return Err(recusar_status(resposta)); }
+    let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
+    if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
+        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
+    }
+    if resposta.content_length.is_some_and(|t| t > crate::MAX_HTML_BYTES) {
+        return Err(FalhaTransporte::RespostaExcessiva);
+    }
+    let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
+        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+}
+
 pub(crate) struct Pedido<'a> {
     pub(crate) anexado: &'a NumeroProcesso,
     pub(crate) principal: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,
     pub(crate) confirmar: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoAnexacao { Previa, Confirmada }
+
 pub(crate) struct Previa {
+    pub(crate) resultado: ResultadoAnexacao,
     pub(crate) principal: String,
     pub(crate) id_principal: String,
     pub(crate) anexado: Destino,
@@ -103,9 +128,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     envio: &mut V,
 ) -> Result<Previa, FalhaAnexar> {
     use FalhaAnexar as E;
-    if pedido.confirmar {
-        return Err(E::ConfirmacaoAindaNaoValidada);
-    }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
@@ -149,7 +171,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_identidade_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = xml_da_consulta(resposta.resposta).map_err(E::ConsultaResposta)?;
     let anexado = ler_destino(&xml).map_err(E::Estrutura)?;
     if anexado.nup != pedido.anexado.as_str() {
         return Err(E::Estrutura("nup_do_anexado_diferente_do_solicitado"));
@@ -171,9 +193,30 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_assinaturas_redirecionada"));
     }
-    let xml = decodificar_resposta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = xml_da_consulta(resposta.resposta).map_err(E::ConsultaResposta)?;
     let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
+    let resultado = if pedido.confirmar {
+        escrita::confirmar(
+            sessao, &instalacao, &cookie, link.as_str(), &html, &mime,
+            &id, &anexado, assinaturas_em_dia, &vista.anexados, &mut rede,
+        )?;
+        // O contrato exige a árvore da própria CLI, não somente o 302
+        // nem a lista textual devolvida pelo formulário.
+        let lido = obter_processo(
+            sessao, &leitura(pedido.principal, pedido.unidade, false), indice, &mut rede,
+        ).map_err(|_| E::EfeitoIncerto)?;
+        let anexados_depois = &lido.arvore.anexados;
+        if !anexados_depois.iter().any(|p| p.id == anexado.id && p.nup == anexado.nup)
+            || !vista.anexados.iter().all(|id| anexados_depois.iter().any(|p| &p.id == id))
+        {
+            return Err(E::EfeitoIncerto);
+        }
+        ResultadoAnexacao::Confirmada
+    } else {
+        ResultadoAnexacao::Previa
+    };
     Ok(Previa {
+        resultado,
         principal: pedido.principal.as_str().to_owned(),
         id_principal: id,
         anexado,

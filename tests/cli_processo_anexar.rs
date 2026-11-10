@@ -31,7 +31,7 @@ fn comando_recusa_numero_vazio_antes_da_sessao() {
 }
 
 #[test]
-fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
+fn confirmar_recusa_sem_sessao_ativa() {
     let saida = executar(&[
         "processo",
         "anexar",
@@ -43,7 +43,7 @@ fn confirmar_recusa_sem_acessar_sessao_ou_rede() {
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let valor = json(&saida);
-    assert_eq!(valor["subcodigo"], "confirmacao_de_anexacao_nao_validada");
+    assert_eq!(valor["codigo"], "fonte_invalida");
     assert_eq!(valor["retentavel"], false);
 }
 
