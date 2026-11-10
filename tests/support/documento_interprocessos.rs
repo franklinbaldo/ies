@@ -166,6 +166,12 @@ pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
+/// Mesmo número SEI em processos distintos: o NUP explícito delimita
+/// a identidade, sem recuperar o corpo pertencente ao outro processo.
+pub(super) fn executar_numero_igual_em_outro_processo(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::NumeroIgualEmOutroProcesso, args)
+}
+
 /// Documento interno e PDF externo publicam o mesmo número SEI na árvore.
 /// O conflito não foi capturado na `UnB`: é uma hipótese testável no SQLite.
 pub(super) fn executar_pdf_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
