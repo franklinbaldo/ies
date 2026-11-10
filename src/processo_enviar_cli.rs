@@ -1,7 +1,7 @@
 //! `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
 //! (contracts/cli/processo-enviar.md): uso inválido sai com 2 antes de
 //! qualquer arquivo; prévia sem POST de escrita; com `--confirmar`, um POST
-//! conferido por leitura; efeito incerto, 3. A saída nunca traz URL,
+//! conferido por leitura; falha não confirmada, saída 1. A saída nunca traz URL,
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
