@@ -27,6 +27,12 @@ pub(crate) struct Processo {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
+    /// Prévia de anotação na unidade; nenhum dado é gravado nesta fatia.
+    Anotar {
+        numero: String,
+        #[arg(long)]
+        texto: String,
+    },
     /// Registra andamento livre no histórico do processo (prévia antes da escrita)
     Andamento {
         numero: String,
