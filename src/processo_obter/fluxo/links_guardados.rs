@@ -78,8 +78,10 @@ pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
         Ok(tela) => tela,
         // Unidade distinta ou validação de senha não são link envelhecido:
         // nenhum outro caminho pode contornar essa recusa de acesso.
-        Err(erro @ (ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada
-            | ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso)) => {
+        Err(
+            erro @ (ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada
+            | ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso),
+        ) => {
             return Err(E::Tela(erro));
         }
         // Não é a tela deste processo: o link envelheceu.
@@ -98,4 +100,3 @@ pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
         Err(erro) => Err(erro),
     }
 }
-
