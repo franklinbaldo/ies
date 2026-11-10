@@ -191,8 +191,8 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
         )
         .unwrap();
         editor_documento::registrar_oferta(
-            &banco,
-            &instalacao,
+            banco,
+            instalacao,
             CENARIO,
             "77",
             Oferta {
@@ -205,6 +205,24 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
     if matches!(modo, Modo::JaAnexado) {
         anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
     }
+}
+
+fn conferir_aviso_pendencia(modo: Modo, pasta: &Pasta, arquivos: [&std::path::Path; 4], porta: u16) {
+    if !matches!(modo, Modo::PreviaPendencia) {
+        return;
+    }
+    let aviso = cli(
+        pasta,
+        arquivos,
+        porta,
+        &["processo", "anexar", ANEXADO, "--a", PRINCIPAL],
+    );
+    assert_eq!(aviso.status.code(), Some(0));
+    assert!(
+        String::from_utf8_lossy(&aviso.stdout).contains("há documento sem assinatura"),
+        "aviso de prévia ausente: {}",
+        String::from_utf8_lossy(&aviso.stdout)
+    );
 }
 
 fn executar(modo: Modo) {
@@ -282,20 +300,7 @@ fn executar(modo: Modo) {
         }
     };
     let saida = cli(&pasta, arquivos, porta, comando);
-    if matches!(modo, Modo::PreviaPendencia) {
-        let aviso = cli(
-            &pasta,
-            arquivos,
-            porta,
-            &["processo", "anexar", ANEXADO, "--a", PRINCIPAL],
-        );
-        assert_eq!(aviso.status.code(), Some(0));
-        assert!(
-            String::from_utf8_lossy(&aviso.stdout).contains("há documento sem assinatura"),
-            "aviso de prévia ausente: {}",
-            String::from_utf8_lossy(&aviso.stdout)
-        );
-    }
+    conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
     let posterior = cli(
         &pasta,
         arquivos,
