@@ -127,8 +127,12 @@ fn comprovar_na_arvore<V: EnvioDoProcesso>(
     )
     .map_err(|_| FalhaAnexar::EfeitoIncerto)?;
     let depois = &lido.arvore.anexados;
-    if !depois.iter().any(|p| p.id == anexado.id && p.nup == anexado.nup)
-        || !anteriores.iter().all(|id| depois.iter().any(|p| &p.id == id))
+    if !depois
+        .iter()
+        .any(|p| p.id == anexado.id && p.nup == anexado.nup)
+        || !anteriores
+            .iter()
+            .all(|id| depois.iter().any(|p| &p.id == id))
     {
         return Err(FalhaAnexar::EfeitoIncerto);
     }
