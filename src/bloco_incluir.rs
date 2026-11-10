@@ -22,8 +22,8 @@ use crate::processo_concluir::escrita::{
     Contador, CookieIlegivel, FalhaDaTela, ler_cookie, obter_tela,
 };
 use crate::processo_obter::{
-    EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
-    abrir_documento_na_arvore,
+    DocumentoNaArvoreAberto, EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo,
+    PedidoDoDocumento, SessaoDoProcesso, abrir_documento_na_arvore,
 };
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::ReferenciasDaSessao;
@@ -166,17 +166,23 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
     Ok(TelaDeEscolha { blocos, documentos })
 }
 
+/// Identidade pública e intenção do comando, sem transporte ou estado duplicado.
+pub(crate) struct PedidoDaInclusao<'a> {
+    pub(crate) bloco: &'a str,
+    pub(crate) documento: &'a NumeroDocumento,
+    pub(crate) confirmar: bool,
+}
+
 /// Prévia ou confirmação: formulário fresco, no máximo um POST, releitura.
 pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     referencias: &ReferenciasDaSessao,
     unidade: Option<&str>,
-    bloco: &str,
-    documento: &NumeroDocumento,
-    confirmar: bool,
+    pedido: PedidoDaInclusao<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<PreviaDocumental, ErroIncluir> {
+    let PedidoDaInclusao { bloco, documento, confirmar } = pedido;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroIncluir::Transporte(
         FalhaTransporte::OrigemNaoAutorizada,
     ))?;
@@ -224,56 +230,19 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     let mut alterado = false;
     let mut presente_depois = None;
     if confirmar && presente_antes == Some(false) {
-        let instalacao =
-            Instalacao::interpretar(sessao.origem).ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
-        let codificacao = codificacao_da_tela(&mime).ok_or(ErroIncluir::CharsetNaoSuportado)?;
-        let servida = TelaServida {
-            url: link.as_str(),
-            html: &html,
-            codificacao,
-        };
-        let submissao = derivar_submissao(
-            &INCLUIR_DOCUMENTO,
-            &instalacao,
-            &servida,
-            "",
-            &[
-                ("selBloco", bloco),
-                ("chkDocumentosItem0", &aberto.id_documento),
-            ],
-        )?;
-        // A submissão é consumida; não existe segundo envio, mesmo após
-        // transporte falho ou leitura inconclusiva.
-        let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
-            rede.post(sub, cookie)
-        });
-        let aceita = match resposta {
-            Ok(RespostaDoEnvio::Redirecionamento(r)) => redirecionamento_da_inclusao(
-                r.localizacao(),
-                r.url_do_envio(),
-                &aberto.processo.id,
-                &aberto.id_documento,
-            ),
-            _ => false,
-        };
-        let relido = ler_tipado_via(
+        confirmar_documento(
+            sessao,
             referencias,
             unidade,
-            TipoBloco::Assinatura,
-            Some(bloco),
-            None,
+            bloco,
+            &aberto,
+            TelaDaInclusao {
+                url: link.as_str(),
+                html: &html,
+                mime: &mime,
+            },
             &mut rede,
-        );
-        let conferido = matches!(
-            relido,
-            Ok(crate::bloco_cli::Lido { leitura: Leitura::Detalhe(ref detalhe), .. })
-                if detalhe.itens.iter().any(|item| {
-                    item.documento.as_deref() == Some(aberto.numero.as_str())
-                })
-        );
-        if !aceita || !conferido {
-            return Err(ErroIncluir::NaoConfirmado);
-        }
+        )?;
         alterado = true;
         presente_depois = Some(true);
     } else if confirmar && presente_antes.is_none() {
@@ -288,6 +257,69 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         presente_depois,
         requisicoes: usize::from(rede.feitas()),
     })
+}
+
+
+/// A tela fresca da oferta de inclusão, sem persistir HTML assinado.
+struct TelaDaInclusao<'a> {
+    url: &'a str,
+    html: &'a str,
+    mime: &'a str,
+}
+
+/// Envio causal único e uma leitura independente. Ambos são necessários
+/// para declarar alteração, mesmo se a resposta 302 foi observada.
+fn confirmar_documento<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    referencias: &ReferenciasDaSessao,
+    unidade: Option<&str>,
+    bloco: &str,
+    aberto: &DocumentoNaArvoreAberto,
+    tela: TelaDaInclusao<'_>,
+    rede: &mut Contador<'_, V>,
+) -> Result<(), ErroIncluir> {
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
+    let codificacao = codificacao_da_tela(tela.mime).ok_or(ErroIncluir::CharsetNaoSuportado)?;
+    let servida = TelaServida {
+        url: tela.url,
+        html: tela.html,
+        codificacao,
+    };
+    let submissao = derivar_submissao(
+        &INCLUIR_DOCUMENTO,
+        &instalacao,
+        &servida,
+        "",
+        &[("selBloco", bloco), ("chkDocumentosItem0", &aberto.id_documento)],
+    )?;
+    // Submissão consumida, sem possibilidade de segundo POST.
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
+        rede.post(sub, cookie)
+    });
+    let aceita = match resposta {
+        Ok(RespostaDoEnvio::Redirecionamento(r)) => redirecionamento_da_inclusao(
+            r.localizacao(),
+            r.url_do_envio(),
+            &aberto.processo.id,
+            &aberto.id_documento,
+        ),
+        _ => false,
+    };
+    let relido = ler_tipado_via(
+        referencias, unidade, TipoBloco::Assinatura, Some(bloco), None, rede,
+    );
+    let conferido = matches!(
+        relido,
+        Ok(crate::bloco_cli::Lido { leitura: Leitura::Detalhe(ref detalhe), .. })
+            if detalhe.itens.iter().any(|item| {
+                item.documento.as_deref() == Some(aberto.numero.as_str())
+            })
+    );
+    if !aceita || !conferido {
+        return Err(ErroIncluir::NaoConfirmado);
+    }
+    Ok(())
 }
 
 const INCLUIR_DOCUMENTO: OperacaoDeFormulario = OperacaoDeFormulario {
