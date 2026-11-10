@@ -1,2 +1,0 @@
-cassettes/unb/comentarios-ciclo-unb--c7d0c8a53b5e.md
-cassettes/go/comentarios-ciclo-go--76c984b41a29.md
