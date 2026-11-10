@@ -20,7 +20,7 @@ O sucesso retorna `arquivos_privados: metadados_verificados` com
 `conexao: nao_verificada` e código 0. Falhas retornam código 1,
 `codigo: configuracao_invalida`, mensagem e
 `arquivo` com um dos papéis `url_controle`, `cookie`,
-`origem`, sem expor caminhos nem conteúdos. Variantes tipadas:
+`origem`, sem expor caminhos nem conteúdos. Erros tipados:
 `CaminhoNaoAbsoluto`, `Ausente`, `LinkSimbolico`,
 `NaoRegular`, `Vazio`, `PermissoesInseguras` e `MetadadosNaoLidos`.
 A ausência de configuração deve falhar antes da inspeção dos arquivos.

@@ -5,7 +5,6 @@
 //! Nada de JavaScript é executado ou interpretado aqui.
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
-use ErroControleDoFormulario as E;
 
 /// Únicos controles de usuário que o POST do paginador repete.
 pub(super) const CAMPOS_USUARIO: &[&str] = &[
@@ -29,13 +28,18 @@ pub(crate) enum ErroControleDoFormulario {
     AtributoHtml(#[from] ErroAtributoHtml),
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
+fn atributo(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, ErroControleDoFormulario> {
+    valor_do_atributo(tag, nome).map_err(ErroControleDoFormulario::AtributoHtml)
 }
 
-fn decodificado(bruto: &str, campo: &str) -> Result<String, E> {
-    decodificar_atributo(bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoControle {
-        campo: campo.to_owned(),
+fn decodificado(bruto: &str, campo: &str) -> Result<String, ErroControleDoFormulario> {
+    decodificar_atributo(bruto).ok_or_else(|| {
+        ErroControleDoFormulario::EntidadeHtmlDesconhecidaNoControle {
+            campo: campo.to_owned(),
+        }
     })
 }
 
@@ -45,7 +49,7 @@ fn opcao_selecionada(
     select: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     campo: &str,
-) -> Result<String, E> {
+) -> Result<String, ErroControleDoFormulario> {
     let mut escolhidas = Vec::new();
     for opcao in select
         .children()
@@ -60,16 +64,20 @@ fn opcao_selecionada(
     }
     let campo_owned = || campo.to_owned();
     match escolhidas.as_slice() {
-        [] => Err(E::PaginadorSemOpcaoSelecionada {
+        [] => Err(ErroControleDoFormulario::PaginadorSemOpcaoSelecionada {
             campo: campo_owned(),
         }),
         [Some(valor)] => decodificado(valor, campo),
-        [None] => Err(E::OpcaoSelecionadaDoPaginadorSemValor {
-            campo: campo_owned(),
-        }),
-        _ => Err(E::PaginadorComMaisDeUmaOpcaoSelecionada {
-            campo: campo_owned(),
-        }),
+        [None] => Err(
+            ErroControleDoFormulario::OpcaoSelecionadaDoPaginadorSemValor {
+                campo: campo_owned(),
+            },
+        ),
+        _ => Err(
+            ErroControleDoFormulario::PaginadorComMaisDeUmaOpcaoSelecionada {
+                campo: campo_owned(),
+            },
+        ),
     }
 }
 
@@ -81,7 +89,7 @@ pub(crate) fn campos_do_usuario(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     permitidos: &[&str],
-) -> Result<Vec<(String, String)>, E> {
+) -> Result<Vec<(String, String)>, ErroControleDoFormulario> {
     let mut campos: Vec<(String, String)> = Vec::new();
     for tag in form
         .children()
@@ -109,7 +117,11 @@ pub(crate) fn campos_do_usuario(
             }
             ("input", "checkbox" | "radio") => {
                 if atributo_presente(tag, "checked")? {
-                    return Err(E::CaixaDeSelecaoMarcadaNoFormularioDoControle { campo: nome });
+                    return Err(
+                        ErroControleDoFormulario::CaixaDeSelecaoMarcadaNoFormularioDoControle {
+                            campo: nome,
+                        },
+                    );
                 }
                 continue;
             }
@@ -121,10 +133,18 @@ pub(crate) fn campos_do_usuario(
             {
                 opcao_selecionada(tag, parser, &nome)?
             }
-            _ => return Err(E::ControleNaoPrevistoNoFormularioDoControle { campo: nome }),
+            _ => {
+                return Err(
+                    ErroControleDoFormulario::ControleNaoPrevistoNoFormularioDoControle {
+                        campo: nome,
+                    },
+                );
+            }
         };
         if campos.iter().any(|(anterior, _)| *anterior == nome) {
-            return Err(E::ControleRepetidoNoFormularioDoControle { campo: nome });
+            return Err(
+                ErroControleDoFormulario::ControleRepetidoNoFormularioDoControle { campo: nome },
+            );
         }
         campos.push((nome, valor));
     }

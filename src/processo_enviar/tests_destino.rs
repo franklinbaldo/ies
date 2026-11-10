@@ -2,7 +2,7 @@
 //! instalações) e da escolha do destino pela sigla.
 use super::Destino;
 use super::destino::{escolher_destino, itens_do_autocompletar, ler_resposta_da_consulta};
-use super::erro::{ErroEnviar, FalhaDaConsulta as F};
+use super::erro::{ErroEnviar, FalhaDaConsulta};
 use super::tests_apoio::*;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::RespostaDoPost;
@@ -57,7 +57,7 @@ fn itens_na_forma_observada() {
     ] {
         assert_eq!(
             itens_do_autocompletar(fora),
-            Err(F::Html(ErroHtml::valor(
+            Err(FalhaDaConsulta::Html(ErroHtml::valor(
                 "resposta_do_autocompletar_fora_da_forma_observada"
             ))),
             "{fora}"
@@ -78,11 +78,11 @@ fn resposta_precisa_ser_xml_200() {
     );
     assert_eq!(
         ler_resposta_da_consulta(resposta(200, "text/html; charset=iso-8859-1", "<html/>")),
-        Err(F::RespostaDoAutocompletarNaoXml)
+        Err(FalhaDaConsulta::RespostaDoAutocompletarNaoXml)
     );
     assert!(matches!(
         ler_resposta_da_consulta(resposta(500, XML, "")),
-        Err(F::Transporte(FalhaTransporte::Status(_)))
+        Err(FalhaDaConsulta::Transporte(FalhaTransporte::Status(_)))
     ));
 }
 

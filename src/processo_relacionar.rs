@@ -147,24 +147,26 @@ fn relacionamento_existente<'a>(
 /// A consulta do protocolo é XML (e não a tela HTML do controle).
 /// Não reutilizar o decodificador exclusivo de text/html da infraestrutura.
 fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaRelacionar> {
-    use FalhaRelacionar as E;
     if resposta.status_code != 200 {
-        return Err(E::ConsultaResposta(recusar_status(resposta)));
+        return Err(FalhaRelacionar::ConsultaResposta(recusar_status(resposta)));
     }
     let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
     if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
-        return Err(E::ConsultaNaoXml);
+        return Err(FalhaRelacionar::ConsultaNaoXml);
     }
     if resposta
         .content_length
         .is_some_and(|tamanho| tamanho > crate::MAX_HTML_BYTES)
     {
-        return Err(E::ConsultaResposta(FalhaTransporte::RespostaExcessiva));
+        return Err(FalhaRelacionar::ConsultaResposta(
+            FalhaTransporte::RespostaExcessiva,
+        ));
     }
-    let bytes =
-        ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES).map_err(E::ConsultaResposta)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| E::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))
+    let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
+        .map_err(FalhaRelacionar::ConsultaResposta)?;
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|_| {
+        FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+    })
 }
 
 /// A confirmação percorre a prévia antes da escrita única; em ambas as
@@ -176,9 +178,8 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, FalhaRelacionar> {
-    use FalhaRelacionar as E;
     let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(E::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
+        .ok_or(FalhaRelacionar::Tela(FalhaTransporte::OrigemNaoAutorizada))?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -186,21 +187,23 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )
-    .map_err(E::Abertura)?;
+    .map_err(FalhaRelacionar::Abertura)?;
     let id = aberto.arvore.processo.id;
     let link = acoes
         .relacionar
-        .map_err(E::Barra)?
-        .ok_or(E::LinkNaoPublicado)?;
+        .map_err(FalhaRelacionar::Barra)?
+        .ok_or(FalhaRelacionar::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
-        FalhaDaTela::Transporte(falha) => E::Tela(falha),
-        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => E::SessaoEncerrada,
+        FalhaDaTela::Transporte(falha) => FalhaRelacionar::Tela(falha),
+        FalhaDaTela::Redirecionada => FalhaRelacionar::TelaRedirecionada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            FalhaRelacionar::SessaoEncerrada
+        }
     })?;
-    let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;
+    let relacionados = ler_linhas(&html).map_err(FalhaRelacionar::Estrutura)?;
     if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {
-        return Err(E::RelacionamentoConsigoMesmo);
+        return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
     }
     let mut previa = Previa {
         nup: pedido.nup.as_str().to_owned(),
@@ -218,18 +221,24 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             [] => previa.resultado = ResultadoRelacionar::SemEfeito,
             [linha] => {
                 if !linha.pode_remover {
-                    return Err(E::RemocaoNaoOferecida);
+                    return Err(FalhaRelacionar::RemocaoNaoOferecida);
                 }
                 previa.destino.clone_from(&linha.nup);
                 previa.id_destino = Some(linha.id.clone());
             }
-            _ => return Err(E::Estrutura("relacionamentos_repetidos_na_tela")),
+            _ => {
+                return Err(FalhaRelacionar::Estrutura(
+                    "relacionamentos_repetidos_na_tela",
+                ));
+            }
         }
         if pedido.confirmar && !previa.sem_efeito() {
             let id_destino = previa
                 .id_destino
                 .as_deref()
-                .ok_or(E::Estrutura("destino_a_remover_sem_identificador"))?;
+                .ok_or(FalhaRelacionar::Estrutura(
+                    "destino_a_remover_sem_identificador",
+                ))?;
             escrita::remover(
                 sessao,
                 &instalacao,
@@ -254,7 +263,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
-    let codificacao = codificacao_da_tela(&mime).ok_or(E::Estrutura(
+    let codificacao = codificacao_da_tela(&mime).ok_or(FalhaRelacionar::Estrutura(
         "charset_da_tela_de_relacionamentos_nao_suportado",
     ))?;
     let tela = TelaServida {
@@ -262,7 +271,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         html: &html,
         codificacao,
     };
-    let url = url_complementar(&html).map_err(E::Estrutura)?;
+    let url = url_complementar(&html).map_err(FalhaRelacionar::Estrutura)?;
     let consulta = derivar_consulta_ajax(
         &CONSULTA,
         &instalacao,
@@ -270,30 +279,32 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         &url,
         &[("idProcedimento", pedido.com.as_str())],
     )
-    .map_err(E::ConsultaDerivacao)?;
+    .map_err(FalhaRelacionar::ConsultaDerivacao)?;
     let resposta = rede
         .post(consulta, &cookie)
-        .map_err(E::ConsultaTransporte)?;
+        .map_err(FalhaRelacionar::ConsultaTransporte)?;
     if resposta.resposta.status_code == 302 {
-        return Err(E::Estrutura("consulta_de_relacionamento_redirecionada"));
+        return Err(FalhaRelacionar::Estrutura(
+            "consulta_de_relacionamento_redirecionada",
+        ));
     }
     let xml = xml_da_consulta(resposta.resposta)?;
     let DestinoConsultado {
         id: destino_id,
         nup,
         tipo,
-    } = ler_destino(&xml).map_err(E::Estrutura)?;
+    } = ler_destino(&xml).map_err(FalhaRelacionar::Estrutura)?;
     if destino_id == id {
-        return Err(E::RelacionamentoConsigoMesmo);
+        return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
     }
     if !mesmo_protocolo(pedido.com.as_str(), &nup) {
-        return Err(E::DestinoDaConsultaDivergente);
+        return Err(FalhaRelacionar::DestinoDaConsultaDivergente);
     }
     // O mesmo id não pode identificar outro NUP na tabela já servida.
     // Caso contrário, "sem efeito" esconderia duas identidades incompatíveis.
     previa.resultado = match relacionados.iter().find(|linha| linha.id == destino_id) {
         Some(linha) if mesmo_protocolo(&linha.nup, &nup) => ResultadoRelacionar::SemEfeito,
-        Some(_) => return Err(E::DestinoDaConsultaDivergente),
+        Some(_) => return Err(FalhaRelacionar::DestinoDaConsultaDivergente),
         None => ResultadoRelacionar::Previa,
     };
     previa.id_destino = Some(destino_id);
@@ -311,7 +322,9 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             previa
                 .id_destino
                 .as_deref()
-                .ok_or(E::Estrutura("destino_a_relacionar_nao_identificado"))?,
+                .ok_or(FalhaRelacionar::Estrutura(
+                    "destino_a_relacionar_nao_identificado",
+                ))?,
             &previa.destino,
             previa.tipo_destino.as_deref().unwrap_or(""),
             &relacionados,

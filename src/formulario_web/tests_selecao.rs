@@ -2,7 +2,6 @@
 //! O primitivo não escolhe opções; só aceita a repetição que o HTML permite.
 use super::tests::{instalacao, tela_iso, url_servida};
 use super::*;
-use ErroSubmissaoFormulario as E;
 
 const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "protocolo_pesquisar",
@@ -34,7 +33,10 @@ fn pagina(select: &str) -> String {
     )
 }
 
-fn derivar(html: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    html: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         &OPERACAO_COM_SELECAO,
@@ -85,7 +87,7 @@ fn select_sem_multiple_continua_recusando_repeticao() {
             &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")],
         )
         .unwrap_err(),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );
@@ -100,7 +102,7 @@ fn texto_com_mesmo_nome_de_select_multiple_nao_herda_a_excecao() {
             &[("selOrgaoPesquisa[]", "1"), ("selOrgaoPesquisa[]", "2")]
         )
         .unwrap_err(),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );
@@ -113,7 +115,7 @@ fn select_multiple_desabilitado_nao_e_publicado() {
     let desabilitado = MULTIPLO.replace(" multiple>", " multiple='multiple' disabled>");
     assert_eq!(
         derivar(&pagina(&desabilitado), &[("selOrgaoPesquisa[]", "1")]).unwrap_err(),
-        E::CampoNaoPublicadoPeloFormulario {
+        ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
             campo: "selOrgaoPesquisa[]".to_owned()
         }
     );

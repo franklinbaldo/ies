@@ -128,7 +128,7 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 
 ## Falhas tipadas
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `versao_documento_invalida` | `--versao 0` (antes de qualquer rede) |
 | `ListaDeVersoesNaoPublicadaNaArvore` | `--versao N` e a barra do documento não publica a lista |

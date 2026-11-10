@@ -1,7 +1,6 @@
 //! RED/GREEN do tokenizador: casos reproduzidos do defeito do `tl` 0.7.8 e
 //! estados WHATWG de nome e valor de atributo.
 use super::*;
-use ErroAtributoHtml as E;
 
 fn nomes(fonte: &str) -> Vec<String> {
     tokenizar_tag_de_abertura(fonte)
@@ -133,7 +132,7 @@ fn repetido_nao_escolhe_primeiro_nem_ultimo() {
         tokenizar_tag_de_abertura("<input name='a' NAME='b' disabled disabled>").unwrap();
     assert_eq!(
         atributos.valor("name"),
-        Err(E::AtributoRepetidoNaTag { atributo: "name" })
+        Err(ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "name" })
     );
     assert_eq!(atributos.ocorrencias("name"), 2);
     assert!(atributos.presente("disabled"));
@@ -143,11 +142,11 @@ fn repetido_nao_escolhe_primeiro_nem_ultimo() {
 fn aspas_sem_fechamento_e_erro_tipado() {
     assert_eq!(
         tokenizar_tag_de_abertura("<input name='a>"),
-        Err(E::ValorEntreAspasSemFechamento)
+        Err(ErroAtributoHtml::ValorEntreAspasSemFechamento)
     );
     assert_eq!(
         tokenizar_tag_de_abertura("<input name=\"a"),
-        Err(E::ValorEntreAspasSemFechamento)
+        Err(ErroAtributoHtml::ValorEntreAspasSemFechamento)
     );
 }
 
@@ -155,16 +154,16 @@ fn aspas_sem_fechamento_e_erro_tipado() {
 fn tag_sem_maior_que_ou_sem_inicio_e_erro_tipado() {
     assert_eq!(
         tokenizar_tag_de_abertura("<input name=a"),
-        Err(E::FimDaTagDeAberturaAusente)
+        Err(ErroAtributoHtml::FimDaTagDeAberturaAusente)
     );
     assert_eq!(
         tokenizar_tag_de_abertura("<input disabled"),
-        Err(E::FimDaTagDeAberturaAusente)
+        Err(ErroAtributoHtml::FimDaTagDeAberturaAusente)
     );
     for fonte in ["input name=a>", "", "<", "< a>", "<>"] {
         assert_eq!(
             tokenizar_tag_de_abertura(fonte),
-            Err(E::InicioDaTagDeAberturaAusente),
+            Err(ErroAtributoHtml::InicioDaTagDeAberturaAusente),
             "{fonte:?}"
         );
     }

@@ -22,11 +22,12 @@ pub(crate) fn ler_andamento_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra> {
-    use ErroAndamentoNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|f| match f {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor("barra_do_andamento_fora_da_forma")),
+        FalhaDaBarra::Fora => {
+            ErroAndamentoNaBarra::Html(ErroHtml::valor("barra_do_andamento_fora_da_forma"))
+        }
         FalhaDaBarra::Repetidas => {
-            E::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
+            ErroAndamentoNaBarra::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
         }
     })?;
     let links: Vec<&str> = ancoras
@@ -39,10 +40,10 @@ pub(crate) fn ler_andamento_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|e| match e {
-                EnderecoRecusado::NaoReconhecido => E::Html(ErroHtml::valor(
+                EnderecoRecusado::NaoReconhecido => ErroAndamentoNaBarra::Html(ErroHtml::valor(
                     "endereco_de_atualizar_andamento_nao_reconhecido",
                 )),
-                EnderecoRecusado::DeOutroProcesso => E::OutroProcesso,
+                EnderecoRecusado::DeOutroProcesso => ErroAndamentoNaBarra::OutroProcesso,
             }),
         _ => Err(ErroHtml::repetido("links_de_atualizar_andamento_repetidos").into()),
     }

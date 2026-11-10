@@ -1,6 +1,5 @@
 //! `ies unidade colunas`: GET da tela do Nível de detalhe pelo link que a D
 //! publica (`ancNivelDetalhe`). A R não o publica: troca para D e fica nela.
-use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
@@ -22,7 +21,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
     unidade_solicitada: Option<&str>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<(String, NivelDeDetalhe), E> {
+) -> Result<(String, NivelDeDetalhe), super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     let mut sessao = Sessao {
@@ -46,10 +45,10 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
 fn ler_pelo_link<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
-) -> Result<NivelDeDetalhe, E> {
+) -> Result<NivelDeDetalhe, super::ErroVisaoDoControle> {
     let url = link_do_nivel_de_detalhe(sessao.instalacao, tela)?;
     let servida = obter_tela_do_nivel(sessao, &url)?;
-    ler_nivel_de_detalhe(&servida.html).map_err(E::NivelDeDetalhe)
+    ler_nivel_de_detalhe(&servida.html).map_err(super::ErroVisaoDoControle::NivelDeDetalhe)
 }
 
 /// Um GET da tela do Nível de detalhe já autorizada (link da D ou a mesma
@@ -57,7 +56,7 @@ fn ler_pelo_link<V: EnvioDoControle>(
 pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     url: &str,
-) -> Result<TelaAtual, E> {
+) -> Result<TelaAtual, super::ErroVisaoDoControle> {
     let cookie = sessao.cookie.valor()?;
     let resposta = sessao.envio.get(url, cookie)?;
     let mime = resposta.mime.clone();
@@ -74,8 +73,10 @@ pub(super) fn obter_tela_do_nivel<V: EnvioDoControle>(
 pub(super) fn link_do_nivel_de_detalhe(
     instalacao: &Instalacao,
     tela: &TelaAtual,
-) -> Result<String, E> {
-    let invalido = E::Html(ErroHtml::valor("link_do_nivel_de_detalhe_nao_reconhecido"));
+) -> Result<String, super::ErroVisaoDoControle> {
+    let invalido = super::ErroVisaoDoControle::Html(ErroHtml::valor(
+        "link_do_nivel_de_detalhe_nao_reconhecido",
+    ));
     let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;

@@ -1,18 +1,20 @@
 //! Posição e plano de página da visão D e leitura dos ocultos que a
 //! paginação confere, sem rede.
-use super::ErroVisaoDoControle as E;
 use crate::caixa_detalhada::LeituraDetalhada;
 use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginas::FaixaNaPagina;
 
-fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
+fn html_invalido(_: impl Sized) -> super::ErroVisaoDoControle {
+    super::ErroVisaoDoControle::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
 }
 
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.
-pub(super) fn valores_ocultos(html: &str, id: &str) -> Result<Vec<String>, E> {
+pub(super) fn valores_ocultos(
+    html: &str,
+    id: &str,
+) -> Result<Vec<String>, super::ErroVisaoDoControle> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
     let parser = dom.parser();
     let mut valores = Vec::new();
@@ -44,27 +46,30 @@ pub(super) struct PosicaoDetalhada {
 }
 
 /// Lê a posição da tela D já interpretada em `leitura`.
-pub(super) fn posicao(html: &str, leitura: &LeituraDetalhada) -> Result<PosicaoDetalhada, E> {
+pub(super) fn posicao(
+    html: &str,
+    leitura: &LeituraDetalhada,
+) -> Result<PosicaoDetalhada, super::ErroVisaoDoControle> {
     let indices = valores_ocultos(html, "hdnDetalhadoPaginaAtual")?;
     let total = leitura.total_declarado;
     let faixa = leitura.faixa_observada;
-    let incompativel = E::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa;
+    let incompativel = super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa;
     let indice = match indices.as_slice() {
         // UnB 4.0.9: sem o campo, sem paginação; só a página 1 inteira.
         [] => match faixa {
             None => 0,
             Some((1, fim)) if fim == total => 0,
-            Some(_) => return Err(E::PaginaAtualDaVisaoDetalhadaIlegivel),
+            Some(_) => return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel),
         },
         [valor] => {
             if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
-                return Err(E::PaginaAtualDaVisaoDetalhadaIlegivel);
+                return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel);
             }
             valor
                 .parse()
-                .map_err(|_| E::PaginaAtualDaVisaoDetalhadaIlegivel)?
+                .map_err(|_| super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel)?
         }
-        _ => return Err(E::PaginaAtualDaVisaoDetalhadaIlegivel),
+        _ => return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel),
     };
     let (tamanho, paginas) = match faixa {
         None if indice == 0 => (None, 1),
@@ -105,18 +110,18 @@ pub(super) struct PedidoDePagina {
 pub(super) fn planejar(
     posicao: &PosicaoDetalhada,
     pagina: usize,
-) -> Result<Option<PedidoDePagina>, E> {
+) -> Result<Option<PedidoDePagina>, super::ErroVisaoDoControle> {
     if pagina == 0 || pagina > posicao.paginas {
-        return Err(E::PaginaForaDoIntervalo { solicitada: pagina });
+        return Err(super::ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: pagina });
     }
     if pagina == posicao.indice + 1 {
         return Ok(None);
     }
     let Some(tamanho) = posicao.tamanho else {
-        return Err(E::PaginaForaDoIntervalo { solicitada: pagina });
+        return Err(super::ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: pagina });
     };
     if !posicao.paginador {
-        return Err(E::PaginadorDaVisaoDetalhadaNaoPublicado);
+        return Err(super::ErroVisaoDoControle::PaginadorDaVisaoDetalhadaNaoPublicado);
     }
     let indice = pagina - 1;
     Ok(Some(PedidoDePagina {

@@ -2,7 +2,6 @@
 use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
 use crate::transporte::sessao::CookieDaSessao;
-use ErroSubmissaoFormulario as E;
 use std::cell::Cell;
 use std::fs;
 use std::io::Cursor;
@@ -67,14 +66,16 @@ fn resposta(status_code: i32, html: &str) -> RespostaDoPost<Cursor<Vec<u8>>> {
     )
 }
 
-fn html(r: Result<RespostaDoEnvio, E>) -> Result<String, E> {
+fn html(
+    r: Result<RespostaDoEnvio, ErroSubmissaoFormulario>,
+) -> Result<String, ErroSubmissaoFormulario> {
     r.map(|resposta| match resposta {
         RespostaDoEnvio::Html(html) => html,
         RespostaDoEnvio::Redirecionamento(_) => panic!("302 inesperado"),
     })
 }
 
-fn enviar_com(status_code: i32, html_: &str) -> (Result<String, E>, usize) {
+fn enviar_com(status_code: i32, html_: &str) -> (Result<String, ErroSubmissaoFormulario>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
@@ -136,7 +137,7 @@ fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
         (403, "acesso_negado"),
     ] {
         let (r, n) = enviar_com(status, "");
-        let E::Transporte(obtida) = r.unwrap_err() else {
+        let ErroSubmissaoFormulario::Transporte(obtida) = r.unwrap_err() else {
             panic!("{status}: esperava falha de transporte")
         };
         assert_eq!(
@@ -151,14 +152,20 @@ fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
 fn tela_de_login_com_200_apos_envio_e_recusa_propria() {
     let login = "<html><form id='frmLogin'><input name='txtUsuario'></form></html>";
     let (r, _) = enviar_com(200, login);
-    assert_eq!(r.unwrap_err(), E::TelaDeLoginRecebidaAposEnvio);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+    );
 }
 
 #[test]
 fn resposta_200_sem_marcador_de_resultado_e_recusada() {
     let formulario_de_volta = "<html><form id='frmPesquisaProtocolo'></form></html>";
     let (r, _) = enviar_com(200, formulario_de_volta);
-    assert_eq!(r.unwrap_err(), E::MarcadorDeResultadoAusenteNaResposta);
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
+    );
 }
 
 #[test]
@@ -173,7 +180,10 @@ fn falha_de_rede_nao_repete_o_envio() {
             Err(FalhaTransporte::Rede)
         },
     );
-    assert_eq!(r.unwrap_err(), E::Transporte(FalhaTransporte::Rede));
+    assert_eq!(
+        r.unwrap_err(),
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+    );
     assert_eq!(chamadas.get(), 1);
 }
 
@@ -188,7 +198,7 @@ fn cookie_com_permissao_insegura_impede_qualquer_envio() {
     });
     assert_eq!(
         r.unwrap_err(),
-        E::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
+        ErroSubmissaoFormulario::Transporte(FalhaTransporte::ArquivoPrivadoComPermissoesInseguras)
     );
     assert_eq!(chamadas.get(), 0);
 }
@@ -205,7 +215,7 @@ impl std::io::Read for CorpoQueNaoDeveSerLido {
 fn enviar_com_redirecionamento(
     status: u16,
     localizacao: Option<&str>,
-) -> (Result<RespostaDoEnvio, E>, usize) {
+) -> (Result<RespostaDoEnvio, ErroSubmissaoFormulario>, usize) {
     let (_pasta, arquivo) = cookie(0o600);
     let chamadas = Cell::new(0);
     let r = enviar_submissao_via(submissao(), &CookieDaSessao::ler(&arquivo), |_, _| {
@@ -257,7 +267,7 @@ fn post_com_307_ou_308_nao_reenvia_o_formulario() {
             status,
             Some("http://sei.exemplo.gov.br/sei/controlador.php"),
         );
-        let Err(E::Transporte(falha)) = resposta else {
+        let Err(ErroSubmissaoFormulario::Transporte(falha)) = resposta else {
             panic!("esperada recusa tipada");
         };
         assert_eq!(falha.status_http().map(|s| s.status), Some(status));
@@ -298,7 +308,10 @@ fn erro_500_apos_envio_expoe_status_e_mensagem_pela_submissao() {
         http.mensagem_do_servidor.as_deref(),
         Some("Falha ao paginar.")
     );
-    assert_eq!(E::TelaDeLoginRecebidaAposEnvio.status_http(), None);
+    assert_eq!(
+        ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio.status_http(),
+        None
+    );
 }
 
 /// Validação da Infra na estrutura observada (textarea oculto + `alert`).
@@ -330,6 +343,6 @@ fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
     let sem_marcador = com_validacao(formulario_de_volta, "");
     assert_eq!(
         enviar_com(200, &sem_marcador).0.unwrap_err(),
-        E::MarcadorDeResultadoAusenteNaResposta
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
     );
 }

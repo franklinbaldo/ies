@@ -65,7 +65,7 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
    barato que o índice permitir, em geral o link da árvore: 1 GET):
    sucesso só se a situação lida lista a unidade da sessão.
 
-| Fato na tela do nó | Variante ou `onde` (stderr) |
+| Fato na tela do nó | Erro ou `onde` (stderr) |
 | --- | --- |
 | Nenhuma das duas formas | `endereco_de_reabrir_ausente_na_tela_do_no` |
 | Função ou variável fora da forma exata | `endereco_de_reabrir_fora_da_forma_observada` |
@@ -110,8 +110,8 @@ continuam como estavam. Desfaz-se com `ies processo concluir`.
 `forma` é `funcao`, `variavel` ou `null` (antes de pedir a tela do nó: na
 prévia e quando não há o que fazer). `depois` são as siglas lidas na
 verificação. Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout
-vazio e `Error: <variante de ErroReabrir>` em stderr; `aberto_em`,
-`depois`, `falha_do_envio` e `verificacao` são campos das variantes que
+vazio e `Error: <ErroReabrir::…>` em stderr; `aberto_em`,
+`depois`, `falha_do_envio` e `verificacao` são campos dos erros que
 os observaram, e o status HTTP vem na causa `Transporte(Status(..))`. A
 saída humana termina com "Para reabrir, repita com --confirmar" na prévia.
 

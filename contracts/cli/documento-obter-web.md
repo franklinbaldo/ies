@@ -117,7 +117,7 @@ observada até cada omissão. Se todos forem omitidos, `documentos: []`.
 Cancelamento, sessão encerrada, falha HTTP/transporte e divergência
 de identidade continuam erros. Sem GET adicional ou retry.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `UsoInvalido::NumeroSeiRepetido` (saída 2) | o mesmo número duas vezes no pedido |
 | `numero_processo_vazio` / `numero_processo_controle` / `referencia_processo_legada` (saída 2) | `--processo` inválido, como em `processo NUP` |
@@ -173,7 +173,7 @@ As gravações do cache usam diretórios privados 0700, arquivo 0600
 e nome com SHA-256. Conteúdo com `infra_hash` é recusado; arquivos
 preexistentes têm seu conteúdo confrontado com hash completo.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `FalhaCache::Diretorio` | caminho ou identidade do cache inválido |
 | `FalhaCache::Gravacao` | não foi possível gravar ou publicar cache privado |

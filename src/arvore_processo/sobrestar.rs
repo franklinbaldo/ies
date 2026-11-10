@@ -84,7 +84,6 @@ pub(crate) fn ler_endereco_de_retomar(
     html: &str,
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroEnderecoDeRetomar> {
-    use ErroEnderecoDeRetomar as E;
     let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
         .map_err(|_| ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
     let variaveis = super::concluir::urls_das_variaveis(html, "linkRemoverSobrestamentoProcesso")
@@ -98,8 +97,8 @@ pub(crate) fn ler_endereco_de_retomar(
         .map(EnderecoDeEscrita::novo)
         .map_err(|e| match e {
             EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_de_retomar_nao_reconhecido"))
+                ErroEnderecoDeRetomar::Html(ErroHtml::valor("endereco_de_retomar_nao_reconhecido"))
             }
-            EnderecoRecusado::DeOutroProcesso => E::OutroProcesso,
+            EnderecoRecusado::DeOutroProcesso => ErroEnderecoDeRetomar::OutroProcesso,
         })
 }

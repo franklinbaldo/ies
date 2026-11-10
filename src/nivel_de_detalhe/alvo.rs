@@ -46,9 +46,8 @@ impl AlvoDasColunas {
     /// `todas` ou chaves estáveis separadas por vírgula (espaços em volta
     /// de cada chave são ignorados).
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroDaListaDeColunas> {
-        use ErroDaListaDeColunas as E;
         if texto.trim().is_empty() {
-            return Err(E::ListaDeColunasVazia);
+            return Err(ErroDaListaDeColunas::ListaDeColunasVazia);
         }
         if texto.trim() == "todas" {
             return Ok(Self::Todas);
@@ -56,14 +55,15 @@ impl AlvoDasColunas {
         let mut colunas = Vec::new();
         for item in texto.split(',').map(str::trim) {
             if item.is_empty() {
-                return Err(E::ItemVazioNaListaDeColunas);
+                return Err(ErroDaListaDeColunas::ItemVazioNaListaDeColunas);
             }
-            let coluna =
-                ColunaDoDetalhe::pela_chave(item).ok_or_else(|| E::ColunaDesconhecida {
+            let coluna = ColunaDoDetalhe::pela_chave(item).ok_or_else(|| {
+                ErroDaListaDeColunas::ColunaDesconhecida {
                     chave: item.to_owned(),
-                })?;
+                }
+            })?;
             if colunas.contains(&coluna) {
-                return Err(E::ColunaRepetidaNaLista { coluna });
+                return Err(ErroDaListaDeColunas::ColunaRepetidaNaLista { coluna });
             }
             colunas.push(coluna);
         }

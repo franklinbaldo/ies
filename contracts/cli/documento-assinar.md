@@ -91,7 +91,7 @@ lista, senão `campo_nao_previsto_na_tela_de_assinatura`: ocultos
 Botões `type=button` (`btnAssinar`, `btnCopiarCodigo`) não viajam: o
 `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`.
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | HTML não interpretado | `tela_de_assinatura_nao_interpretada` |
 | Sem o formulário | `formulario_de_assinatura_ausente` |
@@ -148,9 +148,9 @@ conteúdo depois invalida a assinatura). Não há comando que desfaça.
 `assinaturas`: `{"nome", "cargo", "unidade"}` da árvore. `edicao`:
 `nao_assinado`, `assinado`, `nao_publicada` ou `fora_da_forma`. Nunca URL,
 `infra_hash`, cookie ou senha. Falhas: saída 1, stdout vazio e
-`Error: <variante de ErroAssinar>` em stderr; `cargos`,
-`assinaturas_depois`, `falha_do_envio` e `verificacao` são campos das
-variantes que os observaram. A prévia
+`Error: <ErroAssinar::…>` em stderr; `cargos`,
+`assinaturas_depois`, `falha_do_envio` e `verificacao` são campos dos
+erros que os observaram. A prévia
 humana termina com "Para assinar, repita com --cargo e --confirmar".
 
 ## Sequência e orçamento

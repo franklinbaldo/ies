@@ -48,7 +48,7 @@ fn outro_titulo_frase_ausente_ou_frase_fora_do_texto_visivel_nao_e_bloqueio() {
 }
 
 #[test]
-fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
+fn bloqueio_403_tem_erro_proprio_com_status_e_mensagem() {
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=utf-8", BLOQUEIO)).unwrap_err();
     let http = falha.status_http().unwrap();

@@ -153,7 +153,7 @@ rádios `rdoPrazo`, `rdoPrazoRetornoProgramado`,
 `rdoPrazo`/`txtPrazo`/`txtDias`; 4.1 e 5.0, as de retorno e reabertura
 programados).
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | Sem o formulário | `formulario_de_envio_ausente` |
 | Caixa ou rádio marcado, texto ou `hdnUnidades`/`hdnIdUnidade` não vazio, opção em `selUnidades`, opção `selected` em `selProcedimentos` | `TelaDeEnvioComOpcoesPreenchidas` |
@@ -179,7 +179,7 @@ presente na unidade de origem. A tela só permite comprovar o **antes**.
 A prévia publica `anotacao_antes` sem converter ausência de observação em
 ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete.
 
-| Forma não observada | Variante ou `onde` (stderr) |
+| Forma não observada | Erro ou `onde` (stderr) |
 | --- | --- |
 | Barra ilegível | `barra_de_anotacoes_nao_interpretada` |
 | Endereço de anotação inválido | `endereco_de_anotacoes_nao_reconhecido` |
@@ -238,9 +238,9 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
 ```
 
 Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout vazio e
-`Error: <variante de ErroEnviar>` em stderr; `aberto_em`, `oferecidos`,
-`candidatos`, `depois`, `falha_do_envio` e `verificacao` são campos das
-variantes que os observaram. Destino recusado pelo SEI sobe com o contexto
+`Error: <ErroEnviar::…>` em stderr; `aberto_em`, `oferecidos`,
+`candidatos`, `depois`, `falha_do_envio` e `verificacao` são campos dos
+erros que os observaram. Destino recusado pelo SEI sobe com o contexto
 `SugestoesGuardadas` quando o índice local tem siglas parecidas. A saída humana da prévia termina com "Para
 enviar, repita com --confirmar".
 

@@ -9,7 +9,7 @@ pub(crate) struct Resposta<'a> {
     pub(crate) operacao: &'a str,
     pub(crate) metodo: &'a str,
     pub(crate) status: u64,
-    pub(crate) item: &'a Value,
+    pub(crate) interacao: &'a Value,
 }
 
 pub(crate) fn respostas(json: &Value) -> Vec<Resposta<'_>> {
@@ -19,19 +19,19 @@ pub(crate) fn respostas(json: &Value) -> Vec<Resposta<'_>> {
     lista
         .iter()
         .enumerate()
-        .map(|(passo, item)| Resposta {
+        .map(|(passo, interacao)| Resposta {
             passo,
-            operacao: item["request"]["operation"].as_str().unwrap_or(""),
-            metodo: item["request"]["method"].as_str().unwrap_or(""),
-            status: item["response"]["status_code"].as_u64().unwrap_or(0),
-            item,
+            operacao: interacao["request"]["operation"].as_str().unwrap_or(""),
+            metodo: interacao["request"]["method"].as_str().unwrap_or(""),
+            status: interacao["response"]["status_code"].as_u64().unwrap_or(0),
+            interacao,
         })
         .collect()
 }
 
 /// Valores do parâmetro `nome` na consulta da URL servida.
-pub(crate) fn parametro<'a>(item: &'a Value, nome: &str) -> Vec<&'a str> {
-    let url = item["response"]["url"].as_str().unwrap_or("");
+pub(crate) fn parametro<'a>(interacao: &'a Value, nome: &str) -> Vec<&'a str> {
+    let url = interacao["response"]["url"].as_str().unwrap_or("");
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
     consulta
         .split('&')
@@ -43,15 +43,15 @@ pub(crate) fn parametro<'a>(item: &'a Value, nome: &str) -> Vec<&'a str> {
 
 /// O `id_procedimento` da URL servida: um único valor decimal (repetido
 /// igual é aceito, como em `arvore_visualizar`).
-pub(crate) fn id_procedimento(item: &Value) -> Option<String> {
-    decimal_unico(&parametro(item, "id_procedimento"))
+pub(crate) fn id_procedimento(interacao: &Value) -> Option<String> {
+    decimal_unico(&parametro(interacao, "id_procedimento"))
 }
 
 /// O id da tela aberta pela pesquisa rápida: `id_protocolo`, a mesma
 /// chave que `conferir_trabalho` lê do 302 (`OrigemDoTrabalho::PesquisaRapida`).
-pub(crate) fn id_da_pesquisa_rapida(item: &Value) -> Option<String> {
-    (parametro(item, "acao_origem") == ["protocolo_pesquisa_rapida"])
-        .then(|| decimal_unico(&parametro(item, "id_protocolo")))
+pub(crate) fn id_da_pesquisa_rapida(interacao: &Value) -> Option<String> {
+    (parametro(interacao, "acao_origem") == ["protocolo_pesquisa_rapida"])
+        .then(|| decimal_unico(&parametro(interacao, "id_protocolo")))
         .flatten()
 }
 
@@ -73,16 +73,18 @@ pub(crate) fn instalacao(json: &Value) -> Option<Instalacao> {
     Instalacao::interpretar(&format!("{raiz}{base}"))
 }
 
-/// A URL (sem consulta, que não é gravada) da requisição de `item`.
-pub(crate) fn url_sem_consulta(json: &Value, item: &Value) -> String {
+/// A URL (sem consulta, que não é gravada) da requisição de `interacao`.
+pub(crate) fn url_sem_consulta(json: &Value, interacao: &Value) -> String {
     let raiz = json["sei_root"].as_str().unwrap_or_default();
-    let caminho = item["request"]["pathname"].as_str().unwrap_or_default();
+    let caminho = interacao["request"]["pathname"]
+        .as_str()
+        .unwrap_or_default();
     format!("{raiz}{caminho}")
 }
 
 /// O `Location` de um 302 gravado.
-pub(crate) fn localizacao(item: &Value) -> Option<&str> {
-    let cabecalhos = item["response"]["headers"].as_object()?;
+pub(crate) fn localizacao(interacao: &Value) -> Option<&str> {
+    let cabecalhos = interacao["response"]["headers"].as_object()?;
     cabecalhos
         .iter()
         .find(|(nome, _)| nome.eq_ignore_ascii_case("location"))
@@ -90,17 +92,17 @@ pub(crate) fn localizacao(item: &Value) -> Option<&str> {
 }
 
 /// O corpo gravado (base64), vazio se ausente ou ilegível.
-pub(crate) fn corpo(item: &Value) -> Vec<u8> {
+pub(crate) fn corpo(interacao: &Value) -> Vec<u8> {
     use base64::Engine as _;
-    item["response"]["body_base64"]
+    interacao["response"]["body_base64"]
         .as_str()
         .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
         .unwrap_or_default()
 }
 
 /// O `Content-Type` gravado, vazio se ausente.
-pub(crate) fn mime(item: &Value) -> String {
-    item["response"]["headers"]
+pub(crate) fn mime(interacao: &Value) -> String {
+    interacao["response"]["headers"]
         .as_object()
         .and_then(|h| {
             h.iter()

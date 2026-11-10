@@ -5,7 +5,7 @@
 //! `aberto_em`), a tela "Enviar Processo" (conferência e a consulta
 //! derivada), a resposta XML de cada consulta feita a partir dela, o 302
 //! do POST e, por escrita, a regra de verificação: a unidade nova da
-//! árvore relida é um item da última consulta (escolhido pela sigla), e o
+//! árvore relida é um interacao da última consulta (escolhido pela sigla), e o
 //! POST derivado da tela com ele; a origem fica ou sai. Só contagens e
 //! formas, nunca URL. `#[ignore]`: lê os ZIPs do cache local
 //! (`IES_ACERVO_CACHE`).
@@ -87,12 +87,12 @@ fn tela_servida(tela: &Tela) -> TelaServida<'_> {
     }
 }
 
-fn resposta_gravada(item: &serde_json::Value, status: u64) -> RespostaDoPost<Cursor<Vec<u8>>> {
-    let corpo = gravacao::corpo(item);
+fn resposta_gravada(interacao: &serde_json::Value, status: u64) -> RespostaDoPost<Cursor<Vec<u8>>> {
+    let corpo = gravacao::corpo(interacao);
     RespostaDoPost {
         resposta: RespostaWeb {
             status_code: i32::try_from(status).unwrap_or(0),
-            mime: gravacao::mime(item),
+            mime: gravacao::mime(interacao),
             content_length: Some(corpo.len()),
             localizacao: None,
             corpo: Cursor::new(corpo),
@@ -160,10 +160,10 @@ fn replay_de_processo_enviar_no_acervo() {
         let mut escrita: Option<Escrita> = None;
         let mut ultima: &str = "";
         for r in gravacao::respostas(json) {
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
                     if let Some(t) =
@@ -194,7 +194,10 @@ fn replay_de_processo_enviar_no_acervo() {
                 }
                 ("procedimento_enviar", "GET", 200) => {
                     let Some(h) = html() else { continue };
-                    let url = r.item["response"]["url"].as_str().unwrap_or("").to_owned();
+                    let url = r.interacao["response"]["url"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_owned();
                     let classe = match conferir_tela_de_envio(&h, &id) {
                         Ok(conferida) => {
                             let forma = if conferida.unidade_atual {
@@ -238,27 +241,28 @@ fn replay_de_processo_enviar_no_acervo() {
                     } else {
                         "de outra tela"
                     };
-                    let classe = match ler_resposta_da_consulta(resposta_gravada(r.item, status)) {
-                        Ok(lidos) => {
-                            let n = match lidos.len() {
-                                0 => "nenhum item",
-                                1 => "um item",
-                                _ => "vários itens",
-                            };
-                            if ultima == "procedimento_enviar" {
-                                itens = lidos;
+                    let classe =
+                        match ler_resposta_da_consulta(resposta_gravada(r.interacao, status)) {
+                            Ok(lidos) => {
+                                let n = match lidos.len() {
+                                    0 => "nenhum interacao",
+                                    1 => "um interacao",
+                                    _ => "vários itens",
+                                };
+                                if ultima == "procedimento_enviar" {
+                                    itens = lidos;
+                                }
+                                format!("{de}: {n}")
                             }
-                            format!("{de}: {n}")
-                        }
-                        Err(falha) => format!("{de}: `{}`", falha.rotulo()),
-                    };
+                            Err(falha) => format!("{de}: `{}`", falha.rotulo()),
+                        };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }
                 ("procedimento_enviar", "POST", status) => {
                     let classe = match status {
                         302 if redirecionamento_esperado(
-                            gravacao::localizacao(r.item),
-                            &gravacao::url_sem_consulta(json, r.item),
+                            gravacao::localizacao(r.interacao),
+                            &gravacao::url_sem_consulta(json, r.interacao),
                             &id,
                         ) =>
                         {

@@ -100,7 +100,6 @@ fn ler_tabela(
     parser: &tl::Parser<'_>,
     situacao: &'static str,
 ) -> Result<Vec<Retorno>, ErroRetornos> {
-    use ErroRetornos as E;
     let legendas: Vec<_> = tabela
         .query_selector(parser, "caption")
         .into_iter()
@@ -108,10 +107,10 @@ fn ler_tabela(
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
         .collect();
     let [legenda] = legendas.as_slice() else {
-        return Err(E::TelaDeRetornosDesconhecida);
+        return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     };
     let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
-        .ok_or(E::TelaDeRetornosDesconhecida)?;
+        .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)?;
     let titulos: Vec<String> = tabela
         .query_selector(parser, "th")
         .into_iter()
@@ -123,7 +122,7 @@ fn ler_tabela(
         titulos
             .iter()
             .position(|c| c == nome)
-            .ok_or(E::TelaDeRetornosDesconhecida)
+            .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)
     };
     let (processo, unidade, data) = (
         indice("processo")?,
@@ -131,7 +130,7 @@ fn ler_tabela(
         indice("data programada")?,
     );
     if titulos.iter().collect::<HashSet<_>>().len() != titulos.len() {
-        return Err(E::TelaDeRetornosDesconhecida);
+        return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     }
     let retorno = titulos.iter().position(|c| c == "data de retorno efetiva");
     let prazo = titulos.iter().position(|c| c == "prazo restante");
@@ -150,14 +149,14 @@ fn ler_tabela(
             continue;
         }
         if celulas.len() != titulos.len() {
-            return Err(E::TelaDeRetornosDesconhecida);
+            return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
         let valor = |pos: usize| texto(celulas[pos], parser);
         let numero = valor(processo);
         let origem = valor(unidade);
         let programada = valor(data);
         if numero.is_empty() || origem.is_empty() || !data_valida(&programada) {
-            return Err(E::TelaDeRetornosDesconhecida);
+            return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
         let opcional = |pos: Option<usize>| {
             pos.and_then(|p| {
@@ -175,7 +174,7 @@ fn ler_tabela(
         });
     }
     if lista.len() != declarado {
-        return Err(E::ListaDeRetornosIncompleta);
+        return Err(ErroRetornos::ListaDeRetornosIncompleta);
     }
     Ok(lista)
 }
@@ -183,16 +182,15 @@ fn ler_tabela(
 /// So retorna uma lista quando cada situacao tem tabela conferida ou
 /// evidencia explicita da area sem registros.
 pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos> {
-    use ErroRetornos as E;
     for prefixo in ["Aguardando", "Devolver"] {
         if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
-            .map_err(|_| E::TelaDeRetornosDesconhecida)?
+            .map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)?
         {
-            return Err(E::PaginacaoDosRetornosNaoObservada);
+            return Err(ErroRetornos::PaginacaoDosRetornosNaoObservada);
         }
     }
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaDeRetornosDesconhecida)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)?;
     let parser = dom.parser();
     let mut situacoes = HashSet::new();
     let mut lista = Vec::new();
@@ -211,7 +209,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
                 .query_selector(parser, "table")
                 .is_some_and(|mut it| it.next().is_some())
         {
-            return Err(E::TelaDeRetornosDesconhecida);
+            return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
         lista.extend(ler_tabela(tabela, parser, situacao)?);
     }
@@ -234,7 +232,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         // Duas areas com o mesmo id nao permitem provar a completude,
         // mesmo quando uma delas afirma que o mes esta vazio.
         if !areas_observadas.insert(situacao) {
-            return Err(E::TelaDeRetornosDesconhecida);
+            return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
         if situacao == "aguardando" {
             areas_aguardando += 1;
@@ -254,7 +252,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         if identificador(&texto(area, parser)) == "nenhum registro encontrado."
             && !vazios.insert(situacao)
         {
-            return Err(E::TelaDeRetornosDesconhecida);
+            return Err(ErroRetornos::TelaDeRetornosDesconhecida);
         }
     }
     if !situacoes.is_empty() {
@@ -268,12 +266,12 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         if duas_situacoes || area_mensal_observada {
             Ok(lista)
         } else {
-            Err(E::ListaDeRetornosIncompleta)
+            Err(ErroRetornos::ListaDeRetornosIncompleta)
         }
     } else if vazios.contains("aguardando") {
         Ok(Vec::new())
     } else {
-        Err(E::TelaDeRetornosDesconhecida)
+        Err(ErroRetornos::TelaDeRetornosDesconhecida)
     }
 }
 

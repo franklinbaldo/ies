@@ -52,7 +52,7 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
     let mut saida = Replay::default();
     let mut anterior: Option<String> = None;
     for resp in gravacao::respostas(json) {
-        let pathname = resp.item["request"]["pathname"].as_str().unwrap_or("");
+        let pathname = resp.interacao["request"]["pathname"].as_str().unwrap_or("");
         if resp.metodo == "GET" && resp.status == 200 && pathname.ends_with("/sip/login.php") {
             saida.registros.push(tela_de_login(&cas, &resp));
         }
@@ -63,15 +63,15 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
     saida
 }
 
-fn bytes(item: &serde_json::Value) -> Vec<u8> {
-    item["response"]["body_base64"]
+fn bytes(interacao: &serde_json::Value) -> Vec<u8> {
+    interacao["response"]["body_base64"]
         .as_str()
         .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
         .unwrap_or_default()
 }
 
-fn mime(item: &serde_json::Value) -> String {
-    item["response"]["headers"]
+fn mime(interacao: &serde_json::Value) -> String {
+    interacao["response"]["headers"]
         .as_object()
         .and_then(|h| {
             h.iter()
@@ -84,10 +84,10 @@ fn mime(item: &serde_json::Value) -> String {
 
 /// A mesma decodificação do GET do Controle e do POST do formulário.
 pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte> {
-    let corpo = bytes(resp.item);
+    let corpo = bytes(resp.interacao);
     decodificar_resposta(RespostaWeb {
         status_code: i32::try_from(resp.status).unwrap_or(0),
-        mime: mime(resp.item),
+        mime: mime(resp.interacao),
         content_length: None,
         localizacao: None,
         corpo: corpo.as_slice(),
@@ -102,7 +102,7 @@ fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
 
-fn subcodigo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
+fn rotulo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
     // No POST, a tela de login vira a recusa do envio do formulário.
     if resp.metodo == "POST" && *falha == FalhaTransporte::PaginaDeLoginRecebidaNoControle {
         return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
@@ -121,8 +121,8 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let html = match transporte(resp) {
         Ok(html) => html,
         Err(falha) => {
-            t.resultado = Resultado::Recusado(subcodigo_do_transporte(resp, &falha));
-            if let Some(local) = gravacao::localizacao(resp.item) {
+            t.resultado = Resultado::Recusado(rotulo_do_transporte(resp, &falha));
+            if let Some(local) = gravacao::localizacao(resp.interacao) {
                 let acao = parametro_de(local, "acao").unwrap_or("outra");
                 t.formas.push(format!("location_acao_{acao}"));
             }
@@ -154,7 +154,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
         "ausente"
     };
     v.formas.push(format!("visao_{visao}"));
-    let filtro = gravacao::parametro(resp.item, "tipo_filtro");
+    let filtro = gravacao::parametro(resp.interacao, "tipo_filtro");
     if let Some(f) = filtro.first() {
         v.formas.push(format!("tipo_filtro_{f}"));
     }

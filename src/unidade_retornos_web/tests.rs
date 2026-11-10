@@ -461,10 +461,5 @@ fn primeiro_dia_duplicado_com_url_divergente_falha_antes_do_get() {
     assert_eq!(pedidos, 1);
 }
 
-#[test]
-fn falhas_mantem_o_subcodigo_do_fato_tipado() {
-    // Refatoracao #253: fontes sao compostas, nao viram texto generico.
-}
-
 #[path = "tests/saltos.rs"]
 mod saltos;

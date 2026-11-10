@@ -91,7 +91,7 @@ passou sem RED; correção de extração requer CI e novo ensaio seguro.
 - **RED/ordem:** primeiro commit `772bac7` com quatro fixtures
   sintéticas adversariais, depois `7a32f7c` com a correção. Primeiro
   commit `f015675` exigindo composição de `Causa`, depois migração
-  das variantes. Teste adicional de preservação do HTTP 200 da Infra em
+  dos erros. Teste adicional de preservação do HTTP 200 da Infra em
   `bf6c27b` antes do ajuste `aae94d0`. **RED isolado desses testes:
   NOT_RUN (falhas não aferidas)**, pois nenhuma execução CI foi
   observada nesses heads intermediários; não se infere contagem.

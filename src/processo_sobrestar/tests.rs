@@ -1,6 +1,6 @@
 //! Testes Web sintéticos da prévia: mesmo transporte roteirizado de
 //! processo concluir; contagem exata, zero POST e decisão antes da escrita.
-use super::{Acao, ErroSobrestamento as E, preparar};
+use super::{Acao, ErroSobrestamento, preparar};
 use crate::arvore_processo::tests_concluir::arvore_para_concluir;
 use crate::processo_concluir::tests_apoio::{
     ID, NUP, UNIDADE, abertura, ambiente, ancora, arvore, pedidos_da_abertura, rodar_com,
@@ -60,7 +60,7 @@ fn sobrestar_ja_sobrestado_falha_fechado() {
         abertura(sobrestada(UNIDADE)),
         |sessao, nup, indice, envio| preparar(sessao, nup, None, Acao::Sobrestar, indice, envio),
     );
-    assert_eq!(r, Err(E::JaSobrestado));
+    assert_eq!(r, Err(ErroSobrestamento::JaSobrestado));
     assert_eq!(pedidos, pedidos_da_abertura());
 }
 #[test]
@@ -71,7 +71,7 @@ fn retomar_sem_sobrestamento_falha_fechado() {
         abertura(arvore(&[UNIDADE], &[sobrestar()])),
         |sessao, nup, indice, envio| preparar(sessao, nup, None, Acao::Retomar, indice, envio),
     );
-    assert_eq!(r, Err(E::NaoSobrestado));
+    assert_eq!(r, Err(ErroSobrestamento::NaoSobrestado));
     assert_eq!(pedidos, pedidos_da_abertura());
 }
 #[test]
@@ -82,7 +82,7 @@ fn sobrestar_sem_link_e_retomar_de_outra_unidade_recusados() {
         abertura(arvore(&[UNIDADE], &[])),
         |sessao, nup, indice, envio| preparar(sessao, nup, None, Acao::Sobrestar, indice, envio),
     );
-    assert_eq!(r, Err(E::AcaoNaoOferecida));
+    assert_eq!(r, Err(ErroSobrestamento::AcaoNaoOferecida));
     assert_eq!(pedidos, pedidos_da_abertura());
     let amb = ambiente();
     let (r, pedidos) = rodar_com(
@@ -90,6 +90,6 @@ fn sobrestar_sem_link_e_retomar_de_outra_unidade_recusados() {
         abertura(sobrestada("OUTRA")),
         |sessao, nup, indice, envio| preparar(sessao, nup, None, Acao::Retomar, indice, envio),
     );
-    assert_eq!(r, Err(E::SobrestadoEmOutraUnidade));
+    assert_eq!(r, Err(ErroSobrestamento::SobrestadoEmOutraUnidade));
     assert_eq!(pedidos, pedidos_da_abertura());
 }

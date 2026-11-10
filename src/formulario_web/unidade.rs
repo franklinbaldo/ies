@@ -7,7 +7,6 @@ pub(super) fn conferir_unidade(
     dom: &tl::VDom<'_>,
     solicitada: &str,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    use ErroSubmissaoFormulario as E;
     // Tag ilegível sai com o erro do tokenizador; depois disso `unidade_html`
     // só falha por identificações repetidas fora do par móvel/desktop.
     nos_com_id(dom, "lnkInfraUnidade")?;
@@ -18,7 +17,7 @@ pub(super) fn conferir_unidade(
         ))?;
     let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
     if publicada != solicitada {
-        return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
+        return Err(ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada);
     }
     Ok(())
 }

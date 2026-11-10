@@ -2,7 +2,6 @@
 //! requisições (frio, quente, `--sem-marcadores` e as combinações com
 //! `--sem-andamentos`/`--sem-propriedades`), índice e recusas. Nenhum POST:
 //! a tela tem escrita (remover, adicionar) que nunca é tocada.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -208,7 +207,7 @@ fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        E::Marcadores(ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
+        super::ErroProcessoObter::Marcadores(ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -249,7 +248,9 @@ fn login_ou_503_na_tela_falham_sem_retry() {
     for (resposta, esperado) in [
         (
             r302(LOGIN),
-            Some(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
+            Some(super::ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            )),
         ),
         ((503, String::new(), None), None),
     ] {
@@ -263,7 +264,10 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         let erro = r.unwrap_err();
         match esperado {
             Some(e) => assert_eq!(erro, e),
-            None => assert!(matches!(erro, E::Transporte(_)), "{erro:?}"),
+            None => assert!(
+                matches!(erro, super::ErroProcessoObter::Transporte(_)),
+                "{erro:?}"
+            ),
         }
         assert_eq!(pedidos.len(), 4);
     }
@@ -388,7 +392,10 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_barra() {
         SO_MARCADORES,
         vec![ok(arvore_completa(ID)), (503, String::new(), None)],
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 2);
 }
 
@@ -435,7 +442,10 @@ fn redirecionamento_para_adicionar_marcador_de_outro_processo_e_recusa() {
         frio(arvore_completa(ID), vec![r302(&cadastrar("999"))]),
     );
     assert!(
-        matches!(r.unwrap_err(), E::RedirecionamentoNaoReconhecido),
+        matches!(
+            r.unwrap_err(),
+            super::ErroProcessoObter::RedirecionamentoNaoReconhecido
+        ),
         "302 de outro processo não prova zero marcadores"
     );
 }

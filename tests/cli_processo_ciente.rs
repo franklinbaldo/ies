@@ -14,7 +14,7 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
 fn sem_arquivos_de_sessao(saida: &Output) {
     assert_eq!(saida.status.code(), Some(1));
     assert!(saida.stdout.is_empty(), "falha não publica stdout");

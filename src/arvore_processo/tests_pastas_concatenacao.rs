@@ -4,7 +4,6 @@
 //! `Nos[i].acoes = Nos[i].acoes.concat('');` (1.104 vezes no acervo, sempre
 //! com o literal vazio). Num documento de pasta a árvore inteira era
 //! recusada (`barra_de_no_fora_da_forma_observada`). HTML sintético.
-use super::ErroArvore as E;
 use super::tests::NUP;
 use super::tests_pastas::{ID, arvore_fechada};
 use super::*;
@@ -43,7 +42,7 @@ fn concatenacao_com_conteudo_continua_fora_da_forma_observada() {
     let html = com_concatenacao(&arvore_fechada(), "<a href=\"#\"></a>");
     assert_eq!(
         ler_arvore(&html, NUP, ID),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::ErroArvore::Html(ErroHtml::valor(
             "barra_de_no_fora_da_forma_observada"
         )))
     );

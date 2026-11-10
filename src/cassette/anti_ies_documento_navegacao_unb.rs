@@ -66,7 +66,7 @@ fn confrontar_tela_de_pesquisa_com_cassette(caminho_card: &str) {
             r.operacao == "procedimento_trabalhar" && r.metodo == "GET" && r.status == 200
         })
         .filter_map(|r| {
-            let original = html_da_resposta(r.item).ok()?;
+            let original = html_da_resposta(r.interacao).ok()?;
             let id = id_selecionado_na_tela(&original)?;
             let (tela, processo) =
                 ler_tela_do_documento(&instalacao, &original, &id, None).ok()?;
@@ -86,10 +86,10 @@ fn confrontar_tela_de_pesquisa_com_cassette(caminho_card: &str) {
             r.operacao == "procedimento_visualizar"
                 && r.metodo == "GET"
                 && r.status == 200
-                && gravacao::id_procedimento(r.item).as_deref() == Some(processo.as_str())
+                && gravacao::id_procedimento(r.interacao).as_deref() == Some(processo.as_str())
         })
         .find_map(|r| {
-            let original = html_da_resposta(r.item).ok()?;
+            let original = html_da_resposta(r.interacao).ok()?;
             let nup = nup_declarado_na_arvore(&original)?;
             let arvore = ler_arvore(&original, &nup, processo).ok()?;
             let documento = arvore.documentos.iter().find(|d| &d.id == id)?;

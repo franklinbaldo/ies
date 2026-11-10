@@ -1,6 +1,5 @@
-//! Recusas tipadas de `ies login`, uma por fato verificável. A mensagem é
-//! apresentação; o subcódigo é a classificação. Nenhuma variante carrega
-//! credencial, cookie, URL assinada ou HTML.
+//! Recusas tipadas de `ies login`, uma por fato verificável. Nenhum erro
+//! carrega credencial, cookie, URL assinada ou HTML.
 use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
 use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;

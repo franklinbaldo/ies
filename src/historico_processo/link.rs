@@ -8,7 +8,6 @@
 //!   é definida na página).
 //!
 //! Só essas formas exatas; nada de regex nem de JavaScript executado.
-use super::ErroLinkDoHistorico as E;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
@@ -43,27 +42,30 @@ pub(crate) fn ler_link_do_historico(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<EnderecoDoHistorico, E> {
+) -> Result<EnderecoDoHistorico, super::ErroLinkDoHistorico> {
     let mut achados = do_onclick(html)?;
     achados.extend(do_script(html)?);
     let url = match achados.as_slice() {
-        [] => return Err(E::LinkDoHistoricoAusenteNaArvore),
+        [] => return Err(super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore),
         [url] => url,
         _ => return Err(ErroHtml::repetido("links_do_historico_repetidos_na_arvore").into()),
     };
     conferir_endereco_relativo(instalacao, url, super::ACAO_DO_HISTORICO, id)
         .map(EnderecoDoHistorico)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido"))
+            EnderecoRecusado::NaoReconhecido => super::ErroLinkDoHistorico::Html(ErroHtml::valor(
+                "endereco_do_historico_nao_reconhecido",
+            )),
+            EnderecoRecusado::DeOutroProcesso => {
+                super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso
             }
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDoHistoricoDeOutroProcesso,
         })
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
-fn do_onclick(html: &str) -> Result<Vec<String>, E> {
-    let ilegivel = E::Html(ErroHtml::html("html_da_arvore_nao_interpretado"));
+fn do_onclick(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
+    let ilegivel =
+        super::ErroLinkDoHistorico::Html(ErroHtml::html("html_da_arvore_nao_interpretado"));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -93,7 +95,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, E> {
 }
 
 /// Forma `UnB`: a linha da função seguida da linha que atribui o `src`.
-fn do_script(html: &str) -> Result<Vec<String>, E> {
+fn do_script(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {

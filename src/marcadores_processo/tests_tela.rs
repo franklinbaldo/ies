@@ -2,7 +2,7 @@
 //! `form#frmGerenciarMarcador`), linhas da `tblMarcadores` como lista,
 //! legenda contra linhas e recusas. Telas SINTÉTICAS (`tests_apoio`).
 use super::tests_apoio::{Linha, dois, legenda, linha, tabela, tela_com, tela_dos_marcadores};
-use super::{ErroMarcadores as E, MarcadorDoProcesso, TelaDosMarcadores, ler_marcadores};
+use super::{ErroMarcadores, MarcadorDoProcesso, TelaDosMarcadores, ler_marcadores};
 use crate::arvore_processo::tests::NUP;
 use crate::erro_html::ErroHtml;
 
@@ -18,7 +18,7 @@ fn lidos(html: &str) -> Vec<MarcadorDoProcesso> {
     }
 }
 
-fn erro(html: &str) -> E {
+fn erro(html: &str) -> ErroMarcadores {
     ler_marcadores(html, NUP, ID).unwrap_err()
 }
 
@@ -71,7 +71,7 @@ fn legenda_maior_que_as_linhas_publica_o_total_sem_alegar_completude() {
 #[test]
 fn linhas_alem_da_legenda_sao_recusa() {
     let html = tela_com(NUP, ID, &tabela(&legenda(1), &dois()));
-    assert_eq!(erro(&html), E::MarcadoresAlemDoTotalDeclarado);
+    assert_eq!(erro(&html), ErroMarcadores::MarcadoresAlemDoTotalDeclarado);
 }
 
 #[test]
@@ -88,31 +88,31 @@ fn identidade_vem_antes_de_qualquer_linha() {
     let html = tela_dos_marcadores(NUP, ID);
     assert_eq!(
         erro(&tela_dos_marcadores("00009.000009/2026-09", ID)),
-        E::NumeroDosMarcadoresDiferenteDoSolicitado
+        ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado
     );
     assert_eq!(
         erro(&tela_dos_marcadores(NUP, "99")),
-        E::IdDosMarcadoresDiferenteDoAberto
+        ErroMarcadores::IdDosMarcadoresDiferenteDoAberto
     );
     assert_eq!(
         erro(&html.replace(
             "SEI - Marcadores do Processo",
             "SEI - Controle de Processos"
         )),
-        E::TelaDosMarcadoresAusente
+        ErroMarcadores::TelaDosMarcadoresAusente
     );
     assert_eq!(
         erro("<html><body>Link sem assinatura</body></html>"),
-        E::TelaDosMarcadoresAusente
+        ErroMarcadores::TelaDosMarcadoresAusente
     );
     assert_eq!(
         erro(&html.replace("id=\"frmGerenciarMarcador\"", "id=\"frmOutro\"")),
-        E::TelaDosMarcadoresAusente
+        ErroMarcadores::TelaDosMarcadoresAusente
     );
     for erro in [
-        E::TelaDosMarcadoresAusente,
-        E::NumeroDosMarcadoresDiferenteDoSolicitado,
-        E::IdDosMarcadoresDiferenteDoAberto,
+        ErroMarcadores::TelaDosMarcadoresAusente,
+        ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado,
+        ErroMarcadores::IdDosMarcadoresDiferenteDoAberto,
     ] {
         assert!(erro.link_envelhecido(), "{erro:?}");
     }
@@ -129,7 +129,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
     ] {
         assert_eq!(
             erro(&html.replace("Marcadores (2 registros):", legenda)),
-            E::Html(ErroHtml::valor(
+            ErroMarcadores::Html(ErroHtml::valor(
                 "legenda_dos_marcadores_fora_da_forma_observada"
             )),
             "{legenda}"
@@ -140,7 +140,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
             "<th class=\"infraTh\">Texto</th>",
             "<th class=\"infraTh\">Nota</th>"
         )),
-        E::Html(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido"))
+        ErroMarcadores::Html(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido"))
     );
     let duas = html.replace(
         "</div>\n<input type=\"hidden\" id=\"hdnInfraNroItens\"",
@@ -151,7 +151,7 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
     );
     assert_eq!(
         erro(&duas),
-        E::Html(ErroHtml::repetido("tabelas_dos_marcadores_repetidas"))
+        ErroMarcadores::Html(ErroHtml::repetido("tabelas_dos_marcadores_repetidas"))
     );
 }
 
@@ -176,7 +176,7 @@ fn linha_fora_da_forma_observada_e_recusa() {
         let html = tela_com(NUP, ID, &tabela);
         assert_eq!(
             erro(&html),
-            E::Html(ErroHtml::valor("linha_do_marcador_fora_da_forma_observada")),
+            ErroMarcadores::Html(ErroHtml::valor("linha_do_marcador_fora_da_forma_observada")),
             "{ruim}"
         );
     }
@@ -189,9 +189,6 @@ fn marcador_repetido_na_tela_e_recusa() {
     let html = tela_com(NUP, ID, &tabela(&legenda(2), &[a, b]));
     assert_eq!(
         erro(&html),
-        E::Html(ErroHtml::repetido("marcador_repetido_na_tela"))
+        ErroMarcadores::Html(ErroHtml::repetido("marcador_repetido_na_tela"))
     );
 }
-
-#[test]
-fn subcodigos_estaveis() {}

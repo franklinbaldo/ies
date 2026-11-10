@@ -157,12 +157,12 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
 ) -> Result<(), FalhaDoPrazo> {
-    use FalhaDoPrazo as F;
-    let instalacao =
-        Instalacao::interpretar(sessao.origem).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
-    let codificacao = codificacao_da_tela(&dados.mime).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
+    let codificacao =
+        codificacao_da_tela(&dados.mime).ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
     let url_declarada =
-        action_de_exclusao(&dados.html_lista).ok_or(F::AcaoDeExclusaoNaoPublicada)?;
+        action_de_exclusao(&dados.html_lista).ok_or(FalhaDoPrazo::AcaoDeExclusaoNaoPublicada)?;
     let servida = TelaServida {
         url: &dados.link_lista,
         html: &dados.html_lista,
@@ -176,7 +176,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         &[("hdnInfraItemId", dados.id_controle.as_str())],
         Some(&url_declarada),
     )
-    .map_err(F::SubmissaoRecusada)?;
+    .map_err(FalhaDoPrazo::SubmissaoRecusada)?;
     let mut enviou = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -184,9 +184,9 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            F::NaoConfirmado(Some(erro))
+            FalhaDoPrazo::NaoConfirmado(Some(erro))
         } else {
-            F::SubmissaoRecusada(erro)
+            FalhaDoPrazo::SubmissaoRecusada(erro)
         }
     })?;
     match resposta {
@@ -195,30 +195,30 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
                 local.contains("acao=controle_prazo_listar")
                     && local.contains("acao_origem=controle_prazo_excluir")
             }) => {}
-        _ => return Err(F::NaoConfirmado(None)),
+        _ => return Err(FalhaDoPrazo::NaoConfirmado(None)),
     }
-    let (lista_nova, _) =
-        obter_tela(rede, cookie, &dados.link_lista).map_err(|_| F::NaoConfirmado(None))?;
+    let (lista_nova, _) = obter_tela(rede, cookie, &dados.link_lista)
+        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
     // A mesma linha do NUP precisa desaparecer da lista relida.
     match id_na_lista(&lista_nova, &dados.nup) {
         Ok(None) => {}
-        Ok(Some(_)) | Err(()) => return Err(F::NaoConfirmado(None)),
+        Ok(Some(_)) | Err(()) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
     // O link guardado leva `id_controle_prazo` do controle excluido (cassette
     // processo-prazo-excluir-unb, interacoes 11 e 19): reabrir o processo e
     // usar o link novo da barra, como a leitura de `ies processo prazo`.
-    let (_, acoes) =
-        abrir_para_escrever(sessao, pedido, indice, rede).map_err(|_| F::NaoConfirmado(None))?;
+    let (_, acoes) = abrir_para_escrever(sessao, pedido, indice, rede)
+        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
     let Ok(Some(link_novo)) = acoes.prazo else {
-        return Err(F::NaoConfirmado(None));
+        return Err(FalhaDoPrazo::NaoConfirmado(None));
     };
-    let (formulario, _) =
-        obter_tela(rede, cookie, link_novo.as_str()).map_err(|_| F::NaoConfirmado(None))?;
-    let prazo =
-        ler_tela(&formulario, &dados.id_procedimento).map_err(|_| F::NaoConfirmado(None))?;
+    let (formulario, _) = obter_tela(rede, cookie, link_novo.as_str())
+        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+    let prazo = ler_tela(&formulario, &dados.id_procedimento)
+        .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
     if prazo.estado != EstadoDoPrazo::SemPrazo {
-        return Err(F::NaoConfirmado(None));
+        return Err(FalhaDoPrazo::NaoConfirmado(None));
     }
     Ok(())
 }
@@ -263,22 +263,22 @@ pub(super) fn executar(
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
 ) -> anyhow::Result<()> {
-    use FalhaDoPrazo as F;
     let mut envio = EnvioHttps;
     let mut rede = Contador::novo(&mut envio);
     let leitura = leitura(nup, cli.unidade.as_deref(), true);
     let (aberto, acoes) = abrir_para_escrever(sessao, &leitura, indice, &mut rede)?;
     let Ok(Some(_)) = acoes.prazo else {
-        return Err(F::LeituraIndependenteNaoOferecida.into());
+        return Err(FalhaDoPrazo::LeituraIndependenteNaoOferecida.into());
     };
     let cookie = ler_cookie(sessao)?;
     let (controle, _) = obter_tela(&mut rede, &cookie, sessao.url_do_controle)?;
-    let link_lista = link_da_lista(&controle, sessao.origem).ok_or(F::ListaDePrazosNaoPublicada)?;
+    let link_lista =
+        link_da_lista(&controle, sessao.origem).ok_or(FalhaDoPrazo::ListaDePrazosNaoPublicada)?;
     let (html_lista, mime) = obter_tela(&mut rede, &cookie, &link_lista)?;
     let id_controle = match id_na_lista(&html_lista, nup.as_str()) {
         Ok(Some(id)) => id,
-        Ok(None) => return Err(F::ProcessoForaDaListaDePrazos.into()),
-        Err(()) => return Err(F::ControleNaoUnicoNaLista.into()),
+        Ok(None) => return Err(FalhaDoPrazo::ProcessoForaDaListaDePrazos.into()),
+        Err(()) => return Err(FalhaDoPrazo::ControleNaoUnicoNaLista.into()),
     };
     let preparada = ExclusaoPreparada {
         link_lista,

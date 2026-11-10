@@ -136,7 +136,7 @@ pub(crate) fn mesma_geracao(arquivos: &ArquivosDeAcesso, url: &str, cookie: &str
     }
 }
 
-/// A falha da gravação privada única nos subcódigos da sessão: link no
+/// A falha da gravação privada única nos erros da sessão: link no
 /// nome final é destino não regular; ancestral link é aceito.
 fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
     match falha {

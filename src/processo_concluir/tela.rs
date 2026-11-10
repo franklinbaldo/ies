@@ -9,7 +9,6 @@
 //! dois textos vazios (teste do Todos que mediu o envio na UFRJ); o SEI
 //! responde 302 para `arvore_visualizar` (ou `principal`), da conclusão do
 //! mesmo processo.
-use super::erro::ErroTelaDeConclusao as E;
 use crate::arvore_processo::ACAO_DE_CONCLUIR;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
@@ -56,7 +55,10 @@ pub(crate) const CAMPOS_DO_ENVIO: [(&str, &str); 3] =
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, "Somente concluir" marcado e nada da
 /// reabertura programada preenchido.
-pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> {
+pub(crate) fn conferir_tela_de_conclusao(
+    html: &str,
+    id: &str,
+) -> Result<(), super::erro::ErroTelaDeConclusao> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("tela_de_conclusao_nao_interpretada"))?;
     let parser = dom.parser();
@@ -97,7 +99,7 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> 
         let servido = valor(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
-                return Err(E::TelaDeConclusaoDeOutroProcesso);
+                return Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);
             }
             ("input", "hidden", n) if OCULTOS.contains(&n) => {}
             // `button`/`reset` não participam do envio.
@@ -117,22 +119,33 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), E> 
         }
     }
     if !somente_marcado || outra_marcada {
-        return Err(E::OpcaoSomenteConcluirNaoMarcada);
+        return Err(super::erro::ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada);
     }
     if preenchida {
-        return Err(E::TelaDeConclusaoComReaberturaPreenchida);
+        return Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida);
     }
     Ok(())
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome)
-        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_conclusao_nao_interpretada", e)))
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, super::erro::ErroTelaDeConclusao> {
+    atributo_presente(tag, nome).map_err(|e| {
+        super::erro::ErroTelaDeConclusao::Html(ErroHtml::atributo(
+            "tela_de_conclusao_nao_interpretada",
+            e,
+        ))
+    })
 }
 
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome)
-        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_conclusao_nao_interpretada", e)))
+fn valor(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, super::erro::ErroTelaDeConclusao> {
+    valor_do_atributo(tag, nome).map_err(|e| {
+        super::erro::ErroTelaDeConclusao::Html(ErroHtml::atributo(
+            "tela_de_conclusao_nao_interpretada",
+            e,
+        ))
+    })
 }
 
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`

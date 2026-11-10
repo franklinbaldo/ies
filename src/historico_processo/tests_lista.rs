@@ -1,6 +1,5 @@
 //! RED/GREEN da página do histórico: visão `R`/`P`, legenda e contagem,
 //! NUP do título. HTML sintético com a estrutura observada.
-use super::ErroAndamentos as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -38,7 +37,7 @@ fn menos_linhas_que_o_total_publica_o_total_sem_alegar_completude() {
 fn mais_linhas_que_o_total_e_recusa() {
     assert_eq!(
         ler_andamentos(&pagina_do_historico(NUP, "10", 'R', 2, 3), NUP),
-        Err(E::AndamentosAlemDoTotalDeclarado)
+        Err(super::ErroAndamentos::AndamentosAlemDoTotalDeclarado)
     );
 }
 
@@ -51,10 +50,13 @@ fn pagina_de_outro_nup_diverge_do_pedido() {
     .unwrap_err();
     assert_eq!(
         erro,
-        E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
+        super::ErroAndamentos::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     );
     assert!(erro.diverge_do_pedido());
-    assert!(!E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")).diverge_do_pedido());
+    assert!(
+        !super::ErroAndamentos::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente"))
+            .diverge_do_pedido()
+    );
 }
 
 #[test]
@@ -66,7 +68,9 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&sem, NUP),
-        Err(E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")))
+        Err(super::ErroAndamentos::Html(ErroHtml::ausente(
+            "legenda_dos_andamentos_ausente"
+        )))
     );
     for legenda in [
         "Lista de Andamentos (1 registro - 1 a 1):",
@@ -77,7 +81,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
         let trocada = html.replace("Lista de Andamentos (1 registro):", legenda);
         assert_eq!(
             ler_andamentos(&trocada, NUP),
-            Err(E::Html(ErroHtml::valor(
+            Err(super::ErroAndamentos::Html(ErroHtml::valor(
                 "legenda_dos_andamentos_fora_da_forma_observada"
             ))),
             "{legenda}"
@@ -89,7 +93,7 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
     );
     assert_eq!(
         ler_andamentos(&duas, NUP),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::ErroAndamentos::Html(ErroHtml::valor(
             "legenda_dos_andamentos_fora_da_forma_observada"
         )))
     );
@@ -108,27 +112,12 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
     ] {
         assert_eq!(
             ler_andamentos(&trocado, NUP),
-            Err(E::TipoDoHistoricoNaoPublicado)
+            Err(super::ErroAndamentos::TipoDoHistoricoNaoPublicado)
         );
     }
 }
 
 #[test]
-fn subcodigos_estaveis() {
-    let _nomes: Vec<_> = [
-        E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")),
-        E::Html(ErroHtml::valor(
-            "legenda_dos_andamentos_fora_da_forma_observada",
-        )),
-        E::AndamentosAlemDoTotalDeclarado,
-        E::TipoDoHistoricoNaoPublicado,
-        E::CharsetDoHistoricoNaoSuportado,
-        E::RegraDeVerHistoricoNaoObservada,
-        E::VisaoDoHistoricoDiferenteDaPedida,
-        E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado),
-    ]
-    .iter()
-    .map(|e| crate::erro_publico::rotulo(&e))
-    .collect();
+fn historico_completo_e_pedido_como_completo() {
     assert_eq!(TipoDoHistorico::Completo.como_texto(), "completo");
 }

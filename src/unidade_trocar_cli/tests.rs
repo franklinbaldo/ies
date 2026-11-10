@@ -103,7 +103,7 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
         geracao_sessao: &geracao,
         unidade,
         acao: "procedimento_trabalhar",
-        objeto: "7",
+        alvo: "7",
     };
     indice
         .registrar_link(&instalacao, chave(ID_A), &link_de_trabalho(ID_A))

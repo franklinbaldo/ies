@@ -2,7 +2,6 @@
 //! HTML sintético modelado no `frmProcedimentoControlar` servido.
 use super::tests::{instalacao, tela_iso};
 use super::*;
-use ErroSubmissaoFormulario as E;
 
 const OPERACAO_POR_SCRIPT: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "procedimento_controlar",
@@ -43,7 +42,10 @@ const INTERIOR: &str = "<input type='hidden' name='hdnAPaginaAtual' value='0'>\
     <input type='hidden' name='hdnBPaginaAtual' value='0'>\
     <input type='hidden' name='hdnCriterios' value='aaaa'>";
 
-fn derivar(interior: &str, campos: &[(&str, &str)]) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    interior: &str,
+    campos: &[(&str, &str)],
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url();
     let pagina = html(interior);
     derivar_submissao(
@@ -94,7 +96,7 @@ fn oculto_reescrito_nao_informado_sai_como_servido() {
 fn oculto_fora_da_lista_de_reescritos_e_recusado() {
     assert_eq!(
         derivar(INTERIOR, &[("hdnCriterios", "bbbb")]).err(),
-        Some(E::CampoForaDaListaDaOperacao {
+        Some(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
             campo: "hdnCriterios".to_owned()
         })
     );
@@ -105,7 +107,7 @@ fn oculto_reescrito_nao_publicado_e_recusado() {
     let sem_b = "<input type='hidden' name='hdnAPaginaAtual' value='0'>";
     assert_eq!(
         derivar(sem_b, &[("hdnBPaginaAtual", "1")]).err(),
-        Some(E::CampoNaoPublicadoPeloFormulario {
+        Some(ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario {
             campo: "hdnBPaginaAtual".to_owned()
         })
     );
@@ -119,7 +121,7 @@ fn oculto_reescrito_informado_duas_vezes_e_recusado() {
             &[("hdnAPaginaAtual", "1"), ("hdnAPaginaAtual", "2")]
         )
         .err(),
-        Some(E::CampoInformadoMaisDeUmaVez {
+        Some(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: "hdnAPaginaAtual".to_owned()
         })
     );

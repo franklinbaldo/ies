@@ -3,7 +3,7 @@
 //! cassettes `liberacoes-e-versoes-leitura-*` (sete instalações). HTML
 //! sintético; nenhum valor real.
 use super::barra_do_documento::{
-    BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento as E, ler_barra_do_documento,
+    BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::instalacao;
@@ -49,7 +49,7 @@ fn base() -> String {
     ])
 }
 
-fn ler(html: &str) -> Result<BarraDoDocumento, E> {
+fn ler(html: &str) -> Result<BarraDoDocumento, ErroBarraDoDocumento> {
     ler_barra_do_documento(&instalacao(), html, "21", "10")
 }
 
@@ -100,16 +100,19 @@ fn assinado_sem_edicao_e_sem_link() {
 #[test]
 fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     let de_outro = com_barra(&base(), 1, &barra("10", "22", Some('N')));
-    assert_eq!(ler(&de_outro), Err(E::EnderecoDasVersoesDeOutroDocumento));
+    assert_eq!(
+        ler(&de_outro),
+        Err(ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento)
+    );
     let de_outro_processo = com_barra(&base(), 1, &barra("11", "21", Some('N')));
     assert_eq!(
         ler(&de_outro_processo),
-        Err(E::EnderecoDasVersoesDeOutroDocumento)
+        Err(ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento)
     );
     let dois = format!("{0}{0}", barra("10", "21", None));
     assert_eq!(
         ler(&com_barra(&base(), 1, &dois)),
-        Err(E::Html(ErroHtml::repetido(
+        Err(ErroBarraDoDocumento::Html(ErroHtml::repetido(
             "link_das_versoes_repetido_na_barra"
         )))
     );
@@ -119,7 +122,9 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
     );
     assert_eq!(
         ler(&com_barra(&base(), 1, &sem_hash)),
-        Err(E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido")))
+        Err(ErroBarraDoDocumento::Html(ErroHtml::valor(
+            "link_das_versoes_nao_reconhecido"
+        )))
     );
 }
 
@@ -137,7 +142,10 @@ fn barra_repetida_e_concatenacao_vazia() {
         "Nos[1].acoes = '';\nNos[1].src = '';",
         1,
     );
-    assert_eq!(ler(&repetida), Err(E::BarrasRepetidasNaArvore));
+    assert_eq!(
+        ler(&repetida),
+        Err(ErroBarraDoDocumento::BarrasRepetidasNaArvore)
+    );
     // A barra do PROCESSO (nó 0) não é a do documento.
     let na_raiz = com_barra(&base(), 0, &barra("10", "21", Some('N')));
     assert_eq!(ler(&na_raiz).unwrap().versoes, None);

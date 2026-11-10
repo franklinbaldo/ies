@@ -11,7 +11,6 @@
 //! numa linha e o corpo da consulta no `prepararExecucao`, em duas formas
 //! (4.0 sem e 4.1/5.0 com `&unidade_atual=0`).
 use super::Destino;
-use super::erro::ErroTelaDeEnvio as E;
 use crate::arvore_processo::ACAO_DE_ENVIAR;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
@@ -122,7 +121,10 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
-pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, E> {
+pub(crate) fn conferir_tela_de_envio(
+    html: &str,
+    id: &str,
+) -> Result<TelaDeEnvio, super::erro::ErroTelaDeEnvio> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("tela_de_envio_nao_interpretada"))?;
     let parser = dom.parser();
@@ -184,7 +186,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         let servido = decodificado(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
-                return Err(E::TelaDeEnvioDeOutroProcesso);
+                return Err(super::erro::ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso);
             }
             ("input", "hidden", "hdnIdUnidade" | UNIDADES)
             | ("input", "text", TEXTO_DA_UNIDADE) => {
@@ -208,13 +210,13 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         }
     }
     if preenchida {
-        return Err(E::TelaDeEnvioComOpcoesPreenchidas);
+        return Err(super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas);
     }
     // Sem opção marcada, o navegador envia a primeira.
     let orgao = orgao
         .or(orgao_primeira)
         .filter(|valor| valor != "null")
-        .ok_or(E::OrgaoDaTelaDeEnvioNaoSelecionado)?;
+        .ok_or(super::erro::ErroTelaDeEnvio::OrgaoDaTelaDeEnvioNaoSelecionado)?;
     let (autocompletar, unidade_atual) = ler_script(html)?;
     Ok(TelaDeEnvio {
         orgao,
@@ -228,7 +230,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
 
 /// A URL do autocomplete de `hdnIdUnidade` e a forma do `prepararExecucao`,
 /// cada uma numa linha exata e única.
-fn ler_script(html: &str) -> Result<(String, bool), E> {
+fn ler_script(html: &str) -> Result<(String, bool), super::erro::ErroTelaDeEnvio> {
     let mut urls = Vec::new();
     let mut formas = Vec::new();
     for linha in html.lines().map(str::trim) {
@@ -253,7 +255,7 @@ fn ler_script(html: &str) -> Result<(String, bool), E> {
     }
     let url = match urls.as_slice() {
         [Some(url)] => (*url).to_owned(),
-        _ => return Err(E::AutocompletarDeUnidadeNaoDeclarado),
+        _ => return Err(super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado),
     };
     match formas.as_slice() {
         [Some(unidade_atual)] => Ok((url, *unidade_atual)),
@@ -270,17 +272,22 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome)
-        .map_err(|e| E::Html(ErroHtml::atributo("tela_de_envio_nao_interpretada", e)))
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, super::erro::ErroTelaDeEnvio> {
+    atributo_presente(tag, nome).map_err(|e| {
+        super::erro::ErroTelaDeEnvio::Html(ErroHtml::atributo("tela_de_envio_nao_interpretada", e))
+    })
 }
 
-fn decodificado(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+fn decodificado(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, super::erro::ErroTelaDeEnvio> {
     valor_do_atributo(tag, nome)
         .map_err(|e| ErroHtml::atributo("tela_de_envio_nao_interpretada", e))?
         .map(|bruto| {
-            decodificar_atributo(&bruto)
-                .ok_or(E::Html(ErroHtml::html("tela_de_envio_nao_interpretada")))
+            decodificar_atributo(&bruto).ok_or(super::erro::ErroTelaDeEnvio::Html(ErroHtml::html(
+                "tela_de_envio_nao_interpretada",
+            )))
         })
         .transpose()
 }

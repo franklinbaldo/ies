@@ -20,10 +20,13 @@ pub(crate) fn ler_acompanhar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra> {
-    use ErroAcompanharNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor("barra_de_acompanhamento_fora_da_forma")),
-        FalhaDaBarra::Repetidas => E::Html(ErroHtml::repetido("barra_de_acompanhamento_repetida")),
+        FalhaDaBarra::Fora => {
+            ErroAcompanharNaBarra::Html(ErroHtml::valor("barra_de_acompanhamento_fora_da_forma"))
+        }
+        FalhaDaBarra::Repetidas => {
+            ErroAcompanharNaBarra::Html(ErroHtml::repetido("barra_de_acompanhamento_repetida"))
+        }
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -35,10 +38,10 @@ pub(crate) fn ler_acompanhar_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => {
-                    E::Html(ErroHtml::valor("link_de_acompanhamento_nao_reconhecido"))
-                }
-                EnderecoRecusado::DeOutroProcesso => E::LinkDeOutroProcesso,
+                EnderecoRecusado::NaoReconhecido => ErroAcompanharNaBarra::Html(ErroHtml::valor(
+                    "link_de_acompanhamento_nao_reconhecido",
+                )),
+                EnderecoRecusado::DeOutroProcesso => ErroAcompanharNaBarra::LinkDeOutroProcesso,
             }),
         _ => Err(ErroHtml::repetido("links_de_acompanhamento_repetidos").into()),
     }

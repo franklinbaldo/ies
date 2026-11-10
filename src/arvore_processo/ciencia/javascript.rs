@@ -76,9 +76,9 @@ pub(crate) fn niveis_js(script: &str) -> Option<Vec<Option<usize>>> {
 pub(super) fn urls_ativas_da_ciencia_do_documento(
     script: &str,
 ) -> Result<Vec<String>, crate::erro_html::ErroHtml> {
-    use crate::erro_html::ErroHtml as E;
-    let niveis =
-        niveis_js(script).ok_or(E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
+    let niveis = niveis_js(script).ok_or(crate::erro_html::ErroHtml::valor(
+        "script_da_ciencia_do_documento_fora_da_forma",
+    ))?;
     let mut linhas = Vec::new();
     let mut inicio = 0;
     for linha in script.split_inclusive('\n') {
@@ -112,7 +112,9 @@ pub(super) fn urls_ativas_da_ciencia_do_documento(
             let url = resto
                 .strip_suffix("';")
                 .filter(|url| !url.contains('\\') && !url.contains('\''))
-                .ok_or(E::valor("link_de_ciencia_do_documento_fora_da_forma"))?;
+                .ok_or(crate::erro_html::ErroHtml::valor(
+                    "link_de_ciencia_do_documento_fora_da_forma",
+                ))?;
             urls.push(url.to_owned());
         }
         if linha == "function cienciaDocumento(){" {
@@ -122,13 +124,17 @@ pub(super) fn urls_ativas_da_ciencia_do_documento(
                 || !confirmacao.ends_with("){")
                 || nivel_destino != Some(1)
             {
-                return Err(E::valor("funcao_de_ciencia_do_documento_fora_da_forma"));
+                return Err(crate::erro_html::ErroHtml::valor(
+                    "funcao_de_ciencia_do_documento_fora_da_forma",
+                ));
             }
             let url = destino
                 .strip_prefix("location.href = '")
                 .and_then(|resto| resto.strip_suffix("';"))
                 .filter(|url| !url.contains('\\') && !url.contains('\''))
-                .ok_or(E::valor("funcao_de_ciencia_do_documento_fora_da_forma"))?;
+                .ok_or(crate::erro_html::ErroHtml::valor(
+                    "funcao_de_ciencia_do_documento_fora_da_forma",
+                ))?;
             urls.push(url.to_owned());
         }
     }

@@ -43,7 +43,7 @@ fn conferir_colheita(ambiente: &Ambiente, indice: &IndiceLocal) {
         geracao_sessao: &geracao,
         unidade: "110000849",
         acao: "procedimento_trabalhar",
-        objeto: "77",
+        alvo: "77",
     };
     assert_eq!(
         indice.link(&instalacao, chave).map(|u| u.url().to_owned()),

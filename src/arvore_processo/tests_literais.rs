@@ -1,11 +1,10 @@
 //! RED/GREEN do leitor de literais: escapes, formas recusadas e linhas
 //! que não declaram nó. Linhas sintéticas na forma observada.
-use super::ErroArvore as E;
-use super::literais::{Literal as L, ler_declaracao};
+use super::literais::{Literal, ler_declaracao};
 use crate::erro_html::ErroHtml;
 
-fn texto(s: &str) -> L {
-    L::Texto(s.to_owned())
+fn texto(s: &str) -> Literal {
+    Literal::Texto(s.to_owned())
 }
 
 #[test]
@@ -18,12 +17,12 @@ fn declaracao_observada_com_os_quatro_tipos_de_literal() {
         [
             texto("PROCESSO"),
             texto("10"),
-            L::Nulo,
+            Literal::Nulo,
             texto("x"),
-            L::Booleano(true),
-            L::Booleano(false),
-            L::Inteiro("-3".to_owned()),
-            L::Inteiro("7".to_owned()),
+            Literal::Booleano(true),
+            Literal::Booleano(false),
+            Literal::Inteiro("-3".to_owned()),
+            Literal::Inteiro("7".to_owned()),
         ]
     );
 }
@@ -62,71 +61,71 @@ fn formas_recusadas() {
         // Indentada ou com texto antes.
         (
             r#"  Nos[0] = new infraArvoreNo("A");"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"x=1;Nos[0] = new infraArvoreNo("A");"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Sem o fechamento exato, ou com algo depois.
         (
             r#"Nos[0] = new infraArvoreNo("A")"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A"); x();"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Índice que não é decimal.
         (
             r#"Nos[i] = new infraArvoreNo("A");"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         (
             r#"Nos[] = new infraArvoreNo("A");"#,
-            E::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
         ),
         // Expressões, identificadores e concatenação não são literais.
         (
             r#"Nos[0] = new infraArvoreNo("A"+"B");"#,
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         (
             r"Nos[0] = new infraArvoreNo(x);",
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A",,"B");"#,
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A", "B");"#,
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         (
             r"Nos[0] = new infraArvoreNo(nulo);",
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         (
             r"Nos[0] = new infraArvoreNo(1.5);",
-            E::ArgumentoDeNoNaoLiteral,
+            super::ErroArvore::ArgumentoDeNoNaoLiteral,
         ),
         // Texto aberto e escapes fora da lista.
         (
             r#"Nos[0] = new infraArvoreNo("A);"#,
-            E::TextoDeNoSemFechamento,
+            super::ErroArvore::TextoDeNoSemFechamento,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\x41");"#,
-            E::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\u{41}");"#,
-            E::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\");"#,
-            E::TextoDeNoSemFechamento,
+            super::ErroArvore::TextoDeNoSemFechamento,
         ),
     ];
     for (linha, esperado) in casos {

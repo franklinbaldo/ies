@@ -1,7 +1,6 @@
 //! RED/GREEN dos andamentos depois da árvore nos caminhos 2, 3 e 4: a
 //! sequência exata de requisições no padrão, com `--andamentos-completos`
 //! e com `--sem-andamentos`, e as falhas tipadas.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -125,7 +124,7 @@ fn post_que_devolve_a_visao_r_e_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida)
+        super::ErroProcessoObter::Andamentos(ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida)
     );
 }
 
@@ -143,7 +142,7 @@ fn post_que_redireciona_ao_login_e_sessao_encerrada() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
 }
 
@@ -208,7 +207,7 @@ fn link_presente_mas_repetido_continua_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::LinkDoHistorico(ErroLinkDoHistorico::Html(ErroHtml::repetido(
+        super::ErroProcessoObter::LinkDoHistorico(ErroLinkDoHistorico::Html(ErroHtml::repetido(
             "links_do_historico_repetidos_na_arvore"
         )))
     );
@@ -227,7 +226,10 @@ fn historico_que_responde_503_falha_com_o_erro_de_transporte_sem_retry() {
         ),
     );
     let erro = r.unwrap_err();
-    assert!(matches!(erro, E::Transporte(_)), "{erro:?}");
+    assert!(
+        matches!(erro, super::ErroProcessoObter::Transporte(_)),
+        "{erro:?}"
+    );
     assert_eq!(erro.status_http().map(|s| s.status), Some(503));
     assert_eq!(pedidos.len(), 4);
 }
@@ -243,7 +245,7 @@ fn historico_que_responde_login_e_sessao_encerrada() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
 }
 
@@ -266,7 +268,7 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        E::Andamentos(ErroAndamentos::Historico(
+        super::ErroProcessoObter::Andamentos(ErroAndamentos::Historico(
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         ))
     );
@@ -315,6 +317,3 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
     assert_eq!(pedidos[0], post(&absoluta(&action_rapida()), CORPO_RAPIDO));
     assert_eq!(pedidos.last(), Some(&get(&url_historico(ID))));
 }
-
-#[test]
-fn subcodigos_dos_novos_erros_do_fluxo() {}

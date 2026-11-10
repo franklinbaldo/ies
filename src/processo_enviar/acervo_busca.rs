@@ -30,8 +30,8 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
 
 fn faixa(n: usize) -> &'static str {
     match n {
-        0 => "nenhum item",
-        1 => "um item",
+        0 => "nenhum interacao",
+        1 => "um interacao",
         2..=49 => "2 a 49 itens",
         _ => "50 ou mais itens",
     }
@@ -68,8 +68,8 @@ fn replay_da_busca_do_destino_no_acervo() {
             match (r.operacao, r.metodo) {
                 ("procedimento_enviar", "GET") => {
                     anterior_vazia = false;
-                    let id = gravacao::id_procedimento(r.item).unwrap_or_default();
-                    let Some(h) = html_da_resposta(r.item).ok() else {
+                    let id = gravacao::id_procedimento(r.interacao).unwrap_or_default();
+                    let Some(h) = html_da_resposta(r.interacao).ok() else {
                         continue;
                     };
                     let Ok(tela) = conferir_tela_de_envio(&h, &id) else {
@@ -90,11 +90,11 @@ fn replay_da_busca_do_destino_no_acervo() {
                     somar(&mut contagem, "selOrgao", classe, nome);
                 }
                 ("unidade_auto_completar_envio_processo", "POST") => {
-                    let corpo = gravacao::corpo(r.item);
+                    let corpo = gravacao::corpo(r.interacao);
                     let resposta = RespostaDoPost {
                         resposta: RespostaWeb {
                             status_code: i32::try_from(r.status).unwrap_or(0),
-                            mime: gravacao::mime(r.item),
+                            mime: gravacao::mime(r.interacao),
                             content_length: Some(corpo.len()),
                             localizacao: None,
                             corpo: Cursor::new(corpo),

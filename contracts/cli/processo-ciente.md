@@ -44,7 +44,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 
 ## Subcódigos observáveis ou de recusa
 
-| Variante ou `onde` (stderr) | Condição |
+| Erro ou `onde` (stderr) | Condição |
 | --- | --- |
 | `ErroCienciaProcesso::CienciaNaoOferecida` | Barra sem ação de ciência |
 | `ErroCienciaProcesso::UnidadeNaoPublicada` | Unidade ausente na abertura |
@@ -65,7 +65,7 @@ outra vez, confira a Lista de Ciências. Uma ciência por usuário por dia.
 | `ErroCiencia::AtividadesRepetidasNaLista` | Checkbox duplicado |
 | `ErroCienciaProcesso::NaoConfirmado` | Escrita sem verificação conclusiva |
 | `FalhaDoAceiteProcesso::ValidacaoDaInfra` | GET mutador devolveu validação Infra 200; preservar mensagem e ler novamente |
-| `atividade_do_aceite_do_processo_nao_reconhecida` (sem variante própria confirmada no código) | Resposta do GET mutador sem identidade de atividade comprovável |
+| `atividade_do_aceite_do_processo_nao_reconhecida` (sem erro próprio confirmado no código) | Resposta do GET mutador sem identidade de atividade comprovável |
 
 
 

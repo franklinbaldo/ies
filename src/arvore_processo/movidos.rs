@@ -90,9 +90,8 @@ pub(super) fn conferir_movidos(
     lidos: Vec<MovidoLido>,
     documentos: &[DocumentoLido],
 ) -> Result<Vec<DocumentoMovido>, ErroArvore> {
-    use ErroArvore as E;
     if lidos.iter().any(|l| l.pai != processo.id) {
-        return Err(E::DocumentoMovidoComPaiDiferenteDoProcesso);
+        return Err(ErroArvore::DocumentoMovidoComPaiDiferenteDoProcesso);
     }
     let mut vistos: HashSet<&str> = HashSet::new();
     for lido in &lidos {

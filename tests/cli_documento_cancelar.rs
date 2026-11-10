@@ -2,6 +2,10 @@
 //! rede ou POST. Números, caminhos e hosts são sintéticos (#273).
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
@@ -13,19 +17,6 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-/// Falha de comando convertido (#695): saída 1, stdout vazio e
-/// `Error: <Variante>` no stderr.
-fn assert_falha(saida: &Output, variante: &str) {
-    assert_eq!(saida.status.code(), Some(1));
-    assert!(
-        saida.stdout.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
-}
-
 #[test]
 fn motivo_obrigatorio_e_exigido_pelo_clap_antes_da_sessao() {
     let resultado = sem_sessao(&["documento", "cancelar", "0000101", "--json"]);
@@ -65,7 +56,7 @@ fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
             args.push("--confirmar");
         }
         let r = sem_sessao(&args);
-        assert_falha(&r, "ArquivoPrivadoAusenteOuInacessivel");
+        falha(&r, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 
@@ -85,7 +76,7 @@ fn motivo_e_texto_opaco_que_segue_ate_a_sessao() {
                 args.push("--confirmar");
             }
             let saida = sem_sessao(&args);
-            assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+            falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Leitura estrita do `<form>` servido: localização, `action` e controles.
 use super::codificacao::decodificar_atributo;
-use super::{EnvioDoFormulario, ErroSubmissaoFormulario as E, OperacaoDeFormulario};
+use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -10,15 +10,18 @@ use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
 
 /// Valor bruto lido da fonte da tag (não do mapa do `tl`, defeituoso).
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
+fn atributo(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, ErroSubmissaoFormulario> {
+    valor_do_atributo(tag, nome).map_err(ErroSubmissaoFormulario::AtributoHtml)
 }
 
 /// Exatamente um `<form>` com o `id` ou `name` da operação.
 pub(crate) fn localizar_formulario<'d>(
     dom: &'d tl::VDom<'d>,
     identificador: &str,
-) -> Result<&'d tl::HTMLTag<'d>, E> {
+) -> Result<&'d tl::HTMLTag<'d>, ErroSubmissaoFormulario> {
     let parser = dom.parser();
     let mut achados = Vec::new();
     for form in dom
@@ -37,21 +40,23 @@ pub(crate) fn localizar_formulario<'d>(
     match achados.as_slice() {
         [] => Err(ErroHtml::ausente("formulario_ausente_na_tela").into()),
         [form] => Ok(form),
-        _ => Err(E::FormulariosComMesmoIdentificadorNaTela),
+        _ => Err(ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela),
     }
 }
 
-pub(super) fn conferir_metodo_e_codificacao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
+pub(super) fn conferir_metodo_e_codificacao(
+    form: &tl::HTMLTag<'_>,
+) -> Result<(), ErroSubmissaoFormulario> {
     if !atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
-        return Err(E::MetodoDoFormularioDiferenteDePost);
+        return Err(ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost);
     }
     if atributo(form, "enctype")?
         .is_some_and(|v| !v.eq_ignore_ascii_case("application/x-www-form-urlencoded"))
     {
-        return Err(E::EnctypeDoFormularioNaoUrlencoded);
+        return Err(ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded);
     }
     if atributo(form, "accept-charset")?.is_some() {
-        return Err(E::AcceptCharsetPublicadoNoFormulario);
+        return Err(ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario);
     }
     Ok(())
 }
@@ -63,14 +68,15 @@ pub(super) fn resolver_action(
     servida: &UrlHttps<'_>,
     instalacao: &Instalacao,
     operacao: &OperacaoDeFormulario,
-) -> Result<String, E> {
+) -> Result<String, ErroSubmissaoFormulario> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    let alvo = UrlHttps::interpretar(&absoluta)
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao)?;
     if !(instalacao.autoriza_controlador(alvo.host, alvo.caminho)
         || (operacao.acao == "editor_salvar"
             && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho)))
     {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
@@ -84,23 +90,24 @@ pub(super) fn resolver_action_declarada(
     servida: &UrlHttps<'_>,
     instalacao: &Instalacao,
     operacao: &OperacaoDeFormulario,
-) -> Result<String, E> {
+) -> Result<String, ErroSubmissaoFormulario> {
     if url_declarada.contains(':')
         || url_declarada.starts_with('/')
         || url_declarada.split(['/', '?']).any(|s| s == "..")
     {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     let absoluta = match servida.caminho.rsplit_once('/') {
         Some((pasta, _)) => format!("https://{}/{pasta}/{url_declarada}", servida.host),
         None => format!("https://{}/{url_declarada}", servida.host),
     };
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    let alvo = UrlHttps::interpretar(&absoluta)
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao)?;
     if !(instalacao.autoriza_controlador(alvo.host, alvo.caminho)
         || (operacao.acao == "editor_salvar"
             && instalacao.autoriza_editor_processar(alvo.host, alvo.caminho)))
     {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     conferir_consulta(alvo.consulta.unwrap_or_default(), operacao.acao)?;
     Ok(absoluta)
@@ -113,16 +120,17 @@ pub(super) fn resolver_action_no_host(
     form: &tl::HTMLTag<'_>,
     servida: &UrlHttps<'_>,
     instalacao: &Instalacao,
-) -> Result<String, E> {
+) -> Result<String, ErroSubmissaoFormulario> {
     let absoluta = resolver_referencia(form, servida)?;
-    let alvo = UrlHttps::interpretar(&absoluta).ok_or(E::AcaoDoFormularioForaDaInstalacao)?;
+    let alvo = UrlHttps::interpretar(&absoluta)
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao)?;
     if !alvo.host.eq_ignore_ascii_case(instalacao.host())
         || alvo
             .caminho
             .split('/')
             .any(|segmento| segmento == "." || segmento == "..")
     {
-        return Err(E::AcaoDoFormularioForaDaInstalacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
     for item in alvo
         .consulta
@@ -132,7 +140,9 @@ pub(super) fn resolver_action_no_host(
     {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+            .ok_or(ErroSubmissaoFormulario::Transporte(
+                FalhaTransporte::UrlInvalida,
+            ))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
     }
@@ -141,12 +151,16 @@ pub(super) fn resolver_action_no_host(
 
 /// `action` absoluto em HTTPS, resolvido contra a URL servida, sem o
 /// fragmento. Não normaliza `..`.
-fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result<String, E> {
+fn resolver_referencia(
+    form: &tl::HTMLTag<'_>,
+    servida: &UrlHttps<'_>,
+) -> Result<String, ErroSubmissaoFormulario> {
     let bruto = atributo(form, "action")?.ok_or(ErroHtml::ausente("acao_do_formulario_ausente"))?;
-    let decodificado =
-        decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
+    let decodificado = decodificar_atributo(&bruto).ok_or_else(|| {
+        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
-        })?;
+        }
+    })?;
     // O navegador não envia o fragmento (`#ancoraBarraPesquisa` observado).
     let referencia = decodificado.split('#').next().unwrap_or_default();
     if referencia.is_empty() {
@@ -159,7 +173,7 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     } else if referencia.starts_with('/') {
         format!("https://{}{referencia}", servida.host)
     } else if tem_esquema(referencia) {
-        return Err(E::AcaoDoFormularioNaoEhUrlHttps);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps);
     } else {
         match pasta(servida.caminho) {
             Some(diretorio) => format!("https://{}/{diretorio}/{referencia}", servida.host),
@@ -169,12 +183,14 @@ fn resolver_referencia(form: &tl::HTMLTag<'_>, servida: &UrlHttps<'_>) -> Result
     Ok(absoluta)
 }
 
-pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
+pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), ErroSubmissaoFormulario> {
     let (mut acoes, mut acoes_iguais, mut hashes) = (0, 0, 0);
     for item in consulta.split('&').filter(|item| !item.is_empty()) {
         let (nome, valor) = item
             .split_once('=')
-            .ok_or(E::Transporte(FalhaTransporte::UrlInvalida))?;
+            .ok_or(ErroSubmissaoFormulario::Transporte(
+                FalhaTransporte::UrlInvalida,
+            ))?;
         conferir_chave_de_consulta(nome)?;
         conferir_valor_de_consulta(valor)?;
         match nome {
@@ -184,7 +200,7 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
             }
             "infra_hash" => {
                 if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return Err(E::AcaoDoFormularioSemInfraHashUnico);
+                    return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
                 }
                 hashes += 1;
             }
@@ -192,10 +208,10 @@ pub(super) fn conferir_consulta(consulta: &str, acao: &str) -> Result<(), E> {
         }
     }
     if acoes != 1 || acoes_iguais != 1 {
-        return Err(E::AcaoDoFormularioDiferenteDaOperacao);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
     if hashes != 1 {
-        return Err(E::AcaoDoFormularioSemInfraHashUnico);
+        return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
     }
     Ok(())
 }
@@ -226,9 +242,12 @@ impl Controle {
     }
 }
 
-fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
+fn valor_decodificado(
+    tag: &tl::HTMLTag<'_>,
+    nome: &str,
+) -> Result<String, ErroSubmissaoFormulario> {
     decodificar_atributo(&atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
-        E::EntidadeHtmlDesconhecidaNoAtributo {
+        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: nome.to_owned(),
         }
     })
@@ -237,7 +256,7 @@ fn valor_decodificado(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<String, E> {
 fn classificar(
     tag: &tl::HTMLTag<'_>,
     operacao: &OperacaoDeFormulario,
-) -> Result<Option<Controle>, E> {
+) -> Result<Option<Controle>, ErroSubmissaoFormulario> {
     let botao = botao_do_envio(operacao.envio);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     if !matches!(elemento.as_str(), "input" | "button" | "select" | "textarea")
@@ -249,13 +268,14 @@ fn classificar(
     let Some(bruto) = atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
         return Ok(None);
     };
-    let nome =
-        decodificar_atributo(&bruto).ok_or_else(|| E::EntidadeHtmlDesconhecidaNoAtributo {
+    let nome = decodificar_atributo(&bruto).ok_or_else(|| {
+        ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: bruto.clone(),
-        })?;
+        }
+    })?;
     // `hdnAcao` só com a regra observada da operação (o `onsubmit` do login).
     if nome == "hdnAcao" && !operacao.campos_ocultos_reescritos.contains(&"hdnAcao") {
-        return Err(E::HdnAcaoPublicadoSemRegraDaOperacao);
+        return Err(ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao);
     }
     let padrao = if elemento == "button" {
         "submit"
@@ -297,7 +317,7 @@ pub(super) fn ler_controles(
     form: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
     operacao: &OperacaoDeFormulario,
-) -> Result<Vec<Controle>, E> {
+) -> Result<Vec<Controle>, ErroSubmissaoFormulario> {
     let mut controles = Vec::new();
     let mut ocultos = HashSet::new();
     let mut botoes = 0;
@@ -312,7 +332,7 @@ pub(super) fn ler_controles(
         };
         match &controle {
             Controle::Oculto { nome, .. } if !ocultos.insert(nome.clone()) => {
-                return Err(E::CampoOcultoRepetidoNoFormulario {
+                return Err(ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario {
                     campo: nome.clone(),
                 });
             }
@@ -350,7 +370,7 @@ pub(super) fn ler_controles(
         .iter()
         .find(|nome| !ocultos.contains(**nome))
     {
-        return Err(E::CampoOcultoAusenteNoFormulario {
+        return Err(ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario {
             campo: (*ausente).to_owned(),
         });
     }
