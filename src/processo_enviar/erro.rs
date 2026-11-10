@@ -1,5 +1,5 @@
 //! Recusas e resultado de `ies processo enviar`
-//! (contracts/cli/processo-enviar.md). Uma variante por fato.
+//! (contracts/cli/processo-enviar.md). Um erro por fato.
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;

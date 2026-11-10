@@ -93,7 +93,7 @@ pub(crate) struct PropriedadesLidas {
     pub(crate) fonte: FonteDasPropriedades,
 }
 
-/// Falhas do link na barra e da tela: uma variante por fato.
+/// Falhas do link na barra e da tela: um erro por fato.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {

@@ -4,7 +4,6 @@
 //! GET da tela e resposta do salvar que gravou). Ids e hashes fictícios.
 use super::tests_alvo::{HASH_DO_SALVAR, tela_salvavel};
 use super::*;
-use ColunaDoDetalhe as C;
 
 /// `inicializar()` como a tela serve: `V` vazio no GET, `1` depois de gravar.
 fn script(sinal: &str) -> String {
@@ -25,10 +24,10 @@ fn script(sinal: &str) -> String {
 /// `<form>`, a barra com o link oculto de voltar e `sbmSalvar`, as 12
 /// caixas (`onchange="validarNumeroCriterios(this)"`, sem `value`) e
 /// `hdnInfraPrefixoCookie` fora do formulário.
-fn tela_como_a_pen1(marcadas: &[C], sinal: &str) -> String {
+fn tela_como_a_pen1(marcadas: &[ColunaDoDetalhe], sinal: &str) -> String {
     use std::fmt::Write as _;
     let mut caixas = String::new();
-    for (i, coluna) in C::TODAS.into_iter().enumerate() {
+    for (i, coluna) in ColunaDoDetalhe::TODAS.into_iter().enumerate() {
         let campo = coluna.campo();
         let checked = if marcadas.contains(&coluna) {
             "  checked=\"checked\""
@@ -65,7 +64,11 @@ fn tela_como_a_pen1(marcadas: &[C], sinal: &str) -> String {
 }
 
 /// Resposta sintética do salvar: a tela do Nível com o `inicializar()`.
-pub(crate) fn resposta_do_salvar(publicadas: &[C], marcadas: &[C], sinal: &str) -> String {
+pub(crate) fn resposta_do_salvar(
+    publicadas: &[ColunaDoDetalhe],
+    marcadas: &[ColunaDoDetalhe],
+    sinal: &str,
+) -> String {
     tela_salvavel(publicadas, marcadas, "").replacen(
         "</head>",
         &format!("{}</head>", script(sinal)),
@@ -77,11 +80,22 @@ pub(crate) fn resposta_do_salvar(publicadas: &[C], marcadas: &[C], sinal: &str) 
 fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
     use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
     let servida = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_configurar_detalhe&acao_origem=procedimento_controlar&acao_retorno=procedimento_controlar&infra_sistema=100&infra_unidade_atual=200&infra_hash=7777777777777777777777777777777777777777777777777777777777777777";
-    let html = tela_como_a_pen1(&[C::Atribuicao, C::TipoProcesso, C::Interessados], "");
+    let html = tela_como_a_pen1(
+        &[
+            ColunaDoDetalhe::Atribuicao,
+            ColunaDoDetalhe::TipoProcesso,
+            ColunaDoDetalhe::Interessados,
+        ],
+        "",
+    );
     let lido = ler_nivel_de_detalhe(&html).unwrap();
     assert_eq!(
         lido.marcadas(),
-        [C::Atribuicao, C::TipoProcesso, C::Interessados]
+        [
+            ColunaDoDetalhe::Atribuicao,
+            ColunaDoDetalhe::TipoProcesso,
+            ColunaDoDetalhe::Interessados
+        ]
     );
     assert_eq!(conferir_controles_do_formulario(&html), Ok(()));
     let plano = planejar(&lido, &AlvoDasColunas::Todas).unwrap();
@@ -102,7 +116,7 @@ fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
     )
     .unwrap();
     // O mesmo corpo, byte a byte, do POST que gravou na PEN1 em 02/11/2026.
-    let caixas: Vec<String> = C::TODAS
+    let caixas: Vec<String> = ColunaDoDetalhe::TODAS
         .iter()
         .map(|c| format!("{}=on", c.campo()))
         .collect();
@@ -124,11 +138,15 @@ fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
 #[test]
 fn resposta_que_gravou_sinaliza_a_gravacao() {
     assert_eq!(
-        sinal_do_salvar(&tela_como_a_pen1(&C::TODAS, "1")),
+        sinal_do_salvar(&tela_como_a_pen1(&ColunaDoDetalhe::TODAS, "1")),
         SinalDoSalvar::GravacaoSinalizada
     );
     assert_eq!(
-        sinal_do_salvar(&resposta_do_salvar(&C::TODAS, &C::TODAS, "1")),
+        sinal_do_salvar(&resposta_do_salvar(
+            &ColunaDoDetalhe::TODAS,
+            &ColunaDoDetalhe::TODAS,
+            "1"
+        )),
         SinalDoSalvar::GravacaoSinalizada
     );
 }
@@ -136,19 +154,19 @@ fn resposta_que_gravou_sinaliza_a_gravacao() {
 #[test]
 fn tela_como_no_get_volta_sem_sinal_de_gravacao() {
     assert_eq!(
-        sinal_do_salvar(&tela_como_a_pen1(&[C::Atribuicao], "")),
+        sinal_do_salvar(&tela_como_a_pen1(&[ColunaDoDetalhe::Atribuicao], "")),
         SinalDoSalvar::TelaDevolvidaSemSinal
     );
 }
 
 #[test]
 fn resposta_sem_inicializar_na_forma_observada_nao_e_reconhecida() {
-    let gravou = tela_como_a_pen1(&C::TODAS, "1");
+    let gravou = tela_como_a_pen1(&ColunaDoDetalhe::TODAS, "1");
     let duas = gravou.replacen("</head>", &format!("{}</head>", script("1")), 1);
     for html in [
         String::new(),
         "<html><body><script>infraFecharJanelaModal();</script></body></html>".to_owned(),
-        tela_salvavel(&C::TODAS, &C::TODAS, ""),
+        tela_salvavel(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS, ""),
         gravou.replace("if ('1'=='1')", "if ('S'=='1')"),
         gravou.replace("if ('1'=='1')", "if ('1'=='S')"),
         gravou.replace("if ('1'=='1')", "if (\"1\"==\"1\")"),

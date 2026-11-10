@@ -229,7 +229,7 @@ enum FalhaDoDocumento {
 }
 
 impl FalhaDoDocumento {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

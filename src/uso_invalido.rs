@@ -1,6 +1,6 @@
 //! Uso inválido que o clap não declara sozinho (combinações entre opções,
 //! período): a mesma saída 2 do clap, antes de configuração ou rede. A
-//! variante é a mensagem.
+//! o nome do erro é a mensagem.
 use clap::CommandFactory;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

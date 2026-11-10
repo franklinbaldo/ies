@@ -1,7 +1,7 @@
 //! RED/GREEN do envio para `action` guardado (pesquisa rápida, sem botão).
 use super::super::tests::instalacao;
 use super::super::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario as E,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use super::derivar_submissao_guardada;
@@ -63,13 +63,13 @@ fn recusas_sem_rede() {
     let campo = |c: &str| c.to_owned();
     assert_eq!(
         derivar(&url, &[("txtPesquisaRapida", "ção")]).unwrap_err(),
-        E::ValorNaoRepresentavelNaCodificacao {
+        ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao {
             campo: campo("txtPesquisaRapida")
         }
     );
     assert_eq!(
         derivar(&url, &[("outro", "1")]).unwrap_err(),
-        E::CampoForaDaListaDaOperacao {
+        ErroSubmissaoFormulario::CampoForaDaListaDaOperacao {
             campo: campo("outro")
         }
     );
@@ -79,24 +79,24 @@ fn recusas_sem_rede() {
             &[("txtPesquisaRapida", "1"), ("txtPesquisaRapida", "2")]
         )
         .unwrap_err(),
-        E::CampoInformadoMaisDeUmaVez {
+        ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez {
             campo: campo("txtPesquisaRapida")
         }
     );
     let fora = url.replace("sei.exemplo.gov.br", "outro.exemplo.gov.br");
     assert_eq!(
         derivar(&fora, &[("txtPesquisaRapida", "1")]).unwrap_err(),
-        E::AcaoDoFormularioForaDaInstalacao
+        ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
     );
     let outra_acao = url.replace("protocolo_pesquisa_rapida", "protocolo_pesquisar");
     assert_eq!(
         derivar(&outra_acao, &[("txtPesquisaRapida", "1")]).unwrap_err(),
-        E::AcaoDoFormularioDiferenteDaOperacao
+        ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
     );
     let sem_hash = url.replace(&format!("&infra_hash={HASH}"), "");
     assert_eq!(
         derivar(&sem_hash, &[("txtPesquisaRapida", "1")]).unwrap_err(),
-        E::AcaoDoFormularioSemInfraHashUnico
+        ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
     );
 }
 
@@ -109,6 +109,6 @@ fn operacao_com_botao_ou_ocultos_nao_cabe_no_envio_guardado() {
     let (url, referer) = (action(), controle());
     assert_eq!(
         derivar_submissao_guardada(&com_botao, &instalacao(), &url, &referer, &[]).unwrap_err(),
-        E::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
+        ErroSubmissaoFormulario::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
     );
 }

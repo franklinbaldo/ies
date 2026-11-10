@@ -1,7 +1,6 @@
 //! `ies unidade listar-processos [--pagina N]` na visão D; vinda da R, a
 //! sessão fica na D, e a página N fica lembrada (sem restaurar). Orçamentos
 //! no contrato da visão detalhada.
-use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, ler_detalhada, paginar_detalhada, trocar, unidade_da_tela};
@@ -22,7 +21,7 @@ pub(crate) fn listar_na_visao_detalhada<V: EnvioDoControle>(
     pagina: Option<usize>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<LeituraDetalhada, E> {
+) -> Result<LeituraDetalhada, super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     let mut sessao = Sessao {
@@ -45,7 +44,7 @@ fn na_detalhada<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
     pagina: Option<usize>,
-) -> Result<LeituraDetalhada, E> {
+) -> Result<LeituraDetalhada, super::ErroVisaoDoControle> {
     let leitura = ler_detalhada(&tela.html, sessao.unidade)?;
     let Some(numero) = pagina else {
         return Ok(leitura);
@@ -63,7 +62,7 @@ fn vindo_da_resumida<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
     pagina: Option<usize>,
-) -> Result<LeituraDetalhada, E> {
+) -> Result<LeituraDetalhada, super::ErroVisaoDoControle> {
     let resumida = crate::paginas::juntar(std::slice::from_ref(&tela.html), Some(sessao.unidade))?;
     let mut categorias: HashMap<String, Categoria> = HashMap::new();
     let mut total = 0usize;
@@ -80,7 +79,7 @@ fn vindo_da_resumida<V: EnvioDoControle>(
     if let Some(numero) = pagina
         && (numero == 0 || numero > total.max(1))
     {
-        return Err(E::PaginaForaDoIntervalo { solicitada: numero });
+        return Err(super::ErroVisaoDoControle::PaginaForaDoIntervalo { solicitada: numero });
     }
     let detalhada = trocar(sessao, tela, Visao::Detalhada)?;
     let mut leitura = na_detalhada(sessao, &detalhada, pagina)?;

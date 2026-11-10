@@ -45,19 +45,18 @@ pub(crate) fn ler_assinatura_na_arvore(
     html: &str,
     id_documento: &str,
 ) -> Result<AssinaturaNaArvore, ErroHtml> {
-    use ErroHtml as E;
     let barra = barra_do_no(html, id_documento).map_err(|erro| match erro {
         super::ErroBarraDoDocumento::BarrasRepetidasNaArvore => {
-            E::repetido("barras_do_documento_repetidas_na_arvore")
+            ErroHtml::repetido("barras_do_documento_repetidas_na_arvore")
         }
-        _ => E::valor("barra_do_documento_fora_da_forma_observada"),
+        _ => ErroHtml::valor("barra_do_documento_fora_da_forma_observada"),
     })?;
     let acoes = match barra {
         Some(texto) => acoes_de_assinar(&texto)?,
         None => 0,
     };
     if acoes > 1 {
-        return Err(E::repetido("acoes_de_assinar_repetidas_na_barra"));
+        return Err(ErroHtml::repetido("acoes_de_assinar_repetidas_na_barra"));
     }
     Ok(AssinaturaNaArvore {
         publicada: acoes == 1,
@@ -87,11 +86,11 @@ fn acoes_de_assinar(texto: &str) -> Result<usize, ErroHtml> {
 /// Os assinantes da única caneta do documento; toda linha de caneta precisa
 /// estar na forma observada (falhar fechado: a verificação depende dela).
 fn assinantes(html: &str, id: &str) -> Result<Vec<Assinante>, ErroHtml> {
-    use ErroHtml as E;
     let mut achada = None;
     for linha in html.split('\n').filter(|l| l.contains(CANETA)) {
-        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
-            .ok_or(E::valor("assinaturas_do_documento_fora_da_forma_observada"))?;
+        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or(
+            ErroHtml::valor("assinaturas_do_documento_fora_da_forma_observada"),
+        )?;
         let [
             Literal::Texto(tipo),
             Literal::Texto(chave),
@@ -103,18 +102,25 @@ fn assinantes(html: &str, id: &str) -> Result<Vec<Assinante>, ErroHtml> {
             Literal::Booleano(true),
         ] = argumentos.as_slice()
         else {
-            return Err(E::valor("assinaturas_do_documento_fora_da_forma_observada"));
+            return Err(ErroHtml::valor(
+                "assinaturas_do_documento_fora_da_forma_observada",
+            ));
         };
         if tipo != "ASSINATURA" || *chave != format!("A{no}") {
-            return Err(E::valor("assinaturas_do_documento_fora_da_forma_observada"));
+            return Err(ErroHtml::valor(
+                "assinaturas_do_documento_fora_da_forma_observada",
+            ));
         }
         if no != id {
             continue;
         }
-        let lidos =
-            ler_dica(dica).ok_or(E::valor("assinaturas_do_documento_fora_da_forma_observada"))?;
+        let lidos = ler_dica(dica).ok_or(ErroHtml::valor(
+            "assinaturas_do_documento_fora_da_forma_observada",
+        ))?;
         if achada.replace(lidos).is_some() {
-            return Err(E::repetido("assinaturas_do_documento_repetidas_na_arvore"));
+            return Err(ErroHtml::repetido(
+                "assinaturas_do_documento_repetidas_na_arvore",
+            ));
         }
     }
     Ok(achada.unwrap_or_default())
@@ -192,7 +198,6 @@ pub(crate) fn ler_link_de_assinar(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<EnderecoDeEscrita, ErroLinkDeAssinar> {
-    use ErroLinkDeAssinar as E;
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
@@ -224,9 +229,9 @@ pub(crate) fn ler_link_de_assinar(
     };
     let recusa = |r| match r {
         EnderecoRecusado::NaoReconhecido => {
-            E::Html(ErroHtml::valor("endereco_de_assinar_nao_reconhecido"))
+            ErroLinkDeAssinar::Html(ErroHtml::valor("endereco_de_assinar_nao_reconhecido"))
         }
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDeAssinarDeOutroDocumento,
+        EnderecoRecusado::DeOutroProcesso => ErroLinkDeAssinar::EnderecoDeAssinarDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
         instalacao,

@@ -85,7 +85,7 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 // Não normalizar chaves percent-encoded, pontos ou campos repetidos:
-// o PHP interpreta essas variantes de forma potencialmente ambígua.
+// o PHP interpreta essas formas de modo potencialmente ambígua.
 fn conferir_link(href: &str, id: &str, versao: VersaoDocumento) -> Result<(), ErroVersao> {
     let query = href
         .strip_prefix("controlador.php?")

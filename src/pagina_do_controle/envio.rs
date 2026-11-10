@@ -1,6 +1,6 @@
 //! Derivação, envio único e conferência da página pedida por `--pagina N`.
 use super::plano::{campo_da_pagina, planejar};
-use super::{ErroPaginaDoControle as E, OBTER_PAGINA_DO_CONTROLE, PlanoDaPagina, regras};
+use super::{ErroPaginaDoControle, OBTER_PAGINA_DO_CONTROLE, PlanoDaPagina, regras};
 use crate::controle_contexto::{ContextoPagina, DiferencaDeContexto, contexto_da_pagina};
 use crate::dominio::Categoria;
 use crate::formulario_web::{
@@ -13,8 +13,8 @@ use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
 use std::io::Read;
 
-fn excessiva() -> E {
-    E::Submissao(ErroSubmissaoFormulario::Transporte(
+fn excessiva() -> ErroPaginaDoControle {
+    ErroPaginaDoControle::Submissao(ErroSubmissaoFormulario::Transporte(
         FalhaTransporte::RespostaExcessiva,
     ))
 }
@@ -27,7 +27,7 @@ pub(crate) fn derivar_pagina(
     unidade: &str,
     categoria: Categoria,
     indice: usize,
-) -> Result<SubmissaoDerivada, E> {
+) -> Result<SubmissaoDerivada, ErroPaginaDoControle> {
     if tela.html.len() > crate::MAX_HTML_BYTES {
         return Err(excessiva());
     }
@@ -49,7 +49,7 @@ pub(crate) fn derivar_pagina(
         unidade,
         &campos,
     )
-    .map_err(E::Submissao)
+    .map_err(ErroPaginaDoControle::Submissao)
 }
 
 /// A página obtida precisa manter o contexto da origem e trazer a faixa pedida.
@@ -58,22 +58,28 @@ fn conferir_resposta(
     origem: &ContextoPagina,
     categoria: Categoria,
     esperada: FaixaNaPagina,
-) -> Result<(), E> {
+) -> Result<(), ErroPaginaDoControle> {
     let contexto = contexto_da_pagina(html)?;
     if let Some(diferenca) = origem.diferenca(&contexto) {
         return Err(match diferenca {
-            DiferencaDeContexto::Unidade => E::UnidadeAlteradaAposPaginar,
-            DiferencaDeContexto::Visualizacao => E::VisualizacaoAlteradaAposPaginar,
-            DiferencaDeContexto::CriteriosRecebidos => E::CriteriosRecebidosAlteradosAposPaginar,
-            DiferencaDeContexto::CriteriosGerados => E::CriteriosGeradosAlteradosAposPaginar,
+            DiferencaDeContexto::Unidade => ErroPaginaDoControle::UnidadeAlteradaAposPaginar,
+            DiferencaDeContexto::Visualizacao => {
+                ErroPaginaDoControle::VisualizacaoAlteradaAposPaginar
+            }
+            DiferencaDeContexto::CriteriosRecebidos => {
+                ErroPaginaDoControle::CriteriosRecebidosAlteradosAposPaginar
+            }
+            DiferencaDeContexto::CriteriosGerados => {
+                ErroPaginaDoControle::CriteriosGeradosAlteradosAposPaginar
+            }
         });
     }
     match faixa_na_pagina(html, categoria)? {
         Some(faixa) if faixa.total != esperada.total => {
-            Err(E::TotalDeclaradoAlteradoAposPaginar { categoria })
+            Err(ErroPaginaDoControle::TotalDeclaradoAlteradoAposPaginar { categoria })
         }
         Some(faixa) if faixa == esperada => Ok(()),
-        _ => Err(E::FaixaDaRespostaDiferenteDaPaginaSolicitada { categoria }),
+        _ => Err(ErroPaginaDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada { categoria }),
     }
 }
 
@@ -87,7 +93,7 @@ pub(crate) fn obter_pagina_via<R: Read, F>(
     pagina: usize,
     cookie: &CookieDaSessao,
     enviar: F,
-) -> Result<Option<String>, E>
+) -> Result<Option<String>, ErroPaginaDoControle>
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {
@@ -98,7 +104,9 @@ where
     let submissao = derivar_pagina(instalacao, tela, unidade, categoria, indice)?;
     let html = match enviar_submissao_via(submissao, cookie, enviar)? {
         RespostaDoEnvio::Html(html) => html,
-        RespostaDoEnvio::Redirecionamento(_) => return Err(E::RedirecionamentoAposPaginar),
+        RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(ErroPaginaDoControle::RedirecionamentoAposPaginar);
+        }
     };
     conferir_resposta(&html, &origem, categoria, esperada)?;
     Ok(Some(html))

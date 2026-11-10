@@ -78,14 +78,13 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<ProcessoAtribuido, ErroProcessoAtribuir> {
-    use ErroProcessoAtribuir as E;
     let mut rede = Contador::novo(envio);
     let abertura = leitura(pedido.nup, pedido.unidade, true);
     let (aberto, acoes) = abrir_para_escrever(sessao, &abertura, indice, &mut rede)?;
     let unidade = aberto
         .unidade
         .as_deref()
-        .ok_or(E::UnidadeDaSessaoNaoPublicada)?;
+        .ok_or(ErroProcessoAtribuir::UnidadeDaSessaoNaoPublicada)?;
     let atual = atribuicao_observada(&aberto.arvore.aberto_em, unidade).ok_or_else(|| {
         diagnostico_unidade_nao_observada(&aberto.arvore.aberto_em, unidade, rede.feitas())
     })?;
@@ -97,19 +96,24 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         None => atual.is_empty(),
     };
     if ja_aplicada {
-        return Err(E::Preparacao(ErroAtribuir::AtribuicaoJaAplicada));
+        return Err(ErroProcessoAtribuir::Preparacao(
+            ErroAtribuir::AtribuicaoJaAplicada,
+        ));
     }
-    let link = acoes.atribuir?.ok_or(E::AtribuicaoNaoOferecidaNaBarra)?;
+    let link = acoes
+        .atribuir?
+        .ok_or(ErroProcessoAtribuir::AtribuicaoNaoOferecidaNaBarra)?;
     let cookie = ler_cookie(sessao)?;
     let (html, mime) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
-            FalhaDaTela::Transporte(falha) => E::Tela(falha),
-            FalhaDaTela::Redirecionada => E::TelaDaAtribuicaoRedirecionada,
+            FalhaDaTela::Transporte(falha) => ErroProcessoAtribuir::Tela(falha),
+            FalhaDaTela::Redirecionada => ErroProcessoAtribuir::TelaDaAtribuicaoRedirecionada,
             FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                E::SessaoEncerradaNaAtribuicao
+                ErroProcessoAtribuir::SessaoEncerradaNaAtribuicao
             }
         })?;
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroProcessoAtribuir::OrigemNaoAutorizada)?;
     let (valor, submissao) = preparar_submissao(
         &instalacao,
         link.as_str(),
@@ -160,7 +164,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         // registrar o estado possivelmente residual, nunca para afirmar
         // autoria por coincidência.
         Err(erro) if enviado => (Some(erro), false),
-        Err(erro) => return Err(E::Formulario(erro)),
+        Err(erro) => return Err(ErroProcessoAtribuir::Formulario(erro)),
     };
 
     // A leitura de prova faz GET novo, nunca reutiliza o estado anterior.
@@ -184,7 +188,7 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     if !resposta_permite_confirmar
         || atribuicao_relida.as_deref() != Some(pedido.usuario.unwrap_or(""))
     {
-        return Err(E::NaoConfirmadoNaAtribuicao {
+        return Err(ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: falha_do_envio.map(Box::new),
             leitura: leitura.map(Box::new),
             atribuicao_relida,

@@ -15,10 +15,10 @@ fn documento_na_arvore(
         {
             continue;
         }
-        let Some(processo) = gravacao::id_procedimento(resposta.item) else {
+        let Some(processo) = gravacao::id_procedimento(resposta.interacao) else {
             continue;
         };
-        let Ok(html) = html_da_resposta(resposta.item) else {
+        let Ok(html) = html_da_resposta(resposta.interacao) else {
             continue;
         };
         let Some(nup) = nup_declarado_na_arvore(&html) else {
@@ -64,12 +64,12 @@ fn corpo_da_cassette(
             r.operacao == "documento_visualizar"
                 && r.metodo == "GET"
                 && r.status == 200
-                && gravacao::parametro(r.item, "id_documento").contains(&id)
+                && gravacao::parametro(r.interacao, "id_documento").contains(&id)
         })
         .collect();
     assert!(originais.len() <= 1, "um único GET de corpo por identidade");
     let conteudo = originais.first().map(|r| {
-        let html = html_da_resposta(r.item).unwrap();
+        let html = html_da_resposta(r.interacao).unwrap();
         let identidade = crate::documento_web::identidade_do_titulo(&html).unwrap();
         assert_eq!(identidade.numero, numero_observado);
         let versao = crate::rodape_do_documento::versao_do_rodape(&html)
@@ -222,7 +222,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
         .collect();
     assert_eq!(respostas.len(), 1, "usar somente a lista realmente gravada");
-    let ids = gravacao::parametro(respostas[0].item, "id_documento");
+    let ids = gravacao::parametro(respostas[0].interacao, "id_documento");
     let id = *ids.first().expect("id_documento no GET original");
     assert!(
         ids.iter().all(|observado| *observado == id),
@@ -231,7 +231,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     let (processo, nup, numero_observado, rotulo_observado) =
         documento_na_arvore(&captura.json, id);
     let numero = NumeroDocumento::novo(&numero_observado).unwrap();
-    let html_original = html_da_resposta(respostas[0].item).unwrap();
+    let html_original = html_da_resposta(respostas[0].interacao).unwrap();
     let historico_original = interpretar_historico(&html_original, &numero, id, None)
         .expect("leitor real do IES na lista original");
     let conteudo = corpo_da_cassette(&captura.json, id, &numero_observado, exigir_corpo);

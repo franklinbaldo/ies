@@ -33,7 +33,7 @@ fn replay_da_lupa_go_no_acervo() {
     let mut cadastros_com_lupa = 0usize;
     for resposta in gravacao::respostas(&conferida.json) {
         if resposta.operacao == "grupo_unidade_cadastrar" && resposta.status == 200 {
-            let html = html_da_resposta(resposta.item)
+            let html = html_da_resposta(resposta.interacao)
                 .unwrap_or_else(|_| panic!("cadastro ilegível no passo {}", resposta.passo));
             // GO: ação da lupa no literal servido pelo cadastro. Não executar JS,
             // não publicar nem comparar o hash assinado da cassette.
@@ -70,7 +70,7 @@ fn replay_da_lupa_go_no_acervo() {
         if resposta.operacao != "unidade_selecionar_envio_processo" || resposta.status != 200 {
             continue;
         }
-        let html = html_da_resposta(resposta.item)
+        let html = html_da_resposta(resposta.interacao)
             .unwrap_or_else(|_| panic!("corpo HTML inválido no passo {}", resposta.passo));
         let pagina = ler_pagina(&html).unwrap_or_else(|e| {
             panic!(
@@ -135,7 +135,7 @@ fn replay_274_paginas_go_no_acervo() {
             continue;
         }
         assert_eq!(resposta.status, 200, "passo {}", resposta.passo);
-        let html = html_da_resposta(resposta.item)
+        let html = html_da_resposta(resposta.interacao)
             .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo));
         let lida = ler_pagina(&html)
             .unwrap_or_else(|e| panic!("pagina no passo {}: {e:?}", resposta.passo));

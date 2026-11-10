@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancelar";
 pub(crate) const ACAO_DO_NIVEL_DE_DETALHE: &str = "procedimento_configurar_detalhe";
 
-/// Uma variante por fato verificável da tela de configuração.
+/// um erro por fato verificável da tela de configuração.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroNivelDeDetalhe {

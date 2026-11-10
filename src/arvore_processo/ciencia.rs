@@ -12,6 +12,7 @@ use super::concluir::{
 };
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_chamada};
+use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -36,9 +37,10 @@ pub(crate) fn ciencia_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroCienciaNaArvore> {
-    use ErroCienciaNaArvore as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora | FalhaDaBarra::Repetidas => E::BarraDeCienciaForaDaForma,
+        FalhaDaBarra::Fora | FalhaDaBarra::Repetidas => {
+            ErroCienciaNaArvore::BarraDeCienciaForaDaForma
+        }
     })?;
     let total = ancoras
         .iter()
@@ -48,8 +50,8 @@ pub(crate) fn ciencia_da_barra(
         0 => Ok(None),
         1 => tela_do_no_da_raiz(instalacao, html, id)
             .map(Some)
-            .ok_or(E::TelaDeCienciaNaoPublicada),
-        _ => Err(E::CienciaRepetidaNaBarra),
+            .ok_or(ErroCienciaNaArvore::TelaDeCienciaNaoPublicada),
+        _ => Err(ErroCienciaNaArvore::CienciaRepetidaNaBarra),
     }
 }
 
@@ -60,14 +62,13 @@ pub(crate) fn lista_do_processo(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroCienciaNaArvore> {
-    use ErroCienciaNaArvore as E;
     let mut urls = Vec::new();
     for linha in html.lines() {
         if !linha.contains("new infraArvoreAcao(") || !linha.contains("CIENCIAS") {
             continue;
         }
         let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
-            .ok_or(E::ListaDeCienciasForaDaForma)?;
+            .ok_or(ErroCienciaNaArvore::ListaDeCienciasForaDaForma)?;
         match argumentos.as_slice() {
             [
                 Literal::Texto(tipo),
@@ -79,17 +80,17 @@ pub(crate) fn lista_do_processo(
             [Literal::Texto(tipo), ..] if tipo == "CIENCIAS" => {
                 // A ação CD... é do documento e não confere ciência no processo.
             }
-            _ => return Err(E::ListaDeCienciasForaDaForma),
+            _ => return Err(ErroCienciaNaArvore::ListaDeCienciasForaDaForma),
         }
     }
     let url = match urls.as_slice() {
         [] => return Ok(None),
         [url] => url,
-        _ => return Err(E::ListaDeCienciasRepetidaNaArvore),
+        _ => return Err(ErroCienciaNaArvore::ListaDeCienciasRepetidaNaArvore),
     };
     conferir_endereco_relativo(instalacao, url, "protocolo_ciencia_listar", id)
         .map(|url| Some(EnderecoDeEscrita::novo(url)))
-        .map_err(|_: EnderecoRecusado| E::EnderecoDaListaDeCienciasNaoReconhecido)
+        .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaListaDeCienciasNaoReconhecido)
 }
 
 /// Lê só a URL assinada da função do SEI na tela do nó. Um GET nessa
@@ -99,20 +100,19 @@ pub(crate) fn url_da_ciencia(
     html: &str,
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroCienciaNaArvore> {
-    use ErroCienciaNaArvore as E;
     let funcoes = urls_das_funcoes(html, "cienciaProcesso")
-        .map_err(|FuncaoForaDaForma| E::FuncaoDeCienciaForaDaForma)?;
+        .map_err(|FuncaoForaDaForma| ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
     // SEI 4.1 e 5.0 (UFRJ e GO, 10/11/2026): `var linkCienciaProcesso = '…';`.
     let variaveis = urls_das_variaveis(html, "linkCienciaProcesso")
-        .map_err(|FuncaoForaDaForma| E::FuncaoDeCienciaForaDaForma)?;
+        .map_err(|FuncaoForaDaForma| ErroCienciaNaArvore::FuncaoDeCienciaForaDaForma)?;
     let url = match (funcoes.as_slice(), variaveis.as_slice()) {
-        ([], []) => return Err(E::FuncaoDeCienciaAusenteNaTela),
+        ([], []) => return Err(ErroCienciaNaArvore::FuncaoDeCienciaAusenteNaTela),
         ([url], []) | ([], [url]) => *url,
-        _ => return Err(E::FuncoesDeCienciaRepetidas),
+        _ => return Err(ErroCienciaNaArvore::FuncoesDeCienciaRepetidas),
     };
     conferir_endereco_relativo(instalacao, url, "procedimento_ciencia", id)
         .map(EnderecoDeEscrita::novo)
-        .map_err(|_: EnderecoRecusado| E::EnderecoDaCienciaNaoReconhecido)
+        .map_err(|_: EnderecoRecusado| ErroCienciaNaArvore::EnderecoDaCienciaNaoReconhecido)
 }
 
 /// A ciência do documento é oferecida somente pela barra do próprio nó.
@@ -121,32 +121,32 @@ pub(crate) fn ciencia_do_documento_na_barra(
     html: &str,
     id_documento: &str,
 ) -> Result<bool, super::ErroBarraDoDocumento> {
-    use super::ErroBarraDoDocumento as E;
     use crate::html_atributos::atributos;
     let Some(barra) = super::barra_do_documento::barra_do_no(html, id_documento)? else {
         return Ok(false);
     };
-    let fora = || crate::erro_html::ErroHtml::valor("barra_da_ciencia_do_documento_fora_da_forma");
-    let dom = tl::parse(&barra, tl::ParserOptions::default()).map_err(|_| E::Html(fora()))?;
+    let fora = || ErroHtml::valor("barra_da_ciencia_do_documento_fora_da_forma");
+    let dom = tl::parse(&barra, tl::ParserOptions::default())
+        .map_err(|_| super::ErroBarraDoDocumento::Html(fora()))?;
     let mut total = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             continue;
         };
         let lidos = atributos(tag).map_err(|e| {
-            E::Html(crate::erro_html::ErroHtml::atributo(
+            super::ErroBarraDoDocumento::Html(ErroHtml::atributo(
                 "barra_da_ciencia_do_documento_fora_da_forma",
                 e,
             ))
         })?;
         if let Some(onclick) = lidos.valor("onclick").map_err(|e| {
-            E::Html(crate::erro_html::ErroHtml::atributo(
+            super::ErroBarraDoDocumento::Html(ErroHtml::atributo(
                 "barra_da_ciencia_do_documento_fora_da_forma",
                 e,
             ))
         })? {
             let onclick = crate::formulario_web::decodificar_atributo(onclick)
-                .ok_or_else(|| E::Html(fora()))?;
+                .ok_or_else(|| super::ErroBarraDoDocumento::Html(fora()))?;
             if onclick == "cienciaDocumento();" {
                 total += 1;
             }
@@ -155,7 +155,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
     match total {
         0 => Ok(false),
         1 => Ok(true),
-        _ => Err(E::Html(crate::erro_html::ErroHtml::repetido(
+        _ => Err(super::ErroBarraDoDocumento::Html(ErroHtml::repetido(
             "botoes_de_ciencia_do_documento_repetidos",
         ))),
     }
@@ -171,7 +171,6 @@ pub(crate) fn url_da_ciencia_do_documento(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<EnderecoDeEscrita, crate::erro_html::ErroHtml> {
-    use crate::erro_html::ErroHtml as E;
     // Só o conteúdo de scripts inline ativos comprova o link do GET
     // mutador. Texto em templates, campos e scripts de dados não é ação
     // publicada pelo SEI; nunca se interpreta nem executa JavaScript.
@@ -186,16 +185,18 @@ pub(crate) fn url_da_ciencia_do_documento(
             .next()
             .is_some_and(|parte| parte.contains("<script"))
     }) {
-        return Err(E::valor("script_da_ciencia_do_documento_fora_da_forma"));
+        return Err(ErroHtml::valor(
+            "script_da_ciencia_do_documento_fora_da_forma",
+        ));
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| E::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
+        .map_err(|_| ErroHtml::valor("script_da_ciencia_do_documento_fora_da_forma"))?;
     let mut urls = Vec::<String>::new();
     for no in dom.query_selector("script").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let fora = || E::valor("script_da_ciencia_do_documento_fora_da_forma");
+        let fora = || ErroHtml::valor("script_da_ciencia_do_documento_fora_da_forma");
         let lidos = crate::html_atributos::atributos(tag).map_err(|_| fora())?;
         if lidos.valor("src").map_err(|_| fora())?.is_some() {
             continue;
@@ -212,9 +213,15 @@ pub(crate) fn url_da_ciencia_do_documento(
         )?);
     }
     let url = match urls.as_slice() {
-        [] => return Err(E::ausente("link_de_ciencia_do_documento_ausente")),
+        [] => {
+            return Err(ErroHtml::ausente("link_de_ciencia_do_documento_ausente"));
+        }
         [url] => url.as_str(),
-        _ => return Err(E::repetido("links_de_ciencia_do_documento_repetidos")),
+        _ => {
+            return Err(ErroHtml::repetido(
+                "links_de_ciencia_do_documento_repetidos",
+            ));
+        }
     };
     let absoluta = super::endereco::conferir_endereco_relativo_por(
         instalacao,
@@ -223,7 +230,7 @@ pub(crate) fn url_da_ciencia_do_documento(
         "id_documento",
         id_documento,
     )
-    .map_err(|_| E::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
+    .map_err(|_| ErroHtml::valor("endereco_da_ciencia_do_documento_nao_reconhecido"))?;
     // Se a instalação também publicou id_procedimento, ele tem de ser único
     // e corresponder ao processo; a ausência é a forma observada na UnB.
     let consulta = url.split_once('?').map_or("", |(_, q)| q);
@@ -232,7 +239,7 @@ pub(crate) fn url_da_ciencia_do_documento(
         .filter_map(|p| p.strip_prefix("id_procedimento="))
         .collect();
     if !ids.is_empty() && ids.as_slice() != [id_procedimento] {
-        return Err(E::valor("endereco_da_ciencia_de_outro_processo"));
+        return Err(ErroHtml::valor("endereco_da_ciencia_de_outro_processo"));
     }
     Ok(EnderecoDeEscrita::novo(absoluta))
 }
@@ -245,15 +252,15 @@ pub(crate) fn lista_do_documento(
     id_procedimento: &str,
     id_documento: &str,
 ) -> Result<Option<EnderecoDeEscrita>, crate::erro_html::ErroHtml> {
-    use crate::erro_html::ErroHtml as E;
     let chave = format!("CD{id_documento}");
     let mut urls = Vec::new();
     for linha in html.lines() {
         if !linha.contains("new infraArvoreAcao(") || !linha.contains("CIENCIAS") {
             continue;
         }
-        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao")
-            .ok_or(E::valor("lista_de_ciencias_do_documento_fora_da_forma"))?;
+        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or(
+            ErroHtml::valor("lista_de_ciencias_do_documento_fora_da_forma"),
+        )?;
         match argumentos.as_slice() {
             [
                 Literal::Texto(tipo),
@@ -267,18 +274,26 @@ pub(crate) fn lista_do_documento(
             [Literal::Texto(tipo), Literal::Texto(codigo), ..]
                 if tipo == "CIENCIAS" && codigo == &chave =>
             {
-                return Err(E::valor(
+                return Err(ErroHtml::valor(
                     "lista_de_ciencias_do_documento_com_alvo_divergente",
                 ));
             }
             [Literal::Texto(tipo), ..] if tipo == "CIENCIAS" => {}
-            _ => return Err(E::valor("lista_de_ciencias_do_documento_fora_da_forma")),
+            _ => {
+                return Err(ErroHtml::valor(
+                    "lista_de_ciencias_do_documento_fora_da_forma",
+                ));
+            }
         }
     }
     let url = match urls.as_slice() {
         [] => return Ok(None),
         [url] => url,
-        _ => return Err(E::repetido("listas_de_ciencias_do_documento_repetidas")),
+        _ => {
+            return Err(ErroHtml::repetido(
+                "listas_de_ciencias_do_documento_repetidas",
+            ));
+        }
     };
     let por = |chave, id| {
         super::endereco::conferir_endereco_relativo_por(
@@ -288,7 +303,7 @@ pub(crate) fn lista_do_documento(
             chave,
             id,
         )
-        .map_err(|_| E::valor("endereco_da_lista_de_ciencias_do_documento_nao_reconhecido"))
+        .map_err(|_| ErroHtml::valor("endereco_da_lista_de_ciencias_do_documento_nao_reconhecido"))
     };
     por("id_procedimento", id_procedimento)?;
     por("id_documento", id_documento).map(|u| Some(EnderecoDeEscrita::novo(u)))

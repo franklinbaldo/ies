@@ -1,5 +1,5 @@
-//! Falhas da leitura da árvore: uma variante por fato verificável, com
-//! subcódigo estável (contracts/cli/processo-obter-arvore.md). Nenhum valor
+//! Falhas da leitura da árvore: um erro por fato verificável
+//! (contracts/cli/processo-obter-arvore.md). Nenhum valor
 //! servido é guardado.
 
 use crate::erro_html::ErroHtml;

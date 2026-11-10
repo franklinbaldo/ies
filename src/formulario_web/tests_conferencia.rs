@@ -5,7 +5,6 @@ use super::tests::{OPERACAO, instalacao, tela_iso, url_servida};
 use super::*;
 use crate::erro_html::ErroHtml;
 use crate::transporte::sessao::CookieDaSessao;
-use ErroSubmissaoFormulario as E;
 use std::io::Cursor;
 
 const JANELA: &str = "<html><form id='frmPesquisaProtocolo' method='post' \
@@ -21,7 +20,10 @@ const NA_ORIGEM: OperacaoDeFormulario = OperacaoDeFormulario {
     ..OPERACAO
 };
 
-fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDerivada, E> {
+fn derivar(
+    operacao: &OperacaoDeFormulario,
+    html: &str,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
     let url = url_servida();
     derivar_submissao(
         operacao,
@@ -36,7 +38,7 @@ fn derivar(operacao: &OperacaoDeFormulario, html: &str) -> Result<SubmissaoDeriv
 fn janela_sem_unidade_exige_a_declaracao_da_operacao() {
     assert_eq!(
         derivar(&OPERACAO, JANELA).unwrap_err(),
-        E::Html(ErroHtml::ausente(
+        ErroSubmissaoFormulario::Html(ErroHtml::ausente(
             "identificacao_da_unidade_ausente_na_tela"
         ))
     );
@@ -57,7 +59,7 @@ fn janela_que_publica_outra_unidade_continua_recusada() {
     let outra = JANELA.replacen("<html>", "<html><a id='lnkInfraUnidade'>OUTRA</a>", 1);
     assert_eq!(
         derivar(&NA_ORIGEM, &outra).unwrap_err(),
-        E::UnidadeDaTelaDiferenteDaSolicitada
+        ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
     );
     let mesma = JANELA.replacen(
         "<html>",
@@ -67,7 +69,11 @@ fn janela_que_publica_outra_unidade_continua_recusada() {
     assert!(derivar(&NA_ORIGEM, &mesma).is_ok());
 }
 
-fn enviar(operacao: &OperacaoDeFormulario, status: i32, corpo: &str) -> Result<RespostaDoEnvio, E> {
+fn enviar(
+    operacao: &OperacaoDeFormulario,
+    status: i32,
+    corpo: &str,
+) -> Result<RespostaDoEnvio, ErroSubmissaoFormulario> {
     let pasta = std::env::temp_dir().join(format!(
         "ies-formulario-conferencia-{}-{status}-{}",
         std::process::id(),
@@ -111,7 +117,7 @@ fn resposta_sem_marcador_aceita_so_quando_a_operacao_confere_por_leitura() {
     };
     assert_eq!(
         enviar(&com_marcador, 200, fecha).unwrap_err(),
-        E::MarcadorDeResultadoAusenteNaResposta
+        ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
     );
     // Status, login e MIME continuam recusas do envio.
 }

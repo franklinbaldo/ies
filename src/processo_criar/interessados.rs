@@ -79,7 +79,6 @@ fn campo_unico(
 /// URL declarada na inicialização do autocomplete, sem executar o script.
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
-    use ErroInteressado as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::ausente("interessado_controles_ausentes"))?;
     let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
@@ -94,12 +93,11 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
         .collect();
     match urls.as_slice() {
         [url] if url.starts_with("controlador_ajax.php?") => Ok((*url).to_owned()),
-        _ => Err(E::AutocompletarNaoDeclarado),
+        _ => Err(ErroInteressado::AutocompletarNaoDeclarado),
     }
 }
 
 fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
-    use ErroInteressado as E;
     let dom = tl::parse(xml, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
     let parser = dom.parser();
@@ -119,17 +117,17 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
-        let ler = |nome| -> Result<String, E> {
+        let ler = |nome| -> Result<String, ErroInteressado> {
             valor_do_atributo(tag, nome)
                 .map_err(|e| {
-                    E::Html(ErroHtml::atributo(
+                    ErroInteressado::Html(ErroHtml::atributo(
                         "interessado_resposta_nao_reconhecida",
                         e,
                     ))
                 })?
                 .and_then(|s| decodificar_atributo(&s))
                 .filter(|s| !s.is_empty())
-                .ok_or(E::Html(ErroHtml::valor(
+                .ok_or(ErroInteressado::Html(ErroHtml::valor(
                     "interessado_resposta_nao_reconhecida",
                 )))
         };
@@ -139,7 +137,6 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
 }
 
 fn escolher(pedido: &str, itens: &[(String, String)]) -> Result<(String, String), ErroInteressado> {
-    use ErroInteressado as E;
     let normalizar = |texto: &str| {
         texto
             .split_whitespace()
@@ -154,8 +151,8 @@ fn escolher(pedido: &str, itens: &[(String, String)]) -> Result<(String, String)
         .collect();
     match encontrados.as_slice() {
         [(id, nome)] => Ok((id.clone(), nome.clone())),
-        [] => Err(E::NaoOferecido),
-        _ => Err(E::Ambiguo),
+        [] => Err(ErroInteressado::NaoOferecido),
+        _ => Err(ErroInteressado::Ambiguo),
     }
 }
 
@@ -169,7 +166,6 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     pedidos: &[String],
     requisicoes: &mut u32,
 ) -> Result<Vec<(String, String)>, ErroInteressado> {
-    use ErroInteressado as E;
     if pedidos.is_empty() {
         return Ok(Vec::new());
     }
@@ -183,13 +179,13 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             &url,
             &[("palavras_pesquisa", pedido)],
         )
-        .map_err(|_| E::DerivacaoRecusada)?;
+        .map_err(|_| ErroInteressado::DerivacaoRecusada)?;
         *requisicoes += 1;
         let resposta = envio.post(consulta, cookie)?;
         if resposta.resposta.status_code != 200 {
-            return Err(E::Transporte(crate::transporte::recusar_status(
-                resposta.resposta,
-            )));
+            return Err(ErroInteressado::Transporte(
+                crate::transporte::recusar_status(resposta.resposta),
+            ));
         }
         if !matches!(
             resposta

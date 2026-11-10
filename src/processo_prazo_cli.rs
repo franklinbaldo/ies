@@ -224,13 +224,13 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     id: &str,
     rede: &mut Contador<'_, V>,
 ) -> Result<TelaDoPrazo, FalhaDoPrazo> {
-    use FalhaDoPrazo as F;
     if matches!(pedido, PedidoDePrazo::Ler | PedidoDePrazo::Excluir) {
-        return Err(F::ConfirmacaoSemFormularioSeguro);
+        return Err(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro);
     }
-    let instalacao =
-        Instalacao::interpretar(sessao.origem).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
-    let codificacao = codificacao_da_tela(mime).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
+    let codificacao =
+        codificacao_da_tela(mime).ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
     let servida = TelaServida {
         url: link,
         html,
@@ -242,7 +242,7 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         .map(|(nome, valor)| (*nome, valor.as_str()))
         .collect();
     let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, &servida, "", &valores)
-        .map_err(F::SubmissaoRecusada)?;
+        .map_err(FalhaDoPrazo::SubmissaoRecusada)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -250,9 +250,9 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            F::NaoConfirmado(Some(erro))
+            FalhaDoPrazo::NaoConfirmado(Some(erro))
         } else {
-            F::SubmissaoRecusada(erro)
+            FalhaDoPrazo::SubmissaoRecusada(erro)
         }
     })?;
     match resultado {
@@ -264,14 +264,15 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         // processo-prazo-unb, interações 12 e 19; live de 10/11/2026): a
         // prova fica com a releitura independente abaixo.
         RespostaDoEnvio::Html(_) => {}
-        RespostaDoEnvio::Redirecionamento(_) => return Err(F::NaoConfirmado(None)),
+        RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
     }
-    let (nova, _) = obter_tela(rede, cookie, link).map_err(|_| F::NaoConfirmado(None))?;
-    let verificada = ler_tela(&nova, id).map_err(|_| F::NaoConfirmado(None))?;
+    let (nova, _) =
+        obter_tela(rede, cookie, link).map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+    let verificada = ler_tela(&nova, id).map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
     let hoje = (time::OffsetDateTime::now_utc().date() - time::OffsetDateTime::UNIX_EPOCH.date())
         .whole_days();
     if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {
-        return Err(F::NaoConfirmado(None));
+        return Err(FalhaDoPrazo::NaoConfirmado(None));
     }
     Ok(verificada)
 }

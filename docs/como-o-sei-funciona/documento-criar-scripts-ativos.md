@@ -58,7 +58,7 @@ não foram ampliados; nenhum ensaio no SEI foi feito nesta fatia.
 ## Expressão nomeada não equivale a declaração global (#246)
 
 O teste adversarial também recusa `const interna = function escolher(id) {...};`
-e a variante `exibirSeries(tipo)`: o nome de uma **expressão** de
+e a forma `exibirSeries(tipo)`: o nome de uma **expressão** de
 função só pertence ao próprio corpo, não publica a função global que o
 `onclick` espera. A checagem conservadora exige que a declaração comece
 no início do script ou após um comando/bloco encerrado (`;` ou `}`),

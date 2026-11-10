@@ -16,7 +16,6 @@ pub(super) fn verificar<V: EnvioDoControle>(
     pedido: &PedidoCriar<'_>,
     requisicoes: &mut u32,
 ) -> Result<String, ErroCriar> {
-    use ErroCriar as E;
     let tela_do_processo = get(envio, url, cookie, requisicoes)?;
     let tela_lida = crate::arvore_processo::ler_tela_do_processo(
         instalacao,
@@ -24,18 +23,18 @@ pub(super) fn verificar<V: EnvioDoControle>(
         id,
         Some(&feito.unidade),
     )
-    .map_err(E::Tela)?;
+    .map_err(ErroCriar::Tela)?;
     let arvore = get(envio, tela_lida.arvore.as_str(), cookie, requisicoes)?;
-    let nup =
-        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::NaoConfirmado)?;
-    crate::arvore_processo::ler_arvore(&arvore.html, &nup, id).map_err(E::Arvore)?;
+    let nup = crate::arvore_processo::nup_declarado_na_arvore(&arvore.html)
+        .ok_or(ErroCriar::NaoConfirmado)?;
+    crate::arvore_processo::ler_arvore(&arvore.html, &nup, id).map_err(ErroCriar::Arvore)?;
     let endereco = crate::arvore_processo::ler_link_das_propriedades(instalacao, &arvore.html, id)
-        .map_err(E::Propriedades)?
-        .ok_or(E::PropriedadesNaoOferecidas)?;
+        .map_err(ErroCriar::Propriedades)?
+        .ok_or(ErroCriar::PropriedadesNaoOferecidas)?;
     let pagina = get(envio, endereco.as_str(), cookie, requisicoes)?;
     let propriedades =
         crate::propriedades_processo::ler_propriedades(&pagina.html, &nup, id, endereco.fonte)
-            .map_err(E::Propriedades)?;
+            .map_err(ErroCriar::Propriedades)?;
     if propriedades.tipo.as_deref() != Some(feito.tipo.as_str())
         || propriedades.especificacao != pedido.especificacao
         || propriedades.nivel_de_acesso.como_texto() != pedido.nivel
@@ -44,7 +43,9 @@ pub(super) fn verificar<V: EnvioDoControle>(
             &propriedades.interessados,
         )
     {
-        return Err(E::ProvaDaCriacao(ProvaDaCriacao::PropriedadesDivergentes));
+        return Err(ErroCriar::ProvaDaCriacao(
+            ProvaDaCriacao::PropriedadesDivergentes,
+        ));
     }
     Ok(nup)
 }

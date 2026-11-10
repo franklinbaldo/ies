@@ -51,11 +51,11 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
             ),
             ("GET", 200) => (
                 "formulário de atribuição",
-                match html_da_resposta(resposta.item) {
+                match html_da_resposta(resposta.interacao) {
                     Err(_) => Resultado::NaoAplicavel("html_nao_observado"),
                     Ok(html) => {
-                        let id =
-                            gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&html));
+                        let id = gravacao::id_procedimento(resposta.interacao)
+                            .or_else(|| id_da_tela(&html));
                         match id {
                             None => Resultado::NaoAplicavel("id_do_processo_nao_observado"),
                             Some(id) => match super::ler_tela(&html, &id) {
@@ -107,8 +107,8 @@ fn replay_sintetico_nao_converte_post_em_prova_de_atribuicao() {
 /// Observação limitada da resposta ao POST gravado: estrutura do 302,
 /// nunca prova de alteração de estado nem de autoria do efeito.
 /// Não publica a Location inteira (pode conter URL assinada).
-fn post_historico_sem_id_decimal_unico(item: &Value) -> bool {
-    let Some(localizacao) = gravacao::localizacao(item) else {
+fn post_historico_sem_id_decimal_unico(interacao: &Value) -> bool {
+    let Some(localizacao) = gravacao::localizacao(interacao) else {
         return false;
     };
     let Some((_, consulta)) = localizacao.split_once('?') else {
@@ -185,10 +185,11 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
         {
             continue;
         }
-        let Ok(original) = html_da_resposta(resposta.item) else {
+        let Ok(original) = html_da_resposta(resposta.interacao) else {
             continue;
         };
-        let Some(id) = gravacao::id_procedimento(resposta.item).or_else(|| id_da_tela(&original))
+        let Some(id) =
+            gravacao::id_procedimento(resposta.interacao).or_else(|| id_da_tela(&original))
         else {
             continue;
         };
@@ -290,7 +291,7 @@ fn replay_de_processo_atribuir_no_acervo() {
     for instalacao in INSTALACOES {
         let mut cards = std::fs::read_dir(raiz.join(instalacao))
             .expect("pasta das cassettes")
-            .map(|item| item.expect("card").path())
+            .map(|interacao| interacao.expect("card").path())
             .filter(|p| {
                 p.file_name()
                     .is_some_and(|s| s.to_string_lossy().starts_with("processo-atribuir-"))
@@ -320,7 +321,7 @@ fn replay_de_processo_atribuir_no_acervo() {
                         "status POST histórico divergente em {instalacao}"
                     );
                     assert!(
-                        post_historico_sem_id_decimal_unico(resposta.item),
+                        post_historico_sem_id_decimal_unico(resposta.interacao),
                         "forma POST histórica divergente em {instalacao}"
                     );
                     posts_historicos_sem_id_decimal_unico += 1;

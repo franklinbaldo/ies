@@ -2,7 +2,6 @@
 //! tentado primeiro (repetição quente = árvore 1 + histórico 1); guardado
 //! que responde login, redirect ou outro NUP é esquecido e o link da
 //! árvore recém-lida o substitui.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -196,7 +195,10 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_arvore() {
             (503, String::new(), None),
         ],
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 2);
 }
 

@@ -2,7 +2,7 @@
 //! O GET da modal e o formulario nao estao em cassettes; nenhuma URL
 //! assinada e montada ou adivinhada e nenhum segredo entra no Debug.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede};
-use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use super::{EnvioDoProcesso, ErroProcessoObter};
 use crate::arvore_processo::{conferir_endereco_relativo, ler_tela_do_processo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -88,9 +88,9 @@ pub(super) fn validar<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     id: &str,
     tela_do_trabalho: &str,
-) -> Result<(), E> {
+) -> Result<(), ErroProcessoObter> {
     let Some(caminho) = std::env::var_os("IES_CREDENCIAIS_FILE").filter(|c| !c.is_empty()) else {
-        return Err(E::Tela(
+        return Err(ErroProcessoObter::Tela(
             crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso,
         ));
     };
@@ -106,7 +106,7 @@ pub(super) fn validar<V: EnvioDoProcesso>(
         Lida::Redirecionamento(_) | Lida::Login => {
             return Err(ErroValidacaoAcesso::RedirecionamentoSemProva.into());
         }
-        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     let tela = TelaServida {
         url: &url,
@@ -140,7 +140,7 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
     trabalho: &str,
     id: &str,
     (html, mime): (&str, &str),
-) -> Result<(ArvoreAberta, String), E> {
+) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
     let tela = match ler_tela_do_processo(&contexto.instalacao, html, id, contexto.unidade_pedida) {
         Ok(tela) => tela,
         Err(crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
@@ -153,7 +153,7 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
                 Lida::Falha(falha) if falha.sessao_encerrada() => {
                     return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
                 }
-                Lida::Falha(falha) => return Err(E::Transporte(falha)),
+                Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
             };
             let validada = ler_tela_do_processo(
                 &contexto.instalacao,
@@ -163,12 +163,15 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
             )?;
             let resultado =
                 rede.abrir_da_tela(contexto, trabalho, (&nova_tela, &novo_mime), validada, id);
-            if resultado.as_ref().is_err_and(E::sessao_encerrada) {
+            if resultado
+                .as_ref()
+                .is_err_and(ErroProcessoObter::sessao_encerrada)
+            {
                 return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
             }
             return resultado;
         }
-        Err(erro) => return Err(E::Tela(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Tela(erro)),
     };
     rede.abrir_da_tela(contexto, trabalho, (html, mime), tela, id)
 }

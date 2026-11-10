@@ -1,6 +1,6 @@
 //! RED/GREEN da ciência documental: Todos `test_documento_ciente_010.py`
 //! @323eb01, HTML sintético (sem segredos) e contagem exata de GETs.
-use super::documento::{ErroCienciaDocumento as E, PedidoDaCienciaDocumento, ciencia_no_documento};
+use super::documento::{ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
 use crate::arvore_processo::tests_assinatura::{
     arvore_assinavel, barra_assinavel, link_da_tela_do_documento, tela_do_documento_40,
     tela_do_documento_50,
@@ -66,7 +66,10 @@ fn lista(atividade: &str) -> String {
 fn rodar(
     confirmar: bool,
     respostas: Vec<Resposta>,
-) -> (Result<super::documento::CienciaDoDocumento, E>, Vec<Pedido>) {
+) -> (
+    Result<super::documento::CienciaDoDocumento, ErroCienciaDocumento>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
         let doc = NumeroDocumento::novo(DOC).unwrap();
@@ -103,7 +106,10 @@ fn barra_sem_ciencia_recusa_antes_de_get_mutador() {
         &[],
     );
     let (resultado, pedidos) = rodar(true, abertura(arvore));
-    assert!(matches!(resultado, Err(E::CienciaNaoOferecida)));
+    assert!(matches!(
+        resultado,
+        Err(ErroCienciaDocumento::CienciaNaoOferecida)
+    ));
     assert_eq!(pedidos, pedidos_da_abertura());
 }
 
@@ -147,7 +153,10 @@ fn aceite_de_outro_documento_nunca_prova_ciencia() {
         ok(arvore_com_lista()),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::NaoConfirmado { .. })));
+    assert!(matches!(
+        resultado,
+        Err(ErroCienciaDocumento::NaoConfirmado { .. })
+    ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos
@@ -170,7 +179,7 @@ fn falha_da_escrita_nao_repetida_seguida_de_leitura() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        E::NaoConfirmado {
+        ErroCienciaDocumento::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
                 FalhaTransporte::Rede
             )),
@@ -206,7 +215,7 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        E::NaoConfirmado {
+        ErroCienciaDocumento::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
                 FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
                     status: 401 | 403,
@@ -242,7 +251,7 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    let E::NaoConfirmado {
+    let ErroCienciaDocumento::NaoConfirmado {
         falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(recusa)),
         ..
     } = &erro
@@ -252,7 +261,7 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
     assert!(matches!(
         erro,
-        E::NaoConfirmado {
+        ErroCienciaDocumento::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
             requisicoes: 6,
             ..
@@ -279,7 +288,10 @@ fn lista_com_atividade_divergente_nao_prova() {
         ok(lista("42458")),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::NaoConfirmado { .. })));
+    assert!(matches!(
+        resultado,
+        Err(ErroCienciaDocumento::NaoConfirmado { .. })
+    ));
     assert_eq!(pedidos.len(), 7);
 }
 
@@ -315,7 +327,10 @@ fn template_inerte_nao_autoriza_get_mutador() {
     let mut respostas = abertura(arvore_com_botao());
     respostas.push(ok(tela));
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::Html(_))), "{resultado:?}");
+    assert!(
+        matches!(resultado, Err(ErroCienciaDocumento::Html(_))),
+        "{resultado:?}"
+    );
     assert_eq!(pedidos.len(), 4);
     assert_eq!(
         pedidos
@@ -330,7 +345,10 @@ fn rejeitar_tela_sem_get_mutador(tela: String) {
     let mut respostas = abertura(arvore_com_botao());
     respostas.push(ok(tela));
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::Html(_))), "{resultado:?}");
+    assert!(
+        matches!(resultado, Err(ErroCienciaDocumento::Html(_))),
+        "{resultado:?}"
+    );
     assert_eq!(pedidos.len(), 4, "a prévia e a tela são somente leitura");
     assert_eq!(
         pedidos
@@ -427,7 +445,10 @@ fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert!(matches!(erro, E::NaoConfirmado { requisicoes: 7, .. }));
+    assert!(matches!(
+        erro,
+        ErroCienciaDocumento::NaoConfirmado { requisicoes: 7, .. }
+    ));
     assert_eq!(pedidos.len(), 7);
     assert_eq!(
         pedidos
@@ -458,7 +479,7 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("validacao Infra nao e sucesso");
-    let E::NaoConfirmado {
+    let ErroCienciaDocumento::NaoConfirmado {
         falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(recusa)),
         requisicoes: 6,
         ..

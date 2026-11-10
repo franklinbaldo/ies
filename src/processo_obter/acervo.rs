@@ -1,7 +1,7 @@
 //! Replay de conformidade do acervo público (Refs #59): toda resposta
 //! gravada de tela do processo, árvore, histórico, propriedades e
 //! marcadores passa pelos **mesmos leitores** de `ies processo NUP`,
-//! offline, e cada leitura é classificada como lida, recusada (subcódigo
+//! offline, e cada leitura é classificada como lida, recusada (erro
 //! tipado) ou não aplicável (identidade não estabelecida pela gravação).
 //! Decisão em docs/decisoes/processo-obter/replay-do-acervo.md; relatório
 //! em docs/validacao-replay/2026-11-04-processo-obter-acervo.md.

@@ -25,7 +25,7 @@ pub(crate) enum ProvaDaCriacao {
     IdentidadePreexistente,
 }
 
-/// Classificacao por fatos tipados, sem interpretar textos de subcodigos.
+/// Classificacao por fatos tipados, sem interpretar textos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EvidenciaDeCoincidencia {
     UnicaSemProvaCausal,
@@ -168,7 +168,7 @@ impl ErroCriar {
     }
 
     /// O retorno não infere ausência quando não houve candidato novo.
-    /// Só expõe subcódigos tipados e NUPs opacos, nunca URLs ou cookies.
+    /// Só expõe erros tipados e NUPs opacos, nunca URLs ou cookies.
     pub(crate) fn diagnostico_apos_post(&self) -> Option<DiagnosticoPosEscrita> {
         let (causa_post, posterior, correspondentes, observados) = match self {
             Self::PosEscrita {

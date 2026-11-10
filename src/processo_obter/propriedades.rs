@@ -6,7 +6,7 @@
 //! apagam e o link da barra segue. Status de falha: erro de transporte,
 //! sem retry. Um GET; o formulário nunca é enviado.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::{EnvioDoProcesso, ErroProcessoObter as E, Propriedades};
+use super::{EnvioDoProcesso, ErroProcessoObter, Propriedades};
 use crate::propriedades_processo::{FonteDasPropriedades, PropriedadesLidas, ler_propriedades};
 
 pub(super) fn ler<V: EnvioDoProcesso>(
@@ -15,14 +15,14 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     aberta: &ArvoreAberta,
     pedidas: bool,
     guardado_primeiro: bool,
-) -> Result<Propriedades, E> {
+) -> Result<Propriedades, ErroProcessoObter> {
     if !pedidas {
         return Ok(Propriedades::Omitidas);
     }
     let endereco = match &aberta.propriedades {
         Ok(Some(endereco)) => endereco,
         Ok(None) => return Ok(Propriedades::NaoPublicadasNaBarra),
-        Err(erro) => return Err(E::Propriedades(*erro)),
+        Err(erro) => return Err(ErroProcessoObter::Propriedades(*erro)),
     };
     let id = aberta.arvore.processo.id.as_str();
     let fonte = endereco.fonte;
@@ -51,7 +51,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     id: &str,
     fonte: FonteDasPropriedades,
-) -> Result<Option<(String, PropriedadesLidas)>, E> {
+) -> Result<Option<(String, PropriedadesLidas)>, ErroProcessoObter> {
     let acao = fonte.acao();
     let Some(link) = contexto
         .chave(acao, id)
@@ -67,13 +67,13 @@ fn pelo_guardado<V: EnvioDoProcesso>(
                 contexto.esquecer_link(acao, id);
                 Ok(None)
             }
-            Err(erro) => Err(E::Propriedades(erro)),
+            Err(erro) => Err(ErroProcessoObter::Propriedades(erro)),
         },
         Lida::Login | Lida::Redirecionamento(_) => {
             contexto.esquecer_link(acao, id);
             Ok(None)
         }
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }
 
@@ -83,13 +83,14 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
     url: &str,
     id: &str,
     fonte: FonteDasPropriedades,
-) -> Result<PropriedadesLidas, E> {
+) -> Result<PropriedadesLidas, ErroProcessoObter> {
     match rede.get(url)? {
-        Lida::Html { html, .. } => {
-            ler_propriedades(&html, contexto.nup, id, fonte).map_err(E::Propriedades)
-        }
+        Lida::Html { html, .. } => ler_propriedades(&html, contexto.nup, id, fonte)
+            .map_err(ErroProcessoObter::Propriedades),
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Login => Err(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }

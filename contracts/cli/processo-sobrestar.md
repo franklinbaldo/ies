@@ -72,7 +72,7 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 
 ## Recusas tipadas (contrato de subcódigos)
 
-| Variante ou `onde` (stderr) | Condição |
+| Erro ou `onde` (stderr) | Condição |
 | --- | --- |
 | `MotivoDoSobrestamentoVazio` | Não há motivo válido |
 | `ErroSobrestamento::UnidadeNaoPublicada` | Unidade não observada |
@@ -80,7 +80,7 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 | `barra_do_sobrestamento_nao_interpretada` | Barra fora da forma |
 | `acoes_de_sobrestamento_repetidas_na_barra` | Ações duplicadas |
 | `endereco_do_sobrestamento_nao_reconhecido` | URL inválida |
-| `endereco_do_sobrestamento_de_outro_processo` (sem variante própria confirmada no código) | ID diferente |
+| `endereco_do_sobrestamento_de_outro_processo` (sem erro próprio confirmado no código) | ID diferente |
 | `tela_do_no_da_retomada_nao_reconhecida` | URL da raiz não reconhecida |
 | `ErroSobrestamento::JaSobrestado` | Já sobrestado |
 | `ErroSobrestamento::NaoSobrestado` | Retomada não aplicável |

@@ -92,7 +92,7 @@ isso nao equivale a validacao live de GO/PEN3.
 
 ## Falhas tipadas
 
-| Variante ou `onde` (stderr) | Fato verificável |
+| Erro ou `onde` (stderr) | Fato verificável |
 | --- | --- |
 | `ErroLeituraRetornos::MesDaCliInvalido` | Argumento AAAA-MM ausente de formato válido |
 | `LinkDeRetornosAusente` | Nenhum link da operação no Controle |

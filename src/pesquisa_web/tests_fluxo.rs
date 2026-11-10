@@ -553,7 +553,7 @@ fn colheita_do_controle_nao_muda_a_sequencia_e_guarda_o_link_da_pesquisa() {
         geracao_sessao: &geracao,
         unidade: "110000001",
         acao: "protocolo_pesquisar",
-        objeto: "",
+        alvo: "",
     };
     assert_eq!(
         indice.link(&instalacao, chave).map(|u| u.url().to_owned()),

@@ -46,22 +46,21 @@ impl Credenciais {
     /// `usuario` e `orgao` aparados; `senha` exatamente como escrita depois
     /// do primeiro `=`, só sem o fim de linha.
     pub(crate) fn interpretar(texto: &str) -> Result<Self, ErroLogin> {
-        use CampoDasCredenciais as C;
         let mut valores: [Option<String>; 3] = [None, None, None];
         for linha in texto.lines().filter(|linha| !linha.is_empty()) {
             let (chave, valor) = linha
                 .split_once('=')
                 .ok_or(ErroLogin::LinhaDasCredenciaisSemCampoConhecido)?;
             let (campo, indice) = match chave {
-                "usuario" => (C::Usuario, 0),
-                "senha" => (C::Senha, 1),
-                "orgao" => (C::Orgao, 2),
+                "usuario" => (CampoDasCredenciais::Usuario, 0),
+                "senha" => (CampoDasCredenciais::Senha, 1),
+                "orgao" => (CampoDasCredenciais::Orgao, 2),
                 _ => return Err(ErroLogin::LinhaDasCredenciaisSemCampoConhecido),
             };
             if valores[indice].is_some() {
                 return Err(ErroLogin::CampoDasCredenciaisRepetido(campo));
             }
-            let valor = if campo == C::Senha {
+            let valor = if campo == CampoDasCredenciais::Senha {
                 valor
             } else {
                 valor.trim()
@@ -73,9 +72,15 @@ impl Credenciais {
         }
         let [usuario, senha, orgao] = valores;
         Ok(Self {
-            usuario: usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Usuario))?,
-            senha: senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Senha))?,
-            orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(C::Orgao))?,
+            usuario: usuario.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Usuario,
+            ))?,
+            senha: senha.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Senha,
+            ))?,
+            orgao: orgao.ok_or(ErroLogin::CampoDasCredenciaisAusente(
+                CampoDasCredenciais::Orgao,
+            ))?,
         })
     }
 }

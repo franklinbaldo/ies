@@ -1,7 +1,6 @@
 //! `ies unidade recebidos|gerados [--pagina N]` quando a sessão está na D:
 //! troca para R e lê (e pagina, se pedido); a sessão fica na R, com a página
 //! N lembrada (sem restaurar).
-use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
@@ -22,7 +21,7 @@ pub(crate) fn obter_na_visao_resumida<V: EnvioDoControle>(
     pagina: Option<usize>,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<String, E> {
+) -> Result<String, super::ErroVisaoDoControle> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     if !encontrado.eh_detalhada() {
@@ -51,8 +50,9 @@ fn postar_pagina<V: EnvioDoControle>(
     tela: &TelaAtual,
     categoria: Categoria,
     numero: usize,
-) -> Result<Option<String>, E> {
-    let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+) -> Result<Option<String>, super::ErroVisaoDoControle> {
+    let codificacao = codificacao_da_tela(&tela.mime)
+        .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,

@@ -47,10 +47,10 @@ fn replay_de_unidade_trocar_no_acervo() {
         let mut soma =
             |ordem, leitor, r: Resultado| leituras.push((ordem, leitor, nome.to_owned(), r));
         for (i, r) in rs.iter().enumerate() {
-            let url = r.item["response"]["url"].as_str().unwrap_or("");
+            let url = r.interacao["response"]["url"].as_str().unwrap_or("");
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_controlar", "GET", 200) => {
-                    let Ok(h) = html_da_resposta(r.item) else {
+                    let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
                     if unidade_do_controle(&h).is_ok() {
@@ -65,7 +65,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     }
                 }
                 ("infra_trocar_unidade", "GET", 200) => {
-                    let Ok(h) = html_da_resposta(r.item) else {
+                    let Ok(h) = html_da_resposta(r.interacao) else {
                         continue;
                     };
                     let lida = ler_tela_de_troca(&h);
@@ -104,8 +104,8 @@ fn replay_de_unidade_trocar_no_acervo() {
                     }
                 }
                 ("infra_trocar_unidade", "POST", 302) => {
-                    let post = gravacao::url_sem_consulta(json, r.item);
-                    let loc = gravacao::localizacao(r.item).unwrap_or("");
+                    let post = gravacao::url_sem_consulta(json, r.interacao);
+                    let loc = gravacao::localizacao(r.interacao).unwrap_or("");
                     let id = id_declarado(loc).unwrap_or_default();
                     let oferecido = tela.as_ref().and_then(|(t, _)| {
                         t.unidades
@@ -124,7 +124,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     );
                     let seguinte = rs
                         .get(i + 1)
-                        .map(|s| s.item["response"]["url"].as_str().unwrap_or(""));
+                        .map(|s| s.interacao["response"]["url"].as_str().unwrap_or(""));
                     let primeiro = url_do_salto(loc, &post, &id);
                     soma(
                         4,
@@ -138,8 +138,8 @@ fn replay_de_unidade_trocar_no_acervo() {
                     let Some(s1) = rs.get(i + 1) else { continue };
                     let mut controle = s1;
                     if s1.status == 302 {
-                        let u1 = s1.item["response"]["url"].as_str().unwrap_or("");
-                        let loc2 = gravacao::localizacao(s1.item).unwrap_or("");
+                        let u1 = s1.interacao["response"]["url"].as_str().unwrap_or("");
+                        let loc2 = gravacao::localizacao(s1.interacao).unwrap_or("");
                         let s2 = rs.get(i + 2);
                         let segundo = url_do_salto(loc2, u1, &id);
                         soma(
@@ -147,7 +147,9 @@ fn replay_de_unidade_trocar_no_acervo() {
                             "Location do 1º salto (URL = a pedida)",
                             match (&segundo, s2) {
                                 (Ok(u), Some(s))
-                                    if u == s.item["response"]["url"].as_str().unwrap_or("") =>
+                                    if u == s.interacao["response"]["url"]
+                                        .as_str()
+                                        .unwrap_or("") =>
                                 {
                                     Resultado::Lido
                                 }
@@ -159,7 +161,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                         controle = s2;
                     }
                     let sigla = oferecido.map(|u| u.sigla).unwrap_or_default();
-                    let lida = html_da_resposta(controle.item)
+                    let lida = html_da_resposta(controle.interacao)
                         .ok()
                         .map(|h| unidade_do_controle(&h));
                     soma(

@@ -1,5 +1,5 @@
 //! Resultado e recusas de `ies processo concluir`
-//! (contracts/cli/processo-concluir.md). Uma variante por fato.
+//! (contracts/cli/processo-concluir.md). Um erro por fato.
 use crate::arvore_processo::{ErroConcluirNaBarra, ErroFuncaoDeConcluir, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;

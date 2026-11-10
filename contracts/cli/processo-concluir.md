@@ -77,7 +77,7 @@ rádios `rdoConcluir` e `rdoPrazoReaberturaProgramada`; textos
 `chkSinDiasUteisReaberturaProgramada`. Botões `button`/`reset` e
 desabilitados não contam. Além disso:
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | Sem o formulário | `formulario_de_conclusao_ausente` |
 | `hdnIdProtocolos` diferente do id aberto | `TelaDeConclusaoDeOutroProcesso` |
@@ -134,9 +134,9 @@ continuam como estavam (observado). Desfaz-se com
 
 `forma` é `tela`, `funcao` ou `null` (nada a fazer). `depois` são as
 siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
-saída 1, stdout vazio e `Error: <variante de ErroConcluir>` em stderr;
-`aberto_em`, `depois`, `falha_do_envio` e `verificacao` são campos das
-variantes que os observaram.
+saída 1, stdout vazio e `Error: <ErroConcluir::…>` em stderr;
+`aberto_em`, `depois`, `falha_do_envio` e `verificacao` são campos dos
+erros que os observaram.
 A saída humana termina com "Para concluir, repita com --confirmar" na
 prévia.
 

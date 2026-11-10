@@ -46,8 +46,8 @@ fn link_do_gerado(
     html: &str,
     candidato: &reconciliacao::CandidatoGerado,
 ) -> Result<String, ErroCriar> {
-    use reconciliacao::ErroFotografia as F;
-    let erro = || ErroCriar::Fotografia(F::LinkDoCandidatoNaoComprovado);
+    let erro =
+        || ErroCriar::Fotografia(reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado);
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| erro())?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(|_| erro())?;
@@ -80,7 +80,9 @@ fn link_do_gerado(
                 .ok_or_else(erro)?;
             let href = decodificar_atributo(&href).ok_or_else(erro)?;
             if encontrado.replace(href).is_some() {
-                return Err(ErroCriar::Fotografia(F::LinksDoCandidatoRepetidos));
+                return Err(ErroCriar::Fotografia(
+                    reconciliacao::ErroFotografia::LinksDoCandidatoRepetidos,
+                ));
             }
         }
     }

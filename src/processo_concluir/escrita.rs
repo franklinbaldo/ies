@@ -61,9 +61,8 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
 
 /// O cookie do retrato da sessão (#222), lido do arquivo privado e conferido.
 /// O cookie privado da sessão não pôde ser lido, antes de qualquer
-/// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` numa
-/// variante `Cookie`, distinta do transporte das telas; o nome público é o
-/// motivo concreto (`transparente`).
+/// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` como
+/// erro `Cookie`, distinto do transporte das telas.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum CookieIlegivel {

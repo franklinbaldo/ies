@@ -122,9 +122,9 @@ fn contar_arvore_da_linha(
     linha: &tl::HTMLTag<'_>,
     href_do_processo: &str,
 ) -> Result<usize, ErroResultadoPesquisa> {
-    use ErroResultadoPesquisa as E;
-    let ilegivel =
-        |_: ErroAtributoHtml| E::Html(ErroHtml::html("html_de_pesquisa_nao_interpretado"));
+    let ilegivel = |_: ErroAtributoHtml| {
+        ErroResultadoPesquisa::Html(ErroHtml::html("html_de_pesquisa_nao_interpretado"))
+    };
     // O `a.protocoloNormal` da mesma linha repete `class`: leitura tolerante.
     let arvores =
         nos_por_elemento_e_classe_em_todas_as_ocorrencias(dom, Some(linha), "a", "arvore")
@@ -143,7 +143,7 @@ fn contar_arvore_da_linha(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroHtml::html("html_de_pesquisa_nao_interpretado"))?;
     if valor_do_atributo(tag, "href").map_err(ilegivel)?.as_deref() != Some(href_do_processo) {
-        return Err(E::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
+        return Err(ErroResultadoPesquisa::LinkDaArvoreComHrefDiferenteDoLinkDoProcesso);
     }
     Ok(1)
 }

@@ -3,7 +3,7 @@
 //! 4.1.5 e GO/PEN 5.0 para o link; `UnB` 4.0.9 e PEN1 4.0.12 para a
 //! função). Hosts, hashes e ids inventados.
 use super::concluir::{
-    ConcluirNaBarra, ErroConcluirNaBarra as B, ErroFuncaoDeConcluir as F, ler_concluir_da_barra,
+    ConcluirNaBarra, ErroConcluirNaBarra, ErroFuncaoDeConcluir, ler_concluir_da_barra,
     ler_funcao_de_concluir,
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
@@ -143,7 +143,7 @@ fn formas_repetidas_e_enderecos_recusados() {
             "10",
         )
     };
-    let erro = Err(B::Html(ErroHtml::repetido(
+    let erro = Err(ErroConcluirNaBarra::Html(ErroHtml::repetido(
         "formas_de_concluir_repetidas_na_barra",
     )));
     assert_eq!(ler(&[pela_tela("10"), ACAO_FUNCAO.to_owned()]), erro);
@@ -151,12 +151,12 @@ fn formas_repetidas_e_enderecos_recusados() {
     assert_eq!(ler(&[ACAO_FUNCAO.to_owned(), ACAO_FUNCAO.to_owned()]), erro);
     assert_eq!(
         ler(&[pela_tela("11")]),
-        Err(B::EnderecoDaConclusaoDeOutroProcesso)
+        Err(ErroConcluirNaBarra::EnderecoDaConclusaoDeOutroProcesso)
     );
     let sem_hash = acao_da_barra(&link_de_concluir("10").replace(HASH_CONCLUIR, "abc"));
     assert_eq!(
         ler(&[sem_hash]),
-        Err(B::Html(ErroHtml::valor(
+        Err(ErroConcluirNaBarra::Html(ErroHtml::valor(
             "endereco_da_conclusao_nao_reconhecido"
         )))
     );
@@ -164,7 +164,7 @@ fn formas_repetidas_e_enderecos_recusados() {
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_FUNCAO);
     assert_eq!(
         ler_concluir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(B::Html(ErroHtml::valor(
+        Err(ErroConcluirNaBarra::Html(ErroHtml::valor(
             "endereco_da_tela_do_no_nao_reconhecido"
         )))
     );
@@ -197,7 +197,7 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let sem = tela.replace("function concluirProcesso(){", "function outraCoisa(){");
     assert_eq!(
         ler(&sem),
-        Err(F::Html(ErroHtml::ausente(
+        Err(ErroFuncaoDeConcluir::Html(ErroHtml::ausente(
             "funcao_de_concluir_ausente_na_tela_do_no"
         )))
     );
@@ -211,7 +211,7 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let duas = tela.replace("</script>", &format!("{}</script>", funcao_extra()));
     assert_eq!(
         ler(&duas),
-        Err(F::Html(ErroHtml::repetido(
+        Err(ErroFuncaoDeConcluir::Html(ErroHtml::repetido(
             "funcoes_de_concluir_repetidas_na_tela_do_no"
         )))
     );
@@ -219,14 +219,17 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
         &format!("id_procedimento=10&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
         &format!("id_procedimento=11&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
     );
-    assert_eq!(ler(&outro), Err(F::EnderecoDaConclusaoDeOutroProcesso));
+    assert_eq!(
+        ler(&outro),
+        Err(ErroFuncaoDeConcluir::EnderecoDaConclusaoDeOutroProcesso)
+    );
     let reabrir = tela.replace(
         &link_da_funcao("10"),
         &link_da_funcao("10").replace("procedimento_concluir", "procedimento_reabrir"),
     );
     assert_eq!(
         ler(&reabrir),
-        Err(F::Html(ErroHtml::valor(
+        Err(ErroFuncaoDeConcluir::Html(ErroHtml::valor(
             "endereco_da_conclusao_nao_reconhecido"
         )))
     );

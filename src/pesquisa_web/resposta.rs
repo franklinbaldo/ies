@@ -39,7 +39,7 @@ pub(crate) enum RespostaDaPesquisa {
     SemResultado,
 }
 
-/// Uma variante por fato verificável da resposta 200.
+/// um erro por fato verificável da resposta 200.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRespostaDaPesquisa {
@@ -83,9 +83,10 @@ pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {
 /// "Exibindo I - F de N", com espaços colapsados; nada antes ou depois.
 /// "N resultados" (sem faixa) volta como `Ok((None, N))`.
 fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroRespostaDaPesquisa> {
-    use ErroRespostaDaPesquisa as E;
     let palavras: Vec<&str> = texto.split_whitespace().collect();
-    let numero = |t: &str| ler_contagem(t).ok_or(E::NumeroDaBarraDeContagemForaDoFormato);
+    let numero = |t: &str| {
+        ler_contagem(t).ok_or(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato)
+    };
     // "Exibindo I - F de N" pagina; "N resultados" é a lista que cabe numa
     // página, sem `navegar()` (`UnB`, 2 e 9 resultados), ou a última página
     // na PEN3 5.0.4 (`pesquisa-paginas-pen3`, passo 9). O singular não foi
@@ -95,10 +96,10 @@ fn ler_barra(texto: &str) -> Result<(Option<FaixaDaPesquisa>, u64), ErroResposta
             (numero(inicio)?, numero(fim)?, numero(total)?)
         }
         [total, "resultados"] => return Ok((None, numero(total)?)),
-        _ => return Err(E::TextoDaBarraDeContagemForaDoFormato),
+        _ => return Err(ErroRespostaDaPesquisa::TextoDaBarraDeContagemForaDoFormato),
     };
     if inicio == 0 || inicio > fim || fim > total {
-        return Err(E::FaixaDaBarraDeContagemImpossivel);
+        return Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel);
     }
     Ok((Some(FaixaDaPesquisa { inicio, fim }), total))
 }
@@ -138,7 +139,6 @@ pub(crate) fn classificar_resposta<T>(
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
     ler: impl FnOnce(&str) -> Result<Vec<T>, ErroRespostaDaPesquisa>,
 ) -> Result<Classificada<T>, ErroRespostaDaPesquisa> {
-    use ErroRespostaDaPesquisa as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("html_da_resposta_da_pesquisa_nao_interpretado"))?;
     let tabelas = nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?;
@@ -146,10 +146,16 @@ pub(crate) fn classificar_resposta<T>(
     let barras = nos_por_elemento_e_classe(&dom, None, "div", "pesquisaBarraD")?;
     match (tabelas.is_empty(), avisos.len(), barras.is_empty()) {
         (true, 1, true) => return Ok(Classificada::SemResultado),
-        (true, 1, false) => return Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
-        (true, _, _) => return Err(E::RespostaDaPesquisaNaoReconhecida),
+        (true, 1, false) => {
+            return Err(ErroRespostaDaPesquisa::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta);
+        }
+        (true, _, _) => return Err(ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida),
         (false, 0, _) => {}
-        (false, _, _) => return Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta),
+        (false, _, _) => {
+            return Err(
+                ErroRespostaDaPesquisa::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
+            );
+        }
     }
     let barra = match barras.as_slice() {
         [] => return Err(ErroHtml::ausente("barra_de_contagem_da_pesquisa_ausente").into()),
@@ -180,7 +186,7 @@ pub(crate) fn classificar_resposta<T>(
         },
     };
     if faixa.inicio == 0 {
-        return Err(E::FaixaDaBarraDeContagemImpossivel);
+        return Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel);
     }
     let itens = ler(html)?;
     // Goiás 5.0.3 publica menos registros que a faixa escrita na barra (9
@@ -190,7 +196,7 @@ pub(crate) fn classificar_resposta<T>(
     let na_faixa = faixa.fim - faixa.inicio + 1;
     let lidas = itens.len() as u64;
     if lidas > na_faixa || (lidas < na_faixa && !escrita) {
-        return Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra);
+        return Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra);
     }
     Ok(Classificada::Lista {
         itens,

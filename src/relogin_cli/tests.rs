@@ -98,7 +98,7 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
 }
 
 #[test]
-fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
+fn so_a_sessao_encerrada_dispara_relogin() {
     assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
     for falha in [
         FalhaTransporte::CookieInvalido,

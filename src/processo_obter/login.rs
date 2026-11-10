@@ -15,19 +15,18 @@ pub(super) enum DestinoDoRedirecionamento {
 const RECUSA: &str = "Link sem assinatura";
 
 pub(super) fn destino(localizacao: Option<&str>) -> DestinoDoRedirecionamento {
-    use DestinoDoRedirecionamento as D;
     let Some(localizacao) = localizacao.filter(|l| !l.is_empty()) else {
-        return D::Outro;
+        return DestinoDoRedirecionamento::Outro;
     };
     let (caminho, consulta) = localizacao.split_once('?').unwrap_or((localizacao, ""));
     let arquivo = caminho.rsplit('/').next().unwrap_or(caminho);
     if !arquivo.eq_ignore_ascii_case("login.php") {
-        return D::Outro;
+        return DestinoDoRedirecionamento::Outro;
     }
     if recusa_sem_assinatura(consulta) {
-        D::RecusaSemAssinatura
+        DestinoDoRedirecionamento::RecusaSemAssinatura
     } else {
-        D::Login
+        DestinoDoRedirecionamento::Login
     }
 }
 

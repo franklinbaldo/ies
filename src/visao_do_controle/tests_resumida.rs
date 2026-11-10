@@ -98,16 +98,7 @@ fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
 fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
     let mut outro_criterio = segunda();
     outro_criterio.hash_r = "9999";
-    for (resposta, _subcodigo) in [
-        (
-            r().html(),
-            "faixa_da_resposta_diferente_da_pagina_solicitada",
-        ),
-        (
-            outro_criterio.html(),
-            "criterios_recebidos_alterados_apos_paginar",
-        ),
-    ] {
+    for resposta in [r().html(), outro_criterio.html()] {
         let (_resultado, registro) = resumida(
             d().html(),
             Categoria::Recebidos,
@@ -125,7 +116,7 @@ fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
 }
 
 #[test]
-fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
+fn troca_para_r_recusada_pelo_servidor_sobe_o_status() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,
@@ -220,10 +211,9 @@ fn colunas_com_sessao_em_r_trocam_leem_e_ficam_na_d() {
 /// Ensaio live `UnB` 4.0.9 (02/11/2026): 11 opções, sem Prioridade.
 #[test]
 fn colunas_da_unb_com_onze_opcoes_publicam_a_prioridade_indisponivel() {
-    use crate::nivel_de_detalhe::ColunaDoDetalhe as C;
-    let publicadas: Vec<_> = C::TODAS
+    let publicadas: Vec<_> = crate::nivel_de_detalhe::ColunaDoDetalhe::TODAS
         .into_iter()
-        .filter(|c| *c != C::Prioridade)
+        .filter(|c| *c != crate::nivel_de_detalhe::ColunaDoDetalhe::Prioridade)
         .collect();
     let nivel = crate::nivel_de_detalhe::tests::tela_com(&publicadas, &["chkSinAtribuicao"]);
     let (resultado, registro) = colunas(d().html(), vec![(200, nivel)]);
@@ -236,7 +226,10 @@ fn colunas_da_unb_com_onze_opcoes_publicam_a_prioridade_indisponivel() {
         .filter(|o| !o.disponivel)
         .map(|o| o.coluna)
         .collect();
-    assert_eq!(indisponiveis, [C::Prioridade]);
+    assert_eq!(
+        indisponiveis,
+        [crate::nivel_de_detalhe::ColunaDoDetalhe::Prioridade]
+    );
 }
 
 #[test]

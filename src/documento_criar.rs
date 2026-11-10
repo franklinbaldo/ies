@@ -121,24 +121,23 @@ pub(crate) fn conferir_criacao_com_rotulo(
     depois: &[DocumentoNaArvore],
     rotulo_confere: impl Fn(&str, &str) -> bool,
 ) -> Result<String, ErroCriar> {
-    use ErroCriar as E;
     // Uma árvore inicial ambígua também inviabiliza provar unicidade:
     // não basta a leitura posterior ter IDs distintos.
     let mut originais = std::collections::HashSet::new();
     for doc in antes {
         if doc.id.is_empty() || !originais.insert(doc.id.as_str()) {
-            return Err(E::NaoConfirmado);
+            return Err(ErroCriar::NaoConfirmado);
         }
     }
     let mut ids = std::collections::HashSet::new();
     for doc in depois {
         if doc.id.is_empty() || !ids.insert(doc.id.as_str()) {
-            return Err(E::NaoConfirmado);
+            return Err(ErroCriar::NaoConfirmado);
         }
     }
     for original in antes {
         if !depois.iter().any(|doc| doc == original) {
-            return Err(E::NaoConfirmado);
+            return Err(ErroCriar::NaoConfirmado);
         }
     }
     let novos: Vec<_> = depois
@@ -146,15 +145,15 @@ pub(crate) fn conferir_criacao_com_rotulo(
         .filter(|doc| !antes.iter().any(|d| d.id == doc.id))
         .collect();
     let novo = match novos.as_slice() {
-        [] => return Err(E::NaoAplicado),
+        [] => return Err(ErroCriar::NaoAplicado),
         [doc] => *doc,
-        _ => return Err(E::NaoConfirmado),
+        _ => return Err(ErroCriar::NaoConfirmado),
     };
     let numero = novo
         .numero_sei
         .as_deref()
         .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
-        .ok_or(E::NaoConfirmado)?;
+        .ok_or(ErroCriar::NaoConfirmado)?;
     if !rotulo_confere(&novo.rotulo, numero)
         || antes
             .iter()
@@ -165,7 +164,7 @@ pub(crate) fn conferir_criacao_com_rotulo(
             .count()
             != 1
     {
-        return Err(E::NaoConfirmado);
+        return Err(ErroCriar::NaoConfirmado);
     }
     Ok(numero.to_owned())
 }
@@ -234,12 +233,12 @@ fn script_prova_escolha(html: &str) -> bool {
 /// declara o botão "Exibir todos" por exibirSeries('T'), que altera apenas
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
 pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
-    use ErroCriar as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(E::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(E::ListaForaDaForma)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCriar::ListaForaDaForma)?;
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
+    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     let botoes = nos_com_id(&dom, "ancExibirSeries")
-        .map_err(|_| E::ListaForaDaForma)?
+        .map_err(|_| ErroCriar::ListaForaDaForma)?
         .into_iter()
         .filter(|no| {
             !no.get(dom.parser())
@@ -257,24 +256,24 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
         return if botoes.is_empty() {
             Ok(false)
         } else {
-            Err(E::ListaForaDaForma)
+            Err(ErroCriar::ListaForaDaForma)
         };
     };
     let tag = botao
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(E::ListaForaDaForma)?;
+        .ok_or(ErroCriar::ListaForaDaForma)?;
     if !tag.name().as_utf8_str().eq_ignore_ascii_case("a") {
-        return Err(E::ListaForaDaForma);
+        return Err(ErroCriar::ListaForaDaForma);
     }
     let href = valor_do_atributo(tag, "href")
-        .map_err(|_| E::ListaForaDaForma)?
-        .ok_or(E::LinkDoTipoNaoNavegavel)?;
-    let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
+        .map_err(|_| ErroCriar::ListaForaDaForma)?
+        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+    let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
     let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(|_| E::ListaForaDaForma)?
-        .ok_or(E::LinkDoTipoNaoNavegavel)?;
-    let onclick = decodificar_atributo(&onclick).ok_or(E::ListaForaDaForma)?;
+        .map_err(|_| ErroCriar::ListaForaDaForma)?
+        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+    let onclick = decodificar_atributo(&onclick).ok_or(ErroCriar::ListaForaDaForma)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
     // Filtro da sessão já em "todos": o botão volta a oferecer só os
     // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
@@ -284,14 +283,14 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     if (href != "#" && href != "javascript:void(0);")
         || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
     {
-        return Err(E::LinkDoTipoNaoNavegavel);
+        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
     }
     if !guarda_navegacao::script_publica_funcao_de_navegacao(
         html,
         "functionexibirSeries(",
         "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
     ) {
-        return Err(E::LinkDoTipoNaoNavegavel);
+        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
     }
     Ok(true)
 }
@@ -304,20 +303,20 @@ pub(crate) fn escolha_do_tipo(
     id_procedimento: &str,
     tipo: &str,
 ) -> Result<EscolhaDoDocumento, ErroCriar> {
-    use ErroCriar as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::ListaForaDaForma)?;
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| E::ListaForaDaForma)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCriar::ListaForaDaForma)?;
+    let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| ErroCriar::ListaForaDaForma)?;
     let [tabela] = tabelas.as_slice() else {
-        return Err(E::ListaForaDaForma);
+        return Err(ErroCriar::ListaForaDaForma);
     };
     let tabela = tabela
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(E::ListaForaDaForma)?;
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(E::ListaForaDaForma)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(E::ListaForaDaForma)?;
+        .ok_or(ErroCriar::ListaForaDaForma)?;
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
+    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
-        return Err(E::ListaForaDaForma);
+        return Err(ErroCriar::ListaForaDaForma);
     }
     let mut links = Vec::new();
     for tag in tabela
@@ -341,34 +340,34 @@ pub(crate) fn escolha_do_tipo(
         if nome != tipo {
             continue;
         }
-        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| E::ListaForaDaForma)?;
+        let onclick = valor_do_atributo(tag, "onclick").map_err(|_| ErroCriar::ListaForaDaForma)?;
         let href = valor_do_atributo(tag, "href")
-            .map_err(|_| E::ListaForaDaForma)?
-            .ok_or(E::LinkDoTipoNaoNavegavel)?;
-        let href = decodificar_atributo(&href).ok_or(E::ListaForaDaForma)?;
+            .map_err(|_| ErroCriar::ListaForaDaForma)?
+            .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
+        let href = decodificar_atributo(&href).ok_or(ErroCriar::ListaForaDaForma)?;
         if link_de_tipo_externo(&href, onclick.as_deref()) {
             continue;
         }
         links.push((href, onclick));
     }
     let (href, onclick) = match links.as_slice() {
-        [] => return Err(E::TipoAusente),
+        [] => return Err(ErroCriar::TipoAusente),
         [link] => link,
-        _ => return Err(E::TipoAmbiguo),
+        _ => return Err(ErroCriar::TipoAmbiguo),
     };
     if href.starts_with("controlador.php?") {
         let link = link_do_tipo::conferir_link_do_tipo(instalacao, href, id_procedimento)?;
         return Ok(EscolhaDoDocumento::Link(link));
     }
     if href != "#" && href != "javascript:void(0);" {
-        return Err(E::LinkDoTipoNaoNavegavel);
+        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
     }
     let id = onclick
         .as_deref()
         .and_then(id_da_escolha_literal)
-        .ok_or(E::LinkDoTipoNaoNavegavel)?;
+        .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
     if !script_prova_escolha(html) {
-        return Err(E::LinkDoTipoNaoNavegavel);
+        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
     }
     Ok(EscolhaDoDocumento::Formulario(id))
 }

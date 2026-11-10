@@ -1,8 +1,8 @@
-//! Falhas tipadas do transporte Web: uma variante por fato, subcódigos
-//! estáveis (docs/erros-tipados.md). Contrato: contracts/cli.md.
+//! Falhas tipadas do transporte Web: um erro por fato
+//! (docs/erros-tipados.md). Contrato: contracts/cli.md.
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
-/// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
+/// (`corpo_de_recusa`).
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("HTTP {status}")]
 pub struct StatusHttpRecusado {
@@ -51,7 +51,7 @@ pub enum FalhaTransporte {
     /// sessão não venceu; não há relogin nem nova tentativa.
     BloqueioDeSegurancaDaInstalacao(#[source] StatusHttpRecusado),
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
-    /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
+    /// própria instalação: a sessão foi encerrada. Mesmo erro dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
     ControleRedirecionadoParaOLogin(#[source] StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
@@ -64,7 +64,7 @@ pub enum FalhaTransporte {
 }
 
 impl FalhaTransporte {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

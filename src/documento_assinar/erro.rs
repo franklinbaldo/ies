@@ -1,5 +1,5 @@
 //! Resultado e recusas de `ies documento assinar`
-//! (contracts/cli/documento-assinar.md). Uma variante por fato.
+//! (contracts/cli/documento-assinar.md). Um erro por fato.
 use crate::arvore_processo::{Assinante, ErroLinkDeAssinar};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;

@@ -1,5 +1,5 @@
-//! Falhas de `ies processo buscar TERMO`: uma variante por etapa do fluxo,
-//! cada uma com o subcódigo estável da etapa que falhou.
+//! Falhas de `ies processo buscar TERMO`: um erro por etapa do fluxo,
+//! cada uma com o erro da etapa que falhou.
 use super::formulario_pesquisa::ErroPesquisaProtocolo;
 use super::link_da_pesquisa::ErroLinkDaPesquisa;
 use super::paginacao::ErroPaginacaoDaPesquisa;
@@ -21,7 +21,7 @@ pub(crate) enum ErroBuscaDeProcesso {
 }
 
 impl ErroBuscaDeProcesso {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

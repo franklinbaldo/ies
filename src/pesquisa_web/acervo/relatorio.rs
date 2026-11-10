@@ -1,5 +1,5 @@
 //! Agregação em Markdown: tabela leitor × instalação, formas lidas por
-//! instalação, totais declarados das listas e recusas por subcódigo. Só
+//! instalação, totais declarados das listas e recusas por erro. Só
 //! contagens, formas e `cassette#passo`.
 use super::{Registro, Resultado};
 use crate::cassette::acervo::INSTALACOES;
@@ -100,7 +100,7 @@ fn recusas(s: &mut String, registros: &[Registro]) {
             ));
         }
     }
-    s.push_str("Recusas por subcódigo:\n\n");
+    s.push_str("Recusas por erro:\n\n");
     if por.is_empty() {
         s.push_str("- nenhuma\n");
     }

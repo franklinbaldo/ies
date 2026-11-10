@@ -27,8 +27,8 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
         .or_default() += 1;
 }
 
-fn tela(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Option<String> {
-    let id = gravacao::id_da_pesquisa_rapida(item)?;
+fn tela(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Option<String> {
+    let id = gravacao::id_da_pesquisa_rapida(interacao)?;
     let instalacao = gravacao::instalacao(json)?;
     Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
         Ok(_) => "documento selecionado na árvore".to_owned(),
@@ -36,9 +36,9 @@ fn tela(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Optio
     })
 }
 
-fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
+fn arvore(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
     let (Some(id), Some(nup), Some(instalacao)) = (
-        gravacao::id_procedimento(item),
+        gravacao::id_procedimento(interacao),
         nup_declarado_na_arvore(html),
         gravacao::instalacao(json),
     ) else {
@@ -63,10 +63,10 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
 }
 
 /// A resposta gravada do anexo pelo leitor do comando, sem `--saida`.
-fn anexo(item: &serde_json::Value) -> String {
+fn anexo(interacao: &serde_json::Value) -> String {
     use crate::anexo_documento::{DestinoDoAnexo, LimiteDoAnexo, ler_anexo};
     use crate::transporte::resposta_binaria::RespostaBinaria;
-    let cabecalhos = item["response"]["headers"]
+    let cabecalhos = interacao["response"]["headers"]
         .as_object()
         .map(|mapa| {
             mapa.iter()
@@ -75,9 +75,10 @@ fn anexo(item: &serde_json::Value) -> String {
         })
         .unwrap_or_default();
     let resposta = RespostaBinaria {
-        status: u16::try_from(item["response"]["status_code"].as_u64().unwrap_or(0)).unwrap_or(0),
+        status: u16::try_from(interacao["response"]["status_code"].as_u64().unwrap_or(0))
+            .unwrap_or(0),
         cabecalhos,
-        corpo: std::io::Cursor::new(gravacao::corpo(item)),
+        corpo: std::io::Cursor::new(gravacao::corpo(interacao)),
     };
     match ler_anexo(
         resposta,
@@ -121,23 +122,23 @@ fn replay_de_documento_no_acervo() {
     let lidos = percorrer(&operacoes, |_, instalacao, json| {
         for r in gravacao::respostas(json) {
             if r.operacao == "documento_download_anexo" {
-                somar(&mut contagem, "anexo", anexo(r.item), instalacao);
+                somar(&mut contagem, "anexo", anexo(r.interacao), instalacao);
                 continue;
             }
             if r.status != 200 {
                 continue;
             }
-            let Ok(html) = html_da_resposta(r.item) else {
+            let Ok(html) = html_da_resposta(r.interacao) else {
                 continue;
             };
             match r.operacao {
                 "procedimento_trabalhar" => {
-                    if let Some(classe) = tela(&html, r.item, json) {
+                    if let Some(classe) = tela(&html, r.interacao, json) {
                         somar(&mut contagem, "tela da pesquisa rápida", classe, instalacao);
                     }
                 }
                 "procedimento_visualizar" => {
-                    for classe in arvore(&html, r.item, json) {
+                    for classe in arvore(&html, r.interacao, json) {
                         somar(&mut contagem, "link do conteúdo", classe, instalacao);
                     }
                 }

@@ -83,7 +83,7 @@ O usuário deve conferir a unidade antes de nova tentativa.
 
 ## Subcódigos do leitor de tipos
 
-| Variante ou `onde` (stderr) | Fato verificável |
+| Erro ou `onde` (stderr) | Fato verificável |
 | --- | --- |
 | `lista_de_tipos_html_invalido` | HTML da lista não pode ser interpretado |
 | `tabela_de_tipos_ausente_ou_repetida` | Tabela de tipos ausente, repetida ou não é tabela |
@@ -134,17 +134,17 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos do fluxo Web
 
-| Variante ou `onde` (stderr) | Recusa |
+| Erro ou `onde` (stderr) | Recusa |
 | --- | --- |
 | `ErroCriar::Cadastro` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `cadastro_nao_devolvido_apos_escolha` (sem variante própria confirmada no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `cadastro_nao_devolvido_apos_escolha` (sem erro próprio confirmado no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::NaoConfirmado` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ProvaDaCriacao::PropriedadesDivergentes` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; escrita não confirmada, saída 1 |
 | `ErroCriar::PosEscrita { correspondentes: Some(nups), .. }` com dois ou mais NUPs | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
 | `ErroCriar::PosEscrita { correspondentes: Some([nup]), .. }` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 1, possível resíduo, sem retry |
 | `ErroCriar::Transporte` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::Formulario` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `interessado_de_processo_nao_resolvido` (sem variante própria confirmada no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `interessado_de_processo_nao_resolvido` (sem erro próprio confirmado no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_ausente` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_repetido` | Etapa observada não satisfeita; não repetir operação automaticamente |
@@ -156,7 +156,7 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos do interessado
 
-| Variante ou `onde` (stderr) | Recusa |
+| Erro ou `onde` (stderr) | Recusa |
 | --- | --- |
 | `interessado_controles_ausentes` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `ErroInteressado::AutocompletarNaoDeclarado` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
@@ -167,7 +167,7 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos da hipótese legal carregada por AJAX
 
-| Variante ou `onde` (stderr) | Fato observado |
+| Erro ou `onde` (stderr) | Fato observado |
 | --- | --- |
 | `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
 | `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
@@ -227,7 +227,7 @@ Confirmação com AJAX: **7 requisições** (5 GET + 1 POST de consulta
 + 1 POST criador, seguidos de duas leituras verificadoras).
 As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 
-| Variante ou `onde` (stderr) | Fato observável |
+| Erro ou `onde` (stderr) | Fato observável |
 | --- | --- |
 | erro do clap (saída 2) | ID#NOME ausente/inválido ou escolha em nível público |
 | `ErroHipotese::EscolhaNaoOferecida` | Par exato ID#NOME não consta do AJAX observado |
@@ -244,7 +244,7 @@ estão no [contrato de reconciliação](processo-criar/reconciliacao.md).
 O significado e as condições de emissão permanecem no
 [complemento de reconciliação](processo-criar/reconciliacao.md).
 
-| Variante ou `onde` (stderr) | Fato verificável |
+| Erro ou `onde` (stderr) | Fato verificável |
 | --- | --- |
 | `ErroFotografia::CoberturaIncompleta` | Total ou faixa insuficiente para atestar todos os Gerados |
 | `ErroFotografia::IdentidadeAlterada` | Um ID pré-existente passou a apontar outro NUP |

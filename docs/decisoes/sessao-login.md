@@ -56,7 +56,7 @@ prioridade de interfaces (Web principal; REST baixa; SOAP não prioritário).
   servido que grava `hdnAcao`; `Acessar` participa com o valor servido;
   `sbmAcessar` é desabilitado pelo `acaoLogin(2)` servido e, como no
   navegador, não participa (o Todos o enviava com o texto do botão).
-  Variante nova do primitivo: `EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit`.
+  Caso novo do primitivo: `EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit`.
 - **Primitivo:** `derivar_submissao_de_login` confere a tela e o `action`
   no host (o SIP fica fora do caminho-base do `controlador.php`); `const`
   por operação em `src/sessao_login/tela.rs`, sem despachante.

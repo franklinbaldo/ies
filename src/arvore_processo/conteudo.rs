@@ -66,7 +66,6 @@ pub(crate) fn ler_conteudo_na_arvore(
     html: &str,
     id_documento: &str,
 ) -> Result<ConteudoNaArvore, ErroConteudoNaArvore> {
-    use ErroConteudoNaArvore as E;
     let indice = html
         .split('\n')
         .find_map(|linha| {
@@ -107,7 +106,11 @@ pub(crate) fn ler_conteudo_na_arvore(
                 .ok_or(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido"))?;
             conferir_endereco_relativo_por(instalacao, src, DOWNLOAD, "id_anexo", id_anexo)
                 .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
-                .map_err(|_| E::Html(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido")))
+                .map_err(|_| {
+                    ErroConteudoNaArvore::Html(ErroHtml::valor(
+                        "endereco_do_conteudo_nao_reconhecido",
+                    ))
+                })
         }
         Some(VISUALIZAR) => conferir_endereco_relativo_por(
             instalacao,
@@ -119,9 +122,11 @@ pub(crate) fn ler_conteudo_na_arvore(
         .map(|url| ConteudoNaArvore::Visualizar(EnderecoDoConteudo(url)))
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido"))
+                ErroConteudoNaArvore::Html(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido"))
             }
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDoConteudoDeOutroDocumento,
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroConteudoNaArvore::EnderecoDoConteudoDeOutroDocumento
+            }
         }),
         _ => Err(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido").into()),
     }

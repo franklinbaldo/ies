@@ -224,8 +224,8 @@ pub(crate) fn atividade_do_aceite(
     html: &str,
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
-    use ErroCiencia as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::AceiteSemAtividade)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroCiencia::AceiteSemAtividade)?;
     let parser = dom.parser();
     // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
     // não rodam. Ignore somente esses nós, em vez de recusar a resposta
@@ -289,9 +289,9 @@ pub(crate) fn atividade_do_aceite(
         }
     }
     match atividades.as_slice() {
-        [] => Err(E::AceiteSemAtividade),
+        [] => Err(ErroCiencia::AceiteSemAtividade),
         [atividade] => Ok(atividade.clone()),
-        _ => Err(E::AtividadesAmbiguas),
+        _ => Err(ErroCiencia::AtividadesAmbiguas),
     }
 }
 

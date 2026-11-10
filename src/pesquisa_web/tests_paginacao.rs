@@ -5,7 +5,6 @@ use crate::dominio::IdProcedimento;
 use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::resposta::ler_resposta_html;
 use crate::pesquisa_web::tests_fixtures::resultado;
-use ErroPaginacaoDaPesquisa as E;
 
 fn lista(inicio: u64, fim: u64, total: &str) -> (RespostaDaPesquisa, String) {
     let html = resultado("00001", inicio, fim, total);
@@ -16,7 +15,7 @@ fn planejar(
     html: &str,
     resposta: &RespostaDaPesquisa,
     n: u32,
-) -> Result<Option<PedidoDePaginaDaPesquisa>, E> {
+) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
     planejar_pagina(resposta, Some(html), n)
 }
 
@@ -58,7 +57,7 @@ fn ultima_pagina_tem_faixa_parcial_e_a_seguinte_esta_fora() {
     );
     assert_eq!(
         planejar(&html, &resposta, 125),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
             solicitada: 125,
             paginas: 124
         })
@@ -71,7 +70,7 @@ fn lista_de_uma_pagina_so_tem_a_pagina_1() {
     assert_eq!(planejar(&html, &resposta, 1), Ok(None));
     assert_eq!(
         planejar(&html, &resposta, 2),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
             solicitada: 2,
             paginas: 1
         })
@@ -82,7 +81,7 @@ fn lista_de_uma_pagina_so_tem_a_pagina_1() {
 fn sem_resultado_e_processo_unico_nao_tem_pagina_2() {
     assert_eq!(
         planejar_pagina(&RespostaDaPesquisa::SemResultado, None, 2),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
             solicitada: 2,
             paginas: 0
         })
@@ -97,7 +96,7 @@ fn sem_resultado_e_processo_unico_nao_tem_pagina_2() {
     assert_eq!(planejar_pagina(&unico, None, 1), Ok(None));
     assert_eq!(
         planejar_pagina(&unico, None, 2),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
             solicitada: 2,
             paginas: 1
         })
@@ -114,7 +113,7 @@ fn sem_as_linhas_literais_de_navegar_a_regra_nao_e_observada() {
         let alterado = html.replace(trecho, "outra();");
         assert_eq!(
             planejar(&alterado, &resposta, 2),
-            Err(E::RegraDeNavegacaoDaPesquisaNaoObservada),
+            Err(ErroPaginacaoDaPesquisa::RegraDeNavegacaoDaPesquisaNaoObservada),
             "{trecho}"
         );
     }
@@ -126,7 +125,7 @@ fn pagina_fora_do_intervalo_vem_antes_da_regra() {
     let sem_regra = html.replace("function navegar", "function outra");
     assert_eq!(
         planejar(&sem_regra, &resposta, 500),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginacaoDaPesquisa::PaginaForaDoIntervalo {
             solicitada: 500,
             paginas: 124
         })
@@ -145,7 +144,7 @@ fn links_de_navegar_fora_da_regra_sao_recusados() {
         let alterado = html.replacen("navegar('10')", errado, 1);
         assert_eq!(
             planejar(&alterado, &resposta, 2),
-            Err(E::Html(ErroHtml::valor(
+            Err(ErroPaginacaoDaPesquisa::Html(ErroHtml::valor(
                 "link_de_paginacao_da_pesquisa_fora_da_regra"
             ))),
             "{errado}"
@@ -159,7 +158,7 @@ fn varias_paginas_sem_links_de_navegar_e_paginador_nao_publicado() {
     let sem_links = html.replace("javascript:navegar(", "javascript:outra(");
     assert_eq!(
         planejar(&sem_links, &resposta, 2),
-        Err(E::PaginadorDaPesquisaNaoPublicado)
+        Err(ErroPaginacaoDaPesquisa::PaginadorDaPesquisaNaoPublicado)
     );
 }
 
@@ -185,23 +184,23 @@ fn pagina_obtida_diferente_do_pedido_e_recusada() {
     let (outro_total, _) = lista(11, 20, "1.235");
     assert_eq!(
         conferir_pagina(&pedido(), outro_total),
-        Err(E::TotalDaPesquisaAlteradoAposPaginar)
+        Err(ErroPaginacaoDaPesquisa::TotalDaPesquisaAlteradoAposPaginar)
     );
     let (outra_faixa, _) = lista(1, 10, "1.234");
     assert_eq!(
         conferir_pagina(&pedido(), outra_faixa),
-        Err(E::FaixaDaPesquisaDiferenteDaPaginaSolicitada)
+        Err(ErroPaginacaoDaPesquisa::FaixaDaPesquisaDiferenteDaPaginaSolicitada)
     );
     assert_eq!(
         conferir_pagina(&pedido(), RespostaDaPesquisa::SemResultado),
-        Err(E::PaginaDaPesquisaSemResultadoAposPaginar)
+        Err(ErroPaginacaoDaPesquisa::PaginaDaPesquisaSemResultadoAposPaginar)
     );
     let unico = RespostaDaPesquisa::ProcessoUnico {
         id: IdProcedimento::novo("7").unwrap(),
     };
     assert_eq!(
         conferir_pagina(&pedido(), unico),
-        Err(E::RedirecionamentoAoPaginarAPesquisa)
+        Err(ErroPaginacaoDaPesquisa::RedirecionamentoAoPaginarAPesquisa)
     );
 }
 

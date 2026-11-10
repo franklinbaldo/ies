@@ -5,7 +5,6 @@ use crate::erro_html::ErroHtml;
 use crate::pesquisa_web::tests_fixtures::{
     conteudo_da_lista, formulario, numero, resultado, resultado_numa_pagina, sem_resultado,
 };
-use ErroRespostaDaPesquisa as E;
 
 #[test]
 fn contagem_aceita_ponto_so_entre_grupos_de_tres_digitos() {
@@ -73,7 +72,7 @@ fn pagina_sem_tabela_nem_aviso_nao_e_reconhecida() {
     let html = format!("<html>{}</html>", formulario("x", true, "<p>outra</p>"));
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::RespostaDaPesquisaNaoReconhecida)
+        Err(ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida)
     );
 }
 
@@ -85,7 +84,7 @@ fn tabela_e_aviso_juntos_falham_fechado() {
     );
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta)
+        Err(ErroRespostaDaPesquisa::TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta)
     );
 }
 
@@ -94,7 +93,7 @@ fn barra_ausente_ou_repetida_e_recusada() {
     let sem = resultado("1", 1, 3, "3").replace("pesquisaBarraD", "pesquisaBarraX");
     assert_eq!(
         ler_resposta_html(&sem),
-        Err(E::Html(ErroHtml::ausente(
+        Err(ErroRespostaDaPesquisa::Html(ErroHtml::ausente(
             "barra_de_contagem_da_pesquisa_ausente"
         )))
     );
@@ -104,7 +103,7 @@ fn barra_ausente_ou_repetida_e_recusada() {
     );
     assert_eq!(
         ler_resposta_html(&dupla),
-        Err(E::Html(ErroHtml::repetido(
+        Err(ErroRespostaDaPesquisa::Html(ErroHtml::repetido(
             "barras_de_contagem_da_pesquisa_repetidas"
         )))
     );
@@ -122,7 +121,7 @@ fn texto_da_barra_fora_da_forma_observada_e_recusado() {
         let html = resultado("1", 1, 3, "3").replace("Exibindo 1 - 3 de 3", texto);
         assert_eq!(
             ler_resposta_html(&html),
-            Err(E::TextoDaBarraDeContagemForaDoFormato),
+            Err(ErroRespostaDaPesquisa::TextoDaBarraDeContagemForaDoFormato),
             "{texto}"
         );
     }
@@ -134,7 +133,7 @@ fn numero_da_barra_sem_separador_observado_e_recusado() {
         let html = resultado("1", 1, 10, "1.234").replace("de 1.234", &format!("de {total}"));
         assert_eq!(
             ler_resposta_html(&html),
-            Err(E::NumeroDaBarraDeContagemForaDoFormato),
+            Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato),
             "{total}"
         );
     }
@@ -149,7 +148,7 @@ fn faixa_impossivel_e_recusada() {
         );
         assert_eq!(
             ler_resposta_html(&html),
-            Err(E::FaixaDaBarraDeContagemImpossivel),
+            Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel),
             "{inicio}-{fim}/{total}"
         );
     }
@@ -198,7 +197,7 @@ fn mais_linhas_que_a_faixa_sao_recusadas() {
     .replace("Exibindo 1 - 11 de", "Exibindo 1 - 10 de");
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)
+        Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra)
     );
 }
 
@@ -218,7 +217,7 @@ fn linha_invalida_da_tabela_e_erro_de_resultado() {
         .replace("acao=procedimento_trabalhar", "acao=documento_imprimir_web");
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::Resultado(
+        Err(ErroRespostaDaPesquisa::Resultado(
             ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso
         ))
     );
@@ -231,7 +230,7 @@ fn inicio_e_fim_acima_de_999_tambem_exigem_o_separador() {
     let html = resultado("1", 1231, 1234, "1.234").replace("1.231 - 1.234", "1231 - 1234");
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::NumeroDaBarraDeContagemForaDoFormato)
+        Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato)
     );
 }
 
@@ -248,7 +247,7 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
     );
     assert_eq!(
         ler_resposta_html(&html),
-        Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
+        Err(ErroRespostaDaPesquisa::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
     );
 }
 
@@ -280,21 +279,21 @@ fn barra_numa_pagina_fora_da_forma_observada_e_recusada() {
     ] {
         assert_eq!(
             ler_resposta_html(&resultado_numa_pagina("00001", 2, barra)),
-            Err(E::TextoDaBarraDeContagemForaDoFormato),
+            Err(ErroRespostaDaPesquisa::TextoDaBarraDeContagemForaDoFormato),
             "{barra:?}"
         );
     }
     assert_eq!(
         ler_resposta_html(&resultado_numa_pagina("00001", 2, "02 resultados")),
-        Err(E::NumeroDaBarraDeContagemForaDoFormato)
+        Err(ErroRespostaDaPesquisa::NumeroDaBarraDeContagemForaDoFormato)
     );
     assert_eq!(
         ler_resposta_html(&resultado_numa_pagina("00001", 2, "0 resultados")),
-        Err(E::FaixaDaBarraDeContagemImpossivel)
+        Err(ErroRespostaDaPesquisa::FaixaDaBarraDeContagemImpossivel)
     );
     // "N resultados" não escreve a faixa: a contagem tem de bater.
     assert_eq!(
         ler_resposta_html(&resultado_numa_pagina("00001", 2, "3 resultados")),
-        Err(E::LinhasDaTabelaDiferentesDaFaixaDaBarra)
+        Err(ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra)
     );
 }

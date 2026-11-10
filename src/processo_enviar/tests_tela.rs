@@ -1,6 +1,5 @@
 //! RED/GREEN da conferência da tela "Enviar Processo", da consulta que o
 //! script declara e dos pares do POST, nas duas famílias observadas.
-use super::erro::ErroTelaDeEnvio as E;
 use super::tela::{
     ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta, campos_do_envio, conferir_tela_de_envio,
     redirecionamento_esperado,
@@ -89,88 +88,90 @@ fn recusas_da_tela_antes_de_qualquer_post() {
     let casos = [
         (
             trocar("frmAtividadeListar", "frmOutro"),
-            E::Html(ErroHtml::ausente("formulario_de_envio_ausente")),
+            super::erro::ErroTelaDeEnvio::Html(ErroHtml::ausente("formulario_de_envio_ausente")),
         ),
         (
             trocar(
                 "name=\"hdnIdProtocolos\" value=\"10\"",
                 "name=\"hdnIdProtocolos\" value=\"11\"",
             ),
-            E::TelaDeEnvioDeOutroProcesso,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso,
         ),
         (
             trocar(
                 "<input type=\"hidden\" id=\"hdnUnidades\"",
                 "<input type=\"text\" name=\"txtNovo\" value=\"\" /><input type=\"hidden\" id=\"hdnUnidades\"",
             ),
-            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio")),
+            super::erro::ErroTelaDeEnvio::Html(ErroHtml::valor(
+                "campo_nao_previsto_na_tela_de_envio",
+            )),
         ),
         (
             trocar(
                 "name=\"chkSinManterAberto\" class",
                 "name=\"chkSinManterAberto\" checked=\"checked\" class",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"chkSinEnviarEmailNotificacao\" class",
                 "name=\"chkSinEnviarEmailNotificacao\" checked class",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "id=\"optDiasRetornoProgramado\" value=\"2\"",
                 "id=\"optDiasRetornoProgramado\" value=\"2\" checked=\"checked\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"\"",
                 "name=\"txtDiasRetornoProgramado\" class=\"infraText\" value=\"5\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "name=\"hdnUnidades\" value=\"\"",
                 "name=\"hdnUnidades\" value=\"1±X\"",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n",
                 "multiple=\"multiple\" class=\"infraSelect\" tabindex=\"504\">\n<option value=\"9\">X - Y</option>\n",
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 &format!("<option value=\"{ID}\">"),
                 &format!("<option value=\"{ID}\" selected=\"selected\">"),
             ),
-            E::TelaDeEnvioComOpcoesPreenchidas,
+            super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas,
         ),
         (
             trocar(
                 "<option value=\"\" selected=\"selected\">Todos</option>",
                 "<option value=\"\">Todos</option>",
             ),
-            E::OrgaoDaTelaDeEnvioNaoSelecionado,
+            super::erro::ErroTelaDeEnvio::OrgaoDaTelaDeEnvioNaoSelecionado,
         ),
         (
             trocar(
                 "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdUnidade','txtUnidade','",
                 "objAutoCompletarUnidade = new infraAjaxAutoCompletar('hdnIdOutro','txtUnidade','",
             ),
-            E::AutocompletarDeUnidadeNaoDeclarado,
+            super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado,
         ),
         (
             trocar("+'&unidade_atual=0';", "+'&unidade_atual=1';"),
-            E::Html(ErroHtml::valor(
+            super::erro::ErroTelaDeEnvio::Html(ErroHtml::valor(
                 "consulta_do_autocompletar_fora_da_forma_observada",
             )),
         ),
@@ -186,7 +187,7 @@ fn recusas_da_tela_antes_de_qualquer_post() {
     let repetida = base.replacen(&linha, &format!("{linha}\n{linha}"), 1);
     assert_eq!(
         conferir_tela_de_envio(&repetida, ID),
-        Err(E::AutocompletarDeUnidadeNaoDeclarado)
+        Err(super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado)
     );
     let _ = NUP;
 }

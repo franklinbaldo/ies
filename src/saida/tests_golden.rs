@@ -49,7 +49,7 @@ fn unidade_solicitada_precisa_ser_confirmada_pela_tela() {
 }
 
 #[test]
-fn linha_sem_link_do_processo_tem_subcodigo_e_id_sem_vazar_html() {
+fn linha_sem_link_do_processo_tem_o_id_sem_vazar_html() {
     let html = "<table id='tblProcessosRecebidos'><caption>1 registros:</caption>\
         <tr id='P8'><td><a class='outraClasse' href='?infra_hash=SEGREDO'>123</a></td></tr></table>\
         <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";

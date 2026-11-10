@@ -64,7 +64,7 @@ fn replay_documento_criar_go() {
                 nao_aplicaveis += 1;
                 continue;
             }
-            let Ok(html) = html_da_resposta(resposta.item) else {
+            let Ok(html) = html_da_resposta(resposta.interacao) else {
                 nao_aplicaveis += 1;
                 continue;
             };

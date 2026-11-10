@@ -83,11 +83,11 @@ Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
-A tabela abaixo descreve as variantes; a saída pública traz só a mensagem.
+A tabela abaixo descreve os erros; o stderr traz o nome do erro.
 Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
 a confirmação depende da resposta causal e da releitura independente.
 
-| Variante ou `onde` (stderr) | Condição observável ou regra |
+| Erro ou `onde` (stderr) | Condição observável ou regra |
 | --- | --- |
 | `ErroMarcar::RotuloSemSeparador` | Rótulo sem `#` |
 | `IdDoMarcadorNaoDecimal` | Identificador ausente ou fora da forma decimal |

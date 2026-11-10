@@ -2,7 +2,7 @@
 //! sem retry e com uma leitura nova para verificar o estado do processo.
 //! O formulário e a função são extraídos da mesma geração da sessão.
 use super::{
-    Acao, ErroSobrestamento as E, EstadoDaMudanca, PedidoDaMudanca, Previa, preparar_com_acao, tela,
+    Acao, ErroSobrestamento, EstadoDaMudanca, PedidoDaMudanca, Previa, preparar_com_acao, tela,
 };
 use crate::arvore_processo::{AbertoEm, ler_endereco_de_retomar};
 use crate::formulario_web::{
@@ -26,7 +26,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     pedido: &PedidoDaMudanca<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<Previa, E> {
+) -> Result<Previa, ErroSobrestamento> {
     let PedidoDaMudanca {
         nup,
         unidade,
@@ -35,14 +35,14 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         confirmar,
     } = *pedido;
     if acao == Acao::Sobrestar && motivo.is_none_or(|m| m.trim().is_empty()) {
-        return Err(E::MotivoVazio);
+        return Err(ErroSobrestamento::MotivoVazio);
     }
     let mut rede = Contador::novo(envio);
     let (mut previa, endereco) = preparar_com_acao(sessao, nup, unidade, acao, indice, &mut rede)?;
     if !confirmar {
         return Ok(previa);
     }
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroSobrestamento::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
     let cookie = ler_cookie(sessao)?;
@@ -51,7 +51,8 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             let (html, mime) =
                 obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
             tela::conferir_formulario(&html, &previa.id_procedimento)?;
-            let codificacao = codificacao_da_tela(&mime).ok_or(E::CharsetNaoSuportado)?;
+            let codificacao =
+                codificacao_da_tela(&mime).ok_or(ErroSobrestamento::CharsetNaoSuportado)?;
             let tela_servida = TelaServida {
                 url: endereco.as_str(),
                 html: &html,
@@ -79,9 +80,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             });
             if !enviado {
                 if let Err(e) = resposta {
-                    return Err(E::Formulario(e));
+                    return Err(ErroSobrestamento::Formulario(e));
                 }
-                return Err(E::NaoConfirmado);
+                return Err(ErroSobrestamento::NaoConfirmado);
             }
             // Um 302 esperado é evidência, nunca prova suficiente. 200,
             // 502 ou resposta perdida exigem a mesma verificação por leitura.
@@ -110,11 +111,14 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     };
     let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
-    let depois = verificado.map_err(|_| E::NaoConfirmado)?.arvore.aberto_em;
+    let depois = verificado
+        .map_err(|_| ErroSobrestamento::NaoConfirmado)?
+        .arvore
+        .aberto_em;
     // O estado posterior pode ter mudado por outro agente; resposta de
     // escrita recusada ou perdida não prova autoria, mesmo se coincidir.
     if !resposta_de_escrita_aceita {
-        return Err(E::NaoConfirmado);
+        return Err(ErroSobrestamento::NaoConfirmado);
     }
     let aplicado = match (acao, depois) {
         (Acao::Sobrestar, AbertoEm::Sobrestado(unidades)) => {
@@ -123,22 +127,22 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         (Acao::Retomar, AbertoEm::Unidades(unidades)) => {
             unidades.iter().any(|u| u.sigla == previa.unidade)
         }
-        (_, AbertoEm::NaoLido(_)) => return Err(E::NaoConfirmado),
+        (_, AbertoEm::NaoLido(_)) => return Err(ErroSobrestamento::NaoConfirmado),
         _ => false,
     };
     if !aplicado {
-        return Err(E::EscritaNaoAplicada);
+        return Err(ErroSobrestamento::EscritaNaoAplicada);
     }
     previa.estado = EstadoDaMudanca::Aplicada;
     Ok(previa)
 }
 
-fn mapear_tela(falha: FalhaDaTela) -> E {
+fn mapear_tela(falha: FalhaDaTela) -> ErroSobrestamento {
     match falha {
-        FalhaDaTela::Transporte(e) => E::TelaDaEscrita(e),
-        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
+        FalhaDaTela::Transporte(e) => ErroSobrestamento::TelaDaEscrita(e),
+        FalhaDaTela::Redirecionada => ErroSobrestamento::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroSobrestamento::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     }
 }

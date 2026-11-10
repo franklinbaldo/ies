@@ -1,5 +1,5 @@
 //! Cadastro compartilhado: propriedades e anexo externo sem .src (#60).
-use super::{E, fora_de_palpite};
+use super::{ErroDocumentoObter, fora_de_palpite};
 use crate::arvore_processo::EnderecoDoConteudo;
 use crate::instalacao::Instalacao;
 use crate::processo_obter::EnvioDoProcesso;
@@ -20,7 +20,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     processo: &str,
     pedir_propriedades: bool,
     buscar_anexo: bool,
-) -> Result<Cadastro, E> {
+) -> Result<Cadastro, ErroDocumentoObter> {
     if !pedir_propriedades && !buscar_anexo {
         return Ok(Cadastro {
             propriedades: PropriedadesDocumento::NaoPedidas,
@@ -28,7 +28,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         });
     }
     let Some(link) = propriedades_documento::ler_link(instalacao, arvore, documento, processo)
-        .map_err(E::Html)?
+        .map_err(ErroDocumentoObter::Html)?
     else {
         return Ok(Cadastro {
             propriedades: if pedir_propriedades {
@@ -50,24 +50,30 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             anexo: None,
         });
     }
-    let html = match rede.get(&link.url).map_err(E::Processo)? {
+    let html = match rede.get(&link.url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
         Lida::Login => {
-            return Err(E::Processo(ErroProcessoObter::SessaoEncerrada(
-                crate::erro_publico::SessaoEncerrada,
-            )));
+            return Err(ErroDocumentoObter::Processo(
+                ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+            ));
         }
         Lida::Redirecionamento(local) => {
-            return Err(E::Processo(fora_de_palpite(local.as_deref())));
+            return Err(ErroDocumentoObter::Processo(fora_de_palpite(
+                local.as_deref(),
+            )));
         }
-        Lida::Falha(falha) => return Err(E::Processo(ErroProcessoObter::Transporte(falha))),
+        Lida::Falha(falha) => {
+            return Err(ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(
+                falha,
+            )));
+        }
     };
-    let mut lidas =
-        propriedades_documento::ler_formulario(&html, documento, processo).map_err(E::Html)?;
+    let mut lidas = propriedades_documento::ler_formulario(&html, documento, processo)
+        .map_err(ErroDocumentoObter::Html)?;
     lidas.fonte = link.fonte;
     let anexo = if buscar_anexo {
         propriedades_documento::ler_anexo_publicado(instalacao, &html, documento, processo)
-            .map_err(E::Html)?
+            .map_err(ErroDocumentoObter::Html)?
     } else {
         None
     };
