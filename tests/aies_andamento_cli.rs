@@ -141,7 +141,7 @@ fn estado() -> (Connection, Instalacao) {
 }
 
 fn servir_tunel(
-    proxy: TcpListener,
+    proxy: &TcpListener,
     endereco: SocketAddr,
     tls_id: Identity,
     sinal: &AtomicBool,
@@ -151,7 +151,7 @@ fn servir_tunel(
 ) {
     let tls = TlsAcceptor::new(tls_id).unwrap();
     let mut post_confirmado = false;
-    while let Some(mut tcp) = aceitar(&proxy, sinal) {
+    while let Some(mut tcp) = aceitar(proxy, sinal) {
         let (connect, _) = pedido_http(&mut tcp);
         assert!(connect.starts_with(b"CONNECT"));
         tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
@@ -224,7 +224,7 @@ fn executar(confirmar: bool, falha_releitura: bool) {
     let injecao = Arc::clone(&falha_aplicada);
     let tunel = thread::spawn(move || {
         servir_tunel(
-            proxy,
+            &proxy,
             endereco,
             tls_id,
             &sinal,
