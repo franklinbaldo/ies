@@ -32,3 +32,36 @@ fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
         ["GET procedimento_controlar", "GET procedimento_trabalhar"]
     );
 }
+
+/// BDD-633-01: a CLI autentica a abertura de um processo após a modal.
+/// A senha é exclusivamente fictícia, lida de arquivo privado 0600; o
+/// formulário da modal é hipótese sintética, não replay do SEI GO.
+#[test]
+fn bdd_633_01_cli_real_valida_senha_e_abre_processo_sem_vazar_segredo() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoComCredenciais);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "status={:?} pedidos={pedidos:?} stdout={} stderr={}",
+        saida.status.code(),
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["numero"], PEDIDO);
+    assert_eq!(json["id_procedimento"], "10");
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET procedimento_trabalhar",
+            "GET usuario_validar_acesso",
+            "POST usuario_validar_acesso",
+            "GET procedimento_trabalhar",
+            "GET procedimento_visualizar",
+        ]
+    );
+    assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
+    assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
+}
