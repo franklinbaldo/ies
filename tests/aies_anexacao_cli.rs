@@ -1,7 +1,8 @@
-//! BDD-270-02: CLI Rust real -> HTTPS loopback -> anti-IES -> SQLite.
+//! BDD-270-01/02/03: CLI Rust real -> HTTPS loopback -> anti-IES -> SQLite.
 //! Hipótese sintética: a cassette original ainda requer confronto independente.
 #![cfg(unix)]
 use anti_ies::atender_http;
+use iesei::anexacoes;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -158,6 +159,8 @@ fn cli(pasta: &Pasta, arquivos: [&std::path::Path; 4], proxy: u16, args: &[&str]
 enum Modo {
     Aceite,
     RespostaIncerta,
+    Previa,
+    JaAnexado,
 }
 
 fn executar(modo: Modo) {
@@ -184,6 +187,9 @@ fn executar(modo: Modo) {
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
         let (banco, instalacao) = estado();
+        if matches!(modo, Modo::JaAnexado) {
+            anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
+        }
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -219,11 +225,8 @@ fn executar(modo: Modo) {
             canal.flush().unwrap();
         }
     });
-    let saida = cli(
-        &pasta,
-        arquivos,
-        porta,
-        &[
+    let comando: &[&str] = match modo {
+        Modo::Aceite | Modo::RespostaIncerta => &[
             "--json",
             "processo",
             "anexar",
@@ -232,7 +235,11 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-    );
+        Modo::Previa | Modo::JaAnexado => {
+            &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
+        }
+    };
+    let saida = cli(&pasta, arquivos, porta, comando);
     let posterior = cli(
         &pasta,
         arquivos,
@@ -261,7 +268,11 @@ fn conferir_resultados(
     total: i64,
     pedidos: &[String],
 ) {
-    let esperado = if matches!(modo, Modo::Aceite) { 0 } else { 3 };
+    let esperado = match modo {
+        Modo::Aceite | Modo::Previa => 0,
+        Modo::RespostaIncerta => 3,
+        Modo::JaAnexado => 1,
+    };
     assert_eq!(
         saida.status.code(),
         Some(esperado),
@@ -270,16 +281,31 @@ fn conferir_resultados(
         String::from_utf8_lossy(&saida.stderr)
     );
     let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::Aceite) {
-        assert_eq!(saida_json["confirmado"], true);
-        assert_eq!(saida_json["alterado"], true);
-    } else {
-        assert_eq!(saida_json["codigo"], "efeito_incerto");
-        assert_eq!(saida_json["causa"], "resposta_do_post");
-        assert!(saida_json.get("subcodigo").is_none());
-        assert_eq!(saida_json["escrita"]["envio_tentado"], true);
-        assert!(saida_json["escrita"]["aplicada"].is_null());
-        assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
+    match modo {
+        Modo::Aceite => {
+            assert_eq!(saida_json["confirmado"], true);
+            assert_eq!(saida_json["alterado"], true);
+        }
+        Modo::RespostaIncerta => {
+            assert_eq!(saida_json["codigo"], "efeito_incerto");
+            assert_eq!(saida_json["causa"], "resposta_do_post");
+            assert!(saida_json.get("subcodigo").is_none());
+            assert_eq!(saida_json["escrita"]["envio_tentado"], true);
+            assert!(saida_json["escrita"]["aplicada"].is_null());
+            assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
+        }
+        Modo::Previa => {
+            assert_eq!(saida_json["principal"], PRINCIPAL);
+            assert_eq!(saida_json["anexado"], ANEXADO);
+            assert_eq!(saida_json["documentos_assinados"], true);
+            assert_eq!(saida_json["confirmado"], false);
+            assert_eq!(saida_json["alterado"], false);
+        }
+        Modo::JaAnexado => {
+            assert_eq!(saida_json["codigo"], "operacao_recusada");
+            assert_eq!(saida_json["subcodigo"], "processo_ja_anexado");
+            assert_eq!(saida_json["retentavel"], false);
+        }
     }
     assert_eq!(
         posterior.status.code(),
@@ -289,16 +315,21 @@ fn conferir_resultados(
     );
     let leitura: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
     assert_eq!(leitura["numero"], PRINCIPAL);
-    assert_eq!(leitura["anexados"][0]["numero"], ANEXADO);
-    assert_eq!(leitura["anexados"][0]["id_procedimento"], "22");
-    assert_eq!(total, 1);
+    let tem_anexado = matches!(modo, Modo::Aceite | Modo::RespostaIncerta | Modo::JaAnexado);
+    if tem_anexado {
+        assert_eq!(leitura["anexados"][0]["numero"], ANEXADO);
+        assert_eq!(leitura["anexados"][0]["id_procedimento"], "22");
+    } else {
+        assert!(leitura["anexados"].as_array().is_none_or(Vec::is_empty));
+    }
+    assert_eq!(total, i64::from(tem_anexado));
     assert_eq!(
         pedidos
             .iter()
             .filter(|e| *e == "POST procedimento_anexar")
             .count(),
-        1,
-        "uma única escrita, sem retry; {pedidos:?}"
+        usize::from(matches!(modo, Modo::Aceite | Modo::RespostaIncerta)),
+        "prévia e duplicidade não enviam POST mutador; {pedidos:?}"
     );
 }
 
@@ -310,4 +341,14 @@ fn bdd_270_02_confirmacao_e_releitura_independente() {
 #[test]
 fn bdd_270_02_efeito_incerto_sem_retry_de_anexacao() {
     executar(Modo::RespostaIncerta);
+}
+
+#[test]
+fn bdd_270_01_previa_nao_anexa_e_preserva_o_principal() {
+    executar(Modo::Previa);
+}
+
+#[test]
+fn bdd_270_03_duplicidade_existente_recusada_sem_nova_escrita() {
+    executar(Modo::JaAnexado);
 }
