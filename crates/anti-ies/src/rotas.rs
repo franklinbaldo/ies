@@ -133,9 +133,11 @@ pub(crate) fn responder(
         {
             processo_sobrestamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("andamento_marcador_gerenciar" | "andamento_marcador_remover")
-            if eh_controlador_sei(alvo) =>
-        {
+        Some(
+            "andamento_marcador_gerenciar"
+            | "andamento_marcador_remover"
+            | "andamento_marcador_cadastrar",
+        ) if eh_controlador_sei(alvo) => {
             processo_marcadores::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
@@ -200,6 +202,16 @@ pub(crate) fn responder(
                         cenario,
                     )
                 })
+        }
+        Some("procedimento_trabalhar")
+            if eh_controlador_sei(alvo)
+                // Duplicacao ou vazio de protocolo/processo nao equivalem a ausencia.
+                // Validar antes de qualquer ramo que possa escolher outra rota.
+                && ["id_protocolo", "id_procedimento"]
+                    .iter()
+                    .any(|nome| documento_versoes::parametro(alvo, nome).is_err()) =>
+        {
+            Resposta::nova(crate::Estado::RequisicaoInvalida)
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo)

@@ -3,6 +3,7 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::catalogo_marcadores::{self, Opcao};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{self, Marcador, Observacao};
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -81,7 +82,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (cabecalho, evento)
 }
 
-fn estado(sem_marcadores: bool) -> (Connection, Instalacao) {
+fn estado(sem_marcadores: bool, com_catalogo: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -146,6 +147,21 @@ fn estado(sem_marcadores: bool) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+    if com_catalogo {
+        // Observação independente por unidade: 501 não vem da lista do processo.
+        catalogo_marcadores::registrar(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "TESTE",
+            &[Opcao {
+                id: "501".into(),
+                nome: "Revisão".into(),
+                cor: "azul".into(),
+            }],
+        )
+        .unwrap();
+    }
     (banco, instalacao)
 }
 
@@ -195,6 +211,10 @@ fn conferir_previa_humana(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta_
 #[derive(Clone, Copy)]
 enum Caso {
     AtribuirExistente,
+    AtribuirAusente,
+    AtribuirSemCatalogo,
+    AtribuirConfirmado,
+    AtribuirEfeitoIncerto,
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
@@ -202,32 +222,17 @@ enum Caso {
     RetirarEfeitoIncerto,
 }
 
-fn pedido(caso: Caso) -> (&'static str, &'static str) {
-    match caso {
-        Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
-        Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
-            ("--retirar", "501#Revisão")
-        }
-    }
-}
-
-fn executar_caso_cli(
-    pasta: &Pasta,
-    arquivos: [&std::path::Path; 4],
-    porta_proxy: u16,
-    caso: Caso,
-) -> Output {
-    let (operacao, marcador) = pedido(caso);
-    let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
-        argumentos.push("--confirmar");
-    }
-    executar_cli(pasta, arquivos, porta_proxy, &argumentos)
-}
+#[path = "aies_marcadores_cli/pedidos.rs"]
+mod pedidos;
+use pedidos::executar_caso_cli;
 
 fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
-    if efeito_incerto && evento == "POST andamento_marcador_remover" {
+    if efeito_incerto
+        && matches!(
+            evento,
+            "POST andamento_marcador_remover" | "POST andamento_marcador_cadastrar"
+        )
+    {
         assert!(resposta.starts_with(b"HTTP/1.1 302 "));
         // O anti-IES já aplicou o POST; a resposta recebida pela CLI é 403.
         // A Location anterior não autentica a escrita quando status é 403.
@@ -235,24 +240,14 @@ fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incer
     }
 }
 
-fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
-    if sem_marcadores {
-        assert!(
-            controles.is_empty(),
-            "zero marcadores usa 302 sem formulário de gerenciamento"
-        );
-    } else {
-        assert!(!controles.is_empty(), "gerenciamento não foi servido");
-        assert!(
-            controles.iter().all(|vistos| *vistos == (true, true, true)),
-            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
-        );
-    }
-}
-
-fn executar(caso: Caso) {
-    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+fn preparar_sessao() -> (
+    Pasta,
+    std::path::PathBuf,
+    native_tls::Identity,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    std::path::PathBuf,
+) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -262,6 +257,32 @@ fn executar(caso: Caso) {
         "a".repeat(64)
     ));
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    (pasta, cert, tls_id, origem, controle, cookie)
+}
+
+fn propriedades_do_caso(caso: Caso) -> (bool, bool, bool) {
+    let sem_marcadores = matches!(
+        caso,
+        Caso::RetirarSemMarcadores
+            | Caso::AtribuirAusente
+            | Caso::AtribuirSemCatalogo
+            | Caso::AtribuirConfirmado
+            | Caso::AtribuirEfeitoIncerto
+    );
+    let com_catalogo = matches!(
+        caso,
+        Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto
+    );
+    let efeito_incerto = matches!(
+        caso,
+        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+    );
+    (sem_marcadores, com_catalogo, efeito_incerto)
+}
+
+fn executar(caso: Caso) {
+    let (sem_marcadores, com_catalogo, efeito_incerto) = propriedades_do_caso(caso);
+    let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
     let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     backend.set_nonblocking(true).unwrap();
     let endereco = backend.local_addr().unwrap();
@@ -271,7 +292,7 @@ fn executar(caso: Caso) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado(sem_marcadores);
+        let (banco, instalacao) = estado(sem_marcadores, com_catalogo);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -344,9 +365,17 @@ fn executar(caso: Caso) {
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
     let controles = controles.lock().unwrap().clone();
-    conferir_controles(&controles, sem_marcadores);
+    // Uma atribuição altera o estado: o GET inicial é 302, mas a releitura
+    // posterior ao POST já pode renderizar a tabela com seus controles.
+    let gerenciador_servido =
+        !sem_marcadores || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
+    conferir_controles(&controles, !gerenciador_servido);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
+#[path = "aies_marcadores_cli/atribuicao_assercoes.rs"]
+mod atribuicao_assercoes;
+use atribuicao_assercoes::{conferir_atribuicao, conferir_controles};
+
 fn conferir(
     saida: &Output,
     releitura: &Output,
@@ -357,8 +386,37 @@ fn conferir(
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let retirada_presente = matches!(caso, Caso::RetirarPresente);
     let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+    let efeito_incerto = matches!(
+        caso,
+        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    if matches!(caso, Caso::AtribuirSemCatalogo) {
+        assert_eq!(saida.status.code(), Some(1));
+        assert_eq!(json["codigo"], "fonte_invalida");
+        assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
+        assert_eq!(persistido.total_declarado, 0);
+        assert_eq!(releitura.status.code(), Some(0));
+        return;
+    }
+    if matches!(caso, Caso::AtribuirAusente) {
+        assert_eq!(
+            saida.status.code(),
+            Some(0),
+            "BDD-255-01 deve oferecer prévia da atribuição quando catálogo independente é observado"
+        );
+        assert_eq!(json["nada_a_fazer"], false);
+        assert_eq!(json["alterado"], false);
+        assert_eq!(json["texto"], "Nova revisão");
+        assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
+        assert_eq!(persistido.total_declarado, 0);
+        assert_eq!(releitura.status.code(), Some(0));
+        return;
+    }
+    if matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
+        conferir_atribuicao(saida, releitura, persistido, pedidos, &json, efeito_incerto);
+        return;
+    }
     assert_eq!(
         saida.status.code(),
         Some(if efeito_incerto { 3 } else { 0 }),
@@ -446,4 +504,24 @@ fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
 fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
     // Resposta 403 após o POST aplicado não é aceite causal, mesmo com releitura ausente.
     executar(Caso::RetirarEfeitoIncerto);
+}
+
+#[test]
+fn bdd_255_01_atribuicao_ausente_deve_exibir_previa_sem_post() {
+    executar(Caso::AtribuirAusente);
+}
+
+#[test]
+fn bdd_255_01_sem_catalogo_observado_nao_inventa_atribuicao() {
+    executar(Caso::AtribuirSemCatalogo);
+}
+
+#[test]
+fn bdd_255_01_confirmar_atribuicao_exige_post_unico_e_releitura_do_texto() {
+    executar(Caso::AtribuirConfirmado);
+}
+
+#[test]
+fn bdd_255_01_403_apos_efeito_aplicado_nao_prova_autoria() {
+    executar(Caso::AtribuirEfeitoIncerto);
 }

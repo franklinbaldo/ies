@@ -31,7 +31,6 @@ pub(crate) enum ErroMarcar {
     RemocaoSemFormularioObservado,
     MarcadoresNaoLidos,
     UnidadeDaSessaoNaoPublicada,
-    EscritaAindaFechada,
 }
 impl ErroMarcar {
     pub(crate) fn subcodigo(self) -> &'static str {
@@ -54,9 +53,6 @@ impl ErroMarcar {
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
-            Self::EscritaAindaFechada => {
-                "a confirmação de marcador ainda não está disponível; execute sem --confirmar para ver a prévia"
-            }
         }
     }
 }
@@ -114,7 +110,9 @@ pub(crate) fn decidir(
     }
 }
 
+mod catalogo;
 mod escrita;
+pub(crate) use catalogo::executar_atribuicao;
 pub(crate) use escrita::confirmar_retirada;
 
 #[cfg(test)]
