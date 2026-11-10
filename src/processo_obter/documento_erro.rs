@@ -44,6 +44,8 @@ pub(crate) enum ErroDocumentoObter {
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
+    /// O cadastro (propriedades/anexo) publicado fora da forma observada.
+    Cadastro(#[source] crate::propriedades_documento::ErroPropriedadesDocumento),
     Html(#[from] ErroHtml),
 }
 
@@ -67,6 +69,7 @@ impl ErroDocumentoObter {
             | Self::Versoes(_)
             | Self::VersaoServidaDiferenteDaPedida
             | Self::ConteudoComLinkAssinado
+            | Self::Cadastro(_)
             | Self::Html(_) => false,
         }
     }

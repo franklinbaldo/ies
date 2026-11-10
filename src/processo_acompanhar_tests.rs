@@ -1,5 +1,4 @@
 use super::*;
-use crate::erro_html::ErroHtml;
 
 const ID: &str = "12345";
 fn cadastro(grupos: &str) -> String {
@@ -96,9 +95,7 @@ fn lista_identidades_duplicadas_falha_fechado() {
     ));
     assert_eq!(
         acompanhamentos_da_lista(&html),
-        Err(ErroAcompanhar::Html(ErroHtml::repetido(
-            "id_de_acompanhamento_repetido"
-        )))
+        Err(ErroAcompanhar::IdDeAcompanhamentoRepetido)
     );
 }
 #[test]

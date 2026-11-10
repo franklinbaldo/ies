@@ -2,7 +2,6 @@
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 mod exclusao;
@@ -29,7 +28,13 @@ pub(crate) enum ErroAcompanhar {
     EscolhaDeAcompanhamentoAmbigua,
     AcompanhamentoNaoConfirmado,
     ExclusaoNaoOferecida,
-    Html(#[from] ErroHtml),
+    ColunasDeAcompanhamentosInvalidas,
+    FormulariosDeAcompanhamentoRepetidos,
+    HtmlDeAcompanhamentoInvalido,
+    IdDeAcompanhamentoRepetido,
+    LinhaDeAcompanhamentoInvalida,
+    ListasDeAcompanhamentosRepetidas,
+    OpcoesDeGrupoDeAcompanhamentoInvalidas,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -54,8 +59,7 @@ fn texto(texto: &str) -> String {
 }
 
 fn campo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAcompanhar> {
-    valor_do_atributo(tag, nome)
-        .map_err(|e| ErroAcompanhar::Html(ErroHtml::atributo("html_de_acompanhamento_invalido", e)))
+    valor_do_atributo(tag, nome).map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)
 }
 
 /// A página de cadastro da `UnB` 4.0.9 tem um form e o select publicado.
@@ -65,17 +69,17 @@ pub(crate) fn grupos_do_cadastro(
     id_procedimento: &str,
 ) -> Result<Vec<GrupoOferecido>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
-        return Err(ErroHtml::html("html_de_acompanhamento_invalido").into());
+        return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_de_acompanhamento_invalido"))?;
+        .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
     let parser = dom.parser();
     let mut forms = Vec::new();
     for no in dom.query_selector("form").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
+            .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
         if campo(tag, "id")?.as_deref() == Some(FORMULARIO) {
             forms.push(tag);
         }
@@ -83,11 +87,11 @@ pub(crate) fn grupos_do_cadastro(
     let form = match forms.as_slice() {
         [] => return Err(ErroAcompanhar::CadastroNaoPublicado),
         [form] => *form,
-        _ => return Err(ErroHtml::repetido("formularios_de_acompanhamento_repetidos").into()),
+        _ => return Err(ErroAcompanhar::FormulariosDeAcompanhamentoRepetidos),
     };
     let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
+        .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
     if !parametro_unico(&action, "acao", "acompanhamento_cadastrar")
         || !parametro_unico(&action, "id_procedimento", id_procedimento)
     {
@@ -119,13 +123,12 @@ pub(crate) fn grupos_do_cadastro(
             continue;
         }
         if atributo_presente(tag, "disabled")
-            .map_err(|e| ErroHtml::atributo("html_de_acompanhamento_invalido", e))?
+            .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?
         {
             continue;
         }
-        let valor = campo(tag, "value")?.ok_or(ErroHtml::valor(
-            "opcoes_de_grupo_de_acompanhamento_invalidas",
-        ))?;
+        let valor =
+            campo(tag, "value")?.ok_or(ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas)?;
         let nome = texto(&tag.inner_text(parser));
         if nome.is_empty() && valor.is_empty() {
             // Uma opção em branco pode ter valor vazio; não é ambiguidade de grupo.
@@ -133,7 +136,7 @@ pub(crate) fn grupos_do_cadastro(
             continue;
         }
         if valor.is_empty() {
-            return Err(ErroHtml::valor("opcoes_de_grupo_de_acompanhamento_invalidas").into());
+            return Err(ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas);
         }
         grupos.push(GrupoOferecido { valor, nome });
     }
@@ -173,17 +176,17 @@ pub(crate) fn escolher_grupo<'a>(
 /// cortado, tela de login ou ausência de tabela.
 pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
-        return Err(ErroHtml::html("html_de_acompanhamento_invalido").into());
+        return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_de_acompanhamento_invalido"))?;
+        .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
     let parser = dom.parser();
     let mut tabelas = Vec::new();
     for no in dom.query_selector("table").into_iter().flatten() {
         let tag = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
+            .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
         if campo(tag, "summary")?.as_deref() == Some(TABELA) {
             tabelas.push(tag);
         }
@@ -191,7 +194,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroAcompanhar::ListaNaoPublicada),
         [tabela] => *tabela,
-        _ => return Err(ErroHtml::repetido("listas_de_acompanhamentos_repetidas").into()),
+        _ => return Err(ErroAcompanhar::ListasDeAcompanhamentosRepetidas),
     };
     let mut cabecalho = false;
     let mut linhas = Vec::new();
@@ -216,7 +219,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
                 || !th.iter().any(|h| h == "Grupo")
                 || !th.iter().any(|h| h == "Observação")
             {
-                return Err(ErroHtml::valor("colunas_de_acompanhamentos_invalidas").into());
+                return Err(ErroAcompanhar::ColunasDeAcompanhamentosInvalidas);
             }
             cabecalho = true;
             continue;
@@ -225,7 +228,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
             continue;
         }
         if td.len() != 6 {
-            return Err(ErroHtml::valor("linha_de_acompanhamento_invalida").into());
+            return Err(ErroAcompanhar::LinhaDeAcompanhamentoInvalida);
         }
         let mut ids = Vec::new();
         for item in td[0].children().all(parser) {
@@ -239,10 +242,10 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         let id = match ids.as_slice() {
             [id] if !id.is_empty() => id.clone(),
-            _ => return Err(ErroHtml::valor("linha_de_acompanhamento_invalida").into()),
+            _ => return Err(ErroAcompanhar::LinhaDeAcompanhamentoInvalida),
         };
         if linhas.iter().any(|l: &Acompanhamento| l.id == id) {
-            return Err(ErroHtml::repetido("id_de_acompanhamento_repetido").into());
+            return Err(ErroAcompanhar::IdDeAcompanhamentoRepetido);
         }
         linhas.push(Acompanhamento {
             id,
@@ -251,7 +254,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         });
     }
     if !cabecalho {
-        return Err(ErroHtml::valor("colunas_de_acompanhamentos_invalidas").into());
+        return Err(ErroAcompanhar::ColunasDeAcompanhamentosInvalidas);
     }
     Ok(linhas)
 }

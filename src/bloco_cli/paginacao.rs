@@ -1,7 +1,6 @@
 //! Paginação da lista de blocos internos por formulário observado, sem JS.
 use super::FalhaLeitura;
 use crate::bloco::{self, ErroBloco, ListaComLinks, TipoBloco};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
@@ -32,7 +31,7 @@ pub(super) const PAGINAR_BLOCOS: OperacaoDeFormulario = OperacaoDeFormulario {
 /// Prova que o formulário serviu exatamente a opção de destino. Sem executar JS.
 pub(super) fn conferir_indice_da_pagina(html: &str, indice: &str) -> Result<(), FalhaLeitura> {
     use crate::html_atributos::valor_do_atributo;
-    let ilegivel = || FalhaLeitura::Html(ErroHtml::valor("html_de_blocos_invalido"));
+    let ilegivel = || FalhaLeitura::HtmlDeBlocosInvalido;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel())?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmBlocoLista")?;
     let mut achados = 0;

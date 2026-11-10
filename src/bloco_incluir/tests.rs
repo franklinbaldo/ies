@@ -21,19 +21,19 @@ fn tela_da_unb_oferece_blocos_e_documentos_do_processo() {
 
 #[test]
 fn sem_formulario_ou_com_selecao_repetida_e_recusa() {
-    assert_eq!(
+    assert!(matches!(
         ler_tela_de_escolha("<html><body></body></html>"),
-        Err(ErroHtml::ausente("formulario_de_escolher_bloco_ausente"))
-    );
+        Err(ErroIncluir::FormularioDeEscolherBlocoAusente)
+    ));
     let repetida = TELA_UNB.replacen(
         "</form>",
         "<select id=\"selBloco\" name=\"selBloco\"></select></form>",
         1,
     );
-    assert_eq!(
+    assert!(matches!(
         ler_tela_de_escolha(&repetida),
-        Err(ErroHtml::repetido("selecoes_de_bloco_repetidas"))
-    );
+        Err(ErroIncluir::SelecoesDeBlocoRepetidas)
+    ));
 }
 
 #[test]

@@ -1,7 +1,6 @@
 //! Cadastro somente leitura a partir de `documento_alterar` publicado na barra
 //! (Todos `tests/paginas_reais/documento_alterar.html`, SEI 4.0.9; Refs #60).
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
 use crate::instalacao::Instalacao;
@@ -42,42 +41,77 @@ pub(crate) enum Nivel {
     Sigiloso,
 }
 
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
-    let a = atributos(tag).map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+/// O cadastro do documento (barra, formulário, anexo) fora da forma observada:
+/// um erro por fato.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroPropriedadesDocumento {
+    /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
+    LinkAnexoCadastroInvalido,
+    AnexoDoCadastroDivergente,
+    BarraCadastroDocumentoIlegivel,
+    CadastroDocumentoIlegivel,
+    CampoCadastroDocumentoAusente,
+    CampoCadastroDocumentoRepetido,
+    FormularioCadastroDocumentoAusente,
+    FormulariosCadastroDocumentoRepetidos,
+    IdentidadeCadastroDocumentoDivergente,
+    LinkCadastroDocumentoInvalido,
+    LinksAnexoCadastroRepetidos,
+    LinksCadastroDocumentoRepetidos,
+    NivelCadastroDocumentoInesperado,
+    TextoCadastroDocumentoIlegivel,
+    TipoCadastroDocumentoRepetido,
+    TipoCadastroDocumentoVazio,
+    ValorCadastroDocumentoAusente,
+    NivelCadastroDocumentoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+}
+
+fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroPropriedadesDocumento> {
+    let a = atributos(tag).map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     a.valor(nome)
-        .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?
-        .map(|v| decodificar_atributo(v).ok_or(ErroHtml::valor("cadastro_documento_ilegivel")))
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?
+        .map(|v| {
+            decodificar_atributo(v).ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)
+        })
         .transpose()
 }
-fn campo<'p>(form: Tag<'p>, parser: &'p tl::Parser<'p>, id: &str) -> Result<Tag<'p>, ErroHtml> {
+fn campo<'p>(
+    form: Tag<'p>,
+    parser: &'p tl::Parser<'p>,
+    id: &str,
+) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
     let nos = nos_com_id_em(form, parser, id)
-        .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     match nos.as_slice() {
         [unico] => unico
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("cadastro_documento_ilegivel")),
-        [] => Err(ErroHtml::ausente("campo_cadastro_documento_ausente")),
-        _ => Err(ErroHtml::repetido("campo_cadastro_documento_repetido")),
+            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel),
+        [] => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoAusente),
+        _ => Err(ErroPropriedadesDocumento::CampoCadastroDocumentoRepetido),
     }
 }
-fn valor(tag: Tag<'_>) -> Result<String, ErroHtml> {
-    atributo(tag, "value")?.ok_or(ErroHtml::ausente("valor_cadastro_documento_ausente"))
+fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
+    atributo(tag, "value")?.ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
 }
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroHtml> {
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroPropriedadesDocumento> {
     decodificar_atributo(&tag.inner_text(parser))
-        .ok_or(ErroHtml::valor("texto_cadastro_documento_ilegivel"))
+        .ok_or(ErroPropriedadesDocumento::TextoCadastroDocumentoIlegivel)
 }
-fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<Nivel>, ErroHtml> {
+fn nivel(
+    form: Tag<'_>,
+    parser: &tl::Parser<'_>,
+) -> Result<Option<Nivel>, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
     for no in form.query_selector(parser, "input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let a = atributos(tag)
-            .map_err(|e| ErroHtml::atributo("nivel_cadastro_documento_ilegivel", e))?;
+        let a =
+            atributos(tag).map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?;
         if a.valor("name")
-            .map_err(|e| ErroHtml::atributo("nivel_cadastro_documento_ilegivel", e))?
+            .map_err(ErroPropriedadesDocumento::NivelCadastroDocumentoIlegivel)?
             == Some("rdoNivelAcesso")
             && a.presente("checked")
         {
@@ -89,7 +123,7 @@ fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<Nivel>, ErroHt
         [Some(x)] if x == "0" => Ok(Some(Nivel::Publico)),
         [Some(x)] if x == "1" => Ok(Some(Nivel::Restrito)),
         [Some(x)] if x == "2" => Ok(Some(Nivel::Sigiloso)),
-        _ => Err(ErroHtml::valor("nivel_cadastro_documento_inesperado")),
+        _ => Err(ErroPropriedadesDocumento::NivelCadastroDocumentoInesperado),
     }
 }
 /// Usa somente o link oferecido pelo SEI, sem inventar URLs assinadas.
@@ -98,14 +132,14 @@ pub(crate) fn ler_link(
     arvore: &str,
     documento: &str,
     processo: &str,
-) -> Result<Option<LinkDoCadastro>, ErroHtml> {
+) -> Result<Option<LinkDoCadastro>, ErroPropriedadesDocumento> {
     let Some(barra) = barra_do_no(arvore, documento)
-        .map_err(|_| ErroHtml::valor("barra_cadastro_documento_ilegivel"))?
+        .map_err(|_| ErroPropriedadesDocumento::BarraCadastroDocumentoIlegivel)?
     else {
         return Ok(None);
     };
     let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("barra_cadastro_documento_ilegivel"))?;
+        .map_err(|_| ErroPropriedadesDocumento::BarraCadastroDocumentoIlegivel)?;
     let mut encontrado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -127,12 +161,12 @@ pub(crate) fn ler_link(
             _ => continue,
         };
         conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
-            .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
+            .map_err(|_| ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         let url =
             conferir_endereco_relativo_por(instalacao, &href, fonte, "id_documento", documento)
-                .map_err(|_| ErroHtml::valor("link_cadastro_documento_invalido"))?;
+                .map_err(|_| ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
-            return Err(ErroHtml::repetido("links_cadastro_documento_repetidos"));
+            return Err(ErroPropriedadesDocumento::LinksCadastroDocumentoRepetidos);
         }
     }
     Ok(encontrado)
@@ -142,28 +176,26 @@ pub(crate) fn ler_formulario(
     html: &str,
     documento: &str,
     processo: &str,
-) -> Result<PropriedadesLidas, ErroHtml> {
+) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("cadastro_documento_ilegivel"))?;
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "frmDocumentoCadastro")
-        .map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
     let form = match nos.as_slice() {
         [unico] => unico
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("cadastro_documento_ilegivel"))?,
-        [] => return Err(ErroHtml::ausente("formulario_cadastro_documento_ausente")),
+            .ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?,
+        [] => return Err(ErroPropriedadesDocumento::FormularioCadastroDocumentoAusente),
         _ => {
-            return Err(ErroHtml::repetido(
-                "formularios_cadastro_documento_repetidos",
-            ));
+            return Err(ErroPropriedadesDocumento::FormulariosCadastroDocumentoRepetidos);
         }
     };
     if valor(campo(form, parser, "hdnIdDocumento")?)? != documento
         || valor(campo(form, parser, "hdnIdProcedimento")?)? != processo
     {
-        return Err(ErroHtml::valor("identidade_cadastro_documento_divergente"));
+        return Err(ErroPropriedadesDocumento::IdentidadeCadastroDocumentoDivergente);
     }
     let tipo = texto(campo(form, parser, "lblSerieTitulo")?, parser)?;
     let tipo = if tipo.trim().is_empty() {
@@ -180,15 +212,15 @@ pub(crate) fn ler_formulario(
                 continue;
             };
             let a =
-                atributos(tag).map_err(|e| ErroHtml::atributo("cadastro_documento_ilegivel", e))?;
+                atributos(tag).map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
             if a.presente("selected") {
                 selecionados.push(texto(tag, parser)?);
             }
         }
         match selecionados.as_slice() {
             [unico] if !unico.trim().is_empty() => unico.clone(),
-            [] | [_] => return Err(ErroHtml::valor("tipo_cadastro_documento_vazio")),
-            _ => return Err(ErroHtml::repetido("tipo_cadastro_documento_repetido")),
+            [] | [_] => return Err(ErroPropriedadesDocumento::TipoCadastroDocumentoVazio),
+            _ => return Err(ErroPropriedadesDocumento::TipoCadastroDocumentoRepetido),
         }
     } else {
         tipo
