@@ -47,7 +47,7 @@ pub(crate) fn executar(
         &sessao,
         &referencias,
         cli.unidade.as_deref(),
-        PedidoDaInclusao {
+        &PedidoDaInclusao {
             bloco,
             documento,
             confirmar,
