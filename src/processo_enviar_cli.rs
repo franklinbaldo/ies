@@ -18,25 +18,6 @@ use std::process::ExitCode;
 mod humano;
 pub(crate) use humano::humano;
 
-// A confirmação de remoção continua fechada em instalações reais.
-// A bancada E2E da #333 pode exercitar o mesmo código somente com origem
-// .test reservada e proxy HTTP numericamente limitado ao loopback.
-fn ensaio_local_habilitado() -> bool {
-    std::env::var("IES_ANTI_IES_TESTE").as_deref() == Ok("1")
-}
-
-fn destino_do_ensaio_local(origem: &str) -> bool {
-    origem == "https://sei.test/sei"
-        && std::env::var("https_proxy")
-            .ok()
-            .and_then(|proxy| {
-                proxy
-                    .strip_prefix("http://127.0.0.1:")
-                    .and_then(|porta| porta.parse::<u16>().ok())
-            })
-            .is_some_and(|porta| porta != 0)
-}
-
 /// `Some` só para `ies processo enviar`.
 pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
@@ -61,18 +42,6 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
         Ok(sigla) => sigla,
         Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
     };
-    // A implementação já tem ensaios sintéticos, mas não passou pelo ciclo
-    // de escrita e releitura numa instalação de treinamento (#333).
-    // Bloquear a confirmação pública antes da sessão; manter a prévia livre.
-    if *remover_anotacoes && *confirmar && !ensaio_local_habilitado() {
-        let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-        return Some(saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            None,
-        ));
-    }
     Some(enviar(
         cli,
         &nup,
@@ -122,11 +91,18 @@ fn enviar(
     confirmar: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // Opt-in não autoriza tocar em uma instalação real, nem sequer GET.
-        // A recusa ocorre antes de construir o pedido ou abrir a rede.
-        if remover_anotacoes && confirmar && !destino_do_ensaio_local(sessao.origem) {
-            let erro = ErroEnviar::RemocaoDeAnotacoesSemVerificacao;
-            return saida_erro::erro_fonte_http(cli.json, erro.subcodigo(), erro.mensagem(), None);
+        // Limite inviolável: escrita só em instalação de treinamento.
+        if remover_anotacoes
+            && confirmar
+            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return saida_erro::erro_fonte_http(
+                cli.json,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
+            );
         }
         let pedido = PedidoDoEnvio {
             nup,

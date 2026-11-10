@@ -107,10 +107,9 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     let saida = sem_sessao(&confirmar);
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-    // A confirmação da nova escrita fica fechada antes da leitura da sessão
-    // enquanto o ensaio live de treinamento estiver NOT_RUN (#333).
+    // Sem trava de ensaio: a confirmação segue para a sessão, que falta.
     assert_eq!(
         json(&saida)["subcodigo"],
-        "remocao_de_anotacoes_sem_verificacao"
+        "arquivo_privado_ausente_ou_inacessivel"
     );
 }

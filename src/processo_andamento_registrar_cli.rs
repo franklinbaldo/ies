@@ -37,19 +37,19 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             "Texto do andamento deve conter entre 1 e 500 caracteres",
         ));
     }
-    if *confirmar {
-        // Fatia WIP (#259): a confirmação sintética ainda não fecha; recusa
-        // antes de abrir sessão ou rede.
-        let e = Erro::EscritaAindaFechada;
-        return Some(publicar_valor_da_falha(
-            cli.json,
-            &json_base_da_falha("fonte_invalida", e.subcodigo(), e.mensagem(), None),
-            e.saida(),
-        ));
-    }
-    Some(com_sessao(
-        cli,
-        |sessao, indice| match processo_andamento_registrar::registrar(
+    Some(com_sessao(cli, |sessao, indice| {
+        if *confirmar
+            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
+                cli.json,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
+            );
+        }
+        match processo_andamento_registrar::registrar(
             sessao,
             &numero,
             texto,
@@ -104,8 +104,8 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 ),
                 e.saida(),
             ),
-        },
-    ))
+        }
+    }))
 }
 
 fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {

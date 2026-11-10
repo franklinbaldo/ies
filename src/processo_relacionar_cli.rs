@@ -40,12 +40,17 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         ));
     }
     Some(com_sessao(cli, |sessao, indice| {
-        // Trava WIP: binário release e instalações reais permanecem
-        // sem confirmação. Somente o binário debug no domínio reservado
-        // .test pode exercitar a CLI inteira com TLS loopback/anti-IES.
-        // Não é permissão para escrever no SEI de treinamento ou produção.
-        if *confirmar && !(cfg!(debug_assertions) && sessao.origem == "https://sei.test/sei") {
-            return falha(cli.json, &FalhaRelacionar::ConfirmacaoAindaNaoValidada);
+        // Limite inviolável: escrita só em instalação de treinamento.
+        if *confirmar
+            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                crate::origem_de_treinamento::exigir(sessao.origem)
+        {
+            return crate::saida_erro::erro_fonte_http(
+                cli.json,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                None,
+            );
         }
         let pedido = Pedido {
             nup: &nup,
@@ -71,8 +76,6 @@ fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
     let incerto = erro.saida() == 3;
     let mensagem = if incerto {
         "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
-    } else if matches!(erro, FalhaRelacionar::ConfirmacaoAindaNaoValidada) {
-        "Confirmação indisponível até validação em treinamento; a prévia continua disponível."
     } else {
         "Operação recusada ou prévia indisponível"
     };

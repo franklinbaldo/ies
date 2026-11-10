@@ -128,7 +128,7 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 | `acao_excluir_relacionamento_nao_declarada` | Handler `acaoRemover` não prova action única com campo e submit |
 | `id_da_origem_na_action_ausente` | Link de origem não oferece id para conferir a action |
 | `action_de_remocao_de_outro_processo` | Script de remoção aponta para outro processo |
-| `confirmacao_de_relacionamento_nao_validada` | `--confirmar` recusado na CLI antes da rede até ensaio de treinamento; prévia segue disponível |
+| `origem_fora_do_treinamento` | `--confirmar` numa origem que não é instalação de treinamento; nada é enviado |
 | `efeito_incerto` | POST mutador feito ou aceito, mas não comprovou causalmente o efeito; saída 3 |
 
 Outros subcódigos já definidos pelo transporte, abertura e primitivo de

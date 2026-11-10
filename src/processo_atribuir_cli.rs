@@ -28,10 +28,17 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => com_sessao(cli, |sessao, indice| {
-            // Nunca executar a confirmação em produção: a origem precisa
-            // coincidir com a instalação UnB de treinamento observada.
-            if *confirmar && !origem_de_treinamento(sessao.origem) {
-                return publicar_falha(cli.json, &ErroProcessoAtribuir::EscritaAindaNaoVerificada);
+            // Limite inviolável: escrita só em instalação de treinamento.
+            if *confirmar
+                && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
+                    crate::origem_de_treinamento::exigir(sessao.origem)
+            {
+                return crate::saida_erro::erro_fonte_http(
+                    cli.json,
+                    crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
+                    crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
+                    None,
+                );
             }
             let pedido = PedidoDaAtribuicao {
                 nup: &nup,
@@ -46,18 +53,6 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
         }),
         Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
     })
-}
-
-/// A escrita exige identidade exata de uma instalação de treinamento.
-/// Nomes de host semelhantes, outros caminhos e origens desconhecidas
-/// não recebem autorização pela simples existência de uma sessão.
-fn origem_de_treinamento(origem: &str) -> bool {
-    let Some(instalacao) = crate::instalacao::Instalacao::interpretar(origem) else {
-        return false;
-    };
-    // Primeiro ensaio apenas na UnB, única origem dessa fatia com
-    // destino de aceite documentado pelo oráculo Todos.
-    instalacao.url_base() == "https://sei.treinamento.unb.br/sei"
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.

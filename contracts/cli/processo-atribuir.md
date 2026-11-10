@@ -90,11 +90,12 @@ genéricas sem identidade: a releitura coincidente pode ser efeito de
 outro agente, inclusive na remoção. Sem ID, o resultado é efeito incerto
 (saída 3), sem novo POST. A forma de `arvore_visualizar` com ID foi
 observada no caso `ACEITE` do Todos @323eb01.
-**Na CLI pública, `--confirmar` passa exclusivamente pelo caminho de
-treinamento UnB `https://sei.treinamento.unb.br/sei`**, cuja resposta
-302 com identidade está documentada no oráculo Todos. A sessão privada
+**Na CLI pública, `--confirmar` passa em qualquer das
+[instalações públicas de treinamento](../../docs/interfaces/credenciais-de-treinamento.md)**
+(antes de 09/11/2026, só na UnB, cuja resposta 302 com identidade está
+documentada no oráculo Todos). A sessão privada
 é lida antes dessa decisão; uma origem diferente, inclusive produção,
-recebe `escrita_de_atribuicao_ainda_nao_verificada` **antes de qualquer
+recebe `origem_fora_do_treinamento` **antes de qualquer
 requisição de rede**. A origem precisa ser idêntica, não apenas um host
 parecido. A CLI chama o mesmo fluxo tipado de POST único e verificação por
 nova leitura. O ensaio de 09/11/2026 em treinamento resultou em

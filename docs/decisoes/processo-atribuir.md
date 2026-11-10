@@ -127,8 +127,8 @@ derivado; não comprovam POST nem efeito no SEI.
 
 ## Limitações e revisão
 
-`--confirmar` recusa `escrita_de_atribuicao_ainda_nao_verificada`
-antes de qualquer rede em origens diferentes da UnB de treinamento.
+`--confirmar` recusa `origem_fora_do_treinamento` antes de qualquer
+rede em origens que não são [instalações públicas de treinamento](../../docs/interfaces/credenciais-de-treinamento.md).
 O fluxo injetável possui testes de POST único,
 releitura e saída 3. Prévia em duas instalações de treinamento já
 comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão segue provisória: a confirmação ao vivo teve efeito incerto,

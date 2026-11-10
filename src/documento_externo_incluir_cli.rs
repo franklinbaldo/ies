@@ -27,9 +27,6 @@ enum FalhaInclusaoExterna {
     Processo(NumeroProcessoInvalido),
     Tipo(FalhaTipoExterno),
     Pdf(FalhaPdf),
-    /// A origem da sessão não é instalação pública de treinamento nem a
-    /// bancada `sei.test`: a escrita nunca vai a produção.
-    OrigemForaDoTreinamento,
 }
 
 fn validar_tipo(tipo: &str) -> Result<(), FalhaTipoExterno> {
