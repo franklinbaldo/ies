@@ -80,7 +80,7 @@ Vindo da R, o comando **não volta** à R: a sessão fica na D, como em
 [`listar-processos`](unidade-listar-processos-visao-detalhada.md) (decisão
 do proprietário, 02/11/2026). Regime estável: 2 GET.
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | D sem `ancNivelDetalhe` | `link_do_nivel_de_detalhe_ausente` |
 | Mais de um `ancNivelDetalhe` | `links_do_nivel_de_detalhe_repetidos` |

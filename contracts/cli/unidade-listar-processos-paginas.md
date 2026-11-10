@@ -42,7 +42,7 @@ na [forma única](unidade-recebidos-gerados.md):
 
 Continuam recusas tipadas, antes de publicar ou exportar:
 
-| Fato observado | Variante ou `onde` (stderr) |
+| Fato observado | Erro ou `onde` (stderr) |
 | --- | --- |
 | Legenda sem `registros` (total não declarado) | `TotalNaoDeclaradoNaLegenda` |
 | Legenda sem intervalo e total diferente das linhas | `LegendaSemFaixaComTotalDiferenteDasLinhas` |
@@ -99,7 +99,7 @@ UnB, na PEN1, na PEN3 e na PEN4 (5.0.4, duas páginas por lista) e na UFRJ
 medidos, página lembrada por lista; GO 5.0.3 PASS (página de 10) na
 terceira tentativa e PEN2 NOT_RUN ([GO e PEN2](../../docs/validacao-live/2026-11-04-unidade-paginacao-go-pen2.md)).
 
-| Recusa antes do POST | Variante ou `onde` (stderr) |
+| Recusa antes do POST | Erro ou `onde` (stderr) |
 | --- | --- |
 | Visão diferente da resumida | `ErroPaginaDoControle::PaginaExigeVisaoResumida` |
 | Charset da resposta sem codificação suportada | `ErroPaginaDoControle::CharsetDaTelaNaoSuportado` |
@@ -115,7 +115,7 @@ terceira tentativa e PEN2 NOT_RUN ([GO e PEN2](../../docs/validacao-live/2026-11
 | Opção selecionada sem `value` | `OpcaoSelecionadaDoPaginadorSemValor` |
 | Controle previsto repetido | `ControleRepetidoNoFormularioDoControle` |
 
-| Recusa após o POST | Variante ou `onde` (stderr) |
+| Recusa após o POST | Erro ou `onde` (stderr) |
 | --- | --- |
 | Rótulo da unidade diferente | `UnidadeAlteradaAposPaginar` |
 | `hdnTipoVisualizacao` diferente | `VisualizacaoAlteradaAposPaginar` |

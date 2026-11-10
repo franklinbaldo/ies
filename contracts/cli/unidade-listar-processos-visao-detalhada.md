@@ -119,7 +119,7 @@ na forma observada colhe os links como antes.
 
 Recusas da tabela D, além das do contrato da operação:
 
-| Fato observado | Variante ou `onde` (stderr) |
+| Fato observado | Erro ou `onde` (stderr) |
 | --- | --- |
 | Cabeçalho com rótulo fora de Processo e das 12 colunas | `cabecalho_da_visao_detalhada_nao_reconhecido` |
 | Mesma coluna duas vezes no cabeçalho | `coluna_da_visao_detalhada_repetida` |
@@ -187,7 +187,7 @@ da D) depois de ler, com até 1 GET + 4 POST e as recusas
 
 ## Demais recusas da troca
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | 302 ao trocar de visão | `ErroVisaoDoControle::RedirecionamentoAoTrocarVisao` |
 | Resposta da troca em outra visão | `ErroVisaoDoControle::VisaoNaoTrocadaAposEnvio` |

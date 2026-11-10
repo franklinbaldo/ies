@@ -15,7 +15,7 @@ não são capacidades aprovadas. Fontes: [superfície Clap e despacho](../src/ma
 ## Regra de priorização
 
 **Primeiro entregar o que a CLI já promete.** Não criar novos verbos,
-subcomandos, opções, modos opt-in ou variantes de replay apenas para substituir
+subcomandos, opções, modos opt-in ou versões de replay apenas para substituir
 um caminho já declarado e ainda sem implementação real. Cada PR de capacidade
 deve identificar o comando **existente**, seu caminho no despacho, o resultado
 atual, a lacuna eliminada e o ensaio que a demonstra. Mudanças fundamentais

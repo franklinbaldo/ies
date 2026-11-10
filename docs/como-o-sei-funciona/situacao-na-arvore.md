@@ -41,7 +41,7 @@ abertos"): **não observadas**.
 instalações, 4.0.9 a 5.0.4), as 21 árvores servidas entre
 `procedimento_sobrestar` e `procedimento_remover_sobrestamento` trazem
 **só** a frase acima, sempre com uma única unidade (a da sessão) e sem
-atribuição; nenhuma variante plural, com atribuição ou com outro texto.
+atribuição; nenhuma forma plural, com atribuição ou com outro texto.
 Antes de sobrestar, a mesma árvore dizia `Processo aberto somente na
 unidade` com a mesma âncora; depois de retomar, de novo; depois de
 concluir, `Processo não possui andamentos abertos.`. A frase não diz se o

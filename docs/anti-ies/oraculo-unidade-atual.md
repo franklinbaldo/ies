@@ -1,6 +1,6 @@
 ---
 type: Guide
-title: Oráculo sintético para unidade atual — variantes R e D
+title: Oráculo sintético para unidade atual — visões R e D
 description: Matriz de entradas e hipóteses falsificáveis do leitor do Controle
 ---
 

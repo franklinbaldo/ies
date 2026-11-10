@@ -68,7 +68,7 @@ sem marcador.
    conferida antes de gravar, gravação e colheita). A leitura roda de novo
    uma vez; o resultado, qualquer que seja, é o do comando.
 2. A classificação é pelo **subcódigo tipado**, não pela mensagem: cada um
-   dos dois nasce de uma única variante (`PaginaDeLoginRecebidaNoControle`
+   dos dois nasce de um único erro (`PaginaDeLoginRecebidaNoControle`
    do transporte e `SessaoEncerrada` dos fluxos), inclusive aninhada nos
    erros de cada leitura. Ficam fora `entrada_por_id_recusada_rode_ies_login`
    (a recusa característica derruba a sessão, não é vencimento),

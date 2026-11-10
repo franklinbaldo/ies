@@ -16,9 +16,9 @@ testes e pelas instalações reais.
 - `--json` e `--unidade` são globais. `--json` forma só a saída de sucesso.
   `--unidade` é pré-condição conferida na tela, nunca um rótulo ecoado.
 - Falha (#695): o erro tipado sobe até `main` e sai em stderr como
-  `Error: <Variante> { campos }` (o `Debug` do erro, com a cadeia de causas);
+  `Error: <Erro> { campos }` (o `Debug` do erro, com a cadeia de causas);
   stdout fica vazio, também com `--json`. Não há `codigo`, `retentavel` nem
-  mensagem paralela: a variante é a mensagem. Credenciais nunca aparecem no
+  mensagem paralela: o nome do erro é a mensagem. Credenciais nunca aparecem no
   `Debug` (os tipos que as carregam o redigem). Combinação inválida de
   argumentos que o clap não declara sai pelo próprio clap (`UsoInvalido`),
   com saída 2.
@@ -180,7 +180,7 @@ por quê e o que cada opção antiga virou:
 
 ## Recusas HTTP e mensagem do SEI
 
-As recusas de resposta do GET (uma variante por fato) e o status e a
+As recusas de resposta do GET (um erro por fato) e o status e a
 mensagem do SEI nas recusas HTTP estão em
 [recusas HTTP](cli/recusas-http.md).
 

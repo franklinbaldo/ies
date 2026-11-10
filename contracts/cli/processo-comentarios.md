@@ -69,7 +69,7 @@ hipótese sintética em HTTPS local, mas não a validação live.
 
 ## Subcódigos desta fatia
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `barra_dos_comentarios_fora_da_forma_observada` | barra do processo fora da forma observada |
 | `barras_dos_comentarios_repetidas_na_arvore` | mais de uma barra no nó PROCESSO |

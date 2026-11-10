@@ -12,15 +12,15 @@ decision: typed-errors single-origin direct-propagation serde-at-boundary
 
 Cada `enum` de erro mantinha uma `fn subcodigo()` manual: 966 braços de
 `match` que copiavam a classificação tipada para texto. O compilador
-garante que o `match` cobre as variantes, mas não que o texto corresponda
-à variante. Por isso existiam tabelas de subcódigos longe do código e um
+garante que o `match` cobre os erros, mas não que o texto corresponda
+ao erro. Por isso existiam tabelas de subcódigos longe do código e um
 hook só para mantê-las em sincronia. Nenhum consumidor programático decide
 pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 
 ## Decisão
 
 - **O tipo é a verdade.** Declare o erro perto do ponto que detecta a
-  falha. Em regra, cada variante tem um único ponto de construção em
+  falha. Em regra, cada erro tem um único ponto de construção em
   produção. Propagação, assinaturas, testes e padrões de `match` não são
   novas emissões. Um validador compartilhado pode atender vários fluxos.
 - **Propagar sem embrulhar.** Use `?` ou retorne o `Result` original.
@@ -45,21 +45,21 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
   `Result<T, E>` automaticamente nem criar DTOs só para justificar derives.
 - **Apresentação na fronteira.** A CLI serializa apenas o dado público
   necessário com Serde ou apresenta a mensagem do tipo. Classificação e
-  testes de identidade usam variantes. Strings fixas de JSON ficam nos
+  testes de identidade comparam o erro. Strings fixas de JSON ficam nos
   testes da fronteira, para conferir o formato emitido.
 
 ## Propagação e origem única
 
 - **Propagar antes de converter.** Se o erro já é o tipo aceito pelo
-  consumidor, devolver `Err` com `?` diretamente. Não criar uma variante
+  consumidor, devolver `Err` com `?` diretamente. Não criar um erro
   de passagem só para registrar o módulo ou a função intermediária.
-- **Erro específico perto de quem decide.** Uma nova variante é justificada
+- **Erro específico perto de quem decide.** Um novo erro é justificado
   por um fato distinto e observável ou por uma decisão diferente; não por
   mera mudança de camada. Rust não tem subclasses de erros: preferir
   composição explícita apenas quando necessária, sem perda da causa.
 - **Um lugar para levantar cada falha, quando viável.** Centralizar a
   validação que origina o fato e deixar as chamadas propagarem seu
-  `Result`, em vez de construir a mesma variante em vários consumidores.
+  `Result`, em vez de construir o mesmo erro em vários consumidores.
   Não remover validações nas fronteiras de segurança para obter esse
   objetivo artificialmente.
 - **Falha da resposta não é falha do DOM.** URL assinada inválida, cookie
@@ -86,7 +86,7 @@ trocou 152 `.map_err(Enum::Caso)?` por `?`. Só troca quando a função
 envolvente devolve o próprio `Enum` e o `?` não está numa closure.
 
 Restam à mão:
-- **Variantes com `&'static str`** (o leitor devolve o subcódigo como
+- **Erros com `&'static str`** (o leitor devolve o subcódigo como
   texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura` e o
   padrão aninhado de `processo_andamento_registrar::Erro`.
   `ErroCriar::Transporte` já guarda a causa (`FalhaTransporte`,
@@ -96,11 +96,11 @@ Restam à mão:
   próprio por etapa, declarado junto de quem levanta o erro e composto por
   `From` (`CookieIlegivel`, `CredenciaisIlegiveis`, `OrigemIlegivel`,
   `SessaoGravadaInvalida`, `HistoricoNaoPedido`, `ErroDasAnotacoes`).
-  Variante `transparente` mantém o motivo concreto como nome público.
+  O erro `transparente` mantém o motivo concreto como nome público.
 
 Terceira passada (10/11/2026): o derive deixou de aceitar
 `#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o
-`snake_case` da variante, e para mudá-lo renomeia-se a variante. O relogin
+`snake_case` do erro, e para mudá-lo renomeia-se o erro. O relogin
 das leituras passou a decidir por `#[causa(sessao_encerrada)]` em vez de
 comparar o texto do subcódigo.
 
@@ -109,7 +109,7 @@ comparar o texto do subcódigo.
 Um elemento ausente, repetido, com valor fora da forma ou um HTML
 ilegível não sustenta decisão: só diz onde a leitura da tela falhou.
 Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
-(`src/erro_html.rs`), e não uma variante por leitor.
+(`src/erro_html.rs`), e não um erro por leitor.
 
 - `onde` é o diagnóstico e a folha pública: o `subcodigo` legado não
   muda. `problema` (`ausente`, `repetido`, `valor`, `html`, ou
@@ -122,11 +122,11 @@ Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
   (`thiserror`): o `From` derivado deixa `?` e `.into()` converterem, e
   o caminho não repete `html`. Um leitor que só falha por forma devolve
   `ErroHtml`.
-- A variante de forma que algum código casa fora de teste (`match` em
+- O erro de forma que algum código casa fora de teste (`match` em
   fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
-  continua sendo variante.
+  continua sendo um erro próprio.
 - **Só nasce de DOM; URL, cabeçalho, arquivo, configuração, entrada e
-  domínio têm variante própria.** `ErroHtml` é só o que nasce lendo a
+  domínio têm erro próprio.** `ErroHtml` é só o que nasce lendo a
   tela servida (`tl::`, `html_atributos`, leitores de tela, árvore e
   barra). URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
   validação de entrada e fato do domínio ficam no `enum` do módulo onde
@@ -135,12 +135,12 @@ Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
 - **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
 
 `scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
-oráculo) migrou 350 variantes de 68 tipos e eliminou 4 tipos inteiros. Os
+oráculo) migrou 350 erros de 68 tipos e eliminou 4 tipos inteiros. Os
 77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
-carregar a causa. As 21 variantes casadas fora de teste ficaram. A
-migração escolheu pelo nome, não pela origem; as variantes de proxy,
+carregar a causa. Os 21 erros casados fora de teste ficaram. A
+migração escolheu pelo nome, não pela origem; os erros de proxy,
 `Location`, cabeçalho do anexo, diretório local, id de entrada e fato do
-domínio voltaram à forma de antes. O script agora só toma a variante cujo
+domínio voltaram à forma de antes. O script agora só toma o erro cujo
 todo ponto de construção fora de teste está numa `fn` que lê DOM ou num
 módulo de leitura de tela (`MODULOS_DE_TELA`).
 

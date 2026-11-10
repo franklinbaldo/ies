@@ -49,7 +49,7 @@ reconhecível, no `Debug` do erro. Não confundir ausência de prova com ausênc
 
 ## Subcódigos próprios
 
-| Variante ou `onde` (stderr) | Condição observada |
+| Erro ou `onde` (stderr) | Condição observada |
 | --- | --- |
 | `barra_da_ciencia_do_documento_fora_da_forma` | Atributos da barra inválidos |
 | `botoes_de_ciencia_do_documento_repetidos` | Botão duplicado |

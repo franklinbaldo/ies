@@ -46,7 +46,7 @@ não há dependência nova nesta PR.
    `processo_reabrir/fluxo.rs`, `processo_enviar/fluxo.rs` e fluxos
    de documentos: preferir sessão tipada, sem dispensar autorização antes
    da rede.
-2. Famílias de erros cuja variante é construída em vários pontos
+2. Famílias de erros em que o mesmo erro é construído em vários pontos
    (issue #299), distinguindo nova causa de erro apenas propagado.
 3. `transporte/resposta_http.rs`: `unwrap_or_default` sobre a leitura de
    trailers `chunked` pode ocultar truncamento; corrigir separadamente

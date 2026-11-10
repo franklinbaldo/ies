@@ -114,7 +114,7 @@ cookie, senha ou argumento secreto. Saídas: 0 prévia/sem efeito/confirmado,
 
 ## Subcódigos tipados da fatia
 
-| Variante ou `onde` (stderr) | Condição observável ou regra |
+| Erro ou `onde` (stderr) | Condição observável ou regra |
 | --- | --- |
 | `FalhaRelacionar::LinkNaoPublicado` | A barra do processo não publica `procedimento_relacionar` |
 | `links_de_relacionar_repetidos_na_barra` | Mais de um link de relacionar na barra do nó PROCESSO |

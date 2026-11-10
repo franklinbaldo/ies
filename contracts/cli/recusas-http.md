@@ -1,29 +1,29 @@
 ---
 type: Contract
 title: Recusas HTTP e mensagem do SEI
-description: Variante tipada por fato nas recusas de resposta do GET, status HTTP e mensagem saneada do SEI nas recusas, parte do contrato da CLI
+description: Erro tipado por fato nas recusas de resposta do GET, status HTTP e mensagem saneada do SEI nas recusas, parte do contrato da CLI
 ---
 
 # Recusas HTTP e mensagem do SEI
 
 Parte do [contrato da CLI](../cli.md), separada por tamanho.
 
-## Recusas de resposta do GET com variante por fato (Refs #57)
+## Recusas de resposta do GET com um erro por fato (Refs #57)
 
 O antigo subcódigo único `resposta_inesperada` foi separado, porque o
 ensaio live em Goiás (02/11/2026) não pôde dizer qual verificação
 falhou. Toda resposta do GET Web passa pelas mesmas checagens, na ordem:
 
-| Fato observado | Variante de `FalhaTransporte` |
+| Fato observado | Erro de `FalhaTransporte` |
 | --- | --- |
 | Status HTTP diferente de 200 | `Status(StatusHttpRecusado { status, mensagem_do_servidor })` |
 | `Content-Type` principal diferente de `text/html` | `TipoDeConteudoNaoHtml` |
 | Corpo não decodifica no charset declarado (ou UTF-8) | `CorpoNaoDecodificavelNoCharsetDeclarado` |
 
-O número do status sobe como o transporte o recebeu: não há uma variante
+O número do status sobe como o transporte o recebeu: não há um erro
 por faixa (5xx, 429, 401/403, 3xx). Quem decide pelo status casa o
 número, por exemplo `Status(StatusHttpRecusado { status: 401 | 403, .. })`.
-Continuam variantes próprias os fatos que não são o número: a página de
+Continuam erros próprios os fatos que não são o número: a página de
 bloqueio da instalação (403 com WAF), o 302 do Controle para o login,
 o limite de tamanho e a tela de login. Nenhuma das recusas autoriza
 nova tentativa automática.
@@ -32,7 +32,7 @@ nova tentativa automática.
 
 Quem lê a recusa precisa saber **o que o SEI respondeu**, não só a faixa
 do status. Em GO (02/11/2026), dois 5xx no POST de paginação não
-puderam ser explicados. A variante é a classificação; o status e a
+puderam ser explicados. O nome do erro é a classificação; o status e a
 mensagem são dados dela e nunca decidem tratamento.
 
 Todo comando que faz o GET do Controle ou o POST do paginador (`status
