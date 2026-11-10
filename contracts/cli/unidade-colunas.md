@@ -80,16 +80,16 @@ Vindo da R, o comando **não volta** à R: a sessão fica na D, como em
 [`listar-processos`](unidade-listar-processos-visao-detalhada.md) (decisão
 do proprietário, 02/11/2026). Regime estável: 2 GET.
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
-| D sem `ancNivelDetalhe` | `link_do_nivel_de_detalhe_ausente` |
-| Mais de um `ancNivelDetalhe` | `links_do_nivel_de_detalhe_repetidos` |
-| `onclick` fora da forma observada ou URL não autorizada | `link_do_nivel_de_detalhe_nao_reconhecido` |
-| Formulário `frmAcessoExternoCancelar` ausente ou repetido | `formulario_do_nivel_de_detalhe_ausente`, `formularios_do_nivel_de_detalhe_repetidos` |
+| D sem `ancNivelDetalhe` | `ErroVisaoDoControle::LinkDoNivelDeDetalheAusente` |
+| Mais de um `ancNivelDetalhe` | `ErroVisaoDoControle::LinksDoNivelDeDetalheRepetidos` |
+| `onclick` fora da forma observada ou URL não autorizada | `ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido` |
+| Formulário `frmAcessoExternoCancelar` ausente ou repetido | `ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente`, `ErroNivelDeDetalhe::FormulariosDoNivelDeDetalheRepetidos` |
 | `action` do formulário sem `acao=procedimento_configurar_detalhe` | `AcaoDoFormularioDoNivelDeDetalheDiferente` |
 | Nenhuma das 12 caixas publicada | `ErroNivelDeDetalhe::NenhumaOpcaoDoDetalhePublicada` |
 | Uma caixa do catálogo publicada duas vezes | `ErroNivelDeDetalhe::OpcaoDoDetalheRepetida` |
-| Caixa `chkSin*` fora do catálogo (falha fechada) | `opcao_do_nivel_de_detalhe_nao_prevista` |
+| Caixa `chkSin*` fora do catálogo (falha fechada) | `ErroNivelDeDetalhe::OpcaoDoNivelDeDetalheNaoPrevista` |
 | Caixa publicada com `label for=` ausente ou com outro texto | `ErroNivelDeDetalhe::RotuloDaOpcaoDoDetalheDiferente` |
 
 Opção do catálogo **ausente** não é recusa: sai com `disponivel: false`.

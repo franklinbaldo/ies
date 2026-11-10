@@ -83,21 +83,21 @@ O usuário deve conferir a unidade antes de nova tentativa.
 
 ## Subcódigos do leitor de tipos
 
-| Erro ou `onde` (stderr) | Fato verificável |
+| Erro (stderr) | Fato verificável |
 | --- | --- |
-| `lista_de_tipos_html_invalido` | HTML da lista não pode ser interpretado |
-| `tabela_de_tipos_ausente_ou_repetida` | Tabela de tipos ausente, repetida ou não é tabela |
+| `ErroListaDeTipos::ListaDeTiposHtmlInvalido` | HTML da lista não pode ser interpretado |
+| `ErroListaDeTipos::TabelaDeTiposAusenteOuRepetida` | Tabela de tipos ausente, repetida ou não é tabela |
 | `ErroListaDeTipos::TipoNaoOferecido` | Tipo não consta da lista completa |
-| `tipo_de_processo_ambiguo` | Mais de uma âncora com nome exato |
+| `ErroListaDeTipos::TipoDeProcessoAmbiguo` | Mais de uma âncora com nome exato |
 | `ErroListaDeTipos::TipoSemAcao` | Âncora sem ação segura ou desabilitada |
 | `ErroListaDeTipos::ListaIncompleta` | Tipo não encontrado na lista curta; não inferir ausência |
-| `cadastro_de_processo_html_invalido` | HTML do cadastro ilegível |
-| `cadastro_de_processo_ausente_ou_repetido` | Formulário de cadastro ausente ou repetido |
+| `ErroCadastro::CadastroDeProcessoHtmlInvalido` | HTML do cadastro ilegível |
+| `ErroCadastro::CadastroDeProcessoAusenteOuRepetido` | Formulário de cadastro ausente ou repetido |
 | `ErroCadastro::TipoDeCadastroDivergente` | ID do tipo no cadastro diferente do escolhido |
-| `especificacao_nao_publicada_no_cadastro` | Campo de especificação ausente ou desabilitado |
+| `ErroCadastro::EspecificacaoNaoPublicadaNoCadastro` | Campo de especificação ausente ou desabilitado |
 | `ErroCadastro::EspecificacaoAcimaDoLimite` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
-| `limite_da_especificacao_invalido_no_cadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
-| `assunto_sugerido_nao_unico` | Nenhum ou vários assuntos selecionáveis no cadastro |
+| `ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
+| `ErroCadastro::AssuntoSugeridoNaoUnico` | Nenhum ou vários assuntos selecionáveis no cadastro |
 | `ErroCadastro::AssuntoDesabilitado` | O `select` de assunto está desabilitado: a opção visível não comprova escolha habilitada; recusa antes do POST |
 | `HipoteseLegalDesabilitada` | `select` da hipótese legal está desabilitado quando o nível solicitado é restrito; recusa antes do POST |
 | `ErroCadastro::NivelNaoOferecido` | Rádio de acesso solicitado não está publicado |
@@ -134,20 +134,18 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos do fluxo Web
 
-| Erro ou `onde` (stderr) | Recusa |
+| Erro (stderr) | Recusa |
 | --- | --- |
 | `ErroCriar::Cadastro` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `cadastro_nao_devolvido_apos_escolha` (sem erro próprio confirmado no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::NaoConfirmado` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ProvaDaCriacao::PropriedadesDivergentes` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; escrita não confirmada, saída 1 |
 | `ErroCriar::PosEscrita { correspondentes: Some(nups), .. }` com dois ou mais NUPs | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
 | `ErroCriar::PosEscrita { correspondentes: Some([nup]), .. }` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 1, possível resíduo, sem retry |
 | `ErroCriar::Transporte` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::Formulario` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `interessado_de_processo_nao_resolvido` (sem erro próprio confirmado no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `link_de_iniciar_processo_ausente` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `link_de_iniciar_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `link_de_iniciar_processo_repetido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroMenu::LinkDeIniciarProcessoAusente` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroMenu::LinkDeIniciarProcessoNaoReconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroMenu::LinkDeIniciarProcessoRepetido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::Lista` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::Menu` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `ErroCriar::TipoSemIdentificador` | Etapa observada não satisfeita; não repetir operação automaticamente |
@@ -156,22 +154,22 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos do interessado
 
-| Erro ou `onde` (stderr) | Recusa |
+| Erro (stderr) | Recusa |
 | --- | --- |
-| `interessado_controles_ausentes` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::InteressadoControlesAusentes` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `ErroInteressado::AutocompletarNaoDeclarado` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `ErroInteressado::DerivacaoRecusada` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
-| `interessado_resposta_nao_reconhecida` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::InteressadoRespostaNaoReconhecida` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `ErroInteressado::NaoOferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `ErroInteressado::Ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 
 ## Subcódigos da hipótese legal carregada por AJAX
 
-| Erro ou `onde` (stderr) | Fato observado |
+| Erro (stderr) | Fato observado |
 | --- | --- |
-| `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
-| `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
-| `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida; também recusa uma opção única ou escolha explícita com ID/nome não publicável (URL ou caracteres de controle) |
+| `ErroHipotese::HipoteseLegalAjaxNaoDeclarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
+| `ErroHipotese::HipoteseLegalAjaxNaoDerivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
+| `ErroHipotese::HipoteseLegalAjaxRespostaNaoReconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida; também recusa uma opção única ou escolha explícita com ID/nome não publicável (URL ou caracteres de controle) |
 | `ErroHipotese::OpcaoNaoUnica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
 
 Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
@@ -227,7 +225,7 @@ Confirmação com AJAX: **7 requisições** (5 GET + 1 POST de consulta
 + 1 POST criador, seguidos de duas leituras verificadoras).
 As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 
-| Erro ou `onde` (stderr) | Fato observável |
+| Erro (stderr) | Fato observável |
 | --- | --- |
 | erro do clap (saída 2) | ID#NOME ausente/inválido ou escolha em nível público |
 | `ErroHipotese::EscolhaNaoOferecida` | Par exato ID#NOME não consta do AJAX observado |
@@ -244,7 +242,7 @@ estão no [contrato de reconciliação](processo-criar/reconciliacao.md).
 O significado e as condições de emissão permanecem no
 [complemento de reconciliação](processo-criar/reconciliacao.md).
 
-| Erro ou `onde` (stderr) | Fato verificável |
+| Erro (stderr) | Fato verificável |
 | --- | --- |
 | `ErroFotografia::CoberturaIncompleta` | Total ou faixa insuficiente para atestar todos os Gerados |
 | `ErroFotografia::IdentidadeAlterada` | Um ID pré-existente passou a apontar outro NUP |

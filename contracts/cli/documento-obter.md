@@ -186,7 +186,7 @@ sem `head`; preservar essa possibilidade de replay local. Porém um
 `title` presente **somente** em `body`, `svg` ou `template` não
 identifica o documento SEI, ainda que seu texto pareça um título
 `SEI/instalação - DOC - Tipo`. Nessa situação a função de identidade
-falha com o erro tipado existente `ErroTituloDocumento::TituloAusente`,
+falha com o erro tipado existente `ErroTituloDocumento::TituloDocumentoAusente`,
 sem exportar conteúdo ou inferir documento pelo corpo. Dois títulos
 externos válidos seguem rejeitados por `TitulosDeDocumentoRepetidos`.
 A regra não abre URLs, não consulta a instalação, não modifica a

@@ -82,7 +82,7 @@ A lista local é um retrato da leitura, não uma garantia de atualidade.
 
 ## Tabela normativa de recusas da lupa
 
-| Erro ou `onde` (stderr) | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
 | `FalhaDaLupa::CharsetInesperado` | Codificação da tela não suportada |
 | `FalhaDaLupa::FormularioInesperado` | Formulário servido incompatível |

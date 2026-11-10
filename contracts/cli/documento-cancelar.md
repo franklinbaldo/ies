@@ -37,7 +37,7 @@ Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`
 
 ## Subcódigos específicos
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
 | `ErroLinkCancelar::BarraForaDaForma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroLinkCancelar::LinksRepetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |

@@ -40,13 +40,13 @@ em dois outros pontos:
 - **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
   que ainda é a atual e comparará o hash com a vN local.
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
-| `versao_editada_ausente` | `DOC.v(N+1).html` falta |
+| `ErroCopia::BaseVersaoAusente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
+| `ErroCopia::VersaoEditadaAusente` | `DOC.v(N+1).html` falta |
 | `ErroCopia::EdicaoIgualABase` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
-| `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
-| `ErroCopia::LinkSimbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
+| `ErroCopia::VersaoLocalRepetida`, `ErroCopia::NomeVersaoLocalInvalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
+| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::DestinoInseguro`, `ErroCopia::LeituraFalhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
 
 A prévia não abre o editor nem executa escrita. **Na saída humana**, mostra
 um recorte local com linhas da foto prefixadas por `-` e linhas da edição
