@@ -1,9 +1,7 @@
 //! Os passos da resolução (1, 1b, 2, 3 e 4) (contracts/cli/processo-obter-arvore.md).
 //! Um passo é tentado só se o anterior não se aplica ou falhou por palpite
 //! do índice; o palpite errado é esquecido e o comando segue.
-use super::abertura::{
-    ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede,
-};
+use super::abertura::{ArvoreAberta, CAMPO, Contexto, Lida, PESQUISA_RAPIDA, Rede};
 pub(crate) use super::acoes::AcoesDeEstado;
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
