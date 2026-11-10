@@ -135,6 +135,30 @@ fn revisoes_para(id: &str, modo: EstadoExtra, corpo: &str) -> Vec<Revisao> {
     revisoes
 }
 
+fn semear_segundo_processo_se_necessario(
+    banco: &mut Connection,
+    origem: &Instalacao,
+    modo: EstadoExtra,
+) {
+    if !matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+        return;
+    }
+    processos::guardar(
+        banco,
+        origem,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "8".into(),
+            numero: NUP_B.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
+}
+
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -171,22 +195,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         },
     )
     .unwrap();
-    if matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
-        processos::guardar(
-            &mut banco,
-            &origem,
-            CENARIO,
-            &ProcessoSimulado {
-                id: "8".into(),
-                numero: NUP_B.into(),
-                unidade_origem: "TESTE".into(),
-                aberto_em: vec!["TESTE".into()],
-                anotacao_origem: None,
-                destinos: vec![],
-            },
-        )
-        .unwrap();
-    }
+    semear_segundo_processo_se_necessario(&mut banco, &origem, modo);
     for (id, processo, nup, numero, corpo) in [
         (
             "42",
