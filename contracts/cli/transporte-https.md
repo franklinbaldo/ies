@@ -12,43 +12,35 @@ Parte do [contrato da CLI](../cli.md), separada por responsabilidade.
 
 Todo pedido de rede do IES (o GET do Controle, os POSTs dos comandos e o
 `ies login`) passa por **um único cliente HTTPS**
-(`src/transporte/cliente_https.rs`): HTTP/1.1 sobre `native-tls`, uma
-conexão por pedido, `Connection: close`, `Accept-Encoding: identity`,
-`User-Agent: ies/<versão>`. Antes, só o login atravessava proxy; os
-demais comandos conectavam direto e falhavam em rede com saída só por
-proxy.
+(`src/transporte/cliente_https.rs`) sobre [`ureq`](https://crates.io/crates/ureq)
+3 com `native-tls` (raízes do sistema e `SSL_CERT_FILE`),
+`Accept-Encoding: identity`, `User-Agent: ies/<versão>`. Nenhum HTTP,
+TLS ou proxy é escrito à mão no IES (#673).
 
-- **Proxy:** as mesmas regras do
-  [login](sessao-login.md#proxy-do-ambiente), agora para todos os
-  comandos: a primeira não vazia de `https_proxy`, `HTTPS_PROXY`,
-  `all_proxy`, `ALL_PROXY` (`http_proxy` não vale); exceções em
-  `no_proxy`, senão `NO_PROXY` (`*`, `.sufixo`, host exato), conferidas
-  antes do endereço; só `http://`, credencial apenas em
-  `Proxy-Authorization: Basic` do `CONNECT` (nunca no pedido ao SEI). Um
-  `CONNECT host:443` por pedido; o TLS segue com o host do SEI.
-- **Falhas do proxy:** os subcódigos `endereco_de_proxy_invalido`,
-  `proxy_com_esquema_nao_suportado`, `proxy_inacessivel`,
-  `resposta_do_proxy_nao_interpretavel` e `proxy_recusou_o_tunel`, sem
-  `status_http` (o SEI não respondeu). Nos comandos fora do login saem em
-  `fonte_invalida`; o campo `status_do_proxy` continua só no `ies login`.
+- **Proxy:** o do ambiente, lido pelo `ureq` (`ALL_PROXY`, `HTTPS_PROXY`,
+  `HTTP_PROXY`, em maiúsculas ou minúsculas), com exceções em
+  `NO_PROXY`/`no_proxy`. A credencial do proxy vai só no `CONNECT`.
+- **Falhas do proxy:** endereço inválido ou túnel recusado saem como
+  `FalhaTransporte::Proxy` ("o proxy do ambiente é inválido ou recusou o
+  túnel"), sem `status_http` (o SEI não respondeu). Demais falhas de
+  conexão, TLS e tempo limite são falha de transporte, sem repetição.
 - **Travas dos comandos, inalteradas:** só HTTPS; origem da instalação
   conferida antes de abrir o cookie; **nenhum** redirecionamento seguido
   (3xx é `redirecionamento_recusado`, com `status_http`, corpo não lido;
   o 302 do GET do Controle para o login da instalação é
   `sessao_encerrada_rode_ies_login`; 302 do POST continua dado da operação); 30 s de tempo limite de conexão,
   leitura e escrita; HTML limitado a **8 MB** durante o recebimento
-  (`Content-Length` maior é recusado antes da leitura; `chunked` e corpo
-  até o fim da conexão também); corpo da recusa lido até **64 KiB**;
+  (`Content-Length` maior é recusado antes da leitura; o corpo sem
+  tamanho declarado também); corpo da recusa lido até **64 KiB**;
   `Content-Type` e charset como antes; tela de login detectada; uma única
   tentativa, sem retry.
 - **Login:** mesmo cliente; lê o corpo inteiro (8 MB), guarda todos os
   `Set-Cookie` e mantém o próprio intérprete de redirecionamentos, que
   não vale para outros comandos.
 
-Testado offline com proxy falso local (`TcpListener`) e camada TLS
-substituída pela identidade: `CONNECT`, pedido no túnel, ausência de
-segundo pedido, `NO_PROXY`, 3xx, limites e subcódigos. O TLS real
-através do túnel não tem teste automatizado; validação live: `NOT_RUN`.
+Testado offline pelos testes de integração que sobem proxy local e
+servidor TLS com certificado efêmero (`SSL_CERT_FILE`): o binário faz
+`CONNECT`, TLS real pelo túnel e o pedido ao SEI sintético.
 
 ## Relogin único nas leituras (Refs #200)
 
