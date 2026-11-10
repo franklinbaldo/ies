@@ -19,7 +19,7 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-enum FalhaLeitura {
+pub(crate) enum FalhaLeitura {
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] ErroCaixa),
     Bloco(#[from] ErroBloco),
@@ -28,7 +28,7 @@ enum FalhaLeitura {
     Html(#[source] ErroHtml),
 }
 impl FalhaLeitura {
-    fn mensagem(&self) -> &'static str {
+    pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Html(e) => e.mensagem,
             Self::Transporte(e) => e.mensagem(),
@@ -46,6 +46,19 @@ impl FalhaLeitura {
         }
     }
 }
+/// Lista ou detalhe de bloco, já tipados.
+pub(crate) enum Leitura {
+    Lista(crate::bloco::ListaDeBlocos),
+    Detalhe(bloco_detalhe::BlocoDetalhado),
+}
+
+/// O que a leitura de blocos observou.
+pub(crate) struct Lido {
+    pub(crate) unidade: String,
+    pub(crate) requisicoes: usize,
+    pub(crate) leitura: Leitura,
+}
+
 /// Transporte injetável, mesmo caminho da produção; cada chamada faz um GET.
 fn ler_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
@@ -55,6 +68,30 @@ fn ler_via<V: EnvioDoControle>(
     pagina: Option<u32>,
     envio: &mut V,
 ) -> Result<Value, FalhaLeitura> {
+    let Lido {
+        unidade,
+        requisicoes,
+        leitura,
+    } = ler_tipado_via(sessao, unidade_esperada, tipo, numero, pagina, envio)?;
+    Ok(match leitura {
+        Leitura::Detalhe(detalhe) => {
+            json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"bloco":detalhe})
+        }
+        Leitura::Lista(lista) => {
+            json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"lista":lista})
+        }
+    })
+}
+
+/// A mesma leitura, tipada: o `bloco incluir` reaproveita o detalhe.
+pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
+    sessao: &ReferenciasDaSessao,
+    unidade_esperada: Option<&str>,
+    tipo: TipoBloco,
+    numero: Option<&str>,
+    pagina: Option<u32>,
+    envio: &mut V,
+) -> Result<Lido, FalhaLeitura> {
     let mut requisicoes = 0usize;
     let controle = ler_tela_via(
         sessao.url_do_controle(),
@@ -126,11 +163,17 @@ fn ler_via<V: EnvioDoControle>(
             .as_str();
         let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)
             .map_err(crate::bloco_cli::FalhaLeitura::Detalhe)?;
-        return Ok(
-            json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"bloco":detalhe}),
-        );
+        return Ok(Lido {
+            unidade,
+            requisicoes,
+            leitura: Leitura::Detalhe(detalhe),
+        });
     }
-    Ok(json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"lista":lista.lista}))
+    Ok(Lido {
+        unidade,
+        requisicoes,
+        leitura: Leitura::Lista(lista.lista),
+    })
 }
 fn executar_leitura(
     cli: &Cli,
@@ -224,6 +267,21 @@ pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> ExitCode {
             executar_leitura(cli, *tipo, None, *pagina)
         }
         (Some(numero), None) => executar_leitura(cli, TipoBloco::Assinatura, Some(numero), None),
+        (
+            None,
+            Some(BlocoAcao::Incluir {
+                bloco,
+                documento,
+                processo,
+                confirmar,
+            }),
+        ) => crate::bloco_incluir_cli::executar(
+            cli,
+            bloco,
+            documento.as_deref(),
+            processo.as_deref(),
+            *confirmar,
+        ),
         (None, None) => {
             crate::esquema_cli::show_noun_help("bloco");
             ExitCode::SUCCESS
