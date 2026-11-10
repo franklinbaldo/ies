@@ -130,3 +130,35 @@ fn bdd_633_01_cli_real_aceita_302_apenas_apos_releitura_do_processo() {
     assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
 }
+
+/// BDD-633-01: link de trabalho colhido previamente não contorna a modal.
+/// Duas invocações reais no mesmo índice local, com senha fictícia só na segunda.
+#[test]
+fn bdd_633_01_cli_real_valida_modal_vinda_do_link_guardado() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoViaIndice);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["numero"], PEDIDO);
+    assert_eq!(json["id_procedimento"], "10");
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET procedimento_trabalhar",
+            "GET procedimento_trabalhar",
+            "GET usuario_validar_acesso",
+            "POST usuario_validar_acesso",
+            "GET procedimento_trabalhar",
+            "GET procedimento_visualizar",
+        ]
+    );
+    assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
+    assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
+}
