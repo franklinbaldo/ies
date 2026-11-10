@@ -10,8 +10,8 @@ pub mod documento_cancelar;
 mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
-mod nivel_de_detalhe;
 pub mod editor_documento;
+mod nivel_de_detalhe;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
 mod prazo_processo;
@@ -366,7 +366,10 @@ pub fn controlar(
             Ok(configuracao) => configuracao,
             Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
         };
-        if configuracao.as_ref().is_some_and(|c| c.unidade != observacao.unidade) {
+        if configuracao
+            .as_ref()
+            .is_some_and(|c| c.unidade != observacao.unidade)
+        {
             return Resposta::nova(Estado::DadosInsuficientes);
         }
         return controle_detalhado::html(&observacao)
