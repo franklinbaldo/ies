@@ -112,8 +112,9 @@ fronteira (ADR 0005), sem catálogo/subcódigo novo: alvo ambiguamente
 identificado, bloco de tipo inadequado, item já presente, ação ou
 formulário não oferecido, recusa da instalação e leitura insuficiente.
 Falha antes da escrita: saída 1, sem mutação. Após tentativa de
-escrita sem prova suficiente: **saída 1 / `nao_confirmado`**,
-preservando o que foi observado e orientando nova consulta de leitura,
+escrita sem prova suficiente: **saída 1** com uma variante tipada de
+efeito incerto (a confirmação, BDD-381-02, ainda não existe no código),
+carregando o que foi observado e orientando nova consulta de leitura,
 **nunca retry** (decisão [#681](https://github.com/franklinbaldo/ies/issues/681)).
 Se a leitura posterior divergir, não afirmar sucesso por mera coincidência
 do estado desejado sem aceitação causal da submissão.

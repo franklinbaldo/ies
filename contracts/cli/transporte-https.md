@@ -26,9 +26,9 @@ TLS ou proxy é escrito à mão no IES (#673).
   conexão, TLS e tempo limite são falha de transporte, sem repetição.
 - **Travas dos comandos, inalteradas:** só HTTPS; origem da instalação
   conferida antes de abrir o cookie; **nenhum** redirecionamento seguido
-  (3xx é `redirecionamento_recusado`, com `status_http`, corpo não lido;
+  (3xx é `Status(StatusHttpRecusado { status, .. })`, corpo não lido;
   o 302 do GET do Controle para o login da instalação é
-  `sessao_encerrada_rode_ies_login`; 302 do POST continua dado da operação); 30 s de tempo limite de conexão,
+  `ControleRedirecionadoParaOLogin`; 302 do POST continua dado da operação); 30 s de tempo limite de conexão,
   leitura e escrita; HTML limitado a **8 MB** durante o recebimento
   (`Content-Length` maior é recusado antes da leitura; o corpo sem
   tamanho declarado também); corpo da recusa lido até **64 KiB**;
@@ -47,7 +47,7 @@ servidor TLS com certificado efêmero (`SSL_CERT_FILE`): o binário faz
 `ies processo NUP`, `processo buscar`, `documento DOC`, `documento buscar`,
 `unidade listar-processos`, `recebidos`, `gerados`, `atual` e `colunas` sem
 `--definir` relogam no máximo uma vez, só depois de
-`pagina_de_login_recebida_no_controle` ou `sessao_encerrada_rode_ies_login`,
+`PaginaDeLoginRecebidaNoControle`, `ControleRedirecionadoParaOLogin` ou `SessaoEncerrada`,
 e recomeçam do início uma vez. Antes de logar, sob o lock do `ies login`,
 conferem a geração gravada: se outro processo já relogou, usam a sessão
 nova sem login. A saída ganha `relogin: true` (ausente sem login deste

@@ -39,7 +39,7 @@ publica URL assinada, cookie ou `infra_hash`.
   pertence ao mesmo processo e os controles de submissão estão presentes,
   apresenta a **prévia de atribuição** com `alterado: false` e **zero POST**.
   Se não há catálogo observado ou a opção não confere, recusa
-  `catalogo_da_unidade_nao_observado`. Um marcador aplicado em outro
+  `CatalogoDaUnidadeNaoObservado`. Um marcador aplicado em outro
   processo **não** substitui o catálogo da unidade.
 
 A prévia não reivindica uma escrita. A confirmação de **atribuição** exige
@@ -87,35 +87,35 @@ A tabela abaixo descreve as variantes; a saída pública traz só a mensagem.
 Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
 a confirmação depende da resposta causal e da releitura independente.
 
-| Subcódigo | Condição observável ou regra |
+| Variante ou `onde` (stderr) | Condição observável ou regra |
 | --- | --- |
-| `rotulo_do_marcador_sem_separador` | Rótulo sem `#` |
-| `id_do_marcador_nao_decimal` | Identificador ausente ou fora da forma decimal |
-| `nome_do_marcador_vazio` | Nome vazio após o separador |
-| `nome_do_marcador_com_controle` | Caracteres de controle no nome |
-| `lista_de_marcadores_parcial` | Linhas observadas diferentes do total declarado |
-| `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
-| `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade comprovado |
-| `remocao_sem_formulario_observado` | Remoção sem ação/controles observados no formulário servido |
-| `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
-| `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
-| `texto_do_marcador_longo` | Texto excede 250 caracteres |
+| `ErroMarcar::RotuloSemSeparador` | Rótulo sem `#` |
+| `IdDoMarcadorNaoDecimal` | Identificador ausente ou fora da forma decimal |
+| `NomeDoMarcadorVazio` | Nome vazio após o separador |
+| `NomeDoMarcadorComControle` | Caracteres de controle no nome |
+| `ListaDeMarcadoresParcial` | Linhas observadas diferentes do total declarado |
+| `RotuloDiferenteDoMarcadorLido` | Mesmo id observado com nome diferente |
+| `CatalogoDaUnidadeNaoObservado` | Atribuição ausente sem catálogo da unidade comprovado |
+| `RemocaoSemFormularioObservado` | Remoção sem ação/controles observados no formulário servido |
+| `ErroMarcar::MarcadoresNaoLidos` | Leitura ausente ou não comprovada |
+| `ErroMarcar::UnidadeDaSessaoNaoPublicada` | Unidade não conferida |
+| `TextoDoMarcadorLongo` | Texto excede 250 caracteres |
 
 ## Falhas tipadas
 
 Entrada (2): `numero_processo_vazio`, `numero_processo_controle`,
 `referencia_processo_legada`, `marcador_nao_informado`,
-`rotulo_do_marcador_sem_separador`, `id_do_marcador_nao_decimal`,
-`nome_do_marcador_vazio`, `nome_do_marcador_com_controle`,
-`texto_do_marcador_longo`.
+`ErroMarcar::RotuloSemSeparador`, `IdDoMarcadorNaoDecimal`,
+`NomeDoMarcadorVazio`, `NomeDoMarcadorComControle`,
+`TextoDoMarcadorLongo`.
 
 Leitura/decisão (1): erros específicos da abertura do processo, além de
-`marcadores_nao_lidos_para_escrita`,
-`unidade_da_sessao_nao_publicada_para_marcar`,
-`lista_de_marcadores_parcial`,
-`rotulo_diferente_do_marcador_lido`,
-`catalogo_da_unidade_nao_observado`,
-`remocao_sem_formulario_observado`.
+`ErroMarcar::MarcadoresNaoLidos`,
+`ErroMarcar::UnidadeDaSessaoNaoPublicada`,
+`ListaDeMarcadoresParcial`,
+`RotuloDiferenteDoMarcadorLido`,
+`CatalogoDaUnidadeNaoObservado`,
+`RemocaoSemFormularioObservado`.
 
 O `status_http` e a mensagem saneada do SEI são preservados pela
 camada de leitura existente. A saída de prévia JSON traz

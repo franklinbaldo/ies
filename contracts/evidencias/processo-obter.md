@@ -95,7 +95,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   a12–a14 `null`, a15 igual a a5 e barra própria (`procedimento_alterar`,
   `comentario_listar`). Os 7 documentos são filhos do processo; nenhum nó
   tem o anexado como pai. Antes desta fatia o comando recusava a árvore
-  com `tipo_de_no_da_arvore_nao_suportado`; o leitor novo aceitou a
+  com `TipoDeNoDaArvoreNaoSuportado`; o leitor novo aceitou a
   captura (teste local temporário, apagado).
 - Captura privada da árvore do próprio anexado (mesmo dia, aberta pela
   pesquisa rápida do NUP dele): 2 nós, raiz `PROCESSO` com id e NUP iguais
@@ -119,7 +119,7 @@ Os estados abaixo pertencem ao Todos, não são vereditos do IES.
   texto igual ao NUP da dica. A barra só tem `comentario_listar`, com
   `id_rel_protocolo_protocolo` igual a `m`. Nenhum `DOCUMENTO` tem id `n`.
   Antes desta fatia o comando recusava a árvore com
-  `tipo_de_no_da_arvore_nao_suportado`; o leitor novo aceitou a captura
+  `TipoDeNoDaArvoreNaoSuportado`; o leitor novo aceitou a captura
   (2 documentos, 1 movido com destino conferido, sem vínculo de anexação;
   teste local temporário, apagado).
 - [Contrato](../cli/processo-obter-arvore.md) e

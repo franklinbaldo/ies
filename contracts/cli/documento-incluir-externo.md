@@ -9,7 +9,7 @@ implementation: partial
 
 # Incluir documento externo em processo — #332
 
-A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` envia o PDF (upload temporário) e cadastra o documento, uma única vez cada, sem retry, e só declara sucesso depois de reler a árvore e achar o externo novo (`Anexo (NNNNNNN)`, ícone PDF). Efeito não comprovado sai 3. **Validado ao vivo na UnB de treinamento em 09/11/2026** (saída 0, documento `0012273`, [relatório](../../docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md)). Não há chave nem trava de ensaio. Aprovada em treinamento, a escrita vale também em produção, para uso dos usuários (decisão do proprietário de 10/11/2026; `src/origem_de_treinamento.rs`).
+A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --processo NUP --arquivo ARQUIVO.pdf --tipo TIPO` inspeciona apenas o arquivo local (sem sessão nem rede). Com `--consultar-sei`, a CLI consulta o processo, escolhe o cadastro externo, recarrega o tipo (POST com sinalizador **1**, que não cadastra documento) e apresenta a prévia do limite/tipo e do PDF, sem upload. `--confirmar` envia o PDF (upload temporário) e cadastra o documento, uma única vez cada, sem retry, e só declara sucesso depois de reler a árvore e achar o externo novo (`Anexo (NNNNNNN)`, ícone PDF). Efeito não comprovado sai 1 com `Error: TentativaNaoComprovada { upload_tentado, requisicoes }` e, em `Caused by:`, o `ErroConfirmacaoExterna` da etapa (por exemplo `Sequencia(UploadIncerto(..))`, `Sequencia(CadastroIncerto(..))`, `Sequencia(ReleituraIncerta(..))`); não repita `--confirmar` sem conferir o processo. **Validado ao vivo na UnB de treinamento em 09/11/2026** (saída 0, documento `0012273`, [relatório](../../docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md)). Não há chave nem trava de ensaio. Aprovada em treinamento, a escrita vale também em produção, para uso dos usuários (decisão do proprietário de 10/11/2026; `src/origem_de_treinamento.rs`).
 
 ## Contrato atual do núcleo local
 
@@ -17,18 +17,17 @@ A capacidade está **PARCIAL**. Por padrão, `ies documento incluir-externo --pr
 - O arquivo tem nome UTF-8, sem `&#` (recusado pelo SEI observado), caracteres de controle ou marcadores direcionais Unicode (segurança da apresentação humana), e extensão `.pdf` sem distinção de caixa, é arquivo regular, não é link simbólico (inclusive ancestrais na política desta operação), não é vazio e começa com assinatura `%PDF-`. **A assinatura não comprova que o documento é um PDF estruturalmente íntegro**; o SEI continua responsável por aceitar o conteúdo.
 - O SHA-256 e o tamanho são calculados lendo o arquivo em blocos, sem carregar inteiro em memória. O mesmo descritor é conferido depois da leitura: tamanho, data de modificação e, no Unix, ctime diferentes recusam a inspeção como `AlteradoDuranteLeitura`. Isso detecta alterações durante a leitura, **não garante imutabilidade futura nem resolve a troca concorrente de ancestrais por symlink**. O limite só é aplicado quando **observado no cadastro**; a inspeção da CLI ainda não inventa um teto de upload.
 - Saída `--json` de sucesso: `escopo:"inspecao_local"`, `processo`, `tipo_solicitado`, `arquivo:{nome,tamanho_bytes,sha256}`, `cadastro_sei_observado:false`, `previa_remota:false`, `confirmado:false`, `requisicoes:0`, `escrita_remota:false`. O conteúdo do arquivo e credenciais jamais são publicados.
-- Qualquer falha de entrada: saída 2, mensagem da variante, `retentavel:false`, `escrita_remota:false` e nenhum acesso à sessão/rede.
+- NUP ou tipo fora do formato: erro do clap, saída 2. Arquivo recusado: saída 1, stdout vazio e `Error: <variante de FalhaPdf>` em stderr. Nos dois casos, nenhum acesso à sessão ou à rede.
 
 ## Causas tipadas na inspeção local
 
-As recusas preservam a identidade do erro Rust. A saída JSON publica só
-`codigo`, `erro` (mensagem) e `retentavel`, sem `causa`, `subcodigo` nem
-tabela paralela de nomes. A mensagem é apresentação, nunca critério de
-classificação.
+As recusas preservam a identidade do erro Rust: o stderr traz a variante
+(`Error: Ausente`, `Error: AlteradoDuranteLeitura`…), sem código, mensagem
+ou tabela paralela de nomes. A variante é a classificação.
 
 A família `FalhaPdf` distingue ausência, arquivo não regular, link
 simbólico, arquivo vazio, extensão incorreta, nome não aceito, assinatura
-incorreta, limite observado ultrapassado, alteração detectada durante o hash e falha de leitura. Entrada não aceita sai 2.
+incorreta, limite observado ultrapassado, alteração detectada durante o hash e falha de leitura. Arquivo não aceito sai 1.
 Nenhuma delas abre sessão ou rede.
 
 ## Recibo temporário — núcleo offline da PR #380
@@ -97,6 +96,6 @@ O núcleo `documento_externo_incluir::cadastro::observar_cadastro` interpreta o 
 
 **Dado** um processo aberto na unidade e o link de inclusão publicado na barra, **quando** executo `ies documento incluir-externo --processo NUP --arquivo PDF --tipo Anexo --consultar-sei`, **então** a CLI abre a lista, escolhe a alternativa `Externo` publicada pelo SEI 4 como link `documento_receber` ou pelo SEI 5 via `escolher(-1)`, lê o cadastro inicial, identifica `selSerie` e o recarrega com `hdnFlagDocumentoCadastro=1`. O retorno deve conter o mesmo tipo selecionado, limite de `pdf` e plano de upload observado, sem transmitir o arquivo. O POST de recarga é navegação de formulário, **não** cadastro definitivo. Sinalizador `2` na tela inicial recusa antes de enviar qualquer POST.
 
-A saída `--json` acrescenta `escopo:"previa_web"`, `previa_remota:true`, `cadastro_sei_observado:true`, `id_tipo`, `unidade`, `limite_pdf_bytes`, `campos_oferecidos` (nomes dos controles visíveis/habilitados presentes no formulário, sem os valores), `arquivo` (nome/tamanho/SHA-256), `confirmado:false`, `escrita_remota:false` e contagem de requisições. Erros remotos expõem causa da etapa, status HTTP e mensagem saneada quando disponíveis, e a contagem mesmo se a prévia falhar. A inspeção local padrão conserva exatamente sua saída anterior.
+A saída `--json` acrescenta `escopo:"previa_web"`, `previa_remota:true`, `cadastro_sei_observado:true`, `id_tipo`, `unidade`, `limite_pdf_bytes`, `campos_oferecidos` (nomes dos controles visíveis/habilitados presentes no formulário, sem os valores), `arquivo` (nome/tamanho/SHA-256), `confirmado:false`, `escrita_remota:false` e contagem de requisições. Falha remota da prévia: saída 1 e `Error: <variante de ErroPreviaExterna>` (a etapa: `LinkNaoPublicado`, `TipoNaoOferecido`, `CadastroNaoConferido`…); status HTTP e mensagem saneada vêm em `Transporte(Status(StatusHttpRecusado { status, mensagem_do_servidor }))`. A contagem de requisições não acompanha a falha da prévia. A inspeção local padrão conserva exatamente sua saída anterior.
 
 BDD sintético com transporte roteirizado (Todos UnB SEI 4): abertura → GET da lista → GET do cadastro inicial → um POST de **recarga**, sem `documento_upload_anexo` e sem POST definitivo; cenário com flag `2` recusa sem POST. Também há BDD de parsing da alternativa SEI 5 e do tipo inicial. O ensaio ao vivo do IES em instalação de treinamento ainda é **NOT_RUN**: os testes e replays sintéticos não provam disponibilidade remota de todas as instalações. **Confirmar ainda não está implementado**; faltam upload temporário único, cadastro definitivo e releitura independente, sem retry.

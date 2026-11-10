@@ -32,15 +32,15 @@ de backend: só a Web, e a mesma sessão.
   ignorados; maiúsculas não são normalizadas.
 - `--confirmar` (exige `--definir`): salva. Sem ele, só prévia.
 
-Erros de uso, com **zero requisições** (antes de ler a configuração local),
-saída 2 e `codigo: entrada_invalida`:
+Erros de uso, com **zero requisições** (antes de ler a configuração local):
+erro do clap, saída 2, com a variante de `ErroDaListaDeColunas` na mensagem:
 
-| Fato | Subcódigo |
+| Fato | Variante ou `onde` (stderr) |
 | --- | --- |
-| `--definir` vazio ou só espaços | `lista_de_colunas_vazia` |
-| Item vazio entre vírgulas | `item_vazio_na_lista_de_colunas` |
-| Chave fora das 12 (inclusive `todas` dentro de uma lista); campo `coluna` com a chave digitada | `coluna_desconhecida` |
-| Chave repetida; campo `coluna` | `coluna_repetida_na_lista` |
+| `--definir` vazio ou só espaços | `ListaDeColunasVazia` |
+| Item vazio entre vírgulas | `ItemVazioNaListaDeColunas` |
+| Chave fora das 12 (inclusive `todas` dentro de uma lista); campo `coluna` com a chave digitada | `ColunaDesconhecida` |
+| Chave repetida; campo `coluna` | `ColunaRepetidaNaLista` |
 | `--confirmar` sem `--definir` | erro de uso do Clap |
 
 ## Comportamento
@@ -54,7 +54,7 @@ saída 2 e `codigo: entrada_invalida`:
    Botões `button`/`reset` e controles `disabled` não são enviados e não
    são recusados.
 3. Calcula o alvo. Coluna pedida que a tela não publica:
-   `coluna_indisponivel_nesta_instalacao` (`coluna`), saída 1, sem POST de
+   `ColunaIndisponivelNestaInstalacao` (`coluna`), saída 1, sem POST de
    salvar. Alvo igual ao atual: sucesso com `alterado: false`, sem POST.
 4. Deriva o POST pelo primitivo de formulário com a `const`
    `SALVAR_NIVEL_DE_DETALHE` da operação: `hdnInfraTipoPagina` como servido,
@@ -91,26 +91,27 @@ falha de rede ou tempo esgotado, 5xx, 429, 401/403, outro status, 302 (não
 seguido, `redirecionamento_ao_salvar_nivel_de_detalhe`), MIME não HTML,
 charset, tamanho, tela de login, validação da Infra, a tela devolvida com
 `V` vazio (`nivel_de_detalhe_devolvido_sem_sinal_de_gravacao`) ou HTML 200
-sem o `inicializar()` nessa forma (`resposta_do_salvar_nao_reconhecida`).
+sem o `inicializar()` nessa forma (`RespostaDoSalvarNaoReconhecida`).
 Então o IES **não repete** o POST: faz o mesmo GET de verificação **uma
 vez** para reconciliar.
 
 | Resposta do POST | Marcas lidas no GET | Saída | Resultado |
 | --- | --- | --- | --- |
 | Esperada | alvo | 0 | `alterado: true` |
-| Esperada | as de antes | 1 | `escrita_nao_aplicada` / `configuracao_de_colunas_nao_aplicada` |
-| Esperada | outras | 1 | `escrita_diferente_da_solicitada` / `marcas_do_nivel_de_detalhe_diferentes_do_alvo_apos_salvar` (`observadas`) |
+| Esperada | as de antes | 1 | `ConfiguracaoDeColunasNaoAplicada` |
+| Esperada | outras | 1 | `MarcasDiferentesDoAlvoAposSalvar` (`observadas`) |
 | Não esperada | alvo | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_salvar` |
-| Não esperada | as de antes | 1 | `configuracao_de_colunas_nao_aplicada`, com `falha_do_salvar` |
-| Não esperada | outras | 3 | `nao_confirmado` / `nao_confirmado_na_configuracao_de_colunas` (`observadas`) |
-| Qualquer | GET falhou ou tela irreconhecível | 3 | `nao_confirmado_na_configuracao_de_colunas` (`verificacao`: subcódigo) |
+| Não esperada | as de antes | 1 | `ConfiguracaoDeColunasNaoAplicada`, com `falha_do_salvar` |
+| Não esperada | outras | 1 | `NaoConfirmadoNaConfiguracaoDeColunas` (`observadas`) |
+| Qualquer | GET falhou ou tela irreconhecível | 1 | `NaoConfirmadoNaConfiguracaoDeColunas` (campo `verificacao`) |
 
-`falha_do_salvar` traz o subcódigo, e `status_http` e `mensagem_do_servidor`
-quando o SEI respondeu com recusa HTTP ([contrato da CLI](../cli.md)). Um
+No JSON de sucesso reconciliado, `falha_do_salvar` traz a falha do POST e
+`status_http`/`mensagem_do_servidor` quando o SEI respondeu com recusa
+HTTP ([contrato da CLI](../cli.md)). Um
 servidor que processe o POST **depois** do GET de verificação não é
 detectável: antes de repetir à mão, conferir com `ies unidade colunas`.
 Falha **antes** do POST (arquivo de cookie, derivação) não é escrita:
-saída 1, `fonte_invalida`.
+saída 1 com o erro tipado da etapa.
 
 ## Efeito
 
@@ -136,9 +137,8 @@ troca de visão vinda da R continua `PreferenciaDeVisualizacao`, não desfeita.
 Listas na ordem do catálogo. `envio` é `null` sem POST (alvo igual ao
 atual) e só nomes de campos, nunca valores, URL ou `infra_hash`. Com
 `--confirmar` e sucesso: `confirmado: true`, `alterado: true`, `depois` com
-as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas:
-`{"codigo", "erro", "retentavel": false}` mais `antes`, `alvo`,
-`observadas` e `falha_do_salvar` quando houver. A saída humana mostra uma
+as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas: saída 1,
+stdout vazio e `Error: <variante de ErroDefinirColunas>` em stderr. A saída humana mostra uma
 linha por lista e termina com "Para aplicar, repita com --confirmar" na
 prévia.
 

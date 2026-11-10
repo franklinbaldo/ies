@@ -12,7 +12,7 @@ Este complemento preserva as regras e a evolução incremental do
 
 ## Reconciliação automática após resposta incerta (#245 — fatia em andamento)
 
-A confirmação atual ainda pode devolver `nao_confirmado_na_criacao`/saída 1
+A confirmação atual ainda pode devolver `ErroCriar::NaoConfirmado`/saída 1
 quando o POST criador falha ou não apresenta resultado verificável.
 A reconciliação está ligada à CLI, com classificação conservadora dos candidatos; não há autorização
 para repetir o POST de criação da UnB que já produziu
@@ -39,12 +39,12 @@ NUPs. As causas do POST e do GET posterior são preservadas; a presença
 de candidatos não prova autoria. A validação live em uma segunda
 instalação de treinamento continua pendente.
 
-| Subcódigo | Fato |
+| Variante ou `onde` (stderr) | Fato |
 | --- | --- |
-| `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
-| `nup_repetido_na_fotografia_de_gerados` | Dois IDs diferentes da mesma fotografia apontam para o mesmo NUP: a cobertura posicional não comprova identidades independentes |
-| `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
-| `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
+| `ErroFotografia::CoberturaIncompleta` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `ErroFotografia::NupRepetido` | Dois IDs diferentes da mesma fotografia apontam para o mesmo NUP: a cobertura posicional não comprova identidades independentes |
+| `ErroFotografia::IdentidadeAlterada` | Um ID pré-existente passou a apontar outro NUP |
+| `ErroFotografia::IdentidadeAnteriorAusente` | Um ID pré-existente desapareceu da nova lista |
 
 ### Guarda de segurança antes do POST (#245 — continuação)
 
@@ -52,7 +52,7 @@ Na confirmação, depois de validar o cadastro e **antes do primeiro POST
 criador**, o fluxo monta uma fotografia de **Gerados** com a leitura do
 Controle já efetuada. Exige mesma unidade, total declarado e cobertura
 integral; legenda paginada/indeterminada recusa com causa tipada
-`gerados_sem_cobertura_completa_para_reconciliacao`, saída 1, **sem
+`ErroFotografia::CoberturaIncompleta`, saída 1, **sem
 POST criador** e **sem GET extra**. A prévia permanece disponível.
 A comparação posterior e a classificação conservadora já integram o
 fluxo Web. Isso não é homologação de escrita ao vivo.
@@ -63,12 +63,12 @@ Depois de uma falha observada **após iniciar o POST criador**, o fluxo faz
 **uma única nova leitura do Controle** na mesma sessão e compara Gerados
 com o retrato integral anterior. Orçamento de teste: **3 GET de prévia,
 1 POST criador e 1 GET de reconciliação = 5 pedidos, sem retry**.
-Se até essa leitura falha, a saída é 3 e preserva as duas causas.
+Se até essa leitura falha, a saída é 1 e preserva as duas causas.
 Se dá certo, ainda é saída 1: a diferença são **candidatos observados**,
 não prova da aplicação ou de que repetir a escrita é seguro.
-O JSON publica `causa_post`, `causa_releitura` e
-`candidatos_observados_na_caixa` (null se releitura falhou), mas nunca
-cookie, assinatura, URL ou hash.
+`ErroCriar::PosEscrita` carrega `causa_post` e `posterior` (os
+candidatos lidos, ou o erro da releitura), mas nunca cookie, assinatura,
+URL ou hash.
 
 O classificador offline `processo_criar/desfechos.rs` usa candidatos e
 provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
@@ -79,12 +79,12 @@ duas ou mais: `CandidatosAmbiguos`; zero: `SemCorrespondenciaObservada`
 (**não** prova de não aplicação). A recusa expressa da Infra é o único caso
 observado de não aplicação comprovada; falta a validação live.
 
-| Subcódigo | Fato |
+| Variante ou `onde` (stderr) | Fato |
 | --- | --- |
-| `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
-| `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
-| `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
-| `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
+| `ErroConferencia::LeituraAusente` | Novo candidato sem leitura de processo NUP |
+| `ErroConferencia::LeituraRepetida` | Mesma identidade conferida duas vezes |
+| `ErroConferencia::IdentidadeDivergente` | Par ID/NUP da leitura diferente do candidato |
+| `ErroConferencia::PropriedadesNaoObservadas` | Tipo ou especificação não publicados na leitura |
 
 ## Resposta inesperada após POST criador (#245, fatia 2026-11-06)
 
@@ -95,7 +95,7 @@ fotografia completa de Gerados obtida antes do envio. Reporta a causa
 nomeada `resposta_inesperada_apos_post_criador` ou
 `localizacao_invalida_apos_post_criador`, os candidatos apenas observados
 e a causa independente da releitura, quando esta falhar. A resposta continua
-`nao_confirmado_na_criacao`/saída 1 porque diferença de Gerados, inclusive
+`ErroCriar::NaoConfirmado`/saída 1 porque diferença de Gerados, inclusive
 vazia, não prova por si só criação nem não aplicação. A conferência de cada candidato por `processo NUP` e a classificação
 conservadora já estão ligadas ao fluxo Web.
 
@@ -116,21 +116,21 @@ nenhuma ou leitura interrompida continua inconclusiva. Somente um
 independentes pode produzir sucesso. A recusa literal da Infra é
 a prova distinta de não aplicação. Live: NOT_RUN nesta fatia.
 
-| Subcódigo | Fato |
+| Variante ou `onde` (stderr) | Fato |
 | --- | --- |
-| `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
-| `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
-| `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |
+| `LinkDoCandidatoNaoComprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
+| `LinksDoCandidatoRepetidos` | Dois links para o mesmo par de Gerados |
+| `ErroCriar::PropriedadesNaoOferecidas` | A árvore conferida não publicou endereço de propriedades |
 
 ## Recusa explícita e concorrência (#245)
 
 Na validação expressa da Infra (HTML 200 com recusa publicada pelo SEI),
-a saída é 1, com causa original e `desfecho: "nao_aplicada"` no JSON:
-`repeticao_segura_com_nova_previa: true` só permite uma nova decisão
-explícita após prévia; `retentavel: false` veda retry automático.
-HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito**,
-retorna **saída 1** (`nao_confirmado`), com subcódigo, status HTTP e
-mensagem saneada, sem publicar `nao_aplicada` nem habilitar repetição.
+a saída é 1 com `FalhaNaCriacao { causa: RecusaDoPost(ValidacaoRecusadaPeloSei(..)), requisicoes }`:
+só uma nova decisão explícita após prévia pode repetir; nada é repetido
+automaticamente.
+HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito**:
+**saída 1** com `RespostaHttpSemProva(Transporte(Status(StatusHttpRecusado { status, mensagem_do_servidor })))`,
+sem habilitar repetição.
 Somente a recusa expressa da Infra retorna **saída 1**. Ambos encerram
 após **3 GET + 1 POST**, sem reler Gerados nem atribuir criação
 concorrente à operação recusada.
@@ -141,12 +141,13 @@ Falha de rede sem resposta e 5xx seguem reconciliação sem retry.
 
 Se a leitura independente de **todos** os novos processos encontrar **dois
 ou mais** com ID/NUP, tipo e especificação comprovados e coincidentes,
-a CLI responde saída **3** com subcódigo
-`candidatos_ambiguos_na_criacao`. No JSON, publica
-`desfecho: "candidatos_ambiguos"` e `candidatos_compativeis` com os
-NUPs observados, além de `causa_post` e da fotografia posterior.
-No humano, identifica a ambiguidade e os NUPs, sem inferir o autor da
-escrita nem recomendar repetição. Com dois candidatos, a prova usa
+a CLI responde saída **1** com
+`ErroCriar::PosEscrita { causa_post, posterior, correspondentes: Some(nups), .. }`
+(dentro de `FalhaNaCriacao`): os NUPs compatíveis, a causa do POST e a
+fotografia posterior ficam nos campos, sem inferir o autor da escrita
+nem recomendar repetição. Não há mais rótulo derivado (`desfecho`) na
+saída: um NUP em `correspondentes` é coincidência sem prova causal, dois
+ou mais são ambiguidade. Com dois candidatos, a prova usa
 **3 GET antes + 1 POST criador + 1 GET Controle + 6 GET de processos = 11
 requisições** sintéticas, sem retry. Uma única correspondência após verificar todos **continua saída 1**
 (`possivel_residuo`) sem resposta causal do POST; zero correspondências
@@ -168,21 +169,20 @@ GET adicional de reconciliação nesta fatia.
 Cenários sintéticos do primeiro GET verificador: **3 GET iniciais +
 1 POST criador + 1 GET verificador falho = 5 pedidos**, exatamente
 um POST. HTTP 503 permanece 503; falha de rede mantém
-`falha_de_rede`. Live em outra instalação: NOT_RUN.
+`Transporte(Rede)`. Live em outra instalação: NOT_RUN.
 
 ## Falha HTTP na leitura de reconciliação (#245)
 
 Se o único POST criador terminar inconclusivo, uma falha HTTP do **GET
 posterior do Controle** continua sendo uma causa de leitura, distinta da
-causa da escrita. A saída é 3, sem retry. O JSON conserva
-`causa_post`, `causa_releitura`, e acrescenta
-`status_http_releitura` e `mensagem_do_servidor_releitura` **somente
+causa da escrita. A saída é 1, sem retry. `ErroCriar::PosEscrita`
+conserva `causa_post` e, em `posterior`, o erro da releitura com o seu
+`Status(StatusHttpRecusado { status, mensagem_do_servidor })` **somente
 quando o GET publicar esses fatos**. A mensagem já foi saneada pelo
 transporte; nenhuma URL ou credencial é exposta.
 
-O campo genérico `status_http` prioriza o status da resposta do POST,
-se ele existe, e usa o status da releitura quando a tentativa de POST
-não teve resposta HTTP. Assim, se o POST retornou 503 e o GET posterior
+Os dois status ficam em lugares distintos: o do POST em `causa_post`, o
+da releitura em `posterior`. Assim, se o POST retornou 503 e o GET posterior
 502, o diagnóstico preserva **ambos**, sem confundir os estágios.
 Teste sintético: **3 GET prévios + 1 POST + 1 GET posterior = 5 pedidos**,
 um POST exato, zero retry. Live em segunda instalação: NOT_RUN.
@@ -193,16 +193,16 @@ um POST exato, zero retry. Live em segunda instalação: NOT_RUN.
 Quando Gerados apresenta vários candidatos, cada leitura independente
 concluída pode comprovar correspondência de **ID/NUP, tipo e especificação**.
 Se a verificação de um candidato posterior falhar, essas coincidências
-já obtidas não desaparecem: o diagnóstico publica
-`coincidencias_parciais_conferidas` com os NUPs efetivamente verificados,
-e mantém `candidatos_observados_na_caixa` com todos os NUPs da fotografia.
+já obtidas não desaparecem: `ErroCriar::PosEscrita` traz em
+`correspondentes` os NUPs efetivamente verificados e em
+`observados_antes_da_falha` todos os candidatos da fotografia.
 Isso **não** permite concluir que a escrita foi aplicada, nem que a
-correspondência é única: saída **3**, `nao_confirmado_na_criacao`,
-sem `desfecho` conclusivo e sem retry.
+correspondência é única: saída **1**, `ErroCriar::PosEscrita`, sem
+conclusão e sem retry.
 
-`candidatos_compativeis` e `desfecho: candidatos_ambiguos` permanecem
-reservados ao caso em que **todos** os candidatos foram verificados e
-ao menos dois coincidem. O cenário adversarial sintético usa 3 GET de
+Ambiguidade (dois ou mais em `correspondentes`, sem
+`observados_antes_da_falha`) fica reservada ao caso em que **todos** os
+candidatos foram verificados e ao menos dois coincidem. O cenário adversarial sintético usa 3 GET de
 preparação + 1 POST incerto + 1 GET Controle + 3 GET do primeiro
 candidato + 1 GET falho do segundo = **9 requisições**, um único POST.
 Nenhum resultado parcial autoriza nova escrita.
@@ -261,9 +261,9 @@ pode produzir exatamente a mesma diferença durante a janela observada.
 
 O classificador tipado devolve `CoincidenciaUnica` (fato sobre
 propriedades), mas a fronteira de escrita **não** define
-`confirmado: true`: devolve código 1, subcódigo
-`candidato_unico_sem_prova_causal`, JSON `desfecho: possivel_residuo`,
-`candidatos_compativeis`, causa original do POST e proibição de retry.
+`confirmado: true`: devolve código 1 com `ErroCriar::PosEscrita`
+(`correspondentes: Some([nup])`, a causa original do POST) e proibição
+de retry.
 Com dois candidatos dos quais só um coincide, lê **ambos** antes de
 classificar; não atribui o correspondente à operação. As coincidências
 parciais após falha de outra leitura permanecem sem desfecho conclusivo.
