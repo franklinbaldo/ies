@@ -425,3 +425,6 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
     assert!(concordante.contains("Corpo do primeiro"));
     atendimento.join().unwrap();
 }
+
+#[path = "aies_navegacao_identidade_http/parametros_repetidos.rs"]
+mod parametros_repetidos;
