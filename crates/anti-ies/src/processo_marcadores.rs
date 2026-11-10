@@ -1,13 +1,19 @@
-//! Gerenciamento de marcadores projetado de observação SQLite, só GET.
-//! Os controles observados aparecem no HTML, mas o POST segue fechado.
-//! BDD-255-01/02 parcial e 255-03: nenhum POST de escrita simulada.
-use crate::{Estado, Resposta, escapar, parametro_unico};
+//! Marcadores projetados do SQLite efêmero: GET e remoção local confirmável.
+//! O POST opera exclusivamente a associação simulada, nunca o SEI externo.
+//! BDD-255-02 parcial (remoção) e BDD-255-03 (idempotência).
+use crate::{Estado, Resposta, documentos::campo_formulario_unico, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{Marcador, Observacao};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
 fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
+    let ids = observacao
+        .itens
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
     let nup = escapar(nup);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     write!(
@@ -15,6 +21,11 @@ fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
         "<!doctype html><html><head><title>SEI - Marcadores do Processo {nup}</title></head><body>\
          <form id='frmGerenciarMarcador' method='post' \
          action='controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_gerenciar&id_procedimento={id}&infra_hash={assinatura}'>\
+         <input type='hidden' id='hdnInfraTipoPagina' name='hdnInfraTipoPagina' value='2'>\
+         <input type='hidden' id='hdnInfraNroItens' name='hdnInfraNroItens' value='{}'>\
+         <input type='hidden' id='hdnInfraItemId' name='hdnInfraItemId' value=''>\
+         <input type='hidden' id='hdnInfraItens' name='hdnInfraItens' value='{}'>\
+         <input type='hidden' id='hdnInfraItensHash' name='hdnInfraItensHash' value='{}'>\
          <button type='button' id='btnAdicionar' onclick=\"location.href='controlador.php?acao=andamento_marcador_cadastrar&amp;id_procedimento={id}&amp;infra_hash={assinatura}'\">Adicionar</button>\
          <button type='button' id='btnRemover' onclick='acaoRemocaoMultipla()'>Remover</button>\
          <table id='tblMarcadores' summary='Marcadores'>\
@@ -25,6 +36,9 @@ fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
          <th><div class='infraDivRotuloOrdenacao'>Usuário</div></th>\
          <th><div class='infraDivRotuloOrdenacao'>Data/Hora</div></th>\
          <th>Ações</th></tr>",
+        observacao.itens.len(),
+        escapar(&ids),
+        assinatura,
         observacao.total_declarado,
         if observacao.total_declarado == 1 { "registro" } else { "registros" }
     ).expect("String");
@@ -82,11 +96,17 @@ fn linha(html: &mut String, m: &Marcador) {
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     origem: &Instalacao,
     cenario: &str,
 ) -> Resposta {
-    if metodo != "GET" {
+    let acao = parametro_unico(alvo, "acao");
+    if !matches!(
+        (metodo, acao),
+        ("GET", Some("andamento_marcador_gerenciar"))
+            | ("POST", Some("andamento_marcador_remover"))
+    ) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -108,6 +128,44 @@ pub(crate) fn responder(
     let Ok(Some(observacao)) = iesei::marcadores::ler(banco, origem, cenario, id, &unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if metodo == "POST" {
+        let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
+            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+            campo_formulario_unico(corpo, "hdnInfraNroItens"),
+            campo_formulario_unico(corpo, "hdnInfraItemId"),
+            campo_formulario_unico(corpo, "hdnInfraItens"),
+            campo_formulario_unico(corpo, "hdnInfraItensHash"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        let ids = observacao
+            .itens
+            .iter()
+            .map(|m| m.id.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        if corpo.split('&').count() != 5
+            || tipo != "2"
+            || nro != observacao.total_declarado.to_string()
+            || itens != ids
+            || hash != crate::protocolo_sintetico::INFRA_HASH
+            || !observacao.itens.iter().any(|m| m.id == item)
+        {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match iesei::marcadores::retirar(banco, origem, cenario, id, &unidade, &item) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
+            )),
+            Err(iesei::marcadores::Falha::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(
+                iesei::marcadores::Falha::Sqlite(_)
+                | iesei::marcadores::Falha::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+    }
     // UnB 4.0.9: sem marcador, GET redireciona ao formulário de adicionar.
     // Não inventar "0 registros" na tela de gerenciamento.
     if observacao.itens.is_empty() {
@@ -121,6 +179,17 @@ pub(crate) fn responder(
     for marcador in &observacao.itens {
         linha(&mut html, marcador);
     }
-    html.push_str("</table></form></body></html>");
+    html.push_str("</table></form>");
+    // O action vem literal do handler servido, não é criado pela CLI.
+    let assinado = crate::protocolo_sintetico::INFRA_HASH;
+    write!(
+        html,
+        "<script>function acaoRemover(id,desc){{\
+         document.getElementById('hdnInfraItemId').value=id;\
+         document.getElementById('frmGerenciarMarcador').action='controlador.php?acao=andamento_marcador_remover&acao_origem=andamento_marcador_gerenciar&acao_retorno=andamento_marcador_gerenciar&id_procedimento={id}&arvore=1&infra_hash={assinado}';\
+         document.getElementById('frmGerenciarMarcador').submit();\
+         }}</script></body></html>"
+    )
+    .expect("String");
     Resposta::html(html)
 }

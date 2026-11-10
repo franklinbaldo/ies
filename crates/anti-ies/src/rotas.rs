@@ -130,8 +130,10 @@ pub(crate) fn responder(
         {
             processo_sobrestamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
-        Some("andamento_marcador_gerenciar") if eh_controlador_sei(alvo) => {
-            processo_marcadores::responder(metodo, alvo, banco, instalacao, cenario)
+        Some("andamento_marcador_gerenciar" | "andamento_marcador_remover")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_marcadores::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
             processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)

@@ -114,6 +114,9 @@ pub(crate) fn decidir(
     }
 }
 
+mod escrita;
+pub(crate) use escrita::confirmar_retirada;
+
 #[cfg(test)]
 #[path = "processo_marcar/tests.rs"]
 mod tests;

@@ -195,13 +195,40 @@ enum Caso {
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
+    RetirarConfirmado,
+    RetirarEfeitoIncerto,
 }
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
         Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente => ("--retirar", "501#Revisão"),
+        Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
+            ("--retirar", "501#Revisão")
+        }
+    }
+}
+
+fn executar_caso_cli(
+    pasta: &Pasta,
+    arquivos: [&std::path::Path; 4],
+    porta_proxy: u16,
+    caso: Caso,
+) -> Output {
+    let (operacao, marcador) = pedido(caso);
+    let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
+    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
+        argumentos.push("--confirmar");
+    }
+    executar_cli(pasta, arquivos, porta_proxy, &argumentos)
+}
+
+fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
+    if efeito_incerto && evento == "POST andamento_marcador_remover" {
+        assert!(resposta.starts_with(b"HTTP/1.1 302 "));
+        // O anti-IES já aplicou o POST; a resposta recebida pela CLI é 403.
+        // A Location anterior não autentica a escrita quando status é 403.
+        resposta[9..12].copy_from_slice(b"403");
     }
 }
 
@@ -222,6 +249,7 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -268,6 +296,7 @@ fn executar(caso: Caso) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            injetar_resposta_inconclusiva(&mut resposta, &evento, efeito_incerto);
             if evento == "GET andamento_marcador_gerenciar"
                 && resposta.starts_with(b"HTTP/1.1 200 ")
             {
@@ -289,9 +318,7 @@ fn executar(caso: Caso) {
         origem.as_path(),
         cert.as_path(),
     ];
-    let (operacao, marcador) = pedido(caso);
-    let argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
+    let saida = executar_caso_cli(&pasta, arquivos, porta_proxy, caso);
     if matches!(caso, Caso::RetirarPresente) {
         conferir_previa_humana(&pasta, arquivos, porta_proxy);
     }
@@ -315,36 +342,38 @@ fn executar(caso: Caso) {
     let pedidos = trilha.lock().unwrap().clone();
     let controles = controles.lock().unwrap().clone();
     conferir_controles(&controles, sem_marcadores);
-    conferir(
-        &saida,
-        &releitura,
-        &persistido,
-        &pedidos,
-        sem_marcadores,
-        matches!(caso, Caso::RetirarPresente),
-    );
+    conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
 fn conferir(
     saida: &Output,
     releitura: &Output,
     persistido: &Observacao,
     pedidos: &[String],
-    sem_marcadores: bool,
-    retirada_presente: bool,
+    caso: Caso,
 ) {
+    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
+    let retirada_presente = matches!(caso, Caso::RetirarPresente);
+    let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(
         saida.status.code(),
-        Some(0),
+        Some(if efeito_incerto { 3 } else { 0 }),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nada_a_fazer"], !retirada_presente);
-    // Presença observada não demonstra que o formulário permite escrever.
-    assert_eq!(json["retirada_possivel"], false);
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
+    if efeito_incerto {
+        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["retentavel"], false);
+        assert_eq!(json["ausente_relido"], true);
+        assert!(json["erro"].as_str().unwrap().contains("não repita"));
+    } else {
+        assert_eq!(json["nada_a_fazer"], !retirada_presente && !confirmado);
+        assert_eq!(json["retirada_possivel"], confirmado);
+        assert_eq!(json["confirmado"], confirmado);
+        assert_eq!(json["alterado"], confirmado);
+    }
     assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
         releitura.status.code(),
@@ -354,17 +383,29 @@ fn conferir(
         String::from_utf8_lossy(&releitura.stderr)
     );
     let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
-    let total = usize::from(!sem_marcadores);
+    let total = usize::from(!sem_marcadores && !confirmado);
     assert_eq!(processo["marcadores_total_declarado"], total);
     assert_eq!(processo["marcadores"].as_array().unwrap().len(), total);
     assert_eq!(persistido.total_declarado, total);
     assert_eq!(persistido.itens.len(), total);
-    if !sem_marcadores {
+    if !sem_marcadores && !confirmado {
         assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
         assert_eq!(processo["marcadores"][0]["texto"], "Conferir");
         assert_eq!(persistido.itens[0].id, "501");
     }
-    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 0);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+        usize::from(confirmado)
+    );
+    if confirmado {
+        assert_eq!(
+            pedidos
+                .iter()
+                .filter(|p| p.as_str() == "POST andamento_marcador_remover")
+                .count(),
+            1
+        );
+    }
     assert!(
         pedidos
             .iter()
@@ -391,4 +432,15 @@ fn bdd_255_03_retirar_de_processo_sem_marcadores_nao_inventa_lista() {
 fn bdd_255_02_previa_de_retirar_presente_mantem_marcador_na_releitura() {
     // Fase prévia apenas: status 0 não significa que remoção foi confirmada.
     executar(Caso::RetirarPresente);
+}
+
+#[test]
+fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
+    executar(Caso::RetirarConfirmado);
+}
+
+#[test]
+fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
+    // Resposta 403 após o POST aplicado não é aceite causal, mesmo com releitura ausente.
+    executar(Caso::RetirarEfeitoIncerto);
 }

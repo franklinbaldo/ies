@@ -5,7 +5,8 @@ use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
-    Decisao, ErroMarcar, Operacao, Rotulo, decidir, interpretar_rotulo, validar_texto,
+    Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, interpretar_rotulo,
+    validar_texto,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
@@ -63,11 +64,20 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     {
         return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
-    if *confirmar {
-        // Fatia WIP (#255): sem POST observado, recusa antes de sessão e rede.
+    if *confirmar && operacao == Operacao::Atribuir {
+        // Atribuição continua fechada até formulário/catálogo validado.
         return Some(falha(cli, ErroMarcar::EscritaAindaFechada, 0));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
+        if *confirmar {
+            if let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoMarcar,
+                sessao.origem,
+            ) {
+                return crate::origem_de_treinamento::recusa(cli.json, causa);
+            }
+            return confirmar_retirada(cli, sessao, indice, &nup, &rotulo, &mut EnvioHttps);
+        }
         previa(
             cli,
             sessao,
@@ -95,7 +105,7 @@ fn erro_de_uso(cli: &Cli, subcodigo: &str, mensagem: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn falha(cli: &Cli, erro: ErroMarcar, requisicoes: u8) -> ExitCode {
+pub(crate) fn falha(cli: &Cli, erro: ErroMarcar, requisicoes: u8) -> ExitCode {
     if cli.json {
         println!(
             "{}",

@@ -1,10 +1,10 @@
 ---
 type: ImplementationDecision
-title: Processo marcar por id e nome com leitura completa e escrita fechada até formulário observado
+title: Processo marcar por id e nome com remoção sintética causal e atribuição ainda fechada
 operation: processo.marcar
 implementation: partial
 status: adopted-for-scope
-scope: interpretacao da identidade id#nome e previa de retirada, com atribuicao idempotente e retirada idempotente; sem POST remoto
+scope: previa e idempotencia de marcador, com remocao confirmavel por POST unico em treinamento e releitura independente; atribuicao ainda fechada
 selected_strategy: reaproveitar-leitor-web-e-falhar-fechado-sem-formulario
 alternatives: reaproveitar-leitor-web-e-falhar-fechado-sem-formulario,post-inferido-da-tela,usar-api-rest
 evidence_level: estrutura-observada-unb-e-cassettes-de-escrita-nao-reproduzidas
@@ -20,8 +20,9 @@ e o relatório de [leitura live](../validacao-live/2026-11-04-processo-obter-mar
 demonstram que o mesmo `id_marcador` aparece em processos distintos;
 o rótulo `id#nome` não é identidade da associação ao processo.
 O `tblMarcadores` declara seu total, mas pode publicar menos linhas,
-portanto ausência só é demonstrada numa lista completa. Os botões de
-adição/remoção e a ação servida ainda exigem evidência do POST.
+portanto ausência só é demonstrada numa lista completa. A ação servida
+permite ensaiar um POST único de remoção no anti-IES; o resultado real
+em cada SEI continua sem comprovação.
 
 ## Alternativas consideradas
 
@@ -47,9 +48,14 @@ adição/remoção e a ação servida ainda exigem evidência do POST.
 Antes de qualquer arquivo, validar número e rótulo. Presença significa
 id exato e nome exato; nome divergente é recusa, não substituição.
 Ausência só é afirmada se `total_declarado == itens.len()`.
-`null` nunca equivale a zero. Retirada de marcador presente retorna
-prévia, mas com `--confirmar` falha tipada **antes de qualquer POST**.
-Atribuir marcador ausente exige prova do catálogo **da unidade**.
+`null` nunca equivale a zero. Retirada de marcador presente retorna prévia sem POST. Em confirmação,
+a origem é conferida **antes de qualquer requisição**; na origem de
+treinamento aceita, o IES só envia uma vez após conferir os campos do
+formulário servido e a ação de `acaoRemover`. Sucesso requer um 302
+identificado como retirada do mesmo processo **mais** a ausência
+comprovada por releitura independente. Efeito incerto sai 3 sem retry.
+Atribuir marcador ausente exige prova do catálogo **da unidade** e a
+confirmação de atribuição continua fechada.
 Nenhum novo transporte, cookie próprio ou restaurador de tela.
 
 ## Evidências verificáveis
@@ -62,9 +68,10 @@ Nenhum novo transporte, cookie próprio ou restaurador de tela.
 
 ## Limitações e revisão
 
-O recorte **não escreve**. A próxima fatia precisa observar formulários
-de catálogo, atribuição e retirada da unidade, derivar um envio pelo
-`formulario_web`, medir orçamento exato e provar a nova leitura.
-Efeito incerto exige saída 3, sem retry. Revisar após replay de
-`marcador-escritas-*` e `marcador-ciclo-completo-*` e validação live
-em treinamento; nenhuma escrita foi realizada nesta sessão.
+A retirada já percorre, em **hipótese sintética**, CLI real, formulário
+servido, anti-IES, POST único, estado SQLite e releitura independente.
+Isso **não** demonstra equivalência semântica com os POSTs das cassettes,
+nem prova efeito em SEI real. Ainda faltam replay independente de
+`marcador-escritas-*` e `marcador-ciclo-completo-*`, validação live em
+treinamento e o catálogo/formulário de atribuição. Nenhuma escrita
+externa foi realizada nesta fatia; produção permanece proibida para agentes.
