@@ -1,6 +1,6 @@
 ---
 type: CommandContract
-title: Prévia de anexação de processo ao principal
+title: Prévia e confirmação de anexação de processo ao principal
 operation: processo.anexar
 command: ies processo anexar NUP --a NUP_PRINCIPAL [--confirmar]
 effect: write-process-state
@@ -13,24 +13,24 @@ implementation: partial
 
 ## Estado desta fatia
 
-**Prévia parcial.** Lê a árvore do principal e o link assinado `procedimento_anexar`, GET de `frmProcedimentoAnexar`, consulta AJAX de identificação `protocolo_RI1023` e consulta de assinaturas `procedimento_anexacao_verificar`, cada uma **uma única vez**. Sem `--confirmar`, não envia o POST de anexação. `--confirmar` recusa **antes de acessar a sessão ou rede**, com `confirmacao_de_anexacao_nao_validada`, até existirem testes de transporte, resultado 302 e verificação por leitura.
+**Prévia e confirmação com prova sintética.** A CLI lê a árvore do principal e o link assinado `procedimento_anexar`, faz GET de `frmProcedimentoAnexar` e as consultas AJAX `protocolo_RI1023` e `procedimento_anexacao_verificar`. Sem `--confirmar`, não envia o POST de anexação. Com `--confirmar`, somente em origens de treinamento autorizadas, deriva os campos do formulário servido, efetua **um único POST** e exige aceite do redirecionamento, nova leitura da lista e árvore do principal que contenha o anexado. Quando o efeito não pode ser comprovado, informa **saída 3 e não repete a escrita**. Este caminho passou em laboratório com CLI Rust real ↔ anti-IES ↔ SQLite, mas ainda não demonstra fidelidade semântica às cassettes nem validação externa.
 
 O processo principal é conferido por NUP na abertura, e o anexado pelo NUP completo retornado pela consulta. O destino igual ao principal, duplicado na lista ou identificado ambiguamente é recusado. A lista pode vir ausente, como na tela de zero anexados observada. `N` na consulta de assinaturas significa que há documento não assinado; a prévia **avisa**, mas não executa.
 
 ## Orçamento de requests
 
-A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vários GETs, que são contados. A partir da árvore: um GET da tela de anexação e **dois POSTs de leitura** (`protocolo_RI1023` e `procedimento_anexacao_verificar`). O comando retorna a contagem observada `requisicoes`; não há retry nem 302 seguido. A confirmação atual: **zero requisições** e saída 1. Orçamento da escrita futura só será contratado depois de observar e testar o formulário completo e a verificação; nunca presumir sucesso pelo 302.
+A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vários GETs, que são contados. A partir da árvore: um GET da tela de anexação e **dois POSTs de leitura** (`protocolo_RI1023` e `procedimento_anexacao_verificar`). A confirmação acrescenta **um POST mutador**, um GET da lista de anexados e a releitura do processo principal; os testes sintéticos verificam POST único e ausência de retry mesmo sob resposta HTTP 503 injetada. O comando informa a contagem observada em `requisicoes` quando retorna normalmente; o aceite HTTP isolado não prova o efeito.
 
 ## Recusas próprias
 
-`anexacao_ao_mesmo_processo`, `processo_ja_anexado`, `anexacao_nao_publicada_na_barra`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `endereco_de_anexar_de_outro_processo`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `confirmacao_de_anexacao_nao_validada`. O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
+`anexacao_ao_mesmo_processo`, `processo_ja_anexado`, `anexacao_nao_publicada_na_barra`, `links_de_anexar_repetidos_na_barra`, `endereco_de_anexar_nao_reconhecido`, `endereco_de_anexar_de_outro_processo`, `formulario_de_anexacao_ausente_ou_repetido`, `controles_da_anexacao_ausentes_ou_repetidos`, `listas_de_anexados_repetidas`, `ids_de_anexados_repetidos`, `id_do_anexado_ausente_ou_invalido`, `processo_a_anexar_nao_identificado`, `identidade_de_anexado_ambigua`, `anexacao_nao_verificada`, `nup_do_anexado_diferente_do_solicitado`, `confirmacao_de_anexacao_nao_validada` (legado da fatia de prévia; não é a recusa atual do caminho confirmado). O transportador e o leitor da árvore conservam seus próprios subcódigos tipados.
 
 ## Subcódigos
 
 | Subcódigo | Fato identificado |
 | --- | --- |
 | `anexacao_nao_publicada_na_barra` | O processo aberto não publica ação de anexar. |
-| `confirmacao_de_anexacao_nao_validada` | Escrita ainda bloqueada antes da sessão. |
+| `confirmacao_de_anexacao_nao_validada` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |
 | `endereco_de_anexar_de_outro_processo` | Link assinado aponta para outro processo. |
 | `endereco_de_anexar_nao_reconhecido` | Link assinado da ação inválido. |
 | `links_de_anexar_repetidos_na_barra` | Mais de um link de anexar na barra. |
@@ -47,4 +47,4 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 
 ## Critérios ainda pendentes
 
-Formulário de escrita derivado da tela, envio único sem retry, aceite 302 conferido, verificação por leitura nova da árvore do principal, efeito incerto com saída 3, replay de cassettes e prévia/live de UnB e segunda instalação de treinamento. Nenhuma escrita é autorizada fora de treinamento.
+**Comprovado apenas sinteticamente:** formulário derivado, POST único, aceite 302 e releitura por outra execução da CLI sobre SQLite, além de saída 3 para HTTP 503 injetado sem retry. **Pendentes:** confronto semântico independente IES e anti-IES ↔ cassettes e prévia/validação externa em UnB e segunda instalação de treinamento, com relatório e resíduo. Nenhuma escrita é autorizada fora de treinamento.
