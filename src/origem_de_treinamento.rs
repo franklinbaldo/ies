@@ -1,7 +1,13 @@
-//! Onde cada `--confirmar` pode gravar. Decisão do proprietário
-//! (10/11/2026): a escrita que passou em ensaio ao vivo em treinamento fica
-//! aprovada para produção, para uso dos usuários; as demais gravam só nas
-//! instalações públicas de treinamento. Conferido antes da primeira requisição.
+//! Onde cada `--confirmar` pode gravar. Decisões do proprietário
+//! (10/11/2026): a escrita aprovada em ensaio ao vivo fica liberada para
+//! produção, para uso dos usuários; as demais gravam só nas instalações
+//! públicas de treinamento. Conferido antes da primeira requisição.
+//!
+//! **Aprovação exige ensaio em todas as instalações de treinamento**
+//! ([`ORIGENS`]); uma instalação que bloqueie por motivo alheio ao IES
+//! (WAF, Cloudflare, conta recusada) fica `NOT_RUN` no relatório e não
+//! impede a aprovação. As escritas aprovadas antes desta regra, só na `UnB`,
+//! continuam liberadas enquanto a cobertura das demais é feita.
 
 /// Instalações de `docs/interfaces/credenciais-de-treinamento.md` e a
 /// bancada reservada `sei.test` do anti-IES. Comparação exata da URL base:
