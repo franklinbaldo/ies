@@ -11,8 +11,8 @@ use super::tela::{
 };
 use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
-    CodificacaoDaTela, RespostaDoEnvio, SubmissaoDerivada, TelaServida, derivar_consulta_ajax,
-    derivar_submissao, enviar_submissao_via,
+    CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
+    derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -123,20 +123,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         }
         feito.anotacao_depois = Some(false);
     }
-    let campos = campos_do_envio(
-        &tela.conferida,
-        &feito.destino,
-        pedido.manter_aberto,
-        metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio),
-    );
-    let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
-    let servida = TelaServida {
-        url: &tela.url,
-        html: &tela.html,
-        codificacao: tela.codificacao,
-    };
-    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
-    let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
+    let falha = submeter_envio(&mut rede, sessao, &instalacao, &tela, pedido, &feito)?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
     let mut feito = conciliar_efeitos(
         &mut rede,
@@ -148,6 +135,52 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     )?;
     feito.requisicoes = rede.feitas();
     Ok(feito)
+}
+
+/// Monta e tenta a tramitação depois da limpeza independente. Se a
+/// submissão nem puder sair, o efeito já relido da anotação não se perde.
+fn submeter_envio<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    tela: &TelaLida,
+    pedido: &PedidoDoEnvio<'_>,
+    feito: &ProcessoEnviado,
+) -> Result<Option<FalhaDoEnvio>, C> {
+    let campos = campos_do_envio(
+        &tela.conferida,
+        &feito.destino,
+        pedido.manter_aberto,
+        feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio),
+    );
+    let pares: Vec<(&str, &str)> = campos.iter().map(|(n, v)| (*n, v.as_str())).collect();
+    let servida = TelaServida {
+        url: &tela.url,
+        html: &tela.html,
+        codificacao: tela.codificacao,
+    };
+    let submissao = derivar_submissao(&ENVIAR_PROCESSO, instalacao, &servida, "", &pares)
+        .map_err(|causa| erro_apos_limpeza(feito, causa))?;
+    enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
+        C::Formulario(causa) => erro_apos_limpeza(feito, causa),
+        outro => outro,
+    })
+}
+
+/// Só o formulário de envio falhou: um POST de limpeza anterior já foi
+/// comprovado por GET. Preserva a causa tipada e as unidades observadas.
+fn erro_apos_limpeza(feito: &ProcessoEnviado, causa: ErroSubmissaoFormulario) -> C {
+    if feito.metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
+        && feito.anotacao_antes == Some(true)
+        && feito.anotacao_depois == Some(false)
+    {
+        C::FormularioAposLimpezaComprovada {
+            aberto_em: feito.aberto_em.clone(),
+            causa,
+        }
+    } else {
+        C::Formulario(causa)
+    }
 }
 
 /// Concilia duas provas independentes. Mesmo quando a árvore falha, o GET

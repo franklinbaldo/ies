@@ -1,7 +1,7 @@
 //! `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
 //! (contracts/cli/processo-enviar.md): uso inválido sai com 2 antes de
 //! qualquer arquivo; prévia sem POST de escrita; com `--confirmar`, um POST
-//! conferido por leitura; efeito incerto, 3. A saída nunca traz URL,
+//! conferido por leitura; falha não confirmada, saída 1. A saída nunca traz URL,
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
@@ -200,6 +200,7 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
         | E::ProcessoJaAbertoNoDestino { aberto_em }
         | E::EnvioNaoAplicado { aberto_em, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { aberto_em, .. }
+        | E::FormularioAposLimpezaComprovada { aberto_em, .. }
         | E::NaoConfirmadoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
@@ -225,11 +226,13 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
-    if let E::NaoConfirmadoNoEnvio {
-        anotacao_depois: Some(false),
-        ..
-    } = erro
-    {
+    if matches!(
+        erro,
+        E::NaoConfirmadoNoEnvio {
+            anotacao_depois: Some(false),
+            ..
+        } | E::FormularioAposLimpezaComprovada { .. }
+    ) {
         linhas.push("IES: anotacao_depois: removida (releitura antes da tramitação)".to_owned());
     }
     linhas
@@ -348,6 +351,10 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
         ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }
         | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois } => {
             valor.depois = depois.as_deref();
+        }
+        ErroEnviar::FormularioAposLimpezaComprovada { aberto_em, .. } => {
+            valor.aberto_em = Some(aberto_em);
+            valor.anotacao_depois = Some(false);
         }
         ErroEnviar::NaoConfirmadoNoEnvio {
             aberto_em,
