@@ -44,4 +44,3 @@ pub(super) fn trabalho_do_processo(
         html(unidade_atual),
     )
 }
-
