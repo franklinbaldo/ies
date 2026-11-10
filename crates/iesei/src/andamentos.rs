@@ -116,10 +116,7 @@ pub fn acrescentar(
     linha: Linha,
 ) -> Result<(), Falha> {
     // Serializa escritores antes da leitura, evitando atualizações perdidas.
-    let tx = rusqlite::Transaction::new_unchecked(
-        banco,
-        rusqlite::TransactionBehavior::Immediate,
-    )?;
+    let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
     let Some(mut historico) = ler(&tx, instalacao, cenario, id)? else {
         return Err(Falha::DadoInvalido);
     };
