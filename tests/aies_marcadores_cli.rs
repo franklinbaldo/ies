@@ -245,7 +245,9 @@ fn executar(caso: Caso) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
-            if evento == "GET andamento_marcador_gerenciar" {
+            if evento == "GET andamento_marcador_gerenciar"
+                && resposta.starts_with(b"HTTP/1.1 200 ")
+            {
                 let tela = String::from_utf8_lossy(&resposta);
                 controles_no_tunel.lock().unwrap().push((
                     tela.contains("id='btnAdicionar'"),
