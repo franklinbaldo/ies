@@ -33,9 +33,14 @@ publica URL assinada, cookie ou `infra_hash`.
   de treinamento, `--confirmar` só envia uma remoção quando observa os
   campos ocultos e o `action` de `acaoRemover` no formulário servido.
   Falta de formulário comprovado recusa sem POST.
-- Se está ausente e o pedido é atribuir, recusa
-  `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
-  existir **no processo** para provar que ele existe **na unidade**.
+- Se está ausente e o pedido é atribuir, consulta o formulário
+  `andamento_marcador_cadastrar` oferecido pela unidade. Somente quando
+  esse formulário publica exatamente uma opção `id#nome`, a ação assinada
+  pertence ao mesmo processo e os controles de submissão estão presentes,
+  apresenta a **prévia de atribuição** com `alterado: false` e **zero POST**.
+  Se não há catálogo observado ou a opção não confere, recusa
+  `catalogo_da_unidade_nao_observado`. Um marcador aplicado em outro
+  processo **não** substitui o catálogo da unidade.
 
 A prévia não reivindica uma escrita. A confirmação de **atribuição** ainda
 é recusada antes de sessão ou rede, com orientação para consultar a prévia.
@@ -86,7 +91,7 @@ Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto a at
 | `nome_do_marcador_com_controle` | Caracteres de controle no nome |
 | `lista_de_marcadores_parcial` | Linhas observadas diferentes do total declarado |
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
-| `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
+| `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade comprovado |
 | `remocao_sem_formulario_observado` | Remoção sem ação/controles observados no formulário servido |
 | `escrita_ainda_fechada` | `--marcador --confirmar`: atribuição ainda fechada, saída 1 e 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
@@ -117,12 +122,12 @@ camada de leitura existente. A saída de prévia JSON traz
 
 ## Ainda faltam (sem promessa de escrita)
 
-Restam catálogo da unidade e atribuição ausente, confronto semântico
+Restam a confirmação de atribuição, o POST único e a prova causal, confronto semântico
 independente com as cassettes de **remoção**, prévia e escrita live em UnB
 e nas demais instalações autorizadas, incluindo resíduo e orçamento. O
 POST único de retirada e sua releitura estão implementados **somente com
 prova sintética** pela CLI real ↔ anti-IES ↔ SQLite; a equivalência com
-uma instalação SEI ainda não foi comprovada. A atribuição com `--confirmar`
+uma instalação SEI ainda não foi comprovada. A prévia de atribuição usa formulário do catálogo e estado SQLite independente no anti-IES, mas ainda não constitui escrita. A atribuição com `--confirmar`
 permanece fechada.
 Escritas são autorizadas apenas em **treinamento**, com prévia, um único
 envio e verificação por leitura, nunca retry.
