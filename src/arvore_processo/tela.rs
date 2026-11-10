@@ -37,6 +37,10 @@ pub(crate) enum ErroTelaDoProcesso {
     EnderecoDaArvoreDeOutroProcesso,
     /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
     EnderecoDaArvoreDeOutroDocumento,
+    /// O SEI exige validar o acesso (senha, modal `usuario_validar_acesso`)
+    /// antes de servir a árvore, que vem com `src` vazio (GO 5.0.3, live de
+    /// 10/11/2026). A validação em si não é feita pelo IES.
+    ProcessoExigeValidacaoDeAcesso,
     #[causa(transparente)]
     Html(ErroHtml),
 }
@@ -134,6 +138,9 @@ fn unidade_e_src(
     // Servido com `&` cru (UnB e GO); `&amp;` também é o mesmo endereço.
     let src = crate::formulario_web::decodificar_atributo(&src)
         .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
+    if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
+        return Err(E::ProcessoExigeValidacaoDeAcesso);
+    }
     Ok((publicada, src))
 }
 
