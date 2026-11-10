@@ -8,15 +8,12 @@ use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::editor_documento::{self, Oferta};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
-use iesei::pastas_incompletas::{self, PastaPendente};
-use iesei::pdf_externo::{self, Processo, TipoExterno};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 #[path = "support/falha.rs"]
 mod falha_cli;
 use falha_cli::falha;
-use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::num::NonZeroU32;
@@ -34,7 +31,6 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-270-anexacao";
 const PRINCIPAL: &str = "00001.000001/2026-01";
 const ANEXADO: &str = "00001.000002/2026-01";
-const PDF_SINTETICO: &[u8] = b"%PDF-1.4\n1 0 obj\n%%EOF\n";
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
     loop {
@@ -218,43 +214,7 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
         }
     }
     if matches!(modo, Modo::PdfAposAnexacao) {
-        pdf_externo::semear(
-            banco,
-            instalacao,
-            CENARIO,
-            &Processo {
-                id: "10".into(),
-                nup: PRINCIPAL.into(),
-                unidade: "TESTE".into(),
-            },
-            &TipoExterno {
-                id: "293".into(),
-                nome: "Anexo".into(),
-                limite_bytes: 100_000,
-            },
-        )
-        .unwrap();
-        let temporario = pdf_externo::receber_conteudo(
-            banco,
-            instalacao,
-            CENARIO,
-            "10",
-            "identidade.pdf",
-            PDF_SINTETICO,
-        )
-        .unwrap();
-        pdf_externo::cadastrar(banco, instalacao, CENARIO, "10", "293", temporario.id).unwrap();
-        pastas_incompletas::guardar(
-            banco,
-            instalacao,
-            CENARIO,
-            "10",
-            &PastaPendente {
-                indice: 1,
-                protocolo_declarado: "42".into(),
-            },
-        )
-        .unwrap();
+        pdf_apos_anexacao::preparar(banco, instalacao);
     }
     if matches!(modo, Modo::JaAnexado) {
         anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
@@ -344,21 +304,10 @@ fn executar(modo: Modo) {
             canal.flush().unwrap();
         }
     });
-    let leitura_pdf_antes = matches!(modo, Modo::PdfAposAnexacao).then(|| {
-        cli(
-            &pasta,
-            arquivos,
-            porta,
-            &[
-                "--json",
-                "processo",
-                PRINCIPAL,
-                "--sem-andamentos",
-                "--sem-propriedades",
-                "--sem-marcadores",
-            ],
-        )
-    });
+    let pdf_antes = matches!(modo, Modo::PdfAposAnexacao)
+        .then(|| pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "antes"));
+    let processo_antes = matches!(modo, Modo::PdfAposAnexacao)
+        .then(|| ler_processo(&pasta, arquivos, porta));
     let comando: &[&str] = match modo {
         Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta => &[
             "--json",
@@ -377,31 +326,15 @@ fn executar(modo: Modo) {
     };
     let saida = cli(&pasta, arquivos, porta, comando);
     conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
-    let leitura_com_documentos = [
-        "--json",
-        "processo",
-        PRINCIPAL,
-        "--sem-andamentos",
-        "--sem-propriedades",
-        "--sem-marcadores",
-    ];
-    let leitura_sem_documentos = [
-        "--json",
-        "processo",
-        PRINCIPAL,
-        "--sem-andamentos",
-        "--sem-documentos",
-        "--sem-propriedades",
-        "--sem-marcadores",
-    ];
-    let leitura = if matches!(modo, Modo::PdfAposAnexacao) {
-        leitura_com_documentos.as_slice()
-    } else {
-        leitura_sem_documentos.as_slice()
-    };
-    let posterior = cli(&pasta, arquivos, porta, leitura);
-    if let Some(antes) = leitura_pdf_antes {
-        conferir_pdf_apos_anexacao(&pasta, arquivos, porta, &antes, &posterior);
+    let posterior = ler_processo(&pasta, arquivos, porta);
+    if let Some(bytes_antes) = pdf_antes {
+        let bytes_depois = pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "depois");
+        pdf_apos_anexacao::conferir(
+            &processo_antes.unwrap(),
+            &posterior,
+            &bytes_antes,
+            &bytes_depois,
+        );
     }
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
@@ -410,71 +343,21 @@ fn executar(modo: Modo) {
     conferir_resultados(modo, &saida, &posterior, total, &pedidos);
 }
 
-/// Confronto sintético: duas leituras da CLI real sobre o mesmo SQLite,
-/// com anexação confirmada entre elas e o PDF ainda acessível por identidade.
-fn conferir_pdf_apos_anexacao(
-    pasta: &Pasta,
-    arquivos: [&std::path::Path; 4],
-    porta: u16,
-    antes: &Output,
-    depois: &Output,
-) {
-    assert_eq!(
-        antes.status.code(),
-        Some(0),
-        "antes: {}",
-        String::from_utf8_lossy(&antes.stderr)
-    );
-    assert_eq!(
-        depois.status.code(),
-        Some(0),
-        "depois: {}",
-        String::from_utf8_lossy(&depois.stderr)
-    );
-    let inicial: serde_json::Value = serde_json::from_slice(&antes.stdout).unwrap();
-    let final_: serde_json::Value = serde_json::from_slice(&depois.stdout).unwrap();
-    assert!(
-        inicial["documentos"].to_string().contains("050000001"),
-        "{inicial}"
-    );
-    assert!(
-        final_["documentos"].to_string().contains("050000001"),
-        "{final_}"
-    );
-    assert!(
-        inicial["anexados"].as_array().is_none_or(Vec::is_empty),
-        "{inicial}"
-    );
-    assert_eq!(final_["anexados"][0]["numero"], ANEXADO);
-
-    let destino = pasta.0.join("pdf_depois");
-    fs::create_dir(&destino).unwrap();
-    let saida = cli(
+fn ler_processo(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta: u16) -> Output {
+    cli(
         pasta,
         arquivos,
         porta,
         &[
             "--json",
-            "documento",
-            "050000001",
-            "--processo",
+            "processo",
             PRINCIPAL,
-            "--saida",
-            destino.to_str().unwrap(),
-            "--sem-cache",
+            "--sem-andamentos",
+            "--sem-documentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
         ],
-    );
-    assert_eq!(
-        saida.status.code(),
-        Some(0),
-        "download após anexação: stdout={} stderr={}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    assert_eq!(
-        fs::read(destino.join("050000001.pdf")).unwrap(),
-        PDF_SINTETICO
-    );
+    )
 }
 
 fn conferir_resultados(
@@ -561,10 +444,6 @@ fn conferir_resultados(
     );
 }
 
-#[test]
-fn bdd_60_05_pdf_nao_troca_identidade_apos_anexacao_na_mesma_arvore() {
-    executar(Modo::PdfAposAnexacao);
-}
 
 #[test]
 fn bdd_270_02_confirmacao_e_releitura_independente() {
@@ -600,3 +479,6 @@ fn consulta_sem_observacao_de_assinatura_nao_inventa_assinada() {
 fn bdd_270_03_duplicidade_existente_recusada_sem_nova_escrita() {
     executar(Modo::JaAnexado);
 }
+
+#[path = "aies_anexacao_cli/pdf_apos_anexacao.rs"]
+mod pdf_apos_anexacao;
