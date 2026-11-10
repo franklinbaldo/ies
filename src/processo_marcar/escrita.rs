@@ -1,6 +1,6 @@
 //! BDD-255-02: uma única remoção, derivada do formulário efetivamente servido.
 //! O GET de gerenciamento não autoriza POST sem handler, hidden e ação assinada.
-use super::{Decisao, ErroMarcar, Operacao, Rotulo, decidir};
+use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
 use crate::Cli;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -16,10 +16,8 @@ use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
     abrir_para_escrever, obter_processo,
 };
-use crate::saida_erro;
 use crate::visao_do_controle::EnvioDoControle as _;
 use serde_json::json;
-use std::process::ExitCode;
 
 const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "andamento_marcador_remover",
@@ -40,22 +38,6 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
         o_que: EstadoDoProcesso::MarcadoresNoProcesso,
     },
 };
-
-fn falha(cli: &Cli, erro: ErroMarcar, reqs: u8) -> ExitCode {
-    super::super::processo_marcar_cli::falha(cli, erro, reqs)
-}
-
-fn falha_transporte(cli: &Cli, erro: &crate::transporte::FalhaTransporte) -> ExitCode {
-    saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-}
-
-fn falha_formulario(cli: &Cli, erro: &crate::formulario_web::ErroSubmissaoFormulario) -> ExitCode {
-    saida_erro::erro_fonte_http(
-        cli.json,
-        "o formulário não corresponde à transição observada",
-        erro.status_http(),
-    )
-}
 
 /// Extrai SOMENTE a URL literal assinada atribuída pelo handler da mesma tela.
 /// Não executa JS, não troca host, não cria destino a partir de padrões.
@@ -99,25 +81,6 @@ fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
         && procedimento == Some(id)
 }
 
-fn nao_confirmado(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
-    let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "codigo": "nao_confirmado",
-                "erro": mensagem,
-                "retentavel": false,
-                "requisicoes": requisicoes,
-                "ausente_relido": ausente_relido
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
-    }
-    ExitCode::from(1)
-}
-
 fn saida_sem_alteracao(
     cli: &Cli,
     nup: &NumeroProcesso,
@@ -125,7 +88,7 @@ fn saida_sem_alteracao(
     unidade: &str,
     rotulo: &Rotulo,
     requisicoes: u8,
-) -> ExitCode {
+) {
     if cli.json {
         println!(
             "{}",
@@ -150,7 +113,6 @@ fn saida_sem_alteracao(
             requisicoes
         );
     }
-    ExitCode::SUCCESS
 }
 
 fn saida_confirmada(
@@ -160,7 +122,7 @@ fn saida_confirmada(
     unidade: &str,
     rotulo: &Rotulo,
     requisicoes: u8,
-) -> ExitCode {
+) {
     if cli.json {
         println!(
             "{}",
@@ -188,56 +150,35 @@ fn saida_confirmada(
             requisicoes
         );
     }
-    ExitCode::SUCCESS
 }
 
 /// Prepara a única submissão a partir da tela servida, sem enviar POST.
 /// Recusas aqui preservam o orçamento observado e não geram efeito.
 fn preparar_submissao<V: EnvioDoProcesso>(
-    cli: &Cli,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Contador<'_, V>,
     link: &str,
     unidade: &str,
     rotulo: &Rotulo,
-) -> Result<crate::formulario_web::SubmissaoDerivada, ExitCode> {
-    let cookie = ler_cookie(sessao).map_err(|erro| {
-        saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-    })?;
+) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
+    let sem_formulario = |n| recusa(ErroMarcar::RemocaoSemFormularioObservado, n);
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
-        Err(FalhaDaTela::Transporte(erro)) => return Err(falha_transporte(cli, &erro)),
+        Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
         Err(
             FalhaDaTela::Redirecionada
             | FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
-        ) => {
-            return Err(falha(
-                cli,
-                ErroMarcar::RemocaoSemFormularioObservado,
-                rede.feitas(),
-            ));
-        }
+        ) => return Err(sem_formulario(rede.feitas())),
     };
     let Some(acao) = action_de_remocao(&html, &rotulo.id) else {
-        return Err(falha(
-            cli,
-            ErroMarcar::RemocaoSemFormularioObservado,
-            rede.feitas(),
-        ));
+        return Err(sem_formulario(rede.feitas()));
     };
     let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return Err(falha(
-            cli,
-            ErroMarcar::RemocaoSemFormularioObservado,
-            rede.feitas(),
-        ));
+        return Err(sem_formulario(rede.feitas()));
     };
     let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return Err(falha(
-            cli,
-            ErroMarcar::RemocaoSemFormularioObservado,
-            rede.feitas(),
-        ));
+        return Err(sem_formulario(rede.feitas()));
     };
     let tela = TelaServida {
         url: link,
@@ -252,7 +193,7 @@ fn preparar_submissao<V: EnvioDoProcesso>(
         &[("hdnInfraItemId", rotulo.id.as_str())],
         Some(&acao),
     )
-    .map_err(|erro| falha_formulario(cli, &erro))
+    .map_err(Into::into)
 }
 
 /// Confirmação disponível apenas após a guarda de origem do comando.
@@ -264,7 +205,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     nup: &NumeroProcesso,
     rotulo: &Rotulo,
     envio: &mut V,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let mut rede = Contador::novo(envio);
     let pedido = PedidoDoProcesso {
         nup,
@@ -275,24 +216,20 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         unidade_exigida: true,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
-    let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
-        Ok(aberto) => aberto,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
+    let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, &mut rede)?;
     let Some(unidade) = aberto.unidade.as_deref() else {
-        return falha(cli, ErroMarcar::UnidadeDaSessaoNaoPublicada, rede.feitas());
+        return Err(recusa(
+            ErroMarcar::UnidadeDaSessaoNaoPublicada,
+            rede.feitas(),
+        ));
     };
     let Marcadores::Lidos(ref lidos) = aberto.marcadores else {
-        return falha(cli, ErroMarcar::MarcadoresNaoLidos, rede.feitas());
+        return Err(recusa(ErroMarcar::MarcadoresNaoLidos, rede.feitas()));
     };
-    let decisao = match decidir(lidos, rotulo, Operacao::Retirar) {
-        Ok(decisao) => decisao,
-        Err(e) => return falha(cli, e, rede.feitas()),
-    };
+    let decisao =
+        decidir(lidos, rotulo, Operacao::Retirar).map_err(|e| recusa(e, rede.feitas()))?;
     if decisao == Decisao::NadaAFazer {
-        return saida_sem_alteracao(
+        saida_sem_alteracao(
             cli,
             nup,
             &aberto.arvore.processo.id,
@@ -300,33 +237,25 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
             rotulo,
             rede.feitas(),
         );
+        return Ok(());
     }
     let Some(link) = acoes.marcadores.ok().flatten() else {
-        return falha(
-            cli,
+        return Err(recusa(
             ErroMarcar::RemocaoSemFormularioObservado,
             rede.feitas(),
-        );
+        ));
     };
-    let submissao = match preparar_submissao(cli, sessao, &mut rede, link.as_str(), unidade, rotulo)
-    {
-        Ok(submissao) => submissao,
-        Err(saida) => return saida,
-    };
+    let submissao = preparar_submissao(sessao, &mut rede, link.as_str(), unidade, rotulo)?;
     let mut tentativa = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |submissao, cookie| {
         tentativa = true;
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return match resposta {
-            Err(erro) => falha_formulario(cli, &erro),
-            _ => falha(
-                cli,
-                ErroMarcar::RemocaoSemFormularioObservado,
-                rede.feitas(),
-            ),
-        };
+        return Err(match resposta {
+            Err(erro) => erro.into(),
+            _ => recusa(ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()),
+        });
     }
     let aceito = matches!(
         resposta,
@@ -350,7 +279,11 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         _ => None,
     };
     if !aceito || ausente != Some(true) {
-        return nao_confirmado(cli, rede.feitas(), ausente);
+        return Err(FalhaDaMarcacao::RetiradaNaoConfirmada {
+            requisicoes: rede.feitas(),
+            ausente_relido: ausente,
+        }
+        .into());
     }
     saida_confirmada(
         cli,
@@ -359,5 +292,6 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         unidade,
         rotulo,
         rede.feitas(),
-    )
+    );
+    Ok(())
 }

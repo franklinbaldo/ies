@@ -3,9 +3,9 @@
 use crate::formulario_web::{ConsultaAjax, EfeitoAvaliado, TelaServida, derivar_consulta_ajax};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{
-    FalhaTransporte, StatusHttpRecusado, corpo::decode_http_body, ler_limitado,
-};
+#[cfg(test)]
+use crate::transporte::StatusHttpRecusado;
+use crate::transporte::{FalhaTransporte, corpo::decode_http_body, ler_limitado};
 use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAjaxHipoteseLegal = new infraAjaxMontarSelect('selHipoteseLegal','";
@@ -58,6 +58,7 @@ impl ErroHipotese {
 
     /// Somente opções distintas, habilitadas e imprimíveis realmente vistas no
     /// AJAX podem ser oferecidas para uma próxima prévia com ID#NOME.
+    #[cfg(test)]
     pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
         match self {
             Self::OpcoesDisponiveis(opcoes) => Some(opcoes),
@@ -65,6 +66,7 @@ impl ErroHipotese {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
     }

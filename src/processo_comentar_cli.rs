@@ -5,7 +5,6 @@ use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_comentar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -21,12 +20,6 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<anyhow::Result<()>> {
         return None;
     };
     let numero = numero.clone();
-    if texto.trim().is_empty() || texto.contains('\0') {
-        return Some(crate::legado(recusa(
-            cli.json,
-            "Informe o texto do comentário.",
-        )));
-    }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
             && let Err(causa) = crate::origem_de_treinamento::exigir(
@@ -71,20 +64,4 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<anyhow::Result<()>> {
         }
         Ok(())
     }))
-}
-
-fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "operacao_recusada",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
 }

@@ -30,6 +30,20 @@ const COMENTAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
+/// `--texto` vazio, só com espaços ou com NUL.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TextoDoComentarioInvalido;
+
+/// `--texto`: o clap recusa o inválido (saída 2) antes da sessão.
+pub(crate) fn texto_do_comentario(texto: &str) -> Result<String, TextoDoComentarioInvalido> {
+    if texto.trim().is_empty() || texto.contains('\0') {
+        Err(TextoDoComentarioInvalido)
+    } else {
+        Ok(texto.to_owned())
+    }
+}
+
 #[derive(Debug, serde::Serialize, thiserror::Error)]
 #[error("{self:?}")]
 #[serde(rename_all = "snake_case")]

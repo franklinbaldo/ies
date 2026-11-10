@@ -15,6 +15,20 @@ use crate::processo_obter::{
 };
 pub(crate) use fluxo::executar;
 
+/// `--motivo` vazio ou só com espaços.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct MotivoDoSobrestamentoVazio;
+
+/// `--motivo`: o clap recusa o vazio (saída 2) antes da sessão.
+pub(crate) fn motivo_do_sobrestamento(motivo: &str) -> Result<String, MotivoDoSobrestamentoVazio> {
+    if motivo.trim().is_empty() {
+        Err(MotivoDoSobrestamentoVazio)
+    } else {
+        Ok(motivo.to_owned())
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Acao {
     Sobrestar,
@@ -88,8 +102,6 @@ pub(crate) enum ErroSobrestamento {
     EscritaNaoAplicada,
     NaoConfirmado,
 }
-
-impl ErroSobrestamento {}
 
 /// Prévia sem escrita. A URL assinada só vive dentro do fluxo de confirmação.
 #[cfg(test)]

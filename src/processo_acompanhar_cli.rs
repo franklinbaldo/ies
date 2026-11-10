@@ -4,7 +4,6 @@ use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -42,12 +41,13 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<anyhow::Result<()>> {
                 return Err(causa.into());
             }
             let plano = previa(sessao, &pedido, indice, &mut EnvioHttps)?;
-            crate::legado(publicar_previa(cli.json, &plano))
+            publicar_previa(cli.json, &plano);
+            Ok(())
         })
     })
 }
 
-fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
+fn publicar_previa(json_mode: bool, plano: &Previa) {
     if json_mode {
         println!(
             "{}",
@@ -108,5 +108,4 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         }
         println!("Requisições: {}", plano.requisicoes);
     }
-    ExitCode::SUCCESS
 }

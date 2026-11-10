@@ -71,11 +71,6 @@ pub(crate) enum CookieIlegivel {
 }
 
 impl CookieIlegivel {
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Arquivo(falha) => falha.status_http(),
-        }
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Arquivo(falha) => falha.mensagem(),

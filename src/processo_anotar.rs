@@ -38,6 +38,20 @@ pub(crate) struct Previa {
     pub(crate) alterado: bool,
 }
 
+/// `--texto` vazio ou só com espaços.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TextoDaAnotacaoVazio;
+
+/// `--texto`: o clap recusa o vazio (saída 2) antes da sessão.
+pub(crate) fn texto_da_anotacao(texto: &str) -> Result<String, TextoDaAnotacaoVazio> {
+    if texto.trim().is_empty() {
+        Err(TextoDaAnotacaoVazio)
+    } else {
+        Ok(texto.to_owned())
+    }
+}
+
 /// Uma variante por causa; o diagnóstico é derivado do tipo Rust.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]

@@ -69,8 +69,6 @@ pub(crate) enum VerificacaoPorLeitura {
     LeituraFalhou(ErroProcessoObter),
 }
 
-impl VerificacaoPorLeitura {}
-
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConcluir {
@@ -112,73 +110,4 @@ pub(crate) enum ErroConcluir {
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoPorLeitura>,
     },
-}
-
-impl ErroConcluir {
-    /// Categoria pública: o próximo passo de quem chama.
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::ConclusaoNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::NaoConfirmadoNaConclusao { .. } => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::TelaDaEscrita(falha) => falha.status_http().cloned(),
-            Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::Formulario(erro) => erro.status_http().cloned(),
-            Self::ConclusaoNaoAplicada { falha_do_envio, .. }
-            | Self::NaoConfirmadoNaConclusao { falha_do_envio, .. } => {
-                falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => e.mensagem(),
-            Self::Abertura(erro) => erro.mensagem(),
-            Self::UnidadeDaSessaoNaoPublicada => {
-                "a abertura não publicou a unidade da sessão; nada foi concluído"
-            }
-            Self::SituacaoDoProcessoNaoLidaAntesDeConcluir { .. } => {
-                "a árvore não publica onde o processo está aberto, e a conclusão não poderia ser conferida; nada foi concluído"
-            }
-            Self::UnidadeDaSessaoAusenteDaSituacao { .. } => {
-                "a barra oferece concluir, mas a situação não lista a unidade da sessão; nada foi concluído"
-            }
-            Self::ConclusaoNaoPublicadaNaBarra { .. } => {
-                "o processo está aberto na unidade, mas a barra não oferece concluir; nada foi concluído"
-            }
-            Self::Barra(_) => {
-                "a ação de concluir da barra não está na forma observada; nada foi concluído"
-            }
-            Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
-                "a tela da conclusão não foi servida; nada foi concluído"
-            }
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode `ies login` (nada foi concluído)"
-            }
-            Self::CharsetDaTelaNaoSuportado => {
-                "a tela de conclusão declara um charset não suportado; nada foi concluído"
-            }
-            Self::TelaDeConclusao(_) => {
-                "a tela Conclusão de Processo não está na forma observada; nada foi enviado"
-            }
-            Self::FuncaoDeConcluir(_) => {
-                "a função concluirProcesso() da tela do nó não está na forma observada; nada foi enviado"
-            }
-            Self::Formulario(_) => "o envio da conclusão não pôde ser montado; nada foi enviado",
-            Self::ConclusaoNaoAplicada { .. } => {
-                "a árvore lida depois de concluir ainda lista a unidade da sessão: o processo não foi concluído"
-            }
-            Self::NaoConfirmadoNaConclusao { .. } => {
-                "não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir"
-            }
-        }
-    }
 }

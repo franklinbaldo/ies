@@ -6,7 +6,6 @@ use crate::processo_sobrestar::{Acao, PedidoDaMudanca, executar};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_operar(cli: &Cli) -> Option<anyhow::Result<()>> {
     match &cli.command {
@@ -33,22 +32,6 @@ pub(crate) fn tentar_operar(cli: &Cli) -> Option<anyhow::Result<()>> {
     }
 }
 
-fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
-}
-
 fn operar(
     cli: &Cli,
     nup: &NumeroProcesso,
@@ -56,9 +39,6 @@ fn operar(
     confirmar: bool,
     acao: Acao,
 ) -> anyhow::Result<()> {
-    if matches!(acao, Acao::Sobrestar) && motivo.is_none_or(|t| t.trim().is_empty()) {
-        return crate::legado(erro_de_uso(cli.json, "informe um motivo não vazio"));
-    }
     com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaMudanca {
             nup,

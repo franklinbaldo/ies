@@ -71,8 +71,6 @@ pub(crate) enum ErroProcessoAtribuir {
     },
 }
 
-impl ErroProcessoAtribuir {}
-
 /// A primeira requisição só ocorre depois da conferência da trava de escrita.
 pub(crate) fn executar_previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
