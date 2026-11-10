@@ -43,6 +43,8 @@ pub(crate) struct AssinaturaNaArvore {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinaturaNaArvore {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     AcoesDeAssinarRepetidasNaBarra,
     AssinaturasDoDocumentoForaDaFormaObservada,
     AssinaturasDoDocumentoRepetidasNaArvore,
@@ -84,8 +86,11 @@ fn acoes_de_assinar(texto: &str) -> Result<usize, ErroAssinaturaNaArvore> {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        if let Some(bruto) = lidos.valor("onclick").map_err(|_| fora)? {
+        let lidos = atributos(tag).map_err(ErroAssinaturaNaArvore::Atributo)?;
+        if let Some(bruto) = lidos
+            .valor("onclick")
+            .map_err(ErroAssinaturaNaArvore::Atributo)?
+        {
             let onclick = decodificar_atributo(bruto).ok_or(fora)?;
             contagem += usize::from(onclick == ONCLICK);
         }

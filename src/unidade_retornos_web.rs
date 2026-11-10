@@ -11,6 +11,8 @@ use std::collections::HashSet;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraRetornos {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] crate::erro_web::ErroCaixa),
     Tabela(#[from] ErroRetornos),
@@ -37,6 +39,7 @@ impl ErroLeituraRetornos {
             | Self::CalendarioDosRetornosDesconhecido
             | Self::MesDosRetornosInacessivel
             | Self::MesDaCliInvalido
+            | Self::Atributo(_)
             | Self::UnidadeDiferenteDaSolicitada => false,
         }
     }
@@ -191,8 +194,7 @@ fn links(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let bruto = valor_do_atributo(tag, "href")
-            .map_err(|_| ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+        let bruto = valor_do_atributo(tag, "href").map_err(ErroLeituraRetornos::Atributo)?;
         let Some(bruto) = bruto else { continue };
         // O nome da acao precisa ser uma chave exata, nunca sufixo de
         // outra_acao nem acao_origem. Decodificar &amp; antes de separar.
@@ -269,8 +271,7 @@ fn hoje_na_tela(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let classe = valor_do_atributo(tag, "class")
-            .map_err(|_| ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?;
+        let classe = valor_do_atributo(tag, "class").map_err(ErroLeituraRetornos::Atributo)?;
         if !classe
             .as_deref()
             .is_some_and(|c| c.split_whitespace().any(|v| v == "diaHoje"))
@@ -282,8 +283,7 @@ fn hoje_na_tela(
             let Some(a) = filho.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let Some(href) = valor_do_atributo(a, "href")
-                .map_err(|_| ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?
+            let Some(href) = valor_do_atributo(a, "href").map_err(ErroLeituraRetornos::Atributo)?
             else {
                 continue;
             };

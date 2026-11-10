@@ -18,6 +18,8 @@ mod paginacao;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaLeitura {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] ErroCaixa),
     Bloco(#[from] ErroBloco),

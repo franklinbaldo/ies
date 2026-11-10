@@ -17,6 +17,8 @@ const TABELA: &str = "Tabela de Acompanhamentos.";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
     GruposNaoPublicados,
@@ -59,7 +61,7 @@ fn texto(texto: &str) -> String {
 }
 
 fn campo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroAcompanhar> {
-    valor_do_atributo(tag, nome).map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)
+    valor_do_atributo(tag, nome).map_err(ErroAcompanhar::Atributo)
 }
 
 /// A página de cadastro da `UnB` 4.0.9 tem um form e o select publicado.

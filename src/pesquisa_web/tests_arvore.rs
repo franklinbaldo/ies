@@ -51,7 +51,9 @@ fn class_repetido_com_valores_diferentes_continua_recusado() {
     ));
     assert_eq!(
         ler_resultados(&html),
-        Err(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
+        Err(ErroResultadoPesquisa::Atributo(
+            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }
+        ))
     );
 }
 
@@ -142,6 +144,8 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
     );
     assert_eq!(
         ler_resultados(&tabela(&sem_a_classe)),
-        Err(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
+        Err(ErroResultadoPesquisa::Atributo(
+            crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag { atributo: "class" }
+        ))
     );
 }

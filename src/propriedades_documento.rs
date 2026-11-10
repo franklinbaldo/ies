@@ -46,6 +46,8 @@ pub(crate) enum Nivel {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedadesDocumento {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
     LinkAnexoCadastroInvalido,
     AnexoDoCadastroDivergente,
@@ -68,9 +70,9 @@ pub(crate) enum ErroPropriedadesDocumento {
 }
 
 fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroPropriedadesDocumento> {
-    let a = atributos(tag).map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+    let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
     a.valor(nome)
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?
+        .map_err(ErroPropriedadesDocumento::Atributo)?
         .map(|v| {
             decodificar_atributo(v).ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)
         })
@@ -211,8 +213,7 @@ pub(crate) fn ler_formulario(
             let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let a =
-                atributos(tag).map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+            let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
             if a.presente("selected") {
                 selecionados.push(texto(tag, parser)?);
             }

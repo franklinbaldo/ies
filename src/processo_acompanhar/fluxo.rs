@@ -22,6 +22,8 @@ use crate::visao_do_controle::EnvioDoControle as _;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPrevia {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(#[from] CookieIlegivel),
     Abertura(#[from] ErroProcessoObter),
@@ -115,13 +117,13 @@ fn adicionar_da_lista(instalacao: &Instalacao, html: &str, id: &str) -> Result<S
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
             .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
-        let identificador = crate::html_atributos::valor_do_atributo(tag, "id")
-            .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?;
+        let identificador =
+            crate::html_atributos::valor_do_atributo(tag, "id").map_err(ErroPrevia::Atributo)?;
         if identificador.as_deref() != Some("btnAdicionar") {
             continue;
         }
         let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-            .map_err(|_| ErroPrevia::TelaDeAcompanhamentoInesperada)?
+            .map_err(ErroPrevia::Atributo)?
             .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;
         let onclick =
             decodificar_atributo(&onclick).ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?;

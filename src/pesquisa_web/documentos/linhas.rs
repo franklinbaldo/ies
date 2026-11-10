@@ -15,10 +15,6 @@ use std::collections::HashSet;
 
 type Tag<'a> = tl::HTMLTag<'a>;
 
-fn ilegivel(_: crate::html_atributos::ErroAtributoHtml) -> ErroDocumentoDaPesquisa {
-    ErroDocumentoDaPesquisa::Linha(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
-}
-
 fn tag<'a>(
     no: tl::NodeHandle,
     parser: &'a tl::Parser<'a>,
@@ -81,7 +77,7 @@ fn celula<'a>(
 
 fn href(link: &Tag<'_>) -> Result<String, ErroDocumentoDaPesquisa> {
     valor_do_atributo(link, "href")
-        .map_err(ilegivel)?
+        .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
         .ok_or(ErroDocumentoDaPesquisa::LinkDaLinhaDeDocumentoNaoReconhecido)
 }
 
@@ -114,7 +110,7 @@ fn arvore_da_linha(
         }
     };
     if valor_do_atributo(arvore, "href")
-        .map_err(ilegivel)?
+        .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
         .as_deref()
         != Some(href_do_processo)
     {
@@ -312,7 +308,7 @@ pub(crate) fn ler_documentos(
     for no in tabela.query_selector(parser, "a").into_iter().flatten() {
         let link = tag(no, parser)?;
         let abre = valor_do_atributo(link, "href")
-            .map_err(ilegivel)?
+            .map_err(ErroDocumentoDaPesquisa::AtributoHtml)?
             .is_some_and(|h| h.contains("acao=procedimento_trabalhar"));
         de_trabalho += usize::from(abre);
     }

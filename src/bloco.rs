@@ -34,6 +34,8 @@ impl TipoBloco {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBloco {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     FaixaDeBlocosIncoerente,
     PaginaDeBlocosNaoImplementada,
     BlocoNaoEncontradoNaPagina,
@@ -247,7 +249,7 @@ fn ler_linhas(
             .filter_map(tl::Node::as_tag)
             .map(|a| {
                 valor_do_atributo(a, "href")
-                    .map_err(|_| ErroBloco::LinkDeBlocosNaoReconhecido)
+                    .map_err(ErroBloco::Atributo)
                     .and_then(|x| {
                         x.and_then(|s| decodificar_atributo(&s))
                             .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)
@@ -377,9 +379,7 @@ pub(crate) fn link_do_menu(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) =
-            valor_do_atributo(tag, "href").map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?
-        else {
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroBloco::Atributo)? else {
             continue;
         };
         let Some(href) = decodificar_atributo(&bruto) else {
