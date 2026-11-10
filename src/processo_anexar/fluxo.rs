@@ -110,6 +110,31 @@ pub(super) fn url_da_consulta(html: &str, inicio: &str) -> Result<String, &'stat
     Ok(url.to_owned())
 }
 
+/// Um estado posterior é necessário para confirmar o efeito do único POST.
+fn comprovar_na_arvore<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    pedido: &Pedido<'_>,
+    indice: &IndiceLocal,
+    anexado: &Destino,
+    anteriores: &[String],
+    rede: &mut Contador<'_, V>,
+) -> Result<(), FalhaAnexar> {
+    let lido = obter_processo(
+        sessao,
+        &leitura(pedido.principal, pedido.unidade, false),
+        indice,
+        rede,
+    )
+    .map_err(|_| FalhaAnexar::EfeitoIncerto)?;
+    let depois = &lido.arvore.anexados;
+    if !depois.iter().any(|p| p.id == anexado.id && p.nup == anexado.nup)
+        || !anteriores.iter().all(|id| depois.iter().any(|p| &p.id == id))
+    {
+        return Err(FalhaAnexar::EfeitoIncerto);
+    }
+    Ok(())
+}
+
 /// Sem --confirmar, a única escrita possível no transporte é a consulta AJAX
 /// (POST de leitura, declarada e conferida). Nada de POST criador.
 pub(crate) fn prever<V: EnvioDoProcesso>(
@@ -202,24 +227,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         )?;
         // O contrato exige a árvore da própria CLI, não somente o 302
         // nem a lista textual devolvida pelo formulário.
-        let lido = obter_processo(
-            sessao,
-            &leitura(pedido.principal, pedido.unidade, false),
-            indice,
-            &mut rede,
-        )
-        .map_err(|_| E::EfeitoIncerto)?;
-        let anexados_depois = &lido.arvore.anexados;
-        if !anexados_depois
-            .iter()
-            .any(|p| p.id == anexado.id && p.nup == anexado.nup)
-            || !vista
-                .anexados
-                .iter()
-                .all(|id| anexados_depois.iter().any(|p| &p.id == id))
-        {
-            return Err(E::EfeitoIncerto);
-        }
+        comprovar_na_arvore(sessao, pedido, indice, &anexado, &vista.anexados, &mut rede)?;
         ResultadoAnexacao::Confirmada
     } else {
         ResultadoAnexacao::Previa
