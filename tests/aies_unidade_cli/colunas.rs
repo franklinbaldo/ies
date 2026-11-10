@@ -55,7 +55,11 @@ fn atender_quatro_gets(listener: &TcpListener) {
     assert_eq!(opcoes.iter().filter(|opcao| opcao.marcada).count(), 1);
 }
 
-fn encaminhar_quatro_gets(proxy: &TcpListener, destino: std::net::SocketAddr, identidade: Identity) {
+fn encaminhar_quatro_gets(
+    proxy: &TcpListener,
+    destino: std::net::SocketAddr,
+    identidade: Identity,
+) {
     let tls = TlsAcceptor::new(identidade).unwrap();
     let mut rotas = Vec::new();
     for _ in 0..4 {
