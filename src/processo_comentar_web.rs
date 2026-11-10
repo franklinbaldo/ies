@@ -30,21 +30,23 @@ pub(crate) struct Previa {
 
 /// Encontra exatamente um link de Novo Comentário publicado no HTML da lista.
 /// A URL é conferida pela política canônica do controlador e pela identidade.
-fn link_do_cadastro(
-    instalacao: &Instalacao,
-    html: &str,
-    id: &str,
-) -> Result<String, Erro> {
+fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, Erro> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| Erro::Lista)?;
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
-        let tag = no.get(dom.parser()).and_then(tl::Node::as_tag).ok_or(Erro::Lista)?;
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(Erro::Lista)?;
         let href = atributos(tag)
             .and_then(|a| a.valor("href"))
             .map_err(|_| Erro::Lista)?;
         if let Some(href) = href {
             let href = decodificar_atributo(href).ok_or(Erro::Lista)?;
-            if href.split(['?', '&']).any(|campo| campo == "acao=comentario_cadastrar") {
+            if href
+                .split(['?', '&'])
+                .any(|campo| campo == "acao=comentario_cadastrar")
+            {
                 links.push(href);
             }
         }
@@ -73,20 +75,21 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, false), indice, &mut rede)
             .map_err(|_| Erro::Abertura)?;
-    let link = acoes.comentarios.map_err(|_| Erro::Barra)?
+    let link = acoes
+        .comentarios
+        .map_err(|_| Erro::Barra)?
         .ok_or(Erro::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao).map_err(|_| Erro::Cookie)?;
-    let (html, _) = obter_tela(&mut rede, &cookie, link.as_str())
-        .map_err(|_| Erro::Lista)?;
+    let (html, _) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|_| Erro::Lista)?;
     let TelaDosComentarios::Lista(_) = ler_tela(&html).map_err(|_| Erro::Lista)? else {
         return Err(Erro::Lista);
     };
     let id = &aberto.arvore.processo.id;
     let url = link_do_cadastro(&instalacao, &html, id)?;
-    let (cadastro, _) = obter_tela(&mut rede, &cookie, &url)
-        .map_err(|_| Erro::Cadastro)?;
+    let (cadastro, _) = obter_tela(&mut rede, &cookie, &url).map_err(|_| Erro::Cadastro)?;
     let TelaDosComentarios::CadastroSemComentarios =
-        ler_tela(&cadastro).map_err(|_| Erro::Cadastro)? else {
+        ler_tela(&cadastro).map_err(|_| Erro::Cadastro)?
+    else {
         return Err(Erro::Cadastro);
     };
     Ok(Previa {
