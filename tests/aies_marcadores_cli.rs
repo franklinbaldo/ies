@@ -4,9 +4,9 @@
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
+use iesei::marcadores::{self, Marcador, Observacao};
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
-use iesei::marcadores::{self, Marcador, Observacao};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
@@ -81,36 +81,65 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (cabecalho, evento)
 }
 
-
 fn estado() -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     banco_cassettes::guardar(
-        &mut banco, CENARIO,
+        &mut banco,
+        CENARIO,
         &ControleResumido {
             instalacao: instalacao.clone(),
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::<Linha>::nova(
-                Some(1), FaixaObservada::nova(1, 1),
-                vec![Linha { id:"10".into(), numero:NUP.into(), visualizado:false, sigiloso:false }]
-            ).unwrap(),
+                Some(1),
+                FaixaObservada::nova(1, 1),
+                vec![Linha {
+                    id: "10".into(),
+                    numero: NUP.into(),
+                    visualizado: false,
+                    sigiloso: false,
+                }],
+            )
+            .unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        }
-    ).unwrap();
-    processos::guardar(&mut banco, &instalacao, CENARIO, &ProcessoSimulado {
-        id:"10".into(), numero:NUP.into(), unidade_origem:"TESTE".into(),
-        aberto_em:vec!["TESTE".into()], anotacao_origem:None, destinos:vec![],
-    }).unwrap();
+        },
+    )
+    .unwrap();
+    processos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &ProcessoSimulado {
+            id: "10".into(),
+            numero: NUP.into(),
+            unidade_origem: "TESTE".into(),
+            aberto_em: vec!["TESTE".into()],
+            anotacao_origem: None,
+            destinos: vec![],
+        },
+    )
+    .unwrap();
     // Uma marca observada; o pedido de retirar uma outra não assume lista vazia.
-    marcadores::registrar(&mut banco, &instalacao, CENARIO, "10", "TESTE", &Observacao {
-        total_declarado: 1,
-        itens: vec![Marcador {
-            id: "501".into(), nome: "Revisão".into(), cor:"azul".into(),
-            texto:Some("Conferir".into()), usuario:Some("aluno1".into()),
-            data_hora:"04/11/2026 09:00".into(),
-        }],
-    }).unwrap();
+    marcadores::registrar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        "10",
+        "TESTE",
+        &Observacao {
+            total_declarado: 1,
+            itens: vec![Marcador {
+                id: "501".into(),
+                nome: "Revisão".into(),
+                cor: "azul".into(),
+                texto: Some("Conferir".into()),
+                usuario: Some("aluno1".into()),
+                data_hora: "04/11/2026 09:00".into(),
+            }],
+        },
+    )
+    .unwrap();
     (banco, instalacao)
 }
 
@@ -140,8 +169,6 @@ fn executar_cli(
         .unwrap()
 }
 
-
-
 fn executar(retirar_ausente: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -165,7 +192,9 @@ fn executar(retirar_ausente: bool) {
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        marcadores::ler(&banco, &instalacao, CENARIO, "10", "TESTE").unwrap().unwrap()
+        marcadores::ler(&banco, &instalacao, CENARIO, "10", "TESTE")
+            .unwrap()
+            .unwrap()
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos = Arc::clone(&trilha);
@@ -175,7 +204,8 @@ fn executar(retirar_ausente: bool) {
         while let Some(mut tcp) = aceitar(&proxy, &sinal) {
             let (connect, _) = pedido_http(&mut tcp);
             assert!(connect.starts_with(b"CONNECT"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (req, evento) = pedido_http(&mut canal);
             let mut destino = TcpStream::connect(endereco).unwrap();
@@ -188,34 +218,68 @@ fn executar(retirar_ausente: bool) {
             canal.flush().unwrap();
         }
     });
-    let arquivos = [controle.as_path(), cookie.as_path(), origem.as_path(), cert.as_path()];
+    let arquivos = [
+        controle.as_path(),
+        cookie.as_path(),
+        origem.as_path(),
+        cert.as_path(),
+    ];
     let argumentos = if retirar_ausente {
-        vec!["--json", "processo", "marcar", NUP, "--retirar", "502#Pendente"]
+        vec![
+            "--json",
+            "processo",
+            "marcar",
+            NUP,
+            "--retirar",
+            "502#Pendente",
+        ]
     } else {
-        vec!["--json", "processo", "marcar", NUP, "--marcador", "501#Revisão"]
+        vec![
+            "--json",
+            "processo",
+            "marcar",
+            NUP,
+            "--marcador",
+            "501#Revisão",
+        ]
     };
     let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
     // Segunda execução independente: identidade e ausência de alteração persistidas.
-    let releitura = executar_cli(&pasta, arquivos, porta_proxy, &[
-        "--json", "processo", NUP, "--sem-andamentos", "--sem-documentos",
-        "--sem-propriedades"
-    ]);
+    let releitura = executar_cli(
+        &pasta,
+        arquivos,
+        porta_proxy,
+        &[
+            "--json",
+            "processo",
+            NUP,
+            "--sem-andamentos",
+            "--sem-documentos",
+            "--sem-propriedades",
+        ],
+    );
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    assert_eq!(saida.status.code(), Some(0),
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr));
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["nada_a_fazer"], true);
     assert_eq!(json["alterado"], false);
     assert_eq!(json["requisicoes"].as_u64().is_some(), true);
-    assert_eq!(releitura.status.code(), Some(0),
+    assert_eq!(
+        releitura.status.code(),
+        Some(0),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&releitura.stdout),
-        String::from_utf8_lossy(&releitura.stderr));
+        String::from_utf8_lossy(&releitura.stderr)
+    );
     let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
     assert_eq!(processo["marcadores_total_declarado"], 1);
     assert_eq!(processo["marcadores"].as_array().unwrap().len(), 1);
@@ -225,8 +289,12 @@ fn executar(retirar_ausente: bool) {
     assert_eq!(persistido.itens.len(), 1);
     assert_eq!(persistido.itens[0].id, "501");
     assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 0);
-    assert!(pedidos.iter().any(|p| p == "GET andamento_marcador_gerenciar"),
-        "a CLI não leu o gerenciamento de marcadores: {pedidos:?}");
+    assert!(
+        pedidos
+            .iter()
+            .any(|p| p == "GET andamento_marcador_gerenciar"),
+        "a CLI não leu o gerenciamento de marcadores: {pedidos:?}"
+    );
 }
 #[test]
 fn bdd_255_03_atribuir_marcador_existente_e_idempotente() {
