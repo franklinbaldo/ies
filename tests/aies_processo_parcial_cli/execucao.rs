@@ -1,6 +1,28 @@
 //! Executor HTTPS local do BDD-633 com a CLI real.
 use super::*;
 
+
+fn estado_final(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
+    let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
+        .unwrap()
+        .unwrap();
+    let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoAutorizada) {
+        let esperado = if matches!(cena, Cena::ValidacaoAutorizada) {
+            iesei::validacao_acesso::Validacao::Realizada
+        } else {
+            iesei::validacao_acesso::Validacao::Exigida
+        };
+        assert_eq!(
+            iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
+            Some(esperado),
+        );
+    }
+    (controle.recebidos.linhas[0].numero.clone(), processo.numero)
+}
+
 pub(super) fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
@@ -27,24 +49,7 @@ pub(super) fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         while let Some(mut cliente) = aceitar(&escuta, &parar_servidor) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
-        let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
-            .unwrap()
-            .unwrap();
-        let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap();
-        if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoAutorizada) {
-            let esperado = if matches!(cena, Cena::ValidacaoAutorizada) {
-                iesei::validacao_acesso::Validacao::Realizada
-            } else {
-                iesei::validacao_acesso::Validacao::Exigida
-            };
-            assert_eq!(
-                iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
-                Some(esperado),
-            );
-        }
-        (controle.recebidos.linhas[0].numero.clone(), processo.numero)
+        estado_final(cena, &banco, &instalacao)
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let registro = Arc::clone(&trilha);
