@@ -376,6 +376,8 @@ fn executar_com_troca_de_unidade(
     let parar_sim = Arc::clone(&parar);
     let trocar = Arc::new(AtomicBool::new(false));
     let trocar_sim = Arc::clone(&trocar);
+    let recusar_destino = Arc::new(AtomicBool::new(false));
+    let recusar_no_simulador = Arc::clone(&recusar_destino);
     let simulador = thread::spawn(move || {
         let (mut banco, instalacao) = preparar_banco(anotacao);
         let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
@@ -390,6 +392,16 @@ fn executar_com_troca_de_unidade(
                     trocar_apos_primeiro.expect("segunda unidade especificada"),
                 );
             }
+            if recusar_no_simulador.swap(false, Ordering::SeqCst) {
+                // Hipótese sintética: o destino deixou de ser oferecido entre
+                // o autocomplete e o POST. O anti-IES recebe a requisição
+                // original, recusa e não altera a tramitação no SQLite.
+                let mut processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+                    .unwrap()
+                    .unwrap();
+                processo.destinos.retain(|destino| destino.id != "2");
+                processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
+            }
             atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
         processos::ler(&banco, &instalacao, CENARIO, "10")
@@ -402,6 +414,7 @@ fn executar_com_troca_de_unidade(
     let parar_proxy = Arc::clone(&parar);
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let capturada = Arc::clone(&trilha);
+    let recusar_no_proxy = Arc::clone(&recusar_destino);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade).unwrap();
         let mut enviado = false;
@@ -413,6 +426,12 @@ fn executar_com_troca_de_unidade(
             let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, ensaio);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
+            if ensaio == EnsaioRemocao::TelaSemCheckboxEnvioRecusado
+                && metodo == "POST"
+                && acao == "procedimento_enviar"
+            {
+                recusar_no_proxy.store(true, Ordering::SeqCst);
+            }
             let mut resposta = if bloquear {
                 b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 7\r\nConnection: close\r\n\r\nIndispo".to_vec()
             } else {
