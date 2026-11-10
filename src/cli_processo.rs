@@ -36,7 +36,7 @@ pub(crate) enum ProcessoAcao {
         texto: String,
         #[arg(long)]
         confirmar: bool,
-    }
+    },
     /// Prévia de anotação na unidade; nenhum dado é gravado nesta fatia.
     Anotar {
         numero: String,
