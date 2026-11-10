@@ -37,8 +37,12 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
         match escuta.accept() {
             Ok((conexao, endereco)) => {
                 assert!(endereco.ip().is_loopback());
-                conexao.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                conexao.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                conexao
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                conexao
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return Some(conexao);
             }
             Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
@@ -71,15 +75,17 @@ fn ler_pedido(canal: &mut impl Read) -> (Vec<u8>, String) {
         .lines()
         .find_map(|linha| {
             let (chave, valor) = linha.split_once(':')?;
-            chave.eq_ignore_ascii_case("Content-Length")
+            chave
+                .eq_ignore_ascii_case("Content-Length")
                 .then(|| valor.trim().parse::<usize>().unwrap())
         })
         .unwrap_or(0);
     assert!(tamanho < 65_536);
     let mut corpo = vec![0; tamanho];
     canal.read_exact(&mut corpo).unwrap();
+    let evento = format!("{metodo} {acao}");
     cabecalho.extend(corpo);
-    (cabecalho, format!("{metodo} {acao}"))
+    (cabecalho, evento)
 }
 
 fn banco(estado: EstadoInicial) -> (Connection, Instalacao) {
@@ -87,16 +93,20 @@ fn banco(estado: EstadoInicial) -> (Connection, Instalacao) {
     banco_cassettes::iniciar(&db).unwrap();
     let origem = Instalacao::interpretar(ORIGEM).unwrap();
     banco_cassettes::guardar(
-        &mut db, CENARIO,
+        &mut db,
+        CENARIO,
         &ControleResumido {
             instalacao: origem.clone(),
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
             gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
         },
-    ).unwrap();
+    )
+    .unwrap();
     processos::guardar(
-        &mut db, &origem, CENARIO,
+        &mut db,
+        &origem,
+        CENARIO,
         &ProcessoSimulado {
             id: "10".into(),
             numero: NUP.into(),
@@ -105,21 +115,38 @@ fn banco(estado: EstadoInicial) -> (Connection, Instalacao) {
             anotacao_origem: None,
             destinos: vec![],
         },
-    ).unwrap();
+    )
+    .unwrap();
     let itens = match estado {
         EstadoInicial::GrupoG => Some(vec![
-            Acompanhamento { id: "831".into(), grupo: "G".into(), observacao: "Alvo".into() },
-            Acompanhamento { id: "832".into(), grupo: "H".into(), observacao: "Preservar".into() },
+            Acompanhamento {
+                id: "831".into(),
+                grupo: "G".into(),
+                observacao: "Alvo".into(),
+            },
+            Acompanhamento {
+                id: "832".into(),
+                grupo: "H".into(),
+                observacao: "Preservar".into(),
+            },
         ]),
-        EstadoInicial::SomenteH => Some(vec![
-            Acompanhamento { id: "832".into(), grupo: "H".into(), observacao: "Preservar".into() },
-        ]),
+        EstadoInicial::SomenteH => Some(vec![Acompanhamento {
+            id: "832".into(),
+            grupo: "H".into(),
+            observacao: "Preservar".into(),
+        }]),
         EstadoInicial::NaoObservado => None,
     };
     if let Some(itens) = itens {
         acompanhamentos::registrar(
-            &mut db, &origem, CENARIO, "10", "TESTE", &Observacao { itens },
-        ).unwrap();
+            &mut db,
+            &origem,
+            CENARIO,
+            "10",
+            "TESTE",
+            &Observacao { itens },
+        )
+        .unwrap();
     }
     (db, origem)
 }
@@ -143,7 +170,8 @@ fn executar_cli(pasta: &Pasta, porta: u16, cert: &std::path::Path, args: &[&str]
         .env_remove("no_proxy")
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
-        .output().unwrap()
+        .output()
+        .unwrap()
 }
 
 fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) {
@@ -151,10 +179,13 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let _origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
-    let _url = pasta.privado("url", &format!(
-        "{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash_chave}={}",
-        "a".repeat(64)
-    ));
+    let _url = pasta.privado(
+        "url",
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash_chave}={}",
+            "a".repeat(64)
+        ),
+    );
     let _cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     escuta.set_nonblocking(true).unwrap();
@@ -179,7 +210,8 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
         while let Some(mut tcp) = aceitar(&proxy, &parar_proxy) {
             let (connect, _) = ler_pedido(&mut tcp);
             assert!(connect.starts_with(b"CONNECT sei.treinamento.unb.br:443 HTTP/1.1\r\n"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = ler_pedido(&mut canal);
             let mut backend = TcpStream::connect(endereco).unwrap();
@@ -193,8 +225,18 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
         }
     });
     let saida = executar_cli(
-        &pasta, porta, &certificado,
-        &["--json", "processo", "acompanhar", NUP, "--deixar", "--grupo", "G"],
+        &pasta,
+        porta,
+        &certificado,
+        &[
+            "--json",
+            "processo",
+            "acompanhar",
+            NUP,
+            "--deixar",
+            "--grupo",
+            "G",
+        ],
     );
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
@@ -205,8 +247,12 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
 #[test]
 fn bdd_348_01_previa_identifica_g_sem_remover_h() {
     let (saida, eventos, depois) = executar(EstadoInicial::GrupoG);
-    assert_eq!(saida.status.code(), Some(0), "stderr={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(valor["operacao"], "deixar");
     assert_eq!(valor["grupo"], "G");
@@ -226,8 +272,12 @@ fn bdd_348_01_previa_identifica_g_sem_remover_h() {
 #[test]
 fn bdd_348_03_grupo_g_ausente_nao_toca_h() {
     let (saida, eventos, depois) = executar(EstadoInicial::SomenteH);
-    assert_eq!(saida.status.code(), Some(0), "stderr={} eventos={eventos:?}",
-        String::from_utf8_lossy(&saida.stderr));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(valor["operacao"], "deixar");
     assert_eq!(valor["grupo"], "G");
