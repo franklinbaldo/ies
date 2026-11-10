@@ -95,7 +95,6 @@ fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option
             "acao" if acao.replace(valor).is_some() => return None,
             "id_comentario" if id.replace(valor).is_some() => return None,
             "id_procedimento" if processo.replace(valor).is_some() => return None,
-            "acao" | "id_comentario" | "id_procedimento" => {}
             _ => {}
         }
     }

@@ -257,7 +257,11 @@ fn executar(modo: Modo) {
     servidor.join().unwrap();
     let eventos = eventos.lock().unwrap().clone();
     verificar(modo, &saida, &eventos);
-    if let Some(posterior) = posterior {
+    verificar_posterior(modo, posterior);
+}
+
+fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
+    let Some(posterior) = posterior else { return; };
         assert_eq!(posterior.status.code(), Some(0));
         let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
         assert_eq!(foto["lista_completa"], true);
@@ -277,7 +281,6 @@ fn executar(modo: Modo) {
             foto["comentarios"][0]["texto"],
             "Comentário sintético & conferido"
         );
-    }
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {

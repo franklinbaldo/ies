@@ -60,18 +60,16 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                             "requisicoes": preview.requisicoes,
                         })
                     );
+                } else if preview.confirmado {
+                    println!(
+                        "Comentário confirmado por releitura no processo {}. Requisições: {}.",
+                        preview.numero, preview.requisicoes
+                    );
                 } else {
-                    if preview.confirmado {
-                        println!(
-                            "Comentário confirmado por releitura no processo {}. Requisições: {}.",
-                            preview.numero, preview.requisicoes
-                        );
-                    } else {
-                        println!(
-                            "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
-                            preview.numero, preview.texto, preview.requisicoes
-                        );
-                    }
+                    println!(
+                        "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
+                        preview.numero, preview.texto, preview.requisicoes
+                    );
                 }
                 ExitCode::SUCCESS
             }
