@@ -179,10 +179,8 @@ fn arvore_do_processo(
         &ciencia,
         sobrestamento.as_ref(),
     );
-    let acompanhamento = iesei::acompanhamentos::ler(
-        banco, instalacao, cenario, id, unidade_atual,
-    )
-    .map_err(|_| Estado::DadosInsuficientes)?;
+    let acompanhamento = iesei::acompanhamentos::ler(banco, instalacao, cenario, id, unidade_atual)
+        .map_err(|_| Estado::DadosInsuficientes)?;
     if acompanhamento.is_some() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
         write!(
             acoes,
