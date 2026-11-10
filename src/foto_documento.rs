@@ -21,7 +21,7 @@ pub(crate) fn nome(numero: &str, versao: VersaoDocumento) -> String {
 
 /// SHA-256 em hexadecimal minúsculo.
 pub(crate) fn sha256(bytes: &[u8]) -> String {
-    crate::hex::hex_minusculo(&Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 /// O resultado da gravação de uma foto.

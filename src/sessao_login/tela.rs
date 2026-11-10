@@ -100,7 +100,7 @@ pub(crate) fn segundo_fator_exigido(html: &str) -> bool {
 /// validação da Infra (`txaInfraValidacao`, `UnB` 4.0.9) e, sem ela, os
 /// contêineres de recusa.
 pub(crate) fn mensagem_de_recusa(html: &str) -> Option<String> {
-    use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
+    use crate::transporte::texto_de_recusa::texto_visivel;
     if let Some(mensagem) =
         crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(html)
     {
@@ -114,7 +114,8 @@ pub(crate) fn mensagem_de_recusa(html: &str) -> Option<String> {
                     || CLASSES_DE_RECUSA.iter().any(|c| tem_classe(tag, c)))
         })
         .find_map(|(h, _)| {
-            let texto = decodificar_entidades(&texto_visivel(h, dom.parser()));
+            let texto =
+                html_escape::decode_html_entities(&texto_visivel(h, dom.parser())).into_owned();
             crate::transporte::saneamento::sanear(&texto)
         })
 }
@@ -203,7 +204,8 @@ fn hdn_acao_do_onsubmit(form: &tl::HTMLTag<'_>, html: &str) -> Result<String, Er
 
 /// Texto visível da opção: entidades decodificadas, espaços colapsados.
 fn texto_da_opcao(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser))
+    html_escape::decode_html_entities(&opcao.inner_text(parser))
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

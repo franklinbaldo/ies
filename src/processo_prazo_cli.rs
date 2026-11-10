@@ -335,11 +335,8 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     let (nova, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
     let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
-    let hoje = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |agora| {
-            i64::try_from(agora.as_secs() / 86_400).unwrap_or(0)
-        });
+    let hoje = (time::OffsetDateTime::now_utc().date() - time::OffsetDateTime::UNIX_EPOCH.date())
+        .whole_days();
     if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {
         return Err(FalhaConfirmacao::NaoConfirmado(None));
     }

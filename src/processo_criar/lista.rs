@@ -96,11 +96,11 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
         {
             continue;
         }
-        let nome =
-            crate::transporte::texto_de_recusa::decodificar_entidades(&ancora.inner_text(parser))
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ");
+        let nome = html_escape::decode_html_entities(&ancora.inner_text(parser))
+            .into_owned()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         if nome != pedido.split_whitespace().collect::<Vec<_>>().join(" ") {
             continue;
         }

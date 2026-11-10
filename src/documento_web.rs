@@ -313,7 +313,7 @@ pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let mut bruto = String::new();
     anexar_texto(corpo, parser, &mut bruto, 0)?;
     // Entidades decodificadas antes de juntar espaços: `&nbsp;` é espaço.
-    let bruto = crate::entidades_html::decodificar_texto(&bruto);
+    let bruto = html_escape::decode_html_entities(&bruto).into_owned();
     let texto = bruto.split_whitespace().collect::<Vec<_>>().join(" ");
     if texto.is_empty() {
         return Err(ErroCorpoDocumento::CorpoVazio);

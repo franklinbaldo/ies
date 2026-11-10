@@ -98,7 +98,8 @@ impl ListaComLinks {
 }
 
 fn texto_no(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
-    crate::entidades_html::decodificar_texto(&no.inner_text(parser))
+    html_escape::decode_html_entities(&no.inner_text(parser))
+        .into_owned()
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -106,7 +107,8 @@ fn texto_no(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    crate::entidades_html::decodificar_texto(&tag.inner_text(parser))
+    html_escape::decode_html_entities(&tag.inner_text(parser))
+        .into_owned()
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()

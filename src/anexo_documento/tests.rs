@@ -26,7 +26,7 @@ fn pdf(cabecalhos: &[(&str, &str)]) -> RespostaBinaria<Cursor<Vec<u8>>> {
 
 fn sha(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
-    crate::hex::hex_minusculo(&Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn ler(r: RespostaBinaria<Cursor<Vec<u8>>>) -> Result<AnexoLido, ErroAnexo> {
