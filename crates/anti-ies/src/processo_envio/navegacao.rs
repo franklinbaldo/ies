@@ -125,7 +125,7 @@ fn acao_ciencia(id: &str, ciencia: &iesei::ciencia_processo::Estado) -> String {
 }
 
 /// Publica o acesso ao acompanhamento somente quando a fotografia foi observada.
-fn acrescentar_acao_acompanhamento(
+fn inserir_acao_acompanhamento(
     acoes: &mut String,
     processo: &ProcessoSimulado,
     unidade: &str,
@@ -206,14 +206,7 @@ fn arvore_do_processo(
         sobrestamento.as_ref(),
     );
     let hash = crate::protocolo_sintetico::INFRA_HASH;
-    acrescentar_acao_acompanhamento(
-        &mut acoes,
-        processo,
-        unidade_atual,
-        banco,
-        instalacao,
-        cenario,
-    )?;
+    inserir_acao_acompanhamento(&mut acoes, processo, unidade_atual, banco, instalacao, cenario)?;
     let marcadores = iesei::marcadores::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
     if marcadores.is_some() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
