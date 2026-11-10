@@ -213,6 +213,8 @@ enum Caso {
     AtribuirExistente,
     AtribuirAusente,
     AtribuirSemCatalogo,
+    AtribuirConfirmado,
+    AtribuirEfeitoIncerto,
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
@@ -222,7 +224,11 @@ enum Caso {
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
-        Caso::AtribuirExistente | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo => {
+        Caso::AtribuirExistente
+        | Caso::AtribuirAusente
+        | Caso::AtribuirSemCatalogo
+        | Caso::AtribuirConfirmado
+        | Caso::AtribuirEfeitoIncerto => {
             ("--marcador", "501#Revisão")
         }
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
@@ -240,17 +246,17 @@ fn executar_caso_cli(
 ) -> Output {
     let (operacao, marcador) = pedido(caso);
     let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
+    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
         argumentos.push("--confirmar");
     }
-    if matches!(caso, Caso::AtribuirAusente | Caso::AtribuirSemCatalogo) {
+    if matches!(caso, Caso::AtribuirAusente | Caso::AtribuirSemCatalogo | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
         argumentos.extend(["--texto", "Nova revisão"]);
     }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
 }
 
 fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
-    if efeito_incerto && evento == "POST andamento_marcador_remover" {
+    if efeito_incerto && matches!(evento, "POST andamento_marcador_remover" | "POST andamento_marcador_cadastrar") {
         assert!(resposta.starts_with(b"HTTP/1.1 302 "));
         // O anti-IES já aplicou o POST; a resposta recebida pela CLI é 403.
         // A Location anterior não autentica a escrita quando status é 403.
@@ -276,10 +282,14 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(
         caso,
-        Caso::RetirarSemMarcadores | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo
+        Caso::RetirarSemMarcadores
+            | Caso::AtribuirAusente
+            | Caso::AtribuirSemCatalogo
+            | Caso::AtribuirConfirmado
+            | Caso::AtribuirEfeitoIncerto
     );
-    let com_catalogo = matches!(caso, Caso::AtribuirAusente);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+    let com_catalogo = matches!(caso, Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -408,6 +418,38 @@ fn conferir(
         assert_eq!(releitura.status.code(), Some(0));
         return;
     }
+    if matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
+        assert_eq!(
+            saida.status.code(),
+            Some(if efeito_incerto { 3 } else { 0 }),
+            "stdout={} stderr={} pedidos={pedidos:?}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        assert_eq!(releitura.status.code(), Some(0));
+        let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
+        assert_eq!(processo["marcadores_total_declarado"], 1);
+        assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
+        assert_eq!(processo["marcadores"][0]["texto"], "Nova revisão");
+        assert_eq!(persistido.total_declarado, 1);
+        assert_eq!(persistido.itens[0].texto.as_deref(), Some("Nova revisão"));
+        assert_eq!(
+            pedidos.iter().filter(|p| p.as_str() == "POST andamento_marcador_cadastrar").count(),
+            1,
+            "atribuição precisa de um POST, sem retry: {pedidos:?}"
+        );
+        if efeito_incerto {
+            assert_eq!(json["codigo"], "efeito_incerto");
+            assert_eq!(json["retentavel"], false);
+            assert!(json["erro"].as_str().unwrap().contains("não repita"));
+        } else {
+            assert_eq!(json["acao"], "atribuir");
+            assert_eq!(json["confirmado"], true);
+            assert_eq!(json["alterado"], true);
+            assert_eq!(json["texto"], "Nova revisão");
+        }
+        return;
+    }
     assert_eq!(
         saida.status.code(),
         Some(if efeito_incerto { 3 } else { 0 }),
@@ -505,4 +547,14 @@ fn bdd_255_01_atribuicao_ausente_deve_exibir_previa_sem_post() {
 #[test]
 fn bdd_255_01_sem_catalogo_observado_nao_inventa_atribuicao() {
     executar(Caso::AtribuirSemCatalogo);
+}
+
+#[test]
+fn bdd_255_01_confirmar_atribuicao_exige_post_unico_e_releitura_do_texto() {
+    executar(Caso::AtribuirConfirmado);
+}
+
+#[test]
+fn bdd_255_01_403_apos_efeito_aplicado_nao_prova_autoria() {
+    executar(Caso::AtribuirEfeitoIncerto);
 }
