@@ -568,3 +568,6 @@ mod duas_unidades;
 
 #[path = "aies_processo_enviar_cli/anotacao_preexistente.rs"]
 mod anotacao_preexistente;
+
+#[path = "aies_processo_enviar_cli/limpeza_parcial.rs"]
+mod limpeza_parcial;
