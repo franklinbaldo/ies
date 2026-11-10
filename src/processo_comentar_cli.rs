@@ -10,9 +10,15 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Comentar { numero, texto, confirmar }),
+        acao:
+            Some(ProcessoAcao::Comentar {
+                numero,
+                texto,
+                confirmar,
+            }),
         ..
-    }) = &cli.command else {
+    }) = &cli.command
+    else {
         return None;
     };
     let numero = match NumeroProcesso::novo(numero) {
@@ -28,21 +34,30 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
             "A confirmação de comentário ainda não foi comprovada. Nenhuma requisição foi feita.",
         ));
     }
-    Some(com_sessao(cli, |sessao, indice| {
-        match processo_comentar_web::prever(
-            sessao, &numero, texto.trim(), cli.unidade.as_deref(), indice, &mut EnvioHttps,
+    Some(com_sessao(
+        cli,
+        |sessao, indice| match processo_comentar_web::prever(
+            sessao,
+            &numero,
+            texto.trim(),
+            cli.unidade.as_deref(),
+            indice,
+            &mut EnvioHttps,
         ) {
             Ok(preview) => {
                 if cli.json {
-                    println!("{}", json!({
-                        "nup": preview.numero,
-                        "id_procedimento": preview.id_procedimento,
-                        "texto": preview.texto,
-                        "confirmado": false,
-                        "alterado": false,
-                        "origem": "web",
-                        "requisicoes": preview.requisicoes,
-                    }));
+                    println!(
+                        "{}",
+                        json!({
+                            "nup": preview.numero,
+                            "id_procedimento": preview.id_procedimento,
+                            "texto": preview.texto,
+                            "confirmado": false,
+                            "alterado": false,
+                            "origem": "web",
+                            "requisicoes": preview.requisicoes,
+                        })
+                    );
                 } else {
                     println!(
                         "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
@@ -55,17 +70,20 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                 cli.json,
                 "O formulário de comentário não foi comprovado; nenhuma escrita realizada.",
             ),
-        }
-    }))
+        },
+    ))
 }
 
 fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
-        println!("{}", json!({
-            "codigo": "operacao_recusada",
-            "erro": mensagem,
-            "retentavel": false
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "operacao_recusada",
+                "erro": mensagem,
+                "retentavel": false
+            })
+        );
     } else {
         eprintln!("IES: {mensagem}");
     }
