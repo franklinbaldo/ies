@@ -54,7 +54,9 @@ impl ErroMarcar {
             Self::RemocaoSemFormularioObservado => "a submissão de remoção ainda não foi conferida",
             Self::MarcadoresNaoLidos => "a lista de marcadores do processo não foi publicada",
             Self::UnidadeDaSessaoNaoPublicada => "a unidade da sessão não foi publicada pela tela",
-            Self::EscritaAindaFechada => "a escrita de marcador ainda não está liberada",
+            Self::EscritaAindaFechada => {
+                "a confirmação de marcador ainda não está disponível; execute sem --confirmar para ver a prévia"
+            }
         }
     }
 }

@@ -120,3 +120,42 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
         }
     }
 }
+
+#[test]
+fn confirmacao_fechada_explicita_previa_segura_sem_sessao() {
+    for operacao in ["--retirar", "--marcador"] {
+        let json_saida = sem_sessao(&[
+            "processo",
+            "marcar",
+            "NUP",
+            operacao,
+            "501#Revisão",
+            "--confirmar",
+            "--json",
+        ]);
+        assert_eq!(json_saida.status.code(), Some(1));
+        let resposta = json(&json_saida);
+        assert_eq!(resposta["subcodigo"], "escrita_ainda_fechada");
+        assert_eq!(resposta["requisicoes"], 0);
+        assert!(
+            resposta["erro"]
+                .as_str()
+                .unwrap()
+                .contains("execute sem --confirmar para ver a prévia")
+        );
+
+        let humana = sem_sessao(&[
+            "processo",
+            "marcar",
+            "NUP",
+            operacao,
+            "501#Revisão",
+            "--confirmar",
+        ]);
+        assert_eq!(humana.status.code(), Some(1));
+        assert!(
+            String::from_utf8_lossy(&humana.stderr)
+                .contains("execute sem --confirmar para ver a prévia")
+        );
+    }
+}
