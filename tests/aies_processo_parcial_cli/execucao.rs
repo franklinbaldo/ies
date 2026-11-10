@@ -73,7 +73,10 @@ pub(super) fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     let credenciais = matches!(cena, Cena::ValidacaoAutorizada).then(|| {
         pasta.privado(
             "credenciais",
-            &format!("usuario=teste\nsenha=ensaio-{}\norgao=TESTE\n", std::process::id()),
+            &format!(
+                "usuario=teste\nsenha=ensaio-{}\norgao=TESTE\n",
+                std::process::id()
+            ),
         )
     });
     let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));

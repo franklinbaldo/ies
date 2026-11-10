@@ -33,7 +33,6 @@ fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
     );
 }
 
-
 /// BDD-633-01: a CLI valida uma única vez, relê e publica a identidade.
 
 /// A modal e o POST são hipótese local, não observação de cassette.
