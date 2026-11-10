@@ -92,23 +92,14 @@ fn falhas_levam_as_listas() {
 
 #[test]
 fn sigla_de_destino_e_conferida_antes_de_tudo() {
-    let um = |s: &str| vec![s.to_owned()];
-    assert_eq!(sigla_de_destino(&um(" TESTE ")), Ok("TESTE"));
+    assert_eq!(sigla_de_destino(" TESTE ").unwrap(), "TESTE");
     assert_eq!(
-        sigla_de_destino(&um("ADCENTRAL/GR/ARQUIVO /PROCE")),
-        Ok("ADCENTRAL/GR/ARQUIVO /PROCE")
+        sigla_de_destino("ADCENTRAL/GR/ARQUIVO /PROCE").unwrap(),
+        "ADCENTRAL/GR/ARQUIVO /PROCE"
     );
-    for ruim in ["", "  ", "A\nB", &"X".repeat(101)] {
-        assert_eq!(
-            sigla_de_destino(&um(ruim)),
-            Err("sigla_de_destino_invalida"),
-            "{ruim:?}"
-        );
+    for ruim in ["", "   ", "A\tB", &"X".repeat(101)] {
+        assert!(sigla_de_destino(ruim).is_err(), "{ruim:?}");
     }
-    assert_eq!(
-        sigla_de_destino(&["A".into(), "B".into()]),
-        Err("mais_de_um_destino_nao_suportado")
-    );
 }
 
 #[test]

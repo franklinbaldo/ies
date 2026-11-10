@@ -25,8 +25,10 @@ fn json(saida: &Output) -> serde_json::Value {
 fn comando_recusa_numero_vazio_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", " ", "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "entrada_invalida");
+    assert!(
+        saida.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]

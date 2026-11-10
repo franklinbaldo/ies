@@ -262,7 +262,10 @@ fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    let _valor = json(&saida);
+    assert!(
+        saida.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]

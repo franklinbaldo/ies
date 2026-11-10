@@ -35,8 +35,10 @@ fn numero_documento_invalido_falha_antes_de_sessao() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2));
-        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON");
-        assert_eq!(json["codigo"], "entrada_invalida");
+        assert!(
+            saida.stdout.is_empty(),
+            "uso inválido é recusado pelo clap, sem JSON"
+        );
     }
 }
 

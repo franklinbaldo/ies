@@ -33,9 +33,7 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli, "número de processo inválido"));
-    };
+    let nup = numero.clone();
     let (bruto, operacao) = if let Some(rotulo) = marcador {
         (rotulo.as_str(), Operacao::Atribuir)
     } else if let Some(rotulo) = retirar {

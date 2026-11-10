@@ -1,5 +1,4 @@
 //! CLI do registro de andamento: valida entrada antes da sessão, nunca retry.
-use crate::processo::NumeroProcesso;
 use crate::processo_andamento_registrar::{self, Erro, texto_valido};
 use crate::processo_concluir_cli::{com_sessao, json_base_da_falha, publicar_valor_da_falha};
 use crate::visao_do_controle::EnvioHttps;
@@ -20,9 +19,7 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json, "Número de processo inválido"));
-    };
+    let numero = numero.clone();
     if !texto_valido(texto) {
         return Some(erro_de_uso(
             cli.json,

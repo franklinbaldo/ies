@@ -51,8 +51,10 @@ fn uso_invalido_sai_com_2_antes_da_configuracao() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(2), "{args:?}");
-            let valor = json(&saida);
-            assert_eq!(valor["codigo"], "entrada_invalida");
+            assert!(
+                saida.stdout.is_empty(),
+                "uso inválido é recusado pelo clap, sem JSON"
+            );
         }
     }
 }

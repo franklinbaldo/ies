@@ -28,9 +28,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(processo) else {
-        return Some(entrada_invalida(cli.json));
-    };
+    let nup = processo.clone();
     if tipo.trim().is_empty() {
         return Some(entrada_invalida(cli.json));
     }

@@ -32,8 +32,10 @@ fn numero_invalido_e_erro_de_uso_antes_da_configuracao() {
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, None);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert!(
+            saida.stdout.is_empty(),
+            "uso inválido é recusado pelo clap, sem JSON"
+        );
     }
 }
 

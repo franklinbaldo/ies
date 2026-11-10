@@ -58,9 +58,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(documento) = documento::NumeroDocumento::novo(numero) else {
-        return Some(erro_fonte(cli.json, "número SEI inválido"));
-    };
+    let documento = numero.clone();
     if *listar_copias {
         return Some(mostrar_listagem_copias(&documento, cli.json));
     }

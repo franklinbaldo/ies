@@ -1,6 +1,5 @@
 //! `ies documento cancelar DOC --motivo T [--confirmar]` (#273).
 //! Números são validados antes da sessão; o motivo segue como texto opaco.
-use crate::documento::NumeroDocumento;
 use crate::documento_cancelar::{
     DocumentoCancelado, ErroCancelar, FalhaDoCancelamento, PedidoDoCancelamento, cancelar_documento,
 };
@@ -26,9 +25,7 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroDocumento::novo(numero) else {
-        return Some(uso_invalido(cli.json, "número de documento inválido"));
-    };
+    let numero = numero.clone();
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(n)) => Some(n),

@@ -35,8 +35,10 @@ fn recusa_numero_invalido_sem_tocar_na_sessao() {
         "--json",
     ]);
     assert_eq!(r.status.code(), Some(2));
-    let valor = json(&r);
-    assert_eq!(valor["codigo"], "entrada_invalida");
+    assert!(
+        r.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]

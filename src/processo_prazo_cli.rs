@@ -37,9 +37,7 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(uso(cli.json));
-    };
+    let nup = numero.clone();
     let Ok(pedido) = interpretar_pedido(ate.as_deref(), *dias, *excluir) else {
         return Some(uso(cli.json));
     };

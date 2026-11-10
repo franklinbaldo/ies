@@ -3,7 +3,6 @@
 use crate::ciencia::{
     CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
 };
-use crate::documento::NumeroDocumento;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::visao_do_controle::EnvioHttps;
@@ -20,9 +19,7 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroDocumento::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let numero = numero.clone();
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(p)) => Some(p),

@@ -1,7 +1,6 @@
 //! CLI de anexação: prévia e confirmação única, com prova independente.
-use crate::processo::NumeroProcesso;
 use crate::processo_anexar::fluxo::{FalhaAnexar, Pedido, Previa, ResultadoAnexacao, prever};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -20,12 +19,8 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(anexado) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
-    let Ok(principal) = NumeroProcesso::novo(a) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let anexado = numero.clone();
+    let principal = a.clone();
     if anexado.as_str() == principal.as_str() {
         return Some(falha(
             cli.json,

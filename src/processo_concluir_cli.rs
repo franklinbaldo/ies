@@ -28,10 +28,8 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => concluir(cli, &nup, *confirmar),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(concluir(cli, &nup, *confirmar))
 }
 
 pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {

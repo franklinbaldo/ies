@@ -1,7 +1,6 @@
 //! CLI de acompanhamento: prévia e inclusão com POST único e releitura.
-use crate::processo::NumeroProcesso;
 use crate::processo_acompanhar::{ErroPrevia, Pedido, Previa, previa};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso, publicar_valor_da_falha};
+use crate::processo_concluir_cli::{com_sessao, publicar_valor_da_falha};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
@@ -22,33 +21,31 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => {
-            let pedido = Pedido {
-                nup: &nup,
-                unidade: cli.unidade.as_deref(),
-                grupo: grupo.as_deref(),
-                observacao: observacao.as_deref(),
-                deixar: *deixar,
-                confirmar: *confirmar,
-            };
-            com_sessao(cli, |sessao, indice| {
-                if *deixar
-                    && *confirmar
-                    && let Err(causa) = crate::origem_de_treinamento::exigir(
-                        crate::origem_de_treinamento::Escrita::ProcessoAcompanharDeixar,
-                        sessao.origem,
-                    )
-                {
-                    return crate::origem_de_treinamento::recusa(cli.json, causa);
-                }
-                match previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                    Ok(plano) => publicar_previa(cli.json, &plano),
-                    Err(erro) => publicar_erro(cli.json, &erro),
-                }
-            })
-        }
-        Err(_) => erro_de_uso(cli.json),
+    let nup = numero.clone();
+    Some({
+        let pedido = Pedido {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
+            grupo: grupo.as_deref(),
+            observacao: observacao.as_deref(),
+            deixar: *deixar,
+            confirmar: *confirmar,
+        };
+        com_sessao(cli, |sessao, indice| {
+            if *deixar
+                && *confirmar
+                && let Err(causa) = crate::origem_de_treinamento::exigir(
+                    crate::origem_de_treinamento::Escrita::ProcessoAcompanharDeixar,
+                    sessao.origem,
+                )
+            {
+                return crate::origem_de_treinamento::recusa(cli.json, causa);
+            }
+            match previa(sessao, &pedido, indice, &mut EnvioHttps) {
+                Ok(plano) => publicar_previa(cli.json, &plano),
+                Err(erro) => publicar_erro(cli.json, &erro),
+            }
+        })
     })
 }
 

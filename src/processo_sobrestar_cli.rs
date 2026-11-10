@@ -49,16 +49,19 @@ fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn operar(cli: &Cli, numero: &str, motivo: Option<&str>, confirmar: bool, acao: Acao) -> ExitCode {
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return erro_de_uso(cli.json, "número de processo inválido");
-    };
+fn operar(
+    cli: &Cli,
+    nup: &NumeroProcesso,
+    motivo: Option<&str>,
+    confirmar: bool,
+    acao: Acao,
+) -> ExitCode {
     if matches!(acao, Acao::Sobrestar) && motivo.is_none_or(|t| t.trim().is_empty()) {
         return erro_de_uso(cli.json, "informe um motivo não vazio");
     }
     com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaMudanca {
-            nup: &nup,
+            nup,
             unidade: cli.unidade.as_deref(),
             acao,
             motivo,

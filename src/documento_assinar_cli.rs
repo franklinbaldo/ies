@@ -39,9 +39,7 @@ pub(crate) fn tentar_assinar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroDocumento::novo(numero) else {
-        return Some(invalida(cli.json, "número de documento inválido"));
-    };
+    let numero = numero.clone();
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(nup)) => Some(nup),

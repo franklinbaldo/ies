@@ -121,6 +121,7 @@ mod propriedades_processo;
 mod relogin_cli;
 mod rodape_do_documento;
 mod saida;
+mod saida_do_comando;
 mod saida_erro;
 pub(crate) use saida_erro::erro_fonte;
 mod sessao_login;
@@ -438,69 +439,8 @@ fn run(cli: &Cli) -> Saida {
                 cli.unidade.as_deref(),
             ));
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Atual),
-        }) => {
-            return Ok(unidade_atual_cli::mostrar_unidade_atual(
-                cli.unidade.as_deref(),
-                cli.json,
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => {
-            return Ok(cli_unidade_aux::listar(
-                cli,
-                lista,
-                unidade_categoria::CategoriaLista::Recebidos,
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => {
-            return Ok(cli_unidade_aux::listar(
-                cli,
-                lista,
-                unidade_categoria::CategoriaLista::Gerados,
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Retornos { mes }),
-        }) => {
-            return Ok(unidade_retornos_cli::listar(
-                cli.unidade.as_deref(),
-                cli.json,
-                mes.as_deref(),
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
-        }) => {
-            return Ok(unidade_lista_cli::listar_processos_da_unidade(
-                cli.unidade.as_deref(),
-                cli.json,
-                saida.as_deref(),
-                pagina.map(|n| n as usize),
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => {
-            return Ok(cli_unidade_aux::colunas(
-                cli,
-                definir.as_deref(),
-                *confirmar,
-            ));
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
-        }) => {
-            return Ok(unidade_trocar_cli::trocar(
-                sigla,
-                *confirmar,
-                cli.unidade.as_deref(),
-                cli.json,
-            ));
+        Domain::Unidade(Unidade { acao: Some(acao) }) => {
+            return Ok(cli_unidade_aux::executar(cli, acao));
         }
         _ => {}
     }
@@ -565,47 +505,13 @@ fn comando_nao_implementado(cli: &Cli) -> ExitCode {
     ExitCode::from(1)
 }
 
-/// O que um comando devolve: o código de saída, ou o erro que sobe até o
-/// `main`, o único lugar que o mostra (#695).
-pub(crate) type Saida = Result<ExitCode, Box<dyn std::error::Error>>;
-
-/// Mostra o erro que subiu: o próprio tipo (`Debug`), sem texto à parte, e
-/// o status e a mensagem do SEI se uma recusa HTTP estiver na cadeia.
-fn mostrar(json_mode: bool, erro: &(dyn std::error::Error + 'static)) -> ExitCode {
-    let http = std::iter::successors(Some(erro), |e| e.source())
-        .find_map(|e| e.downcast_ref::<transporte::StatusHttpRecusado>());
-    if json_mode {
-        let mut valor = json!({"erro": format!("{erro:?}")});
-        if let Some(http) = http {
-            if http.status != 200 {
-                valor["status_http"] = json!(http.status);
-            }
-            if let Some(texto) = &http.mensagem_do_servidor {
-                valor["mensagem_do_servidor"] = json!(texto);
-            }
-        }
-        println!("{valor}");
-    } else {
-        match http {
-            Some(h) => eprintln!(
-                "IES: {erro:?} (HTTP {}{})",
-                h.status,
-                h.mensagem_do_servidor
-                    .as_deref()
-                    .map(|t| format!(": {t}"))
-                    .unwrap_or_default()
-            ),
-            None => eprintln!("IES: {erro:?}"),
-        }
-    }
-    ExitCode::from(1)
-}
+pub(crate) use saida_do_comando::Saida;
 
 fn main() -> ExitCode {
     match Cli::try_parse() {
         Ok(cli) => match run(&cli) {
             Ok(codigo) => codigo,
-            Err(erro) => mostrar(cli.json, erro.as_ref()),
+            Err(erro) => saida_do_comando::mostrar(cli.json, erro.as_ref()),
         },
         Err(err) => {
             let status = if matches!(

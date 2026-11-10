@@ -96,9 +96,7 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
     // `colunas` com `--definir` vai para a escrita, sem passar pela leitura.
     // O adaptador da CLI foi extraído de main.rs: conferir ambos os elos.
     let main = include_str!("../main.rs");
-    assert!(
-        main.contains("=> return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),")
-    );
+    assert!(main.contains("cli_unidade_aux::executar(cli, acao)"));
     let adaptador = include_str!("../cli_unidade_aux.rs");
     assert!(
         adaptador.contains("Some(definir) => crate::unidade_colunas_definir_cli::definir_colunas(")

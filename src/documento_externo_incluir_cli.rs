@@ -6,7 +6,6 @@ use crate::documento_externo_incluir::{
 #[path = "documento_externo_incluir_cli/confirmar.rs"]
 mod confirmar_remoto;
 
-use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
@@ -24,7 +23,6 @@ enum FalhaTipoExterno {
 
 #[derive(Debug, Serialize)]
 enum FalhaInclusaoExterna {
-    Processo(NumeroProcessoInvalido),
     Tipo(FalhaTipoExterno),
     Pdf(FalhaPdf),
 }
@@ -71,17 +69,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let processo = match NumeroProcesso::novo(processo) {
-        Ok(processo) => processo,
-        Err(falha) => {
-            return Some(recusa(
-                cli.json,
-                &FalhaInclusaoExterna::Processo(falha),
-                "número do processo não aceito",
-                2,
-            ));
-        }
-    };
+    let processo = processo.clone();
     if let Err(falha) = validar_tipo(tipo) {
         return Some(recusa(
             cli.json,

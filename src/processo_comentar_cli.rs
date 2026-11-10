@@ -1,8 +1,7 @@
 //! Comentários no processo: prévia e confirmação condicionada à origem.
 //! Um POST e releitura causal, sem retry ou escrita em produção.
-use crate::processo::NumeroProcesso;
 use crate::processo_comentar_web;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
@@ -21,9 +20,7 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let numero = numero.clone();
     if texto.trim().is_empty() || texto.contains('\0') {
         return Some(recusa(cli.json, "Informe o texto do comentário."));
     }

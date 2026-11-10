@@ -1,7 +1,6 @@
 //! BDD-ANOT-01/02/03/04: consulta, prévia, registro e retirada conferida.
-use crate::processo::NumeroProcesso;
 use crate::processo_anotar::{self, Erro};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 use serde_json::json;
@@ -21,9 +20,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let nup = numero.clone();
     let texto = texto.as_deref();
     let entrada_invalida = if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
         Some("o texto da anotação não pode ser vazio")

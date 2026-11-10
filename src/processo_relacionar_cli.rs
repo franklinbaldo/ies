@@ -1,6 +1,5 @@
 //! CLI de relacionamento: prévia, remoção confirmada e efeito incerto.
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::processo_relacionar::{
     FalhaRelacionar, Pedido, Previa, ResultadoRelacionar, mesmo_protocolo, prever,
 };
@@ -23,12 +22,8 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
-    let Ok(outro) = NumeroProcesso::novo(com) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let nup = numero.clone();
+    let outro = com.clone();
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
     if mesmo_protocolo(nup.as_str(), outro.as_str()) {

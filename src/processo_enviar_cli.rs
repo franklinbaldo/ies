@@ -5,14 +5,13 @@
 //! `infra_hash` ou cookie.
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
+    com_sessao, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
 };
 use crate::processo_enviar::{ErroEnviar, PedidoDoEnvio, ProcessoEnviado, enviar_processo};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
 #[cfg(test)]
 use serde_json::Value;
-use serde_json::json;
 use std::process::ExitCode;
 
 mod humano;
@@ -34,49 +33,30 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
-    let Ok(sigla) = sigla_de_destino(para) else {
-        return Some(destino_invalido(cli.json));
-    };
+    let nup = numero.clone();
     Some(enviar(
         cli,
         &nup,
-        sigla,
+        para,
         *manter_aberto,
         *remover_anotacoes,
         *confirmar,
     ))
 }
 
-/// A única sigla de `--para`, aparada; vazia, com controle ou longa é uso
-/// inválido.
-pub(crate) fn sigla_de_destino(para: &[String]) -> Result<&str, &'static str> {
-    let [sigla] = para else {
-        return Err("mais_de_um_destino_nao_suportado");
-    };
-    let sigla = sigla.trim();
-    if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
-        return Err("sigla_de_destino_invalida");
-    }
-    Ok(sigla)
-}
+/// Sigla de `--para` vazia, com controle ou com mais de 100 caracteres.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SiglaDeDestinoInvalida;
 
-fn destino_invalido(json_mode: bool) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": "destino inválido: informe uma sigla de unidade em --para",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: destino inválido: informe uma sigla de unidade em --para");
+/// A sigla de `--para`, aparada; o clap recusa a inválida (saída 2) e
+/// também `--para` repetido.
+pub(crate) fn sigla_de_destino(para: &str) -> Result<String, SiglaDeDestinoInvalida> {
+    let sigla = para.trim();
+    if sigla.is_empty() || sigla.chars().count() > 100 || sigla.chars().any(char::is_control) {
+        return Err(SiglaDeDestinoInvalida);
     }
-    ExitCode::from(2)
+    Ok(sigla.to_owned())
 }
 
 fn enviar(

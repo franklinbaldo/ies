@@ -4,8 +4,7 @@
 use crate::ciencia::{
     CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
 };
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::{Value, json};
@@ -19,20 +18,18 @@ pub(crate) fn tentar_ciente(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => com_sessao(cli, |sessao, indice| {
-            let pedido = PedidoDaCiencia {
-                nup: &nup,
-                unidade: cli.unidade.as_deref(),
-                confirmar: *confirmar,
-            };
-            match ciencia_no_processo(sessao, &pedido, indice, &mut EnvioHttps) {
-                Ok(feito) => publicar_sucesso(cli.json, &feito),
-                Err(erro) => publicar_erro(cli.json, &erro),
-            }
-        }),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(com_sessao(cli, |sessao, indice| {
+        let pedido = PedidoDaCiencia {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
+            confirmar: *confirmar,
+        };
+        match ciencia_no_processo(sessao, &pedido, indice, &mut EnvioHttps) {
+            Ok(feito) => publicar_sucesso(cli.json, &feito),
+            Err(erro) => publicar_erro(cli.json, &erro),
+        }
+    }))
 }
 
 fn json_de_sucesso(feito: &CienciaDoProcesso) -> Value {

@@ -5,7 +5,7 @@
 use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
+    com_sessao, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
 };
 use crate::processo_reabrir::{
     ErroReabrir, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
@@ -25,10 +25,8 @@ pub(crate) fn tentar_reabrir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => reabrir(cli, &nup, *confirmar),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(reabrir(cli, &nup, *confirmar))
 }
 
 fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {

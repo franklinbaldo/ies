@@ -1,11 +1,10 @@
 //! Prévia Web de atribuição por login exato; confirmação apenas nas
 //! instalação de treinamento `UnB` com efeito verificado por releitura.
-use crate::processo::NumeroProcesso;
 use crate::processo_atribuir::{
     ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, ProcessoAtribuido,
     executar_previa,
 };
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso, json_base_da_falha};
+use crate::processo_concluir_cli::{com_sessao, json_base_da_falha};
 use crate::saida_erro;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
@@ -26,30 +25,28 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => com_sessao(cli, |sessao, indice| {
-            // Limite inviolável: escrita só em instalação de treinamento.
-            if *confirmar
-                && let Err(causa) = crate::origem_de_treinamento::exigir(
-                    crate::origem_de_treinamento::Escrita::ProcessoAtribuir,
-                    sessao.origem,
-                )
-            {
-                return crate::origem_de_treinamento::recusa(cli.json, causa);
-            }
-            let pedido = PedidoDaAtribuicao {
-                nup: &nup,
-                unidade: cli.unidade.as_deref(),
-                usuario: if *remover { None } else { usuario.as_deref() },
-                confirmar: *confirmar,
-            };
-            match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
-                Ok(feito) => publicar_previa(cli.json, &feito),
-                Err(erro) => publicar_falha(cli.json, &erro),
-            }
-        }),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(com_sessao(cli, |sessao, indice| {
+        // Limite inviolável: escrita só em instalação de treinamento.
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoAtribuir,
+                sessao.origem,
+            )
+        {
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
+        }
+        let pedido = PedidoDaAtribuicao {
+            nup: &nup,
+            unidade: cli.unidade.as_deref(),
+            usuario: if *remover { None } else { usuario.as_deref() },
+            confirmar: *confirmar,
+        };
+        match executar_previa(sessao, &pedido, indice, &mut EnvioHttps) {
+            Ok(feito) => publicar_previa(cli.json, &feito),
+            Err(erro) => publicar_falha(cli.json, &erro),
+        }
+    }))
 }
 
 /// Toda recusa HTTP expõe status e mensagem saneada; a causa é preservada.
