@@ -439,7 +439,10 @@ fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_3() {
     assert_eq!(erro["codigo"], "efeito_incerto");
     assert_eq!(erro["retentavel"], false);
     assert_eq!(
-        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        eventos
+            .iter()
+            .filter(|v| v.as_str() == "POST acompanhamento_excluir")
+            .count(),
         1,
         "não se reenvia exclusão com resultado incerto: {eventos:?}"
     );
