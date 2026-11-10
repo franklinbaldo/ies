@@ -86,33 +86,33 @@ fixture contém credencial real. Nenhuma operação é dirigida à produção.
 
 A coluna é o que aparece no stderr: o erro tipado, com o tipo que o declara.
 
-| Erro ou `onde` (stderr) | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
 | `ErroAcompanhar::AcompanhamentoNaoConfirmado` | A releitura não demonstrou a alteração exata; incerto |
 | `ErroPrevia::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |
 | `ErroAcompanhar::EscolhaDeAcompanhamentoAmbigua` | Mais de uma linha satisfaz a escolha de remoção |
-| `barra_de_acompanhamento_fora_da_forma` | Barra fora do formato observado |
-| `barra_de_acompanhamento_repetida` | A árvore publica mais de uma barra para a raiz |
+| `ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Barra fora do formato observado |
+| `ErroAcompanharNaBarra::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A árvore publica mais de uma barra para a raiz |
 | `ErroAcompanhar::CadastroDeOutroProcesso` | Identidade do processo divergente no cadastro |
 | `ErroAcompanhar::CadastroNaoPublicado` | Formulário de cadastro ausente |
-| `colunas_de_acompanhamentos_invalidas` | Cabeçalho da lista incompleto ou repetido |
-| `formularios_de_acompanhamento_repetidos` | Mais de um formulário para a operação |
+| `ErroAcompanhar::ColunasDeAcompanhamentosInvalidas` | Cabeçalho da lista incompleto ou repetido |
+| `ErroAcompanhar::FormulariosDeAcompanhamentoRepetidos` | Mais de um formulário para a operação |
 | `ErroAcompanhar::GrupoAmbiguo` | O nome informado corresponde a mais de uma opção |
 | `ErroAcompanhar::GrupoNaoOferecido` | Grupo solicitado não é oferecido na tela |
 | `ErroAcompanhar::GrupoJaAcompanhado` | O grupo já aparece na lista anterior |
 | `ErroAcompanhar::GruposNaoPublicados` | Select de grupos ausente ou sem opções |
-| `html_de_acompanhamento_invalido` | HTML ilegível ou acima do limite |
-| `id_de_acompanhamento_repetido` | A tabela repete a identidade de uma linha |
-| `linha_de_acompanhamento_invalida` | Colunas ou checkbox de uma linha fora da forma |
+| `ErroAcompanhar::HtmlDeAcompanhamentoInvalido` | HTML ilegível ou acima do limite |
+| `ErroAcompanhar::IdDeAcompanhamentoRepetido` | A tabela repete a identidade de uma linha |
+| `ErroAcompanhar::LinhaDeAcompanhamentoInvalida` | Colunas ou checkbox de uma linha fora da forma |
 | `ErroAcompanharNaBarra::LinkDeOutroProcesso` | Link assinado da barra indica outro processo |
-| `link_de_acompanhamento_nao_reconhecido` | Link da barra não segue a forma permitida |
-| `links_de_acompanhamento_repetidos` | Mais de um link de acompanhamento na barra |
+| `ErroAcompanharNaBarra::LinkDeAcompanhamentoNaoReconhecido` | Link da barra não segue a forma permitida |
+| `ErroAcompanharNaBarra::LinksDeAcompanhamentoRepetidos` | Mais de um link de acompanhamento na barra |
 | `ErroAcompanhar::ListaNaoPublicada` | Não existe tabela comprovando a lista |
-| `listas_de_acompanhamentos_repetidas` | Mais de uma tabela de acompanhamento |
-| `opcoes_de_grupo_de_acompanhamento_invalidas` | Option sem valor válido |
+| `ErroAcompanhar::ListasDeAcompanhamentosRepetidas` | Mais de uma tabela de acompanhamento |
+| `ErroAcompanhar::OpcoesDeGrupoDeAcompanhamentoInvalidas` | Option sem valor válido |
 | `ErroPrevia::OrigemNaoAutorizada` | Origem da sessão inválida |
-| `pedido_de_acompanhamento_invalido` | Combinação de opções inválida |
+| `ErroPrevia::PedidoDeAcompanhamentoInvalido` | Combinação de opções inválida |
 | `ErroAcompanhar::NenhumAcompanhamento` | Não há linha a selecionar para remoção |
-| `redirecionamento_de_acompanhamento_inesperado` | Redirect não comprovado para o cadastro da mesma origem |
-| `tela_de_acompanhamento_inesperada` | Formato ou controle da tela divergente |
+| `ErroPrevia::RedirecionamentoDeAcompanhamentoInesperado` | Redirect não comprovado para o cadastro da mesma origem |
+| `ErroPrevia::TelaDeAcompanhamentoInesperada` | Formato ou controle da tela divergente |
 | `ErroPrevia::UnidadeNaoPublicada` | Unidade da tela não está publicada |
