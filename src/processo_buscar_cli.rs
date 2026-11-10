@@ -109,11 +109,11 @@ fn buscar(
         let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
         let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
         if inicio > fim {
-            crate::uso_invalido::recusar("--de posterior a --ate");
+            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
         }
     }
     if opcoes_de_leitura_presentes(comando) {
-        crate::uso_invalido::recusar("opções de leitura de `ies processo` não combinam com buscar");
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::OpcoesDeLeituraComBuscar);
     }
     let arquivos = configuracao::arquivos_de_acesso()?;
     let pedido = PedidoDeBusca {

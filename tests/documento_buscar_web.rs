@@ -21,9 +21,6 @@ fn ies(args: &[&str], com_arquivos: bool) -> Output {
     comando.output().expect("IES deve iniciar")
 }
 
-#[path = "support/falha.rs"]
-mod falha_cli;
-use falha_cli::falha;
 
 #[test]
 fn ajuda_mostra_termo_e_pagina_sem_assunto() {
@@ -57,7 +54,9 @@ fn opcoes_de_leitura_do_documento_nao_combinam_com_buscar() {
         &["--json", "documento", "--processo", "1", "buscar", "1"],
         false,
     );
-    falha(&saida, "OpcoesDeLeituraComBuscar");
+    assert_eq!(saida.status.code(), Some(2), "uso inválido é saída 2");
+    assert_eq!(saida.stdout, b"");
+    assert!(String::from_utf8_lossy(&saida.stderr).contains("OpcoesDeLeituraComBuscar"));
 }
 
 #[test]
@@ -105,5 +104,7 @@ fn periodo_invertido_e_recusado_antes_da_configuracao() {
         ],
         false,
     );
-    falha(&saida, "DataInicialPosteriorAFinal");
+    assert_eq!(saida.status.code(), Some(2), "uso inválido é saída 2");
+    assert_eq!(saida.stdout, b"");
+    assert!(String::from_utf8_lossy(&saida.stderr).contains("PeriodoInvertido"));
 }

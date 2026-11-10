@@ -14,7 +14,7 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 use crate::processo_concluir_cli::com_sessao;
 use crate::processo_obter::{
-    PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
+    ErroDocumentoObter, PedidoDeVersoes, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
     obter_documento_com_propriedades,
 };
 use crate::transporte::decodificar_resposta;
@@ -49,15 +49,23 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
     partes_da_foto(html).map(|(_, corpo, _)| corpo)
 }
 
+/// Um fato por variante, com a causa; nada foi gravado, salvo em
+/// `EdicaoNaoComprovada`.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-enum Falha {
-    Local(ErroCopia),
-    Leitura,
+enum ErroSalvarNoSei {
+    Local(#[source] ErroCopia),
+    PastaAtualIlegivel(#[source] std::io::Error),
+    /// Só a instalação sintética (`sei.test`) tem o editor observado.
+    InstalacaoSemEditorObservado,
+    LeituraDoDocumento(#[source] ErroDocumentoObter),
+    Cookie(#[source] crate::transporte::FalhaTransporte),
     VersaoAlterada,
     BaseAlterada,
-    EditorIndisponivel,
-    Formulario,
+    FotoLocalForaDaForma,
+    EditorNaoServido(#[source] crate::transporte::FalhaTransporte),
+    EditorForaDaForma,
+    Formulario(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     RegiaoNaoEditavelAlterada,
     /// O POST saiu e a releitura não comprovou a edição: não repita
     /// `--confirmar` sem releitura independente.
@@ -68,16 +76,17 @@ fn ler_par(
     pasta: &Path,
     numero: &NumeroDocumento,
     n: VersaoDocumento,
-) -> Result<(String, String), Falha> {
-    copia_documento::pasta_segura(pasta).map_err(Falha::Local)?;
-    let seguinte = VersaoDocumento::nova(n.numero() + 1).map_err(|_| Falha::VersaoAlterada)?;
+) -> Result<(String, String), ErroSalvarNoSei> {
+    copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
+    let seguinte =
+        VersaoDocumento::nova(n.numero() + 1).map_err(|_| ErroSalvarNoSei::VersaoAlterada)?;
     let ler = |v, ausente| {
         ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
             ErroCopia::Html(ErroHtml::ausente(ausente)),
         )
-        .map_err(Falha::Local)
-        .and_then(|bytes| String::from_utf8(bytes).map_err(|_| Falha::BaseAlterada))
+        .map_err(ErroSalvarNoSei::Local)
+        .and_then(|bytes| String::from_utf8(bytes).map_err(|_| ErroSalvarNoSei::BaseAlterada))
     };
     Ok((
         ler(n, "base_versao_ausente")?,
@@ -86,7 +95,7 @@ fn ler_par(
 }
 
 enum Resultado {
-    Recusado(Falha),
+    Recusado(ErroSalvarNoSei),
     Incerto,
     Confirmado(u32),
 }
@@ -174,24 +183,28 @@ fn verificar_publicacao(envio: &mut EnvioHttps, dados: &ConferenciaPublicacao<'_
 fn carregar_par(
     numero: &NumeroDocumento,
     previa: &PreviaCopia,
-) -> Result<(VersaoDocumento, String, String), Falha> {
-    let n = VersaoDocumento::nova(previa.versao_base).map_err(|_| Falha::VersaoAlterada)?;
-    let pasta = std::env::current_dir().map_err(|_| Falha::Leitura)?;
+) -> Result<(VersaoDocumento, String, String), ErroSalvarNoSei> {
+    let n =
+        VersaoDocumento::nova(previa.versao_base).map_err(|_| ErroSalvarNoSei::VersaoAlterada)?;
+    let pasta = std::env::current_dir().map_err(ErroSalvarNoSei::PastaAtualIlegivel)?;
     let (base, editada) = ler_par(&pasta, numero, n)?;
     Ok((n, base, editada))
 }
 
 /// A estrutura da foto local distingue os trechos editáveis da moldura SEI.
-fn corpos_da_edicao<'a>(base: &'a str, editada: &'a str) -> Result<(&'a str, &'a str), Falha> {
+fn corpos_da_edicao<'a>(
+    base: &'a str,
+    editada: &'a str,
+) -> Result<(&'a str, &'a str), ErroSalvarNoSei> {
     let (inicio_base, corpo_base, fim_base) =
-        partes_da_foto(base).ok_or(Falha::EditorIndisponivel)?;
+        partes_da_foto(base).ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
     let (inicio_edicao, corpo_editado, fim_edicao) =
-        partes_da_foto(editada).ok_or(Falha::EditorIndisponivel)?;
+        partes_da_foto(editada).ok_or(ErroSalvarNoSei::FotoLocalForaDaForma)?;
     if inicio_base != inicio_edicao || fim_base != fim_edicao {
-        return Err(Falha::RegiaoNaoEditavelAlterada);
+        return Err(ErroSalvarNoSei::RegiaoNaoEditavelAlterada);
     }
     if corpo_base == corpo_editado {
-        return Err(Falha::BaseAlterada);
+        return Err(ErroSalvarNoSei::BaseAlterada);
     }
     Ok((corpo_base, corpo_editado))
 }
@@ -205,7 +218,7 @@ fn executar(
 ) -> Resultado {
     let instalacao = match Instalacao::interpretar(sessao.origem) {
         Some(instalacao) if instalacao.host() == "sei.test" => instalacao,
-        _ => return Resultado::Recusado(Falha::EditorIndisponivel),
+        _ => return Resultado::Recusado(ErroSalvarNoSei::InstalacaoSemEditorObservado),
     };
     let (n, local_base, local_editada) = match carregar_par(numero, previa) {
         Ok(par) => par,
@@ -218,7 +231,7 @@ fn executar(
         processo: None,
         anexo: PedidoDoAnexo::default(),
     };
-    let Ok(lido) = obter_documento_com_propriedades(
+    let lido = match obter_documento_com_propriedades(
         sessao,
         &pedido,
         PedidoDeVersoes {
@@ -229,14 +242,15 @@ fn executar(
         indice,
         &mut envio,
         false,
-    ) else {
-        return Resultado::Recusado(Falha::Leitura);
+    ) {
+        Ok(lido) => lido,
+        Err(erro) => return Resultado::Recusado(ErroSalvarNoSei::LeituraDoDocumento(erro)),
     };
     if lido.versoes.atual.as_ref().map(|v| v.numero()) != Ok(n.numero()) {
-        return Resultado::Recusado(Falha::VersaoAlterada);
+        return Resultado::Recusado(ErroSalvarNoSei::VersaoAlterada);
     }
     if lido.versoes.foto.as_ref().map(|foto| foto.html.as_str()) != Some(local_base.as_str()) {
-        return Resultado::Recusado(Falha::BaseAlterada);
+        return Resultado::Recusado(ErroSalvarNoSei::BaseAlterada);
     }
     let (_base, editada) = match corpos_da_edicao(&local_base, &local_editada) {
         Ok(par) => par,
@@ -246,14 +260,16 @@ fn executar(
         "{}/controlador.php?acao=editor_montar&id_documento={}",
         sessao.origem, lido.id_documento
     );
-    let Ok(cookie) = sessao.cookie.valor() else {
-        return Resultado::Recusado(Falha::Leitura);
+    let cookie = match sessao.cookie.valor() {
+        Ok(cookie) => cookie,
+        Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::Cookie(falha)),
     };
-    let Ok(editor) = envio.get(&url, cookie).and_then(decodificar_resposta) else {
-        return Resultado::Recusado(Falha::EditorIndisponivel);
+    let editor = match envio.get(&url, cookie).and_then(decodificar_resposta) {
+        Ok(editor) => editor,
+        Err(falha) => return Resultado::Recusado(ErroSalvarNoSei::EditorNaoServido(falha)),
     };
     if !editor_observado(&editor, n.numero()) {
-        return Resultado::Recusado(Falha::Formulario);
+        return Resultado::Recusado(ErroSalvarNoSei::EditorForaDaForma);
     }
     let envio_unico = derivar_submissao(
         &EDITAR,
@@ -266,8 +282,9 @@ fn executar(
         cli.unidade.as_deref().unwrap_or(""),
         &[("txaEditor_1", editada), ("confirmar_assinaturas", "1")],
     );
-    let Ok(envio_unico) = envio_unico else {
-        return Resultado::Recusado(Falha::Formulario);
+    let envio_unico = match envio_unico {
+        Ok(envio_unico) => envio_unico,
+        Err(erro) => return Resultado::Recusado(ErroSalvarNoSei::Formulario(erro)),
     };
     // Daqui em diante até uma falha de conexão pode ter produzido efeito.
     let post = enviar_submissao_via(envio_unico, sessao.cookie, |s, c| envio.post(s, c));
@@ -319,7 +336,7 @@ pub(super) fn confirmar(
                 Ok(())
             }
             Resultado::Recusado(falha) => Err(falha.into()),
-            Resultado::Incerto => Err(Falha::EdicaoNaoComprovada.into()),
+            Resultado::Incerto => Err(ErroSalvarNoSei::EdicaoNaoComprovada.into()),
         }
     })
 }

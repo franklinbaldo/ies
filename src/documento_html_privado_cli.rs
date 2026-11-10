@@ -1,5 +1,6 @@
 //! Leitura opt-in de HTML privado previamente obtido da interface Web.
 //! Nunca estabelece sessão nem executa GET, POST ou escrita no SEI.
+use crate::uso_invalido::{UsoInvalido, recusar};
 use crate::{
     Cli, Documento, Domain, arquivo_texto_documento, documento, documento_web, transporte,
 };
@@ -9,8 +10,6 @@ use std::path::Path;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroHtmlPrivado {
-    QuantidadeDeDocumentos,
-    OpcoesDeDocumentoSemEvidencia,
     Fonte(#[from] transporte::FalhaTransporte),
     Titulo(#[from] documento_web::ErroTituloDocumento),
     Corpo(#[from] documento_web::ErroCorpoDocumento),
@@ -21,9 +20,9 @@ enum ErroHtmlPrivado {
 fn conferir_comando(
     documento: &Documento,
     unidade: Option<&str>,
-) -> Result<documento::NumeroDocumento, ErroHtmlPrivado> {
+) -> Result<documento::NumeroDocumento, UsoInvalido> {
     if documento.numeros.len() != 1 {
-        return Err(ErroHtmlPrivado::QuantidadeDeDocumentos);
+        return Err(UsoInvalido::QuantidadeDeDocumentos);
     }
     if documento.processo.is_some()
         || documento.versao.is_some()
@@ -32,7 +31,7 @@ fn conferir_comando(
         || documento.acao.is_some()
         || unidade.is_some()
     {
-        return Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia);
+        return Err(UsoInvalido::OpcoesDeDocumentoSemEvidencia);
     }
     Ok(documento.numeros[0].clone())
 }
@@ -67,7 +66,8 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let arquivo = documento.html_privado.as_deref()?;
     let resultado: Result<_, ErroHtmlPrivado> = (|| {
-        let numero = conferir_comando(documento, cli.unidade.as_deref())?;
+        let numero =
+            conferir_comando(documento, cli.unidade.as_deref()).unwrap_or_else(|uso| recusar(uso));
         let html =
             transporte::arquivo_privado(arquivo, 8_000_000).map_err(ErroHtmlPrivado::Fonte)?;
         let (identidade, texto) = selecionar(&html, &numero)?;
@@ -259,7 +259,7 @@ mod tests {
         };
         assert_eq!(
             conferir_comando(&documento, None),
-            Err(ErroHtmlPrivado::QuantidadeDeDocumentos)
+            Err(UsoInvalido::QuantidadeDeDocumentos)
         );
         let cli = Cli::try_parse_from([
             "ies",
@@ -276,7 +276,7 @@ mod tests {
         };
         assert_eq!(
             conferir_comando(&documento, None),
-            Err(ErroHtmlPrivado::OpcoesDeDocumentoSemEvidencia)
+            Err(UsoInvalido::OpcoesDeDocumentoSemEvidencia)
         );
     }
 }

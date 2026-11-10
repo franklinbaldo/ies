@@ -82,7 +82,8 @@ fn processo_invalido_do_documento_e_recusado_sem_rede() {
 #[test]
 fn numero_de_documento_repetido_e_recusado_sem_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "0011354", "--json"]);
-    falha_cli::falha(&output, "NumeroSeiRepetido");
+    uso(&output);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("NumeroSeiRepetido"));
     // Zeros à esquerda são parte do número: não é repetição.
     let output = ies_sem_sessao(&["documento", "011354", "0011354", "--json"]);
     falha_fechada(&output);

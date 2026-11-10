@@ -53,14 +53,6 @@ pub(crate) fn data_do_calendario(data: &str) -> Result<String, DataForaDoCalenda
 #[error("{self:?}")]
 pub(crate) struct DataForaDoCalendario;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
-#[error("{self:?}")]
-enum UsoDaBusca {
-    DataInicialPosteriorAFinal,
-    /// Argumentos de `ies documento DOC` não combinam com `buscar`.
-    OpcoesDeLeituraComBuscar,
-}
-
 /// Argumentos de leitura de `ies documento DOC` que não combinam com `buscar`.
 fn opcoes_de_leitura_presentes(comando: &Documento) -> bool {
     !comando.numeros.is_empty()
@@ -172,11 +164,11 @@ fn buscar(
         let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
         let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
         if inicio > fim {
-            return Err(UsoDaBusca::DataInicialPosteriorAFinal.into());
+            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::PeriodoInvertido);
         }
     }
     if opcoes_de_leitura_presentes(comando) {
-        return Err(UsoDaBusca::OpcoesDeLeituraComBuscar.into());
+        crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::OpcoesDeLeituraComBuscar);
     }
     let arquivos = configuracao::arquivos_de_acesso()?;
     let pedido = PedidoDeBusca {

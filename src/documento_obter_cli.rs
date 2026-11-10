@@ -99,7 +99,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     let numeros = &comando.numeros;
     for (i, numero) in numeros.iter().enumerate() {
         if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
-            return Some(Err(UsoDaLeitura::NumeroSeiRepetido.into()));
+            crate::uso_invalido::recusar(crate::uso_invalido::UsoInvalido::NumeroSeiRepetido);
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
@@ -116,14 +116,10 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<anyhow::Result<()>> {
     ))
 }
 
+/// `IES_LIMITE_ANEXO_BYTES` não é um inteiro de 1 a 2147483648.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-enum UsoDaLeitura {
-    /// O mesmo número SEI foi pedido mais de uma vez.
-    NumeroSeiRepetido,
-    /// `IES_LIMITE_ANEXO_BYTES` não é um inteiro de 1 a 2147483648.
-    LimiteDoAnexoInvalido,
-}
+struct LimiteDoAnexoInvalido;
 
 fn obter(
     cli: &Cli,
@@ -134,7 +130,7 @@ fn obter(
     ocultar_inacessiveis: bool,
     com_propriedades: bool,
 ) -> anyhow::Result<()> {
-    let limite = LimiteDoAnexo::do_ambiente().ok_or(UsoDaLeitura::LimiteDoAnexoInvalido)?;
+    let limite = LimiteDoAnexo::do_ambiente().ok_or(LimiteDoAnexoInvalido)?;
     if let Some(diretorio) = saida {
         foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)?;
     }
