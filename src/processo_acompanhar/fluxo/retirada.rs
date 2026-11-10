@@ -58,7 +58,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
     });
     let confirmado = aceite
         && depois.as_deref().is_some_and(|linhas| {
-            super::conferir_remocao(
+            super::super::conferir_remocao(
                 antes,
                 linhas,
                 plano.id_de_remocao.as_deref().unwrap_or_default(),
