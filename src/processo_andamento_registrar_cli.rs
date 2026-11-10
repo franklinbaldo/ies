@@ -44,7 +44,7 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, &causa);
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         match processo_andamento_registrar::registrar(
             sessao,

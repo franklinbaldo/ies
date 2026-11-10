@@ -28,7 +28,7 @@ pub(super) fn executar(
             crate::origem_de_treinamento::Escrita::DocumentoIncluirExterno,
             sessao.origem,
         ) {
-            return crate::origem_de_treinamento::recusa(cli.json, &causa);
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);

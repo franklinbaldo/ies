@@ -84,7 +84,7 @@ fn bdd_620_01_andamento_humano_recusa_antes_de_qualquer_requisicao() {
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert!(saida.stdout.is_empty());
+    assert_eq!(saida.stdout, Vec::<u8>::new());
     let erro = String::from_utf8_lossy(&saida.stderr);
     assert!(erro.contains("origem da sessão"), "{erro}");
     assert!(erro.contains("[origem_fora_do_treinamento]"), "{erro}");

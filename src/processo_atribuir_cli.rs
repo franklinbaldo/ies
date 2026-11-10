@@ -35,7 +35,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
                     sessao.origem,
                 )
             {
-                return crate::origem_de_treinamento::recusa(cli.json, &causa);
+                return crate::origem_de_treinamento::recusa(cli.json, causa);
             }
             let pedido = PedidoDaAtribuicao {
                 nup: &nup,

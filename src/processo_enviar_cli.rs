@@ -99,7 +99,7 @@ fn enviar(
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, &causa);
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         let pedido = PedidoDoEnvio {
             nup,

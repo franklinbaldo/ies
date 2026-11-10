@@ -57,7 +57,7 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, &causa);
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         if pedido == PedidoDePrazo::Excluir {
             exclusao::executar(cli, &nup, *confirmar, sessao, indice)

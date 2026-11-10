@@ -29,8 +29,8 @@ const MENSAGEM: &str =
     "a origem da sessão não é instalação pública de treinamento; nenhuma requisição foi enviada";
 
 /// Saída pública da recusa tipada, antes de qualquer requisição.
-pub(crate) fn recusa(json_mode: bool, causa: &CausaDaOrigem) -> std::process::ExitCode {
-    crate::saida_erro::erro_fonte_tipado(json_mode, causa, MENSAGEM)
+pub(crate) fn recusa(json_mode: bool, causa: CausaDaOrigem) -> std::process::ExitCode {
+    crate::saida_erro::erro_fonte_tipado(json_mode, &causa, MENSAGEM)
 }
 
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
