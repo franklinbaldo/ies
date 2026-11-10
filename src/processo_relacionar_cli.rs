@@ -42,13 +42,12 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     Some(com_sessao(cli, |sessao, indice| {
         // Limite inviolável: escrita só em instalação de treinamento.
         if *confirmar
-            && crate::origem_de_treinamento::exigir(
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoRelacionar,
                 sessao.origem,
             )
-            .is_err()
         {
-            return crate::origem_de_treinamento::recusa(cli.json);
+            return crate::origem_de_treinamento::recusa(cli.json, &causa);
         }
         let pedido = Pedido {
             nup: &nup,

@@ -19,22 +19,18 @@ const ORIGENS: [&str; 8] = [
 
 /// A origem da sessão não é instalação de treinamento: a escrita é
 /// recusada antes de qualquer requisição.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OrigemForaDoTreinamento;
-
-impl OrigemForaDoTreinamento {
-    pub(crate) const SUBCODIGO: &'static str = "origem_fora_do_treinamento";
-    pub(crate) const MENSAGEM: &'static str = "a origem da sessão não é instalação pública de treinamento; nenhuma requisição foi enviada";
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CausaDaOrigem {
+    OrigemForaDoTreinamento,
 }
 
-/// Saída pública da recusa, antes de qualquer requisição.
-pub(crate) fn recusa(json_mode: bool) -> std::process::ExitCode {
-    crate::saida_erro::erro_fonte_http(
-        json_mode,
-        OrigemForaDoTreinamento::SUBCODIGO,
-        OrigemForaDoTreinamento::MENSAGEM,
-        None,
-    )
+const MENSAGEM: &str =
+    "a origem da sessão não é instalação pública de treinamento; nenhuma requisição foi enviada";
+
+/// Saída pública da recusa tipada, antes de qualquer requisição.
+pub(crate) fn recusa(json_mode: bool, causa: &CausaDaOrigem) -> std::process::ExitCode {
+    crate::saida_erro::erro_fonte_tipado(json_mode, causa, MENSAGEM)
 }
 
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
@@ -60,7 +56,7 @@ impl Escrita {
 /// Único ponto de construção de [`OrigemForaDoTreinamento`]. Escrita
 /// aprovada em treinamento grava em qualquer instalação; as demais, só nas
 /// instalações públicas de treinamento.
-pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), OrigemForaDoTreinamento> {
+pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem> {
     if escrita.aprovada_em_treinamento() {
         return Ok(());
     }
@@ -69,7 +65,7 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), OrigemForaDoT
     if aceita {
         Ok(())
     } else {
-        Err(OrigemForaDoTreinamento)
+        Err(CausaDaOrigem::OrigemForaDoTreinamento)
     }
 }
 
@@ -111,7 +107,7 @@ mod tests {
             assert!(
                 matches!(
                     exigir(Escrita::ProcessoAndamento, producao_ou_parecida),
-                    Err(OrigemForaDoTreinamento)
+                    Err(CausaDaOrigem::OrigemForaDoTreinamento)
                 ),
                 "{producao_ou_parecida}"
             );

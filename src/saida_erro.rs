@@ -34,7 +34,7 @@ impl FalhaPublica {
 /// Projeção pública da falha de leitura. A classificação permanece no
 /// erro de domínio; esta estrutura existe apenas na fronteira de saída.
 #[derive(serde::Serialize)]
-struct FalhaFontePublica<'a> {
+struct FalhaFontePublica<'a, S: serde::Serialize + ?Sized> {
     codigo: &'static str,
     erro: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -42,14 +42,14 @@ struct FalhaFontePublica<'a> {
     retentavel: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     status_http: Option<u16>,
-    subcodigo: &'a str,
+    subcodigo: &'a S,
 }
 
-fn falha_fonte_publica<'a>(
-    subcodigo: &'a str,
+fn falha_fonte_publica<'a, S: serde::Serialize + ?Sized>(
+    subcodigo: &'a S,
     mensagem: &'a str,
     http: Option<&'a StatusHttpRecusado>,
-) -> FalhaFontePublica<'a> {
+) -> FalhaFontePublica<'a, S> {
     FalhaFontePublica {
         codigo: "fonte_invalida",
         erro: mensagem,
@@ -111,6 +111,31 @@ pub(crate) fn erro_fonte_http(
         }
     } else {
         eprintln!("{}", linha_humana(subcodigo, mensagem, http));
+    }
+    ExitCode::from(1)
+}
+
+/// Saída tipada: o campo JSON recebe a variante Serde, sem string
+/// manual na camada de domínio. Só a mensagem humana usa sua projeção
+/// textual, já na fronteira de apresentação.
+pub(crate) fn erro_fonte_tipado<S: serde::Serialize>(
+    json_mode: bool,
+    causa: &S,
+    mensagem: &str,
+) -> ExitCode {
+    if json_mode {
+        if let Err(erro) =
+            crate::saida::imprimir_json_compacto(&falha_fonte_publica(causa, mensagem, None))
+        {
+            eprintln!("IES: falha ao emitir JSON: {erro}");
+            return ExitCode::from(1);
+        }
+    } else {
+        let representacao = serde_json::to_value(causa).expect("causa serializável");
+        let identificador = representacao
+            .as_str()
+            .expect("a causa da origem é uma variante unitária");
+        eprintln!("{}", linha_humana(identificador, mensagem, None));
     }
     ExitCode::from(1)
 }

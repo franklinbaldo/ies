@@ -52,13 +52,12 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (10/11/2026): grava também em produção.
         if *confirmar
-            && crate::origem_de_treinamento::exigir(
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoPrazo,
                 sessao.origem,
             )
-            .is_err()
         {
-            return crate::origem_de_treinamento::recusa(cli.json);
+            return crate::origem_de_treinamento::recusa(cli.json, &causa);
         }
         if pedido == PedidoDePrazo::Excluir {
             exclusao::executar(cli, &nup, *confirmar, sessao, indice)
