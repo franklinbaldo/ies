@@ -1,23 +1,58 @@
 ---
 type: OperationEvidence
 title: bloco.obter
+description: "Auditoria da leitura Web de bloco por número e limites da prova independente"
 operation: bloco.obter
 source: todos-demonstration-matrix
 source_commit: 3d4a38c3b5987e4a8fc7f97ded188c4876ed77cd
 writes: false
-ies_implemented: false
+ies_implemented: true
 upstream_steps: 32
 unresolved_steps: 0
 ---
 
 # bloco.obter
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+Origem: matriz de demonstrações do Todos. Os passos abaixo documentam o
+**oráculo histórico**, não o resultado de um replay do IES. As referências
+`#N` são passos de roteiro; o link leva à revisão com o mesmo cenário,
+mas não certifica igualdade de revisão. Confronte os hashes antes de alegar
+paridade.
 
-As referências #N são passos de roteiro; o link leva à revisão com
-o mesmo cenário, mas ainda não certifica igualdade de revisão.
-Confronte os hashes com o manifesto atual antes de alegar paridade.
+## Estado no IES Rust (auditoria #592)
+
+**Implementado parcialmente:** `ies bloco N [--json]` consulta blocos de
+**assinatura** por número publicado na página atual da listagem. O fluxo
+faz 3 GET (Controle → lista → detalhe), **zero POST**. O terceiro GET só
+é enviado se houver exatamente uma linha com número N e href válido.
+`bloco.estado` vem da linha e os campos do detalhe provêm de
+`tblProtocolosBlocos`, conferidos por cabeçalho e legenda.
+
+- **Não publicado na página consultada:** erro
+  `bloco_nao_encontrado_na_pagina` após dois GET, sem concluir ausência
+  global. A CLI não percorre páginas para procurar N.
+- **Detalhe observado vazio:** apenas `total_declarado=0`, sem itens
+  e com `faixa_observada=null` quando a tabela/legenda vazias foram
+  efetivamente observadas. **Detalhe não observado**, tabela ausente ou
+  resposta incoerente não equivalem a vazio e são recusados.
+- **anti-IES/SQLite:** `sim_bloco_linha` publica a identidade e o
+  estado do bloco; `sim_bloco_detalhe`/`sim_bloco_item` preservam a
+  observação de itens. O anti-IES só serve detalhe de assinatura publicado
+  na primeira página e registrado no banco. Ausência de detalhe responde
+  `DadosInsuficientes`, não uma tabela vazia inventada.
+- **Cobertura sintética preexistente:** `tests/aies_bloco_cli.rs` inclui
+  `bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens` (CLI real
+  → HTTPS local → anti-IES → SQLite) e
+  `bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get`.
+  `src/bloco_detalhe.rs` contém teste unitário de legenda truncada.
+  Estes testes não foram reexecutados nesta revisão documental.
+
+**Lacunas:** detalhe por número dos tipos interno/reunião, paginação
+do detalhe e a forma de lista vazia sem `tblProtocolosBlocos`.
+O confronto semântico independente dos leitores IES e anti-IES com
+corpos originais de cassettes continua **NOT_RUN**; o mesmo vale para
+treinamento/live. Integridade e contagens dos cards não são replay.
+
 
 ## unb
 
@@ -84,9 +119,12 @@ Estado registrado no Todos: **demonstrada**.
 
 ## Limite da evidência
 
-As respostas HTTP de ambientes públicos não comprovam, sozinhas,
-corpos integrais de POST, paridade da CLI ou efeito de uma escrita.
-Exija conferência pós-operação antes de declarar sucesso.
+As respostas HTTP dos cards são observações de treinamento, não prova
+automática de paridade da CLI. Esta leitura é sem escrita de domínio,
+mas GET também pode ter efeito administrativo; não houve nova requisição
+ao SEI por esta auditoria. Para confronto semântico, conferir e reproduzir
+os corpos originais separadamente contra o leitor IES e a projeção do
+anti-IES. As lacunas de cobertura permanecem explícitas.
 
 Consulte [cassettes](../../docs/cassettes.md),
 [SEI empiricamente](../../docs/como-o-sei-funciona/README.md)
