@@ -175,6 +175,20 @@ fn executar_cli(
         .unwrap()
 }
 
+/// Testa a mesma prévia na saída humana; não há POST de remoção.
+fn conferir_previa_humana(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta_proxy: u16) {
+    let preview = executar_cli(
+        pasta,
+        arquivos,
+        porta_proxy,
+        &["processo", "marcar", NUP, "--retirar", "501#Revisão"],
+    );
+    assert_eq!(preview.status.code(), Some(0));
+    let humano = String::from_utf8_lossy(&preview.stdout);
+    assert!(humano.contains("Prévia: retirar marcador 501#Revisão"));
+    assert!(humano.contains("A escrita ainda não está disponível"));
+}
+
 #[derive(Clone, Copy)]
 enum Caso {
     AtribuirExistente,
@@ -246,20 +260,8 @@ fn executar(caso: Caso) {
     };
     let argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
     let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
-    // O mesmo plano de retirada, agora na apresentação humana, ainda sem POST.
-    let previa_humana = matches!(caso, Caso::RetirarPresente).then(|| {
-        executar_cli(
-            &pasta,
-            arquivos,
-            porta_proxy,
-            &["processo", "marcar", NUP, "--retirar", "501#Revisão"],
-        )
-    });
-    if let Some(preview) = &previa_humana {
-        assert_eq!(preview.status.code(), Some(0));
-        let humano = String::from_utf8_lossy(&preview.stdout);
-        assert!(humano.contains("Prévia: retirar marcador 501#Revisão"));
-        assert!(humano.contains("A escrita ainda não está disponível"));
+    if matches!(caso, Caso::RetirarPresente) {
+        conferir_previa_humana(&pasta, arquivos, porta_proxy);
     }
     // Segunda execução independente: identidade e ausência de alteração persistidas.
     let releitura = executar_cli(
