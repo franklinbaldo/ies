@@ -34,6 +34,8 @@ pub(crate) enum ErroProcessoObter {
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
     Formulario(#[from] ErroSubmissaoFormulario),
+    /// Credenciais privadas do mesmo login, sem copiar a senha.
+    Credenciais(#[from] crate::sessao_login::ErroLogin),
     Tela(#[from] ErroTelaDoProcesso),
     Arvore(#[from] ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
@@ -73,7 +75,11 @@ impl ErroProcessoObter {
                 "o link do processo no Controle não foi reconhecido"
             }
             Self::CharsetDoControleNaoSuportado => "o charset do Controle não é suportado",
+            Self::Formulario(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)) => {
+                "o SEI recusou a validação de acesso"
+            }
             Self::Formulario(_) => "a pesquisa rápida não foi enviada como observado",
+            Self::Credenciais(erro) => erro.mensagem(),
             Self::Tela(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
                 "a unidade da tela do processo difere da solicitada"
             }
@@ -84,7 +90,7 @@ impl ErroProcessoObter {
                 {
                     "o SEI exige validar o acesso com a senha antes de abrir este processo; falta o arquivo de credenciais privado (IES_CREDENCIAIS_FILE); o IES ainda não faz essa validação"
                 } else {
-                    "o SEI exige validar o acesso com a senha antes de abrir este processo; o IES ainda não faz essa validação"
+                    "o SEI exige validar o acesso com a senha antes de abrir este processo; a validação não foi concluída"
                 }
             }
             Self::Tela(_) => "a tela do processo não foi reconhecida",

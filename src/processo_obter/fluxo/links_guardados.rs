@@ -78,10 +78,12 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         Ok(tela) => tela,
         // Unidade distinta ou validação de senha não são link envelhecido:
         // nenhum outro caminho pode contornar essa recusa de acesso.
-        Err(
-            erro @ (ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada
-            | ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso),
-        ) => {
+        Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
+            return rede
+                .validar_e_abrir(contexto, link.url(), &html, &id)
+                .map(|(arvore, unidade)| Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
+        }
+        Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
             return Err(E::Tela(erro));
         }
         // Não é a tela deste processo: o link envelheceu.
