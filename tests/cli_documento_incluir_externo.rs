@@ -239,7 +239,7 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
 }
 
 #[test]
-fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
+fn numero_invalido_expoe_o_tipo_da_causa() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",

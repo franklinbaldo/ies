@@ -125,7 +125,7 @@ fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
 }
 
 #[test]
-fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
+fn troca_para_r_recusada_pelo_servidor_sobe_o_status() {
     let (resultado, registro) = resumida(
         d().html(),
         Categoria::Recebidos,

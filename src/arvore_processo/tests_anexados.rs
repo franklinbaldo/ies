@@ -195,34 +195,15 @@ fn endereco_e_campos_fixos_do_anexado_na_forma_observada() {
 }
 
 #[test]
-fn subcodigos_estaveis_do_anexado() {
-    let casos = [
-        (
-            super::ErroArvore::Html(ErroHtml::valor("processo_anexado_fora_da_forma_observada")),
-            "processo_anexado_fora_da_forma_observada",
-        ),
-        (
-            super::ErroArvore::NupDoNoDoProcessoAnexadoInconsistente,
-            "nup_do_no_do_processo_anexado_inconsistente",
-        ),
-        (
-            super::ErroArvore::ProcessoAnexadoComPaiDiferenteDoProcesso,
-            "processo_anexado_com_pai_diferente_do_processo",
-        ),
-        (
-            super::ErroArvore::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
-            "processo_anexado_repetido_na_arvore",
-        ),
-        (
-            super::ErroArvore::ProcessoAnexadoIgualAoProcesso,
-            "processo_anexado_igual_ao_processo",
-        ),
-        (
-            super::ErroArvore::NoComPaiNoProcessoAnexado,
-            "no_com_pai_no_processo_anexado",
-        ),
-    ];
-    for (erro, _subcodigo) in casos {
+fn anexado_fora_da_forma_nao_e_divergencia_do_pedido() {
+    for erro in [
+        super::ErroArvore::Html(ErroHtml::valor("processo_anexado_fora_da_forma_observada")),
+        super::ErroArvore::NupDoNoDoProcessoAnexadoInconsistente,
+        super::ErroArvore::ProcessoAnexadoComPaiDiferenteDoProcesso,
+        super::ErroArvore::Html(ErroHtml::repetido("processo_anexado_repetido_na_arvore")),
+        super::ErroArvore::ProcessoAnexadoIgualAoProcesso,
+        super::ErroArvore::NoComPaiNoProcessoAnexado,
+    ] {
         assert!(!erro.diverge_do_pedido());
     }
 }

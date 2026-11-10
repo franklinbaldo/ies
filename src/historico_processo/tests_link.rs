@@ -151,22 +151,3 @@ fn link_de_outro_processo_e_recusa() {
         Err(super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso)
     );
 }
-
-#[test]
-fn subcodigos_estaveis() {
-    let todos = [
-        super::ErroLinkDoHistorico::Html(ErroHtml::html("html_da_arvore_nao_interpretado")),
-        super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore,
-        super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
-            "links_do_historico_repetidos_na_arvore",
-        )),
-        super::ErroLinkDoHistorico::Html(ErroHtml::valor(
-            "link_do_historico_fora_da_forma_observada",
-        )),
-        super::ErroLinkDoHistorico::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido")),
-        super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso,
-    ];
-    for erro in todos {
-        let _s = crate::erro_publico::rotulo(&erro);
-    }
-}

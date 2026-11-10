@@ -118,21 +118,6 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
 }
 
 #[test]
-fn subcodigos_estaveis() {
-    let _nomes: Vec<_> = [
-        super::ErroAndamentos::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")),
-        super::ErroAndamentos::Html(ErroHtml::valor(
-            "legenda_dos_andamentos_fora_da_forma_observada",
-        )),
-        super::ErroAndamentos::AndamentosAlemDoTotalDeclarado,
-        super::ErroAndamentos::TipoDoHistoricoNaoPublicado,
-        super::ErroAndamentos::CharsetDoHistoricoNaoSuportado,
-        super::ErroAndamentos::RegraDeVerHistoricoNaoObservada,
-        super::ErroAndamentos::VisaoDoHistoricoDiferenteDaPedida,
-        super::ErroAndamentos::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado),
-    ]
-    .iter()
-    .map(|e| crate::erro_publico::rotulo(&e))
-    .collect();
+fn historico_completo_e_pedido_como_completo() {
     assert_eq!(TipoDoHistorico::Completo.como_texto(), "completo");
 }

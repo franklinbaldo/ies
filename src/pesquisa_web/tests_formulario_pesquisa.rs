@@ -297,43 +297,6 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     );
 }
 
-#[test]
-fn subcodigos_das_regras_sao_distintos() {
-    let todos = [
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_processos_ausente_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
-            "opcoes_de_processos_repetidas_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_processos_sem_valor_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
-        ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "seletor_de_orgao_de_pesquisa_ausente_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
-            "seletores_de_orgao_de_pesquisa_repetidos_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
-        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_orgao_selecionada_sem_valor_na_tela",
-        )),
-        ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela,
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::html(
-            "entidade_html_desconhecida_na_regra",
-        )),
-    ];
-    let unicos: std::collections::HashSet<_> = todos
-        .iter()
-        .map(|e| crate::erro_publico::rotulo(&e))
-        .collect();
-    assert_eq!(unicos.len(), todos.len());
-}
-
 /// Como no navegador: opção `selected` desabilitada (própria ou por
 /// `optgroup disabled`) não é serializada; nenhuma outra é inventada.
 #[test]

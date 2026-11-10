@@ -102,7 +102,7 @@ fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
 
-fn subcodigo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
+fn rotulo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
     // No POST, a tela de login vira a recusa do envio do formulário.
     if resp.metodo == "POST" && *falha == FalhaTransporte::PaginaDeLoginRecebidaNoControle {
         return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
@@ -121,7 +121,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let html = match transporte(resp) {
         Ok(html) => html,
         Err(falha) => {
-            t.resultado = Resultado::Recusado(subcodigo_do_transporte(resp, &falha));
+            t.resultado = Resultado::Recusado(rotulo_do_transporte(resp, &falha));
             if let Some(local) = gravacao::localizacao(resp.interacao) {
                 let acao = parametro_de(local, "acao").unwrap_or("outra");
                 t.formas.push(format!("location_acao_{acao}"));

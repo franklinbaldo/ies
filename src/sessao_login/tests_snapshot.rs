@@ -89,7 +89,7 @@ fn troca_de_unidade_entre_url_e_cookie_rele_e_entrega_a_url_nova() {
 }
 
 #[test]
-fn geracao_trocada_nas_duas_leituras_falha_fechado_com_subcodigo_proprio() {
+fn geracao_trocada_nas_duas_leituras_falha_fechado_com_erro_proprio() {
     let ambiente = Ambiente::novo();
     logar(&ambiente, &url_do_controle(), COOKIE_A);
     let mut vezes = 0;

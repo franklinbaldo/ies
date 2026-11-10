@@ -192,6 +192,3 @@ fn marcador_repetido_na_tela_e_recusa() {
         ErroMarcadores::Html(ErroHtml::repetido("marcador_repetido_na_tela"))
     );
 }
-
-#[test]
-fn subcodigos_estaveis() {}

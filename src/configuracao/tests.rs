@@ -49,7 +49,7 @@ fn configuracao_valida_devolve_so_os_caminhos() {
 }
 
 #[test]
-fn ausente_tem_causa_distinta_e_subcodigo_publico_legado() {
+fn ausente_tem_causa_distinta() {
     let pasta = Pasta::nova();
     let causa = ler_configuracao_local(&pasta.arquivo()).err().unwrap();
     assert_eq!(causa, FalhaConfiguracaoLocal::Ausente);

@@ -130,20 +130,6 @@ fn formulario_get_e_select_multiple_sao_recusados() {
     );
 }
 
-#[test]
-fn subcodigos_publicos_do_leitor_sao_estaveis() {}
-
-/// Uma causa tipada pode ser classificada repetidas vezes, sem clonagem
-/// de seu contexto ou transferência de propriedade para apresentação.
-#[test]
-fn subcodigo_do_erro_nao_consume_a_causa_tipificada() {
-    let erro = ErroAtribuir::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"));
-    assert_eq!(
-        erro,
-        ErroAtribuir::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))
-    );
-}
-
 /// Um valor numérico precisa identificar um único usuário; caso contrário,
 /// escolher pelo login poderia atribuir a outra pessoa.
 #[test]

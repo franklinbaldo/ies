@@ -101,7 +101,7 @@ fn get_de_ciencia_falha_de_rede_preserva_o_erro_tipificado() {
 // RED #271: a recusa por validação Infra usa HTTP 200, mas a CLI precisa
 // publicar status_http=200 no JSON, sem confundir com aceite bem-sucedido.
 #[test]
-fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
+fn recusa_da_infra_carrega_a_mensagem_e_nao_repete_o_get() {
     let mut respostas = abertura(arvore(&[UNIDADE], &botao()));
     respostas.extend([
         ok(tela()),

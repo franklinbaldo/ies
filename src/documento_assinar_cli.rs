@@ -7,8 +7,8 @@
 use crate::arvore_processo::Assinante;
 use crate::documento::NumeroDocumento;
 use crate::documento_assinar::{
-    Confirmacao, DocumentoAssinado, ErroAssinar, FalhaDoEnvio, PedidoDaAssinatura,
-    ResultadoDaAssinatura, assinar_documento, edicao_como_texto,
+    Confirmacao, DocumentoAssinado, ErroAssinar, PedidoDaAssinatura, ResultadoDaAssinatura,
+    assinar_documento, edicao_como_texto,
 };
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -104,10 +104,6 @@ fn json_das_assinaturas(lista: &[Assinante]) -> Value {
         .expect("assinaturas públicas só possuem valores JSON")
 }
 
-pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    json!(format!("{falha:?}"))
-}
-
 /// JSON do sucesso (prévia, já assinado, ou assinado e conferido).
 pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
     let (confirmado, alterado, ja_assinado, assinaturas_depois, edicao_depois, reconciliado_por) =
@@ -151,7 +147,7 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
         "requisicoes": feito.requisicoes,
     });
     if let (Some(falha), Some(objeto)) = (reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
+        objeto.insert("falha_do_envio".to_owned(), json!(format!("{falha:?}")));
     }
     valor
 }

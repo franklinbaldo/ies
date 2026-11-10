@@ -226,12 +226,6 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
 }
 
 #[test]
-fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
-    // O código público continua sendo a folha, mas a causa deve incluir
-    // cada etapa tipada do fluxo, sem depender de textos para classificar.
-}
-
-#[test]
 fn resultado_tipado_distingue_previa_de_criacao_com_numero_observado() {
     // Contrato da #246: não representar "confirmado" sem número SEI.
     // O enum elimina bool + Option<String> independentes.

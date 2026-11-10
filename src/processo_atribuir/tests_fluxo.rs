@@ -118,9 +118,9 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
 
-// RED #264: um único estado tipado deve comandar os dois campos JSON legados.
+// #264: um único estado tipado comanda `confirmado` e `alterado`.
 #[test]
-fn estado_tipado_publica_json_legado_sem_combinacoes_ambiguas() {
+fn estado_tipado_comanda_confirmado_e_alterado() {
     let (previa, pedidos_previa_observados) = rodar(Some("aluno2"), respostas_previa("aluno20"));
     let previa = previa.unwrap();
     assert_eq!(previa.estado, EstadoDaAtribuicao::Previa);
@@ -223,7 +223,7 @@ fn tela_recusada_preserva_o_status_http_e_nao_faz_post() {
 }
 
 #[test]
-fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
+fn http_403_sobe_status_e_mensagem_sem_repetir_requisicao() {
     let mut respostas = abertura(arvore_atual("aluno20"));
     respostas.push(Ok((
         403,

@@ -159,24 +159,15 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
 }
 
 #[test]
-fn subcodigos_estaveis_do_vinculo() {
-    for (erro, _subcodigo) in [
-        (
-            super::ErroArvore::Html(ErroHtml::valor(
-                "vinculo_de_anexacao_fora_da_forma_observada",
-            )),
+fn vinculo_fora_da_forma_nao_e_divergencia_do_pedido() {
+    for erro in [
+        super::ErroArvore::Html(ErroHtml::valor(
             "vinculo_de_anexacao_fora_da_forma_observada",
-        ),
-        (
-            super::ErroArvore::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
-            "vinculos_de_anexacao_repetidos",
-        ),
-        (
-            super::ErroArvore::Html(ErroHtml::html(
-                "html_do_no_do_processo_fora_da_forma_observada",
-            )),
+        )),
+        super::ErroArvore::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
+        super::ErroArvore::Html(ErroHtml::html(
             "html_do_no_do_processo_fora_da_forma_observada",
-        ),
+        )),
     ] {
         assert!(!erro.diverge_do_pedido());
     }

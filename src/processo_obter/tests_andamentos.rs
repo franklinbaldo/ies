@@ -317,6 +317,3 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
     assert_eq!(pedidos[0], post(&absoluta(&action_rapida()), CORPO_RAPIDO));
     assert_eq!(pedidos.last(), Some(&get(&url_historico(ID))));
 }
-
-#[test]
-fn subcodigos_dos_novos_erros_do_fluxo() {}

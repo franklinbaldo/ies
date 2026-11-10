@@ -299,19 +299,3 @@ fn destino_fora_da_forma_e_recusa() {
         );
     }
 }
-
-#[test]
-fn subcodigos_estaveis() {
-    let _nomes: Vec<&str> = [
-        super::ErroArvore::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
-        super::ErroArvore::DocumentoMovidoComPaiDiferenteDoProcesso,
-        super::ErroArvore::Html(ErroHtml::repetido("documento_movido_repetido_na_arvore")),
-        super::ErroArvore::Html(ErroHtml::valor(
-            "destino_do_documento_movido_fora_da_forma_observada",
-        )),
-        super::ErroArvore::Html(ErroHtml::repetido("destinos_do_documento_movido_repetidos")),
-    ]
-    .into_iter()
-    .map(|e| crate::erro_publico::rotulo(&e))
-    .collect();
-}

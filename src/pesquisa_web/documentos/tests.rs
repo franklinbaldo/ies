@@ -246,9 +246,6 @@ fn redirecionamento_sem_id_documento_e_recusado() {
 }
 
 #[test]
-fn subcodigos_da_linha_de_documento_sao_estaveis() {}
-
-#[test]
 fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
     // PEN3 5.0.4: `class="protocoloNormal processoVisitado" … class="protocoloNormal"`.
     let linha = linha_de_documento(1, false);

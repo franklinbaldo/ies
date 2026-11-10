@@ -372,44 +372,6 @@ fn infra_sistema_ausente_repetido_ou_nao_decimal_na_url_do_envio_falha_fechado()
 }
 
 #[test]
-fn subcodigos_sao_estaveis_e_distintos() {
-    let todos = [
-        ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAusente,
-        ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoAcimaDoLimite,
-        ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
-        ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao,
-        ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
-        ErroRedirecionamentoDaPesquisa::IdProcedimentoAusenteNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::IdProcedimentoRepetidoNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraHashAusenteNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraHashRepetidoNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraHashForaDoFormatoNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNaUrlDoEnvio,
-        ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNaUrlDoEnvio,
-        ErroRedirecionamentoDaPesquisa::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
-        ErroRedirecionamentoDaPesquisa::AcaoDeOrigemAusenteNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::AcaoDeOrigemRepetidaNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaRepetidoNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNoRedirecionamento,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNaUrlDoEnvio,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaRepetidoNaUrlDoEnvio,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaNaoDecimalNaUrlDoEnvio,
-        ErroRedirecionamentoDaPesquisa::InfraSistemaDoRedirecionamentoDiferenteDoEnvio,
-    ];
-    let unicos: std::collections::HashSet<_> = todos
-        .iter()
-        .map(|e| crate::erro_publico::rotulo(&e))
-        .collect();
-    assert_eq!(unicos.len(), todos.len());
-}
-
-#[test]
 fn redirect_de_documento_na_pesquisa_rapida_nao_aceita_id_protocolo() {
     let envio = url_do_envio().replace("protocolo_pesquisar", "protocolo_pesquisa_rapida");
     let destino = format!(
