@@ -176,3 +176,46 @@ pub fn ler(
     }
     Ok(Some(observacao))
 }
+
+/// Retira uma associação observada, atomicamente, sem alterar o catálogo da unidade.
+/// Exclusivo do simulador: nenhum acesso à instalação SEI.
+///
+/// # Errors
+/// Rejeita identidade ausente, processo não observado ou falha SQLite.
+pub fn retirar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    id_marcador: &str,
+) -> Result<(), Falha> {
+    if id_marcador.is_empty() || !id_marcador.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(Falha::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    let lidos = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    if !lidos.itens.iter().any(|m| m.id == id_marcador) {
+        return Err(Falha::DadoInvalido);
+    }
+    let alteradas = tx.execute(
+        "DELETE FROM processo_marcador_linha
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
+         AND id_marcador=?5",
+        params![origem.url_base(), cenario, id, unidade, id_marcador],
+    )?;
+    if alteradas != 1 {
+        return Err(Falha::DadoInvalido);
+    }
+    let alteradas = tx.execute(
+        "UPDATE processo_marcadores_observados SET total_declarado=total_declarado-1
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
+         AND total_declarado=?5",
+        params![origem.url_base(), cenario, id, unidade, lidos.total_declarado],
+    )?;
+    if alteradas != 1 {
+        return Err(Falha::DadoInvalido);
+    }
+    tx.commit()?;
+    Ok(())
+}
