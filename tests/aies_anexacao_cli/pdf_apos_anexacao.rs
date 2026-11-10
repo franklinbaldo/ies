@@ -53,12 +53,7 @@ pub(super) fn preparar(banco: &Connection, instalacao: &Instalacao) {
 
 /// Executa o binário real em loopback, sempre sem cache do conteúdo.
 /// `--saida` materializa a identidade pela foto do PDF e bytes preservados.
-pub(super) fn baixar(
-    pasta: &Pasta,
-    arquivos: [&Path; 4],
-    porta: u16,
-    etapa: &str,
-) -> Vec<u8> {
+pub(super) fn baixar(pasta: &Pasta, arquivos: [&Path; 4], porta: u16, etapa: &str) -> Vec<u8> {
     let destino = pasta.0.join(format!("pdf_{etapa}"));
     fs::create_dir(&destino).unwrap();
     let saida = cli(
@@ -86,12 +81,7 @@ pub(super) fn baixar(
     fs::read(destino.join("050000001.pdf")).unwrap()
 }
 
-pub(super) fn conferir(
-    antes: &Output,
-    depois: &Output,
-    pdf_antes: &[u8],
-    pdf_depois: &[u8],
-) {
+pub(super) fn conferir(antes: &Output, depois: &Output, pdf_antes: &[u8], pdf_depois: &[u8]) {
     assert_eq!(
         antes.status.code(),
         Some(0),
