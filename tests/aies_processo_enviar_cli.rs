@@ -154,10 +154,10 @@ fn selecionar_unidade_destino(banco: &mut Connection, instalacao: &Instalacao, u
 
 /// O anti-IES recebe todos os pedidos e mantém o mesmo SQLite entre CLIs.
 fn atender_simulador(
-    escuta: TcpListener,
-    parar: Arc<AtomicBool>,
-    trocar: Arc<AtomicBool>,
-    recusar_destino: Arc<AtomicBool>,
+    escuta: &TcpListener,
+    parar: &AtomicBool,
+    trocar: &AtomicBool,
+    recusar_destino: &AtomicBool,
     anotacao: Option<&'static str>,
     trocar_apos_primeiro: Option<&'static str>,
 ) -> ProcessoSimulado {
@@ -166,7 +166,7 @@ fn atender_simulador(
         .unwrap()
         .unwrap();
     assert_eq!(antes.aberto_em, ["ORIGEM"]);
-    while let Some(mut tcp) = aceitar(&escuta, &parar) {
+    while let Some(mut tcp) = aceitar(escuta, parar) {
         if trocar.swap(false, Ordering::SeqCst) {
             selecionar_unidade_destino(
                 &mut banco,
@@ -255,10 +255,10 @@ fn executar_com_troca_de_unidade(
     let recusar_no_simulador = Arc::clone(&recusar_destino);
     let simulador = thread::spawn(move || {
         atender_simulador(
-            escuta,
-            parar_sim,
-            trocar_sim,
-            recusar_no_simulador,
+            &escuta,
+            &parar_sim,
+            &trocar_sim,
+            &recusar_no_simulador,
             anotacao,
             trocar_apos_primeiro,
         )
