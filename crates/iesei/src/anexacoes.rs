@@ -106,7 +106,9 @@ pub fn anexar(
     ) {
         Ok(1) => Ok(()),
         Ok(_) => Err(Falha::DadoInvalido),
-        Err(e) if matches!(e, rusqlite::Error::SqliteFailure(_, _)) => Err(Falha::JaAnexado),
+        // A origem do erro SQL deve sobreviver: UNIQUE, FOREIGN KEY e I/O
+        // não são sinônimos de "já anexado". A duplicidade observada acima
+        // conserva sua própria variante tipada.
         Err(e) => Err(Falha::Sqlite(e)),
     }
 }

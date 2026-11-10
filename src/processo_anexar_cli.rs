@@ -1,4 +1,4 @@
-//! CLI da prévia segura de anexação; confirmação ainda fechada antes da rede.
+//! CLI de anexação: prévia e confirmação única, com prova independente.
 use crate::processo::NumeroProcesso;
 use crate::processo_anexar::fluxo::{FalhaAnexar, Pedido, Previa, ResultadoAnexacao, prever};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
@@ -65,7 +65,7 @@ fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
             json!({
                 "codigo": "operacao_recusada",
                 "subcodigo": subcodigo,
-                "erro": "anexação não autorizada pela tela ou confirmação pendente",
+                "erro": "anexação recusada pela tela ou pelos dados informados",
                 "retentavel": false,
             })
         );
