@@ -3,6 +3,7 @@
 use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
 use iesei::{anexacoes, instalacao::Instalacao, processos};
 use rusqlite::Connection;
+use std::fmt::Write as _;
 
 fn contexto<'a>(
     alvo: &'a str,
@@ -21,16 +22,16 @@ fn contexto<'a>(
 
 fn formulario(id: &str, anexados: &[anexacoes::Anexado]) -> Resposta {
     let hash = crate::protocolo_sintetico::INFRA_HASH;
-    let linhas = anexados
-        .iter()
-        .map(|a| {
-            format!(
-                "<tr><td><input type=\"checkbox\" value=\"{}\" /></td><td>{}</td></tr>",
-                escapar(&a.id),
-                escapar(&a.numero)
-            )
-        })
-        .collect::<String>();
+    let mut linhas = String::new();
+    for a in anexados {
+        write!(
+            linhas,
+            "<tr><td><input type=\"checkbox\" value=\"{}\" /></td><td>{}</td></tr>",
+            escapar(&a.id),
+            escapar(&a.numero)
+        )
+        .expect("formatacao String");
+    }
     let tabela = if anexados.is_empty() {
         String::new()
     } else {
