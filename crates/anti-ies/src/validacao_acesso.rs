@@ -43,7 +43,9 @@ pub(crate) fn responder(
     // O valor nao e guardado, comparado com senha real ou exibido.
     let campos: Vec<_> = corpo.split('&').collect();
     if campos.len() != 1
-        || campos[0].strip_prefix("txtSenha=").is_none_or(str::is_empty)
+        || campos[0]
+            .strip_prefix("txtSenha=")
+            .is_none_or(str::is_empty)
     {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
