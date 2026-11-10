@@ -11,6 +11,7 @@ use crate::erro_html::ErroHtml;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso,
@@ -93,7 +94,7 @@ pub(crate) enum ErroCienciaDocumento {
     TelaNaoPublicada,
     OrigemNaoAutorizada,
     #[causa(interna)]
-    Cookie(FalhaTransporte),
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Tela(FalhaTransporte),
     TelaRedirecionada,
@@ -134,7 +135,8 @@ impl ErroCienciaDocumento {
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
             Self::Abertura(e) => e.status_http(),
-            Self::Cookie(e) | Self::Tela(e) => e.status_http(),
+            Self::Cookie(e) => e.status_http(),
+            Self::Tela(e) => e.status_http(),
             Self::EfeitoIncerto {
                 falha_do_aceite, ..
             } => falha_do_aceite
@@ -194,7 +196,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &feito.id_procedimento,
     )
     .ok_or(E::TelaNaoPublicada)?;
-    let cookie = ler_cookie(sessao).map_err(E::Cookie)?;
+    let cookie = ler_cookie(sessao)?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,

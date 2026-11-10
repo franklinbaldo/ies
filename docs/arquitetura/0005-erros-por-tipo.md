@@ -92,9 +92,11 @@ Restam à mão:
   `ErroCriar::Transporte` já guarda a causa (`FalhaTransporte`,
   `ErroSubmissaoFormulario`); os motivos da releitura da ciência são
   `VerificacaoDaCiencia` e `VerificacaoDaCienciaDoDocumento`.
-- **Etapas achatadas** (tipo interno repetido): `ErroLogin` e
-  `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
-  (`ErroSubmissaoFormulario`).
+- **Etapas achatadas** (tipo interno repetido): resolvidas com um tipo
+  próprio por etapa, declarado junto de quem levanta o erro e composto por
+  `From` (`CookieIlegivel`, `CredenciaisIlegiveis`, `OrigemIlegivel`,
+  `SessaoGravadaInvalida`, `HistoricoNaoPedido`, `ErroDasAnotacoes`).
+  Variante `transparente` mantém o motivo concreto como nome público.
 
 Terceira passada (10/11/2026): o derive deixou de aceitar
 `#[causa(nome = "...")]`. Os 272 atributos saíram; o nome público é o

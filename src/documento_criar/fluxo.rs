@@ -16,6 +16,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
@@ -101,10 +102,12 @@ pub(crate) struct ResultadoCriacao {
 
 #[derive(crate::erro_publico::Causa)]
 pub(crate) enum ErroPreviaCriacao {
+    /// O cookie privado da sessão não pôde ser lido.
+    #[causa(interna)]
+    Cookie(CookieIlegivel),
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    OrigemNaoAutorizada,
     UnidadeNaoPublicada,
     SituacaoNaoLida,
     ProcessoNaoAbertoNaUnidade,
@@ -154,7 +157,7 @@ impl ErroPreviaCriacao {
         match self {
             Self::Abertura(erro) => erro.status_http(),
             Self::Formulario(erro) => erro.status_http(),
-            Self::Transporte(erro) | Self::TelaTransporte(erro) => erro.status_http(),
+            Self::TelaTransporte(erro) => erro.status_http(),
             Self::EfeitoIncertoNoEnvio(causa) => causa.status_http(),
             Self::EfeitoIncertoNaReleitura(causa) => causa.status_http(),
             _ => None,
@@ -199,8 +202,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     if confirmar {
         validar_nivel_de_confirmacao(pedido.nivel)?;
     }
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -214,7 +216,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         return Err(E::ProcessoNaoAbertoNaUnidade);
     }
     let link = acoes.incluir?.ok_or(E::LinkNaoPublicado)?;
-    let cookie = ler_cookie(sessao).map_err(E::Transporte)?;
+    let cookie = ler_cookie(sessao)?;
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
     let mut tipos = tipos_oferecidos(&html_lista)?;

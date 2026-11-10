@@ -10,6 +10,7 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::escrita::{
     Contador, FalhaDaTela, leitura, ler_cookie, obter_tela, siglas_abertas,
 };
@@ -35,14 +36,13 @@ pub(crate) struct Previa {
 pub(crate) enum Erro {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(interna)]
-    Barra(ErroHtml),
-    #[causa(interna)]
-    Leitura(ErroHtml),
+    /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
+    #[causa(transparente)]
+    Html(ErroHtml),
     #[causa(interna)]
     Transporte(FalhaTransporte),
     #[causa(interna)]
-    Cookie(FalhaTransporte),
+    Cookie(CookieIlegivel),
     TelaRedirecionada,
     #[causa(sessao_encerrada)]
     SessaoEncerrada,
@@ -78,18 +78,14 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         return Err(Erro::ProcessoForaDaUnidade);
     }
     let id = aberto.arvore.processo.id;
-    let url = acoes
-        .anotacoes
-        .map_err(Erro::Barra)?
-        .ok_or(Erro::AnotacaoNaoOferecida)?;
-    let cookie = ler_cookie(sessao).map_err(Erro::Cookie)?;
+    let url = acoes.anotacoes?.ok_or(Erro::AnotacaoNaoOferecida)?;
+    let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
         FalhaDaTela::Redirecionada => Erro::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada => Erro::SessaoEncerrada,
     })?;
-    let anotacao_antes =
-        crate::processo_enviar::texto_anotacao(&html, &id).map_err(Erro::Leitura)?;
+    let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
     let mut alterado = false;
     if confirmar {
         if !anotacao_antes.trim().is_empty() {
@@ -111,8 +107,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             &servida,
             "",
             &[("txaDescricao", texto)],
-        )
-        .map_err(Erro::Formulario)?;
+        )?;
         let mut enviada = false;
         let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
             enviada = true;
