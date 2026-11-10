@@ -76,7 +76,6 @@ restauração de tela.
 | `prazo_nao_publicado_na_barra` | Ação ausente |
 | `tela_de_prazo_redirecionada` | GET não publicou HTML 200 |
 | `sessao_encerrada_ao_ler_prazo` | Login no lugar da tela |
-| `origem_fora_do_treinamento` | `--confirmar` numa origem que não é instalação de treinamento; nada é enviado |
 | `confirmar_sem_alteracao_de_prazo` | `--confirmar` sem `--ate`, `--dias` ou `--excluir` (uso, saída 2) |
 
 Falhas do transporte e da abertura preservam os subcódigos específicos das
