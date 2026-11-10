@@ -20,10 +20,10 @@ use crate::transporte::StatusHttpRecusado;
 /// O formulário `verHistorico('P')` não foi derivado nem enviado como
 /// observado. Tipo próprio da etapa do histórico completo, distinto da
 /// pesquisa rápida; o nome público é o do formulário (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum HistoricoNaoPedido {
-    #[causa(transparente)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
 }
 
 impl HistoricoNaoPedido {
@@ -136,7 +136,7 @@ fn pelo_link_da_arvore<V: EnvioDoProcesso>(
             })
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada),
+        Lida::Login => Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => Err(E::Transporte(falha)),
     }
 }
@@ -175,11 +175,11 @@ fn ver_completo<V: EnvioDoProcesso>(
                 DestinoDoRedirecionamento::Outro => {
                     E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
                 }
-                _ => E::SessaoEncerrada,
+                _ => E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
             });
         }
         Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => {
-            return Err(E::SessaoEncerrada);
+            return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
         }
         Err(ErroSubmissaoFormulario::Transporte(falha)) => return Err(E::Transporte(falha)),
         Err(outro) => return Err(HistoricoNaoPedido::Formulario(outro).into()),

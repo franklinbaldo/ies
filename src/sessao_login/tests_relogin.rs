@@ -159,7 +159,9 @@ fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
     let status = || StatusHttpRecusado::sem_mensagem(302);
     assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
     assert!(FalhaTransporte::ControleRedirecionadoParaOLogin(status()).sessao_encerrada());
-    assert!(ErroProcessoObter::SessaoEncerrada.sessao_encerrada());
+    assert!(
+        ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada).sessao_encerrada()
+    );
     // A composição pergunta ao erro interno.
     assert!(
         ErroProcessoObter::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)

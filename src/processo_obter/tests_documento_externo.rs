@@ -354,7 +354,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
     let amb = ambiente();
     let (r, _) = rodar(
@@ -376,7 +378,9 @@ fn redirect_para_o_login_e_sessao_encerrada_e_tipo_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         r.unwrap_err(),
-        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada)
+        ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
     );
 }
 

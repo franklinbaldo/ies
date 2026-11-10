@@ -5,9 +5,7 @@
 //! um tipo só, e não um `enum` por leitor. `onde` é o diagnóstico e a folha
 //! pública (o `subcodigo` legado); `problema` diz o que se viu. `pub`
 //! porque compõe `enum` públicos (`ErroComentarios`); o módulo é privado.
-use crate::erro_publico::Causa;
 use crate::html_atributos::ErroAtributoHtml;
-use crate::transporte::StatusHttpRecusado;
 
 /// Onde a leitura da tela falhou e o que se viu. A igualdade é por `onde` e
 /// `problema`: a mensagem é apresentação, não classificação.
@@ -21,7 +19,8 @@ pub struct ErroHtml {
 }
 
 /// O que a leitura viu no lugar da forma observada.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Problema {
     /// O elemento não está na tela.
     Ausente,
@@ -32,8 +31,7 @@ pub(crate) enum Problema {
     /// O HTML não pôde ser interpretado.
     Html,
     /// A tag de abertura não pôde ser lida.
-    #[causa(interna)]
-    Atributo(ErroAtributoHtml),
+    Atributo(#[from] ErroAtributoHtml),
 }
 
 impl Problema {
@@ -90,19 +88,18 @@ impl PartialEq for ErroHtml {
     }
 }
 
-impl Causa for ErroHtml {
-    fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        None
-    }
-
-    fn sessao_encerrada(&self) -> bool {
-        false
+impl std::fmt::Display for ErroHtml {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.mensagem)
     }
 }
+
+impl std::error::Error for ErroHtml {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::erro_publico::Causa;
 
     #[test]
     fn folha_e_onde_e_caminho_e_o_problema() {
@@ -120,10 +117,10 @@ mod tests {
         assert_ne!(erro, ErroHtml::ausente("x"));
     }
 
-    #[derive(Debug, crate::erro_publico::Causa)]
+    #[derive(Debug, thiserror::Error)]
+    #[error("{self:?}")]
     enum Leitor {
-        #[causa(transparente)]
-        Html(ErroHtml),
+        Html(#[from] ErroHtml),
     }
 
     #[test]

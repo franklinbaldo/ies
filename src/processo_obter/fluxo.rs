@@ -300,7 +300,7 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(E::SessaoEncerrada),
+        Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Html { .. } => {
             return Err(E::RespostaDaEntradaPorIdNaoReconhecida(
                 StatusHttpRecusado::sem_mensagem(200),
@@ -320,7 +320,9 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
             contexto.indice.registrar_entrada_por_id(instalacao, false);
             return Err(E::EntradaPorIdRecusada);
         }
-        DestinoDoRedirecionamento::Login => return Err(E::SessaoEncerrada),
+        DestinoDoRedirecionamento::Login => {
+            return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
+        }
         DestinoDoRedirecionamento::Outro => {}
     }
     let origem = OrigemDoTrabalho::EntradaPorId { id: &id };
@@ -448,7 +450,7 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
         |erro| match erro {
             ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
-                E::SessaoEncerrada
+                E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
             outro => E::Controle(outro),
         },
@@ -485,5 +487,5 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &[(CAMPO, valor)],
     )?;
     rede.pesquisar(contexto, submissao, valor)?
-        .ok_or(E::SessaoEncerrada)
+        .ok_or(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada))
 }

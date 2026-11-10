@@ -16,7 +16,8 @@ pub(crate) struct Retorno {
     pub(crate) prazo_restante: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRetornos {
     TelaDeRetornosDesconhecida,
     ListaDeRetornosIncompleta,

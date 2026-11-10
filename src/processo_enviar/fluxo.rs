@@ -258,7 +258,9 @@ fn ler_anotacao_antes<V: EnvioDoProcesso>(
         FalhaDaTela::Redirecionada => {
             C::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada)
         }
-        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            C::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     })?;
     let presente = super::anotacoes::anotacao_presente(&html, id)
         .map_err(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes)?;
@@ -354,7 +356,9 @@ fn ler_tela<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(rede, cookie, url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(falha) => C::TelaDaEscrita(falha),
         FalhaDaTela::Redirecionada => C::TelaDaEscritaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            C::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     })?;
     let conferida = conferir_tela_de_envio(&html, id)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;

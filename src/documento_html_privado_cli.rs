@@ -7,21 +7,17 @@ use serde_json::json;
 use std::path::Path;
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 enum ErroHtmlPrivado {
     QuantidadeDeDocumentos,
     OpcoesDeDocumentoSemEvidencia,
-    #[causa(interna)]
-    Numero(documento::NumeroDocumentoInvalido),
-    #[causa(interna)]
-    Fonte(transporte::FalhaTransporte),
-    #[causa(interna)]
-    Titulo(documento_web::ErroTituloDocumento),
-    #[causa(interna)]
-    Corpo(documento_web::ErroCorpoDocumento),
+    Numero(#[from] documento::NumeroDocumentoInvalido),
+    Fonte(#[from] transporte::FalhaTransporte),
+    Titulo(#[from] documento_web::ErroTituloDocumento),
+    Corpo(#[from] documento_web::ErroCorpoDocumento),
     NumeroDiferenteDoSolicitado,
-    #[causa(interna)]
-    Exportacao(arquivo_texto_documento::ErroArquivoTexto),
+    Exportacao(#[from] arquivo_texto_documento::ErroArquivoTexto),
 }
 
 impl ErroHtmlPrivado {

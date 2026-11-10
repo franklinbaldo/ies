@@ -52,7 +52,8 @@ impl LeituraDetalhada {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDetalhada {
     VisualizacaoIncorreta,
     UnidadeNaoIdentificada,
@@ -69,8 +70,7 @@ pub(crate) enum ErroDetalhada {
     ItensDaCelulaNaoSeparados,
     CabecalhoDiferenteEntrePaginas,
     TextoForaDosMarcadoresNaCelula,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 struct Pagina {

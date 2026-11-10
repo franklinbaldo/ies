@@ -116,7 +116,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(P::SessaoEncerrada),
+        Lida::Login => return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Html { .. } => {
             let status = StatusHttpRecusado::sem_mensagem(200);
             return Err(P::RespostaDaEntradaPorIdNaoReconhecida(status));
@@ -135,7 +135,9 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             indice.registrar_entrada_por_id_com_documento(instalacao, false);
             return Err(P::EntradaPorIdRecusada);
         }
-        DestinoDoRedirecionamento::Login => return Err(P::SessaoEncerrada),
+        DestinoDoRedirecionamento::Login => {
+            return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
+        }
         DestinoDoRedirecionamento::Outro => {}
     }
     let origem = OrigemDoTrabalho::EntradaPorIdComDocumento { id, documento };
@@ -156,7 +158,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     let (html, mime) = match rede.get(trabalho.as_str())? {
         Lida::Html { html, mime } => (html, mime),
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(P::SessaoEncerrada),
+        Lida::Login => return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => return Err(P::Transporte(falha)),
     };
     let tela = match ler_tela_do_documento(instalacao, &html, documento, contexto.unidade_pedida) {

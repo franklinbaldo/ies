@@ -247,7 +247,10 @@ fn tela_sem_tabela_nao_vira_lista_vazia() {
 #[test]
 fn login_ou_503_na_tela_falham_sem_retry() {
     for (resposta, esperado) in [
-        (r302(LOGIN), Some(E::SessaoEncerrada)),
+        (
+            r302(LOGIN),
+            Some(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
+        ),
         ((503, String::new(), None), None),
     ] {
         let amb = ambiente();

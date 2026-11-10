@@ -8,11 +8,11 @@ use crate::transporte::StatusHttpRecusado;
 /// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
 /// tela de login, com o sinal de gravação). O pedido saiu: o efeito é
 /// incerto até a leitura.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDoSalvar {
     /// Rede, tempo esgotado, 5xx, outro status, MIME, charset, tamanho, login.
-    #[causa(interna)]
-    Envio(ErroSubmissaoFormulario),
+    Envio(#[from] ErroSubmissaoFormulario),
     /// 302 recebido e não seguido.
     Redirecionamento302,
     /// HTML 200 com a tela do Nível sem o sinal de gravação (`''=='1'`).
@@ -55,11 +55,11 @@ pub(crate) struct ColunasDefinidas {
     pub(crate) reconciliado_por: Option<FalhaDoSalvar>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDefinirColunas {
     /// Falha antes do POST de salvar: nada foi salvo.
-    #[causa(interna)]
-    Leitura(ErroVisaoDoControle),
+    Leitura(#[from] ErroVisaoDoControle),
     ColunaIndisponivelNestaInstalacao {
         coluna: ColunaDoDetalhe,
     },

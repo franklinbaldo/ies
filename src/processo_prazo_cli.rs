@@ -99,7 +99,9 @@ fn consultar_formulario<V: EnvioDoProcesso>(
         FalhaDaTela::Redirecionada => {
             recusar(json_mode, "a tela de prazo redirecionou inesperadamente")
         }
-        FalhaDaTela::SessaoEncerrada => recusar(json_mode, "a tela de prazo devolveu o login"),
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            recusar(json_mode, "a tela de prazo devolveu o login")
+        }
     })
 }
 

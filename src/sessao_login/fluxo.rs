@@ -457,16 +457,16 @@ fn colher(
 
 /// O arquivo de origem da instalação ausente, inseguro ou inválido. Tipo próprio da etapa; o nome
 /// público é o motivo do transporte (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum OrigemIlegivel {
-    #[causa(transparente)]
-    Arquivo(crate::transporte::FalhaTransporte),
+    Arquivo(#[from] crate::transporte::FalhaTransporte),
 }
 
 /// URL ou cookie gravados que o transporte recusa antes da rede. Tipo próprio da etapa; o nome
 /// público é o motivo do transporte (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum SessaoGravadaInvalida {
-    #[causa(transparente)]
-    Arquivo(crate::transporte::FalhaTransporte),
+    Arquivo(#[from] crate::transporte::FalhaTransporte),
 }

@@ -111,7 +111,9 @@ fn da_tela(falha: FalhaDaTela) -> C {
     match falha {
         FalhaDaTela::Transporte(falha) => C::TelaDaEscrita(falha),
         FalhaDaTela::Redirecionada => C::TelaDaEscritaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => C::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            C::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     }
 }
 

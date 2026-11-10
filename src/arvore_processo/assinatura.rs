@@ -173,11 +173,11 @@ pub(crate) fn tela_do_documento(
     por("id_documento", id_documento).map(EnderecoDeEscrita::novo)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDeAssinar {
     EnderecoDeAssinarDeOutroDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 const VARIAVEL: &str = "var linkAssinarDocumento = '";

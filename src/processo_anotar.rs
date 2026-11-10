@@ -39,20 +39,16 @@ pub(crate) struct Previa {
 }
 
 /// Uma variante por causa; o diagnóstico é derivado do tipo Rust.
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Erro {
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
-    #[causa(transparente)]
-    Html(ErroHtml),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Html(#[from] ErroHtml),
+    Transporte(#[from] FalhaTransporte),
+    Cookie(#[from] CookieIlegivel),
     TelaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     UnidadeNaoPublicada,
     SituacaoNaoLida(MotivoAbertoEm),
     ProcessoForaDaUnidade,
@@ -61,8 +57,7 @@ pub(crate) enum Erro {
     SalvarNaoOferecido,
     OrigemNaoAutorizada,
     CharsetNaoSuportado,
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     NaoConfirmado,
 }
 
@@ -94,7 +89,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
         FalhaDaTela::Redirecionada => Erro::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => Erro::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            Erro::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     })?;
     let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
     let mut alterado = false;

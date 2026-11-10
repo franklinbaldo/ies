@@ -73,11 +73,11 @@ impl FormaDaReabertura {
 }
 
 /// Recusas da leitura da URL de reabrir na tela do nó.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEnderecoDeReabrir {
     EnderecoDaReaberturaDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// A URL de reabrir na tela do nó do processo `id`, conferida, e a forma

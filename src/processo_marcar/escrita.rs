@@ -207,7 +207,10 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(falha_transporte(cli, &erro)),
-        Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada) => {
+        Err(
+            FalhaDaTela::Redirecionada
+            | FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+        ) => {
             return Err(falha(
                 cli,
                 ErroMarcar::RemocaoSemFormularioObservado,

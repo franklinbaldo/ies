@@ -7,11 +7,11 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO_DE_RELACIONAR: &str = "procedimento_relacionar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRelacionarNaBarra {
     EnderecoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 pub(crate) fn ler_relacionar_da_barra(
     instalacao: &Instalacao,
