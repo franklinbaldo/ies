@@ -116,7 +116,7 @@ fn bdd_60_05_nos_pdf_apos_pasta_dependem_do_sqlite_e_nao_da_contagem_html() {
 
 /// BDD-60-05 (#496): uma anexação observada no mesmo SQLite deve deslocar
 /// o PDF na árvore, sem depender de contar linhas de JavaScript renderizado.
-/// Variante sintética: os cards UnB de navegação não capturam esta transição.
+/// Variante sintética: os cards `UnB` de navegação não capturam esta transição.
 #[test]
 fn bdd_60_05_anexacao_desloca_pdf_sem_colisao_de_indice() {
     use iesei::anexacoes;
