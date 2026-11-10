@@ -21,7 +21,10 @@ fn executar(args: &[&str]) -> Output {
     let pasta = std::env::temp_dir().join(format!(
         "ies-620-{}-{}",
         std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     fs::create_dir(&pasta).unwrap();
 
@@ -29,7 +32,10 @@ fn executar(args: &[&str]) -> Output {
     // uma eventual tentativa de conexão será detectada nesta escuta.
     let escuta = TcpListener::bind("127.0.0.1:0").unwrap();
     escuta.set_nonblocking(true).unwrap();
-    let origem = format!("https://127.0.0.1:{}/sei", escuta.local_addr().unwrap().port());
+    let origem = format!(
+        "https://127.0.0.1:{}/sei",
+        escuta.local_addr().unwrap().port()
+    );
     let url = format!(
         "{origem}/controlador.php?acao=procedimento_controlar&infra_hash={}",
         "a".repeat(64)
@@ -58,7 +64,9 @@ fn executar(args: &[&str]) -> Output {
 
     let tentativa = escuta.accept();
     assert!(
-        tentativa.as_ref().is_err_and(|erro| erro.kind() == std::io::ErrorKind::WouldBlock),
+        tentativa
+            .as_ref()
+            .is_err_and(|erro| erro.kind() == std::io::ErrorKind::WouldBlock),
         "zero conexões, inclusive GET: {tentativa:?}"
     );
     fs::remove_dir_all(&pasta).unwrap();
@@ -68,8 +76,12 @@ fn executar(args: &[&str]) -> Output {
 #[test]
 fn bdd_620_01_andamento_humano_recusa_antes_de_qualquer_requisicao() {
     let saida = executar(&[
-        "processo", "andamento", NUP,
-        "--texto", "Texto de teste", "--confirmar",
+        "processo",
+        "andamento",
+        NUP,
+        "--texto",
+        "Texto de teste",
+        "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
     assert!(saida.stdout.is_empty());
@@ -81,8 +93,13 @@ fn bdd_620_01_andamento_humano_recusa_antes_de_qualquer_requisicao() {
 #[test]
 fn bdd_620_02_atribuicao_json_recusa_antes_de_qualquer_requisicao() {
     let saida = executar(&[
-        "--json", "processo", "atribuir", NUP,
-        "--usuario", "aluno2", "--confirmar",
+        "--json",
+        "processo",
+        "atribuir",
+        NUP,
+        "--usuario",
+        "aluno2",
+        "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let resposta: serde_json::Value =
@@ -90,7 +107,12 @@ fn bdd_620_02_atribuicao_json_recusa_antes_de_qualquer_requisicao() {
     assert_eq!(resposta["codigo"], "fonte_invalida");
     assert_eq!(resposta["subcodigo"], "origem_fora_do_treinamento");
     assert_eq!(resposta["retentavel"], false);
-    assert!(resposta["erro"].as_str().unwrap().contains("origem da sessão"));
+    assert!(
+        resposta["erro"]
+            .as_str()
+            .unwrap()
+            .contains("origem da sessão")
+    );
     assert!(resposta.get("status_http").is_none());
     assert!(resposta.get("mensagem_do_servidor").is_none());
 }

@@ -53,7 +53,7 @@ impl Escrita {
     }
 }
 
-/// Único ponto de construção de [`OrigemForaDoTreinamento`]. Escrita
+/// Único ponto de construção de [`CausaDaOrigem::OrigemForaDoTreinamento`]. Escrita
 /// aprovada em treinamento grava em qualquer instalação; as demais, só nas
 /// instalações públicas de treinamento.
 pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem> {
@@ -74,14 +74,11 @@ mod tests {
     use super::*;
 
     // Aceite técnico da #620: a causa publicada vem do tipo via Serde.
-    // Este teste entra em RED antes da implementação.
+    // O RED original apontou falta de serde::Serialize.
     #[test]
-    fn causa_de_origem_serde_direto_preserva_identidade_legacy() {
-        let erro = exigir(
-            Escrita::ProcessoAndamento,
-            "https://sei.exemplo.gov.br/sei",
-        )
-        .unwrap_err();
+    fn causa_de_origem_serde_direto_preserva_identidade_legada() {
+        let erro =
+            exigir(Escrita::ProcessoAndamento, "https://sei.exemplo.gov.br/sei").unwrap_err();
         assert_eq!(
             serde_json::to_value(erro).unwrap(),
             serde_json::json!("origem_fora_do_treinamento")

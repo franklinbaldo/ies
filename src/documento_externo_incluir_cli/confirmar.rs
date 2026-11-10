@@ -27,8 +27,7 @@ pub(super) fn executar(
         if let Err(causa) = crate::origem_de_treinamento::exigir(
             crate::origem_de_treinamento::Escrita::DocumentoIncluirExterno,
             sessao.origem,
-        )
-        {
+        ) {
             return crate::origem_de_treinamento::recusa(cli.json, &causa);
         }
         let mut envio = EnvioHttps;
