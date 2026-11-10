@@ -2,7 +2,7 @@
 //! Modelo local sintético; HTML vem de SQLite, jamais de uma cassette congelada.
 mod trabalho;
 use super::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
-use iesei::documentos_simulados::{self as modelo, Falha};
+use iesei::documentos_simulados::{self as modelo, ErroDocumentosSimulados};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
 use std::fmt::Write as _;
@@ -54,13 +54,15 @@ fn descricao_do_cadastro(corpo: &str) -> Option<String> {
     .then(String::new)
 }
 
-fn erros_de_modelo(falha: &Falha) -> Resposta {
+fn erros_de_modelo(falha: &ErroDocumentosSimulados) -> Resposta {
     match falha {
-        Falha::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
-        Falha::TipoIndisponivel | Falha::EntradaInvalida | Falha::ProcessoNaoAbertoNaUnidade => {
+        ErroDocumentosSimulados::ProcessoIndisponivel => Resposta::nova(Estado::NaoEncontrado),
+        ErroDocumentosSimulados::TipoIndisponivel
+        | ErroDocumentosSimulados::EntradaInvalida
+        | ErroDocumentosSimulados::ProcessoNaoAbertoNaUnidade => {
             Resposta::nova(Estado::RequisicaoInvalida)
         }
-        Falha::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
+        ErroDocumentosSimulados::Sqlite(_) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
 

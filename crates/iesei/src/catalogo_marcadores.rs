@@ -10,16 +10,11 @@ pub struct Opcao {
     pub cor: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroCatalogoMarcadores {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn valido(itens: &[Opcao]) -> bool {
@@ -52,11 +47,11 @@ pub fn registrar(
     cenario: &str,
     unidade: &str,
     itens: &[Opcao],
-) -> Result<(), Falha> {
+) -> Result<(), ErroCatalogoMarcadores> {
     if cenario.is_empty() || unidade.is_empty() || !valido(itens) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroCatalogoMarcadores::DadoInvalido);
     }
-    let total = i64::try_from(itens.len()).map_err(|_| Falha::DadoInvalido)?;
+    let total = i64::try_from(itens.len()).map_err(|_| ErroCatalogoMarcadores::DadoInvalido)?;
     let tx = banco.unchecked_transaction()?;
     tx.execute(
         "INSERT INTO unidade_catalogo_marcadores
@@ -71,7 +66,7 @@ pub fn registrar(
         params![instalacao.url_base(), cenario, unidade],
     )?;
     for (posicao, item) in itens.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroCatalogoMarcadores::DadoInvalido)?;
         tx.execute(
             "INSERT INTO unidade_catalogo_marcador_opcao
              (origem, cenario, unidade, posicao, id_marcador, nome, cor)
@@ -100,7 +95,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     unidade: &str,
-) -> Result<Option<Vec<Opcao>>, Falha> {
+) -> Result<Option<Vec<Opcao>>, ErroCatalogoMarcadores> {
     let total: Option<i64> = banco
         .query_row(
             "SELECT total_declarado FROM unidade_catalogo_marcadores
@@ -110,7 +105,7 @@ pub fn ler(
         )
         .optional()?;
     let Some(total) = total else { return Ok(None) };
-    let total = usize::try_from(total).map_err(|_| Falha::DadoInvalido)?;
+    let total = usize::try_from(total).map_err(|_| ErroCatalogoMarcadores::DadoInvalido)?;
     let mut consulta = banco.prepare(
         "SELECT id_marcador, nome, cor FROM unidade_catalogo_marcador_opcao
          WHERE origem=?1 AND cenario=?2 AND unidade=?3 ORDER BY posicao",
@@ -125,7 +120,7 @@ pub fn ler(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     if itens.len() != total || !valido(&itens) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroCatalogoMarcadores::DadoInvalido);
     }
     Ok(Some(itens))
 }

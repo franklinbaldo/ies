@@ -21,17 +21,12 @@ pub struct UnidadeObservada {
 }
 
 /// Falhas de leitura preservam o erro SQLite e distinguem dados inválidos.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub enum FalhaDeLeitura {
-    Sqlite(rusqlite::Error),
+    Sqlite(#[from] rusqlite::Error),
     VisaoInvalida,
     UnidadeInvalida,
-}
-
-impl From<rusqlite::Error> for FalhaDeLeitura {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Registra somente fatos reconhecidos pelo leitor da tela, sem HTTP.

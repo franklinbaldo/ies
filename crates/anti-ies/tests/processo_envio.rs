@@ -370,7 +370,7 @@ fn estado_sqlite_recusa_limpar_anotacao_depois_de_fechar_origem() {
     let resultado = iesei::processos::limpar_anotacao(&banco, &origem(), "cenario-a", "10");
     assert!(matches!(
         resultado,
-        Err(iesei::processos::Falha::OrigemNaoAberta)
+        Err(iesei::processos::ErroProcessos::OrigemNaoAberta)
     ));
     assert_eq!(
         ler(&banco, &origem(), "cenario-a", "10").unwrap().unwrap(),

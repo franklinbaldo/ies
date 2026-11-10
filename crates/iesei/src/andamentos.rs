@@ -17,15 +17,11 @@ pub struct Historico {
     pub linhas: Vec<Linha>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroAndamentos {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn valido(id: &str, historico: &Historico) -> bool {
@@ -52,7 +48,7 @@ pub fn guardar(
     cenario: &str,
     id: &str,
     historico: &Historico,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAndamentos> {
     let tx = banco.unchecked_transaction()?;
     guardar_no_banco(&tx, instalacao, cenario, id, historico)?;
     tx.commit()?;
@@ -65,12 +61,13 @@ fn guardar_no_banco(
     cenario: &str,
     id: &str,
     historico: &Historico,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAndamentos> {
     if cenario.is_empty() || !valido(id, historico) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAndamentos::DadoInvalido);
     }
     let origem = instalacao.url_base();
-    let total = i64::try_from(historico.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    let total =
+        i64::try_from(historico.total_declarado).map_err(|_| ErroAndamentos::DadoInvalido)?;
     banco.execute(
         "INSERT INTO andamento_historico (origem, cenario, id_procedimento, total_declarado)
          VALUES (?1, ?2, ?3, ?4)
@@ -92,7 +89,7 @@ fn guardar_no_banco(
                 origem,
                 cenario,
                 id,
-                i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?,
+                i64::try_from(posicao).map_err(|_| ErroAndamentos::DadoInvalido)?,
                 linha.ocorrido_em,
                 linha.unidade,
                 linha.usuario,
@@ -114,16 +111,16 @@ pub fn acrescentar(
     cenario: &str,
     id: &str,
     linha: Linha,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAndamentos> {
     // Serializa escritores antes da leitura, evitando atualizações perdidas.
     let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
     let Some(mut historico) = ler(&tx, instalacao, cenario, id)? else {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAndamentos::DadoInvalido);
     };
     historico.total_declarado = historico
         .total_declarado
         .checked_add(1)
-        .ok_or(Falha::DadoInvalido)?;
+        .ok_or(ErroAndamentos::DadoInvalido)?;
     historico.linhas.insert(0, linha);
     guardar_no_banco(&tx, instalacao, cenario, id, &historico)?;
     tx.commit()?;
@@ -139,7 +136,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<Historico>, Falha> {
+) -> Result<Option<Historico>, ErroAndamentos> {
     let origem = instalacao.url_base();
     let total: Option<i64> = banco
         .query_row(
@@ -167,13 +164,13 @@ pub fn ler(
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    let total_declarado = u64::try_from(total).map_err(|_| Falha::DadoInvalido)?;
+    let total_declarado = u64::try_from(total).map_err(|_| ErroAndamentos::DadoInvalido)?;
     let historico = Historico {
         total_declarado,
         linhas,
     };
     if !valido(id, &historico) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAndamentos::DadoInvalido);
     }
     Ok(Some(historico))
 }
@@ -216,7 +213,7 @@ mod tests {
         };
         assert!(matches!(
             guardar(&banco, &origem, "cena", "10", &incompleto),
-            Err(Falha::DadoInvalido)
+            Err(ErroAndamentos::DadoInvalido)
         ));
         assert!(ler(&banco, &origem, "cena", "10").unwrap().is_none());
     }
