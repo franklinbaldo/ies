@@ -101,6 +101,13 @@ pub(crate) enum ErroEnviar {
     },
     /// Derivação do POST ou falha antes de ele sair (cookie).
     Formulario(#[from] ErroSubmissaoFormulario),
+    /// A anotação foi removida e relida; o formulário de envio falhou
+    /// antes de qualquer POST de tramitação. A limpeza não é desfeita.
+    FormularioAposLimpezaComprovada {
+        aberto_em: Vec<String>,
+        #[source]
+        causa: ErroSubmissaoFormulario,
+    },
     /// A leitura depois do envio não lista o destino.
     EnvioNaoAplicado {
         aberto_em: Vec<String>,
@@ -144,7 +151,9 @@ impl ErroEnviar {
             Self::Anotacoes(erro) => erro.status_http().cloned(),
             Self::TelaDaEscritaRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::Consulta(falha) => falha.status_http(),
-            Self::Formulario(erro) => erro.status_http().cloned(),
+            Self::Formulario(erro) | Self::FormularioAposLimpezaComprovada { causa: erro, .. } => {
+                erro.status_http().cloned()
+            }
             Self::EnvioNaoAplicado { falha_do_envio, .. }
             | Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
             | Self::NaoConfirmadoNoEnvio { falha_do_envio, .. } => {
@@ -220,6 +229,9 @@ impl ErroEnviar {
                 "o processo já está aberto na unidade de destino; nada foi enviado"
             }
             Self::Formulario(_) => "o envio não pôde ser montado; nada foi enviado",
+            Self::FormularioAposLimpezaComprovada { .. } => {
+                "a anotação foi removida e relida, mas o formulário de envio foi recusado; o processo não foi enviado"
+            }
             Self::EnvioNaoAplicado { .. } => {
                 "a árvore lida depois de enviar não lista o destino: o processo não foi enviado"
             }
