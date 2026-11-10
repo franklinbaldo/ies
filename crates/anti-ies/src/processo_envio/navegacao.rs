@@ -338,15 +338,22 @@ pub fn navegacao(
         Ok(unidade) => unidade,
         Err(estado) => return Some(Resposta::nova(estado)),
     };
+    let Ok(validacao) = iesei::validacao_acesso::ler(banco, instalacao, cenario, id) else {
+        return Some(Resposta::nova(Estado::DadosInsuficientes));
+    };
     if acao == "procedimento_trabalhar" {
-        let Ok(validacao) = iesei::validacao_acesso::ler(banco, instalacao, cenario, id) else {
-            return Some(Resposta::nova(Estado::DadosInsuficientes));
-        };
         return Some(resposta_html(trabalho_do_processo(
             &processo,
             &unidade_atual,
             validacao,
         )));
+    }
+    // Nao se pode contornar a modal pedindo diretamente a arvore.
+    if matches!(
+        validacao,
+        Some(iesei::validacao_acesso::Validacao::Exigida | iesei::validacao_acesso::Validacao::Recusada)
+    ) {
+        return Some(Resposta::nova(Estado::AcessoNegado));
     }
     Some(
         match arvore_do_processo(&processo, &unidade_atual, banco, instalacao, cenario) {
