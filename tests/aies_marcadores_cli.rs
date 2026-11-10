@@ -228,9 +228,7 @@ fn pedido(caso: Caso) -> (&'static str, &'static str) {
         | Caso::AtribuirAusente
         | Caso::AtribuirSemCatalogo
         | Caso::AtribuirConfirmado
-        | Caso::AtribuirEfeitoIncerto => {
-            ("--marcador", "501#Revisão")
-        }
+        | Caso::AtribuirEfeitoIncerto => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
         Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
             ("--retirar", "501#Revisão")
@@ -246,17 +244,34 @@ fn executar_caso_cli(
 ) -> Output {
     let (operacao, marcador) = pedido(caso);
     let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
+    if matches!(
+        caso,
+        Caso::RetirarConfirmado
+            | Caso::RetirarEfeitoIncerto
+            | Caso::AtribuirConfirmado
+            | Caso::AtribuirEfeitoIncerto
+    ) {
         argumentos.push("--confirmar");
     }
-    if matches!(caso, Caso::AtribuirAusente | Caso::AtribuirSemCatalogo | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
+    if matches!(
+        caso,
+        Caso::AtribuirAusente
+            | Caso::AtribuirSemCatalogo
+            | Caso::AtribuirConfirmado
+            | Caso::AtribuirEfeitoIncerto
+    ) {
         argumentos.extend(["--texto", "Nova revisão"]);
     }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
 }
 
 fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
-    if efeito_incerto && matches!(evento, "POST andamento_marcador_remover" | "POST andamento_marcador_cadastrar") {
+    if efeito_incerto
+        && matches!(
+            evento,
+            "POST andamento_marcador_remover" | "POST andamento_marcador_cadastrar"
+        )
+    {
         assert!(resposta.starts_with(b"HTTP/1.1 302 "));
         // O anti-IES já aplicou o POST; a resposta recebida pela CLI é 403.
         // A Location anterior não autentica a escrita quando status é 403.
@@ -308,8 +323,14 @@ fn executar(caso: Caso) {
             | Caso::AtribuirConfirmado
             | Caso::AtribuirEfeitoIncerto
     );
-    let com_catalogo = matches!(caso, Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto);
+    let com_catalogo = matches!(
+        caso,
+        Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto
+    );
+    let efeito_incerto = matches!(
+        caso,
+        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+    );
     let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
     let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     backend.set_nonblocking(true).unwrap();
