@@ -237,7 +237,7 @@ fn executar(modo: Modo) {
         ],
         Modo::Previa | Modo::JaAnexado => {
             &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
-        },
+        }
     };
     let saida = cli(&pasta, arquivos, porta, comando);
     let posterior = cli(
