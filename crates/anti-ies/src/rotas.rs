@@ -202,7 +202,13 @@ pub(crate) fn responder(
                 })
         }
         Some("procedimento_trabalhar")
-            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
+            if eh_controlador_sei(alvo)
+                // Identidade documental inválida também deve chegar ao
+                // validador, nunca cair silenciosamente na rota de processo.
+                && !matches!(
+                    documento_arvore::identidade_documental(alvo, true),
+                    Ok(None)
+                ) =>
         {
             documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
         }
