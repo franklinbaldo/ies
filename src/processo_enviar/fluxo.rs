@@ -135,8 +135,30 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         html: &tela.html,
         codificacao: tela.codificacao,
     };
-    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)?;
-    let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento)?;
+    // A limpeza é escrita independente: não a apagar de uma falha de
+    // derivação ou envio que acontece antes de qualquer POST de tramitação.
+    let falha_formulario = |causa| {
+        if feito.metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
+            && feito.anotacao_antes == Some(true)
+            && feito.anotacao_depois == Some(false)
+        {
+            C::FormularioAposLimpezaComprovada {
+                aberto_em: feito.aberto_em.clone(),
+                causa,
+            }
+        } else {
+            C::Formulario(causa)
+        }
+    };
+    let submissao =
+        derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)
+            .map_err(&falha_formulario)?;
+    let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| {
+        match erro {
+            C::Formulario(causa) => falha_formulario(causa),
+            outro => outro,
+        }
+    })?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
     let mut feito = conciliar_efeitos(
         &mut rede,
