@@ -82,7 +82,10 @@ impl EstadoDoAcompanhamento {
     }
 
     pub(crate) fn confirmado(self) -> bool {
-        matches!(self, Self::ConfirmadoSemMudanca | Self::Incluido | Self::Removido)
+        matches!(
+            self,
+            Self::ConfirmadoSemMudanca | Self::Incluido | Self::Removido
+        )
     }
 
     pub(crate) fn alterado(self) -> bool {
@@ -255,9 +258,8 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
                 .any(|linha| pedido.grupo.is_none_or(|grupo| linha.grupo == grupo));
             if alvo {
                 let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
-                let destino = super::exclusao::destino_oferecido(
-                    &instalacao, &html, &id, &alvo.id,
-                )?;
+                let destino =
+                    super::exclusao::destino_oferecido(&instalacao, &html, &id, &alvo.id)?;
                 let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
                     .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
                 let tela = crate::formulario_web::TelaServida {
@@ -266,7 +268,11 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
                     codificacao,
                 };
                 exclusao = Some(super::submissao::derivar_exclusao(
-                    &instalacao, &tela, &unidade, &alvo.id, &destino,
+                    &instalacao,
+                    &tela,
+                    &unidade,
+                    &alvo.id,
+                    &destino,
                 )?);
             }
         }
@@ -321,8 +327,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         return Ok(plano);
     }
     if pedido.deixar {
-        let submissao = exclusao
-            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        let submissao = exclusao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
         return confirmar_remocao(
             &mut rede,
             sessao,
