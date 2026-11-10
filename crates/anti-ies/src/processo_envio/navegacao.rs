@@ -90,7 +90,11 @@ fn literal_js(texto: &str) -> String {
 }
 
 /// Projeta nós de anexação sem misturar índices da pasta pendente.
-fn nos_anexados(id: &str, primeiro_anexado: usize, anexados: &[iesei::anexacoes::Anexado]) -> String {
+fn nos_anexados(
+    id: &str,
+    primeiro_anexado: usize,
+    anexados: &[iesei::anexacoes::Anexado],
+) -> String {
     let mut nos = String::new();
     for (posicao, anexado) in anexados.iter().enumerate() {
         let numero = literal_js(&anexado.numero)
