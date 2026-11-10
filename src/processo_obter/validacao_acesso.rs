@@ -30,7 +30,7 @@ const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
-pub(super) enum ErroValidacaoAcesso {
+pub(crate) enum ErroValidacaoAcesso {
     ModalNaoReconhecida,
     Credenciais(#[from] ErroLogin),
     Formulario(#[from] ErroSubmissaoFormulario),
