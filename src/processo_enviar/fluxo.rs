@@ -150,15 +150,15 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
             C::Formulario(causa)
         }
     };
-    let submissao =
-        derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)
-            .map_err(&falha_formulario)?;
-    let falha = enviar(&mut rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| {
-        match erro {
-            C::Formulario(causa) => falha_formulario(causa),
-            outro => outro,
-        }
-    })?;
+    let submissao = derivar_submissao(&ENVIAR_PROCESSO, &instalacao, &servida, "", &pares)
+        .map_err(&falha_formulario)?;
+    let falha =
+        enviar(&mut rede, sessao, submissao, &feito.id_procedimento).map_err(
+            |erro| match erro {
+                C::Formulario(causa) => falha_formulario(causa),
+                outro => outro,
+            },
+        )?;
     let verificacao = verificar(sessao, &leitura(false), indice, &mut rede);
     let mut feito = conciliar_efeitos(
         &mut rede,
