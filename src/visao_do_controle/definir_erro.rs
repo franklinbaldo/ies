@@ -131,4 +131,3 @@ pub(crate) enum ErroDefinirColunas {
         verificacao: Box<VerificacaoDasColunas>,
     },
 }
-
