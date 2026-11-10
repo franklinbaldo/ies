@@ -116,42 +116,13 @@ do host e `Referer` = URL da tela.
 
 ## Proxy do ambiente
 
-O cliente HTTPS único do IES (`native-tls`, todos os cabeçalhos
-guardados, inclusive cada `Set-Cookie`) atravessa um proxy declarado no
-ambiente. O login e **todos os outros comandos** usam o mesmo cliente e
-as mesmas regras ([transporte HTTPS](transporte-https.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos)).
-
-- Variável: a primeira **não vazia** de `https_proxy`, `HTTPS_PROXY`,
-  `all_proxy`, `ALL_PROXY` (o destino é sempre HTTPS; `http_proxy` não
-  vale). O IES segue a convenção do curl, documentada aqui.
-- Exceções: `no_proxy`, senão `NO_PROXY`, separadas por vírgula, sem
-  caixa: `*` dispensa todos; `.sufixo` dispensa o domínio e os
-  subdomínios; outra entrada é host exato. Entrada com porta ou
-  curinga parcial (`*.x`) não casa. A exceção é conferida antes do
-  endereço: host dispensado conecta direto mesmo com proxy inválido.
-- Endereço `[http://][usuario[:senha]@]host:porta[/]` (IPv6 entre
-  colchetes); porta obrigatória (sem padrão adivinhado); `%XX` da
-  credencial decodificado. Credencial vai só em
-  `Proxy-Authorization: Basic`, nunca em `Debug`, log ou saída.
-  `https://`, `socks5://` e outros esquemas: `proxy_com_esquema_nao_suportado`.
-- Por pedido: conexão TCP ao proxy (cada endereço resolvido), um
-  `CONNECT host:443 HTTP/1.1` com `Host`, resposta lida byte a byte até a
-  linha vazia (16 KiB no máximo); 2xx abre o túnel e o TLS segue com o
-  host do SEI (SNI e certificado do SEI pela CA do sistema, como sem
-  proxy). Mesmos 30 s de tempo limite e limites de resposta. Sem retry,
-  nem do `CONNECT` nem do pedido.
-
-| Fato | Subcódigo |
-| --- | --- |
-| Valor fora do formato acima | `endereco_de_proxy_invalido` |
-| Esquema diferente de `http://` | `proxy_com_esquema_nao_suportado` |
-| DNS ou TCP do proxy falhou (nada foi ao SEI) | `proxy_inacessivel` |
-| Resposta ao `CONNECT` fora de HTTP/1.x ou truncada | `resposta_do_proxy_nao_interpretavel` |
-| `CONNECT` respondido fora de 2xx (`407`, `403`, `502`...); campo `status_do_proxy` | `proxy_recusou_o_tunel` |
-
-`status_do_proxy` não é `status_http` (o SEI não respondeu). Testado
-offline com proxy falso local (`TcpListener`); o TLS através do túnel
-não tem teste automatizado.
+O login usa o cliente HTTPS único do IES (`ureq` com `native-tls`, todos
+os cabeçalhos guardados, inclusive cada `Set-Cookie`), com as regras de
+proxy do [transporte HTTPS](transporte-https.md#transporte-https-um-cliente-proxy-do-ambiente-em-todos-os-comandos):
+o proxy do ambiente é lido pelo `ureq`, a credencial do proxy vai só no
+`CONNECT` e nunca em `Debug`, log ou saída. Proxy inválido ou túnel
+recusado é falha de transporte do proxy, sem `status_http` (o SEI não
+respondeu) e sem retry.
 
 ## Saída
 
@@ -222,8 +193,7 @@ os do proxy (acima).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
 terminam o comando. O JSON é o `fonte_invalida` dos outros comandos, com
 `status_http` e `mensagem_do_servidor` nas recusas HTTP, só
-`mensagem_do_servidor` em `credencial_recusada`, `status_do_proxy` em
-`proxy_recusou_o_tunel` e `campo` (a chave, nunca o valor) nas falhas do
+`mensagem_do_servidor` em `credencial_recusada` e `campo` (a chave, nunca o valor) nas falhas do
 arquivo de credenciais. Saída 1.
 
 ## Relogin único nas leituras

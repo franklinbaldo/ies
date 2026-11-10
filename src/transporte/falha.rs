@@ -1,6 +1,5 @@
 //! Falhas tipadas do transporte Web: uma variante por fato, subcódigos
 //! estáveis (docs/erros-tipados.md). Contrato: contracts/cli.md.
-use super::proxy;
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
 /// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
@@ -68,8 +67,8 @@ pub enum FalhaTransporte {
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
-    /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
-    Proxy(#[from] proxy::FalhaDoProxy),
+    /// O proxy do ambiente (`HTTPS_PROXY`) é inválido ou recusou o túnel.
+    Proxy,
 }
 
 impl FalhaTransporte {
@@ -123,7 +122,9 @@ impl FalhaTransporte {
             }
             Self::RespostaExcessiva => "resposta HTML supera o limite permitido",
             Self::Rede => "falha de transporte HTTPS; nenhum pedido foi repetido",
-            Self::Proxy(falha) => falha.mensagem(),
+            Self::Proxy => {
+                "o proxy do ambiente é inválido ou recusou o túnel; nenhum pedido foi repetido"
+            }
         }
     }
 }
@@ -132,13 +133,5 @@ impl FalhaTransporte {
     /// Status e mensagem do SEI, só nas recusas por status HTTP.
     pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
-    }
-
-    /// Status com que o proxy recusou o `CONNECT`.
-    pub fn status_do_proxy(&self) -> Option<u16> {
-        match self {
-            Self::Proxy(proxy::FalhaDoProxy::RecusouOTunel { status }) => Some(*status),
-            _ => None,
-        }
     }
 }
