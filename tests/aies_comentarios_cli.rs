@@ -236,8 +236,8 @@ fn executar(modo: Modo) {
     let saida: Output = chamar(comando);
     // A segunda invocação usa o mesmo SQLite e verifica a ausência
     // de publicação do comentário previsto, sem confiar na saída da prévia.
-    let posterior = matches!(modo, Modo::Previa)
-        .then(|| chamar(&["--json", "processo", "comentarios", NUP]));
+    let posterior =
+        matches!(modo, Modo::Previa).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     servidor.join().unwrap();
