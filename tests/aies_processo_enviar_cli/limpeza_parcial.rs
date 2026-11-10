@@ -24,6 +24,7 @@ fn bdd_581_01_anotacao_removida_formulario_de_envio_invalido() {
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let falha = json(&saidas[0]);
+    assert_eq!(falha["codigo"], "escrita_diferente_da_solicitada");
     assert_eq!(
         falha["anotacao_depois"], false,
         "limpeza comprovada é efeito público"
