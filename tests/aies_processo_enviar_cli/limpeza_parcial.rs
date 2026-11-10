@@ -115,8 +115,14 @@ fn bdd_581_02_limpeza_comprovada_e_envio_recusado_nao_apagado_do_resultado() {
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some(""));
 
-    let limpar = pedidos.iter().position(|p| p == "POST anotacao_registrar").unwrap();
-    let enviar_post = pedidos.iter().position(|p| p == "POST procedimento_enviar").unwrap();
+    let limpar = pedidos
+        .iter()
+        .position(|p| p == "POST anotacao_registrar")
+        .unwrap();
+    let enviar_post = pedidos
+        .iter()
+        .position(|p| p == "POST procedimento_enviar")
+        .unwrap();
     assert!(
         pedidos[limpar + 1..enviar_post]
             .iter()
@@ -129,6 +135,18 @@ fn bdd_581_02_limpeza_comprovada_e_envio_recusado_nao_apagado_do_resultado() {
             .any(|p| p == "GET procedimento_visualizar"),
         "a recusa do POST exige releitura independente da situação: {pedidos:?}"
     );
-    assert_eq!(pedidos.iter().filter(|p| *p == "POST anotacao_registrar").count(), 1);
-    assert_eq!(pedidos.iter().filter(|p| *p == "POST procedimento_enviar").count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST anotacao_registrar")
+            .count(),
+        1
+    );
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| *p == "POST procedimento_enviar")
+            .count(),
+        1
+    );
 }
