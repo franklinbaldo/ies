@@ -1,7 +1,7 @@
 //! Acompanhamentos especiais observados por processo e unidade no SQLite de testes.
 //! Hipótese estrutural para BDD-348-01/03; não representa leitura de SEI ao vivo.
 use crate::instalacao::Instalacao;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Acompanhamento {
@@ -86,8 +86,14 @@ pub fn registrar(
               id_acompanhamento, grupo, observacao)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                origem.url_base(), cenario, id, unidade, posicao,
-                item.id, item.grupo, item.observacao
+                origem.url_base(),
+                cenario,
+                id,
+                unidade,
+                posicao,
+                item.id,
+                item.grupo,
+                item.observacao
             ],
         )?;
     }
