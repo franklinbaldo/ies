@@ -257,11 +257,7 @@ mod tests {
             Err(Erro::DadoInvalido)
         ));
         assert_eq!(
-            ler(&db, &origem, "cenario")
-                .unwrap()
-                .unwrap()
-                .opcoes
-                .len(),
+            ler(&db, &origem, "cenario").unwrap().unwrap().opcoes.len(),
             2
         );
     }
