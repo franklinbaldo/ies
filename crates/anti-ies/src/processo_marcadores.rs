@@ -147,9 +147,8 @@ pub(crate) fn responder(
     let acao = parametro_unico(alvo, "acao");
     if !matches!(
         (metodo, acao),
-        ("GET", Some("andamento_marcador_gerenciar"))
+        ("GET", Some("andamento_marcador_gerenciar" | "andamento_marcador_cadastrar"))
             | ("POST", Some("andamento_marcador_remover"))
-            | ("GET", Some("andamento_marcador_cadastrar"))
     ) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
