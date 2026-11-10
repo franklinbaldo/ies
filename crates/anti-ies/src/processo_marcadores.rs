@@ -132,6 +132,43 @@ fn formulario_adicionar(
     Resposta::html(html)
 }
 
+/// Interpreta uma única submissão de catálogo, exclusivamente na bancada SQLite.
+fn submeter_atribuicao(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+) -> Resposta {
+        let (Some(tipo), Some(marcador), Some(protocolo), Some(texto), Some(salvar)) = (
+            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+            campo_formulario_unico(corpo, "hdnIdMarcador"),
+            campo_formulario_unico(corpo, "hdnIdProtocolo"),
+            campo_formulario_unico(corpo, "txaTexto"),
+            campo_formulario_unico(corpo, "sbmSalvar"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if corpo.split('&').count() != 5 || tipo != "2" || protocolo != id || salvar != "Salvar" {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match iesei::marcadores::atribuir(
+            banco, origem, cenario, id, &unidade, &marcador, &texto,
+        ) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
+            )),
+            Err(iesei::marcadores::Falha::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(
+                iesei::marcadores::Falha::Sqlite(_)
+                | iesei::marcadores::Falha::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::DadosInsuficientes),
+        };
+}
+
 /// Responde à tela de leitura cuja ação foi publicada na barra da árvore.
 /// Sem observação não há afirmação de lista vazia nem rota de escrita.
 ///
@@ -181,32 +218,7 @@ pub(crate) fn responder(
         return formulario_adicionar(banco, origem, cenario, id, &unidade);
     }
     if metodo == "POST" && acao == Some("andamento_marcador_cadastrar") {
-        let (Some(tipo), Some(marcador), Some(protocolo), Some(texto), Some(salvar)) = (
-            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
-            campo_formulario_unico(corpo, "hdnIdMarcador"),
-            campo_formulario_unico(corpo, "hdnIdProtocolo"),
-            campo_formulario_unico(corpo, "txaTexto"),
-            campo_formulario_unico(corpo, "sbmSalvar"),
-        ) else {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        };
-        if corpo.split('&').count() != 5 || tipo != "2" || protocolo != id || salvar != "Salvar" {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        }
-        return match iesei::marcadores::atribuir(
-            banco, origem, cenario, id, &unidade, &marcador, &texto,
-        ) {
-            Ok(()) => Resposta::redirecionar(format!(
-                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
-            )),
-            Err(iesei::marcadores::Falha::DadoInvalido) => {
-                Resposta::nova(Estado::RequisicaoInvalida)
-            }
-            Err(
-                iesei::marcadores::Falha::Sqlite(_)
-                | iesei::marcadores::Falha::ProcessoNaoObservado,
-            ) => Resposta::nova(Estado::DadosInsuficientes),
-        };
+        return submeter_atribuicao(corpo, banco, origem, cenario, id, &unidade);
     }
     if metodo == "POST" {
         let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
