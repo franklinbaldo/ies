@@ -34,6 +34,7 @@ enum Cena {
     DocumentosVisiveisComPastaPendente,
     ValidacaoExigida,
     ValidacaoComCredenciais,
+    ValidacaoRedirecionada,
     ValidacaoRecusada,
 }
 
@@ -169,7 +170,10 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
     }
     if matches!(
         cena,
-        Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+        Cena::ValidacaoExigida
+            | Cena::ValidacaoComCredenciais
+            | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoRecusada
     ) {
         iesei::validacao_acesso::guardar(
             &banco,
@@ -243,13 +247,18 @@ fn identidade_no_estado(
         .unwrap();
     if matches!(
         cena,
-        Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+        Cena::ValidacaoExigida
+            | Cena::ValidacaoComCredenciais
+            | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoRecusada
     ) {
         assert_eq!(
             iesei::validacao_acesso::ler(banco, instalacao, CENARIO, "10").unwrap(),
             Some(match cena {
                 Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
-                Cena::ValidacaoComCredenciais => iesei::validacao_acesso::Validacao::Realizada,
+                Cena::ValidacaoComCredenciais | Cena::ValidacaoRedirecionada => {
+                    iesei::validacao_acesso::Validacao::Realizada
+                }
                 Cena::ValidacaoRecusada => iesei::validacao_acesso::Validacao::Recusada,
                 _ => unreachable!(),
             }),
@@ -303,6 +312,13 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             backend.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             backend.read_to_end(&mut resposta).unwrap();
+            // Hipotese sintética: o servidor aplica o POST, mas responde
+            // 302. A CLI só pode concluir após GET independente do trabalho.
+            if matches!(cena, Cena::ValidacaoRedirecionada)
+                && evento == "POST usuario_validar_acesso"
+            {
+                resposta = b"HTTP/1.1 302 Found\r\nLocation: controlador.php?acao=procedimento_trabalhar\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+            }
             registro.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -310,7 +326,7 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     });
     let credenciais = matches!(
         cena,
-        Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+        Cena::ValidacaoComCredenciais | Cena::ValidacaoRedirecionada | Cena::ValidacaoRecusada
     )
     .then(|| {
         pasta.privado(
