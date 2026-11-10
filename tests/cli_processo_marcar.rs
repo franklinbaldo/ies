@@ -111,19 +111,18 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
-            if confirmar {
-                assert_eq!(json(&saida)["subcodigo"], "escrita_ainda_fechada");
-                assert_eq!(json(&saida)["requisicoes"], 0);
-            } else {
-                assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-            }
+            assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+            assert_eq!(
+                json(&saida)["subcodigo"],
+                "arquivo_privado_ausente_ou_inacessivel"
+            );
         }
     }
 }
 
 #[test]
-fn atribuicao_confirmada_continua_fechada_e_exibe_previa_segura() {
-    let json_saida = sem_sessao(&[
+fn atribuicao_confirmada_exige_sessao_privada_antes_de_qualquer_rede() {
+    let saida = sem_sessao(&[
         "processo",
         "marcar",
         "NUP",
@@ -132,29 +131,10 @@ fn atribuicao_confirmada_continua_fechada_e_exibe_previa_segura() {
         "--confirmar",
         "--json",
     ]);
-    assert_eq!(json_saida.status.code(), Some(1));
-    let resposta = json(&json_saida);
-    assert_eq!(resposta["subcodigo"], "escrita_ainda_fechada");
-    assert_eq!(resposta["requisicoes"], 0);
-    assert!(
-        resposta["erro"]
-            .as_str()
-            .unwrap()
-            .contains("execute sem --confirmar para ver a prévia")
-    );
-
-    let humana = sem_sessao(&[
-        "processo",
-        "marcar",
-        "NUP",
-        "--marcador",
-        "501#Revisão",
-        "--confirmar",
-    ]);
-    assert_eq!(humana.status.code(), Some(1));
-    assert!(
-        String::from_utf8_lossy(&humana.stderr)
-            .contains("execute sem --confirmar para ver a prévia")
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(
+        json(&saida)["subcodigo"],
+        "arquivo_privado_ausente_ou_inacessivel"
     );
 }
 

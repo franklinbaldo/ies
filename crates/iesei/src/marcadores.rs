@@ -220,3 +220,78 @@ pub fn retirar(
     tx.commit()?;
     Ok(())
 }
+
+/// Aplica marcador oferecido no catálogo observado da unidade ao processo
+/// com observação completa, exclusivamente no banco efêmero do anti-IES.
+/// O carimbo de hora é sintético e não constitui dado observado do SEI.
+///
+/// # Errors
+/// Recusa catálogo ausente, id não oferecido, associação duplicada ou falha SQL.
+pub fn atribuir(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    id_marcador: &str,
+    texto: &str,
+) -> Result<(), Falha> {
+    if id_marcador.is_empty()
+        || !id_marcador.bytes().all(|b| b.is_ascii_digit())
+        || texto.chars().count() > 250
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    let observacao = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    if observacao.itens.iter().any(|m| m.id == id_marcador) {
+        return Err(Falha::DadoInvalido);
+    }
+    // É o catálogo independente, NÃO as associações presentes, que oferece o id.
+    let opcao: Option<(String, String)> = tx
+        .query_row(
+            "SELECT opcao.nome, opcao.cor
+             FROM unidade_catalogo_marcador_opcao opcao
+             JOIN unidade_catalogo_marcadores catalogo
+               ON catalogo.origem=opcao.origem AND catalogo.cenario=opcao.cenario
+               AND catalogo.unidade=opcao.unidade
+             WHERE opcao.origem=?1 AND opcao.cenario=?2 AND opcao.unidade=?3
+               AND opcao.id_marcador=?4",
+            params![origem.url_base(), cenario, unidade, id_marcador],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let (nome, cor) = opcao.ok_or(Falha::DadoInvalido)?;
+    let posicao = i64::try_from(observacao.itens.len()).map_err(|_| Falha::DadoInvalido)?;
+    let atual = i64::try_from(observacao.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    tx.execute(
+        "INSERT INTO processo_marcador_linha
+         (origem, cenario, id_procedimento, unidade, posicao,
+          id_marcador, nome, cor, texto, usuario, data_hora)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10)",
+        params![
+            origem.url_base(),
+            cenario,
+            id,
+            unidade,
+            posicao,
+            id_marcador,
+            nome,
+            cor,
+            texto,
+            "01/01/2026 00:00"
+        ],
+    )?;
+    let alteradas = tx.execute(
+        "UPDATE processo_marcadores_observados
+         SET total_declarado=total_declarado+1
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
+           AND total_declarado=?5",
+        params![origem.url_base(), cenario, id, unidade, atual],
+    )?;
+    if alteradas != 1 {
+        return Err(Falha::DadoInvalido);
+    }
+    tx.commit()?;
+    Ok(())
+}

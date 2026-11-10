@@ -8,6 +8,7 @@ pub mod banco_cassettes;
 pub mod bloco_detalhe;
 pub mod blocos;
 pub mod cancelamento_documento;
+pub mod catalogo_marcadores;
 pub mod ciencia_documental;
 pub mod ciencia_processo;
 pub mod comentarios;

@@ -1,6 +1,6 @@
 //! Marcadores projetados do SQLite efêmero: GET e remoção local confirmável.
 //! O POST opera exclusivamente a associação simulada, nunca o SEI externo.
-//! BDD-255-02 parcial (remoção) e BDD-255-03 (idempotência).
+//! BDD-255-01 (catálogo separado), BDD-255-02 (remoção) e BDD-255-03.
 use crate::{Estado, Resposta, documentos::campo_formulario_unico, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{Marcador, Observacao};
@@ -88,6 +88,127 @@ fn linha(html: &mut String, m: &Marcador) {
     .expect("String");
 }
 
+/// Cadastro aberto a partir do GET de gerenciamento: catálogo vem da unidade,
+/// nunca da associação existente no processo. Nenhum POST é presumido.
+fn formulario_adicionar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+) -> Resposta {
+    let Ok(Some(opcoes)) = iesei::catalogo_marcadores::ler(banco, origem, cenario, unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let hash = crate::protocolo_sintetico::INFRA_HASH;
+    let mut html = format!(
+        "<!doctype html><html><body><h1>Adicionar Marcador</h1>\
+         <form id='frmAndamentoMarcadorCadastro' method='post' \
+         action='controlador.php?acao=andamento_marcador_cadastrar&acao_origem=andamento_marcador_cadastrar&arvore=1&id_procedimento={id}&infra_hash={hash}'>\
+         <input type='hidden' name='hdnInfraTipoPagina' value='2'>\
+         <button type='submit' id='sbmSalvar' name='sbmSalvar' value='Salvar'>Salvar</button>\
+         <button type='button' id='btnVoltar' name='btnVoltar'>Voltar</button>\
+         <select id='selMarcador' name='selMarcador'>\
+         <option value='null' selected='selected'>&nbsp;</option>"
+    );
+    for opcao in opcoes {
+        write!(
+            html,
+            "<option value='{}' data-imagesrc='svg/marcador_{}.svg'>{}</option>",
+            escapar(&opcao.id),
+            escapar(&opcao.cor),
+            escapar(&opcao.nome)
+        )
+        .expect("String");
+    }
+    write!(
+        html,
+        "</select><input type='hidden' id='hdnIdMarcador' name='hdnIdMarcador' value=''>\
+         <textarea id='txaTexto' name='txaTexto' rows='4'></textarea>\
+         <input type='hidden' name='hdnIdProtocolo' value='{id}'>\
+         </form></body></html>"
+    )
+    .expect("String");
+    Resposta::html(html)
+}
+
+/// Interpreta uma única submissão de catálogo, exclusivamente na bancada SQLite.
+fn submeter_atribuicao(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+) -> Resposta {
+    let (Some(tipo), Some(marcador), Some(protocolo), Some(texto), Some(salvar)) = (
+        campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+        campo_formulario_unico(corpo, "hdnIdMarcador"),
+        campo_formulario_unico(corpo, "hdnIdProtocolo"),
+        campo_formulario_unico(corpo, "txaTexto"),
+        campo_formulario_unico(corpo, "sbmSalvar"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if corpo.split('&').count() != 5 || tipo != "2" || protocolo != id || salvar != "Salvar" {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    match iesei::marcadores::atribuir(banco, origem, cenario, id, unidade, &marcador, &texto) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
+        )),
+        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(
+            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
+        ) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+/// Retirada única validada contra a observação íntegra, apenas no SQLite local.
+fn submeter_retirada(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    observacao: &Observacao,
+) -> Resposta {
+    let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
+        campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+        campo_formulario_unico(corpo, "hdnInfraNroItens"),
+        campo_formulario_unico(corpo, "hdnInfraItemId"),
+        campo_formulario_unico(corpo, "hdnInfraItens"),
+        campo_formulario_unico(corpo, "hdnInfraItensHash"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let ids = observacao
+        .itens
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    if corpo.split('&').count() != 5
+        || tipo != "2"
+        || nro != observacao.total_declarado.to_string()
+        || itens != ids
+        || hash != crate::protocolo_sintetico::INFRA_HASH
+        || !observacao.itens.iter().any(|m| m.id == item)
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    match iesei::marcadores::retirar(banco, origem, cenario, id, unidade, &item) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
+        )),
+        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(
+            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
+        ) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 /// Responde à tela de leitura cuja ação foi publicada na barra da árvore.
 /// Sem observação não há afirmação de lista vazia nem rota de escrita.
 ///
@@ -104,8 +225,13 @@ pub(crate) fn responder(
     let acao = parametro_unico(alvo, "acao");
     if !matches!(
         (metodo, acao),
-        ("GET", Some("andamento_marcador_gerenciar"))
-            | ("POST", Some("andamento_marcador_remover"))
+        (
+            "GET",
+            Some("andamento_marcador_gerenciar" | "andamento_marcador_cadastrar")
+        ) | (
+            "POST",
+            Some("andamento_marcador_remover" | "andamento_marcador_cadastrar")
+        )
     ) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
@@ -128,43 +254,14 @@ pub(crate) fn responder(
     let Ok(Some(observacao)) = iesei::marcadores::ler(banco, origem, cenario, id, &unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
+    if metodo == "GET" && acao == Some("andamento_marcador_cadastrar") {
+        return formulario_adicionar(banco, origem, cenario, id, &unidade);
+    }
+    if metodo == "POST" && acao == Some("andamento_marcador_cadastrar") {
+        return submeter_atribuicao(corpo, banco, origem, cenario, id, &unidade);
+    }
     if metodo == "POST" {
-        let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
-            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
-            campo_formulario_unico(corpo, "hdnInfraNroItens"),
-            campo_formulario_unico(corpo, "hdnInfraItemId"),
-            campo_formulario_unico(corpo, "hdnInfraItens"),
-            campo_formulario_unico(corpo, "hdnInfraItensHash"),
-        ) else {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        };
-        let ids = observacao
-            .itens
-            .iter()
-            .map(|m| m.id.as_str())
-            .collect::<Vec<_>>()
-            .join(",");
-        if corpo.split('&').count() != 5
-            || tipo != "2"
-            || nro != observacao.total_declarado.to_string()
-            || itens != ids
-            || hash != crate::protocolo_sintetico::INFRA_HASH
-            || !observacao.itens.iter().any(|m| m.id == item)
-        {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        }
-        return match iesei::marcadores::retirar(banco, origem, cenario, id, &unidade, &item) {
-            Ok(()) => Resposta::redirecionar(format!(
-                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
-            )),
-            Err(iesei::marcadores::Falha::DadoInvalido) => {
-                Resposta::nova(Estado::RequisicaoInvalida)
-            }
-            Err(
-                iesei::marcadores::Falha::Sqlite(_)
-                | iesei::marcadores::Falha::ProcessoNaoObservado,
-            ) => Resposta::nova(Estado::DadosInsuficientes),
-        };
+        return submeter_retirada(corpo, banco, origem, cenario, id, &unidade, &observacao);
     }
     // UnB 4.0.9: sem marcador, GET redireciona ao formulário de adicionar.
     // Não inventar "0 registros" na tela de gerenciamento.
