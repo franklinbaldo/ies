@@ -379,7 +379,10 @@ fn conferir_resultados(
         }
         Modo::PreviaSemObservacao => {
             assert!(saida_json.get("documentos_assinados").is_none());
-            assert!(!saida.status.success(), "assinatura não observada não é assinatura comprovada");
+            assert!(
+                !saida.status.success(),
+                "assinatura não observada não é assinatura comprovada"
+            );
         }
         Modo::JaAnexado => {
             assert_eq!(saida_json["codigo"], "operacao_recusada");
