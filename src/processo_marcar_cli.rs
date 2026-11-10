@@ -6,8 +6,7 @@ use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
     Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, interpretar_rotulo,
-    previa_atribuicao,
-    validar_texto,
+    previa_atribuicao, validar_texto,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
@@ -81,7 +80,13 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
         }
         if operacao == Operacao::Atribuir {
             return previa_atribuicao(
-                cli, sessao, indice, &nup, &rotulo, texto.as_deref(), &mut EnvioHttps
+                cli,
+                sessao,
+                indice,
+                &nup,
+                &rotulo,
+                texto.as_deref(),
+                &mut EnvioHttps,
             );
         }
         previa(
