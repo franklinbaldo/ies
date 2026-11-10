@@ -1,5 +1,6 @@
-//! Gerenciamento de marcadores projetado de uma observação SQLite, só GET.
-//! BDD-255-03: leitura idempotente da CLI; nenhum POST de escrita simulada.
+//! Gerenciamento de marcadores projetado de observação SQLite, só GET.
+//! Os controles observados aparecem no HTML, mas o POST segue fechado.
+//! BDD-255-01/02 parcial e 255-03: nenhum POST de escrita simulada.
 use crate::{Estado, Resposta, escapar, parametro_unico};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{Marcador, Observacao};
@@ -14,6 +15,8 @@ fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
         "<!doctype html><html><head><title>SEI - Marcadores do Processo {nup}</title></head><body>\
          <form id='frmGerenciarMarcador' method='post' \
          action='controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_gerenciar&id_procedimento={id}&infra_hash={assinatura}'>\
+         <button type='button' id='btnAdicionar' onclick=\"location.href='controlador.php?acao=andamento_marcador_cadastrar&amp;id_procedimento={id}&amp;infra_hash={assinatura}'\">Adicionar</button>\
+         <button type='button' id='btnRemover' onclick='acaoRemocaoMultipla()'>Remover</button>\
          <table id='tblMarcadores' summary='Marcadores'>\
          <caption>Marcadores ({} {}):</caption>\
          <tr><th><a id='lnkInfraCheck'></a></th>\
@@ -27,7 +30,26 @@ fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
     ).expect("String");
 }
 
+// Preservar o argumento literal do handler observado sem injeção de JS ou HTML.
+fn argumento_js(texto: &str) -> String {
+    let mut saida = String::new();
+    for c in texto.chars() {
+        match c {
+            '\\' => saida.push_str("\\\\"),
+            '\'' => saida.push_str("\\'"),
+            '\n' => saida.push_str("\\n"),
+            '\r' => saida.push_str("\\r"),
+            '\u{2028}' => saida.push_str("\\u2028"),
+            '\u{2029}' => saida.push_str("\\u2029"),
+            c if c.is_control() => write!(saida, "\\u{:04x}", c as u32).expect("String"),
+            c => saida.push(c),
+        }
+    }
+    escapar(&saida)
+}
+
 fn linha(html: &mut String, m: &Marcador) {
+    let nome_js = argumento_js(&m.nome);
     let (id, nome, cor, data) = (
         escapar(&m.id),
         escapar(&m.nome),
@@ -46,7 +68,8 @@ fn linha(html: &mut String, m: &Marcador) {
          <input type='checkbox' class='infraCheckbox' value='{id}' title='{nome}'></td>\
          <td><img src='svg/marcador_{cor}.svg' title='{nome}'>{nome}</td>\
          <td id='tdAndamentoMarcador{id}'>{texto}</td>\
-         <td>{usuario}</td><td>{data}</td><td></td></tr>"
+         <td>{usuario}</td><td>{data}</td>\
+         <td><a href='#' onclick=\"acaoRemover('{id}','{nome_js}');return false;\">Remover</a></td></tr>"
     )
     .expect("String");
 }

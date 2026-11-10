@@ -46,6 +46,8 @@ pub(crate) enum EstadoDoProcesso {
     AtribuicaoNaUnidade,
     /// Texto e prioridade da anotação registrada na unidade do processo.
     AnotacaoNaUnidade,
+    /// Anexação de um processo a outro, potencialmente irreversível.
+    AnexacaoDeProcesso,
     /// Vínculo entre processos, incluindo sua remoção.
     RelacionamentosDoProcesso,
     /// Data de vencimento do controle de prazo.

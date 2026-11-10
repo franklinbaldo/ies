@@ -12,7 +12,7 @@ unresolved_steps: 0
 
 # processo.anexar
 
-Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB**, apenas prévia e recusa fail-closed da confirmação. Veja [contrato](../cli/processo-anexar.md) e [relatório live](../../docs/validacao-live/2026-11-05-processo-anexar-handoff.md): NOT_RUN, 0 requisições. O RED do primeiro commit teve oito falhas comprovadas pelo CI 42084762362; a escrita e o replay do acervo ainda não foram validados.
+Origem: matriz de demonstrações do Todos. IES Rust: **PARCIAL WEB**, com prévia e confirmação por POST único e releitura **comprovadas somente em bancada sintética** ([BDD-270-02](../../tests/aies_anexacao_cli.rs); [CI oficial anterior](https://github.com/franklinbaldo/ies/actions/runs/42767244366)). O confronto semântico independente das transições com as cassettes continua **NOT_RUN**; a inspeção de integridade e estrutura de 102 interações UnB/GO não é esse confronto. [Validação live](../../docs/validacao-live/2026-11-05-processo-anexar-handoff.md): **NOT_RUN**, zero requisições nesta fatia. O RED inicial registrou oito falhas no CI 42084762362. Veja o [contrato](../cli/processo-anexar.md).
 Os estados abaixo pertencem ao Todos, não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com

@@ -122,6 +122,90 @@ fn confrontar_corpo_observado_http(
     }
 }
 
+/// Negativos derivados dos IDs da gravação: não foram emitidos pelo SEI.
+fn confrontar_recusas_de_versoes(
+    endereco: SocketAddr,
+    id: &str,
+    processo: &str,
+    versao_inexistente: u32,
+    versao_capturada: Option<u32>,
+) {
+    let ausente = format!(
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao_inexistente}"
+    );
+    assert!(
+        pedir(endereco, "GET", &ausente).starts_with("HTTP/1.1 404"),
+        "versão não capturada nem cadastrada não pode servir o corpo atual"
+    );
+    let protocolo_conflitante = format!(
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}"
+    );
+    assert!(
+        pedir(endereco, "GET", &protocolo_conflitante).starts_with("HTTP/1.1 400"),
+        "id_protocolo contraditório não pode abrir histórico"
+    );
+    if let Some(versao) = versao_capturada {
+        let corpo_observado = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "POST", &corpo_observado).starts_with("HTTP/1.1 405"),
+            "POST no corpo observado é recusado sem editar revisão"
+        );
+        let identidade_conflitante = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "GET", &identidade_conflitante).starts_with("HTTP/1.1 400"),
+            "identidade contraditória não pode vazar o corpo capturado"
+        );
+    }
+}
+
+/// Reconstrói o estado a partir do card e exige imutabilidade completa após HTTP.
+fn servir_historico_de_cassette(
+    documento: DocumentoSimulado,
+    instalacao: iesei::instalacao::Instalacao,
+    incluir_corpo: bool,
+) -> (SocketAddr, std::thread::JoinHandle<()>) {
+    let quantidade = documento.revisoes.len();
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    // GET de versão inexistente e identidade documental contraditória são
+    // perturbações sintéticas dos IDs observados, não respostas do SEI.
+    let pedidos = 5 + 3 * usize::from(incluir_corpo);
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-historico-sei", &documento).unwrap();
+        for _ in 0..pedidos {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(
+                &mut fluxo,
+                Some((&banco, &instalacao, "cassette-historico-sei")),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            i64::try_from(quantidade).unwrap()
+        );
+        assert_eq!(
+            iesei::documento_versoes::ler(
+                &banco,
+                &instalacao,
+                "cassette-historico-sei",
+                &documento.id_documento,
+            )
+            .unwrap(),
+            Some(documento),
+            "GETs e métodos recusados devem preservar todos os campos do documento"
+        );
+    });
+    (endereco, tarefa)
+}
+
 fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool) {
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(caminho_card);
@@ -169,7 +253,6 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         }),
         "versões sem corpo capturado ficam apenas com estrutura vazia"
     );
-    let quantidade = revisoes.len();
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.to_owned(),
@@ -182,32 +265,19 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
             .map_or(rotulo_observado, |(_, tipo, _)| tipo.clone()),
         revisoes,
     };
-    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = escuta.local_addr().unwrap();
-    let pedidos = 3 + usize::from(conteudo.is_some());
-    let tarefa = std::thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        guardar(&mut banco, "cassette-historico-sei", &documento).unwrap();
-        for _ in 0..pedidos {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(
-                &mut fluxo,
-                Some((&banco, &instalacao, "cassette-historico-sei")),
-            )
-            .unwrap();
-        }
-        assert_eq!(
-            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            i64::try_from(quantidade).unwrap(),
-            "GET, recusa de identidade e POST não alteram as revisões"
-        );
-    });
+    let (endereco, tarefa) =
+        servir_historico_de_cassette(documento, instalacao, conteudo.is_some());
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
     confrontar_corpo_observado_http(endereco, id, &processo, &numero, conteudo.as_ref());
+    confrontar_recusas_de_versoes(
+        endereco,
+        id,
+        &processo,
+        historico_original.atual().unwrap().numero() + 1,
+        conteudo.as_ref().map(|(versao, _, _)| *versao),
+    );
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
@@ -245,6 +315,33 @@ fn cassette_ufrj_historico_preserva_metadados_e_identidade_por_http() {
 fn cassette_pen1_historico_e_conteudo_preservam_identidade_por_http() {
     confrontar_cassette_historico_por_http(
         "cassettes/pen1/liberacoes-e-versoes-leitura-pen1--f46eada4effb.md",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN2 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen2_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen2/liberacoes-e-versoes-leitura-pen2--8524cf9ab35b.md",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN3 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen3_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen3/liberacoes-e-versoes-leitura-pen3--d26a229876cd.md",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN4 SHA-verificado no IES_ACERVO_CACHE; somente offline"]
+fn cassette_pen4_historico_e_conteudo_preservam_identidade_por_http() {
+    confrontar_cassette_historico_por_http(
+        "cassettes/pen4/liberacoes-e-versoes-leitura-pen4--e50e4fdacce1.md",
         true,
     );
 }
