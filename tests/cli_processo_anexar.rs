@@ -17,8 +17,17 @@ fn executar(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON válido")
+/// Falha de comando convertido (#695): saída 1, stdout vazio e
+/// `Error: <Variante>` no stderr.
+fn assert_falha(saida: &Output, variante: &str) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        saida.stdout.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 #[test]
@@ -42,10 +51,7 @@ fn confirmar_recusa_sem_sessao_ativa() {
         "--confirmar",
         "--json",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["retentavel"], false);
+    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]
@@ -57,8 +63,7 @@ fn mesma_identidade_recusa_antes_da_sessao() {
 #[test]
 fn previa_sem_sessao_falha_fechado() {
     let saida = executar(&["processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]

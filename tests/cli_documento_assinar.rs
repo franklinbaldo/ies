@@ -1,6 +1,6 @@
 //! Superfície de `ies documento assinar DOC [--cargo TEXTO] [--confirmar]`
 //! (Refs #174): número inválido e `--confirmar` sem `--cargo` saem com 2
-//! antes de qualquer arquivo; sem configuração, 1 `fonte_invalida`, sem
+//! antes de qualquer arquivo; sem configuração, saída 1 e erro tipado, sem
 //! rede; com `--confirmar`, credenciais ausentes são recusa antes da rede e
 //! a senha nunca aparece. Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
@@ -19,6 +19,19 @@ fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
         None => comando.env_remove("IES_CREDENCIAIS_FILE"),
     };
     comando.output().expect("IES deve iniciar")
+}
+
+/// Falha de comando convertido (#695): saída 1, stdout vazio e
+/// `Error: <Variante>` no stderr.
+fn assert_falha(saida: &Output, variante: &str) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        saida.stdout.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 fn json(saida: &Output) -> serde_json::Value {
@@ -52,10 +65,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         let mut args = vec!["documento", "assinar", "0000101", "--json"];
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, Some("/nao/existe/credenciais"));
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 

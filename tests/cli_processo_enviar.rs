@@ -16,8 +16,15 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
 
 const NUP: &str = "00001.000001/2026-01";
@@ -66,9 +73,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 
@@ -100,13 +105,13 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     ];
     let previa = sem_sessao(&base);
     assert_eq!(previa.status.code(), Some(1));
-    assert_eq!(json(&previa)["codigo"], "fonte_invalida");
+    sem_arquivos_de_sessao(&previa);
     // Sem sessão o comando não pode observar nem confirmar a tela.
     // A recusa continua sem rede, mas agora a confirmação requer preflight.
     let mut confirmar = base.to_vec();
     confirmar.push("--confirmar");
     let saida = sem_sessao(&confirmar);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+    sem_arquivos_de_sessao(&saida);
     // Sem trava de ensaio: a confirmação segue para a sessão, que falta.
 }

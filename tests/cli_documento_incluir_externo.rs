@@ -285,8 +285,13 @@ fn dado_pedido_de_previa_web_quando_sem_sessao_entao_nao_finge_inspecao_local() 
         "--consultar-sei",
     ]);
     assert_eq!(saida.status.code(), Some(1), "{:?}", saida.stderr);
-    let valor = json(&saida);
-    assert_ne!(valor["escopo"], "inspecao_local");
+    // Sem inspeção local fingida: nada no stdout, só o erro tipado.
+    assert_eq!(saida.stdout, b"");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
 
 #[test]

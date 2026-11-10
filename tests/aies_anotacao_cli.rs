@@ -8,6 +8,9 @@ use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::Command;
@@ -290,12 +293,11 @@ fn executar_caso(caso: Caso<'_>, resultado: Resultado, modo_json: bool) {
         );
         return;
     }
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if resposta_recusada {
         // O servidor aplicou, mas o túnel devolveu 403: estado final não prova autoria.
-        assert_eq!(json["codigo"], "nao_confirmado");
-        assert_eq!(json["retentavel"], false);
+        falha(&saida, "NaoConfirmado");
     } else {
+        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
         assert_eq!(json["nup"], NUP);
         let texto_esperado = if remover { "" } else { "Revisar minuta" };
         let anotacao_esperada = if remover { "Rascunho" } else { "" };

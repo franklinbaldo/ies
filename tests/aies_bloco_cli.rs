@@ -11,6 +11,9 @@ use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -494,16 +497,7 @@ fn bdd_256_03_cli_real_detalhe_assinatura_com_estado_e_itens() {
 #[test]
 fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
     let (saida, pedidos) = executar(false, Some("9999"));
-    assert_eq!(saida.status.code(), Some(1));
+    falha(&saida, "Bloco");
     assert_eq!(pedidos.len(), 2);
-    let valor = json(&saida);
-    assert!(valor.get("codigo").is_none());
-    assert!(
-        valor["erro"]
-            .as_str()
-            .unwrap()
-            .contains("bloco_nao_encontrado_na_pagina"),
-        "{valor}"
-    );
-    assert!(!valor.to_string().contains("infra_hash"));
+    assert!(!String::from_utf8_lossy(&saida.stderr).contains("infra_hash"));
 }

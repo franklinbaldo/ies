@@ -12,8 +12,15 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("resposta JSON")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
 #[test]
 fn marcador_invalido_sai_2_antes_de_ler_sessao() {
@@ -42,8 +49,7 @@ fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 #[test]
@@ -108,7 +114,7 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
-            assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+            sem_arquivos_de_sessao(&saida);
         }
     }
 }

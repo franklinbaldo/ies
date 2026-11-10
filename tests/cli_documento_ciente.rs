@@ -46,7 +46,10 @@ fn numero_documento_invalido_falha_antes_de_sessao() {
 fn comando_sem_sessao_falha_fechado() {
     let saida = sem_sessao(&["documento", "ciente", "0000101", "--confirmar", "--json"]);
     assert_eq!(saida.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON");
-    assert_eq!(json["codigo"], "fonte_invalida");
-    assert_ne!(json["codigo"], "nao_implementado");
+    assert_eq!(saida.stdout, b"");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
