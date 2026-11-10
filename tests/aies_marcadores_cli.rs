@@ -425,7 +425,10 @@ fn conferir(
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let retirada_presente = matches!(caso, Caso::RetirarPresente);
     let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto);
+    let efeito_incerto = matches!(
+        caso,
+        Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if matches!(caso, Caso::AtribuirSemCatalogo) {
         assert_eq!(saida.status.code(), Some(1));
