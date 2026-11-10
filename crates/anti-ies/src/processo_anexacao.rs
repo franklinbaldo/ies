@@ -1,7 +1,7 @@
 //! Formulário de anexação em estado SQLite, somente em bancada sintética.
 //! Hipótese declarada em Todos/src/todos/anexacao.py @323eb01.
 use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
-use iesei::{anexacoes, instalacao::Instalacao, processos};
+use iesei::{anexacoes, editor_documento::{self, SituacaoAssinaturas}, instalacao::Instalacao, processos};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
@@ -132,9 +132,7 @@ pub(crate) fn consulta(
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
-    use iesei::editor_documento::SituacaoAssinaturas;
-    let Ok(situacao) =
-        iesei::editor_documento::situacao_assinaturas_anexacao(banco, origem, cenario, &id)
+    let Ok(situacao) = editor_documento::situacao_assinaturas_anexacao(banco, origem, cenario, &id)
     else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
