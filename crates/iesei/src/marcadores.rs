@@ -212,13 +212,7 @@ pub fn retirar(
         "UPDATE processo_marcadores_observados SET total_declarado=total_declarado-1
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
          AND total_declarado=?5",
-        params![
-            origem.url_base(),
-            cenario,
-            id,
-            unidade,
-            total_esperado
-        ],
+        params![origem.url_base(), cenario, id, unidade, total_esperado],
     )?;
     if alteradas != 1 {
         return Err(Falha::DadoInvalido);
