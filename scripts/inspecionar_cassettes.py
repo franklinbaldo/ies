@@ -113,13 +113,6 @@ def verificar(caminho, arquivos):
     formatos_redirect_atribuicao = collections.Counter()
     for interacao in interacoes:
         metodo, acao, estrutura = detalhes_requisicao(interacao.get("request"))
-        if acao == "andamento_marcador_cadastrar":
-            resp = interacao.get("response") or {}
-            print("CATALOGO_ESTRUTURA", metodo, "status", resp.get("status_code"),
-                  "response_keys", sorted(resp.keys()),
-                  "request_keys", sorted((interacao.get("request") or {}).keys()),
-                  "body_shapes", [(k, type(v).__name__, len(v) if isinstance(v, (str, dict, list)) else 0)
-                                  for k, v in resp.items() if k in ("body", "content", "text", "data")])
         metodos[metodo] += 1
         estruturas[estrutura] += 1
         if acao:
