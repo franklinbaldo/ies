@@ -199,7 +199,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     conferir_endereco_relativo(&instalacao, endereco, "comentario_cadastrar", id)
         .map_err(|_| Erro::Formulario)?;
     if confirmar_escrita {
-        confirmar(submissao, sessao, &mut rede, &cookie, &link, id, texto)?;
+        confirmar(submissao, sessao, &mut rede, &cookie, link.as_str(), id, texto)?;
     }
     Ok(Previa {
         numero: nup.as_str().to_owned(),
