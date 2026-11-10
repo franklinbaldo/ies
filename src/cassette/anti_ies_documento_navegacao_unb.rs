@@ -83,8 +83,8 @@ fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
         })
         .expect("a arvore original precisa ligar o documento selecionado ao NUP");
 
-    // A versão, autor, data e corpo não aparecem nesta comparação.
-    // Representação mínima e estrutural; NÃO declarar paridade desses campos.
+    // A versão, autor, data e corpo não são confrontados nesta cassette.
+    // Sentinelas explícitas satisfazem a estrutura sem fingir observação.
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.clone(),
@@ -94,9 +94,9 @@ fn cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http() {
         tipo: rotulo,
         revisoes: vec![Revisao {
             versao: NonZeroU32::new(1).unwrap(),
-            usuario: String::new(),
+            usuario: "nao_observado".to_owned(),
             unidade: tela_original.unidade.clone(),
-            modificacao: String::new(),
+            modificacao: "nao_observada".to_owned(),
             html_corpo: "<p></p>".to_owned(),
         }],
     };
