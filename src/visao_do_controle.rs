@@ -33,7 +33,9 @@ use crate::transporte::FalhaTransporte;
 pub(crate) use definir::definir_colunas;
 pub(crate) use definir_erro::ColunasDefinidas;
 #[cfg(test)]
-pub(crate) use definir_erro::{ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas};
+pub(crate) use definir_erro::{
+    ErroDefinirColunas, EstadoDasColunas, FalhaDoSalvar, VerificacaoDasColunas,
+};
 pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
@@ -103,7 +105,7 @@ impl Visao {
     }
 }
 
-/// um erro por fato verificável; nenhum valor servido é guardado.
+/// Uma variante por fato verificável; nenhum valor servido é guardado.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroVisaoDoControle {
@@ -131,7 +133,7 @@ pub(crate) enum ErroVisaoDoControle {
 }
 
 impl ErroVisaoDoControle {
-    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

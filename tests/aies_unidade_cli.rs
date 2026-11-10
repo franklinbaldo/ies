@@ -297,3 +297,6 @@ fn aies_02_cli_real_unidade_na_detalhada_pagina_posterior() {
     assert_eq!(valor["unidade_exibida"], "TESTE");
     assert_eq!(valor["origem"], "controle_de_processos");
 }
+
+#[path = "aies_unidade_cli/colunas.rs"]
+mod colunas;
