@@ -196,13 +196,16 @@ enum Caso {
     RetirarPresente,
     RetirarSemMarcadores,
     RetirarConfirmado,
+    RetirarEfeitoIncerto,
 }
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
         Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente | Caso::RetirarConfirmado => ("--retirar", "501#Revisão"),
+        Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
+            ("--retirar", "501#Revisão")
+        }
     }
 }
 
@@ -214,10 +217,19 @@ fn executar_caso_cli(
 ) -> Output {
     let (operacao, marcador) = pedido(caso);
     let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
-    if matches!(caso, Caso::RetirarConfirmado) {
+    if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
         argumentos.push("--confirmar");
     }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
+}
+
+fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incerto: bool) {
+    if efeito_incerto && evento == "POST andamento_marcador_remover" {
+        assert!(resposta.starts_with(b"HTTP/1.1 302 "));
+        // O anti-IES já aplicou o POST; a resposta recebida pela CLI é 403.
+        // A Location anterior não autentica a escrita quando status é 403.
+        resposta[9..12].copy_from_slice(b"403");
+    }
 }
 
 fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
@@ -237,7 +249,8 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
-    let confirmado = matches!(caso, Caso::RetirarConfirmado);
+    let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -284,6 +297,7 @@ fn executar(caso: Caso) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            injetar_resposta_inconclusiva(&mut resposta, &evento, efeito_incerto);
             if evento == "GET andamento_marcador_gerenciar"
                 && resposta.starts_with(b"HTTP/1.1 200 ")
             {
@@ -329,38 +343,38 @@ fn executar(caso: Caso) {
     let pedidos = trilha.lock().unwrap().clone();
     let controles = controles.lock().unwrap().clone();
     conferir_controles(&controles, sem_marcadores);
-    conferir(
-        &saida,
-        &releitura,
-        &persistido,
-        &pedidos,
-        sem_marcadores,
-        matches!(caso, Caso::RetirarPresente),
-        confirmado,
-    );
+    conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
 fn conferir(
     saida: &Output,
     releitura: &Output,
     persistido: &Observacao,
     pedidos: &[String],
-    sem_marcadores: bool,
-    retirada_presente: bool,
-    confirmado: bool,
+    caso: Caso,
 ) {
+    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
+    let retirada_presente = matches!(caso, Caso::RetirarPresente);
+    let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(
         saida.status.code(),
-        Some(0),
+        Some(if efeito_incerto { 3 } else { 0 }),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nada_a_fazer"], !retirada_presente && !confirmado);
-    // Presença observada não demonstra que o formulário permite escrever.
-    assert_eq!(json["retirada_possivel"], confirmado);
-    assert_eq!(json["confirmado"], confirmado);
-    assert_eq!(json["alterado"], confirmado);
+    if efeito_incerto {
+        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["retentavel"], false);
+        assert_eq!(json["ausente_relido"], true);
+        assert!(json["erro"].as_str().unwrap().contains("não repita"));
+    } else {
+        assert_eq!(json["nada_a_fazer"], !retirada_presente && !confirmado);
+        assert_eq!(json["retirada_possivel"], confirmado);
+        assert_eq!(json["confirmado"], confirmado);
+        assert_eq!(json["alterado"], confirmado);
+    }
     assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
         releitura.status.code(),
@@ -424,4 +438,10 @@ fn bdd_255_02_previa_de_retirar_presente_mantem_marcador_na_releitura() {
 #[test]
 fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
     executar(Caso::RetirarConfirmado);
+}
+
+#[test]
+fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
+    // Resposta 403 após o POST aplicado não é aceite causal, mesmo com releitura ausente.
+    executar(Caso::RetirarEfeitoIncerto);
 }
