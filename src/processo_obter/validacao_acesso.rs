@@ -130,12 +130,7 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
     id: &str,
     (html, mime): (&str, &str),
 ) -> Result<(ArvoreAberta, String), E> {
-    let tela = match ler_tela_do_processo(
-        &contexto.instalacao,
-        html,
-        id,
-        contexto.unidade_pedida,
-    ) {
+    let tela = match ler_tela_do_processo(&contexto.instalacao, html, id, contexto.unidade_pedida) {
         Ok(tela) => tela,
         Err(crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
             validar(rede, contexto, id, html)?;
@@ -155,13 +150,7 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
                 id,
                 contexto.unidade_pedida,
             )?;
-            return rede.abrir_da_tela(
-                contexto,
-                trabalho,
-                (&nova_tela, &novo_mime),
-                validada,
-                id,
-            );
+            return rede.abrir_da_tela(contexto, trabalho, (&nova_tela, &novo_mime), validada, id);
         }
         Err(erro) => return Err(E::Tela(erro)),
     };
