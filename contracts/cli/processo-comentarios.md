@@ -58,8 +58,7 @@ A prévia implementada exige lista reconhecida, link único assinado de
 cadastro publicado. O redirecionamento 302 para o cadastro quando a lista
 está vazia ainda não é aceito pela prévia e não é interpretado como ausência
 comprovada de comentários. O fluxo de confirmação é habilitado somente em treinamento, após a conferência da tela.
-Quando implementado, `--confirmar` só poderá fazer um único POST observado,
-sem retry. A resposta aceita é 302 para `comentario_listar` com
+O modo `--confirmar` faz no máximo um POST observado, sem retry. A resposta aceita é 302 para `comentario_listar` com
 `id_comentario`; isso sozinho **não comprova efeito**.
 A reconciliação exige nova leitura completa com uma única ocorrência
 do id aceito **e texto igual byte a byte ao pedido**.
@@ -105,5 +104,7 @@ anti-IES ↔ SQLite, incluindo recusa de foto desconhecida e página parcial.
 São hipóteses **sintéticas** e não demonstram paridade independente com
 respostas de cassette. A inspeção estrutural das cassettes UnB/GO soma 76
 interações, SHA-1/SHA-256 conferidos; confronto semântico independente e
-SEI live: **NOT_RUN**. O caso de lista vazia/redirecionamento e o BDD-257-03 permanecem pendentes.
-A confirmação sintética ainda exige CI verde no SHA da implementação. Não foi realizado teste live.
+SEI live: **NOT_RUN**. O caso de lista vazia/redirecionamento permanece pendente. O BDD-257-03
+possui regressão sintética de 503 durante a releitura após o POST,
+com saída 3 e nenhuma repetição, e depende de gate verde no head final.
+Não foi realizado teste live.
