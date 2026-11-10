@@ -44,6 +44,7 @@ pub(super) enum EstadoExtra {
     VersaoRevogadaAoVisualizar,
     SemListaNaUnidade,
     CanceladoAntesDaLista,
+    PdfNumeroDuplicado,
 }
 
 fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
@@ -69,6 +70,55 @@ fn semear_numero_repetido(banco: &mut Connection, origem: &Instalacao) {
         },
     )
     .unwrap();
+}
+
+
+fn semear_pdf_numero_repetido(banco: &Connection, origem: &Instalacao) {
+    // A UnB registra documentos internos e uploads externos, mas não uma
+    // colisão de número SEI entre os dois tipos. Esta é hipótese mínima
+    // para testar se a CLI recusa selecionar arbitrariamente um corpo.
+    use iesei::pdf_externo::{self, Processo, TipoExterno};
+    pdf_externo::semear(
+        banco,
+        origem,
+        CENARIO,
+        &Processo {
+            id: "7".into(),
+            nup: NUP_A.into(),
+            unidade: "TESTE".into(),
+        },
+        &TipoExterno {
+            id: "293".into(),
+            nome: "Anexo".into(),
+            limite_bytes: 1024,
+        },
+    )
+    .unwrap();
+    let upload = pdf_externo::receber_conteudo(
+        banco,
+        origem,
+        CENARIO,
+        "7",
+        "anexo.pdf",
+        b"%PDF-1.4\n%%EOF\n",
+    )
+    .unwrap();
+    let pdf = pdf_externo::cadastrar(banco, origem, CENARIO, "7", "293", upload.id)
+        .unwrap();
+    let alterados = banco
+        .execute(
+            "UPDATE externo_documento SET numero_sei=?1
+             WHERE origem=?2 AND cenario=?3 AND id=?4 AND numero_sei=?5",
+            rusqlite::params![
+                DOC_A,
+                origem.url_base(),
+                CENARIO,
+                pdf.id,
+                pdf.numero_sei
+            ],
+        )
+        .unwrap();
+    assert_eq!(alterados, 1, "apenas o PDF do ensaio é renumerado");
 }
 
 /// A revisão 2 existe apenas no ensaio da recusa após a lista publicada.
@@ -187,6 +237,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
             );
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
+        EstadoExtra::PdfNumeroDuplicado => semear_pdf_numero_repetido(&banco, &origem),
     }
     (banco, origem)
 }
