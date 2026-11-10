@@ -33,3 +33,5 @@ jobs:
               conteudo = pathlib.Path(nome).read_bytes()
               print('CASTOR_RUSTFMT::'+nome+'::'+base64.b64encode(conteudo).decode('ascii'))
           PY
+      - name: RED ou GREEN sintético da CLI real
+        run: cargo +1.99.1 test --test aies_anexacao_cli -- --nocapture
