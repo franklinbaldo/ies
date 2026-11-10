@@ -137,8 +137,7 @@ pub(crate) fn responder(
             "andamento_marcador_gerenciar"
             | "andamento_marcador_remover"
             | "andamento_marcador_cadastrar",
-        ) if eh_controlador_sei(alvo) =>
-        {
+        ) if eh_controlador_sei(alvo) => {
             processo_marcadores::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
