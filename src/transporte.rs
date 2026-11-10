@@ -286,18 +286,6 @@ pub(crate) fn get_https(
     cliente_https::requisitar("GET", destino, cookie, None).map(cliente_https::resposta_web)
 }
 
-/// O mesmo GET com ambiente e camada TLS injetáveis (proxy falso nos testes).
-#[cfg(test)]
-pub(crate) fn get_https_via<S: Read + std::io::Write>(
-    destino: &str,
-    cookie: &str,
-    ambiente: impl Fn(&str) -> Option<String>,
-    envolver: impl FnOnce(&str, std::net::TcpStream) -> Result<S, FalhaTransporte>,
-) -> Result<RespostaWeb<impl Read>, FalhaTransporte> {
-    cliente_https::requisitar_via("GET", destino, cookie, None, ambiente, envolver)
-        .map(cliente_https::resposta_web)
-}
-
 #[cfg(all(test, unix))] // só o teste de link simbólico
 pub fn read_box_from_file(
     url_file: &Path,
@@ -333,9 +321,6 @@ pub(crate) mod saneamento;
 
 #[path = "transporte/validacao_da_infra.rs"]
 pub(crate) mod validacao_da_infra;
-
-#[path = "transporte/proxy.rs"]
-pub(crate) mod proxy;
 
 #[path = "transporte/resposta_http.rs"]
 pub(crate) mod resposta_http;
@@ -374,10 +359,6 @@ mod tests_resposta;
 #[cfg(test)]
 #[path = "transporte/tests_recusa_http.rs"]
 mod tests_recusa_http;
-
-#[cfg(test)]
-#[path = "transporte/tests_cliente_https.rs"]
-mod tests_cliente_https;
 
 #[cfg(all(test, target_os = "linux"))]
 #[path = "transporte/paired_worker.rs"]

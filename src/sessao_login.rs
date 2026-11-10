@@ -137,10 +137,6 @@ mod tests_sessao;
 mod tests_snapshot;
 
 #[cfg(test)]
-#[path = "sessao_login/tests_proxy.rs"]
-mod tests_proxy;
-
-#[cfg(test)]
 #[path = "sessao_login/tests_colheita.rs"]
 mod tests_colheita;
 

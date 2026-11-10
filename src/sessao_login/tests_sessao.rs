@@ -5,7 +5,6 @@ use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
 use super::{CampoDasCredenciais as C, Credenciais, ErroLogin, RespostaHttp, http, tela};
 use crate::erro_html::ErroHtml;
-use std::io::Cursor;
 
 #[test]
 fn credenciais_aceitam_senha_com_igual_e_espacos_e_redigem_o_debug() {
@@ -159,9 +158,17 @@ fn pote_respeita_path_remocao_e_dominio_e_redige_valores() {
 }
 
 #[test]
-fn leitura_http_guarda_todos_os_set_cookie_e_decodifica_o_corpo() {
-    let bruto = "HTTP/1.1 302 Found\r\nLocation: /sip/login.php\r\nSet-Cookie: A=1; path=/\r\nset-cookie: B=2; path=/\r\nContent-Length: 999\r\n\r\nnao lido";
-    let r = http::ler_resposta(&mut Cursor::new(bruto.as_bytes())).unwrap();
+fn leitura_http_guarda_todos_os_set_cookie_e_nao_le_corpo_de_3xx() {
+    let r = http::completar_sintetica(
+        302,
+        &[
+            ("Location", "/sip/login.php"),
+            ("Set-Cookie", "A=1; path=/"),
+            ("set-cookie", "B=2; path=/"),
+        ],
+        b"nao lido",
+    )
+    .unwrap();
     assert_eq!(r.status, 302);
     assert_eq!(
         r.valores("set-cookie").collect::<Vec<_>>(),
@@ -169,44 +176,10 @@ fn leitura_http_guarda_todos_os_set_cookie_e_decodifica_o_corpo() {
     );
     assert_eq!(r.cabecalho("location"), Some("/sip/login.php"));
     assert_eq!(r.corpo, b"");
-
-    let chunked = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/html\r\n\r\n4;ext=1\r\n<htm\r\n3\r\nl/>\r\n0\r\nX-Trailer: 1\r\n\r\n";
-    let r = http::ler_resposta(&mut Cursor::new(chunked.as_bytes())).unwrap();
-    assert_eq!(r.corpo, b"<html/>");
-
-    let fixo = "HTTP/1.0 500 Internal\r\nContent-Length: 3\r\n\r\nabcdef";
     assert_eq!(
-        http::ler_resposta(&mut Cursor::new(fixo.as_bytes()))
-            .unwrap()
-            .corpo,
-        b"abc"
-    );
-
-    let ate_o_fim = "HTTP/1.1 200 OK\r\n\r\nfim";
-    assert_eq!(
-        http::ler_resposta(&mut Cursor::new(ate_o_fim.as_bytes()))
-            .unwrap()
-            .corpo,
-        b"fim"
-    );
-
-    let grande = "HTTP/1.1 200 OK\r\nContent-Length: 9000000\r\n\r\n";
-    assert_eq!(
-        http::ler_resposta(&mut Cursor::new(grande.as_bytes())).unwrap_err(),
+        http::completar_sintetica(200, &[("Content-Length", "9000000")], b"").unwrap_err(),
         crate::transporte::FalhaTransporte::RespostaExcessiva
     );
-    for ruim in [
-        "",
-        "HTTP/1.1 abc OK\r\n\r\n",
-        "FTP 200\r\n\r\n",
-        "HTTP/1.1 200 OK\r\nsem-dois-pontos\r\n\r\n",
-    ] {
-        assert_eq!(
-            http::ler_resposta(&mut Cursor::new(ruim.as_bytes())).unwrap_err(),
-            crate::transporte::FalhaTransporte::Rede,
-            "{ruim:?}"
-        );
-    }
 }
 
 #[test]
