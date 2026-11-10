@@ -20,6 +20,12 @@ fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
             .as_str()
             .is_some_and(|e| e.contains("validar o acesso"))
     );
+    assert!(
+        json["erro"]
+            .as_str()
+            .is_some_and(|e| e.contains("arquivo de credenciais")),
+        "a CLI deve explicar a ausência do arquivo de credenciais: {json}"
+    );
     assert!(json.get("documentos").is_none());
     assert_eq!(
         pedidos,
