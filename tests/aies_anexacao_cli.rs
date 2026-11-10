@@ -296,6 +296,7 @@ fn conferir_resultados(
         1,
         "uma única escrita, sem retry; {pedidos:?}"
     );
+}
 
 #[test]
 fn bdd_270_02_confirmacao_e_releitura_independente() {
