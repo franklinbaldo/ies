@@ -96,7 +96,7 @@ pub(crate) fn geracao_gravada(arquivos: &ArquivosDeAcesso) -> Option<String> {
 }
 
 fn sha256(texto: &str) -> String {
-    crate::hex::hex_minusculo(&Sha256::digest(texto.trim().as_bytes()))
+    hex::encode(Sha256::digest(texto.trim().as_bytes()))
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

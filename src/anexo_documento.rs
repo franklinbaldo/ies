@@ -274,7 +274,7 @@ pub(crate) fn ler_anexo<R: Read>(
             .sincronizar()
             .map_err(|_| ErroAnexo::EscritaFalhou)?;
     }
-    let hash = crate::hex::hex_minusculo(&hasher.finalize());
+    let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
     let texto = if texto && arquivo.is_none() {
         Some(texto_do_anexo(

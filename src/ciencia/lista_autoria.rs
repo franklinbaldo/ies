@@ -37,8 +37,8 @@ pub(crate) fn usuario_da_atividade_na_lista(
                 .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
                 .enumerate()
                 .find_map(|(indice, cabecalho)| {
-                    let titulo =
-                        crate::entidades_html::decodificar_texto(&cabecalho.inner_text(parser));
+                    let titulo = html_escape::decode_html_entities(&cabecalho.inner_text(parser))
+                        .into_owned();
                     titulo
                         .trim()
                         .eq_ignore_ascii_case("usuário")
@@ -79,7 +79,8 @@ pub(crate) fn usuario_da_atividade_na_lista(
             .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
             .nth(coluna_usuario)
             .map(|celula| {
-                crate::entidades_html::decodificar_texto(&celula.inner_text(parser))
+                html_escape::decode_html_entities(&celula.inner_text(parser))
+                    .into_owned()
                     .trim()
                     .to_owned()
             });

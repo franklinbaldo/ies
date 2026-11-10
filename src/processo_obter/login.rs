@@ -34,27 +34,6 @@ pub(super) fn destino(localizacao: Option<&str>) -> DestinoDoRedirecionamento {
 /// A consulta traz `msg` com a recusa característica da entrada sem
 /// assinatura (também conferida no 302 do Controle para o login).
 pub(crate) fn recusa_sem_assinatura(consulta: &str) -> bool {
-    consulta
-        .split('&')
-        .filter_map(|par| par.split_once('='))
-        .any(|(nome, valor)| nome == "msg" && decodificar(valor).as_deref() == Some(RECUSA))
-}
-
-/// `application/x-www-form-urlencoded` → texto; `None` se mal formado ou
-/// se os bytes não forem UTF-8.
-fn decodificar(valor: &str) -> Option<String> {
-    let mut bytes = Vec::with_capacity(valor.len());
-    let mut resto = valor.bytes();
-    while let Some(b) = resto.next() {
-        match b {
-            b'+' => bytes.push(b' '),
-            b'%' => {
-                let alto = char::from(resto.next()?).to_digit(16)?;
-                let baixo = char::from(resto.next()?).to_digit(16)?;
-                bytes.push(u8::try_from(alto * 16 + baixo).ok()?);
-            }
-            outro => bytes.push(outro),
-        }
-    }
-    String::from_utf8(bytes).ok()
+    form_urlencoded::parse(consulta.as_bytes())
+        .any(|(nome, valor)| nome == "msg" && valor == RECUSA)
 }

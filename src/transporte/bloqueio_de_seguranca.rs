@@ -12,7 +12,7 @@
 //! e "Sorry, you have been blocked" no texto visível: o mesmo fato, outro
 //! par de título e frase. A mesma página veio na PEN3 no POST da
 //! pesquisa com termo só de dígitos; a pesquisa seguinte passou.
-use super::texto_de_recusa::{decodificar_entidades, texto_visivel};
+use super::texto_de_recusa::texto_visivel;
 
 /// (título exato, frase no texto visível do corpo), por página observada.
 const PAGINAS: [(&str, &str); 2] = [
@@ -24,7 +24,8 @@ const PAGINAS: [(&str, &str); 2] = [
 ];
 
 fn normalizado(texto: &str) -> String {
-    decodificar_entidades(texto)
+    html_escape::decode_html_entities(texto)
+        .into_owned()
         .replace('\u{a0}', " ")
         .split_whitespace()
         .collect::<Vec<_>>()

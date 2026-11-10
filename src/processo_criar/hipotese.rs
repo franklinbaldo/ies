@@ -117,8 +117,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };
-        let texto =
-            crate::transporte::texto_de_recusa::decodificar_entidades(&opcao.inner_text(parser));
+        let texto = html_escape::decode_html_entities(&opcao.inner_text(parser)).into_owned();
         if texto.trim().is_empty() {
             return Err(E::resposta_nao_reconhecida());
         }

@@ -5,7 +5,6 @@
 #[path = "unidade_lupa/acervo.rs"]
 mod acervo;
 mod fluxo;
-use crate::entidades_html::decodificar_texto;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::UnidadeGuardada;
@@ -240,7 +239,8 @@ pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     })
 }
 fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    decodificar_texto(&tag.inner_text(parser))
+    html_escape::decode_html_entities(&tag.inner_text(parser))
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

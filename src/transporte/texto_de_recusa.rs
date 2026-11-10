@@ -34,7 +34,7 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     if let Some(handle) = conteiner_de_erro(&dom) {
         let texto = texto_visivel(handle, parser);
         if !texto.trim().is_empty() {
-            return Some(decodificar_entidades(&texto));
+            return Some(html_escape::decode_html_entities(&texto).into_owned());
         }
     }
     let titulo = primeiro(&dom, "title").map(|h| texto_visivel(h, parser));
@@ -63,7 +63,7 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
     if partes.is_empty() {
         return None;
     }
-    Some(decodificar_entidades(&partes.join(" — ")))
+    Some(html_escape::decode_html_entities(&partes.join(" — ")).into_owned())
 }
 
 /// A página traz o contêiner de exceção do SEI (`divInfraExcecao`,
@@ -135,80 +135,6 @@ pub(crate) fn texto_visivel(raiz: tl::NodeHandle, parser: &tl::Parser<'_>) -> St
         }
     }
     saida
-}
-
-/// Letras acentuadas do português e ordinais, por nome (ISO-8859-1).
-const LATINAS: [(&str, char); 26] = [
-    ("aacute", 'á'),
-    ("Aacute", 'Á'),
-    ("agrave", 'à'),
-    ("Agrave", 'À'),
-    ("acirc", 'â'),
-    ("Acirc", 'Â'),
-    ("atilde", 'ã'),
-    ("Atilde", 'Ã'),
-    ("eacute", 'é'),
-    ("Eacute", 'É'),
-    ("ecirc", 'ê'),
-    ("Ecirc", 'Ê'),
-    ("iacute", 'í'),
-    ("Iacute", 'Í'),
-    ("oacute", 'ó'),
-    ("Oacute", 'Ó'),
-    ("ocirc", 'ô'),
-    ("Ocirc", 'Ô'),
-    ("otilde", 'õ'),
-    ("Otilde", 'Õ'),
-    ("uacute", 'ú'),
-    ("Uacute", 'Ú'),
-    ("ccedil", 'ç'),
-    ("Ccedil", 'Ç'),
-    ("ordm", 'º'),
-    ("ordf", 'ª'),
-];
-
-/// `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#39;`, `&nbsp;`, as letras
-/// de `LATINAS` e referências numéricas; o resto fica como veio.
-pub(crate) fn decodificar_entidades(texto: &str) -> String {
-    let mut saida = String::with_capacity(texto.len());
-    let mut resto = texto;
-    while let Some(inicio) = resto.find('&') {
-        saida.push_str(&resto[..inicio]);
-        let depois = &resto[inicio + 1..];
-        let decodificada = depois
-            .find(';')
-            .filter(|fim| *fim <= 10)
-            .and_then(|fim| entidade(&depois[..fim]).map(|c| (c, fim)));
-        if let Some((c, fim)) = decodificada {
-            saida.push(c);
-            resto = &depois[fim + 1..];
-        } else {
-            saida.push('&');
-            resto = depois;
-        }
-    }
-    saida.push_str(resto);
-    saida
-}
-
-fn entidade(nome: &str) -> Option<char> {
-    match nome {
-        "amp" => Some('&'),
-        "lt" => Some('<'),
-        "gt" => Some('>'),
-        "quot" => Some('"'),
-        "apos" => Some('\''),
-        "nbsp" => Some('\u{a0}'),
-        _ if !nome.starts_with('#') => LATINAS.iter().find(|(n, _)| *n == nome).map(|(_, c)| *c),
-        _ => {
-            let numero = nome.strip_prefix('#')?;
-            let valor = match numero.strip_prefix(['x', 'X']) {
-                Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-                None => numero.parse::<u32>().ok()?,
-            };
-            char::from_u32(valor)
-        }
-    }
 }
 
 #[cfg(test)]

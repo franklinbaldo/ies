@@ -4,7 +4,6 @@
 //! observada nas cassettes da `UnB` 4.0.9, UFRJ 4.1.5 e GO 5.0.3. Nenhum JS é
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca as E;
-use crate::entidades_html::decodificar_texto;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
@@ -198,7 +197,8 @@ fn conferir(consulta: &str, acao: &str, comprimento: impl Fn(&str) -> bool) -> O
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     let bruto = no.inner_text(parser).replace("&nbsp;", " ");
-    decodificar_texto(&bruto)
+    html_escape::decode_html_entities(&bruto)
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

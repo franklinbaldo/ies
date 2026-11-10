@@ -11,7 +11,7 @@ use crate::html_atributos::{
 use crate::pesquisa_web::documento_da_linha::{documento_do_processo, documento_visualizado};
 use crate::pesquisa_web::{ErroResultadoPesquisa, validar_href_de_processo};
 use crate::processo::NumeroProcesso;
-use crate::transporte::texto_de_recusa::{decodificar_entidades, texto_visivel};
+use crate::transporte::texto_de_recusa::texto_visivel;
 use ErroDocumentoDaPesquisa as E;
 use std::collections::HashSet;
 
@@ -33,7 +33,7 @@ fn tag<'a>(no: tl::NodeHandle, parser: &'a tl::Parser<'a>) -> Result<&'a Tag<'a>
 
 /// Texto visível, entidades decodificadas e espaços colapsados.
 fn texto(no: tl::NodeHandle, parser: &tl::Parser<'_>) -> String {
-    let bruto = decodificar_entidades(&texto_visivel(no, parser));
+    let bruto = html_escape::decode_html_entities(&texto_visivel(no, parser)).into_owned();
     bruto
         .split(|c: char| c.is_whitespace() || c == '\u{a0}')
         .filter(|p| !p.is_empty())

@@ -297,7 +297,7 @@ fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, E> {
 
 /// Entidades decodificadas (`&nbsp;` como espaço inseparável).
 fn decodificar(bruto: &str) -> Option<String> {
-    decodificar_atributo(&bruto.replace("&nbsp;", "\u{a0}"))
+    decodificar_atributo(bruto)
 }
 
 /// Texto visível, entidades decodificadas e espaços colapsados.

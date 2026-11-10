@@ -6,7 +6,7 @@
 //! docs/como-o-sei-funciona/validacao-da-infra.md. Leitura com `tl` e
 //! `html_atributos` (sem regex).
 use super::saneamento::sanear;
-use super::texto_de_recusa::{decodificar_entidades, texto_visivel};
+use super::texto_de_recusa::texto_visivel;
 use crate::html_atributos::nos_com_id;
 
 /// `id` do contêiner da mensagem.
@@ -20,7 +20,8 @@ pub(crate) fn texto_da_validacao(dom: &tl::VDom<'_>) -> Option<String> {
         .ok()?
         .into_iter()
         .find_map(|handle| {
-            let texto = decodificar_entidades(&texto_visivel(handle, parser));
+            let texto =
+                html_escape::decode_html_entities(&texto_visivel(handle, parser)).into_owned();
             (!texto.trim().is_empty()).then_some(texto)
         })
 }

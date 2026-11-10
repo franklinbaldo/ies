@@ -20,7 +20,6 @@ use crate::formulario_web::{
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
-use crate::transporte::texto_de_recusa::decodificar_entidades;
 
 pub(crate) const FORMULARIO_DE_ENVIO: &str = "frmAtividadeListar";
 const BOTAO_ENVIAR: &str = "sbmEnviar";
@@ -264,7 +263,8 @@ fn ler_script(html: &str) -> Result<(String, bool), E> {
 
 /// O texto visível da opção: entidades decodificadas, espaços colapsados.
 fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
-    decodificar_entidades(&opcao.inner_text(parser))
+    html_escape::decode_html_entities(&opcao.inner_text(parser))
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

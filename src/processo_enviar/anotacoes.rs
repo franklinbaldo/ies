@@ -110,9 +110,8 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroHtml> {
                 ids.push(valor(tag, "value")?);
             }
             "textarea" if valor(tag, "name")?.as_deref() == Some("txaDescricao") => {
-                descricoes.push(crate::transporte::texto_de_recusa::decodificar_entidades(
-                    &tag.inner_text(parser),
-                ));
+                descricoes
+                    .push(html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned());
             }
             _ => {}
         }

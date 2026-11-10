@@ -2,7 +2,6 @@
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
-use crate::entidades_html::decodificar_texto;
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
@@ -45,7 +44,8 @@ pub(crate) struct Acompanhamento {
 }
 
 fn texto(texto: &str) -> String {
-    decodificar_texto(texto)
+    html_escape::decode_html_entities(texto)
+        .into_owned()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
