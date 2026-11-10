@@ -197,7 +197,7 @@ Orçamento: 3 GET + 1 POST + 1 GET de verificação, sem repetição.
 ### Causas HTTP de dois estágios (06/11/2026, #245)
 
 Observação prévia: o transporte já distingue `FalhaTransporte::Rede`
-de `StatusHttpDeErroDoServidor` e conserva mensagem saneada. O caminho
+de `Status` (5xx) e conserva mensagem saneada. O caminho
 de reconciliação guardava a causa do POST e a variante da releitura, mas
 o método `status_http` consultava **apenas a primeira causa**. Quando
 o POST falhava sem status e o GET Controle retornava 503, o HTTP 503

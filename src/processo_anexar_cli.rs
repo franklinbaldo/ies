@@ -1,13 +1,12 @@
 //! CLI de anexação: prévia e confirmação única, com prova independente.
-use crate::processo::NumeroProcesso;
-use crate::processo_anexar::fluxo::{FalhaAnexar, Pedido, Previa, ResultadoAnexacao, prever};
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_anexar::fluxo::{Pedido, Previa, ResultadoAnexacao, prever};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_anexar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Anexar {
@@ -20,17 +19,13 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(anexado) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
-    let Ok(principal) = NumeroProcesso::novo(a) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let anexado = numero.clone();
+    let principal = a.clone();
     if anexado.as_str() == principal.as_str() {
-        return Some(falha(
+        return Some(crate::legado(falha(
             cli.json,
             "anexação recusada pela tela ou pelos dados informados",
-        ));
+        )));
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -39,7 +34,7 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
         let pedido = Pedido {
             anexado: &anexado,
@@ -47,13 +42,8 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
             unidade: cli.unidade.as_deref(),
             confirmar: *confirmar,
         };
-        match prever(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(preview) => publicar(cli.json, &preview),
-            Err(FalhaAnexar::Abertura(erro)) => {
-                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-            }
-            Err(erro) => falha_tipado(cli.json, &erro),
-        }
+        let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
+        crate::legado(publicar(cli.json, &preview))
     }))
 }
 fn falha(json_mode: bool, mensagem: &str) -> ExitCode {
@@ -64,27 +54,6 @@ fn falha(json_mode: bool, mensagem: &str) -> ExitCode {
                 "codigo": "operacao_recusada",
                 "erro": mensagem,
                 "retentavel": false,
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
-}
-fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
-    let FalhaAnexar::NaoConfirmado(_) = erro else {
-        return falha(json_mode, &erro.mensagem());
-    };
-    let mensagem = "O efeito da anexação não pôde ser comprovado. Confira a lista no SEI; não repita --confirmar.";
-    if json_mode {
-        // A causa vem diretamente da variante Rust serializada por Serde.
-        // Não acrescentar um novo subcódigo textual ao catálogo legado.
-        println!(
-            "{}",
-            json!({
-                "codigo": "nao_confirmado",
-                "erro": mensagem,
-                "retentavel": false
             })
         );
     } else {

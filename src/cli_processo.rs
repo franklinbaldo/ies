@@ -28,10 +28,14 @@ pub(crate) struct Processo {
 #[derive(Debug, Subcommand)]
 pub(crate) enum ProcessoAcao {
     /// Lista os comentários comprovadamente publicados do processo, sem escrita.
-    Comentarios { numero: String },
+    Comentarios {
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+    },
     /// Prévia de comentário; confirmação só após prova da escrita.
     Comentar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         texto: String,
         #[arg(long)]
@@ -39,7 +43,8 @@ pub(crate) enum ProcessoAcao {
     },
     /// Consulta, prevê e confirma anotação ou retirada.
     Anotar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long, conflicts_with = "remover")]
         texto: Option<String>,
         #[arg(long, conflicts_with = "texto")]
@@ -49,7 +54,8 @@ pub(crate) enum ProcessoAcao {
     },
     /// Registra andamento livre no histórico do processo (prévia antes da escrita)
     Andamento {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         texto: String,
         #[arg(long)]
@@ -98,10 +104,11 @@ pub(crate) enum ProcessoAcao {
     /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a
     /// verificação por leitura)
     Enviar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Sigla da unidade de destino, como o SEI a oferece
-        #[arg(long, required = true)]
-        para: Vec<String>,
+        #[arg(long, value_parser = crate::processo_enviar_cli::sigla_de_destino)]
+        para: String,
         /// Marca "Manter processo aberto na unidade atual"
         #[arg(long)]
         manter_aberto: bool,
@@ -113,7 +120,8 @@ pub(crate) enum ProcessoAcao {
     },
     /// Acompanhamento Especial: prévia e confirmação verificada por releitura
     Acompanhar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Grupo exatamente como a tela do SEI oferece
         #[arg(long)]
         grupo: Option<String>,
@@ -129,7 +137,8 @@ pub(crate) enum ProcessoAcao {
     },
     /// Atribui ou retira marcador id#nome; prévia Web (escrita ainda não observada).
     Marcar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long, required_unless_present = "retirar", conflicts_with = "retirar")]
         marcador: Option<String>,
         #[arg(long, conflicts_with = "marcador")]
@@ -140,7 +149,8 @@ pub(crate) enum ProcessoAcao {
         confirmar: bool,
     },
     Atribuir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long, required_unless_present = "remover", conflicts_with = "remover")]
         usuario: Option<String>,
         #[arg(long)]
@@ -149,18 +159,21 @@ pub(crate) enum ProcessoAcao {
         confirmar: bool,
     },
     Concluir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     Reabrir {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     /// Lê o controle de prazo ou prepara uma prévia; escrita bloqueada nesta fatia
     Prazo {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         /// Data certa no formato DD/MM/AAAA
         #[arg(long, conflicts_with_all = ["dias", "excluir"])]
         ate: Option<String>,
@@ -176,27 +189,31 @@ pub(crate) enum ProcessoAcao {
     },
     /// Registra ciência do usuário no processo: prévia e um GET mutador conferido.
     Ciente {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     Sobrestar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         motivo: String,
         #[arg(long)]
         confirmar: bool,
     },
     Retomar {
-        numero: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },
     /// Prévia de relacionar/desfazer vínculo; escrita ainda bloqueada
     Relacionar {
-        numero: String,
-        #[arg(long = "com")]
-        com: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long = "com", value_parser = crate::processo::NumeroProcesso::novo)]
+        com: crate::processo::NumeroProcesso,
         #[arg(long)]
         remover: bool,
         #[arg(long)]
@@ -204,9 +221,10 @@ pub(crate) enum ProcessoAcao {
     },
     /// Prévia da anexação do processo NUP ao processo principal (--a).
     Anexar {
-        numero: String,
-        #[arg(long)]
-        a: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        numero: crate::processo::NumeroProcesso,
+        #[arg(long, value_parser = crate::processo::NumeroProcesso::novo)]
+        a: crate::processo::NumeroProcesso,
         #[arg(long)]
         confirmar: bool,
     },

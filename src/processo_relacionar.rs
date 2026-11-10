@@ -37,7 +37,8 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaRelacionar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),

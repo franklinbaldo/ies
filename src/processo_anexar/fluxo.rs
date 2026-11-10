@@ -40,7 +40,8 @@ pub(crate) enum EtapaNaoComprovada {
     ListaAposPost,
     ArvoreDoPrincipal,
 }
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaAnexar {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),
@@ -56,25 +57,7 @@ pub(crate) enum FalhaAnexar {
     ConsultaTransporte(FalhaTransporte),
     ConsultaResposta(FalhaTransporte),
 }
-impl FalhaAnexar {
-    /// O que aconteceu, a partir do erro interno quando há um.
-    pub(crate) fn mensagem(&self) -> String {
-        match self {
-            Self::Cookie(e) => e.mensagem().to_owned(),
-            Self::Abertura(e) => e.mensagem().to_owned(),
-            Self::Tela(f) | Self::ConsultaTransporte(f) | Self::ConsultaResposta(f) => {
-                f.mensagem().to_owned()
-            }
-            Self::Barra(e) => format!("a barra não oferece a ação na forma observada ({e:?})"),
-            Self::ConsultaDerivacao(e) => format!("a consulta não pôde ser montada ({e:?})"),
-            Self::Estrutura(onde) => format!("a tela não está na forma observada ({onde})"),
-            Self::LinkNaoPublicado => "a barra não publica a ação".to_owned(),
-            Self::TelaRedirecionada => "a tela da ação foi redirecionada".to_owned(),
-            Self::SessaoEncerrada => "a sessão encerrou; rode ies login".to_owned(),
-            Self::NaoConfirmado(etapa) => format!("a anexação não foi confirmada ({etapa:?})"),
-        }
-    }
-}
+impl FalhaAnexar {}
 mod escrita;
 
 pub(crate) struct Pedido<'a> {

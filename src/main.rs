@@ -227,7 +227,7 @@ struct Documento {
 #[derive(Debug, Args)]
 struct Bloco {
     /// Número de bloco de assinatura a detalhar; sem número, usar listar
-    numero: Option<String>,
+    numero: Option<u64>,
     #[command(subcommand)]
     acao: Option<BlocoAcao>,
 }
@@ -246,10 +246,10 @@ enum BlocoAcao {
     #[command(group(clap::ArgGroup::new("alvo").required(true).args(["documento", "processo"])))]
     Incluir {
         /// Número do bloco publicado pela lista da unidade
-        bloco: String,
+        bloco: u64,
         /// Número SEI do documento (bloco de assinatura)
-        #[arg(long)]
-        documento: Option<String>,
+        #[arg(long, value_parser = crate::documento::NumeroDocumento::novo)]
+        documento: Option<crate::documento::NumeroDocumento>,
         /// NUP do processo (bloco interno ou de reunião)
         #[arg(long)]
         processo: Option<String>,
@@ -381,19 +381,20 @@ struct SetupArgs {
 
 /// Despacha os recortes de leitura e prévia já implementados, sem duplicar
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
-fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
+fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>> {
     processo_criar_cli::tentar_criar(cli)
+        .map(legado)
         .or_else(|| processo_comentarios_cli::tentar_ler(cli))
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
-        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
-        .or_else(|| documento_buscar_cli::tentar_buscar(cli))
-        .or_else(|| documento_html_privado_cli::tentar_ler(cli))
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli).map(legado))
+        .or_else(|| documento_buscar_cli::tentar_buscar(cli).map(legado))
+        .or_else(|| documento_html_privado_cli::tentar_ler(cli).map(legado))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
-        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli))
-        .or_else(|| documento_obter_cli::tentar_obter(cli))
-        .or_else(|| processo_obter_cli::tentar_obter(cli))
+        .or_else(|| documento_salvar_cli::tentar_validar_versao(cli).map(legado))
+        .or_else(|| documento_obter_cli::tentar_obter(cli).map(legado))
+        .or_else(|| processo_obter_cli::tentar_obter(cli).map(legado))
         .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
         .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
@@ -413,62 +414,33 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
 }
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn run(cli: &Cli) -> ExitCode {
+fn run(cli: &Cli) -> anyhow::Result<()> {
     if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
-        return status;
+        return legado(status);
     }
-    if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
-        return status;
+    if let Some(saida) = tentar_operacao_documento_ou_processo(cli) {
+        return saida;
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
-        Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
-        Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
+        Domain::Esquema => return legado(esquema_cli::mostrar_esquema(cli.json)),
+        Domain::Setup(setup) => return legado(setup_cli::executar_setup(setup, cli.json)),
         Domain::Login(LoginArgs { forcar }) => {
-            return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
+            return legado(sessao_login_cli::executar_login(
+                cli.json,
+                *forcar,
+                cli.unidade.as_deref(),
+            ));
         }
         Domain::Status(args) => {
-            return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Atual),
-        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Recebidos(lista)),
-        }) => {
-            return cli_unidade_aux::listar(
-                cli,
-                lista,
-                unidade_categoria::CategoriaLista::Recebidos,
-            );
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Gerados(lista)),
-        }) => {
-            return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Retornos { mes }),
-        }) => {
-            return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref());
-        }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
-        }) => {
-            return unidade_lista_cli::listar_processos_da_unidade(
-                cli.unidade.as_deref(),
+            return legado(status_cli::mostrar_status(
                 cli.json,
-                saida.as_deref(),
-                pagina.map(|n| n as usize),
-            );
+                args,
+                cli.unidade.as_deref(),
+            ));
         }
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
-        Domain::Unidade(Unidade {
-            acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
-        }) => {
-            return unidade_trocar_cli::trocar(sigla, *confirmar, cli.unidade.as_deref(), cli.json);
+        Domain::Unidade(Unidade { acao: Some(acao) }) => {
+            return legado(cli_unidade_aux::executar(cli, acao));
         }
         _ => {}
     }
@@ -479,10 +451,10 @@ fn run(cli: &Cli) -> ExitCode {
     }) = &cli.command
         && let Some(status) = documento_salvar_cli::validar_documentos(numeros, cli.json)
     {
-        return status;
+        return legado(status);
     }
     if let Some(status) = processo_obter_cli::validar_numero(cli) {
-        return status;
+        return legado(status);
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -491,7 +463,7 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) => {
             esquema_cli::show_noun_help("processo");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Documento(Documento {
             numeros,
@@ -499,19 +471,19 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) if numeros.is_empty() => {
             esquema_cli::show_noun_help("documento");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Indice(Indice { acao: None }) => {
             println!("ies indice caminho");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         Domain::Unidade(Unidade { acao: None }) => {
             esquema_cli::show_noun_help("unidade");
-            return ExitCode::SUCCESS;
+            return Ok(());
         }
         _ => {}
     }
-    comando_nao_implementado(cli)
+    legado(comando_nao_implementado(cli))
 }
 
 fn comando_nao_implementado(cli: &Cli) -> ExitCode {
@@ -533,20 +505,17 @@ fn comando_nao_implementado(cli: &Cli) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn main() -> ExitCode {
-    match Cli::try_parse() {
-        Ok(cli) => run(&cli),
-        Err(err) => {
-            let status = if matches!(
-                err.kind(),
-                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
-            ) {
-                0
-            } else {
-                2
-            };
-            let _ = err.print();
-            ExitCode::from(status)
-        }
+/// Ponte para os módulos ainda não convertidos (#695): eles já imprimiram a
+/// própria falha; aqui só o código de saída é preservado.
+pub(crate) fn legado(codigo: ExitCode) -> anyhow::Result<()> {
+    if codigo == ExitCode::SUCCESS {
+        return Ok(());
     }
+    std::process::exit(if codigo == ExitCode::from(2) { 2 } else { 1 })
+}
+
+/// O erro que sobe é impresso pelo próprio Rust (`Error: …`, com o `Debug`
+/// e a cadeia de causas) e sai com 1; uso inválido é do clap (saída 2).
+fn main() -> anyhow::Result<()> {
+    run(&Cli::parse())
 }

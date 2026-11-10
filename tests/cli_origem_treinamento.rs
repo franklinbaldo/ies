@@ -88,7 +88,7 @@ fn bdd_620_01_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(saida.stdout, Vec::<u8>::new());
     let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.contains("origem da sessão"), "{erro}");
+    assert!(erro.starts_with("Error: OrigemForaDoTreinamento"), "{erro}");
 }
 
 #[test]
@@ -103,16 +103,7 @@ fn bdd_620_02_atribuicao_json_recusa_antes_de_qualquer_requisicao() {
         "--confirmar",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    let resposta: serde_json::Value =
-        serde_json::from_slice(&saida.stdout).expect("JSON de recusa");
-    assert_eq!(resposta["codigo"], "fonte_invalida");
-    assert_eq!(resposta["retentavel"], false);
-    assert!(
-        resposta["erro"]
-            .as_str()
-            .unwrap()
-            .contains("origem da sessão")
-    );
-    assert!(resposta.get("status_http").is_none());
-    assert!(resposta.get("mensagem_do_servidor").is_none());
+    assert_eq!(saida.stdout, b"");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with("Error: OrigemForaDoTreinamento"), "{erro}");
 }

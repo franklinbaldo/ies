@@ -290,7 +290,7 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
     let amb = ambiente();
     let respostas = vec![
         ok(tela_controle()),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];
@@ -490,7 +490,7 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];

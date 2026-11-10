@@ -352,7 +352,7 @@ fn vazio_e_status_diferente_de_200() {
     );
     let mut r = resposta(&[("content-type", "text/html")], b"<p>Erro interno</p>");
     r.status = 500;
-    let Err(ErroAnexo::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(s))) = ler(r) else {
+    let Err(ErroAnexo::Transporte(FalhaTransporte::Status(s))) = ler(r) else {
         panic!("esperado o 5xx do transporte");
     };
     assert_eq!(s.status, 500);

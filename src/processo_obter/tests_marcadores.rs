@@ -435,7 +435,7 @@ fn redirecionamento_para_adicionar_marcador_de_outro_processo_e_recusa() {
         frio(arvore_completa(ID), vec![r302(&cadastrar("999"))]),
     );
     assert!(
-        matches!(r.unwrap_err(), E::RedirecionamentoNaoReconhecido(_)),
+        matches!(r.unwrap_err(), E::RedirecionamentoNaoReconhecido),
         "302 de outro processo não prova zero marcadores"
     );
 }

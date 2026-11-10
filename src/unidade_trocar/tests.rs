@@ -309,6 +309,5 @@ fn desvios_depois_do_post_sao_nao_confirmado_sem_novo_pedido() {
             "{falha:?}"
         );
         assert_eq!(pedidos, n, "{falha:?}");
-        assert_eq!(erro.codigo(), "nao_confirmado");
     }
 }

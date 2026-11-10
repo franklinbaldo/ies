@@ -13,6 +13,7 @@ mod acervo;
 #[cfg(test)]
 mod tests_fluxo;
 
+#[cfg(test)]
 pub(crate) use erro::ErroReabrir;
 pub(crate) use fluxo::reabrir_processo;
 

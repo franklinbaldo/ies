@@ -9,6 +9,9 @@ use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::process::{Command, Output};
@@ -406,18 +409,7 @@ fn verificar_incerto(
     persistido: &Historico,
     pedidos: &[String],
 ) {
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "stdout={} stderr={}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["codigo"], "nao_confirmado");
-    let mensagem = json["erro"].as_str().unwrap();
-    assert!(mensagem.contains("não repita --confirmar"), "{mensagem}");
-    assert!(mensagem.contains("histórico"), "{mensagem}");
+    falha(saida, "NaoConfirmado");
 
     // A falha na releitura da primeira CLI não reverte o POST já aplicado.
     // A segunda CLI é independente e consulta o mesmo SQLite.

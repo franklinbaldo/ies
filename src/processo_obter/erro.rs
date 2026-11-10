@@ -22,12 +22,13 @@ pub(crate) enum ErroProcessoObter {
     EntradaPorIdRecusada,
     /// Tela de login (200 ou 302 sem a mensagem de recusa) fora de palpite.
     SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
-    /// A entrada por id respondeu outra coisa que o 302 observado.
-    RespostaDaEntradaPorIdNaoReconhecida(StatusHttpRecusado),
-    /// A pesquisa rápida não respondeu o 302 para `procedimento_trabalhar`.
-    PesquisaRapidaSemUrlDeTrabalho(StatusHttpRecusado),
-    /// 302 fora das formas observadas (nem trabalho, nem login).
-    RedirecionamentoNaoReconhecido(StatusHttpRecusado),
+    /// A entrada por id respondeu HTML em vez do 302 observado.
+    RespostaDaEntradaPorIdNaoReconhecida,
+    /// A pesquisa rápida respondeu HTML em vez do 302 para `procedimento_trabalhar`.
+    PesquisaRapidaSemUrlDeTrabalho,
+    /// 302 fora das formas observadas (nem trabalho, nem login), ou HTML
+    /// onde se esperava redirecionamento.
+    RedirecionamentoNaoReconhecido,
     /// O 302 para `procedimento_trabalhar` não passou na conferência.
     Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
     LinkDoProcessoNoControleNaoReconhecido(ErroRedirecionamentoDaPesquisa),
@@ -62,13 +63,13 @@ impl ErroProcessoObter {
             Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
                 "o SEI devolveu a tela de login; rode ies login"
             }
-            Self::RespostaDaEntradaPorIdNaoReconhecida(_) => {
+            Self::RespostaDaEntradaPorIdNaoReconhecida => {
                 "a entrada por id não respondeu como observado"
             }
-            Self::PesquisaRapidaSemUrlDeTrabalho(_) => {
+            Self::PesquisaRapidaSemUrlDeTrabalho => {
                 "a pesquisa rápida não abriu o processo (resultado não é lido)"
             }
-            Self::RedirecionamentoNaoReconhecido(_) => "o SEI redirecionou para fora do observado",
+            Self::RedirecionamentoNaoReconhecido => "o SEI redirecionou para fora do observado",
             Self::Redirecionamento(_) => "o endereço do processo não foi reconhecido",
             Self::LinkDoProcessoNoControleNaoReconhecido(_) => {
                 "o link do processo no Controle não foi reconhecido"
@@ -141,9 +142,6 @@ impl ErroProcessoObter {
         match self {
             Self::Transporte(erro) => erro.status_http(),
             Self::Controle(erro) => erro.status_http(),
-            Self::RespostaDaEntradaPorIdNaoReconhecida(status)
-            | Self::PesquisaRapidaSemUrlDeTrabalho(status)
-            | Self::RedirecionamentoNaoReconhecido(status) => Some(status),
             Self::Formulario(erro) => erro.status_http(),
             Self::ValidacaoDeAcesso(erro) => erro.status_http(),
             Self::FormularioDoHistorico(erro) => erro.status_http(),

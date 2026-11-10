@@ -11,6 +11,9 @@ use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::num::NonZeroU32;
@@ -343,51 +346,45 @@ fn conferir_resultados(
     total: i64,
     pedidos: &[String],
 ) {
-    let esperado = match modo {
-        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => 0,
-        Modo::RespostaIncerta | Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
+    let variante_da_falha = match modo {
+        Modo::RespostaIncerta => Some("NaoConfirmado"),
+        Modo::JaAnexado => Some("Estrutura"),
+        Modo::PreviaSemObservacao => Some("ConsultaResposta"),
+        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => None,
     };
-    assert_eq!(
-        saida.status.code(),
-        Some(esperado),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    match modo {
-        Modo::Aceite => {
-            assert_eq!(saida_json["confirmado"], true);
-            assert_eq!(saida_json["alterado"], true);
-        }
-        Modo::RespostaIncerta => {
-            assert_eq!(saida_json["codigo"], "nao_confirmado");
-            assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
-        }
-        Modo::Previa | Modo::PreviaAssinada => {
-            assert_eq!(saida_json["principal"], PRINCIPAL);
-            assert_eq!(saida_json["anexado"], ANEXADO);
-            assert_eq!(saida_json["documentos_assinados"], true);
-            assert_eq!(saida_json["confirmado"], false);
-            assert_eq!(saida_json["alterado"], false);
-        }
-        Modo::PreviaPendencia => {
-            assert_eq!(saida_json["principal"], PRINCIPAL);
-            assert_eq!(saida_json["anexado"], ANEXADO);
-            assert_eq!(saida_json["documentos_assinados"], false);
-            assert_eq!(saida_json["confirmado"], false);
-            assert_eq!(saida_json["alterado"], false);
-        }
-        Modo::PreviaSemObservacao => {
-            assert!(saida_json.get("documentos_assinados").is_none());
-            assert!(
-                !saida.status.success(),
-                "assinatura não observada não é assinatura comprovada"
-            );
-        }
-        Modo::JaAnexado => {
-            assert_eq!(saida_json["codigo"], "operacao_recusada");
-            assert_eq!(saida_json["retentavel"], false);
+    if let Some(variante) = variante_da_falha {
+        falha(saida, variante);
+    } else {
+        assert_eq!(
+            saida.status.code(),
+            Some(0),
+            "stdout={} stderr={} pedidos={pedidos:?}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+        match modo {
+            Modo::Aceite => {
+                assert_eq!(saida_json["confirmado"], true);
+                assert_eq!(saida_json["alterado"], true);
+            }
+            Modo::Previa | Modo::PreviaAssinada => {
+                assert_eq!(saida_json["principal"], PRINCIPAL);
+                assert_eq!(saida_json["anexado"], ANEXADO);
+                assert_eq!(saida_json["documentos_assinados"], true);
+                assert_eq!(saida_json["confirmado"], false);
+                assert_eq!(saida_json["alterado"], false);
+            }
+            Modo::PreviaPendencia => {
+                assert_eq!(saida_json["principal"], PRINCIPAL);
+                assert_eq!(saida_json["anexado"], ANEXADO);
+                assert_eq!(saida_json["documentos_assinados"], false);
+                assert_eq!(saida_json["confirmado"], false);
+                assert_eq!(saida_json["alterado"], false);
+            }
+            Modo::RespostaIncerta | Modo::JaAnexado | Modo::PreviaSemObservacao => {
+                unreachable!("falhas conferidas acima")
+            }
         }
     }
     assert_eq!(

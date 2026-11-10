@@ -11,16 +11,10 @@ mod documento;
 mod fluxo;
 mod lista;
 mod lista_autoria;
+pub(crate) use documento::{CienciaDoDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
 #[cfg(test)]
-pub(crate) use documento::VerificacaoDaCienciaDoDocumento;
-pub(crate) use documento::{
-    CienciaDoDocumento, ErroCienciaDocumento, PedidoDaCienciaDocumento, ciencia_no_documento,
-};
-#[cfg(test)]
-pub(crate) use fluxo::VerificacaoDaCiencia;
-pub(crate) use fluxo::{
-    CienciaDoProcesso, ErroCienciaProcesso, PedidoDaCiencia, ciencia_no_processo,
-};
+pub(crate) use fluxo::ErroCienciaProcesso;
+pub(crate) use fluxo::{CienciaDoProcesso, PedidoDaCiencia, ciencia_no_processo};
 pub(crate) use lista::atividade_na_lista;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

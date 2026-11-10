@@ -34,15 +34,7 @@ pub(crate) enum FalhaDoAceiteProcesso {
     Aceite(#[from] super::ErroCiencia),
 }
 
-impl FalhaDoAceiteProcesso {
-    fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::ValidacaoDaInfra(status) => Some(status),
-            Self::Aceite(_) => None,
-        }
-    }
-}
+impl FalhaDoAceiteProcesso {}
 
 /// Por que a releitura não comprovou a ciência do processo depois do GET
 /// mutador. Cada etapa guarda o erro original e sobe com `?`.
@@ -59,26 +51,7 @@ pub(crate) enum VerificacaoDaCiencia {
     AtividadeNaoEncontradaNaListaRelida,
 }
 
-impl VerificacaoDaCiencia {
-    fn descricao(&self) -> String {
-        match self {
-            Self::Abertura(e) => e.mensagem().to_owned(),
-            Self::IdentidadeDoProcessoAlteradaNaReleitura => {
-                "IdentidadeDoProcessoAlteradaNaReleitura".to_owned()
-            }
-            Self::AceiteSemIdDeAtividade => "AceiteSemIdDeAtividade".to_owned(),
-            Self::Barra(e) => format!("{e:?}"),
-            Self::ListaDeCienciasNaoPublicadaNaArvoreRelida => {
-                "ListaDeCienciasNaoPublicadaNaArvoreRelida".to_owned()
-            }
-            Self::Transporte(e) => e.mensagem().to_owned(),
-            Self::Lista(e) => format!("{e:?}"),
-            Self::AtividadeNaoEncontradaNaListaRelida => {
-                "AtividadeNaoEncontradaNaListaRelida".to_owned()
-            }
-        }
-    }
-}
+impl VerificacaoDaCiencia {}
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -100,50 +73,7 @@ pub(crate) enum ErroCienciaProcesso {
     },
 }
 
-impl ErroCienciaProcesso {
-    pub(crate) fn mensagem(&self) -> String {
-        let texto = match self {
-            Self::Abertura(e) => e.mensagem(),
-            Self::Barra(_) => "a ação de ciência da barra está fora da forma observada",
-            Self::CienciaNaoOferecida => "o processo não oferece ciência na barra",
-            Self::UnidadeNaoPublicada => "a abertura não publicou a unidade de trabalho",
-            Self::OrigemNaoAutorizada => "a origem da instalação não é autorizada",
-            Self::Cookie(_) => "o arquivo privado da sessão não pôde ser lido",
-            Self::Tela(_) | Self::TelaRedirecionada => "a tela de ciência não foi servida",
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode ies login"
-            }
-            Self::NaoConfirmado { .. } => {
-                "a ciência pode ter sido registrada; conferir a Lista de Ciências no SEI antes de nova confirmação"
-            }
-        };
-        match self {
-            Self::NaoConfirmado { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
-            _ => texto.to_owned(),
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http(),
-            Self::Cookie(erro) => erro.status_http(),
-            Self::Tela(erro) => erro.status_http(),
-            Self::NaoConfirmado {
-                falha_do_aceite, ..
-            } => falha_do_aceite
-                .as_ref()
-                .and_then(FalhaDoAceiteProcesso::status_http),
-            _ => None,
-        }
-    }
-
-    pub(crate) const fn requisicoes(&self) -> Option<u8> {
-        match self {
-            Self::NaoConfirmado { requisicoes, .. } => Some(*requisicoes),
-            _ => None,
-        }
-    }
-}
+impl ErroCienciaProcesso {}
 
 pub(crate) struct PedidoDaCiencia<'a> {
     pub(crate) nup: &'a NumeroProcesso,

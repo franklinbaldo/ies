@@ -193,11 +193,14 @@ fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
         ],
     ));
     let erro = resultado.expect_err("o destino não foi comprovado");
-    let saida = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
-        .expect("erro tipado serializável");
-    assert_eq!(saida["codigo"], "nao_confirmado");
-    assert_eq!(
-        saida["anotacao_depois"], false,
+    assert!(
+        matches!(
+            erro,
+            super::ErroEnviar::NaoConfirmadoNoEnvio {
+                anotacao_depois: Some(false),
+                ..
+            }
+        ),
         "limpeza confirmada não pode desaparecer da falha"
     );
     for link in [action_anotacao(), action_de_enviar()] {

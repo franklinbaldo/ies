@@ -5,8 +5,8 @@ use clap::Subcommand;
 pub(crate) enum DocumentoAcao {
     /// Inclui PDF externo: inspeção local, prévia Web (--consultar-sei) ou gravação (--confirmar).
     IncluirExterno {
-        #[arg(long, required = true, value_name = "NUP")]
-        processo: String,
+        #[arg(long, required = true, value_name = "NUP", value_parser = crate::processo::NumeroProcesso::novo)]
+        processo: crate::processo::NumeroProcesso,
         #[arg(long, required = true, value_name = "ARQUIVO.pdf")]
         arquivo: std::path::PathBuf,
         #[arg(long, required = true, value_name = "TIPO")]
@@ -20,14 +20,15 @@ pub(crate) enum DocumentoAcao {
     },
     /// Prévia e ciência do usuário da sessão no documento (GET único, releitura).
     Ciente {
-        numero: String,
+        #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
+        numero: crate::documento::NumeroDocumento,
         #[arg(long)]
         confirmar: bool,
     },
     /// Inclui documento interno: prévia Web; confirmar faz escrita única com releitura.
     Criar {
-        #[arg(long, required = true)]
-        processo: String,
+        #[arg(long, required = true, value_parser = crate::processo::NumeroProcesso::novo)]
+        processo: crate::processo::NumeroProcesso,
         #[arg(long, required = true)]
         tipo: String,
         #[arg(long)]
@@ -39,7 +40,8 @@ pub(crate) enum DocumentoAcao {
     },
     /// Prévia de cópia local; confirmação somente no anti-IES de ensaio
     Salvar {
-        numero: String,
+        #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
+        numero: crate::documento::NumeroDocumento,
         #[arg(long)]
         versao: Option<u32>,
         #[arg(long)]
@@ -74,7 +76,8 @@ pub(crate) enum DocumentoAcao {
     },
     /// Cancela um documento com motivo, prévia e confirmação irreversível
     Cancelar {
-        numero: String,
+        #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
+        numero: crate::documento::NumeroDocumento,
         #[arg(long, required = true)]
         motivo: String,
         #[arg(long)]
@@ -82,7 +85,8 @@ pub(crate) enum DocumentoAcao {
     },
     /// Assina com a senha do login (`IES_CREDENCIAIS_FILE`); prévia sem POST
     Assinar {
-        numero: String,
+        #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
+        numero: crate::documento::NumeroDocumento,
         /// Cargo/função exatamente como uma opção da tela de assinatura
         #[arg(long, value_name = "TEXTO")]
         cargo: Option<String>,

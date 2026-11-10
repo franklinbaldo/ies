@@ -1,7 +1,7 @@
 //! Equivalência do JSON público sem construir Value na produção.
 use super::*;
 use crate::arvore_processo::ProcessoNaArvore;
-use crate::documento_cancelar::ResultadoDaVerificacao;
+use crate::documento_cancelar::{FalhaDoCancelamento, ResultadoDaVerificacao};
 
 fn exemplo() -> DocumentoCancelado {
     DocumentoCancelado {
@@ -22,8 +22,6 @@ fn exemplo() -> DocumentoCancelado {
 fn conferir_mesmos_bytes(feito: &DocumentoCancelado) {
     let mut bytes = Vec::new();
     serde_json::to_writer_pretty(&mut bytes, &resultado_cancelamento(feito)).unwrap();
-    let esperado = serde_json::to_string_pretty(&json_do_sucesso(feito)).unwrap();
-    assert_eq!(std::str::from_utf8(&bytes).unwrap(), esperado);
     let texto = std::str::from_utf8(&bytes).unwrap();
     assert!(!texto.contains("infra_hash"));
     assert!(
@@ -48,29 +46,6 @@ fn reconciliacao_mantem_causa_http_e_status() {
     let json = serde_json::to_value(resultado_cancelamento(&feito)).unwrap();
     assert_eq!(json["falha_do_envio"]["status_http"], 302);
     assert_eq!(json["reconciliado_por_leitura"], true);
-}
-
-#[test]
-fn falha_de_cancelamento_apresentada_diretamente_do_enum() {
-    let erro = ErroCancelar::CancelamentoNaoAplicado {
-        falha_do_envio: Some(FalhaDoCancelamento::RedirecionamentoNaoReconhecido),
-    };
-    assert_eq!(
-        super::linhas_da_falha(&erro),
-        vec![
-            format!("IES: {}", erro.mensagem()),
-            "IES: resposta da escrita: RedirecionamentoNaoReconhecido".to_owned(),
-        ]
-    );
-}
-
-#[test]
-fn falha_sem_detalhes_nao_cria_linhas_artificiais() {
-    let erro = ErroCancelar::DocumentoJaCancelado;
-    assert_eq!(
-        super::linhas_da_falha(&erro),
-        vec![format!("IES: {}", erro.mensagem())]
-    );
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! Adaptadores da CLI para listas de unidades.
 //! Extraídos de main.rs para manter o limite de 20 KB após integrações
 //! concorrentes; a capacidade mantém seu próprio fluxo de domínio.
-use crate::{Cli, ListaDaUnidade};
+use crate::{Cli, ListaDaUnidade, UnidadeAcao};
 use std::process::ExitCode;
 
 /// `ies unidade recebidos|gerados`: uma lista por categoria.
@@ -29,5 +29,44 @@ pub(crate) fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> Exit
             definir,
             confirmar,
         ),
+    }
+}
+
+/// `ies unidade <ação>`: encaminha cada ação ao seu fluxo.
+pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> ExitCode {
+    let unidade = cli.unidade.as_deref();
+    match acao {
+        UnidadeAcao::Listar { atualizar } => {
+            crate::unidade_pesquisar_cli::listar(cli.json, unidade, *atualizar)
+        }
+        UnidadeAcao::Pesquisar { termo } => {
+            crate::unidade_pesquisar_cli::pesquisar(cli.json, unidade, termo)
+        }
+        UnidadeAcao::Atual => crate::unidade_atual_cli::mostrar_unidade_atual(unidade, cli.json),
+        UnidadeAcao::Recebidos(lista) => listar(
+            cli,
+            lista,
+            crate::unidade_categoria::CategoriaLista::Recebidos,
+        ),
+        UnidadeAcao::Gerados(lista) => listar(
+            cli,
+            lista,
+            crate::unidade_categoria::CategoriaLista::Gerados,
+        ),
+        UnidadeAcao::Retornos { mes } => {
+            crate::unidade_retornos_cli::listar(unidade, cli.json, mes.as_deref())
+        }
+        UnidadeAcao::ListarProcessos { saida, pagina } => {
+            crate::unidade_lista_cli::listar_processos_da_unidade(
+                unidade,
+                cli.json,
+                saida.as_deref(),
+                pagina.map(|n| n as usize),
+            )
+        }
+        UnidadeAcao::Colunas { definir, confirmar } => colunas(cli, definir.as_deref(), *confirmar),
+        UnidadeAcao::Trocar { sigla, confirmar } => {
+            crate::unidade_trocar_cli::trocar(sigla, *confirmar, unidade, cli.json)
+        }
     }
 }

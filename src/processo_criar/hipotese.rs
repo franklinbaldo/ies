@@ -423,8 +423,7 @@ mod tests {
 
     #[test]
     fn causa_ajax_propagada_mantem_http_saneado() {
-        let falha =
-            FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado::sem_mensagem(503));
+        let falha = FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(503));
         let erro = ErroHipotese::de_transporte(&falha);
         assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     }

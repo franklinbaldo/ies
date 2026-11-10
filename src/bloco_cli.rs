@@ -12,10 +12,9 @@ use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::transporte::{self, FalhaTransporte};
 use crate::visao_do_controle::{EnvioDoControle, EnvioHttps};
-use crate::{Bloco, BlocoAcao, Cli, erro_fonte};
+use crate::{Bloco, BlocoAcao, Cli};
 use serde_json::{Value, json};
 mod paginacao;
-use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -27,25 +26,7 @@ pub(crate) enum FalhaLeitura {
     Submissao(#[from] ErroSubmissaoFormulario),
     Html(#[source] ErroHtml),
 }
-impl FalhaLeitura {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Html(e) => e.mensagem,
-            Self::Transporte(e) => e.mensagem(),
-            Self::Controle(_) => "Controle não reconhecido na leitura de blocos",
-            Self::Bloco(e) => e.mensagem(),
-            Self::Detalhe(_) => "a tabela de documentos ou processos do bloco não foi reconhecida",
-            Self::Submissao(_) => "o formulário de paginação de blocos não foi aceito",
-        }
-    }
-    fn status_http(&self) -> Option<&transporte::StatusHttpRecusado> {
-        match self {
-            Self::Transporte(e) => e.status_http(),
-            Self::Submissao(e) => e.status_http(),
-            _ => None,
-        }
-    }
-}
+impl FalhaLeitura {}
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
     Lista(crate::bloco::ListaDeBlocos),
@@ -180,93 +161,55 @@ fn executar_leitura(
     tipo: TipoBloco,
     numero: Option<&str>,
     pagina: Option<u32>,
-) -> ExitCode {
-    if let Some(numero) = numero
-        && (numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()))
-    {
-        return erro_uso(cli.json, "número de bloco deve ser decimal");
-    }
+) -> anyhow::Result<()> {
     if pagina.is_some_and(|p| p > 2) || (pagina == Some(2) && tipo != TipoBloco::Interno) {
-        return erro_fonte(
-            cli.json,
-            "paginação de blocos ainda não implementada: nenhuma requisição enviada",
-        );
+        return Err(FalhaLeitura::Bloco(ErroBloco::PaginaDeBlocosNaoImplementada).into());
     }
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(a) => a,
-        Err(e) => return erro_fonte(cli.json, e.mensagem()),
-    };
-    let sessao = match ReferenciasDaSessao::ler(
-        &arquivos.url_controle,
-        &arquivos.origem,
-        &arquivos.cookie,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            return crate::saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http());
-        }
-    };
-    match ler_via(
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let valor = ler_via(
         &sessao,
         cli.unidade.as_deref(),
         tipo,
         numero,
         pagina,
         &mut EnvioHttps,
-    ) {
-        Ok(valor) => {
-            if cli.json {
-                if let Err(erro) = crate::saida::imprimir_json(&valor) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
-            } else if let Some(bloco) = valor.get("bloco") {
-                println!(
-                    "IES: bloco {} ({}) — {} item(ns) observados; {} GET(s).",
-                    bloco["numero"],
-                    tipo.rotulo(),
-                    bloco["itens"].as_array().map_or(0, Vec::len),
-                    valor["requisicoes"]
-                );
-            } else {
-                println!(
-                    "IES: blocos {}: {} na página observada de {} declarados; {} requisição(ões).",
-                    tipo.rotulo(),
-                    valor["lista"]["itens"].as_array().map_or(0, Vec::len),
-                    valor["lista"]["total_declarado"],
-                    valor["requisicoes"]
-                );
-                if let Some(itens) = valor["lista"]["itens"].as_array() {
-                    for item in itens {
-                        println!(
-                            "{} | {} | {}",
-                            item["numero"], item["estado"], item["descricao"]
-                        );
-                    }
-                }
-            }
-            ExitCode::SUCCESS
-        }
-        Err(e) => crate::saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http()),
-    }
-}
-fn erro_uso(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
+    )?;
+    if cli.json {
+        println!("{}", serde_json::to_string_pretty(&valor)?);
+    } else if let Some(bloco) = valor.get("bloco") {
         println!(
-            "{}",
-            json!({"codigo":"entrada_invalida","erro":mensagem,"retentavel":false})
+            "IES: bloco {} ({}) — {} item(ns) observados; {} GET(s).",
+            bloco["numero"],
+            tipo.rotulo(),
+            bloco["itens"].as_array().map_or(0, Vec::len),
+            valor["requisicoes"]
         );
     } else {
-        eprintln!("IES: {mensagem}");
+        println!(
+            "IES: blocos {}: {} na página observada de {} declarados; {} requisição(ões).",
+            tipo.rotulo(),
+            valor["lista"]["itens"].as_array().map_or(0, Vec::len),
+            valor["lista"]["total_declarado"],
+            valor["requisicoes"]
+        );
+        if let Some(itens) = valor["lista"]["itens"].as_array() {
+            for item in itens {
+                println!(
+                    "{} | {} | {}",
+                    item["numero"], item["estado"], item["descricao"]
+                );
+            }
+        }
     }
-    ExitCode::from(2)
+    Ok(())
 }
-pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> ExitCode {
+pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> anyhow::Result<()> {
     match (&bloco.numero, &bloco.acao) {
         (None, Some(BlocoAcao::Listar { tipo, pagina })) => {
             executar_leitura(cli, *tipo, None, *pagina)
         }
-        (Some(numero), None) => executar_leitura(cli, TipoBloco::Assinatura, Some(numero), None),
         (
             None,
             Some(BlocoAcao::Incluir {
@@ -277,17 +220,27 @@ pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> ExitCode {
             }),
         ) => crate::bloco_incluir_cli::executar(
             cli,
-            bloco,
-            documento.as_deref(),
+            &bloco.to_string(),
+            documento.as_ref(),
             processo.as_deref(),
             *confirmar,
         ),
+        (Some(numero), None) => {
+            executar_leitura(cli, TipoBloco::Assinatura, Some(&numero.to_string()), None)
+        }
         (None, None) => {
             crate::esquema_cli::show_noun_help("bloco");
-            ExitCode::SUCCESS
+            Ok(())
         }
-        _ => erro_uso(cli.json, "número e listagem não podem ser combinados"),
+        (Some(_), Some(_)) => Err(UsoDoBloco::NumeroComSubcomando.into()),
     }
+}
+
+/// Combinação de argumentos que o clap não recusa sozinho.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum UsoDoBloco {
+    NumeroComSubcomando,
 }
 #[cfg(test)]
 mod tests {

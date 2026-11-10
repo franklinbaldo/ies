@@ -8,7 +8,7 @@ use crate::html_atributos::{atributo_presente, valor_do_atributo};
 mod exclusao;
 mod fluxo;
 mod submissao;
-pub(crate) use fluxo::{ErroPrevia, Pedido, Previa, previa};
+pub(crate) use fluxo::{Pedido, Previa, previa};
 
 const FORMULARIO: &str = "frmAcompanhamentoCadastro";
 const GRUPO: &str = "selGrupoAcompanhamento";

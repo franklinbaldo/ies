@@ -13,8 +13,14 @@ testes e pelas instalações reais.
 - Interface exclusivamente CLI, em português, orientada por substantivos e verbos de domínio.
 - `ies <substantivo> NUMERO` lê; `ies <substantivo>` sem argumentos mostra ajuda.
 - Não existe `agir`, `Action` ou `PageModel` como contrato público.
-- `--json` e `--unidade` são globais; falhas operacionais são estruturadas.
+- `--json` e `--unidade` são globais. `--json` forma só a saída de sucesso.
   `--unidade` é pré-condição conferida na tela, nunca um rótulo ecoado.
+- Falha (#695): o erro tipado sobe até `main` e sai em stderr como
+  `Error: <Variante> { campos }` (o `Debug` do erro, com a cadeia de causas);
+  stdout fica vazio, também com `--json`. Não há `codigo`, `retentavel` nem
+  mensagem paralela: a variante é a mensagem. Credenciais nunca aparecem no
+  `Debug` (os tipos que as carregam o redigem). Comandos ainda não
+  convertidos mantêm a falha antiga até a sua fatia.
 - Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
 - Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.

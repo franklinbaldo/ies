@@ -20,7 +20,8 @@ pub(crate) struct InclusaoComprovada {
     pub(crate) unidade: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConfirmacaoExterna {
     Previa(ErroPreviaExterna),
     Pdf(FalhaPdf),

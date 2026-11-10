@@ -150,7 +150,7 @@ mod tests {
     use crate::transporte::StatusHttpRecusado;
 
     fn recusa(status: u16) -> FalhaTransporte {
-        FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+        FalhaTransporte::Status(StatusHttpRecusado {
             status,
             mensagem_do_servidor: Some("x".to_owned()),
         })

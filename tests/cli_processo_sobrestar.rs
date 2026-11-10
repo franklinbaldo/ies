@@ -13,8 +13,15 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
 const NUP: &str = "00001.000001/2026-01";
 
@@ -50,7 +57,6 @@ fn confirmar_exige_sessao_valida_e_nao_produz_sucesso_sem_configuracao() {
     ] {
         let saida = sem_sessao(&argumentos);
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["retentavel"], false);
+        sem_arquivos_de_sessao(&saida);
     }
 }

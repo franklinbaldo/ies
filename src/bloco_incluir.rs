@@ -60,28 +60,7 @@ pub(crate) enum ErroIncluir {
     Transporte(#[from] FalhaTransporte),
 }
 
-impl ErroIncluir {
-    pub(crate) fn mensagem(&self) -> String {
-        match self {
-            Self::Abertura(e) => e.mensagem().to_owned(),
-            Self::AcaoNaoOferecidaNaBarra => {
-                "a barra do documento não oferece incluir em bloco de assinatura; nada foi incluído"
-                    .to_owned()
-            }
-            Self::BlocoNaoOferecido => {
-                "o bloco pedido não está entre os blocos de assinatura oferecidos pela tela; nada foi incluído"
-                    .to_owned()
-            }
-            Self::DocumentoForaDaTela => {
-                "a tela de escolha de bloco não lista o documento pedido; nada foi incluído".to_owned()
-            }
-            Self::LeituraDoBloco(e) => e.mensagem().to_owned(),
-            Self::Transporte(e) => e.mensagem().to_owned(),
-            Self::Html(e) => e.mensagem.to_owned(),
-            outro => format!("a inclusão em bloco não pôde ser preparada: {outro}; nada foi incluído"),
-        }
-    }
-}
+impl ErroIncluir {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
     let fora = || ErroHtml::valor("tela_de_escolher_bloco_fora_da_forma_observada");

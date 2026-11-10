@@ -15,7 +15,22 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
+    assert_eq!(
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                        status: 403,
+                        mensagem_do_servidor: Some("Acesso negado.".into())
+                    })
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Some("aluno2".into()),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET prévia + POST único + GET independente
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -32,11 +47,21 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(200));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Atribuição recusada.")
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 200,
+                        mensagem_do_servidor: Some("Atribuição recusada.".into())
+                    }
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Some("aluno2".into()),
+            requisicoes: 6
+        }
     );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
@@ -179,19 +204,22 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Serviço indisponível.")
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: None,
+            leitura: Some(Box::new(
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
+            )),
+            atribuicao_relida: None,
+            requisicoes: 6
+        }
     );
-    let publico = crate::processo_concluir_cli::json_base_da_falha(
-        "atribuicao_recusada",
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    assert_eq!(publico["status_http"], 503);
-    assert_eq!(publico["mensagem_do_servidor"], "Serviço indisponível.");
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -211,7 +239,24 @@ fn post_sem_resposta_e_releitura_503_permanecem_nao_confirmado() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert_eq!(
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: Some(Box::new(
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
+            )),
+            atribuicao_relida: None,
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -230,9 +275,22 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publico["status_http"], 403);
-    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                        status: 403,
+                        mensagem_do_servidor: Some("Acesso negado.".into())
+                    })
+                )
+            )),
+            leitura: None,
+            atribuicao_relida: Some("aluno2".into()),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -275,9 +333,17 @@ fn sem_resposta_e_atribuicao_concorrente_exigem_nao_confirmado() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publico["atribuicao_relida"], "aluno2");
-    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: None,
+            atribuicao_relida: Some("aluno2".into()),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
@@ -292,9 +358,17 @@ fn sem_resposta_e_remocao_concorrente_exigem_nao_confirmado() {
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let erro = resultado.unwrap_err();
-    let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publico["atribuicao_relida"], "");
-    assert_eq!(publico["requisicoes"], 6);
+    assert_eq!(
+        erro,
+        E::NaoConfirmadoNaAtribuicao {
+            falha_do_envio: Some(Box::new(
+                crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
+            )),
+            leitura: None,
+            atribuicao_relida: Some(String::new()),
+            requisicoes: 6
+        }
+    );
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

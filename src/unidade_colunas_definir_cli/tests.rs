@@ -32,7 +32,7 @@ fn previa() -> ColunasDefinidas {
 
 fn erro_500() -> FalhaDoSalvar {
     FalhaDoSalvar::Envio(ErroSubmissaoFormulario::Transporte(
-        FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+        FalhaTransporte::Status(StatusHttpRecusado {
             status: 503,
             mensagem_do_servidor: Some("Serviço indisponível.".to_owned()),
         }),

@@ -109,10 +109,10 @@ pub(crate) fn publicar_lista(
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut modelo, nota);
-        if let Err(erro) = crate::saida::imprimir_json(&modelo) {
-            eprintln!("IES: falha ao emitir JSON: {erro}");
-            return std::process::ExitCode::from(1);
-        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&modelo).expect("JSON serializável")
+        );
     } else {
         relogin_cli::avisar(json_mode, nota);
         let quantidade = modelo["processos"].as_array().map_or(0, Vec::len);
