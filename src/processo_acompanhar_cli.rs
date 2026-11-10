@@ -83,8 +83,6 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
         );
         if plano.estado.ja_estava() {
             println!("Nada a fazer: o acompanhamento solicitado já está no estado pedido.");
-        } else if plano.operacao == "deixar" {
-            println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
         } else if plano.estado.alterado() {
             if plano.operacao == "deixar" {
                 println!("Retirado acompanhamento do grupo: {}", plano.grupo);
@@ -92,6 +90,8 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
                 println!("Incluído acompanhamento no grupo: {}", plano.grupo);
                 println!("Observação: {}", plano.observacao);
             }
+        } else if plano.operacao == "deixar" {
+            println!("Retiraria o acompanhamento do grupo: {}", plano.grupo);
         } else {
             println!("Incluiria acompanhamento no grupo: {}", plano.grupo);
             println!("Observação: {}", plano.observacao);
