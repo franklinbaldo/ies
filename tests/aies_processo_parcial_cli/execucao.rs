@@ -1,7 +1,6 @@
 //! Executor HTTPS local do BDD-633 com a CLI real.
 use super::*;
 
-
 fn estado_final(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
     let controle = banco_cassettes::ler(banco, instalacao, CENARIO)
         .unwrap()
