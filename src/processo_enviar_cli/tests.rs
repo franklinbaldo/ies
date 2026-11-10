@@ -300,7 +300,7 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
                 aberto_em: vec![],
                 depois: vec![],
                 anotacao_depois: None,
-        falha_do_envio: None,
+                falha_do_envio: None,
             },
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false}"#,
         ),
