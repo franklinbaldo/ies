@@ -83,6 +83,14 @@ fn arvore(
     } else {
         String::new()
     };
+    // "Incluir em Bloco de Assinatura" (#381), na forma do card UnB.
+    let incluir_em_bloco = if matches!(situacao, Situacao::Disponivel) {
+        format!(
+            "<a href=\"controlador.php?acao=bloco_escolher&acao_origem=arvore_visualizar&acao_retorno=arvore_visualizar&id_procedimento={p}&id_documento={id}&arvore=1&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={hash}\" tabindex=\"453\"><img title=\"Incluir em Bloco de Assinatura\"/></a>"
+        )
+    } else {
+        String::new()
+    };
     let tela = format!(
         "controlador.php?acao=arvore_visualizar&id_procedimento={p}&id_documento={id}&infra_hash={}",
         crate::protocolo_sintetico::INFRA_HASH
@@ -103,7 +111,7 @@ Nos[0].acoes = '';
 Nos[0].src = '';
 Nos[0].html = '';
 Nos[1] = new infraArvoreNo("DOCUMENTO","{id}","{p}","{tela}","ifrVisualizacao","{rotulo}","{dica}","svg/{icone}.svg","svg/{icone}.svg","svg/{icone}.svg",true,false,null,null,"noVisitado","{numero}");
-Nos[1].acoes = '{link_lista}{cancelar}{ciencia_acao}';
+Nos[1].acoes = '{link_lista}{incluir_em_bloco}{cancelar}{ciencia_acao}';
 Nos[1].src = '{src}';
 Nos[1].html = '';
 {lista_ciencia}</script></head><body><div id="divArvore"></div><form id="frmArvore"></form></body></html>"#

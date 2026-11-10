@@ -7,6 +7,8 @@ mod arvore_processo;
 mod bloco;
 mod bloco_cli;
 mod bloco_detalhe;
+mod bloco_incluir;
+mod bloco_incluir_cli;
 mod cache_documento;
 mod caixa;
 mod caixa_detalhada;
@@ -239,6 +241,21 @@ enum BlocoAcao {
         /// Página 1: validação da página atual; páginas adicionais em desenvolvimento
         #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
         pagina: Option<u32>,
+    },
+    /// Inclui documento (bloco de assinatura) ou processo (interno/reunião) em bloco; sem --confirmar, só prévia
+    #[command(group(clap::ArgGroup::new("alvo").required(true).args(["documento", "processo"])))]
+    Incluir {
+        /// Número do bloco publicado pela lista da unidade
+        bloco: String,
+        /// Número SEI do documento (bloco de assinatura)
+        #[arg(long)]
+        documento: Option<String>,
+        /// NUP do processo (bloco interno ou de reunião)
+        #[arg(long)]
+        processo: Option<String>,
+        /// Executa a inclusão (sem isso, só prévia)
+        #[arg(long)]
+        confirmar: bool,
     },
 }
 
