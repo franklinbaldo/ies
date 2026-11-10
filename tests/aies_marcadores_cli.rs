@@ -299,7 +299,7 @@ fn preparar_sessao() -> (
     (pasta, cert, tls_id, origem, controle, cookie)
 }
 
-fn executar(caso: Caso) {
+fn propriedades_do_caso(caso: Caso) -> (bool, bool, bool) {
     let sem_marcadores = matches!(
         caso,
         Caso::RetirarSemMarcadores
@@ -316,6 +316,11 @@ fn executar(caso: Caso) {
         caso,
         Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto
     );
+    (sem_marcadores, com_catalogo, efeito_incerto)
+}
+
+fn executar(caso: Caso) {
+    let (sem_marcadores, com_catalogo, efeito_incerto) = propriedades_do_caso(caso);
     let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
     let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     backend.set_nonblocking(true).unwrap();
@@ -420,7 +425,7 @@ fn conferir(
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let retirada_presente = matches!(caso, Caso::RetirarPresente);
     let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
-    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
+    let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto);
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if matches!(caso, Caso::AtribuirSemCatalogo) {
         assert_eq!(saida.status.code(), Some(1));
