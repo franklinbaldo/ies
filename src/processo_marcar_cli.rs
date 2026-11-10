@@ -5,8 +5,8 @@ use crate::indice_local::IndiceLocal;
 use crate::marcadores_processo::MarcadoresLidos;
 use crate::processo::NumeroProcesso;
 use crate::processo_marcar::{
-    Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, interpretar_rotulo,
-    executar_atribuicao, validar_texto,
+    Decisao, ErroMarcar, Operacao, Rotulo, confirmar_retirada, decidir, executar_atribuicao,
+    interpretar_rotulo, validar_texto,
 };
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
