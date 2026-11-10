@@ -132,12 +132,11 @@ pub(crate) fn consulta(
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
-    let pendencia = match iesei::editor_documento::ha_documento_sem_assinatura(
-        banco, origem, cenario, &id,
-    ) {
-        Ok(pendencia) => pendencia,
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
-    };
+    let pendencia =
+        match iesei::editor_documento::ha_documento_sem_assinatura(banco, origem, cenario, &id) {
+            Ok(pendencia) => pendencia,
+            Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+        };
     let resultado = if pendencia { "N" } else { "S" };
     Resposta {
         estado: Estado::Ok,
