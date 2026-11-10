@@ -4,7 +4,7 @@ title: Anotação de processo observada antes e depois de uma escrita
 operation: processo.anotar
 implementation: partial
 status: adopted-for-scope
-scope: prévia e confirmação única com releitura do texto
+scope: consulta sem escrita, prévia e confirmação única com releitura
 selected_strategy: web-formulario-servido-com-identidade
 alternatives: web-formulario-servido-com-identidade,estado-inferido-da-barra,url-assinada-construida
 evidence_level: todos-unb-e-cassettes-publicas
@@ -66,6 +66,17 @@ SHA e estrutura das 77 interações **PASS**, mas isso não compara corpos
 nem efeitos dos POSTs. Paridade independente IES/anti-IES com cassette e
 treinamento continuam `NOT_RUN`.
 
+## Extensão BDD-ANOT-03: consulta sem alteração
+
+Sem `--texto`, a CLI retorna o conteúdo do mesmo formulário servido e
+conferido por identidade, sem executar POST. A projeção anti-IES já deriva
+`txaDescricao` de `anotacao_origem` no SQLite: `Some("")` é ausência
+observada, enquanto `None` proíbe inferir ausência e nem oferece o
+formulário. A alternativa de deduzir o texto pela barra permanece rejeitada.
+As duas regressões da CLI real/anti-IES/SQLite distinguem texto, vazio
+explícito e imutabilidade da consulta; não constituem prova de paridade
+com as respostas históricas nem validação externa.
+
 ## Limitações e revisão
 
-A integração da CLI com o anti-IES/SQLite é sintética. Os ZIPs não provam que a mesma resposta e a projeção do anti-IES coincidem semanticamente, nem provam efeito de POST. Confronto bilateral com cassettes: **NOT_RUN**; treinamento e produção: **NOT_RUN**, sem requisições ou escrita externa. BDD-ANOT-03/04/05 (consulta, retirada e envio) ficam para próximas fatias. Rever o contrato após observação independente do formulário, sem elevar hipótese à condição de fato.
+A integração da CLI com o anti-IES/SQLite é sintética. Os ZIPs não provam que a mesma resposta e a projeção do anti-IES coincidem semanticamente, nem provam efeito de POST. Confronto bilateral com cassettes: **NOT_RUN**; treinamento e produção: **NOT_RUN**, sem requisições ou escrita externa. BDD-ANOT-04/05 (retirada e envio) ficam para próximas fatias. Rever o contrato após observação independente do formulário, sem elevar hipótese à condição de fato.
