@@ -377,43 +377,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
-        let tela = match ler_tela_do_processo(
-            &contexto.instalacao,
-            &html,
-            id,
-            contexto.unidade_pedida,
-        ) {
-            Ok(tela) => tela,
-            Err(crate::arvore_processo::ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
-                // Uma unica validacao pela modal publicada, sem retry.
-                super::validacao_acesso::validar(self, contexto, id, &html)?;
-                let (nova_tela, novo_mime) = match self.get(trabalho)? {
-                    Lida::Html { html, mime } => (html, mime),
-                    Lida::Redirecionamento(local) => {
-                        return Err(fora_de_palpite(local.as_deref()));
-                    }
-                    Lida::Login => {
-                        return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
-                    }
-                    Lida::Falha(falha) => return Err(E::Transporte(falha)),
-                };
-                let validada = ler_tela_do_processo(
-                    &contexto.instalacao,
-                    &nova_tela,
-                    id,
-                    contexto.unidade_pedida,
-                )?;
-                return self.abrir_da_tela(
-                    contexto,
-                    trabalho,
-                    (&nova_tela, &novo_mime),
-                    validada,
-                    id,
-                );
-            }
-            Err(erro) => return Err(E::Tela(erro)),
-        };
-        self.abrir_da_tela(contexto, trabalho, (&html, &mime), tela, id)
+        super::validacao_acesso::abrir_trabalho(self, contexto, trabalho, id, (&html, &mime))
     }
 
     /// A partir da tela do processo já lida e conferida: GET da árvore (e o
