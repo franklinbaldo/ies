@@ -71,7 +71,9 @@ pub(crate) struct DocumentoAssinado {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ResultadoDaAssinatura {
     Previa,
-    JaAssinadoPelaSessao { confirmacao_pedida: bool },
+    JaAssinadoPelaSessao {
+        confirmacao_pedida: bool,
+    },
     Comprovada {
         assinatura_depois: Assinante,
         edicao_depois: EdicaoNaBarra,
