@@ -7,7 +7,7 @@ use super::tela::{
     ASSINAR_DOCUMENTO, CARGO, FORMA_DE_AUTENTICACAO, ORGAO, PELA_SENHA, SENHA, TelaDeAssinatura,
     USUARIO, assinatura_realizada, conferir_tela_de_assinatura,
 };
-use super::{Confirmacao, DocumentoAssinado, PedidoDaAssinatura};
+use super::{Confirmacao, DocumentoAssinado, PedidoDaAssinatura, ResultadoDaAssinatura};
 use crate::arvore_processo::{
     Assinante, EdicaoNaBarra, ler_assinatura_na_arvore, ler_barra_do_documento,
     ler_link_de_assinar, tela_do_documento,
@@ -66,7 +66,9 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
     let mut feito = previa(&instalacao, &aberto, &tela, na_arvore.assinantes, pedido);
     feito.requisicoes = rede.feitas();
     if feito.assinaturas.iter().any(|a| a.nome == tela.assinante) {
-        feito.ja_assinado_pela_sessao = true;
+        feito.resultado = ResultadoDaAssinatura::JaAssinadoPelaSessao {
+            confirmacao_pedida: pedido.confirmacao.is_some(),
+        };
         return Ok(feito);
     }
     if let Some(cargo) = &feito.cargo
@@ -93,9 +95,8 @@ pub(crate) fn assinar_documento<V: EnvioDoProcesso>(
     let submissao = derivar(&instalacao, &servida, &tela, &feito, confirmacao)?;
     let falha = enviar(&mut rede, sessao, submissao)?;
     let (verificacao, edicao_depois) = verificar(&instalacao, sessao, &leitura, indice, &mut rede);
-    feito.edicao_depois = edicao_depois;
     feito.requisicoes = rede.feitas();
-    conciliar(feito, falha, verificacao)
+    conciliar(feito, falha, verificacao, edicao_depois)
 }
 
 /// O sucesso da prévia a partir do que as três leituras mostraram.
@@ -117,18 +118,13 @@ fn previa(
         rotulo: aberto.rotulo.clone(),
         processo: aberto.processo.clone(),
         unidade: aberto.unidade.clone(),
-        confirmado: pedido.confirmacao.is_some(),
-        alterado: false,
         assinante: tela.assinante.clone(),
         cargo,
         cargo_da_tela: tela.cargo_da_tela.clone(),
         cargos: tela.cargos.clone(),
-        ja_assinado_pela_sessao: false,
         assinaturas,
-        assinaturas_depois: None,
         edicao: edicao(instalacao, aberto),
-        edicao_depois: None,
-        reconciliado_por: None,
+        resultado: ResultadoDaAssinatura::Previa,
         requisicoes: 0,
     }
 }
@@ -221,9 +217,17 @@ fn conciliar(
     mut feito: DocumentoAssinado,
     falha: Option<FalhaDoEnvio>,
     verificacao: Vf,
+    edicao_depois: Option<EdicaoNaBarra>,
 ) -> Result<DocumentoAssinado, A> {
     let antes = feito.assinaturas.clone();
     let Vf::Lida(depois) = &verificacao else {
+        return Err(A::EfeitoIncertoNaAssinatura {
+            antes,
+            falha_do_envio: falha,
+            verificacao: Box::new(verificacao),
+        });
+    };
+    let Some(edicao_depois) = edicao_depois else {
         return Err(A::EfeitoIncertoNaAssinatura {
             antes,
             falha_do_envio: falha,
@@ -236,19 +240,22 @@ fn conciliar(
             falha_do_envio: falha,
         });
     }
-    let esperada = match depois.as_slice() {
-        [nova] => nova.nome == feito.assinante && Some(&nova.cargo) == feito.cargo.as_ref(),
-        _ => false,
+    let nova = match depois.as_slice() {
+        [nova] if nova.nome == feito.assinante && Some(&nova.cargo) == feito.cargo.as_ref() => {
+            nova.clone()
+        }
+        _ => {
+            return Err(A::EfeitoIncertoNaAssinatura {
+                antes,
+                falha_do_envio: falha,
+                verificacao: Box::new(verificacao),
+            });
+        }
     };
-    if !esperada {
-        return Err(A::EfeitoIncertoNaAssinatura {
-            antes,
-            falha_do_envio: falha,
-            verificacao: Box::new(verificacao),
-        });
-    }
-    feito.alterado = true;
-    feito.assinaturas_depois = Some(depois.clone());
-    feito.reconciliado_por = falha;
+    feito.resultado = ResultadoDaAssinatura::Comprovada {
+        assinatura_depois: nova,
+        edicao_depois,
+        reconciliado_por: falha,
+    };
     Ok(feito)
 }

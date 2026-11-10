@@ -164,9 +164,6 @@ fn cadastro_ignora_required_de_controles_inativos() {
 }
 
 #[test]
-fn confirmacao_sem_nivel_explicito_tem_erro_tipado() {}
-
-#[test]
 fn formulario_de_criacao_deriva_um_post_com_campos_e_efeito_exatos() {
     let envio = derivar(&cadastro()).unwrap();
     assert_eq!(

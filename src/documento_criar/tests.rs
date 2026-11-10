@@ -16,8 +16,6 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
     }
 }
 #[test]
-fn subcodigos_sao_estaveis() {}
-#[test]
 fn lista_tipo_ausente_ambiguo_e_externo() {
     // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
     let html = r#"<table id="tblSeries"><tr><td>

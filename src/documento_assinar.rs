@@ -52,25 +52,33 @@ pub(crate) struct DocumentoAssinado {
     pub(crate) rotulo: String,
     pub(crate) processo: ProcessoNaArvore,
     pub(crate) unidade: Option<String>,
-    pub(crate) confirmado: bool,
-    /// O POST saiu e a leitura mostrou a assinatura nova.
-    pub(crate) alterado: bool,
     /// `txtUsuario` da tela.
     pub(crate) assinante: String,
     /// O cargo pedido (`--cargo`), já conferido entre as opções.
     pub(crate) cargo: Option<String>,
     pub(crate) cargo_da_tela: Option<String>,
     pub(crate) cargos: Vec<String>,
-    pub(crate) ja_assinado_pela_sessao: bool,
     /// A caneta antes.
     pub(crate) assinaturas: Vec<Assinante>,
-    /// A caneta lida na verificação (só depois da escrita).
-    pub(crate) assinaturas_depois: Option<Vec<Assinante>>,
     pub(crate) edicao: EdicaoNaBarra,
-    pub(crate) edicao_depois: Option<EdicaoNaBarra>,
-    /// A resposta não foi a esperada e a leitura mostrou a assinatura.
-    pub(crate) reconciliado_por: Option<FalhaDoEnvio>,
+    pub(crate) resultado: ResultadoDaAssinatura,
     pub(crate) requisicoes: u8,
+}
+
+/// As três decisões mutuamente exclusivas do fluxo de assinatura.
+/// Dados de releitura e reconciliação só existem após uma assinatura
+/// comprovada; a prévia e o caso idempotente não os podem carregar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ResultadoDaAssinatura {
+    Previa,
+    JaAssinadoPelaSessao {
+        confirmacao_pedida: bool,
+    },
+    Comprovada {
+        assinatura_depois: Assinante,
+        edicao_depois: EdicaoNaBarra,
+        reconciliado_por: Option<FalhaDoEnvio>,
+    },
 }
 
 /// `edicao` como texto público.

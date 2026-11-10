@@ -254,10 +254,22 @@ mod tests {
     }
 
     #[test]
-    fn recusa_legenda_ausente() {}
+    fn recusa_legenda_ausente() {
+        let html = "<table id='tblProcessosRecebidos'></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
+        assert!(matches!(
+            parse_html(html),
+            Err(ErroCaixa::LegendaAusente { .. })
+        ));
+    }
 
     #[test]
-    fn recusa_excesso_de_linhas() {}
+    fn recusa_excesso_de_linhas() {
+        assert!(matches!(
+            parse_html(&html(&format!("{}{}", linha("1"), linha("2")), 1)),
+            Err(ErroCaixa::TotalExcedido { .. })
+        ));
+    }
 
     #[test]
     fn recusa_tabela_aninhada() {
@@ -268,7 +280,13 @@ mod tests {
     }
 
     #[test]
-    fn ancora_de_classe_desconhecida_falha_fechado() {}
+    fn ancora_de_classe_desconhecida_falha_fechado() {
+        let linhas = "<tr id='P9'><td><a class='outraClasse'>123</a></td></tr>";
+        assert!(matches!(
+            parse_html(&html(linhas, 1)),
+            Err(ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha { .. })
+        ));
+    }
 
     #[test]
     fn duas_tabelas_de_recebidos_nao_podem_ocultar_processos() {
