@@ -8,7 +8,12 @@ use rusqlite::Connection;
 use std::fmt::Write as _;
 
 fn cabecalho(html: &mut String, nup: &str, id: &str, observacao: &Observacao) {
-    let ids = observacao.itens.iter().map(|m| m.id.as_str()).collect::<Vec<_>>().join(",");
+    let ids = observacao
+        .itens
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
     let nup = escapar(nup);
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
     write!(
@@ -133,7 +138,12 @@ pub(crate) fn responder(
         ) else {
             return Resposta::nova(Estado::RequisicaoInvalida);
         };
-        let ids = observacao.itens.iter().map(|m| m.id.as_str()).collect::<Vec<_>>().join(",");
+        let ids = observacao
+            .itens
+            .iter()
+            .map(|m| m.id.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
         if corpo.split('&').count() != 5
             || tipo != "2"
             || nro != observacao.total_declarado.to_string()
@@ -147,8 +157,13 @@ pub(crate) fn responder(
             Ok(()) => Resposta::redirecionar(format!(
                 "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
             )),
-            Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
-            Err(iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado) => Resposta::nova(Estado::DadosInsuficientes),
+            Err(iesei::marcadores::Falha::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(
+                iesei::marcadores::Falha::Sqlite(_)
+                | iesei::marcadores::Falha::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
     // UnB 4.0.9: sem marcador, GET redireciona ao formulário de adicionar.
