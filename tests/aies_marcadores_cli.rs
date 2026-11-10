@@ -195,6 +195,7 @@ fn conferir_previa_humana(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta_
 #[derive(Clone, Copy)]
 enum Caso {
     AtribuirExistente,
+    AtribuirAusente,
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
@@ -204,7 +205,7 @@ enum Caso {
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
-        Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
+        Caso::AtribuirExistente | Caso::AtribuirAusente => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
         Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
             ("--retirar", "501#Revisão")
@@ -251,7 +252,7 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 }
 
 fn executar(caso: Caso) {
-    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
+    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores | Caso::AtribuirAusente);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -359,6 +360,15 @@ fn conferir(
     let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    if matches!(caso, Caso::AtribuirAusente) {
+        assert_eq!(saida.status.code(), Some(0), "BDD-255-01 deve oferecer prévia da atribuição quando catálogo independente é observado");
+        assert_eq!(json["nada_a_fazer"], false);
+        assert_eq!(json["alterado"], false);
+        assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
+        assert_eq!(persistido.total_declarado, 0);
+        assert_eq!(releitura.status.code(), Some(0));
+        return;
+    }
     assert_eq!(
         saida.status.code(),
         Some(if efeito_incerto { 3 } else { 0 }),
@@ -446,4 +456,9 @@ fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
 fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
     // Resposta 403 após o POST aplicado não é aceite causal, mesmo com releitura ausente.
     executar(Caso::RetirarEfeitoIncerto);
+}
+
+#[test]
+fn bdd_255_01_atribuicao_ausente_deve_exibir_previa_sem_post() {
+    executar(Caso::AtribuirAusente);
 }
