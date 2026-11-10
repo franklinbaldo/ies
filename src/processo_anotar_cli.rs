@@ -86,7 +86,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
 /// Emite a causa tipada sem catálogo de subcódigos por operação.
 fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     use crate::erro_publico::Causa;
-    let causa = crate::erro_publico::caminho_de(&erro);
+    let causa = crate::erro_publico::caminho_de(erro);
     let motivo_situacao = match &erro {
         Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
         _ => None,
