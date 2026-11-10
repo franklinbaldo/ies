@@ -71,6 +71,8 @@ mod processo_andamento_registrar;
 mod processo_andamento_registrar_cli;
 mod processo_anexar;
 mod processo_anexar_cli;
+mod processo_anotar;
+mod processo_anotar_cli;
 mod processo_atribuir;
 mod processo_atribuir_cli;
 mod processo_buscar_cli;
@@ -363,6 +365,7 @@ struct SetupArgs {
 /// verificações nem acessar serviços fora do comando explicitamente solicitado.
 fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
     processo_criar_cli::tentar_criar(cli)
+        .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
         .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))

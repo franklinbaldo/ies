@@ -72,7 +72,12 @@ pub(crate) fn acoes_do_processo(
         )
         .expect("formatação de String");
     }
-    if unidade_atual == processo.unidade_origem && processo.anotacao_origem.is_some() {
+    // Anotação publicada só na unidade de origem aberta: ausência de
+    // observação no SQLite não autoriza inventar o link.
+    if processo.anotacao_origem.is_some()
+        && processo.unidade_origem == unidade_atual
+        && processo.aberto_em.iter().any(|u| u == unidade_atual)
+    {
         write!(
             links,
             r#"<a href="controlador.php?acao=anotacao_registrar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Anotações</a>"#

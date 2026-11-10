@@ -33,6 +33,7 @@ mod tests_reconciliacao;
 #[cfg(test)]
 mod tests_tela;
 
+pub(crate) use anotacoes::texto_anotacao;
 pub(crate) use erro::ErroEnviar;
 pub(crate) use fluxo::enviar_processo;
 
