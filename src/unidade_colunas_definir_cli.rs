@@ -7,11 +7,9 @@ use crate::configuracao;
 use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::transporte::sessao::ReferenciasDaSessao;
-#[cfg(test)]
-use crate::visao_do_controle::FalhaDoSalvar;
 use crate::visao_do_controle::{self, ColunasDefinidas, TelaAtual};
 #[cfg(test)]
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
 #[cfg(test)]
 fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
@@ -64,21 +62,6 @@ fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
     colunas.map_or(Value::Null, chaves)
 }
 
-#[cfg(test)]
-fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
-    let mut valor = Map::new();
-    if let Some(http) = falha.status_http() {
-        // 200: validação da Infra, só a mensagem.
-        if http.status != 200 {
-            valor.insert("status_http".to_owned(), json!(http.status));
-        }
-        if let Some(texto) = http.mensagem_do_servidor {
-            valor.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    Value::Object(valor)
-}
-
 /// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
 #[derive(serde::Serialize)]
 struct EnvioColunasPublico<'a> {
@@ -97,7 +80,7 @@ struct ResultadoColunas<'a> {
     desmarcar: Vec<&'static str>,
     envio: Option<EnvioColunasPublico<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_salvar: Option<crate::saida::FalhaPublica>,
+    falha_do_salvar: Option<String>,
     indisponiveis: Vec<&'static str>,
     marcar: Vec<&'static str>,
     origem: &'static str,
@@ -126,10 +109,7 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
                 campos,
                 metodo: "POST",
             }),
-        falha_do_salvar: feito
-            .reconciliado_por
-            .as_ref()
-            .map(|falha| crate::saida::FalhaPublica::nova(falha.status_http())),
+        falha_do_salvar: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
         origem: "web",
@@ -167,7 +147,7 @@ fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
         "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
     });
     if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
-        objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
+        objeto.insert("falha_do_salvar".to_owned(), json!(format!("{falha:?}")));
     }
     valor
 }

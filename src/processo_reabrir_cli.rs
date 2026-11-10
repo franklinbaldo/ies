@@ -56,7 +56,7 @@ struct ResultadoReabertura<'a> {
     confirmado: bool,
     depois: Option<&'a [String]>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida::FalhaPublica>,
+    falha_do_envio: Option<String>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,
@@ -81,10 +81,7 @@ fn resultado_reabertura(feito: &ProcessoReaberto) -> ResultadoReabertura<'_> {
         depois: feito.depois.as_deref(),
         reconciliado_por_leitura: feito.reconciliado_por.is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito
-            .reconciliado_por
-            .as_ref()
-            .map(crate::processo_concluir_cli::falha_do_envio_publica),
+        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
     }
 }
 

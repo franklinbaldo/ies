@@ -12,7 +12,7 @@ use crate::processo_obter::{
     EnvioDoProcesso, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso, obter_processo,
 };
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle;
 
 /// As siglas de `aberto_em`, ou o motivo de não ter sido lido.
@@ -128,12 +128,7 @@ pub(crate) fn resposta_da_funcao<R: std::io::Read>(
     }
     match decodificar_resposta(resposta.resposta) {
         Ok(html) => mensagem_de_validacao_da_infra(&html).map(|mensagem| {
-            FalhaDoEnvio::Envio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-                StatusHttpRecusado {
-                    status: 200,
-                    mensagem_do_servidor: Some(mensagem),
-                },
-            ))
+            FalhaDoEnvio::Envio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem))
         }),
         Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
             Some(FalhaDoEnvio::LoginAposEscrita)

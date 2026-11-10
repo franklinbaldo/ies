@@ -105,9 +105,9 @@ vez** para reconciliar.
 | Não esperada | outras | 1 | `NaoConfirmadoNaConfiguracaoDeColunas` (`observadas`) |
 | Qualquer | GET falhou ou tela irreconhecível | 1 | `NaoConfirmadoNaConfiguracaoDeColunas` (campo `verificacao`) |
 
-No JSON de sucesso reconciliado, `falha_do_salvar` traz a falha do POST e
-`status_http`/`mensagem_do_servidor` quando o SEI respondeu com recusa
-HTTP ([contrato da CLI](../cli.md)). Um
+No JSON de sucesso reconciliado, `falha_do_salvar` é o `Debug` de
+`FalhaDoSalvar` (o status HTTP, se houve, dentro de `Transporte(Status(..))`;
+[contrato da CLI](../cli.md)). Um
 servidor que processe o POST **depois** do GET de verificação não é
 detectável: antes de repetir à mão, conferir com `ies unidade colunas`.
 Falha **antes** do POST (arquivo de cookie, derivação) não é escrita:

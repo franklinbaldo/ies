@@ -19,7 +19,7 @@ use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
 #[path = "documento_assinar_cli/falha.rs"]
 mod falha;
-use falha::{assinaturas_publicas, falha_do_envio_publica};
+use falha::assinaturas_publicas;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 
@@ -105,8 +105,7 @@ fn json_das_assinaturas(lista: &[Assinante]) -> Value {
 }
 
 pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
-    serde_json::to_value(falha_do_envio_publica(falha))
-        .expect("metadados da falha só possuem valores JSON")
+    json!(format!("{falha:?}"))
 }
 
 /// JSON do sucesso (prévia, já assinado, ou assinado e conferido).

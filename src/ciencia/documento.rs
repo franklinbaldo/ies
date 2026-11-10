@@ -18,7 +18,7 @@ use crate::processo_obter::{
     abrir_documento_na_arvore,
 };
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CienciaDoDocumento {
@@ -41,7 +41,8 @@ pub(crate) struct CienciaDoDocumento {
 #[error("{self:?}")]
 pub(crate) enum FalhaDoAceite {
     Transporte(#[from] FalhaTransporte),
-    ValidacaoDaInfra(#[source] StatusHttpRecusado),
+    /// A mensagem da validação da Infra, numa resposta 200.
+    ValidacaoDaInfra(String),
     Aceite(#[from] super::ErroCiencia),
 }
 
@@ -202,10 +203,7 @@ fn ler_aceite<V: EnvioDoProcesso>(
     let resposta = rede.get_sem_seguir(url, cookie)?;
     let html = decodificar_resposta(resposta.resposta)?;
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
-        return Err(FalhaDoAceite::ValidacaoDaInfra(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: Some(mensagem),
-        }));
+        return Err(FalhaDoAceite::ValidacaoDaInfra(mensagem));
     }
     atividade_do_aceite(
         &html,

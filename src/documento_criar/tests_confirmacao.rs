@@ -569,10 +569,7 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
     assert_eq!(
         erro,
         ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-            StatusHttpRecusado {
-                status: 200,
-                mensagem_do_servidor: Some("Recusa sintética".into()),
-            }
+            "Recusa sintética".into()
         ))
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);

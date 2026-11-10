@@ -28,11 +28,10 @@ registra sempre em nome do usuário da sessão; não inferir outros usuários.
 Uma recusa, 302, timeout, árvore ou lista ilegível após GET mutador implicam
 `ErroCienciaDocumento::NaoConfirmado` e saída 1; jamais repetir escrita
 automaticamente. A prévia nunca consulta `documento_ciencia`. Na apresentação humana, identifica documento, rótulo e processo, acrescentando a unidade apenas quando observada na abertura; separa as frases com espaçamento normal e exibe `--confirmar` e a contagem de requisições. A saída JSON mantém a unidade opcional e não inventa dado ausente. A causa tipada
-do único GET mutador permanece em `falha_do_aceite` na saída JSON:
-transporte/status HTTP, validação da Infra (HTTP 200 com mensagem saneada),
-ou aceite sem atividade reconhecível. Recusas HTTP preservam
-`status_http` e `mensagem_do_servidor`; o diagnóstico humano também os
-mostra. Não confundir ausência de prova com ausência de efeito.
+do único GET mutador permanece em `falha_do_aceite`, no erro:
+transporte/status HTTP (`Transporte(Status(..))`), validação da Infra
+(`ValidacaoDaInfra(mensagem)`, numa resposta 200), ou aceite sem atividade
+reconhecível, no `Debug` do erro. Não confundir ausência de prova com ausência de efeito.
 
 ## Orçamento sintético (índice frio, processo informado)
 
@@ -167,7 +166,7 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
 com HTTP **200**. A falha sai com 1 e
-`Error: NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(StatusHttpRecusado { status: 200, mensagem_do_servidor })), .. }`
+`Error: NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(mensagem)), .. }`
 (`ErroCienciaDocumento`), com as `requisicoes` reais observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
 A contagem de requisições observadas acompanha a escrita não confirmada; antes de outra confirmação, confira a Lista de Ciências e **não repita a escrita**. Nova prévia continua permitida: ela é somente leitura.

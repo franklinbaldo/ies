@@ -44,7 +44,10 @@ fn reconciliacao_mantem_causa_http_e_status() {
     };
     conferir_mesmos_bytes(&feito);
     let json = serde_json::to_value(resultado_cancelamento(&feito)).unwrap();
-    assert_eq!(json["falha_do_envio"]["status_http"], 302);
+    assert_eq!(
+        json["falha_do_envio"],
+        format!("{:?}", FalhaDoCancelamento::RedirecionamentoNaoReconhecido)
+    );
     assert_eq!(json["reconciliado_por_leitura"], true);
 }
 

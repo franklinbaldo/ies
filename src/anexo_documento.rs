@@ -7,7 +7,7 @@
 use crate::documento_web::ErroCorpoDocumento;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
-use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, recusar_status};
+use crate::transporte::{FalhaTransporte, RespostaWeb, recusar_status};
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::Path;
@@ -149,7 +149,8 @@ pub(crate) enum ErroAnexo {
     Vazio,
     ConteudoComLinkAssinado,
     /// HTML com o contêiner de exceção do SEI; status 200 e a mensagem.
-    RecusadoPeloSei(StatusHttpRecusado),
+    /// Página de exceção do SEI (resposta 200), com o texto saneado se houver.
+    RecusadoPeloSei(Option<String>),
     /// O texto visível do HTML recebido.
     Corpo(#[from] ErroCorpoDocumento),
     DiretorioAusente,
@@ -449,10 +450,7 @@ fn conferir_html(bytes: &[u8], tipo: &str) -> Result<(), ErroAnexo> {
     }
     if e_excecao_do_sei(&html) {
         let mensagem = texto_do_html(&html).and_then(|t| crate::transporte::saneamento::sanear(&t));
-        return Err(ErroAnexo::RecusadoPeloSei(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: mensagem,
-        }));
+        return Err(ErroAnexo::RecusadoPeloSei(mensagem));
     }
     Ok(())
 }

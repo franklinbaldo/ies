@@ -65,8 +65,10 @@ O 302 da pesquisa rápida observado em GO
 `procedimento_trabalhar` com `acao_origem=protocolo_pesquisa_rapida` e o
 id em `id_protocolo`; `infra_unidade_atual` e `infra_sistema` têm de ser
 iguais aos do `action`. Qualquer outra resposta à pesquisa rápida é
-`PesquisaRapidaSemUrlDeTrabalho`, com `status_http` e a mensagem da
-validação da Infra quando houver; a página de resultado nunca é lida.
+`PesquisaRapidaSemUrlDeTrabalho` (HTML em vez do 302); um status HTTP sobe
+como `Transporte(Status(..))` e a validação da Infra como
+`Formulario(ValidacaoRecusadaPeloSei(mensagem))`; a página de resultado
+nunca é lida.
 `ies processo NUP` **nunca** usa a pesquisa avançada: em GO e na PEN1 ela
 não achou NUPs que a pesquisa rápida abriu (medição do agente pai,
 03/11/2026).

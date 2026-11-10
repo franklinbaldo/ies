@@ -4,9 +4,7 @@
 //! A saída nunca traz URL, `infra_hash` ou cookie.
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::{
-    FalhaDoEnvio, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
-};
+use crate::processo_concluir::{PedidoDaConclusao, ProcessoConcluido, concluir_processo};
 use crate::processo_obter::SessaoDoProcesso;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, transporte};
@@ -74,12 +72,6 @@ fn concluir_na_sessao(
     Ok(())
 }
 
-/// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
-/// seus dados observáveis na fronteira JSON.
-pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida::FalhaPublica {
-    crate::saida::FalhaPublica::nova(falha.status_http())
-}
-
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
 #[derive(serde::Serialize)]
 struct ResultadoConclusao<'a> {
@@ -89,7 +81,7 @@ struct ResultadoConclusao<'a> {
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida::FalhaPublica>,
+    falha_do_envio: Option<String>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,
@@ -115,7 +107,7 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
         depois: feito.depois.as_deref(),
         reconciliado_por_leitura: feito.reconciliado_por.is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref().map(falha_do_envio_publica),
+        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
     }
 }
 
