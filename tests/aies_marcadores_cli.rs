@@ -1,4 +1,4 @@
-//! BDD-255-03: idempotência de marcador pela CLI real, HTTPS local, anti-IES e SQLite.
+//! BDD-255-02 (prévia) e 255-03: CLI real, HTTPS local, anti-IES e SQLite.
 //! Hipótese sintética, não prova paridade com uma instalação SEI.
 #![cfg(unix)]
 use anti_ies::atender_http;
@@ -175,7 +175,16 @@ fn executar_cli(
         .unwrap()
 }
 
-fn executar(retirar_ausente: bool, sem_marcadores: bool) {
+#[derive(Clone, Copy)]
+enum Caso {
+    AtribuirExistente,
+    RetirarAusente,
+    RetirarPresente,
+    RetirarSemMarcadores,
+}
+
+fn executar(caso: Caso) {
+    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -230,26 +239,26 @@ fn executar(retirar_ausente: bool, sem_marcadores: bool) {
         origem.as_path(),
         cert.as_path(),
     ];
-    let argumentos = if retirar_ausente {
-        vec![
-            "--json",
-            "processo",
-            "marcar",
-            NUP,
-            "--retirar",
-            "502#Pendente",
-        ]
-    } else {
-        vec![
-            "--json",
-            "processo",
-            "marcar",
-            NUP,
-            "--marcador",
-            "501#Revisão",
-        ]
+    let (operacao, marcador) = match caso {
+        Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
+        Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
+        Caso::RetirarPresente => ("--retirar", "501#Revisão"),
     };
+    let argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
     let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
+    // O mesmo plano de retirada, agora na apresentação humana, ainda sem POST.
+    let previa_humana = matches!(caso, Caso::RetirarPresente).then(|| {
+        executar_cli(
+            &pasta, arquivos, porta_proxy,
+            &["processo", "marcar", NUP, "--retirar", "501#Revisão"],
+        )
+    });
+    if let Some(preview) = &previa_humana {
+        assert_eq!(preview.status.code(), Some(0));
+        let humano = String::from_utf8_lossy(&preview.stdout);
+        assert!(humano.contains("Prévia: retirar marcador 501#Revisão"));
+        assert!(humano.contains("A escrita ainda não está disponível"));
+    }
     // Segunda execução independente: identidade e ausência de alteração persistidas.
     let releitura = executar_cli(
         &pasta,
@@ -268,7 +277,7 @@ fn executar(retirar_ausente: bool, sem_marcadores: bool) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    conferir(&saida, &releitura, &persistido, &pedidos, sem_marcadores);
+    conferir(&saida, &releitura, &persistido, &pedidos, sem_marcadores, matches!(caso, Caso::RetirarPresente));
 }
 fn conferir(
     saida: &Output,
@@ -276,6 +285,7 @@ fn conferir(
     persistido: &Observacao,
     pedidos: &[String],
     sem_marcadores: bool,
+    retirada_presente: bool,
 ) {
     assert_eq!(
         saida.status.code(),
@@ -285,7 +295,9 @@ fn conferir(
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nada_a_fazer"], true);
+    assert_eq!(json["nada_a_fazer"], !retirada_presente);
+    assert_eq!(json["retirada_possivel"], retirada_presente);
+    assert_eq!(json["confirmado"], false);
     assert_eq!(json["alterado"], false);
     assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
@@ -316,15 +328,21 @@ fn conferir(
 }
 #[test]
 fn bdd_255_03_atribuir_marcador_existente_e_idempotente() {
-    executar(false, false);
+    executar(Caso::AtribuirExistente);
 }
 #[test]
 fn bdd_255_03_retirar_marcador_ausente_e_idempotente() {
-    executar(true, false);
+    executar(Caso::RetirarAusente);
 }
 
 #[test]
 fn bdd_255_03_retirar_de_processo_sem_marcadores_nao_inventa_lista() {
     // Cassette UnB: a tela sem marcadores é 302 para cadastrar, sem POST.
-    executar(true, true);
+    executar(Caso::RetirarSemMarcadores);
+}
+
+#[test]
+fn bdd_255_02_previa_de_retirar_presente_mantem_marcador_na_releitura() {
+    // Fase prévia apenas: status 0 não significa que remoção foi confirmada.
+    executar(Caso::RetirarPresente);
 }
