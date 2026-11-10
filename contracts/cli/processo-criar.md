@@ -37,7 +37,7 @@ enviado e a contagem de requisições reais.
 A prévia e o `--confirmar` verificam o atributo `maxlength` do
 `input txtDescricao` **na tela servida**. Se o comprimento em unidades
 UTF-16 exceder o máximo publicado, recusam antes do POST criador:
-`especificacao_acima_do_limite_do_cadastro`, saída 1, sem escrita.
+`ErroCadastro::EspecificacaoAcimaDoLimite`, saída 1, sem escrita.
 JSON publica `limite_da_especificacao` e
 `comprimento_da_especificacao_utf16`, não o texto do usuário;
 a saída humana indica ambos os números. Se o atributo não existir,
@@ -70,63 +70,63 @@ A resposta sozinha nunca prova a criação. No `Location`, aceitar
 **uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
 `id_procedimento` numérico; quaisquer repetições, mesmo com um
 parâmetro inválido, são ambiguidade e resultam em
-`nao_confirmado_na_criacao` (saída 1), sem seguir a URL assinada.
+`ErroCriar::NaoConfirmado` (saída 1), sem seguir a URL assinada.
 Na escolha de tipo por link, aplicar a mesma regra a `acao` e
 `id_tipo_procedimento` antes de qualquer GET.
 
 Falha definitivamente anterior ao envio: saída 1 (ou 2
 para argumentos inválidos). Depois de iniciar a escrita,
 qualquer resultado que não permita estabelecer a identidade
-e o efeito exige `nao_confirmado`, saída 1, sem repetir POST.
+e o efeito sai com `FalhaNaCriacao { causa, requisicoes }` (causa
+`ErroCriar::NaoConfirmado` ou a etapa que falhou), saída 1, sem repetir POST.
 O usuário deve conferir a unidade antes de nova tentativa.
 
 ## Subcódigos do leitor de tipos
 
-| Subcódigo | Fato verificável |
+| Variante ou `onde` (stderr) | Fato verificável |
 | --- | --- |
 | `lista_de_tipos_html_invalido` | HTML da lista não pode ser interpretado |
 | `tabela_de_tipos_ausente_ou_repetida` | Tabela de tipos ausente, repetida ou não é tabela |
-| `tipo_de_processo_nao_oferecido` | Tipo não consta da lista completa |
+| `ErroListaDeTipos::TipoNaoOferecido` | Tipo não consta da lista completa |
 | `tipo_de_processo_ambiguo` | Mais de uma âncora com nome exato |
-| `tipo_de_processo_sem_acao` | Âncora sem ação segura ou desabilitada |
-| `lista_de_tipos_incompleta` | Tipo não encontrado na lista curta; não inferir ausência |
+| `ErroListaDeTipos::TipoSemAcao` | Âncora sem ação segura ou desabilitada |
+| `ErroListaDeTipos::ListaIncompleta` | Tipo não encontrado na lista curta; não inferir ausência |
 | `cadastro_de_processo_html_invalido` | HTML do cadastro ilegível |
 | `cadastro_de_processo_ausente_ou_repetido` | Formulário de cadastro ausente ou repetido |
-| `tipo_do_cadastro_divergente` | ID do tipo no cadastro diferente do escolhido |
+| `ErroCadastro::TipoDeCadastroDivergente` | ID do tipo no cadastro diferente do escolhido |
 | `especificacao_nao_publicada_no_cadastro` | Campo de especificação ausente ou desabilitado |
-| `especificacao_acima_do_limite_do_cadastro` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
+| `ErroCadastro::EspecificacaoAcimaDoLimite` | Especificação maior que `maxlength` observado no cadastro; rejeita prévia e confirmação antes do POST |
 | `limite_da_especificacao_invalido_no_cadastro` | Atributo `maxlength` presente, mas não numérico; HTML insuficiente para autorizar escrita |
 | `assunto_sugerido_nao_unico` | Nenhum ou vários assuntos selecionáveis no cadastro |
-| `assunto_sugerido_desabilitado` | O `select` de assunto está desabilitado: a opção visível não comprova escolha habilitada; recusa antes do POST |
-| `hipotese_legal_desabilitada` | `select` da hipótese legal está desabilitado quando o nível solicitado é restrito; recusa antes do POST |
-| `nivel_de_acesso_nao_oferecido` | Rádio de acesso solicitado não está publicado |
-| `nivel_de_acesso_desabilitado` | Rádio publicado mas desabilitado |
-| `hipotese_legal_nao_identificada` | Hipótese legal única não publicada |
-| `tipo_de_processo_invalido` | Tipo CLI vazio ou contém controle |
-| `especificacao_de_processo_invalida` | Especificação CLI vazia ou contém controle |
-| `interessado_de_processo_invalido` | Interessado CLI vazio ou contém controle |
-| `fluxo_de_criacao_ainda_nao_validado` | Execução remota deliberadamente bloqueada até fluxo seguro completo |
+| `ErroCadastro::AssuntoDesabilitado` | O `select` de assunto está desabilitado: a opção visível não comprova escolha habilitada; recusa antes do POST |
+| `HipoteseLegalDesabilitada` | `select` da hipótese legal está desabilitado quando o nível solicitado é restrito; recusa antes do POST |
+| `ErroCadastro::NivelNaoOferecido` | Rádio de acesso solicitado não está publicado |
+| `ErroCadastro::NivelDesabilitado` | Rádio publicado mas desabilitado |
+| `HipoteseLegalNaoIdentificada` | Hipótese legal única não publicada |
+| erro do clap (saída 2) | Tipo CLI vazio ou contém controle |
+| erro do clap (saída 2) | Especificação CLI vazia ou contém controle |
+| erro do clap (saída 2) | Interessado CLI vazio ou contém controle |
 
 ## Subcódigos candidatos
 
 Os nomes abaixo são reservados **como proposta**, ainda sem
 implementação Rust e sem afirmar aprovação do verificador:
 
-- `tipo_de_processo_nao_oferecido`
+- `ErroListaDeTipos::TipoNaoOferecido`
 - `tipo_de_processo_ambiguo`
-- `lista_de_tipos_incompleta`
+- `ErroListaDeTipos::ListaIncompleta`
 - `cadastro_de_processo_desconhecido`
 - `assunto_sugerido_nao_unico`
-- `nivel_de_acesso_nao_oferecido`
-- `hipotese_legal_nao_identificada`
-- `interessado_de_processo_ambiguo`
+- `ErroCadastro::NivelNaoOferecido`
+- `HipoteseLegalNaoIdentificada`
+- `ErroInteressado::Ambiguo`
 - `criacao_de_processo_recusada`
-- `nao_confirmado_na_criacao`
+- `ErroCriar::NaoConfirmado`
 
 Subcódigos já emitidos pelo leitor offline da lista de tipos:
 `lista_de_tipos_html_invalido`, `tabela_de_tipos_ausente_ou_repetida`,
-`tipo_de_processo_nao_oferecido`, `tipo_de_processo_ambiguo`,
-`tipo_de_processo_sem_acao`, `lista_de_tipos_incompleta`.
+`ErroListaDeTipos::TipoNaoOferecido`, `tipo_de_processo_ambiguo`,
+`ErroListaDeTipos::TipoSemAcao`, `ErroListaDeTipos::ListaIncompleta`.
 
 Esses subcódigos precisam de tipos reais e integração a
 `docs/erros-tipados.md` antes de serem publicados na CLI.
@@ -134,45 +134,45 @@ Esses subcódigos precisam de tipos reais e integração a
 
 ## Subcódigos do fluxo Web
 
-| Subcódigo | Recusa |
+| Variante ou `onde` (stderr) | Recusa |
 | --- | --- |
-| `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `nao_confirmado_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; escrita não confirmada, saída 1 |
-| `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
-| `candidato_unico_sem_prova_causal` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 1, possível resíduo, sem retry |
-| `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::Cadastro` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `cadastro_nao_devolvido_apos_escolha` (sem variante própria confirmada no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::NaoConfirmado` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ProvaDaCriacao::PropriedadesDivergentes` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; escrita não confirmada, saída 1 |
+| `ErroCriar::PosEscrita { correspondentes: Some(nups), .. }` com dois ou mais NUPs | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
+| `ErroCriar::PosEscrita { correspondentes: Some([nup]), .. }` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 1, possível resíduo, sem retry |
+| `ErroCriar::Transporte` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::Formulario` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `interessado_de_processo_nao_resolvido` (sem variante própria confirmada no código) | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_ausente` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `link_de_iniciar_processo_repetido` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `lista_de_tipos_nao_reconhecida` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `menu_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `tipo_de_processo_sem_identificador` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `unidade_da_criacao_divergente` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::Lista` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::Menu` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::TipoSemIdentificador` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `ErroCriar::UnidadeDiferente` | Etapa observada não satisfeita; não repetir operação automaticamente |
 
 
 ## Subcódigos do interessado
 
-| Subcódigo | Recusa |
+| Variante ou `onde` (stderr) | Recusa |
 | --- | --- |
 | `interessado_controles_ausentes` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
-| `interessado_autocompletar_nao_declarado` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
-| `interessado_consulta_nao_derivada` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::AutocompletarNaoDeclarado` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::DerivacaoRecusada` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 | `interessado_resposta_nao_reconhecida` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
-| `interessado_de_processo_nao_oferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
-| `interessado_de_processo_ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::NaoOferecido` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
+| `ErroInteressado::Ambiguo` | Autocomplete ou identificação do interessado não demonstrável pela tela servida |
 
 ## Subcódigos da hipótese legal carregada por AJAX
 
-| Subcódigo | Fato observado |
+| Variante ou `onde` (stderr) | Fato observado |
 | --- | --- |
 | `hipotese_legal_ajax_nao_declarada` | Cadastro restrito publicou o select pendente mas não declarou uma única URL AJAX literal |
 | `hipotese_legal_ajax_nao_derivada` | URL AJAX ou corpo não puderam ser derivados com segurança pela infraestrutura compartilhada |
 | `hipotese_legal_ajax_resposta_nao_reconhecida` | Consulta não devolveu XML 200 com um select legível e opção válida; também recusa uma opção única ou escolha explícita com ID/nome não publicável (URL ou caracteres de controle) |
-| `hipotese_legal_ajax_nao_unica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
+| `ErroHipotese::OpcaoNaoUnica` | XML da consulta não ofereceu exatamente uma hipótese legal efetiva habilitada |
 
 Se o próprio cadastro traz exatamente uma hipótese legal habilitada, não
 se faz AJAX. Se o select só traz `null`, consulta-se a URL assinada
@@ -180,7 +180,7 @@ publicada na tela, uma vez, por POST **sem efeito de escrita**.
 A resposta com múltiplas opções não permite escolher por posição:
 sem `--hipotese-legal`, recusar antes do POST criador. Quando as
 opções efetivas forem distintas, habilitadas e imprimíveis, a recusa
-`hipotese_legal_ajax_nao_unica` apresenta os pares realmente lidos:
+`ErroHipotese::OpcaoNaoUnica` apresenta os pares realmente lidos:
 no JSON, `hipoteses_legais_oferecidas` contém objetos
 `{id, nome, argumento}`, sendo `argumento` o literal `ID#NOME`;
 na saída humana, mostra cada `ID#NOME`. Não publica URL assinada,
@@ -227,11 +227,11 @@ Confirmação com AJAX: **7 requisições** (5 GET + 1 POST de consulta
 + 1 POST criador, seguidos de duas leituras verificadoras).
 As contagens ao vivo permanecem NOT_RUN até ensaio autenticado.
 
-| Subcódigo | Fato observável |
+| Variante ou `onde` (stderr) | Fato observável |
 | --- | --- |
-| `hipotese_legal_informada_invalida` | ID#NOME ausente/inválido ou escolha em nível público |
-| `hipotese_legal_escolha_nao_oferecida` | Par exato ID#NOME não consta do AJAX observado |
-| `hipotese_legal_escolha_inline_nao_verificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
+| erro do clap (saída 2) | ID#NOME ausente/inválido ou escolha em nível público |
+| `ErroHipotese::EscolhaNaoOferecida` | Par exato ID#NOME não consta do AJAX observado |
+| `ErroHipotese::EscolhaInlineNaoVerificada` | Usuário exigiu escolha explícita sem consulta AJAX que a comprove |
 
 ## Reconciliação depois do POST
 
@@ -244,15 +244,15 @@ estão no [contrato de reconciliação](processo-criar/reconciliacao.md).
 O significado e as condições de emissão permanecem no
 [complemento de reconciliação](processo-criar/reconciliacao.md).
 
-| Subcódigo | Fato verificável |
+| Variante ou `onde` (stderr) | Fato verificável |
 | --- | --- |
-| `gerados_sem_cobertura_completa_para_reconciliacao` | Total ou faixa insuficiente para atestar todos os Gerados |
-| `identidade_ja_observada_alterada_na_reconciliacao` | Um ID pré-existente passou a apontar outro NUP |
-| `identidade_anterior_ausente_na_reconciliacao` | Um ID pré-existente desapareceu da nova lista |
-| `candidato_sem_leitura_verificadora` | Novo candidato sem leitura de processo NUP |
-| `leitura_verificadora_repetida` | Mesma identidade conferida duas vezes |
-| `leitura_verificadora_de_outro_processo` | Par ID/NUP da leitura diferente do candidato |
-| `propriedades_do_candidato_nao_observadas` | Tipo ou especificação não publicados na leitura |
-| `link_do_candidato_nao_comprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
-| `links_do_candidato_repetidos` | Dois links para o mesmo par de Gerados |
-| `propriedades_nao_oferecidas_ao_candidato` | A árvore conferida não publicou endereço de propriedades |
+| `ErroFotografia::CoberturaIncompleta` | Total ou faixa insuficiente para atestar todos os Gerados |
+| `ErroFotografia::IdentidadeAlterada` | Um ID pré-existente passou a apontar outro NUP |
+| `ErroFotografia::IdentidadeAnteriorAusente` | Um ID pré-existente desapareceu da nova lista |
+| `ErroConferencia::LeituraAusente` | Novo candidato sem leitura de processo NUP |
+| `ErroConferencia::LeituraRepetida` | Mesma identidade conferida duas vezes |
+| `ErroConferencia::IdentidadeDivergente` | Par ID/NUP da leitura diferente do candidato |
+| `ErroConferencia::PropriedadesNaoObservadas` | Tipo ou especificação não publicados na leitura |
+| `LinkDoCandidatoNaoComprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
+| `LinksDoCandidatoRepetidos` | Dois links para o mesmo par de Gerados |
+| `ErroCriar::PropriedadesNaoOferecidas` | A árvore conferida não publicou endereço de propriedades |

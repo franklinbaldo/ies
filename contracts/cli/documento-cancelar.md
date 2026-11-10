@@ -21,7 +21,7 @@ Cancela irreversivelmente um documento por sua ação **publicada na barra do n�
 ## Ação e formulário
 
 1. Abre o documento até a árvore, confere NUP, id e número SEI. Exige `natureza.cancelado == false`. Se já cancelado, recusa sem abrir a tela. Se estado não observado, não tenta escrever.
-2. Da única barra `Nos[i].acoes` **desse documento** obtém a única âncora cujo href traz `acao=documento_cancelar`; ausência recusa `cancelamento_nao_oferecido_na_barra`. Confere o endereço relativo contra a instalação, `id_procedimento`, `id_documento` e `infra_hash` único (64 hex). Duplicata, outro documento ou URL suspeita são recusados.
+2. Da única barra `Nos[i].acoes` **desse documento** obtém a única âncora cujo href traz `acao=documento_cancelar`; ausência recusa `ErroCancelar::CancelamentoNaoOferecido`. Confere o endereço relativo contra a instalação, `id_procedimento`, `id_documento` e `infra_hash` único (64 hex). Duplicata, outro documento ou URL suspeita são recusados.
 3. Faz GET da tela publicada; 302 não é seguido. Confere `form#frmDocumentoCancelar`, `method=post`, `action` do mesmo processo e documento, um `textarea name=txaMotivo` habilitado, o oculto `hdnInfraTipoPagina` e único `button type=submit name=sbmSalvar`. Não aceita campos enviáveis adicionais.
 4. Deriva a submissão pelo primitivo compartilhado `formulario_web`, com `EfeitoAvaliado::AlteraEstadoDoProcesso { CancelamentoDoDocumento }`, `txaMotivo` e o botão `sbmSalvar`; `charset` da tela.
 5. **Prévia** publica identidade, motivo, `confirmado:false`, `alterado:false` e contagem, sem POST. **Confirmação** faz um único POST. A resposta esperada é 302 sem seguir para `arvore_visualizar` do mesmo processo/documento, com `atualizar_arvore=1`. Mesmo 5xx, login, rede ou 302 inesperado **não** autorizam retry.
@@ -33,27 +33,27 @@ Abertura do documento, pelo `--processo` a frio: 3 GET. Prévia: +1 GET da tela 
 
 ## Saída
 
-Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: `codigo`, `erro`, `retentavel:false`, `status_http` e mensagem saneada quando observados; em erro depois do POST, `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
+Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <variante de ErroCancelar>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST as variantes carregam `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
 
 ## Subcódigos específicos
 
-| Subcódigo | Fato |
+| Variante ou `onde` (stderr) | Fato |
 | --- | --- |
-| `barra_do_cancelamento_fora_da_forma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `links_de_cancelamento_repetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `endereco_de_cancelamento_nao_reconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `endereco_de_cancelamento_de_outro_documento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `cancelamento_nao_oferecido_na_barra` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `documento_ja_cancelado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `estado_antes_do_cancelamento_nao_observado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `tela_do_cancelamento_redirecionada` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `charset_da_tela_de_cancelamento_nao_suportado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `formulario_de_cancelamento_de_outro_documento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `campo_de_motivo_do_cancelamento_ausente` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `redirecionamento_do_cancelamento_nao_reconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `resposta_do_cancelamento_sem_redirecionamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `cancelamento_nao_aplicado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
-| `nao_confirmado_no_cancelamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroLinkCancelar::BarraForaDaForma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroLinkCancelar::LinksRepetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroLinkCancelar::EnderecoNaoReconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroLinkCancelar::EnderecoDeOutroDocumento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::CancelamentoNaoOferecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `DocumentoJaCancelado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::EstadoAntesNaoObservado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::TelaRedirecionada` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::CharsetNaoSuportado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::FormularioDeOutroDocumento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::MotivoNaoPublicadoNaTela` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `FalhaDoCancelamento::RedirecionamentoNaoReconhecido` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `FalhaDoCancelamento::RespostaSemRedirecionamento` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `CancelamentoNaoAplicado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
+| `ErroCancelar::NaoConfirmado` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 
 A tela de login, o transporte, o primitivo de formulário e a validação de DOC/NUP mantêm os subcódigos desse contrato.
 

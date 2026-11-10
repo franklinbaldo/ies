@@ -23,7 +23,7 @@ só entram com uso e evidência).
 `TERMO` é texto opaco digitado no campo Protocolo (número SEI exato ou
 parcial). Controles (CR, LF, tab…) são recusados **antes** de aparar
 espaços (`termo_de_documento_contem_controle`); vazio é
-`termo_de_documento_vazio`; os dois saem com 2 (`entrada_invalida`)
+`termo_de_documento_vazio`; os dois saem com 2 (erro do clap)
 **antes** de ler a configuração. O termo não é normalizado (zeros à
 esquerda e pontuação vão como digitados). `--pagina N` é inteiro ≥ 1.
 Os argumentos de leitura de `ies documento DOC` (`--processo`,
@@ -41,9 +41,9 @@ documentos:
 - `chkSinDocumentosGerados` e `chkSinDocumentosRecebidos`: os servidos
   com `checked`, com o valor servido (as duas vêm marcadas nas sete
   instalações). `onSubmitForm()` exige ao menos uma: sem nenhuma marcada
-  é `nenhum_tipo_de_documento_marcado_na_tela`, sem POST;
+  é `NenhumTipoDeDocumentoMarcadoNaTela`, sem POST;
 - ocultos como servidos (`hdnIdAssinante` servido preenchido filtraria
-  em silêncio: `assinante_oculto_preenchido_na_pesquisa_em_documentos`),
+  em silêncio: `AssinanteOcultoPreenchidoNaPesquisaEmDocumentos`),
   `selOrgaoPesquisa[]` com as opções servidas selecionadas,
   `sbmPesquisar` e `txtProtocoloPesquisa=TERMO`.
 
@@ -62,7 +62,7 @@ Todas têm `resultado`, `termo` (aparado), `unidade` (do Controle),
   `{"resultado":"documento_unico","documento":{"id":"…"},"processo":{"id":"…"}}`.
   Só os ids internos: número SEI e NUP não são inventados a partir do
   termo. 302 sem `id_documento` (a forma do processo) é
-  `id_documento_ausente_no_redirecionamento`.
+  `IdDocumentoAusenteNoRedirecionamento`.
 - **200 com `table.pesquisaResultado`**: `{"resultado":"lista",
   "total_declarado":N,"faixa_observada":{"inicio":I,"fim":F},
   "linhas_ausentes_da_faixa":A,"documentos":[{"numero_sei":"…",
@@ -94,35 +94,35 @@ próximo título trazem `td.pesquisaMetatag` "Unidade:", "Usuário:" e
 "Inclusão:" (só unidade e inclusão são publicadas). Qualquer outra forma
 falha fechado (subcódigos em [erros tipados](../../docs/erros-tipados.md)).
 
-## Erros tipados (saída 1, `fonte_invalida`)
+## Erros tipados (saída 1)
 
 Os de `processo buscar` (link, tela, termo e `maxlength`, envio,
 validação, 302, barra, paginação, transporte e
-`bloqueio_de_seguranca_da_instalacao`), mais:
+`BloqueioDeSegurancaDaInstalacao`), mais:
 
 - tela: `opcao_de_documentos_ausente_na_tela`,
   `opcoes_de_documentos_repetidas_na_tela`,
   `opcao_de_documentos_sem_valor_na_tela`,
-  `opcao_de_documentos_com_nome_diferente_de_rdo_pesquisar_em`,
+  `OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm`,
   `caixa_de_tipo_de_documento_ausente_na_tela`,
   `caixas_de_tipo_de_documento_repetidas_na_tela`,
   `caixa_de_tipo_de_documento_sem_valor_na_tela`,
-  `nenhum_tipo_de_documento_marcado_na_tela`,
-  `assinante_oculto_preenchido_na_pesquisa_em_documentos`;
-- 302: `id_documento_ausente_no_redirecionamento`,
-  `id_documento_repetido_no_redirecionamento`,
-  `id_documento_nao_decimal_no_redirecionamento`;
+  `NenhumTipoDeDocumentoMarcadoNaTela`,
+  `AssinanteOcultoPreenchidoNaPesquisaEmDocumentos`;
+- 302: `IdDocumentoAusenteNoRedirecionamento`,
+  `IdDocumentoRepetidoNoRedirecionamento`,
+  `IdDocumentoNaoDecimalNoRedirecionamento`;
 - linha: `celula_do_titulo_do_documento_ausente_ou_repetida`,
-  `linha_de_documento_sem_id_documento_no_link_do_processo`,
+  `LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso`,
   `link_do_documento_ausente_na_linha`,
   `links_do_documento_repetidos_na_linha`,
   `link_da_linha_de_documento_nao_reconhecido`,
-  `link_do_documento_diferente_do_processo`,
-  `numero_sei_com_link_diferente_do_documento`,
+  `LinkDoDocumentoDiferenteDoProcesso`,
+  `NumeroSeiComLinkDiferenteDoDocumento`,
   `numero_sei_ausente_na_linha`, `rotulo_do_documento_ausente`,
   `metadado_do_documento_repetido`,
   `data_de_inclusao_fora_da_forma_observada`,
-  `linha_da_pesquisa_fora_de_um_registro`,
+  `LinhaDaPesquisaForaDeUmRegistro`,
   `numero_sei_repetido_na_pesquisa`.
 
 ## Evidência e validação
@@ -150,8 +150,8 @@ As flags `--tipo TIPO`, `--assunto TEXTO`, `--de DD/MM/AAAA` e
 `--ate DD/MM/AAAA` também são aceitas por `documento buscar`. O tipo
 é o nome **exato** da série na lista `selSeriePesquisa` da própria tela;
 período deriva de `txtDataInicio` e `txtDataFim`. A ausência de controle
-é `criterio_nao_oferecido_pela_tela` sem POST; nome sem opção exata é
-`tipo_nao_oferecido_pela_tela`. A busca continua com 3 requisições (4 com
+é `CriterioNaoOferecidoPelaTela` sem POST; nome sem opção exata é
+`TipoNaoOferecidoPelaTela`. A busca continua com 3 requisições (4 com
 página maior que 1), sem retries.
 
 `--assunto` ainda falha fechado: o autocompletar depende do
@@ -160,9 +160,9 @@ a presença desses filtros varia por instalação.
 
 ### Recusas próprias dos filtros
 
-- `criterio_nao_oferecido_pela_tela`: controle inexistente ou assunto sem ID resolvido.
-- `tipo_nao_oferecido_pela_tela`: lista sem a opção exata solicitada.
-- `controle_de_filtro_ambiguo`: campos ou opções repetidos.
-- `atributo_do_filtro_ilegivel`: atributo HTML do filtro inválido.
+- `CriterioNaoOferecidoPelaTela`: controle inexistente ou assunto sem ID resolvido.
+- `TipoNaoOferecidoPelaTela`: lista sem a opção exata solicitada.
+- `ControleDeFiltroAmbiguo`: campos ou opções repetidos.
+- `AtributoDoFiltroIlegivel`: atributo HTML do filtro inválido.
 - `valor_do_filtro_diferente_do_solicitado`: incompatibilidade na página seguinte (reservado à verificação de consistência).
 - `data_da_pesquisa_invalida` e `periodo_da_pesquisa_invertido`: falhas de uso antes da configuração.

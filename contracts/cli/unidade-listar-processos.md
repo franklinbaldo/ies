@@ -93,7 +93,7 @@ tela mostra, com total e faixa por tabela (regra em
 [páginas da caixa](unidade-listar-processos-paginas.md)). A resposta que
 contenha mais de uma ocorrência do mesmo ID estrutural
 `tblProcessosRecebidos` ou `tblProcessosGerados` falha com
-`tabelas_da_categoria_repetidas` e categoria tipada: escolher só a
+`TabelasDaCategoriaRepetidas` e categoria tipada: escolher só a
 primeira permitiria ocultar processos sem erro.
 
 Não há `ies replay`: as respostas gravadas do Controle passam pelos mesmos
@@ -116,7 +116,7 @@ Uma requisição GET autenticada à caixa pode receber HTTP 200 e HTML
 contendo o formulário de login SIP ou de módulo próprio; sucesso HTTP
 **não** equivale a sessão válida. O transporte identifica o formulário
 pela estrutura real (form de login e campo de usuário no mesmo form),
-retornando `pagina_de_login_recebida_no_controle` como falha tipada.
+retornando `PaginaDeLoginRecebidaNoControle` como falha tipada.
 Não classificar tela de assinatura como login; não iniciar nova tentativa,
 seguir links, reenviar cookie ou acrescentar requests. Evidência baseada
 no fluxo de login documentado pelo Todos, sem validação live nova.
@@ -126,7 +126,7 @@ no fluxo de login documentado pelo Todos, sem validação live nova.
 Uma tabela de processos recebidos ou gerados com duas ou mais tags
 `caption`, inclusive iguais, não oferece interpretação inequívoca do
 total/faixa de paginação. O adaptador Web deve falhar com
-`legendas_da_tabela_repetidas` (incluindo categoria) antes de atestar
+`LegendasDaTabelaRepetidas` (incluindo categoria) antes de atestar
 cobertura das posições ou devolver a caixa. Não escolher simplesmente
 a primeira legenda. Um `caption` válido único preserva o comportamento.
 Não há mudança de requests ou promessa de snapshot transacional.
@@ -268,7 +268,7 @@ visão resumida), uma linha de `tblProcessosGerados` publicou o link
 `procedimento_trabalhar` com a classe `processoVisualizadoSigiloso`;
 as demais usavam `processoVisualizado`. O parser só conhecia duas
 classes e recusava a caixa inteira com
-`link_do_processo_nao_identificado_na_linha`. O acervo arquivado de
+`LinkDoProcessoNaoIdentificadoNaLinha`. O acervo arquivado de
 Goiás (`unidade-listagens-go.json`, `acompanhamento_listar`) já
 continha a mesma classe em `tblAcompanhamentos`.
 
@@ -286,7 +286,7 @@ live**. Outros tokens, como `processoVisitado`, não alteram o estado.
 `sigiloso` é fato observado na classe do link, não nível de acesso,
 permissão ou propriedade imutável do processo. Um link com duas
 classes reconhecidas de estados diferentes falha com
-`classes_de_estado_diferentes_no_link_do_processo` (visão resumida)
+`ClassesDeEstadoDiferentesNoLinkDoProcesso` (visão resumida)
 ou `classes_de_estado_diferentes_no_link_detalhado` (detalhada).
 Na visão detalhada, `visualizado` e `sigiloso` são `null` quando o
 link não traz classe reconhecida.

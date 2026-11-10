@@ -35,18 +35,18 @@ no JSON e "base não verificada" no texto. A base é conferida com o SEI
 em dois outros pontos:
 
 - **releitura:** `ies documento DOC --saida` compara a foto local com o
-  HTML servido e recusa com `foto_local_divergente`
+  HTML servido e recusa com `ErroCopia::FotoDivergente`
   ([versões e foto](documento-obter-versoes.md));
 - **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
   que ainda é a atual e comparará o hash com a vN local.
 
-| Subcódigo | Fato |
+| Variante ou `onde` (stderr) | Fato |
 | --- | --- |
 | `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
 | `versao_editada_ausente` | `DOC.v(N+1).html` falta |
-| `versao_editada_igual_a_base` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
+| `ErroCopia::EdicaoIgualABase` | `DOC.v(N+1).html` tem os mesmos bytes da foto |
 | `versao_local_repetida`, `nome_versao_local_invalido` | duas grafias da mesma versão (`v2` e `v02`) ou nome fora da forma |
-| `copia_local_link_simbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
+| `ErroCopia::LinkSimbolico`, `copia_local_permissoes_inseguras`, `destino_copia_inseguro`, `leitura_copia_falhou` | arquivo simbólico, aberto a grupo ou outros, não regular, acima de 8 MB, ou ilegível |
 
 A prévia não abre o editor nem executa escrita. **Na saída humana**, mostra
 um recorte local com linhas da foto prefixadas por `-` e linhas da edição
@@ -72,7 +72,7 @@ independente. Também relê o editor para observar a contagem de assinaturas
 após a publicação; sem ambas as conferências, não declara sucesso.
 O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
 Resposta inconclusiva após a tentativa de POST resulta em
-`nao_confirmado`, sem retry. O editor da simulação usa uma região
+`ErroSalvarNoSei::EdicaoNaoComprovada` (saída 1), sem retry. O editor da simulação usa uma região
 `main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
 validada com o HTML de editores reais do SEI**. Mesclagem por seção e
 validação em treinamento continuam fora do escopo.
@@ -127,5 +127,5 @@ Live (05/11/2026, UnB 4.0.9): prévia **PASS** sobre a foto lida
 ([ensaio](../../docs/validacao-live/2026-11-05-documento-saida-idempotente.md)).
 Naquele ensaio a foto v3 alterada em um byte deu `base_versao_divergente`;
 essa conferência saiu da prévia e passou à releitura
-(`foto_local_divergente`); a confirmação remota permanece bloqueada.
+(`ErroCopia::FotoDivergente`); a confirmação remota permanece bloqueada.
 Aposentadoria de `base_versao_divergente`: #207, integrada pela PR #219.
