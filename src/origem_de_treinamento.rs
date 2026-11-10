@@ -48,6 +48,7 @@ pub(crate) enum Escrita {
     ProcessoAtribuir,
     ProcessoMarcar,
     ProcessoAnexar,
+    ProcessoAnotar,
     ProcessoEnviarRemovendoAnotacoes,
 }
 

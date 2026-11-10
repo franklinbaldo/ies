@@ -3,7 +3,7 @@
 use crate::{Estado, Resposta, despachar};
 use iesei::instalacao::Instalacao;
 use iesei::processos::{
-    Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, limpar_anotacao,
+    Falha, PedidoEnvio, ProcessoSimulado, enviar_da_unidade, ler, registrar_anotacao,
 };
 use rusqlite::Connection;
 use std::fmt::Write;
@@ -192,12 +192,14 @@ pub fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if acao == "anotacao_registrar" {
-        if campo_unico(&campos, "hdnIdProtocolo") != Some(id)
-            || campo_unico(&campos, "txaDescricao") != Some("")
-        {
+        let Some(texto) = campo_unico(&campos, "txaDescricao").and_then(decodificar_formulario)
+        else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if campo_unico(&campos, "hdnIdProtocolo") != Some(id) {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
-        return match limpar_anotacao(banco, instalacao, cenario, id) {
+        return match registrar_anotacao(banco, instalacao, cenario, id, &texto) {
             Ok(()) => redirecionado(acao, id),
             Err(falha) => Resposta::nova(estado_da_falha(&falha)),
         };
