@@ -81,8 +81,9 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     assert!(tamanho < 64_000);
     let mut corpo = vec![0; tamanho];
     fonte.read_exact(&mut corpo).unwrap();
+    let evento = format!("{metodo} {acao}");
     cabecalho.extend(corpo);
-    (cabecalho, format!("{metodo} {acao}"))
+    (cabecalho, evento)
 }
 
 fn estado() -> (Connection, Instalacao) {
