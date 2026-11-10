@@ -178,7 +178,9 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool) {
             pedidos.lock().unwrap().push(evento);
             if recusado {
                 canal
-                    .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    .write_all(
+                        b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    )
                     .unwrap();
             } else {
                 canal.write_all(&resposta).unwrap();
