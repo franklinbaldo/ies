@@ -1,5 +1,5 @@
 //! BDD-60-05: a sessão expira depois da árvore e antes da lista de versões.
-//! Transição sintética não registrada na cassette UnB de histórico.
+//! Transição sintética não registrada na cassette `UnB` de histórico.
 use super::*;
 
 #[test]
