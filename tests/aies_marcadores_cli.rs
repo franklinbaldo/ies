@@ -279,6 +279,26 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
     }
 }
 
+fn preparar_sessao() -> (
+    Pasta,
+    std::path::PathBuf,
+    native_tls::Identity,
+    std::path::PathBuf,
+    std::path::PathBuf,
+    std::path::PathBuf,
+) {
+    let pasta = Pasta::nova();
+    let (cert, tls_id) = identidade(&pasta.0, "sei.test");
+    let origem = pasta.privado("origem", ORIGEM);
+    let hash_chave = ["infra", "hash"].join("_");
+    let controle = pasta.privado("url", &format!(
+        "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_sistema=100000100&infra_unidade_atual=110000001&{hash_chave}={}",
+        "a".repeat(64)
+    ));
+    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    (pasta, cert, tls_id, origem, controle, cookie)
+}
+
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(
         caso,
@@ -290,15 +310,7 @@ fn executar(caso: Caso) {
     );
     let com_catalogo = matches!(caso, Caso::AtribuirAusente | Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto | Caso::AtribuirEfeitoIncerto);
-    let pasta = Pasta::nova();
-    let (cert, tls_id) = identidade(&pasta.0, "sei.test");
-    let origem = pasta.privado("origem", ORIGEM);
-    let hash_chave = ["infra", "hash"].join("_");
-    let controle = pasta.privado("url", &format!(
-        "{ORIGEM}/controlador.php?acao=procedimento_controlar&infra_sistema=100000100&infra_unidade_atual=110000001&{hash_chave}={}",
-        "a".repeat(64)
-    ));
-    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    let (pasta, cert, tls_id, origem, controle, cookie) = preparar_sessao();
     let backend = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     backend.set_nonblocking(true).unwrap();
     let endereco = backend.local_addr().unwrap();
@@ -384,6 +396,46 @@ fn executar(caso: Caso) {
     conferir_controles(&controles, sem_marcadores);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
+fn conferir_atribuicao(
+    saida: &Output,
+    releitura: &Output,
+    persistido: &Observacao,
+    pedidos: &[String],
+    json: &serde_json::Value,
+    efeito_incerto: bool,
+) {
+        assert_eq!(
+            saida.status.code(),
+            Some(if efeito_incerto { 3 } else { 0 }),
+            "stdout={} stderr={} pedidos={pedidos:?}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
+        );
+        assert_eq!(releitura.status.code(), Some(0));
+        let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
+        assert_eq!(processo["marcadores_total_declarado"], 1);
+        assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
+        assert_eq!(processo["marcadores"][0]["texto"], "Nova revisão");
+        assert_eq!(persistido.total_declarado, 1);
+        assert_eq!(persistido.itens[0].texto.as_deref(), Some("Nova revisão"));
+        assert_eq!(
+            pedidos.iter().filter(|p| p.as_str() == "POST andamento_marcador_cadastrar").count(),
+            1,
+            "atribuição precisa de um POST, sem retry: {pedidos:?}"
+        );
+        if efeito_incerto {
+            assert_eq!(json["codigo"], "efeito_incerto");
+            assert_eq!(json["retentavel"], false);
+            assert!(json["erro"].as_str().unwrap().contains("não repita"));
+        } else {
+            assert_eq!(json["acao"], "atribuir");
+            assert_eq!(json["confirmado"], true);
+            assert_eq!(json["alterado"], true);
+            assert_eq!(json["texto"], "Nova revisão");
+        }
+        return;
+}
+
 fn conferir(
     saida: &Output,
     releitura: &Output,
@@ -419,35 +471,7 @@ fn conferir(
         return;
     }
     if matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto) {
-        assert_eq!(
-            saida.status.code(),
-            Some(if efeito_incerto { 3 } else { 0 }),
-            "stdout={} stderr={} pedidos={pedidos:?}",
-            String::from_utf8_lossy(&saida.stdout),
-            String::from_utf8_lossy(&saida.stderr)
-        );
-        assert_eq!(releitura.status.code(), Some(0));
-        let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
-        assert_eq!(processo["marcadores_total_declarado"], 1);
-        assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
-        assert_eq!(processo["marcadores"][0]["texto"], "Nova revisão");
-        assert_eq!(persistido.total_declarado, 1);
-        assert_eq!(persistido.itens[0].texto.as_deref(), Some("Nova revisão"));
-        assert_eq!(
-            pedidos.iter().filter(|p| p.as_str() == "POST andamento_marcador_cadastrar").count(),
-            1,
-            "atribuição precisa de um POST, sem retry: {pedidos:?}"
-        );
-        if efeito_incerto {
-            assert_eq!(json["codigo"], "efeito_incerto");
-            assert_eq!(json["retentavel"], false);
-            assert!(json["erro"].as_str().unwrap().contains("não repita"));
-        } else {
-            assert_eq!(json["acao"], "atribuir");
-            assert_eq!(json["confirmado"], true);
-            assert_eq!(json["alterado"], true);
-            assert_eq!(json["texto"], "Nova revisão");
-        }
+        conferir_atribuicao(saida, releitura, persistido, pedidos, &json, efeito_incerto);
         return;
     }
     assert_eq!(
