@@ -5,7 +5,10 @@ use iesei::{anexacoes, instalacao::Instalacao, processos};
 use rusqlite::Connection;
 
 fn contexto<'a>(
-    alvo: &'a str, banco: &Connection, origem: &Instalacao, cenario: &str,
+    alvo: &'a str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Result<&'a str, Estado> {
     let id = parametro_unico(alvo, "id_procedimento")
         .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
@@ -18,13 +21,23 @@ fn contexto<'a>(
 
 fn formulario(id: &str, anexados: &[anexacoes::Anexado]) -> Resposta {
     let hash = crate::protocolo_sintetico::INFRA_HASH;
-    let linhas = anexados.iter().map(|a| {
-        format!("<tr><td><input type=\"checkbox\" value=\"{}\" /></td><td>{}</td></tr>", escapar(&a.id), escapar(&a.numero))
-    }).collect::<String>();
-    let tabela = if anexados.is_empty() { String::new() } else {
+    let linhas = anexados
+        .iter()
+        .map(|a| {
+            format!(
+                "<tr><td><input type=\"checkbox\" value=\"{}\" /></td><td>{}</td></tr>",
+                escapar(&a.id),
+                escapar(&a.numero)
+            )
+        })
+        .collect::<String>();
+    let tabela = if anexados.is_empty() {
+        String::new()
+    } else {
         format!("<table summary=\"Lista de Processos Anexados\">{linhas}</table>")
     };
-    Resposta::html(format!(r#"<html><head><script>
+    Resposta::html(format!(
+        r#"<html><head><script>
 objAjax = new infraAjaxComplementar('txtProtocolo','controlador_ajax.php?acao_ajax=protocolo_RI1023&infra_hash={hash}');
 objVerifica = new infraAjaxComplementar(null,'controlador_ajax.php?acao_ajax=procedimento_anexacao_verificar&infra_hash={hash}');
 </script></head><body>
@@ -34,67 +47,106 @@ objVerifica = new infraAjaxComplementar(null,'controlador_ajax.php?acao_ajax=pro
 <input name="hdnIdProtocolo" type="hidden" value="" />
 <input name="hdnAnexacao" type="hidden" value="" />
 <input name="sbmAnexar" type="submit" value="Anexar" />
-</form>{tabela}</body></html>"#))
+</form>{tabela}</body></html>"#
+    ))
 }
 
 /// Consulta de identidade quando há processos, mas nenhuma relação observada.
 /// Não interfere na rota de relacionamentos que já usa o mesmo RI1023.
 pub(crate) fn identificar(
-    metodo: &str, alvo: &str, corpo: &str, banco: &Connection,
-    origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Option<Resposta> {
     if parametro_unico(alvo, "acao_ajax") != Some("protocolo_RI1023")
-        || !alvo.split_once('?').map_or(alvo, |(c, _)| c).ends_with("/controlador_ajax.php")
-    { return None; }
-    if matches!(iesei::relacionamentos::existe_contexto(banco, origem, cenario), Ok(true)) {
+        || !alvo
+            .split_once('?')
+            .map_or(alvo, |(c, _)| c)
+            .ends_with("/controlador_ajax.php")
+    {
         return None;
     }
-    if metodo != "POST" { return Some(Resposta::nova(Estado::MetodoNaoPermitido)); }
+    if matches!(
+        iesei::relacionamentos::existe_contexto(banco, origem, cenario),
+        Ok(true)
+    ) {
+        return None;
+    }
+    if metodo != "POST" {
+        return Some(Resposta::nova(Estado::MetodoNaoPermitido));
+    }
     let Some(pares) = crate::processo_envio::pares(corpo) else {
         return Some(Resposta::nova(Estado::RequisicaoInvalida));
     };
     let Some(nup) = crate::processo_envio::campo_unico(&pares, "idProcedimento")
-        .and_then(crate::processo_envio::decodificar_formulario) else {
+        .and_then(crate::processo_envio::decodificar_formulario)
+    else {
         return Some(Resposta::nova(Estado::RequisicaoInvalida));
     };
     let corpo = match iesei::relacionamentos::identificar(banco, origem, cenario, &nup) {
         Ok(Some(destino)) => format!(
             "<complementos><complemento nome=\"IdProcedimento\">{}</complemento><complemento nome=\"ProtocoloProcedimentoFormatado\">{}</complemento><complemento nome=\"NomeTipoProcedimento\">Processo Sintético</complemento></complementos>",
-            escapar(&destino.id), escapar(&destino.numero)
+            escapar(&destino.id),
+            escapar(&destino.numero)
         ),
         Ok(None) => "<erros><erro>Processo não observado</erro></erros>".into(),
         Err(_) => return Some(Resposta::nova(Estado::DadosInsuficientes)),
     };
-    Some(Resposta { estado: Estado::Ok, tipo_conteudo: "application/xml; charset=utf-8",
-        corpo, localizacao: None, corpo_binario: None })
+    Some(Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "application/xml; charset=utf-8",
+        corpo,
+        localizacao: None,
+        corpo_binario: None,
+    })
 }
 
 /// Consulta de assinaturas publicada como AJAX. O anti-IES declara apenas a
 /// hipótese "S"; esta não é uma evidência empírica de assinaturas no SEI.
 pub(crate) fn consulta(
-    metodo: &str, alvo: &str, corpo: &str, banco: &Connection,
-    origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
     if parametro_unico(alvo, "acao_ajax") != Some("procedimento_anexacao_verificar") {
         return Resposta::nova(Estado::NaoEncontrado);
     }
-    if metodo != "POST" { return Resposta::nova(Estado::MetodoNaoPermitido); }
-    let Some(id) = crate::processo_envio::pares(corpo).and_then(|pares| {
-        crate::processo_envio::campo_unico(&pares, "idProcedimento").map(str::to_owned)
-    }).filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())) else {
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
+    let Some(id) = crate::processo_envio::pares(corpo)
+        .and_then(|pares| {
+            crate::processo_envio::campo_unico(&pares, "idProcedimento").map(str::to_owned)
+        })
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
+    else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
-    Resposta { estado: Estado::Ok, tipo_conteudo: "application/xml; charset=utf-8",
+    Resposta {
+        estado: Estado::Ok,
+        tipo_conteudo: "application/xml; charset=utf-8",
         corpo: "<complementos><complemento nome=\"Anexacao\">S</complemento></complementos>".into(),
-        localizacao: None, corpo_binario: None }
+        localizacao: None,
+        corpo_binario: None,
+    }
 }
 
 pub(crate) fn responder(
-    metodo: &str, alvo: &str, corpo: &str, banco: &Connection,
-    origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
     if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("procedimento_anexar") {
         return Resposta::nova(Estado::NaoEncontrado);
@@ -109,7 +161,9 @@ pub(crate) fn responder(
             _ => Resposta::nova(Estado::DadosInsuficientes),
         };
     }
-    if metodo != "POST" { return Resposta::nova(Estado::MetodoNaoPermitido); }
+    if metodo != "POST" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
     let Some(pares) = crate::processo_envio::pares(corpo) else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };

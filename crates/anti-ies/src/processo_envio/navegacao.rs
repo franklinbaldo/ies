@@ -112,7 +112,9 @@ fn arvore_do_processo(
         .ok_or(Estado::DadosInsuficientes)?;
     let primeiro_anexado = proximo_indice + usize::from(pasta_presente) * 2;
     for (posicao, anexado) in anexados.iter().enumerate() {
-        let numero = literal_js(&anexado.numero).replace('"', r#"\\""#).replace('<', r"\u003c");
+        let numero = literal_js(&anexado.numero)
+            .replace('"', r#"\\""#)
+            .replace('<', r"\u003c");
         let id_anexado = &anexado.id;
         let indice = primeiro_anexado + posicao;
         let hash = crate::protocolo_sintetico::INFRA_HASH;

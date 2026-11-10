@@ -34,7 +34,8 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
             && let Err(causa) = crate::origem_de_treinamento::exigir(
-                crate::origem_de_treinamento::Escrita::ProcessoAnexar, sessao.origem,
+                crate::origem_de_treinamento::Escrita::ProcessoAnexar,
+                sessao.origem,
             )
         {
             return crate::origem_de_treinamento::recusa(cli.json, causa);
@@ -74,10 +75,15 @@ fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
     ExitCode::from(1)
 }
 fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
-    if erro.saida() != 3 { return falha(json_mode, erro.subcodigo()); }
+    if erro.saida() != 3 {
+        return falha(json_mode, erro.subcodigo());
+    }
     let mensagem = "O efeito da anexação não pôde ser comprovado. Confira a lista no SEI; não repita --confirmar.";
     if json_mode {
-        println!("{}", json!({"codigo":"efeito_incerto", "subcodigo":erro.subcodigo(), "erro":mensagem, "retentavel":false}));
+        println!(
+            "{}",
+            json!({"codigo":"efeito_incerto", "subcodigo":erro.subcodigo(), "erro":mensagem, "retentavel":false})
+        );
     } else {
         eprintln!("IES: {mensagem}");
     }

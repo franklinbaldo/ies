@@ -15,8 +15,8 @@ use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
 use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
-use std::io::Read;
 use crate::visao_do_controle::EnvioDoControle as _;
+use std::io::Read;
 
 const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
     acao_ajax: "protocolo_RI1023",
@@ -49,7 +49,11 @@ pub(crate) enum FalhaAnexar {
 }
 impl FalhaAnexar {
     pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto) { 3 } else { 1 }
+        if matches!(self, Self::EfeitoIncerto) {
+            3
+        } else {
+            1
+        }
     }
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
@@ -71,12 +75,17 @@ mod escrita;
 
 /// XML de consulta é distinto de HTML de navegação; respeita o MIME servido.
 fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
-    if resposta.status_code != 200 { return Err(recusar_status(resposta)); }
+    if resposta.status_code != 200 {
+        return Err(recusar_status(resposta));
+    }
     let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
     if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
         return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
     }
-    if resposta.content_length.is_some_and(|t| t > crate::MAX_HTML_BYTES) {
+    if resposta
+        .content_length
+        .is_some_and(|t| t > crate::MAX_HTML_BYTES)
+    {
         return Err(FalhaTransporte::RespostaExcessiva);
     }
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
@@ -91,7 +100,10 @@ pub(crate) struct Pedido<'a> {
     pub(crate) confirmar: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ResultadoAnexacao { Previa, Confirmada }
+pub(crate) enum ResultadoAnexacao {
+    Previa,
+    Confirmada,
+}
 
 pub(crate) struct Previa {
     pub(crate) resultado: ResultadoAnexacao,
@@ -197,17 +209,35 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
     let resultado = if pedido.confirmar {
         escrita::confirmar(
-            sessao, &instalacao, &cookie, link.as_str(), &html, &mime,
-            &id, &anexado, assinaturas_em_dia, &vista.anexados, &mut rede,
+            sessao,
+            &instalacao,
+            &cookie,
+            link.as_str(),
+            &html,
+            &mime,
+            &id,
+            &anexado,
+            assinaturas_em_dia,
+            &vista.anexados,
+            &mut rede,
         )?;
         // O contrato exige a árvore da própria CLI, não somente o 302
         // nem a lista textual devolvida pelo formulário.
         let lido = obter_processo(
-            sessao, &leitura(pedido.principal, pedido.unidade, false), indice, &mut rede,
-        ).map_err(|_| E::EfeitoIncerto)?;
+            sessao,
+            &leitura(pedido.principal, pedido.unidade, false),
+            indice,
+            &mut rede,
+        )
+        .map_err(|_| E::EfeitoIncerto)?;
         let anexados_depois = &lido.arvore.anexados;
-        if !anexados_depois.iter().any(|p| p.id == anexado.id && p.nup == anexado.nup)
-            || !vista.anexados.iter().all(|id| anexados_depois.iter().any(|p| &p.id == id))
+        if !anexados_depois
+            .iter()
+            .any(|p| p.id == anexado.id && p.nup == anexado.nup)
+            || !vista
+                .anexados
+                .iter()
+                .all(|id| anexados_depois.iter().any(|p| &p.id == id))
         {
             return Err(E::EfeitoIncerto);
         }

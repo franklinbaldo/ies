@@ -2,9 +2,9 @@
 use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
-    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_anexacao, processo_andamento,
-    processo_atribuicao, processo_ciencia, processo_criacao, processo_envio, processo_relacionar,
-    processo_sobrestamento, retorno_programado,
+    parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_andamento,
+    processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao, processo_envio,
+    processo_relacionar, processo_sobrestamento, retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
@@ -146,7 +146,9 @@ pub(crate) fn responder(
         }
         None if parametro_unico(alvo, "acao_ajax") == Some("protocolo_RI1023") => {
             processo_anexacao::identificar(metodo, alvo, corpo, banco, instalacao, cenario)
-                .unwrap_or_else(|| processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario))
+                .unwrap_or_else(|| {
+                    processo_relacionar::consulta(metodo, alvo, corpo, banco, instalacao, cenario)
+                })
         }
         Some("protocolo_pesquisar") if eh_controlador_sei(alvo) => {
             pesquisa_documento::responder_pesquisa(metodo, alvo, corpo, banco, instalacao, cenario)
