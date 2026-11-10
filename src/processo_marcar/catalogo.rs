@@ -17,7 +17,6 @@ use crate::processo_obter::{
     abrir_para_escrever,
 };
 use crate::transporte::decodificar_resposta;
-use crate::visao_do_controle::EnvioDoControle as _;
 use crate::{Cli, saida_erro};
 use serde_json::json;
 use std::process::ExitCode;
@@ -118,7 +117,7 @@ fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> bool {
         };
         if id == rotulo.id {
             encontrados += 1;
-            let nome = tag.inner_text(parser).as_utf8_str().to_string();
+            let nome = tag.inner_text(parser).to_string();
             if decodificar_atributo(&nome).as_deref() != Some(rotulo.nome.as_str()) {
                 return false;
             }
