@@ -231,10 +231,10 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
 }
 
 fn identidade_no_estado(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
-    let controle = banco_cassettes::ler(&banco, &instalacao, CENARIO)
+    let controle = banco_cassettes::ler(banco, instalacao, CENARIO)
         .unwrap()
         .unwrap();
-    let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+    let processo = processos::ler(banco, instalacao, CENARIO, "10")
         .unwrap()
         .unwrap();
     if matches!(
@@ -242,7 +242,7 @@ fn identidade_no_estado(cena: Cena, banco: &Connection, instalacao: &Instalacao)
         Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
     ) {
         assert_eq!(
-            iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
+            iesei::validacao_acesso::ler(banco, instalacao, CENARIO, "10").unwrap(),
             Some(match cena {
                 Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
                 Cena::ValidacaoComCredenciais => iesei::validacao_acesso::Validacao::Realizada,
