@@ -71,10 +71,8 @@ pub(crate) fn responder(
     else {
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
-    let processo = match iesei::processos::ler(banco, origem, cenario, id) {
-        Ok(Some(processo)) => processo,
-        Ok(None) => return Resposta::nova(Estado::DadosInsuficientes),
-        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(processo)) = iesei::processos::ler(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     let unidade = match crate::processo_envio::unidade_da_sessao(banco, origem, cenario, &processo)
     {
@@ -84,10 +82,17 @@ pub(crate) fn responder(
     if !processo.aberto_em.contains(&unidade) {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    let observacao = match iesei::marcadores::ler(banco, origem, cenario, id, &unidade) {
-        Ok(Some(observacao)) => observacao,
-        _ => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(observacao)) = iesei::marcadores::ler(banco, origem, cenario, id, &unidade) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
+    // UnB 4.0.9: sem marcador, GET redireciona ao formulário de adicionar.
+    // Não inventar "0 registros" na tela de gerenciamento.
+    if observacao.itens.is_empty() {
+        return Resposta::redirecionar(format!(
+            "controlador.php?acao=andamento_marcador_cadastrar&acao_origem=andamento_marcador_gerenciar&id_procedimento={id}&infra_hash={}",
+            crate::protocolo_sintetico::INFRA_HASH
+        ));
+    }
     let mut html = String::new();
     cabecalho(&mut html, &processo.numero, id, &observacao);
     for marcador in &observacao.itens {
