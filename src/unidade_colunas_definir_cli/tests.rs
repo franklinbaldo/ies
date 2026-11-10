@@ -3,7 +3,7 @@ use super::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
-use crate::visao_do_controle::{FalhaDoSalvar, VerificacaoDasColunas};
+use crate::visao_do_controle::{EstadoDasColunas, FalhaDoSalvar, VerificacaoDasColunas};
 
 fn plano() -> PlanoDasColunas {
     PlanoDasColunas {
