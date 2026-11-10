@@ -313,16 +313,23 @@ fn bdd60_http_identidade_documental_sem_igual_recusa_sem_fallback() {
             html_corpo: "<p>Conteudo de teste</p>".into(),
         }],
     };
-    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao, 4);
-    let base = "/sei/controlador.php?acao=procedimento_trabalhar";
-    let valido = format!("{base}&id_documento=42");
+    let (endereco, tarefa) = servir_conteudo_observado(documento, instalacao, 5);
+    let trabalhar = "/sei/controlador.php?acao=procedimento_trabalhar&id_documento=42";
+    let visualizar = "/sei/controlador.php?acao=procedimento_visualizar&id_documento=42";
     assert!(
-        pedir(endereco, "GET", &valido).starts_with("HTTP/1.1 200"),
-        "identidade documental unica continua navegavel"
+        pedir(endereco, "GET", trabalhar).starts_with("HTTP/1.1 200"),
+        "selecao documental unica continua navegavel"
     );
+    assert!(
+        pedir(endereco, "GET", visualizar).starts_with("HTTP/1.1 200"),
+        "arvore documental unica continua legivel"
+    );
+    // Diferentemente de procedimento_trabalhar, procedimento_visualizar
+    // nao possui o guard generico da rota. Precisamos testar esse caminho.
     for alvo in [
-        format!("{base}&id_documento=42&id_documento"),
-        format!("{base}&id_protocolo=42&id_documento"),
+        format!("{visualizar}&id_documento"),
+        "/sei/controlador.php?acao=procedimento_visualizar&id_protocolo=42&id_documento"
+            .to_owned(),
     ] {
         let resposta = pedir(endereco, "GET", &alvo);
         assert!(
@@ -330,12 +337,12 @@ fn bdd60_http_identidade_documental_sem_igual_recusa_sem_fallback() {
             "campo id_documento sem '=' nao autoriza selecionar documento: {resposta}"
         );
         assert!(
-            !resposta.contains("ifrArvore"),
-            "recusa nao pode publicar arvore de outro caminho"
+            !resposta.contains("new infraArvoreNo"),
+            "recusa nao pode publicar a arvore documental"
         );
     }
     assert!(
-        pedir(endereco, "POST", &valido).starts_with("HTTP/1.1 405"),
+        pedir(endereco, "POST", visualizar).starts_with("HTTP/1.1 405"),
         "leitura nao permite metodo mutador"
     );
     tarefa.join().unwrap(); // Guarda a comparacao integral da revisao no SQLite.
