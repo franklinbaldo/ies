@@ -136,7 +136,8 @@ impl ErroEnviar {
             Self::EnvioNaoAplicado { .. } => "escrita_nao_aplicada",
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
             | Self::AnotacoesNaoRemovidasAposEnvio { .. }
-            | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
+            | Self::AnotacaoNaoLimpaAntesDeEnviar
+            | Self::FormularioAposLimpezaComprovada { .. } => "escrita_diferente_da_solicitada",
             Self::NaoConfirmadoNoEnvio { .. }
             | Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
             | Self::NaoConfirmadoNaLimpezaDaAnotacao => "nao_confirmado",
