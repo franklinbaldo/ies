@@ -171,7 +171,10 @@ enum Modo {
 
 /// Estado inicial sintético para uma das hipóteses de anexação.
 fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
-    if matches!(modo, Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao) {
+    if matches!(
+        modo,
+        Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao
+    ) {
         documento_versoes::guardar(
             banco,
             CENARIO,
@@ -304,9 +307,11 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-        Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao | Modo::JaAnexado => {
-            &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
-        }
+        Modo::Previa
+        | Modo::PreviaPendencia
+        | Modo::PreviaAssinada
+        | Modo::PreviaSemObservacao
+        | Modo::JaAnexado => &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL],
     };
     let saida = cli(&pasta, arquivos, porta, comando);
     conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
