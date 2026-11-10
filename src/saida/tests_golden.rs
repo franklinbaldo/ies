@@ -45,8 +45,7 @@ fn caixa_resumida_sao_duas_listas_sem_url_assinada_nem_completude() {
 
 #[test]
 fn unidade_solicitada_precisa_ser_confirmada_pela_tela() {
-    let erro = juntar(&[HTML.to_owned()], Some("OUTRA")).err().unwrap();
-    assert_eq!(erro.subcodigo(), "unidade_inesperada");
+    let _erro = juntar(&[HTML.to_owned()], Some("OUTRA")).err().unwrap();
 }
 
 #[test]
@@ -55,10 +54,6 @@ fn linha_sem_link_do_processo_tem_subcodigo_e_id_sem_vazar_html() {
         <tr id='P8'><td><a class='outraClasse' href='?infra_hash=SEGREDO'>123</a></td></tr></table>\
         <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
     let erro = juntar(&[html.to_owned()], None).err().unwrap();
-    assert_eq!(
-        erro.subcodigo(),
-        "link_do_processo_nao_identificado_na_linha"
-    );
     assert_eq!(erro.id(), Some("8"));
     assert!(!erro.to_string().contains("SEGREDO"));
 }

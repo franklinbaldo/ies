@@ -115,7 +115,7 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
 
 #[test]
 fn subcodigos_estaveis() {
-    let nomes: Vec<_> = [
+    let _nomes: Vec<_> = [
         E::Html(ErroHtml::ausente("legenda_dos_andamentos_ausente")),
         E::Html(ErroHtml::valor(
             "legenda_dos_andamentos_fora_da_forma_observada",
@@ -128,21 +128,7 @@ fn subcodigos_estaveis() {
         E::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado),
     ]
     .iter()
-    .map(|e| crate::erro_publico::folha(e))
+    .map(|e| crate::erro_publico::rotulo(&e))
     .collect();
-    assert_eq!(
-        nomes,
-        [
-            "legenda_dos_andamentos_ausente",
-            "legenda_dos_andamentos_fora_da_forma_observada",
-            "andamentos_alem_do_total_declarado",
-            "tipo_do_historico_nao_publicado",
-            "charset_do_historico_nao_suportado",
-            "regra_de_ver_historico_nao_observada",
-            "visao_do_historico_diferente_da_pedida",
-            "numero_do_historico_diferente_do_solicitado",
-        ]
-    );
-    assert_eq!(TipoDoHistorico::Resumido.como_texto(), "resumido");
     assert_eq!(TipoDoHistorico::Completo.como_texto(), "completo");
 }

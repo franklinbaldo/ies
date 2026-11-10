@@ -20,9 +20,6 @@ pub enum ErroConfiguracao {
 }
 
 impl ErroConfiguracao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn mensagem(self) -> &'static str {
         match self {
             Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
@@ -275,9 +272,6 @@ pub enum ErroArquivoPrivado {
     MetadadosNaoLidos(ArquivoPrivado),
 }
 impl ErroArquivoPrivado {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn arquivo(self) -> ArquivoPrivado {
         match self {
             Self::CaminhoNaoAbsoluto(a)

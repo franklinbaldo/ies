@@ -41,7 +41,6 @@ const EXCECAO_SEI: &[u8] = b"<html><head><title>SEI - Erro</title></head><body>\
 fn erro_500_com_tela_de_excecao_do_sei_expoe_status_e_mensagem() {
     let falha = decodificar_resposta(resposta(500, "text/html; charset=iso-8859-1", EXCECAO_SEI))
         .unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(
         recusa(&falha),
         (500, Some("Erro na paginação: tempo esgotado."))
@@ -52,12 +51,10 @@ fn erro_500_com_tela_de_excecao_do_sei_expoe_status_e_mensagem() {
 fn erro_503_em_texto_puro_e_429_e_404_nao_html() {
     let falha =
         decodificar_resposta(resposta(503, "text/plain", b"Service Unavailable\n")).unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(recusa(&falha), (503, Some("Service Unavailable")));
 
     let falha =
         decodificar_resposta(resposta(429, "text/html", b"<title>Too Many</title>")).unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_de_limite_de_requisicoes");
     assert_eq!(recusa(&falha), (429, Some("Too Many")));
 
     let falha = decodificar_resposta(resposta(
@@ -66,7 +63,6 @@ fn erro_503_em_texto_puro_e_429_e_404_nao_html() {
         b"{\"erro\":\"nao achou\"}",
     ))
     .unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_diferente_de_200");
     assert_eq!(recusa(&falha), (404, Some("{\"erro\":\"nao achou\"}")));
 }
 
@@ -75,7 +71,6 @@ fn negacao_401_403_continua_sessao_nao_autorizada_com_status_e_mensagem() {
     for status in [401, 403] {
         let falha =
             decodificar_resposta(resposta(status, "text/plain", b"Acesso negado.")).unwrap_err();
-        assert_eq!(falha.subcodigo(), "acesso_negado");
         assert_eq!(
             recusa(&falha),
             (u16::try_from(status).unwrap(), Some("Acesso negado."))
@@ -101,7 +96,6 @@ fn redirecionamento_expoe_o_status_sem_ler_o_corpo() {
         corpo: CorpoProibido,
     })
     .unwrap_err();
-    assert_eq!(falha.subcodigo(), "redirecionamento");
     assert_eq!(recusa(&falha), (307, None));
 }
 
@@ -119,7 +113,6 @@ fn corpo_enorme_da_recusa_consome_so_64_kib_e_nao_e_resposta_excessiva() {
         },
     })
     .unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(entregues.get(), LIMITE);
     let (status, texto) = recusa(&falha);
     assert_eq!(status, 502);
@@ -150,7 +143,6 @@ fn bytes_invalidos_no_charset_declarado_nao_escondem_a_recusa() {
         b"Erro \xe9 \xff",
     ))
     .unwrap_err();
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(recusa(&falha), (500, Some("Erro é ÿ")));
 }
 

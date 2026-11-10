@@ -137,7 +137,7 @@ Listas na ordem do catálogo. `envio` é `null` sem POST (alvo igual ao
 atual) e só nomes de campos, nunca valores, URL ou `infra_hash`. Com
 `--confirmar` e sucesso: `confirmado: true`, `alterado: true`, `depois` com
 as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `antes`, `alvo`,
+`{"codigo", "erro", "retentavel": false}` mais `antes`, `alvo`,
 `observadas` e `falha_do_salvar` quando houver. A saída humana mostra uma
 linha por lista e termina com "Para aplicar, repita com --confirmar" na
 prévia.

@@ -17,8 +17,6 @@ pub(crate) enum ErroTelaDeConclusao {
     Html(ErroHtml),
 }
 
-impl ErroTelaDeConclusao {}
-
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode
 /// ter saído): o efeito é decidido pela leitura.
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
@@ -46,10 +44,6 @@ pub(crate) enum FalhaDoEnvio {
 }
 
 impl FalhaDoEnvio {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Envio(erro) => erro.status_http().cloned(),
@@ -82,7 +76,7 @@ impl VerificacaoPorLeitura {
         match self {
             Self::Lida(_) => None,
             Self::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
-            Self::LeituraFalhou(erro) => Some(erro.subcodigo()),
+            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
         }
     }
 }
@@ -138,10 +132,6 @@ pub(crate) enum ErroConcluir {
 }
 
 impl ErroConcluir {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {

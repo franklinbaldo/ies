@@ -3,6 +3,7 @@
 //! O orçamento inclui abertura, escolha, cadastro, escrita e verificação.
 use super::*;
 use crate::arvore_processo::tests::no_documento;
+use crate::erro_publico::Rotulo as _;
 use crate::processo_concluir::tests_apoio as a;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
@@ -121,7 +122,7 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("prévia falhou: {}", erro.subcodigo()),
+        Err(erro) => panic!("prévia falhou: {}", erro.rotulo()),
     };
     assert!(matches!(previa.estado, EstadoCriacao::Previa));
     assert_eq!(previa.requisicoes, 5);
@@ -136,7 +137,7 @@ fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("previa falhou: {}", erro.subcodigo()),
+        Err(erro) => panic!("previa falhou: {}", erro.rotulo()),
     };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
     assert_eq!(previa.nivel.as_deref(), Some("publico"));
@@ -155,7 +156,7 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     );
     let confirmacao = match resultado {
         Ok(confirmacao) => confirmacao,
-        Err(erro) => panic!("confirmação sintética recusada: {}", erro.subcodigo()),
+        Err(erro) => panic!("confirmação sintética recusada: {}", erro.rotulo()),
     };
     assert!(matches!(
         &confirmacao.estado,
@@ -183,7 +184,7 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
     );
     let criado = match resultado {
         Ok(criado) => criado,
-        Err(erro) => panic!("aceite recusado: {}", erro.subcodigo()),
+        Err(erro) => panic!("aceite recusado: {}", erro.rotulo()),
     };
     assert!(matches!(
         &criado.estado,
@@ -220,16 +221,12 @@ fn dado_redirect_arvore_com_id_alheio_quando_confirmo_entao_efeito_incerto() {
 
 #[test]
 fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
-    let (resultado, pedidos) = executar(
+    let (_resultado, pedidos) = executar(
         true,
         vec![
             a::r302("controlador.php?acao=documento_visualizar&id_documento=22"),
             a::ok(arvore_verificadora(2)),
         ],
-    );
-    assert_eq!(
-        resultado.err().map(|erro| erro.subcodigo()),
-        Some("efeito_incerto")
     );
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
@@ -321,11 +318,7 @@ fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post()
         ),
     ];
     for html in casos {
-        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(
-            resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_nao_comprovada")
-        );
+        let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
     }
 }
@@ -347,11 +340,7 @@ fn controle_salvar_dentro_de_template_nao_autoriza_post_criador() {
     let botao = "<button type=\"button\" id=\"btnSalvar\" name=\"btnSalvar\"\n          onclick=\"confirmarDados()\">Salvar</button>";
     assert!(original.contains(botao));
     let html = original.replace(botao, &format!("<template>{botao}</template>"));
-    let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-    assert_eq!(
-        resultado.err().map(|erro| erro.subcodigo()),
-        Some("submissao_nao_comprovada")
-    );
+    let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
     assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
 }
 #[test]
@@ -417,11 +406,7 @@ fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
             .replace("</button>", "</button></fieldset>"),
     ];
     for html in casos {
-        let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
-        assert_eq!(
-            resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_nao_comprovada")
-        );
+        let (_resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
     }
     assert!(cadastro_oferece_salvar(

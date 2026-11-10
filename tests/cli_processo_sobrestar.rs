@@ -22,13 +22,11 @@ const NUP: &str = "00001.000001/2026-01";
 fn motivo_em_branco_e_erro_de_uso_sem_rede() {
     let saida = sem_sessao(&["processo", "sobrestar", NUP, "--motivo", " \t ", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "motivo_do_sobrestamento_vazio");
 }
 #[test]
 fn nup_invalido_prioritario_antes_da_sessao() {
     let saida = sem_sessao(&["processo", "sobrestar", " ", "--motivo", "teste", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "vazio");
 }
 #[test]
 fn motivo_obrigatorio_no_clap() {
@@ -54,9 +52,5 @@ fn confirmar_exige_sessao_valida_e_nao_produz_sucesso_sem_configuracao() {
         assert_eq!(saida.status.code(), Some(1), "{argumentos:?}");
         let valor = json(&saida);
         assert_eq!(valor["retentavel"], false);
-        assert_ne!(
-            valor["subcodigo"],
-            "confirmacao_de_sobrestamento_nao_implementada"
-        );
     }
 }

@@ -60,7 +60,7 @@ pub(crate) fn trocar(
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
     };
     // Nenhum `ies login` troca a sessão no meio da troca: com `--confirmar`,
     // o retrato da sessão é lido já sob o lock (#222).
@@ -70,7 +70,7 @@ pub(crate) fn trocar(
             crate::sessao_login_cli::ESPERA_DO_LOCK,
         ) {
             Ok(trava) => Some(trava),
-            Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+            Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
         }
     } else {
         None
@@ -81,17 +81,12 @@ pub(crate) fn trocar(
         {
             Ok(r) => r,
             Err(f) => {
-                return saida_erro::erro_fonte_http(
-                    json_mode,
-                    f.subcodigo(),
-                    f.mensagem(),
-                    f.status_http(),
-                );
+                return saida_erro::erro_fonte_http(json_mode, f.mensagem(), f.status_http());
             }
         };
     let Some(instalacao) = Instalacao::interpretar(referencias.origem()) else {
         let f = FalhaTransporte::OrigemNaoAutorizada;
-        return crate::erro_fonte(json_mode, f.subcodigo(), f.mensagem());
+        return crate::erro_fonte(json_mode, f.mensagem());
     };
     let sessao = SessaoDaTroca {
         url_do_controle: referencias.url_do_controle(),
@@ -135,11 +130,10 @@ fn uso_invalido(json_mode: bool) -> ExitCode {
     if json_mode {
         println!(
             "{}",
-            json!({"codigo": "entrada_invalida", "subcodigo": "sigla_de_unidade_vazia",
-                   "erro": mensagem, "retentavel": false})
+            json!({"codigo": "entrada_invalida", "erro": mensagem, "retentavel": false})
         );
     } else {
-        eprintln!("IES: {mensagem} [sigla_de_unidade_vazia]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -187,7 +181,6 @@ fn concluir(
             Err(causa) => {
                 // A saída mantém o subcódigo legado, mas a apresentação
                 // distingue o fato observado usando a variante tipada.
-                let subcodigo = "url_do_controle_da_unidade_nova_nao_gravada";
                 let mensagem = match causa {
                     FalhaAplicarTroca::Cookie(_) => {
                         "a unidade foi trocada e conferida, mas o cookie da sessão não pôde ser lido; rode ies login --forcar"
@@ -199,11 +192,11 @@ fn concluir(
                 if json_mode {
                     println!(
                         "{}",
-                        json!({"codigo": "fonte_invalida", "subcodigo": subcodigo, "erro": mensagem,
+                        json!({"codigo": "fonte_invalida", "erro": mensagem,
                                "retentavel": false, "depois": troca.pedida, "requisicoes": pedidos})
                     );
                 } else {
-                    eprintln!("IES: {mensagem} [{subcodigo}]");
+                    eprintln!("IES: {mensagem}");
                 }
                 return ExitCode::from(1);
             }
@@ -352,8 +345,7 @@ fn humano(troca: &Troca, pedidos: u32) -> String {
 }
 
 fn json_de_falha(erro: &ErroTroca, pedidos: u32) -> Value {
-    let mut valor =
-        saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http());
+    let mut valor = saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http());
     let Some(objeto) = valor.as_object_mut() else {
         return valor;
     };
@@ -371,9 +363,8 @@ fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
         ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
             objeto.insert("candidatas".to_owned(), json_das_unidades(candidatas));
         }
-        ErroTroca::EfeitoIncerto { etapa, falha } => {
+        ErroTroca::EfeitoIncerto { etapa, .. } => {
             objeto.insert("etapa".to_owned(), json!(etapa.nome()));
-            objeto.insert("falha".to_owned(), json!(falha.subcodigo()));
             objeto.insert("escopo".to_owned(), json!("sessao_da_conta"));
         }
         _ => {}
@@ -383,7 +374,6 @@ fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
 /// A saída humana parte exclusivamente da falha tipada, sem montar JSON.
 fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
     let mut linhas = vec![saida_erro::linha_humana(
-        erro.subcodigo(),
         erro.mensagem(),
         erro.status_http(),
     )];
@@ -398,9 +388,9 @@ fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
         }
         ErroTroca::EfeitoIncerto { etapa, falha } => {
             linhas.push(format!(
-                "IES: etapa {}: {}; {AVISO_DE_ESCOPO}",
+                "IES: etapa {}: {:?}; {AVISO_DE_ESCOPO}",
                 etapa.nome(),
-                falha.subcodigo()
+                falha
             ));
         }
         _ => {}

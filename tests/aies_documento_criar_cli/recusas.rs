@@ -16,7 +16,6 @@ fn bdd_246_03_cli_recusa_tipo_ausente_sem_escrita() {
             String::from_utf8_lossy(&saida.stdout)
         );
         let resposta = json(saida);
-        assert_eq!(resposta["subcodigo"], "tipo_ausente");
         assert_eq!(resposta["retentavel"], false);
     }
     assert_eq!(quantidade, 1);
@@ -43,7 +42,6 @@ fn bdd_246_03_cli_expande_lista_e_recusa_tipo_ambiguo_sem_escrita() {
             String::from_utf8_lossy(&saida.stdout)
         );
         let resposta = json(saida);
-        assert_eq!(resposta["subcodigo"], "tipo_ambiguo");
         assert_eq!(resposta["retentavel"], false);
     }
     assert_eq!(quantidade, 1, "a lista ambígua não deve criar documento");

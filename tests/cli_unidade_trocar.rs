@@ -30,7 +30,6 @@ fn sigla_vazia_e_erro_de_uso_antes_da_configuracao() {
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
         let valor = json(&saida);
         assert_eq!(valor["codigo"], "entrada_invalida");
-        assert_eq!(valor["subcodigo"], "sigla_de_unidade_vazia");
     }
 }
 

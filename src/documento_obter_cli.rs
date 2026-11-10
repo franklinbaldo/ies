@@ -106,7 +106,7 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     for (i, numero) in numeros.iter().enumerate() {
         if numeros[..i].iter().any(|n| n.as_str() == numero.as_str()) {
             let mensagem = "o mesmo número SEI foi pedido mais de uma vez";
-            return Some(invalida(cli.json, "numero_documento_repetido", mensagem));
+            return Some(invalida(cli.json, mensagem));
         }
     }
     let saida = comando.saida.as_deref().map(Path::new);
@@ -115,9 +115,9 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     let processo = match comando.processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(nup)) => Some(nup),
-        Some(Err(erro)) => {
+        Some(Err(_)) => {
             let mensagem = "número de processo inválido";
-            return Some(invalida(cli.json, erro.subcodigo(), mensagem));
+            return Some(invalida(cli.json, mensagem));
         }
     };
     Some(obter(
@@ -131,19 +131,18 @@ pub(crate) fn tentar_obter(cli: &Cli) -> Option<ExitCode> {
     ))
 }
 
-fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn invalida(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -161,14 +160,13 @@ fn obter(
         return anexo::limite_invalido(cli.json);
     };
     if let Some(diretorio) = saida
-        && let Err(erro) =
-            foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)
+        && let Err(_) = foto_documento::conferir_antes_da_rede(diretorio, numeros, versoes.versao)
     {
-        return erro_fonte(cli.json, erro.subcodigo(), "nenhum arquivo foi gravado");
+        return erro_fonte(cli.json, "nenhum arquivo foi gravado");
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
     };
     // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
     let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
@@ -250,12 +248,6 @@ impl relogin_cli::FalhaPublicavel for FalhaDoDocumento {
             Self::Documento { erro, .. } => crate::erro_publico::Causa::sessao_encerrada(erro),
         }
     }
-    fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Sessao(falha) => falha.subcodigo(),
-            Self::Documento { erro, .. } => erro.subcodigo(),
-        }
-    }
     fn mensagem(&self) -> &'static str {
         match self {
             Self::Sessao(falha) => falha.mensagem(),
@@ -278,9 +270,9 @@ fn falha(
     erro: &ErroDocumentoObter,
     nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
-    let (subcodigo, mensagem, http) = (erro.subcodigo(), erro.mensagem(), erro.status_http());
+    let (mensagem, http) = (erro.mensagem(), erro.status_http());
     if json_mode {
-        let mut valor = relogin_cli::json_da_falha(subcodigo, mensagem, http, nota);
+        let mut valor = relogin_cli::json_da_falha(mensagem, http, nota);
         if let Some(objeto) = valor.as_object_mut() {
             objeto.insert("documento".to_owned(), json!(numero));
             objeto.insert("documentos_lidos_antes".to_owned(), json!(lidos));
@@ -289,7 +281,7 @@ fn falha(
     } else {
         eprintln!(
             "{} (documento {numero})",
-            saida_erro::linha_humana(subcodigo, mensagem, http)
+            saida_erro::linha_humana(mensagem, http)
         );
     }
     ExitCode::from(1)
@@ -329,7 +321,7 @@ fn gravar(
     } else {
         documento_versao_cli::gravar_fotos(diretorio, obtidos)
     }
-    .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), "nenhum arquivo foi gravado"))?;
+    .map_err(|_| erro_fonte(json_mode, "nenhum arquivo foi gravado"))?;
     let mut gravados = Vec::new();
     for (i, (d, foto)) in obtidos.iter_mut().zip(fotos).enumerate() {
         if let Some(foto) = foto {
@@ -351,7 +343,7 @@ fn gravar(
                 let destino = diretorio.join(&nome);
                 let novo =
                     crate::cache_documento::copiar_para_saida(&cache.caminho, &destino, &a.sha256)
-                        .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+                        .map_err(|erro| erro_fonte(json_mode, erro.mensagem()))?;
                 gravados.push(Some(ArquivoDaSaida {
                     nome,
                     bytes: a.tamanho,
@@ -366,7 +358,7 @@ fn gravar(
         let nome = arquivo.nome().to_owned();
         arquivo
             .concluir()
-            .map_err(|erro| erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()))?;
+            .map_err(|erro| erro_fonte(json_mode, erro.mensagem()))?;
         gravados.push(Some(ArquivoDaSaida {
             nome,
             bytes: a.tamanho,
@@ -439,7 +431,7 @@ fn publicar(
     for d in &obtidos {
         match registrar_cache(host, cache_ativo, d) {
             Ok(registro) => caches.push(registro),
-            Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+            Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
         }
     }
     let mut gravados = Vec::new();

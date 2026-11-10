@@ -15,12 +15,6 @@ pub(crate) enum ErroListagem {
     CopiaInvalida(ErroCopia),
 }
 
-impl ErroListagem {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 /// Uma versão local, sem o conteúdo.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct VersaoLocal {

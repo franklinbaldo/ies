@@ -22,10 +22,6 @@ pub(crate) enum FalhaDoSalvar {
 }
 
 impl FalhaDoSalvar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Status e mensagem do SEI, quando a resposta foi uma recusa HTTP.
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
@@ -87,10 +83,6 @@ pub(crate) enum ErroDefinirColunas {
 }
 
 impl ErroDefinirColunas {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {

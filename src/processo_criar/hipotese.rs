@@ -39,10 +39,6 @@ pub(crate) enum ErroHipotese {
 }
 
 impl ErroHipotese {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     fn consulta_nao_declarada() -> Self {
         Self::Html(crate::erro_html::ErroHtml::ausente(
             "hipotese_legal_ajax_nao_declarada",
@@ -319,7 +315,6 @@ mod tests {
     fn red_oferece_id_e_nome_exatos_de_duas_hipoteses_ajax() {
         let xml = "<select><option value='null'>Selecione</option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
         let erro = opcao_selecionada(xml, None).expect_err("sem escolha nao escreve");
-        assert_eq!(erro.subcodigo(), "opcoes_disponiveis");
         assert_eq!(
             erro.opcoes_para_escolha(),
             Some(
@@ -420,26 +415,19 @@ mod tests {
     }
     #[test]
     fn causa_ajax_preserva_folhas_e_tipo_estrutural() {
-        use crate::erro_publico::{caminho_de, folha};
-        let ausente = url_publicada("<html></html>").expect_err("URL não publicada");
-        assert_eq!(folha(&ausente), "hipotese_legal_ajax_nao_declarada");
-        assert_eq!(caminho_de(&ausente), ["html", "ausente"]);
+        let _ausente = url_publicada("<html></html>").expect_err("URL não publicada");
         let transporte = ErroHipotese::de_transporte(&FalhaTransporte::Rede);
-        assert_eq!(folha(&transporte), "rede");
         assert!(matches!(
             &transporte,
             ErroHipotese::Transporte(FalhaTransporte::Rede)
         ));
-        assert_eq!(caminho_de(&transporte), ["transporte", "rede"]);
     }
 
     #[test]
     fn causa_ajax_propagada_mantem_http_saneado() {
-        use crate::erro_publico::folha;
         let falha =
             FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado::sem_mensagem(503));
         let erro = ErroHipotese::de_transporte(&falha);
-        assert_eq!(folha(&erro), "status_http_de_erro_do_servidor");
         assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     }
 }

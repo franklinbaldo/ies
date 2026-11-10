@@ -59,7 +59,7 @@ ser enviado, independentemente da observação.
 - Testes sintéticos de derivação e transporte integrados; evidência ao vivo e replay ainda pendentes: ver
   [relatório](../../docs/validacao-live/2026-11-05-processo-acompanhar.md).
 
-Os erros possuem `subcodigo` estável:
+Os erros, por variante (a saída pública traz só a mensagem):
 `acompanhamento_nao_publicado_na_barra`,
 `cadastro_de_acompanhamento_de_outro_processo`,
 `grupos_de_acompanhamento_nao_publicados`,

@@ -13,6 +13,7 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::RespostaDoPost;
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::FalhaDoEnvio;
@@ -49,7 +50,7 @@ fn barra(
 ) -> String {
     let oferece = match ler_reabrir_da_barra(inst, html, id) {
         Ok(oferece) => oferece.is_some(),
-        Err(erro) => return format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => return format!("`{}`", erro.rotulo()),
     };
     let (Some(u), Some(l)) = (unidade, lida) else {
         let barra = if oferece { "oferece" } else { "não oferece" };
@@ -78,7 +79,7 @@ fn resposta(item: &serde_json::Value, status: u64) -> String {
     };
     match resposta_da_funcao(resposta, FalhaDoEnvio::RedirecionamentoNaReabertura) {
         None => "HTML 200 esperado".into(),
-        Some(falha) => format!("`{}`", falha.subcodigo()),
+        Some(falha) => format!("`{}`", falha.rotulo()),
     }
 }
 
@@ -137,7 +138,7 @@ fn replay_de_processo_reabrir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_endereco_de_reabrir(&inst, &h, &id) {
                         Ok((_, forma)) => format!("`{}`", forma.como_texto()),
-                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+                        Err(erro) => format!("`{}`", erro.rotulo()),
                     };
                     somar(&mut contagem, "URL na tela do nó", classe, nome);
                 }

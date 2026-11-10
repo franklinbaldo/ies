@@ -116,13 +116,9 @@ fn ancora_fora_da_forma_observada_e_recusa_tipada() {
             "{ruim}"
         );
     }
-    let erro = ErroDetalhada::Html(ErroHtml::valor(
+    let _erro = ErroDetalhada::Html(ErroHtml::valor(
         "marcador_da_celula_detalhada_fora_da_forma_observada",
     ));
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "marcador_da_celula_detalhada_fora_da_forma_observada"
-    );
 }
 
 #[test]
@@ -139,10 +135,6 @@ fn texto_fora_das_ancoras_e_recusa_e_nao_vira_marcador() {
             "{conteudo}"
         );
     }
-    assert_eq!(
-        crate::erro_publico::folha(&ErroDetalhada::TextoForaDosMarcadoresNaCelula),
-        "texto_fora_dos_marcadores_na_celula"
-    );
 }
 
 #[test]

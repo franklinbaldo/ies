@@ -55,13 +55,6 @@ impl FalhaDoAceite {
             Self::Aceite(_) => None,
         }
     }
-
-    pub(crate) fn detalhe(&self) -> Option<&'static str> {
-        match self {
-            Self::Aceite(erro) => Some(crate::erro_publico::folha(erro)),
-            _ => None,
-        }
-    }
 }
 
 /// Por que a releitura não comprovou a ciência do documento depois do GET
@@ -80,6 +73,27 @@ pub(crate) enum VerificacaoDaCienciaDoDocumento {
     #[causa(interna)]
     Lista(super::ErroCiencia),
     AtividadeNaoEncontradaNaListaDoDocumento,
+}
+
+impl VerificacaoDaCienciaDoDocumento {
+    fn descricao(&self) -> String {
+        match self {
+            Self::Abertura(e) => e.mensagem().to_owned(),
+            Self::IdentidadeDoDocumentoAlteradaNaReleitura => {
+                "IdentidadeDoDocumentoAlteradaNaReleitura".to_owned()
+            }
+            Self::AceiteSemAtividadeDoDocumento => "AceiteSemAtividadeDoDocumento".to_owned(),
+            Self::Html(e) => format!("{e:?}"),
+            Self::ListaDeCienciasDoDocumentoAusente => {
+                "ListaDeCienciasDoDocumentoAusente".to_owned()
+            }
+            Self::Transporte(e) => e.mensagem().to_owned(),
+            Self::Lista(e) => format!("{e:?}"),
+            Self::AtividadeNaoEncontradaNaListaDoDocumento => {
+                "AtividadeNaoEncontradaNaListaDoDocumento".to_owned()
+            }
+        }
+    }
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -108,8 +122,8 @@ pub(crate) enum ErroCienciaDocumento {
 }
 
 impl ErroCienciaDocumento {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
+    pub(crate) fn mensagem(&self) -> String {
+        let texto = match self {
             Self::Abertura(e) => e.mensagem(),
             Self::Barra(_) | Self::Html(_) => {
                 "a ação de ciência do documento está fora da forma observada"
@@ -123,6 +137,10 @@ impl ErroCienciaDocumento {
             Self::EfeitoIncerto { .. } => {
                 "a ciência pode ter sido registrada; confira a Lista de Ciências do documento no SEI antes de nova confirmação"
             }
+        };
+        match self {
+            Self::EfeitoIncerto { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
+            _ => texto.to_owned(),
         }
     }
     pub(crate) fn saida(&self) -> u8 {

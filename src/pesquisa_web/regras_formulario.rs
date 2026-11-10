@@ -32,8 +32,6 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     Html(ErroHtml),
 }
 
-impl ErroRegraDoFormularioDePesquisa {}
-
 /// Onde pesquisar: o rádio `rdoPesquisarEm` que a operação marca.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PesquisarEm {

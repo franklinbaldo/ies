@@ -18,7 +18,7 @@ não interpreta URL e nunca prova conexão ou disponibilidade de SEI.
 
 O sucesso retorna `arquivos_privados: metadados_verificados` com
 `conexao: nao_verificada` e código 0. Falhas retornam código 1,
-`codigo: configuracao_invalida`, `subcodigo` estável e
+`codigo: configuracao_invalida`, mensagem e
 `arquivo` com um dos papéis `url_controle`, `cookie`,
 `origem`, sem expor caminhos nem conteúdos. Variantes tipadas:
 `CaminhoNaoAbsoluto`, `Ausente`, `LinkSimbolico`,

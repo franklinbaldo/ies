@@ -30,8 +30,6 @@ pub(crate) enum ErroAtributoHtml {
     AtributoRepetidoNaTag { atributo: &'static str },
 }
 
-impl ErroAtributoHtml {}
-
 /// Atributos na ordem da fonte, com nomes em minúsculas ASCII e valores
 /// brutos. `None` é atributo sem `=`; `Some("")` é `nome=""`.
 #[derive(Debug, PartialEq, Eq)]

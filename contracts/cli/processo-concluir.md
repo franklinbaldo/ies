@@ -134,7 +134,7 @@ continuam como estavam (observado). Desfaz-se com
 
 `forma` é `tela`, `funcao` ou `null` (nada a fazer). `depois` são as
 siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `aberto_em`,
+`{"codigo", "erro", "retentavel": false}` mais `aberto_em`,
 `depois`, `falha_do_envio`, `verificacao` e `status_http` quando houver.
 A saída humana termina com "Para concluir, repita com --confirmar" na
 prévia.

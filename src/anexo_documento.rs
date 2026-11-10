@@ -160,10 +160,6 @@ pub(crate) enum ErroAnexo {
 }
 
 impl ErroAnexo {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(falha) => falha.mensagem(),

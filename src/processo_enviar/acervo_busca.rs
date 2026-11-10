@@ -11,6 +11,7 @@ use super::destino::{escolher_destino, ler_resposta_da_consulta, orgao_da_sigla}
 use super::tela::conferir_tela_de_envio;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::RespostaDoPost;
 use crate::transporte::RespostaWeb;
 use std::collections::BTreeMap;
@@ -112,7 +113,7 @@ fn replay_da_busca_do_destino_no_acervo() {
                             anterior_vazia = itens.is_empty();
                             classe
                         }
-                        Err(falha) => format!("`{}`", crate::erro_publico::folha(&falha)),
+                        Err(falha) => format!("`{}`", falha.rotulo()),
                     };
                     somar(&mut contagem, "resposta da consulta", classe, nome);
                 }

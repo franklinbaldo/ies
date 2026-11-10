@@ -11,6 +11,7 @@ use super::tela::{TROCAR_UNIDADE, TelaDeTroca, campos_do_envio, ler_tela_de_troc
 use crate::cassette::acervo::{Resultado, gravacao, percorrer, publicar, tabela};
 use crate::cassette::html_da_resposta;
 use crate::controle_reconhecido::unidade_do_controle;
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 
 fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> &'static str) -> Resultado {
@@ -56,7 +57,10 @@ fn replay_de_unidade_trocar_no_acervo() {
                         soma(
                             0,
                             "link da troca no Controle",
-                            classe(link_da_troca(&inst, url, &h), ErroTroca::subcodigo),
+                            classe(
+                                link_da_troca(&inst, url, &h),
+                                crate::erro_publico::rotulo::<ErroTroca>,
+                            ),
                         );
                     }
                 }
@@ -68,7 +72,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     soma(
                         1,
                         "tela Trocar Unidade",
-                        classe(lida.as_ref(), |e| e.subcodigo()),
+                        classe(lida.as_ref(), |e| e.mensagem()),
                     );
                     if let Ok(t) = lida {
                         // POST derivado para a primeira unidade não marcada.
@@ -90,7 +94,9 @@ fn replay_de_unidade_trocar_no_acervo() {
                                 "POST derivado",
                                 classe(
                                     s,
-                                    crate::formulario_web::ErroSubmissaoFormulario::subcodigo,
+                                    crate::erro_publico::rotulo::<
+                                        crate::formulario_web::ErroSubmissaoFormulario,
+                                    >,
                                 ),
                             );
                         }
@@ -126,7 +132,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                         match (&primeiro, seguinte) {
                             (Ok(u), Some(s)) if u == s => Resultado::Lido,
                             (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                            (Err(e), _) => Resultado::Recusado(e.subcodigo()),
+                            (Err(e), _) => Resultado::Recusado(e.rotulo()),
                         },
                     );
                     let Some(s1) = rs.get(i + 1) else { continue };
@@ -146,7 +152,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                                     Resultado::Lido
                                 }
                                 (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                                (Err(e), _) => Resultado::Recusado(e.subcodigo()),
+                                (Err(e), _) => Resultado::Recusado(e.rotulo()),
                             },
                         );
                         let Some(s2) = s2 else { continue };
@@ -164,7 +170,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                             Some(Ok(_)) => {
                                 Resultado::Recusado("unidade_do_controle_diferente_da_pedida")
                             }
-                            Some(Err(e)) => Resultado::Recusado(e.subcodigo()),
+                            Some(Err(e)) => Resultado::Recusado(e.rotulo()),
                             None => Resultado::NaoAplicavel("corpo ilegível"),
                         },
                     );

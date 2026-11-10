@@ -44,12 +44,6 @@ pub(crate) enum ErroPrevia {
     Html(ErroHtml),
 }
 
-impl ErroPrevia {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-}
-
 pub(crate) struct Pedido<'a> {
     pub(crate) nup: &'a NumeroProcesso,
     pub(crate) unidade: Option<&'a str>,

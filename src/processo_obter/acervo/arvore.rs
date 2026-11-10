@@ -6,6 +6,7 @@ use super::leitores::Cassette;
 use super::{Leitor, Registro, Resultado};
 use crate::arvore_processo::{AbertoEm, ErroArvore, MotivoAbertoEm, ler_acao_de_abrir_pastas};
 use crate::cassette::acervo::gravacao::{self, Resposta};
+use crate::erro_publico::Rotulo as _;
 use crate::processo_obter::abertura::{ArvoreAberta, ler_arvore_da_pagina};
 use crate::processo_obter::pastas::aberta_inteira_da_pagina;
 
@@ -21,13 +22,10 @@ pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> V
     let aberta = match lida {
         Ok(aberta) => aberta,
         Err(erro) => {
-            let mut registros = vec![c.registro(
-                Leitor::Arvore,
-                r.passo,
-                Resultado::Recusado(crate::erro_publico::folha(&erro)),
-            )];
+            let mut registros =
+                vec![c.registro(Leitor::Arvore, r.passo, Resultado::Recusado(erro.rotulo()))];
             if abrir {
-                let recusa = Resultado::Recusado(crate::erro_publico::folha(&erro));
+                let recusa = Resultado::Recusado(erro.rotulo());
                 registros.push(c.registro(Leitor::Pastas, r.passo, recusa));
             }
             return registros;
@@ -93,11 +91,11 @@ fn pastas(
             Ok(Some(_)) => registro.formas.push("fechada_com_acao_de_abrir".into()),
             Ok(None) => {
                 let recusa =
-                    crate::erro_publico::folha(&ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
+                    crate::erro_publico::rotulo(&ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
                 registro.resultado = Resultado::Recusado(recusa);
             }
             Err(erro) => {
-                registro.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro));
+                registro.resultado = Resultado::Recusado(erro.rotulo());
             }
         }
     } else if a.pastas.is_empty() {
@@ -173,19 +171,19 @@ fn links(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> [Registro
     let historico = match &aberta.historico {
         Ok(_) => Resultado::Lido,
         Err(H::LinkDoHistoricoAusenteNaArvore) => Resultado::NaoAplicavel(
-            crate::erro_publico::folha(&H::LinkDoHistoricoAusenteNaArvore),
+            crate::erro_publico::rotulo(&H::LinkDoHistoricoAusenteNaArvore),
         ),
-        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(erro)),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     };
     let propriedades = match &aberta.propriedades {
         Ok(Some(_)) => Resultado::Lido,
         Ok(None) => Resultado::NaoAplicavel("tela_de_propriedades_nao_publicada_na_barra"),
-        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(erro)),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     };
     let marcadores = match &aberta.marcadores {
         Ok(Some(_)) => Resultado::Lido,
         Ok(None) => Resultado::NaoAplicavel("tela_de_marcadores_nao_publicada_na_barra"),
-        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(erro)),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     };
     [
         c.registro(Leitor::LinkDoHistorico, r.passo, historico),

@@ -13,11 +13,6 @@ pub(crate) enum ErroAtribuirNaBarra {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroAtribuirNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 
 /// Apenas um href assinado e relativo, preso ao ID do processo.
 pub(crate) fn ler_atribuir_da_barra(

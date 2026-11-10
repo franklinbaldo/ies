@@ -25,9 +25,6 @@ enum ErroHtmlPrivado {
 }
 
 impl ErroHtmlPrivado {
-    fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     fn status(&self) -> u8 {
         match self {
             Self::QuantidadeDeDocumentos
@@ -148,16 +145,12 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                         } else {
                             "fonte_invalida"
                         },
-                        "subcodigo": erro.subcodigo(),
                         "erro": "leitura de documento no HTML privado não comprovada",
                         "retentavel": false
                     })
                 );
             } else {
-                eprintln!(
-                    "IES: HTML privado de documento recusado [{}]",
-                    erro.subcodigo()
-                );
+                eprintln!("IES: HTML privado de documento recusado ({erro:?})");
             }
             ExitCode::from(erro.status())
         }

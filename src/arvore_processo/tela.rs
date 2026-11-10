@@ -45,8 +45,6 @@ pub(crate) enum ErroTelaDoProcesso {
     Html(ErroHtml),
 }
 
-impl ErroTelaDoProcesso {}
-
 /// Lê a tela servida (a URL já foi conferida por quem a pediu). `unidade`
 /// pedida (`--unidade`) é comparada com espaços normalizados.
 pub(crate) fn ler_tela_do_processo(

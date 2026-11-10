@@ -17,8 +17,6 @@ pub enum ErroTituloDocumento {
     Html(ErroHtml),
 }
 
-impl ErroTituloDocumento {}
-
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("html_documento_nao_interpretado"))?;
@@ -228,7 +226,6 @@ pub enum ErroCorpoDocumento {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroCorpoDocumento {}
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
     nome.eq_ignore_ascii_case("svg") || nome.eq_ignore_ascii_case("template")

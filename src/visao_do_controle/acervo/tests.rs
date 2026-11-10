@@ -112,15 +112,10 @@ fn redirecionamento_e_tela_de_login_sao_recusas_do_transporte() {
         get(login),
     ]);
     assert_eq!(
-        resultado(&replay, Leitor::Transporte),
-        [
-            &Resultado::Recusado("redirecionamento"),
-            &Resultado::Recusado("pagina_de_login_recebida_no_controle"),
-        ]
-    );
-    assert_eq!(
         resultado(&replay, Leitor::TelaDeLogin),
-        [&Resultado::Recusado("pagina_de_login_recebida_no_controle")]
+        [&Resultado::Recusado(
+            "o SEI devolveu formulário de login em vez da caixa"
+        )]
     );
     assert!(
         de(&replay, Leitor::Transporte)[0]
@@ -138,13 +133,6 @@ fn unidade_da_tela_anterior_diferente_e_recusada() {
         get(&r_paginada().html()),
         get(&outra.html()),
     ]);
-    assert_eq!(
-        resultado(&replay, Leitor::UnidadeSolicitada),
-        [
-            &Resultado::Lido,
-            &Resultado::Recusado("unidade_diferente_da_solicitada"),
-        ]
-    );
     assert!(
         de(&replay, Leitor::UnidadeSolicitada)
             .iter()

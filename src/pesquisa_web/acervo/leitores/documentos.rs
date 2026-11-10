@@ -5,6 +5,7 @@
 //! página seguinte lida e conferida contra o plano feito da página 1.
 use super::{Cassette, Opcao, derivar, opcao_marcada, url, web};
 use crate::cassette::acervo::gravacao::{self, Resposta};
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
 };
@@ -54,7 +55,7 @@ pub(super) fn tela(
             tela,
             (unidade, TERMO),
         )
-        .map_err(|e| crate::erro_publico::folha(&e))
+        .map_err(|e| e.rotulo())
     });
     match derivada {
         Ok(submissao) => {
@@ -95,7 +96,7 @@ fn primeiro_envio(
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&falha_do_envio(erro));
+            let sub = crate::erro_publico::rotulo(&falha_do_envio(erro));
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -114,7 +115,7 @@ fn primeiro_envio(
             return vec![c.registro(leitor, r.passo, motivo)];
         }
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&erro);
+            let sub = erro.rotulo();
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -157,11 +158,7 @@ fn plano(
             return c.lido(leitor, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            return c.registro(
-                leitor,
-                r.passo,
-                Resultado::Recusado(crate::erro_publico::folha(&erro)),
-            );
+            return c.registro(leitor, r.passo, Resultado::Recusado(erro.rotulo()));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
@@ -173,7 +170,7 @@ fn plano(
             pedido_da_tela,
             pedido.inicio,
         )
-        .map_err(|e| crate::erro_publico::folha(&e))
+        .map_err(|e| e.rotulo())
     });
     match derivada {
         Ok(_) => c.lido(leitor, r.passo, "pagina_2_planejada"),
@@ -198,7 +195,7 @@ fn pagina_seguinte(
     let Some((primeira, html_1)) = &d.pagina_1 else {
         return match ler_resposta_de_documentos(&html, None) {
             Ok(_) => Some(c.lido(leitor, r.passo, "pagina_lida_sem_pagina_1")),
-            Err(erro) => recusa(crate::erro_publico::folha(&erro)),
+            Err(erro) => recusa(erro.rotulo()),
         };
     };
     let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
@@ -209,11 +206,11 @@ fn pagina_seguinte(
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => return Some(c.lido(leitor, r.passo, "pagina_1_reenviada")),
-        Err(erro) => return recusa(crate::erro_publico::folha(&erro)),
+        Err(erro) => return recusa(erro.rotulo()),
     };
     let resposta = match ler_resposta_de_documentos(&html, Some((pedido.esperada, pedido.numero))) {
         Ok(resposta) => resposta,
-        Err(erro) => return recusa(crate::erro_publico::folha(&erro)),
+        Err(erro) => return recusa(erro.rotulo()),
     };
     let forma = match &resposta {
         RespostaDeDocumentos::Lista(l) if l.linhas_ausentes_da_faixa > 0 => {
@@ -224,11 +221,7 @@ fn pagina_seguinte(
     Some(
         match conferir_contagem(&pedido, EmDocumentos::contagem(&resposta)) {
             Ok(()) => c.lido(leitor, r.passo, forma),
-            Err(erro) => c.registro(
-                leitor,
-                r.passo,
-                Resultado::Recusado(crate::erro_publico::folha(&erro)),
-            ),
+            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(erro.rotulo())),
         },
     )
 }

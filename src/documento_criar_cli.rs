@@ -28,12 +28,11 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(processo) {
-        Ok(nup) => nup,
-        Err(erro) => return Some(entrada_invalida(cli.json, erro.subcodigo())),
+    let Ok(nup) = NumeroProcesso::novo(processo) else {
+        return Some(entrada_invalida(cli.json));
     };
     if tipo.trim().is_empty() {
-        return Some(entrada_invalida(cli.json, "tipo_de_documento_vazio"));
+        return Some(entrada_invalida(cli.json));
     }
     // O nivel de escrita ja e uma pre-condicao independente da sessao.
     // A CLI deve informar essa causa antes de abrir arquivos privados.
@@ -58,19 +57,18 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     }))
 }
 
-fn entrada_invalida(json_mode: bool, subcodigo: &str) -> ExitCode {
+fn entrada_invalida(json_mode: bool) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": "parâmetro de criação de documento inválido",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: parâmetro de criação de documento inválido [{subcodigo}]");
+        eprintln!("IES: parâmetro de criação de documento inválido");
     }
     ExitCode::from(2)
 }
@@ -134,17 +132,13 @@ fn erro_incerto_json(
 ) -> serde_json::Value {
     let mut saida = json!({
         "codigo": "efeito_incerto",
-        "subcodigo": erro.subcodigo(),
         "erro": MENSAGEM_INCERTEZA,
         "verificar_com": format!("ies processo {}", nup.as_str()),
         "retentavel": false,
         "requisicoes": requisicoes
     });
-    if let Some(causa) = erro.causa_envio() {
-        saida["causa_envio"] = json!(causa.subcodigo());
-    }
     if let ErroPreviaCriacao::EfeitoIncertoNaReleitura(causa) = erro {
-        saida["causa_releitura"] = json!(causa.subcodigo());
+        saida["causa_releitura"] = json!(causa.mensagem());
     }
     if let Some(http) = erro.status_http() {
         saida["status_http"] = json!(http.status);
@@ -207,7 +201,6 @@ fn publicar_erro(
                 eprintln!(
                     "{}",
                     saida_erro::linha_humana(
-                        causa.subcodigo(),
                         "falha observada no envio do documento",
                         causa.status_http(),
                     )
@@ -217,7 +210,6 @@ fn publicar_erro(
                 eprintln!(
                     "{}",
                     saida_erro::linha_humana(
-                        causa.subcodigo(),
                         "falha observada na releitura após envio",
                         causa.status_http(),
                     )
@@ -226,12 +218,7 @@ fn publicar_erro(
         }
         return ExitCode::from(3);
     }
-    saida_erro::erro_fonte_http(
-        json_mode,
-        erro.subcodigo(),
-        mensagem_da_recusa(erro),
-        erro.status_http(),
-    )
+    saida_erro::erro_fonte_http(json_mode, mensagem_da_recusa(erro), erro.status_http())
 }
 
 #[cfg(test)]
@@ -312,7 +299,6 @@ mod tests {
             }),
         ));
         let saida = erro_incerto_json(&erro, 7, &nup_de_teste());
-        assert_eq!(erro.subcodigo(), "efeito_incerto_na_releitura");
         assert_eq!(saida["status_http"], 403);
         assert_eq!(saida["mensagem_do_servidor"], "leitura recusada");
         assert_eq!(saida["requisicoes"], 7);

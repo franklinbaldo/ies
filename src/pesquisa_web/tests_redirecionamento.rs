@@ -361,13 +361,9 @@ fn subcodigos_sao_estaveis_e_distintos() {
     ];
     let unicos: std::collections::HashSet<_> = todos
         .iter()
-        .map(|e| crate::erro_publico::folha(e))
+        .map(|e| crate::erro_publico::rotulo(&e))
         .collect();
     assert_eq!(unicos.len(), todos.len());
-    assert_eq!(
-        crate::erro_publico::folha(&E::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar),
-        "redirecionamento_para_acao_diferente_de_procedimento_trabalhar"
-    );
 }
 
 #[test]

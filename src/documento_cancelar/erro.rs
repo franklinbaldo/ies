@@ -12,15 +12,6 @@ pub(crate) enum FalhaDoCancelamento {
     RedirecionamentoNaoReconhecido,
 }
 impl FalhaDoCancelamento {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Envio(erro) => erro.subcodigo(),
-            Self::RespostaSemRedirecionamento => "resposta_do_cancelamento_sem_redirecionamento",
-            Self::RedirecionamentoNaoReconhecido => {
-                "redirecionamento_do_cancelamento_nao_reconhecido"
-            }
-        }
-    }
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Envio(erro) => erro.status_http().cloned(),
@@ -45,7 +36,7 @@ impl VerificacaoDoCancelamento {
                 cancelado: None, ..
             } => Some("estado_de_cancelamento_nao_observado"),
             Self::Lida { .. } => None,
-            Self::LeituraFalhou(erro) => Some(erro.subcodigo()),
+            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
         }
     }
 }
@@ -77,25 +68,6 @@ pub(crate) enum ErroCancelar {
     },
 }
 impl ErroCancelar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => crate::erro_publico::folha(e),
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Link(erro) => erro.subcodigo(),
-            Self::CancelamentoNaoOferecido => "cancelamento_nao_oferecido_na_barra",
-            Self::DocumentoJaCancelado => "documento_ja_cancelado",
-            Self::EstadoAntesNaoObservado => "estado_antes_do_cancelamento_nao_observado",
-            Self::Tela(falha) => falha.subcodigo(),
-            Self::TelaRedirecionada => "tela_do_cancelamento_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::CharsetNaoSuportado => "charset_da_tela_de_cancelamento_nao_suportado",
-            Self::Formulario(erro) => erro.subcodigo(),
-            Self::FormularioDeOutroDocumento => "formulario_de_cancelamento_de_outro_documento",
-            Self::MotivoNaoPublicadoNaTela => "campo_de_motivo_do_cancelamento_ausente",
-            Self::CancelamentoNaoAplicado { .. } => "cancelamento_nao_aplicado",
-            Self::EfeitoIncerto { .. } => "efeito_incerto_no_cancelamento",
-        }
-    }
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::CancelamentoNaoAplicado { .. } => "escrita_nao_aplicada",

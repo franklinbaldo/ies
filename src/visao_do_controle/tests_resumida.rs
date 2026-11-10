@@ -98,7 +98,7 @@ fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
 fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
     let mut outro_criterio = segunda();
     outro_criterio.hash_r = "9999";
-    for (resposta, subcodigo) in [
+    for (resposta, _subcodigo) in [
         (
             r().html(),
             "faixa_da_resposta_diferente_da_pagina_solicitada",
@@ -108,7 +108,7 @@ fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
             "criterios_recebidos_alterados_apos_paginar",
         ),
     ] {
-        let (resultado, registro) = resumida(
+        let (_resultado, registro) = resumida(
             d().html(),
             Categoria::Recebidos,
             Some(2),
@@ -121,7 +121,6 @@ fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
                 "POST visao=R recebidos=1 gerados=0"
             ]
         );
-        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
 }
 
@@ -148,7 +147,6 @@ fn pagina_fora_do_intervalo_vista_na_r_fica_na_r() {
     );
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pagina_fora_do_intervalo");
     // Ao vivo (PEN1, 04/11/2026) a recusa saía como "visão não obtida",
     // embora a troca para R tivesse passado: a mensagem é a da página da R.
     assert_eq!(

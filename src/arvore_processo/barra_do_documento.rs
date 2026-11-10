@@ -58,8 +58,6 @@ pub(crate) enum ErroBarraDoDocumento {
     Html(ErroHtml),
 }
 
-impl ErroBarraDoDocumento {}
-
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;
 /// sem barra (ou sem o nó), nada publicado.
 pub(crate) fn ler_barra_do_documento(

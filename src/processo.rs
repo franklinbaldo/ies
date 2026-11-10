@@ -14,12 +14,6 @@ pub enum NumeroProcessoInvalido {
     ReferenciaLegada,
 }
 
-impl NumeroProcessoInvalido {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 impl NumeroProcesso {
     pub fn novo(valor: &str) -> Result<Self, NumeroProcessoInvalido> {
         // Validar a entrada bruta: trim removeria CR/LF/tab das extremidades.

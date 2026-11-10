@@ -121,7 +121,6 @@ fn previa_recusa_especificacao_acima_do_maxlength_observado() {
         )
     });
     let erro = resultado.expect_err("prévia deve respeitar maxlength da tela");
-    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite");
     assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
@@ -151,7 +150,6 @@ fn confirmacao_recusa_especificacao_longa_antes_de_post() {
         )
     });
     let erro = resultado.expect_err("maxlength deve impedir a escrita");
-    assert_eq!(erro.subcodigo(), "especificacao_acima_do_limite");
     assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 3);
     assert_eq!(requests.len(), 3);
@@ -169,7 +167,7 @@ fn comprimento_html_de_especificacao_considera_unidades_utf16() {
         ok(lista(false)),
         ok(cadastro_com_maxlength("100")),
     ];
-    let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
+    let (_resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
             sessao.url_do_controle,
@@ -178,12 +176,6 @@ fn comprimento_html_de_especificacao_considera_unidades_utf16() {
             rede,
         )
     });
-    assert_eq!(
-        resultado
-            .expect_err("maxlength HTML considera UTF-16")
-            .subcodigo(),
-        "especificacao_acima_do_limite"
-    );
     assert_eq!(requests.len(), 3);
 }
 
@@ -249,7 +241,6 @@ fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
         )
     });
     let erro = resultado.expect_err("falha AJAX impede POST criador");
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     assert_eq!(erro.saida(), 1);
     assert_eq!(contador, 4);

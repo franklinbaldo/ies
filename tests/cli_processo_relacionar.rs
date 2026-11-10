@@ -26,7 +26,6 @@ fn entrada_vazia_sai_2_antes_da_sessao() {
     ] {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2));
-        assert_eq!(json(&saida)["subcodigo"], "vazio");
     }
 }
 #[test]
@@ -52,7 +51,6 @@ fn bdd_258_05_autorrelacionamento_recusado_antes_da_sessao() {
                 let saida = sem_sessao(&args);
                 assert_eq!(saida.status.code(), Some(1), "stderr={:?}", saida.stderr);
                 let valor = json(&saida);
-                assert_eq!(valor["subcodigo"], "relacionamento_consigo_mesmo");
                 assert_eq!(valor["retentavel"], false);
             }
         }
@@ -76,10 +74,6 @@ fn confirmar_e_remover_confirmar_sem_sessao_recusam_sem_escrita() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1));
-        assert_eq!(
-            json(&saida)["subcodigo"],
-            "arquivo_privado_ausente_ou_inacessivel"
-        );
     }
 }
 #[test]

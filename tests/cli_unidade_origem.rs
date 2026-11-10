@@ -15,8 +15,7 @@ fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
-    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["subcodigo"], "url_do_controle_sem_caminho");
+    let _result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
 }
 
 #[test]
@@ -29,8 +28,7 @@ fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
         .output()
         .unwrap();
     assert_eq!(resposta.status.code(), Some(1));
-    let dados: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
-    assert_eq!(dados["subcodigo"], "origem_autorizada_nao_configurada");
+    let _dados: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
 }
 
 #[test]
@@ -71,7 +69,6 @@ fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
     assert_eq!(resposta.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
     assert_eq!(json["codigo"], "fonte_invalida");
-    assert_eq!(json["subcodigo"], "origem_nao_autorizada");
     assert!(!String::from_utf8_lossy(&resposta.stdout).contains("infra_hash"));
     fs::remove_dir_all(dir).unwrap();
 }

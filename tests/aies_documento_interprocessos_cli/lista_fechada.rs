@@ -22,10 +22,6 @@ fn bdd_60_05_cli_recusa_versao_sem_link_na_unidade_mas_le_conteudo_atual() {
         String::from_utf8_lossy(&saida.stderr)
     );
     let erro = json(&saida);
-    assert_eq!(
-        erro["subcodigo"], "lista_de_versoes_nao_publicada_na_arvore",
-        "{erro}"
-    );
     assert_eq!(erro["documento"], DOC_A);
     assert!(erro.get("documentos").is_none(), "{erro}");
     assert!(

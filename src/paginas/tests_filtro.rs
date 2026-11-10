@@ -39,10 +39,6 @@ fn filtro_de_marcador_ativo_e_recusado_antes_de_publicar() {
     );
     let erro = juntar(&[html], None).err();
     assert_eq!(erro, Some(ErroCaixa::FiltroDeMarcadorAtivoNoControle));
-    assert_eq!(
-        ErroCaixa::FiltroDeMarcadorAtivoNoControle.subcodigo(),
-        "filtro_de_marcador_ativo_no_controle"
-    );
 }
 
 #[test]

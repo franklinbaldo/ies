@@ -40,9 +40,6 @@ pub(crate) enum ErroBloco {
     Html(ErroHtml),
 }
 impl ErroBloco {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub(crate) const fn mensagem(self) -> &'static str {
         match self {
             Self::Html(e) => e.mensagem,

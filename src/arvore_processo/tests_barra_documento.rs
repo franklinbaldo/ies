@@ -121,10 +121,6 @@ fn link_de_outro_documento_ou_processo_e_repetido_sao_recusas() {
         ler(&com_barra(&base(), 1, &sem_hash)),
         Err(E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido")))
     );
-    assert_eq!(
-        crate::erro_publico::folha(&E::EnderecoDasVersoesDeOutroDocumento),
-        "endereco_das_versoes_de_outro_documento"
-    );
 }
 
 #[test]

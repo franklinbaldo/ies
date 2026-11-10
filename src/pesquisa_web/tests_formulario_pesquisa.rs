@@ -311,7 +311,7 @@ fn subcodigos_das_regras_sao_distintos() {
     ];
     let unicos: std::collections::HashSet<_> = todos
         .iter()
-        .map(|e| crate::erro_publico::folha(e))
+        .map(|e| crate::erro_publico::rotulo(&e))
         .collect();
     assert_eq!(unicos.len(), todos.len());
 }
@@ -386,10 +386,6 @@ fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
     let html = com_campo_do_termo(CAMPO_COM_50);
     let erro = regra_do_termo(&html, &"1".repeat(51));
     assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "termo_acima_do_maxlength_da_tela"
-    );
 }
 
 #[test]
@@ -432,16 +428,6 @@ fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
         regra_do_termo(&html, "1"),
         R::Html(ErroHtml::repetido("campos_do_termo_repetidos_na_tela"))
     );
-    assert_eq!(
-        crate::erro_publico::folha(&R::MaxlengthDoTermoIlegivelNaTela),
-        "maxlength_do_termo_ilegivel_na_tela"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&R::Html(ErroHtml::repetido(
-            "campos_do_termo_repetidos_na_tela"
-        ))),
-        "campos_do_termo_repetidos_na_tela"
-    );
 }
 
 #[test]
@@ -474,7 +460,7 @@ fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
 #[test]
 fn filtro_ausente_na_tela_falha_antes_do_post() {
     let url = url_servida();
-    let erro = derivar_pesquisa_em_filtrada(
+    let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
         &tela_iso(&url, &observado()),
@@ -485,15 +471,11 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
         },
     )
     .unwrap_err();
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "criterio_nao_oferecido_pela_tela"
-    );
 }
 #[test]
 fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
     let url = url_servida();
-    let erro = derivar_pesquisa_em_filtrada(
+    let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
         &tela_iso(&url, &observado()),
@@ -504,8 +486,4 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
         },
     )
     .unwrap_err();
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "criterio_nao_oferecido_pela_tela"
-    );
 }

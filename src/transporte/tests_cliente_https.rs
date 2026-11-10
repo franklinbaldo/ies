@@ -187,7 +187,6 @@ fn get_3xx_pelo_proxy_nao_e_seguido_nem_lido() {
         erro,
         FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(302))
     );
-    assert_eq!(erro.subcodigo(), "redirecionamento");
 }
 
 #[test]
@@ -205,8 +204,7 @@ fn get_pelo_proxy_mantem_limite_de_8_mb_e_tipo_html() {
         Err(FalhaTransporte::RespostaExcessiva)
     );
     let json = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}";
-    let erro = get_pelo_proxy(json).0.unwrap_err();
-    assert_eq!(erro.subcodigo(), "tipo_de_conteudo_nao_html");
+    let _erro = get_pelo_proxy(json).0.unwrap_err();
 }
 
 #[test]
@@ -223,7 +221,6 @@ fn get_pelo_proxy_decodifica_charset_e_corpo_em_pedacos() {
 fn recusa_http_pelo_proxy_le_no_maximo_64_kib_do_corpo() {
     let curta = b"HTTP/1.1 503 X\r\nContent-Type: text/plain\r\n\r\nem manutencao";
     let erro = get_pelo_proxy(curta).0.unwrap_err();
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     let http = erro.status_http().unwrap();
     assert_eq!(
         (http.status, http.mensagem_do_servidor.as_deref()),
@@ -238,14 +235,13 @@ fn recusa_http_pelo_proxy_le_no_maximo_64_kib_do_corpo() {
         erro,
         FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado::sem_mensagem(500))
     );
-    for (status, subcodigo) in [
+    for (status, _subcodigo) in [
         (401, "acesso_negado"),
         (429, "status_http_de_limite_de_requisicoes"),
         (404, "status_http_diferente_de_200"),
     ] {
         let resposta = format!("HTTP/1.1 {status} X\r\nContent-Length: 0\r\n\r\n");
         let erro = get_pelo_proxy(resposta.as_bytes()).0.unwrap_err();
-        assert_eq!(erro.subcodigo(), subcodigo);
         assert_eq!(erro.status_http().map(|h| h.status), Some(status));
     }
 }
@@ -265,15 +261,13 @@ fn proxy_que_recusa_o_tunel_ou_invalido_no_get() {
         erro,
         FalhaTransporte::Proxy(FalhaDoProxy::RecusouOTunel { status: 407 })
     );
-    assert_eq!(erro.subcodigo(), "recusou_o_tunel");
     assert_eq!(erro.status_do_proxy(), Some(407));
     assert!(erro.status_http().is_none());
     assert_eq!(tarefa.join().unwrap().1, 0);
     let invalido = ambiente(vec![("https_proxy", "socks5://127.0.0.1:1".to_owned())]);
-    let erro = get_https_via(&url(), "PHPSESSID=SINTETICO", invalido, sem_tls)
+    let _erro = get_https_via(&url(), "PHPSESSID=SINTETICO", invalido, sem_tls)
         .map(|_| ())
         .unwrap_err();
-    assert_eq!(erro.subcodigo(), "esquema_nao_suportado");
 }
 
 const FORM: &str = "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>\
@@ -366,7 +360,6 @@ fn post_pelo_proxy_publica_status_e_mensagem_da_recusa() {
     .unwrap();
     assert_eq!(post.localizacao, None);
     let erro = decodificar_resposta(post.resposta).unwrap_err();
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(
         erro.status_http()
             .and_then(|h| h.mensagem_do_servidor.as_deref()),

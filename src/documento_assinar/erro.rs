@@ -18,8 +18,6 @@ pub(crate) enum ErroTelaDeAssinatura {
     Html(ErroHtml),
 }
 
-impl ErroTelaDeAssinatura {}
-
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter
 /// saído): o efeito é decidido pela leitura.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,14 +31,6 @@ pub(crate) enum FalhaDoEnvio {
 }
 
 impl FalhaDoEnvio {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Envio(erro) => erro.subcodigo(),
-            Self::Redirecionamento => "redirecionamento_apos_assinar",
-            Self::RespostaSemFinalizacao => "resposta_da_assinatura_sem_finalizacao",
-        }
-    }
-
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
             Self::Envio(erro) => erro.status_http().cloned(),
@@ -63,7 +53,7 @@ impl VerificacaoDaAssinatura {
         match self {
             Self::Lida(_) => None,
             Self::ArvoreNaoLida(erro) => Some(erro.onde),
-            Self::LeituraFalhou(erro) => Some(erro.subcodigo()),
+            Self::LeituraFalhou(erro) => Some(erro.mensagem()),
         }
     }
 }
@@ -120,10 +110,6 @@ pub(crate) enum ErroAssinar {
 }
 
 impl ErroAssinar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {

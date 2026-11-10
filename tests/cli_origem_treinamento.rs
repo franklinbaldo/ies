@@ -89,7 +89,6 @@ fn bdd_620_01_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
     assert_eq!(saida.stdout, Vec::<u8>::new());
     let erro = String::from_utf8_lossy(&saida.stderr);
     assert!(erro.contains("origem da sessão"), "{erro}");
-    assert!(erro.contains("[origem_fora_do_treinamento]"), "{erro}");
 }
 
 #[test]
@@ -107,7 +106,6 @@ fn bdd_620_02_atribuicao_json_recusa_antes_de_qualquer_requisicao() {
     let resposta: serde_json::Value =
         serde_json::from_slice(&saida.stdout).expect("JSON de recusa");
     assert_eq!(resposta["codigo"], "fonte_invalida");
-    assert_eq!(resposta["subcodigo"], "origem_fora_do_treinamento");
     assert_eq!(resposta["retentavel"], false);
     assert!(
         resposta["erro"]

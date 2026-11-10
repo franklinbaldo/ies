@@ -97,10 +97,6 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
     assert_eq!(valor["codigo"], "fonte_invalida", "{valor}");
     // ErroHtml::ausente da localização tipada pelo contexto --processo;
     // preservar a causa já publicada, sem criar novo subcódigo.
-    assert_eq!(
-        valor["subcodigo"], "numero_sei_ausente_da_arvore_do_processo",
-        "{valor}"
-    );
     assert_eq!(valor["documento"], DOC_B, "{valor}");
     assert_eq!(valor["documentos_lidos_antes"], 0, "{valor}");
     assert!(valor.get("documentos").is_none(), "{valor}");
@@ -212,10 +208,6 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
     );
     let recusado = json(&saida);
     assert_eq!(recusado["documento"], SEM_SRC, "{recusado}");
-    assert_eq!(
-        recusado["subcodigo"], "conteudo_nao_publicado_na_arvore",
-        "{recusado}"
-    );
     assert!(recusado.get("documentos").is_none(), "{recusado}");
     assert!(
         trilha
@@ -281,7 +273,6 @@ fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
             String::from_utf8_lossy(&saida.stderr)
         );
         let erro = json(&saida);
-        assert_eq!(erro["subcodigo"], "documento_cancelado", "{erro}");
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
         assert!(
@@ -397,7 +388,6 @@ fn bdd_60_05_cli_numero_repetido_na_arvore_recusa_sem_fallback() {
             String::from_utf8_lossy(&saida.stderr)
         );
         let erro = json(&saida);
-        assert_eq!(erro["subcodigo"], "numero_sei_repetido_na_arvore", "{erro}");
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");

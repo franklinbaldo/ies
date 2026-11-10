@@ -39,25 +39,14 @@ pub(crate) fn tentar_assinar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroDocumento::novo(numero) {
-        Ok(numero) => numero,
-        Err(erro) => {
-            return Some(invalida(
-                cli.json,
-                erro.subcodigo(),
-                "número de documento inválido",
-            ));
-        }
+    let Ok(numero) = NumeroDocumento::novo(numero) else {
+        return Some(invalida(cli.json, "número de documento inválido"));
     };
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(nup)) => Some(nup),
-        Some(Err(erro)) => {
-            return Some(invalida(
-                cli.json,
-                erro.subcodigo(),
-                "número de processo inválido",
-            ));
+        Some(Err(_)) => {
+            return Some(invalida(cli.json, "número de processo inválido"));
         }
     };
     let pedido = Entrada {
@@ -78,19 +67,18 @@ struct Entrada<'a> {
     confirmar: bool,
 }
 
-fn invalida(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn invalida(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -141,12 +129,9 @@ fn assinar_na_sessao(
             }
             ExitCode::SUCCESS
         }
-        Err(ErroAssinar::Abertura(erro)) => saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            erro.status_http(),
-        ),
+        Err(ErroAssinar::Abertura(erro)) => {
+            saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+        }
         Err(erro) => publicar_falha(cli.json, &erro),
     }
 }
@@ -258,8 +243,7 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
             ));
             if let Some(falha) = reconciliado_por {
                 linhas.push(format!(
-                    "A resposta não foi a esperada ({}); a leitura confirmou.",
-                    falha.subcodigo()
+                    "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));
             }
         }

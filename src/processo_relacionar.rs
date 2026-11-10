@@ -60,24 +60,27 @@ pub(crate) enum FalhaRelacionar {
     EfeitoIncerto(Option<ErroSubmissaoFormulario>),
 }
 impl FalhaRelacionar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    /// O que aconteceu, a partir do erro interno quando há um.
+    pub(crate) fn mensagem(&self) -> String {
         match self {
-            Self::Cookie(e) => crate::erro_publico::folha(e),
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::LinkNaoPublicado => "relacionar_nao_publicado_na_barra",
-            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
-                erro.subcodigo()
+            Self::Cookie(e) => e.mensagem().to_owned(),
+            Self::Abertura(e) => e.mensagem().to_owned(),
+            Self::Tela(f) | Self::ConsultaTransporte(f) | Self::ConsultaResposta(f) => {
+                f.mensagem().to_owned()
             }
-            Self::TelaRedirecionada => "tela_de_relacionamentos_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::Estrutura(subcodigo) => subcodigo,
-            Self::ConsultaDerivacao(erro) => erro.subcodigo(),
-            Self::RelacionamentoConsigoMesmo => "relacionamento_consigo_mesmo",
-            Self::RemocaoNaoOferecida => "remocao_de_relacionamento_nao_oferecida",
-            Self::DestinoDaConsultaDivergente => "destino_da_consulta_diverge_do_pedido",
-            Self::ConsultaNaoXml => "resposta_da_consulta_nao_xml",
-            Self::EfeitoIncerto(_) => "efeito_incerto",
+            Self::Barra(e) => format!("a barra não oferece a ação na forma observada ({e:?})"),
+            Self::ConsultaDerivacao(e) => format!("a consulta não pôde ser montada ({e:?})"),
+            Self::Estrutura(onde) => format!("a tela não está na forma observada ({onde})"),
+            Self::LinkNaoPublicado => "a barra não publica a ação".to_owned(),
+            Self::TelaRedirecionada => "a tela da ação foi redirecionada".to_owned(),
+            Self::SessaoEncerrada => "a sessão encerrou; rode ies login".to_owned(),
+            Self::RelacionamentoConsigoMesmo => {
+                "um processo não se relaciona consigo mesmo".to_owned()
+            }
+            Self::RemocaoNaoOferecida => "a remoção do relacionamento não é oferecida".to_owned(),
+            Self::DestinoDaConsultaDivergente => "a consulta devolveu outro processo".to_owned(),
+            Self::ConsultaNaoXml => "a consulta não respondeu em XML".to_owned(),
+            Self::EfeitoIncerto(_) => "o relacionamento não foi confirmado".to_owned(),
         }
     }
 

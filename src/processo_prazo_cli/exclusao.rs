@@ -159,21 +159,11 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     json_mode: bool,
 ) -> Result<(), ExitCode> {
     let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or_else(|| recusar(json_mode, "tela_de_prazo_nao_observada", "origem invalida"))?;
-    let codificacao = codificacao_da_tela(&dados.mime).ok_or_else(|| {
-        recusar(
-            json_mode,
-            "tela_de_prazo_nao_observada",
-            "charset da lista nao observado",
-        )
-    })?;
-    let url_declarada = action_de_exclusao(&dados.html_lista).ok_or_else(|| {
-        recusar(
-            json_mode,
-            "tela_de_prazo_nao_observada",
-            "a lista nao publicou a acao de exclusao",
-        )
-    })?;
+        .ok_or_else(|| recusar(json_mode, "origem invalida"))?;
+    let codificacao = codificacao_da_tela(&dados.mime)
+        .ok_or_else(|| recusar(json_mode, "charset da lista nao observado"))?;
+    let url_declarada = action_de_exclusao(&dados.html_lista)
+        .ok_or_else(|| recusar(json_mode, "a lista nao publicou a acao de exclusao"))?;
     let servida = TelaServida {
         url: &dados.link_lista,
         html: &dados.html_lista,
@@ -187,13 +177,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         &[("hdnInfraItemId", dados.id_controle.as_str())],
         Some(&url_declarada),
     )
-    .map_err(|erro| {
-        recusar(
-            json_mode,
-            erro.subcodigo(),
-            "formulario de exclusao nao pode ser submetido",
-        )
-    })?;
+    .map_err(|_| recusar(json_mode, "formulario de exclusao nao pode ser submetido"))?;
     let mut enviou = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -203,11 +187,7 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
         if enviou {
             efeito_incerto(json_mode, Some(&erro))
         } else {
-            recusar(
-                json_mode,
-                erro.subcodigo(),
-                "envio de exclusao nao preparado",
-            )
+            recusar(json_mode, "envio de exclusao nao preparado")
         }
     })?;
     match resposta {
@@ -292,30 +272,19 @@ pub(super) fn executar(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &leitura, indice, &mut rede) {
         Ok(aberto) => aberto,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let Ok(Some(_)) = acoes.prazo else {
         return recusar(
             cli.json,
-            "prazo_nao_publicado_na_barra",
             "processo nao oferece leitura independente do prazo",
         );
     };
     let cookie = match ler_cookie(sessao) {
         Ok(cookie) => cookie,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                crate::erro_publico::folha(&erro),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let (controle, _) =
@@ -324,11 +293,7 @@ pub(super) fn executar(
             Err(erro) => return erro,
         };
     let Some(link_lista) = link_da_lista(&controle, sessao.origem) else {
-        return recusar(
-            cli.json,
-            "exclusao_de_prazo_ainda_nao_disponivel",
-            "controle da unidade nao publicou lista de prazos",
-        );
+        return recusar(cli.json, "controle da unidade nao publicou lista de prazos");
     };
     let (html_lista, mime) = match consultar_formulario(&mut rede, &cookie, &link_lista, cli.json) {
         Ok(tela) => tela,
@@ -339,14 +304,12 @@ pub(super) fn executar(
         Ok(None) => {
             return recusar(
                 cli.json,
-                "exclusao_de_prazo_ainda_nao_disponivel",
                 "o processo nao esta na lista de prazos da unidade",
             );
         }
         Err(()) => {
             return recusar(
                 cli.json,
-                "tela_de_prazo_nao_observada",
                 "a lista de prazos nao identifica um unico controle",
             );
         }

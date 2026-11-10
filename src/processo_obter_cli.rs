@@ -384,19 +384,18 @@ fn humano(nup: &NumeroProcesso, aberto: &ProcessoAberto, sem_documentos: bool) -
     texto
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -405,7 +404,6 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     if comando.andamentos_completos && comando.sem_andamentos {
         return erro_de_uso(
             cli.json,
-            "sem_andamentos_incompativel_com_andamentos_completos",
             "--sem-andamentos e --andamentos-completos são incompatíveis",
         );
     }
@@ -418,7 +416,7 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
     };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
     };
     let pedido = PedidoDoProcesso {
         nup,
@@ -503,13 +501,12 @@ pub(crate) fn validar_numero(cli: &Cli) -> Option<ExitCode> {
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": erro.subcodigo(),
                 "erro": "número de processo inválido",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: número de processo inválido [{}]", erro.subcodigo());
+        eprintln!("IES: número de processo inválido ({erro:?})");
     }
     Some(ExitCode::from(2))
 }

@@ -85,9 +85,6 @@ pub enum ErroCaixa {
 }
 
 impl ErroCaixa {
-    pub fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub fn categoria(&self) -> Option<Categoria> {
         match self {
             Self::TabelaAusente { categoria }
@@ -126,7 +123,7 @@ impl ErroCaixa {
 
 impl fmt::Display for ErroCaixa {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "leitura da caixa: {}", self.subcodigo())?;
+        write!(f, "leitura da caixa: {self:?}")?;
         if let Some(categoria) = self.categoria() {
             write!(f, " ({})", categoria.rotulo())?;
         }

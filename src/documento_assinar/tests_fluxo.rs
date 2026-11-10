@@ -246,10 +246,7 @@ fn resposta_sem_finalizar_reconciliada_pela_leitura() {
     );
     let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
     assert_eq!(saida["reconciliado_por_leitura"], true);
-    assert_eq!(
-        saida["falha_do_envio"]["subcodigo"],
-        "resposta_da_assinatura_sem_finalizacao"
-    );
+    assert!(saida["falha_do_envio"].is_object());
     assert_eq!(feitos, pedidos_da_escrita());
 }
 
@@ -311,6 +308,5 @@ fn caneta_com_outro_cargo_e_efeito_incerto() {
     );
     let (r, _) = rodar_assinar(Some(CARGO), true, respostas);
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_assinatura");
     assert_eq!(erro.saida(), 3);
 }

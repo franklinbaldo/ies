@@ -72,12 +72,10 @@ fn recusa_do_tunel_publica_o_status_do_proxy_sem_status_http() {
         status: 407,
     }));
     let valor = json_do_erro(&erro);
-    assert_eq!(valor["subcodigo"], "recusou_o_tunel");
     assert_eq!(valor["status_do_proxy"], 407);
     assert!(valor.get("status_http").is_none());
     let valor = json_do_erro(&super::ErroLogin::Transporte(FalhaTransporte::Proxy(
         FalhaDoProxy::Inacessivel,
     )));
-    assert_eq!(valor["subcodigo"], "inacessivel");
     assert!(valor.get("status_do_proxy").is_none());
 }

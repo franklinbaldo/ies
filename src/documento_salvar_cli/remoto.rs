@@ -327,11 +327,9 @@ pub(super) fn confirmar(cli: &Cli, numero: &NumeroDocumento, previa: &PreviaCopi
                 ExitCode::SUCCESS
             }
             Resultado::Recusado(Falha::Local(causa)) => {
-                erro_fonte(cli.json, causa.subcodigo(), Falha::Local(causa).mensagem())
+                erro_fonte(cli.json, Falha::Local(causa).mensagem())
             }
-            Resultado::Recusado(falha) => {
-                erro_fonte(cli.json, "escrita_remota_nao_validada", falha.mensagem())
-            }
+            Resultado::Recusado(falha) => erro_fonte(cli.json, falha.mensagem()),
             Resultado::Incerto => {
                 if cli.json {
                     println!(

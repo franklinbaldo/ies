@@ -78,8 +78,6 @@ pub(crate) enum ErroDocumentoDaPesquisa {
     Html(ErroHtml),
 }
 
-impl ErroDocumentoDaPesquisa {}
-
 #[cfg(test)]
 mod tests;
 

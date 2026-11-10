@@ -77,14 +77,6 @@ pub(crate) enum ErroProcessoAtribuir {
 }
 
 impl ErroProcessoAtribuir {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Preparacao(erro) => erro.subcodigo(),
-            Self::Barra(erro) => (*erro).subcodigo(),
-            _ => crate::erro_publico::folha(self),
-        }
-    }
-
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Formulario(erro) => erro.status_http(),

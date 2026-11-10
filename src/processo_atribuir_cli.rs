@@ -48,7 +48,7 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
                 Err(erro) => publicar_falha(cli.json, &erro),
             }
         }),
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
@@ -58,7 +58,6 @@ pub(crate) fn tentar_atribuir(cli: &Cli) -> Option<ExitCode> {
 pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
     let mut valor = json_base_da_falha(
         "atribuicao_recusada",
-        erro.subcodigo(),
         erro.mensagem(),
         erro.status_http().cloned(),
     );
@@ -96,7 +95,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+            saida_erro::linha_humana(erro.mensagem(), erro.status_http())
         );
         // O estado observado depois do POST pode ser um resíduo real,
         // mas não identifica qual sessão provocou a mudança.

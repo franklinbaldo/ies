@@ -76,7 +76,7 @@ Erros tipados: `mes_dos_retornos_invalido`,
 `lista_de_retornos_incompleta`,
 `paginacao_dos_retornos_nao_observada`,
 `unidade_diferente_da_solicitada`. Falhas de transporte preservam
-o subcodigo e o status HTTP, sem exibir cookie nem URL assinada.
+a mensagem e o status HTTP, sem exibir cookie nem URL assinada.
 
 ## Evidencia e limites
 

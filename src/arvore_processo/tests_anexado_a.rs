@@ -161,7 +161,7 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
 
 #[test]
 fn subcodigos_estaveis_do_vinculo() {
-    for (erro, subcodigo) in [
+    for (erro, _subcodigo) in [
         (
             E::Html(ErroHtml::valor(
                 "vinculo_de_anexacao_fora_da_forma_observada",
@@ -179,7 +179,6 @@ fn subcodigos_estaveis_do_vinculo() {
             "html_do_no_do_processo_fora_da_forma_observada",
         ),
     ] {
-        assert_eq!(crate::erro_publico::folha(&erro), subcodigo);
         assert!(!erro.diverge_do_pedido());
     }
 }

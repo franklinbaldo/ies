@@ -30,10 +30,6 @@ pub(super) enum ErroPaginaWeb {
 }
 
 impl ErroPaginaWeb {
-    pub(super) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(super) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(erro) => erro.mensagem(),
@@ -55,9 +51,6 @@ impl ErroPaginaWeb {
 }
 
 impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
-    fn subcodigo(&self) -> &'static str {
-        ErroPaginaWeb::subcodigo(self)
-    }
     fn mensagem(&self) -> &'static str {
         ErroPaginaWeb::mensagem(self)
     }
@@ -174,7 +167,6 @@ mod tests {
             ErroSubmissaoFormulario::Transporte(recusa(502)),
         ));
         assert_eq!(post.status_http().map(|h| h.status), Some(502));
-        assert_eq!(post.subcodigo(), "status_http_de_erro_do_servidor");
         let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
         assert_eq!(local.status_http(), None);
     }

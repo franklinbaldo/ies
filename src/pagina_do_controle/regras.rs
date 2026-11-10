@@ -43,8 +43,6 @@ pub(crate) enum ErroControleDoFormulario {
     AtributoHtml(ErroAtributoHtml),
 }
 
-impl ErroControleDoFormulario {}
-
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
     valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
 }

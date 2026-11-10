@@ -59,8 +59,6 @@ pub(crate) enum ErroConteudoNaArvore {
     Html(ErroHtml),
 }
 
-impl ErroConteudoNaArvore {}
-
 /// Lê o `.src` do `DOCUMENTO` de id `id_documento` numa árvore já
 /// conferida por [`super::ler_arvore`].
 pub(crate) fn ler_conteudo_na_arvore(

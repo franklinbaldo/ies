@@ -24,19 +24,6 @@ pub(crate) enum FalhaDaLupa {
 }
 
 impl FalhaDaLupa {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => falha.subcodigo(),
-            Self::Tela(ErroLupa::PaginasDivergentes) => "lista_unidades_incompleta",
-            Self::Tela(_) => "pagina_da_lupa_fora_da_forma",
-            Self::LinkAusente => "link_da_lupa_ausente",
-            Self::LinkAmbiguo => "link_da_lupa_ambiguo",
-            Self::LinkForaDaInstalacao => "link_da_lupa_fora_da_instalacao",
-            Self::CharsetInesperado => "charset_da_lupa_nao_suportado",
-            Self::FormularioInesperado => "formulario_da_lupa_inesperado",
-            Self::ExcessoDePaginas => "lupa_excedeu_orcamento_de_paginas",
-        }
-    }
     /// Preserva status e mensagem já saneada da recusa HTTP, sem URL/cookie.
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {

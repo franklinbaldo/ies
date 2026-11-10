@@ -8,7 +8,7 @@ use std::process::ExitCode;
 pub(super) fn mostrar(json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     let sem_indice = std::env::var_os("IES_SEM_INDICE");
     let arquivo = std::env::var_os("IES_INDICE_FILE");

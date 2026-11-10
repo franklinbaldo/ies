@@ -47,7 +47,7 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
                 }
             })
         }
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
@@ -108,7 +108,6 @@ fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
     let incerto = matches!(erro, ErroPrevia::EfeitoIncerto);
     let valor = json!({
         "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
-        "subcodigo": erro.subcodigo(),
         "erro": if incerto {
             "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
         } else {

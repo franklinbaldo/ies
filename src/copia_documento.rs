@@ -34,11 +34,6 @@ pub enum ErroCopia {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroCopia {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
     let dados = fs::symlink_metadata(pasta).map_err(|_| ErroCopia::DestinoInseguro)?;

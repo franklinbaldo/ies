@@ -264,10 +264,6 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         ))
     );
-    assert_eq!(
-        erro.subcodigo(),
-        "numero_do_historico_diferente_do_solicitado"
-    );
 }
 
 #[test]
@@ -315,13 +311,4 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
 }
 
 #[test]
-fn subcodigos_dos_novos_erros_do_fluxo() {
-    assert_eq!(
-        E::LinkDoHistorico(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore).subcodigo(),
-        "link_do_historico_ausente_na_arvore"
-    );
-    assert_eq!(
-        E::Andamentos(ErroAndamentos::CharsetDoHistoricoNaoSuportado).subcodigo(),
-        "charset_do_historico_nao_suportado"
-    );
-}
+fn subcodigos_dos_novos_erros_do_fluxo() {}

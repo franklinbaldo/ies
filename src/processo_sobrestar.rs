@@ -98,10 +98,6 @@ pub(crate) enum ErroSobrestamento {
 }
 
 impl ErroSobrestamento {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Cookie(e) => e.mensagem(),

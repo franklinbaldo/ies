@@ -61,8 +61,6 @@ pub(crate) enum ErroRespostaDaPesquisa {
     Html(ErroHtml),
 }
 
-impl ErroRespostaDaPesquisa {}
-
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
 /// 1 a 3, sem zero à esquerda); qualquer outra forma é `None`.
 pub(crate) fn ler_contagem(texto: &str) -> Option<u64> {

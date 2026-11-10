@@ -73,8 +73,6 @@ pub(crate) enum ErroDetalhada {
     Html(ErroHtml),
 }
 
-impl ErroDetalhada {}
-
 struct Pagina {
     contexto: ContextoPagina,
     total: usize,

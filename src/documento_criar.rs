@@ -26,7 +26,6 @@ pub(crate) enum ErroCriar {
     TipoAusente,
     TipoAmbiguo,
     NaoAplicado,
-    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
     LinkDoTipoNaoNavegavel,
     EnderecoDoTipoNaoReconhecido,

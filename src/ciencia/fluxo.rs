@@ -44,13 +44,6 @@ impl FalhaDoAceiteProcesso {
             Self::Aceite(_) => None,
         }
     }
-
-    pub(crate) fn detalhe(&self) -> Option<&'static str> {
-        match self {
-            Self::Aceite(erro) => Some(crate::erro_publico::folha(erro)),
-            _ => None,
-        }
-    }
 }
 
 /// Por que a releitura não comprovou a ciência do processo depois do GET
@@ -69,6 +62,27 @@ pub(crate) enum VerificacaoDaCiencia {
     #[causa(interna)]
     Lista(super::ErroCiencia),
     AtividadeNaoEncontradaNaListaRelida,
+}
+
+impl VerificacaoDaCiencia {
+    fn descricao(&self) -> String {
+        match self {
+            Self::Abertura(e) => e.mensagem().to_owned(),
+            Self::IdentidadeDoProcessoAlteradaNaReleitura => {
+                "IdentidadeDoProcessoAlteradaNaReleitura".to_owned()
+            }
+            Self::AceiteSemIdDeAtividade => "AceiteSemIdDeAtividade".to_owned(),
+            Self::Barra(e) => format!("{e:?}"),
+            Self::ListaDeCienciasNaoPublicadaNaArvoreRelida => {
+                "ListaDeCienciasNaoPublicadaNaArvoreRelida".to_owned()
+            }
+            Self::Transporte(e) => e.mensagem().to_owned(),
+            Self::Lista(e) => format!("{e:?}"),
+            Self::AtividadeNaoEncontradaNaListaRelida => {
+                "AtividadeNaoEncontradaNaListaRelida".to_owned()
+            }
+        }
+    }
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -96,8 +110,8 @@ pub(crate) enum ErroCienciaProcesso {
 }
 
 impl ErroCienciaProcesso {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
+    pub(crate) fn mensagem(&self) -> String {
+        let texto = match self {
             Self::Abertura(e) => e.mensagem(),
             Self::Barra(_) => "a ação de ciência da barra está fora da forma observada",
             Self::CienciaNaoOferecida => "o processo não oferece ciência na barra",
@@ -109,6 +123,10 @@ impl ErroCienciaProcesso {
             Self::EfeitoIncerto { .. } => {
                 "a ciência pode ter sido registrada; conferir a Lista de Ciências no SEI antes de nova confirmação"
             }
+        };
+        match self {
+            Self::EfeitoIncerto { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
+            _ => texto.to_owned(),
         }
     }
 

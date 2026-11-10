@@ -415,7 +415,6 @@ fn verificar_incerto(
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["codigo"], "efeito_incerto");
-    assert_eq!(json["subcodigo"], "efeito_incerto");
     let mensagem = json["erro"].as_str().unwrap();
     assert!(mensagem.contains("não repita --confirmar"), "{mensagem}");
     assert!(mensagem.contains("histórico"), "{mensagem}");

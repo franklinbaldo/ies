@@ -11,9 +11,6 @@ enum FalhaSessaoLocal {
     Transporte(transporte::FalhaTransporte),
 }
 impl FalhaSessaoLocal {
-    fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     fn codigo(&self) -> &'static str {
         match self {
             Self::Configuracao(_) => "configuracao_invalida",
@@ -59,14 +56,13 @@ fn mostrar_sessao_local(json_mode: bool) -> ExitCode {
                     "{}",
                     json!({
                         "codigo": erro.codigo(),
-                        "subcodigo": erro.subcodigo(),
                         "conexao": "nao_verificada",
                         "acesso_remoto": false,
                         "retentavel": false
                     })
                 );
             } else {
-                eprintln!("IES: sessão local recusada [{}]", erro.subcodigo());
+                eprintln!("IES: sessão local recusada ({erro:?})");
             }
             ExitCode::from(1)
         }
@@ -82,13 +78,12 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
                     "{}",
                     json!({
                         "codigo": "configuracao_invalida",
-                        "subcodigo": erro.subcodigo(),
                         "conexao": "nao_verificada",
                         "retentavel": false
                     })
                 );
             } else {
-                eprintln!("IES: caminhos privados pendentes [{}]", erro.subcodigo());
+                eprintln!("IES: caminhos privados pendentes ({})", erro.mensagem());
             }
             return ExitCode::from(1);
         }
@@ -118,7 +113,6 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
                     "{}",
                     json!({
                         "codigo": "configuracao_invalida",
-                        "subcodigo": erro.subcodigo(),
                         "arquivo": erro.arquivo().rotulo(),
                         "conexao": "nao_verificada",
                         "retentavel": false
@@ -126,9 +120,9 @@ fn mostrar_verificacao(json_mode: bool) -> ExitCode {
                 );
             } else {
                 eprintln!(
-                    "IES: arquivo privado {} não validado [{}]",
+                    "IES: arquivo privado {} não validado ({:?})",
                     erro.arquivo().rotulo(),
-                    erro.subcodigo()
+                    erro
                 );
             }
             ExitCode::from(1)
@@ -152,16 +146,16 @@ pub(super) fn mostrar_status(
     }
     // Diagnóstico local somente: não abre arquivos privados nem faz rede.
     let configuracao = configuracao::arquivos_de_acesso();
-    let (estado, detalhe) = match &configuracao {
-        Ok(_) => ("caminhos_informados", None),
-        Err(erro) => ("caminhos_pendentes", Some(erro.subcodigo())),
+    let estado = if configuracao.is_ok() {
+        "caminhos_informados"
+    } else {
+        "caminhos_pendentes"
     };
     if json_mode {
         println!(
             "{}",
             json!({
                 "configuracao": estado,
-                "subcodigo": detalhe,
                 "conexao": "nao_verificada",
                 "acesso_remoto": false,
                 "proximo_passo": if configuracao.is_ok() {

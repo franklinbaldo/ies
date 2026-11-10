@@ -329,7 +329,6 @@ mod tests {
         ] {
             let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
             assert_eq!(contexto_da_pagina(&html).unwrap_err(), esperado);
-            assert_ne!(esperado.subcodigo(), "contexto_divergente");
         }
     }
 

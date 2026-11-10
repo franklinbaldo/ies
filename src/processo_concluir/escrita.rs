@@ -93,7 +93,7 @@ pub(crate) enum FalhaDaTela {
     #[causa(interna)]
     Transporte(FalhaTransporte),
     Redirecionada,
-    #[causa(acao = "relogar", sessao_encerrada)]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
 }
 

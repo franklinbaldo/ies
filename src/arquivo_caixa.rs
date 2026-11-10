@@ -10,9 +10,6 @@ pub enum ErroArquivoCaixa {
     EscritaDeArquivoFalhou,
 }
 impl ErroArquivoCaixa {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn mensagem(self) -> &'static str {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",

@@ -97,7 +97,6 @@ fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
     );
     assert_eq!(resposta.status.code(), Some(1));
     let erro = json(&resposta);
-    assert_eq!(erro["subcodigo"], "escrita_remota_nao_validada");
     assert!(erro["erro"].as_str().unwrap().contains("base local"));
     assert_eq!(
         fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),

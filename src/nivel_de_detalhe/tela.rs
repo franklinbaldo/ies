@@ -29,8 +29,6 @@ pub(crate) enum ErroNivelDeDetalhe {
     Html(ErroHtml),
 }
 
-impl ErroNivelDeDetalhe {}
-
 type E = ErroNivelDeDetalhe;
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
