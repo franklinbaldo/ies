@@ -1,7 +1,12 @@
 //! Formulário de anexação em estado SQLite, somente em bancada sintética.
 //! Hipótese declarada em Todos/src/todos/anexacao.py @323eb01.
 use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
-use iesei::{anexacoes, editor_documento::{self, SituacaoAssinaturas}, instalacao::Instalacao, processos};
+use iesei::{
+    anexacoes,
+    editor_documento::{self, SituacaoAssinaturas},
+    instalacao::Instalacao,
+    processos,
+};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
