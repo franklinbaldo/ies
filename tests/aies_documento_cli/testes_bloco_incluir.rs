@@ -100,8 +100,8 @@ fn bdd_381_01_previa_documental_sem_incluir() {
     assert_eq!(detalhe.itens[0].documento.as_deref(), Some("0011600"));
 }
 
-/// BDD-381-03: estado confirmado antes do comando e ausência da oferta
-/// de inclusão na barra. O estado deriva do mesmo SQLite, não de HTML fixo.
+/// BDD-381-03: pertencimento comprovado antes da confirmação.
+/// A presença não depende da oferta de inclusão; o estado vem do SQLite.
 fn preparar_documento_ja_incluido(pasta: &Pasta) {
     preparar(pasta);
     let caminho = pasta.0.join("anti-ies.sqlite3");
@@ -135,11 +135,11 @@ fn preparar_documento_ja_incluido(pasta: &Pasta) {
 }
 
 #[test]
-fn bdd_381_03_idempotencia_sem_nova_acao_oferecida() {
+fn bdd_381_03_idempotencia_sem_nova_escrita() {
     let pasta = Pasta::nova();
     preparar_documento_ja_incluido(&pasta);
-    // A árvore omite bloco_escolher porque o SQLite já comprova DOC no
-    // bloco. A CLI ainda deve ler o detalhe, sem formular nem enviar POST.
+    // Mesmo quando a árvore oferece incluir, a CLI consulta primeiro o
+    // pertencimento específico e encerra sem tela adicional ou POST.
     let saida = executar(
         &pasta,
         &[
