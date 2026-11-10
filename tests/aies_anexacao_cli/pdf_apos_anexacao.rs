@@ -1,8 +1,8 @@
 //! BDD-60-05: a CLI Rust mantém a identidade do PDF antes/depois da anexação.
+//! A variação com PASTA/AGUARDE tem prova HTTP separada; aqui a árvore é completa.
 //! Hipótese sintética, não reprodução da transição em cassettes UnB/GO.
 use super::{ANEXADO, CENARIO, Modo, PRINCIPAL, Pasta, cli};
 use iesei::instalacao::Instalacao;
-use iesei::pastas_incompletas::{self, PastaPendente};
 use iesei::pdf_externo::{self, Processo, TipoExterno};
 use rusqlite::Connection;
 use std::fs;
@@ -38,17 +38,6 @@ pub(super) fn preparar(banco: &Connection, instalacao: &Instalacao) {
     )
     .unwrap();
     pdf_externo::cadastrar(banco, instalacao, CENARIO, "10", "293", temporario.id).unwrap();
-    pastas_incompletas::guardar(
-        banco,
-        instalacao,
-        CENARIO,
-        "10",
-        &PastaPendente {
-            indice: 1,
-            protocolo_declarado: "42".into(),
-        },
-    )
-    .unwrap();
 }
 
 /// Executa o binário real em loopback, sempre sem cache do conteúdo.
