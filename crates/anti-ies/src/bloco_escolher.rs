@@ -110,7 +110,7 @@ fn tela_de_escolha(
     documentos: &[documento_versoes::DocumentoSimulado],
 ) -> Resposta {
     let mut opcoes = String::from("<option value=\"null\" selected=\"selected\">&nbsp;</option>\n");
-    for linha in &linhas {
+    for linha in linhas {
         writeln!(
             opcoes,
             "<option value=\"{n}\">{n} - {d}</option>",
