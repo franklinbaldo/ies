@@ -57,12 +57,22 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         {
             return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
+        let intencao = if *remover {
+            processo_anotar::Intencao::Retirada {
+                confirmar: *confirmar,
+            }
+        } else if let Some(texto) = texto {
+            processo_anotar::Intencao::Registro {
+                texto,
+                confirmar: *confirmar,
+            }
+        } else {
+            processo_anotar::Intencao::Consulta
+        };
         match processo_anotar::executar(
             sessao,
             &nup,
-            texto.unwrap_or(""),
-            *confirmar,
-            *remover,
+            intencao,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
