@@ -30,7 +30,7 @@ fn html(texto: &str) -> String {
 
 /// A unidade ativa vem da fotografia do Controle R; cenários antigos sem
 /// Controle R conservam a origem do processo como unidade da sessão.
-fn unidade_da_sessao(
+pub(crate) fn unidade_da_sessao(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
@@ -54,7 +54,7 @@ fn pagina_anotacao(processo: &ProcessoSimulado) -> Option<String> {
     ))
 }
 
-fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
+pub(crate) fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
     if corpo.len() > 16_384 {
         return None;
     }
@@ -64,7 +64,7 @@ fn pares(corpo: &str) -> Option<Vec<(&str, &str)>> {
         .collect::<Option<Vec<_>>>()
 }
 
-fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
+pub(crate) fn campo_unico<'a>(campos: &'a [(&str, &str)], chave: &str) -> Option<&'a str> {
     let mut valores = campos.iter().filter(|(k, _)| *k == chave).map(|(_, v)| *v);
     let valor = valores.next()?;
     valores.next().is_none().then_some(valor)
@@ -293,7 +293,7 @@ pub fn autocompletar(
 }
 
 /// Decodifica o corpo de consulta form-urlencoded, inclusive escape percentual.
-fn decodificar_formulario(texto: &str) -> Option<String> {
+pub(crate) fn decodificar_formulario(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::with_capacity(bytes.len());
     let mut posicao = 0;

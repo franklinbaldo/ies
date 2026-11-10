@@ -12,10 +12,18 @@ pub(crate) fn acoes_do_processo(
     atribuicao_observada: bool,
     prazo_observado: bool,
     ciencia: &Ciencia,
+    sobrestamento: Option<&iesei::sobrestamentos::Sobrestamento>,
 ) -> String {
     let mut links = String::new();
     let id = &processo.id;
     let assinatura = crate::protocolo_sintetico::INFRA_HASH;
+    if sobrestamento.is_none() && processo.aberto_em.iter().any(|u| u == unidade_atual) {
+        write!(links, r#"<a href="controlador.php?acao=procedimento_sobrestar&amp;id_procedimento={id}&amp;infra_hash={assinatura}">Sobrestar Processo</a>"#)
+            .expect("formatação String");
+    }
+    if sobrestamento.is_some_and(|s| s.unidade == unidade_atual) {
+        links.push_str(r##"<a href="#" onclick="removerSobrestamentoProcesso();">Retomar Processo</a>"##);
+    }
     if processo
         .aberto_em
         .iter()

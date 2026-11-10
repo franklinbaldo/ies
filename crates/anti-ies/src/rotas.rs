@@ -4,6 +4,7 @@ use crate::{
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
     parametro_unico, pdf_externo, pesquisa_documento, prazo_processo, processo_andamento,
     processo_atribuicao, processo_ciencia, processo_criacao, processo_envio, processo_relacionar,
+    processo_sobrestamento,
     retorno_programado,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
@@ -119,6 +120,11 @@ pub(crate) fn responder(
         {
             processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("procedimento_sobrestar" | "procedimento_remover_sobrestamento")
+            if eh_controlador_sei(alvo) =>
+        {
+            processo_sobrestamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
+        }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
             processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
@@ -166,7 +172,8 @@ pub(crate) fn responder(
             documentos::atender(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("arvore_visualizar") if eh_controlador_sei(alvo) => {
-            processo_ciencia::tela(metodo, alvo, banco, instalacao, cenario)
+            processo_sobrestamento::tela(metodo, alvo, banco, instalacao, cenario)
+                .or_else(|| processo_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
                 .or_else(|| documento_ciencia::tela(metodo, alvo, banco, instalacao, cenario))
                 .unwrap_or_else(|| {
                     pdf_externo::complementar_arvore(
