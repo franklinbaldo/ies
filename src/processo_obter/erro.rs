@@ -1,5 +1,5 @@
-//! Falhas de `ies processo NUP`: uma variante por fato
-//! verificável, com subcódigo estável (contracts/cli/processo-obter-arvore.md).
+//! Falhas de `ies processo NUP`: um erro por fato
+//! verificável (contracts/cli/processo-obter-arvore.md).
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
@@ -52,7 +52,7 @@ pub(crate) enum ErroProcessoObter {
 }
 
 impl ErroProcessoObter {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

@@ -1,4 +1,4 @@
-//! Cada recusa de resposta do GET tem variante própria: status 5xx, 429,
+//! Cada recusa de resposta do GET tem erro próprio: status 5xx, 429,
 //! outro status, tipo não HTML e corpo não decodificável no charset.
 use super::*;
 use std::io::Cursor;

@@ -1,5 +1,5 @@
 //! Resultado e recusas de `ies unidade colunas --definir`
-//! (contracts/cli/unidade-definir-colunas.md). Uma variante por fato.
+//! (contracts/cli/unidade-definir-colunas.md). Um erro por fato.
 use super::ErroVisaoDoControle;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};

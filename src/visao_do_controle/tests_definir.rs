@@ -475,10 +475,7 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
     let login =
         "<html><form id='frmLogin' action='login.php'><input name='txtUsuario'></form></html>"
             .to_owned();
-    for (passo, _subcodigo) in [
-        (Passo::Html(302, String::new()), "redirecionamento_302"),
-        (Passo::Html(200, login), "tela_de_login_recebida_apos_envio"),
-    ] {
+    for passo in [Passo::Html(302, String::new()), Passo::Html(200, login)] {
         let rodada = salvar_incerto(
             passo,
             nivel(&ColunaDoDetalhe::TODAS, &ColunaDoDetalhe::TODAS),

@@ -4,7 +4,7 @@
 //! link do menu e unidade do Controle, derivação do POST pela tela servida,
 //! envio interpretado (302 conferido, lista, "sem resultado", validação) e o
 //! plano da página 2; e, pelas peças de `ies documento buscar`, o POST em
-//! documentos, o envio, o plano e as páginas seguintes. Cada leitura é lida, recusada (subcódigo tipado) ou
+//! documentos, o envio, o plano e as páginas seguintes. Cada leitura é lida, recusada (erro tipado) ou
 //! não aplicável (a gravação não estabelece o que o leitor precisa).
 //! Decisão em docs/decisoes/processo-buscar/replay-do-acervo.md; relatório
 //! em docs/validacao-replay/2026-11-04-processo-buscar-acervo.md.

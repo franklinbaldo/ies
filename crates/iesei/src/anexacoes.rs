@@ -103,7 +103,7 @@ pub fn anexar(
         Ok(_) => Err(ErroAnexacoes::DadoInvalido),
         // A origem do erro SQL deve sobreviver: UNIQUE, FOREIGN KEY e I/O
         // não são sinônimos de "já anexado". A duplicidade observada acima
-        // conserva sua própria variante tipada.
+        // conserva o próprio erro tipado.
         Err(e) => Err(ErroAnexacoes::Sqlite(e)),
     }
 }

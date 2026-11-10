@@ -154,7 +154,7 @@ pub(crate) fn buscar_colhendo_filtrado<A: AlvoDaPesquisa, V: EnvioDoControle>(
     )
 }
 
-/// Variante que deixa a contagem disponível também quando uma tentativa
+/// Versão que deixa a contagem disponível também quando uma tentativa
 /// falha, para que o chamador e os testes observem o custo real do fluxo.
 #[cfg(test)]
 pub(crate) fn buscar_colhendo_contado<A: AlvoDaPesquisa, V: EnvioDoControle>(

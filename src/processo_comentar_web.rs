@@ -51,7 +51,7 @@ pub(crate) fn texto_do_comentario(texto: &str) -> Result<String, TextoDoComentar
     }
 }
 
-/// Um passo por variante, com a causa; nada foi gravado, salvo em `NaoConfirmado`.
+/// Um erro por passo, com a causa; nada foi gravado, salvo em `NaoConfirmado`.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroComentar {

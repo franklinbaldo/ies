@@ -2,8 +2,8 @@
 //!
 //! Um elemento ausente, repetido, com valor fora da forma ou um HTML
 //! ilegível não sustenta decisão: só diz onde a leitura falhou. Por isso é
-//! um tipo só, e não um `enum` por leitor. `onde` é o diagnóstico e a folha
-//! pública (o `subcodigo` legado); `problema` diz o que se viu. `pub`
+//! um tipo só, e não um `enum` por leitor. `onde` diz onde a leitura falhou;
+//! `problema` diz o que se viu. `pub`
 //! porque compõe `enum` públicos (`ErroComentarios`); o módulo é privado.
 use crate::html_atributos::ErroAtributoHtml;
 

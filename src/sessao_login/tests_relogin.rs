@@ -319,7 +319,7 @@ fn outras_falhas_nao_relogam_nem_repetem() {
         status: 403,
         mensagem_do_servidor: None,
     };
-    for (resposta, subcodigo) in [
+    for (resposta, caso) in [
         (
             Ok(status(403, None, &[], "Forbidden", "text/html")),
             "acesso_negado",
@@ -362,16 +362,15 @@ fn outras_falhas_nao_relogam_nem_repetem() {
         let r = roteiro(vec![vec![resposta]]);
         let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
         let FalhaDaLeitura::Leitura { erro: _, nota } = falha else {
-            panic!("esperada a falha da leitura ({subcodigo})");
+            panic!("esperada a falha da leitura ({caso})");
         };
-        assert_eq!(nota, None, "{subcodigo}");
+        assert_eq!(nota, None, "{caso}");
         assert_eq!(
             r.into_inner().sequencia(),
             [format!("GET {}", url_vencida())],
-            "{subcodigo}"
+            "{caso}"
         );
-        assert!(sem_lock(&ambiente), "{subcodigo}");
-        if subcodigo != "tela_inesperada" {}
+        assert!(sem_lock(&ambiente), "{caso}");
     }
 }
 

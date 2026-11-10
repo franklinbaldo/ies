@@ -18,7 +18,7 @@ fn uso(output: &std::process::Output) {
     assert_eq!(output.stdout, b"");
 }
 
-/// Falha fechada cuja variante depende da configuração do ambiente: saída
+/// Falha fechada cujo erro depende da configuração do ambiente: saída
 /// 1, erro tipado no stderr e nada no stdout.
 #[track_caller]
 fn falha_fechada(output: &std::process::Output) {
@@ -111,7 +111,7 @@ fn escrita_reconhecida_nao_executa_sei() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(output.stdout, b"");
     let erro = String::from_utf8_lossy(&output.stderr);
-    // A variante depende da configuração do ambiente; o contrato é falhar
+    // O erro depende da configuração do ambiente; o contrato é falhar
     // fechado, com o erro tipado no stderr e nada no stdout.
     assert!(erro.starts_with("Error: "), "{erro}");
 }

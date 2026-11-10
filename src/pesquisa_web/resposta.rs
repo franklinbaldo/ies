@@ -39,7 +39,7 @@ pub(crate) enum RespostaDaPesquisa {
     SemResultado,
 }
 
-/// Uma variante por fato verificável da resposta 200.
+/// um erro por fato verificável da resposta 200.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRespostaDaPesquisa {

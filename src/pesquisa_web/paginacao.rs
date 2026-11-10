@@ -29,7 +29,7 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
     },
 };
 
-/// Uma variante por fato verificável da paginação da pesquisa.
+/// um erro por fato verificável da paginação da pesquisa.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {

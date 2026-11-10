@@ -10,7 +10,7 @@ pub enum ErroArquivoTexto {
     DestinoJaExiste,
     EscritaFalhou,
 }
-/// A falha da gravação privada única nos subcódigos do texto.
+/// A falha da gravação privada única nos erros do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     match falha {
         crate::arquivo_privado::FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,

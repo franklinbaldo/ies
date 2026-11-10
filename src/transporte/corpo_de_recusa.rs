@@ -1,6 +1,6 @@
 //! Corpo de uma recusa HTTP (status diferente de 200, fora 3xx): lido uma
 //! única vez, até `LIMITE`, só para expor o que o SEI disse. Nunca decide
-//! tratamento; o subcódigo da `FalhaTransporte` é a classificação.
+//! tratamento; o erro da `FalhaTransporte` é a classificação.
 //! Contrato: contracts/cli.md, "Status e mensagem do SEI nas recusas HTTP".
 use std::io::Read;
 

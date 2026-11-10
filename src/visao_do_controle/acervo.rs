@@ -4,7 +4,7 @@
 //! listar-processos|recebidos|gerados`, offline: transporte, visão,
 //! unidade, lista R e listas da categoria, plano de página de cada tabela,
 //! visão D com colunas e a posição da D, e as linhas que a colheita lê.
-//! Cada leitura é lida, recusada (subcódigo tipado) ou não aplicável
+//! Cada leitura é lida, recusada (erro tipado) ou não aplicável
 //! (motivo). Decisão em docs/decisoes/unidade-listar-processos/replay-do-acervo.md;
 //! relatório em docs/validacao-replay/2026-11-04-unidade-listar-processos-acervo.md.
 //!

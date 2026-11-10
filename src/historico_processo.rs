@@ -52,7 +52,7 @@ pub(crate) struct AndamentosLidos {
     pub(crate) itens: Vec<Andamento>,
 }
 
-/// Falhas do link do histórico na árvore: uma variante por fato.
+/// Falhas do link do histórico na árvore: um erro por fato.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {

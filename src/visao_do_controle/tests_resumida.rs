@@ -98,16 +98,7 @@ fn pagina_encontrada_da_r_e_a_da_resposta_da_troca() {
 fn pagina_da_r_que_nao_confere_falha_sem_post_de_volta() {
     let mut outro_criterio = segunda();
     outro_criterio.hash_r = "9999";
-    for (resposta, _subcodigo) in [
-        (
-            r().html(),
-            "faixa_da_resposta_diferente_da_pagina_solicitada",
-        ),
-        (
-            outro_criterio.html(),
-            "criterios_recebidos_alterados_apos_paginar",
-        ),
-    ] {
+    for resposta in [r().html(), outro_criterio.html()] {
         let (_resultado, registro) = resumida(
             d().html(),
             Categoria::Recebidos,

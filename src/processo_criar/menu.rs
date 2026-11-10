@@ -9,7 +9,7 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 const ACAO: &str = "procedimento_escolher_tipo";
 
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
-/// Uma variante onclick desconhecida é recusada, não executada.
+/// Uma forma de onclick desconhecida é recusada, não executada.
 pub(crate) fn link_de_iniciar(
     instalacao: &Instalacao,
     url_controle: &str,

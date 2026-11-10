@@ -481,7 +481,7 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             "protocolo_repetido_na_pasta"
         )))
     );
-    // Toda por identidade e faltando um: o subcódigo de identidade.
+    // Toda por identidade e faltando um: o erro de identidade.
     assert_eq!(
         com_pasta2(vec![No::Documento("31", p(2), Some("902"))]),
         Err(super::ErroArvore::Html(ErroHtml::ausente(

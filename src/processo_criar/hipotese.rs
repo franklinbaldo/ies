@@ -25,15 +25,15 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroHipotese {
-    // Formato de tela não é categoria de domínio: nome da fronteira HTML
-    // mantém o subcódigo público, enquanto a causa é tipada por Problema.
+    // Formato de tela não é categoria de domínio: o `ErroHtml` diz onde a
+    // leitura falhou, e a causa é tipada por `Problema`.
     Html(#[from] crate::erro_html::ErroHtml),
     OpcaoNaoUnica,
     OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
     EscolhaInlineNaoVerificada,
     // A causa concreta sobe, em vez de extrair nome de texto e
-    // reconstruir um snapshot que perderia a variante original.
+    // reconstruir um snapshot que perderia o erro original.
     Transporte(#[from] FalhaTransporte),
 }
 
