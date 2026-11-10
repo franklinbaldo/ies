@@ -65,13 +65,13 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
         return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        if *confirmar {
-            if let Err(causa) = crate::origem_de_treinamento::exigir(
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
                 crate::origem_de_treinamento::Escrita::ProcessoMarcar,
                 sessao.origem,
-            ) {
-                return crate::origem_de_treinamento::recusa(cli.json, causa);
-            }
+            )
+        {
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         if operacao == Operacao::Atribuir {
             return executar_atribuicao(
@@ -79,9 +79,7 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
                 sessao,
                 indice,
                 &nup,
-                &rotulo,
-                texto.as_deref(),
-                *confirmar,
+                (&rotulo, texto.as_deref(), *confirmar),
                 &mut EnvioHttps,
             );
         }

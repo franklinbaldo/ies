@@ -279,8 +279,8 @@ fn injetar_resposta_inconclusiva(resposta: &mut [u8], evento: &str, efeito_incer
     }
 }
 
-fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
-    if sem_marcadores {
+fn conferir_controles(controles: &[(bool, bool, bool)], sem_tela_gerenciamento: bool) {
+    if sem_tela_gerenciamento {
         assert!(
             controles.is_empty(),
             "zero marcadores usa 302 sem formulário de gerenciamento"
@@ -414,7 +414,11 @@ fn executar(caso: Caso) {
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
     let controles = controles.lock().unwrap().clone();
-    conferir_controles(&controles, sem_marcadores);
+    // Uma atribuição altera o estado: o GET inicial é 302, mas a releitura
+    // posterior ao POST já pode renderizar a tabela com seus controles.
+    let gerenciador_servido = !sem_marcadores
+        || matches!(caso, Caso::AtribuirConfirmado | Caso::AtribuirEfeitoIncerto);
+    conferir_controles(&controles, !gerenciador_servido);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
 #[path = "aies_marcadores_cli/atribuicao_assercoes.rs"]

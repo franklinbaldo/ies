@@ -140,18 +140,12 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
     let Ok(cookie) = ler_cookie(sessao) else {
         return None;
     };
-    let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return None;
-    };
-    let Some(url) = destino_cadastro(rede, &cookie, link, &instalacao, id) else {
-        return None;
-    };
+    let instalacao = Instalacao::interpretar(sessao.origem)?;
+    let url = destino_cadastro(rede, &cookie, link, &instalacao, id)?;
     let Ok((html, mime)) = obter_tela(rede, &cookie, &url) else {
         return None;
     };
-    let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return None;
-    };
+    let codificacao = codificacao_da_tela(&mime)?;
     let tela = TelaServida {
         url: &url,
         html: &html,
@@ -223,9 +217,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
     nup: &NumeroProcesso,
-    rotulo: &Rotulo,
-    texto: Option<&str>,
-    confirmar: bool,
+    (rotulo, texto, confirmar): (&Rotulo, Option<&str>, bool),
     envio: &mut V,
 ) -> ExitCode {
     let mut rede = Contador::novo(envio);
@@ -305,44 +297,51 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
             rede.feitas(),
         );
     }
+    finalizar_atribuicao(
+        cli,
+        (sessao, indice, &pedido),
+        nup,
+        (&aberto.arvore.processo.id, unidade),
+        (rotulo, texto),
+        &mut rede,
+        submissao,
+    )
+}
+
+/// Após uma única tentativa, a resposta causal e a releitura são provas separadas.
+fn finalizar_atribuicao<V: EnvioDoProcesso>(
+    cli: &Cli,
+    contexto: (&SessaoDoProcesso<'_>, &IndiceLocal, &PedidoDoProcesso<'_>),
+    nup: &NumeroProcesso,
+    destino: (&str, &str),
+    marcador: (&Rotulo, Option<&str>),
+    rede: &mut Contador<'_, V>,
+    submissao: crate::formulario_web::SubmissaoDerivada,
+) -> ExitCode {
+    let (sessao, indice, pedido) = contexto;
+    let (id, unidade) = destino;
+    let (rotulo, texto) = marcador;
     let mut tentativa = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |submissao, cookie| {
         tentativa = true;
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return falha(
-            cli,
-            ErroMarcar::CatalogoDaUnidadeNaoObservado,
-            rede.feitas(),
-        );
+        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
     }
     let aceito = matches!(
         resposta,
         Ok(RespostaDoEnvio::Redirecionamento(ref redir))
-            if aceite_da_atribuicao(redir, &aberto.arvore.processo.id)
+            if aceite_da_atribuicao(redir, id)
     );
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente = releitura_comprova(
-        sessao,
-        indice,
-        &pedido,
-        &mut rede,
-        (&aberto.arvore.processo.id, unidade),
-        (rotulo, texto),
+        sessao, indice, pedido, rede, (id, unidade), (rotulo, texto),
     );
     if !aceito || presente != Some(true) {
         return efeito_incerto(cli, rede.feitas(), presente);
     }
-    saida_confirmada(
-        cli,
-        nup,
-        &aberto.arvore.processo.id,
-        unidade,
-        rotulo,
-        texto,
-        rede.feitas(),
-    )
+    saida_confirmada(cli, nup, id, unidade, rotulo, texto, rede.feitas())
 }
 
 fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
