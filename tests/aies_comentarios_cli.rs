@@ -30,6 +30,8 @@ enum Modo {
     Parcial,
     Desconhecida,
     Previa,
+    Confirmar,
+    EfeitoIncerto,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -158,6 +160,53 @@ fn estado(modo: Modo) -> (Connection, Instalacao) {
     (banco, origem)
 }
 
+struct TunelEstado {
+    post_realizado: bool,
+    leitura_interrompida: bool,
+}
+
+fn atender_conexao_tunel(
+    mut tcp: TcpStream,
+    tls: &TlsAcceptor,
+    backend_addr: std::net::SocketAddr,
+    vistos: &Mutex<Vec<String>>,
+    modo: Modo,
+    estado: &mut TunelEstado,
+) {
+    let (connect, _) = pedido_http(&mut tcp);
+    assert!(connect.starts_with(b"CONNECT "));
+    tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        .unwrap();
+    let mut canal = tls.accept(tcp).unwrap();
+    let (req, evento) = pedido_http(&mut canal);
+    let mut destino = TcpStream::connect(backend_addr).unwrap();
+    destino.write_all(&req).unwrap();
+    destino.shutdown(Shutdown::Write).unwrap();
+    let mut resposta = Vec::new();
+    destino.read_to_end(&mut resposta).unwrap();
+    vistos.lock().unwrap().push(evento.clone());
+    if matches!(modo, Modo::EfeitoIncerto)
+        && estado.post_realizado
+        && !estado.leitura_interrompida
+        && evento == "GET comentario_listar"
+    {
+        // O POST já foi aplicado. Só a primeira releitura falha;
+        // a segunda CLI deverá enxergar o efeito persistido.
+        estado.leitura_interrompida = true;
+        canal
+            .write_all(
+                b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+            .unwrap();
+    } else {
+        canal.write_all(&resposta).unwrap();
+    }
+    if evento == "POST comentario_cadastrar" {
+        estado.post_realizado = true;
+    }
+    canal.flush().unwrap();
+}
+
 fn executar(modo: Modo) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -185,21 +234,12 @@ fn executar(modo: Modo) {
     let stopped = Arc::clone(&stop);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(tls_id).unwrap();
-        while let Some(mut tcp) = aceitar(&proxy, &stopped) {
-            let (connect, _) = pedido_http(&mut tcp);
-            assert!(connect.starts_with(b"CONNECT "));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).unwrap();
-            let (req, evento) = pedido_http(&mut canal);
-            let mut destino = TcpStream::connect(backend_addr).unwrap();
-            destino.write_all(&req).unwrap();
-            destino.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            destino.read_to_end(&mut resposta).unwrap();
-            vistos.lock().unwrap().push(evento);
-            canal.write_all(&resposta).unwrap();
-            canal.flush().unwrap();
+        let mut estado = TunelEstado {
+            post_realizado: false,
+            leitura_interrompida: false,
+        };
+        while let Some(tcp) = aceitar(&proxy, &stopped) {
+            atender_conexao_tunel(tcp, &tls, backend_addr, &vistos, modo, &mut estado);
         }
     });
     let chamar = |args: &[&str]| {
@@ -221,7 +261,7 @@ fn executar(modo: Modo) {
             .output()
             .unwrap()
     };
-    let comando: &[&str] = if matches!(modo, Modo::Previa) {
+    let comando: &[&str] = if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto) {
         &[
             "--json",
             "processo",
@@ -233,32 +273,63 @@ fn executar(modo: Modo) {
     } else {
         &["--json", "processo", "comentarios", NUP]
     };
-    let saida: Output = chamar(comando);
-    // A segunda invocação usa o mesmo SQLite e verifica a ausência
-    // de publicação do comentário previsto, sem confiar na saída da prévia.
-    let posterior =
-        matches!(modo, Modo::Previa).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
+    let comando_confirmado = [
+        "--json",
+        "processo",
+        "comentar",
+        NUP,
+        "--texto",
+        " Comentário novo ",
+        "--confirmar",
+    ];
+    let saida: Output = if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+        chamar(&comando_confirmado)
+    } else {
+        chamar(comando)
+    };
+    // A segunda invocação confere o estado SQLite após a operação,
+    // sem confiar apenas no resultado declarado pela primeira CLI.
+    let posterior = matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto)
+        .then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     servidor.join().unwrap();
     let eventos = eventos.lock().unwrap().clone();
     verificar(modo, &saida, &eventos);
-    if let Some(posterior) = posterior {
-        assert_eq!(posterior.status.code(), Some(0));
-        let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
-        assert_eq!(foto["lista_completa"], true);
-        assert_eq!(foto["total"], 1);
-        assert_eq!(foto["comentarios"].as_array().unwrap().len(), 1);
-        assert_eq!(foto["comentarios"][0]["id"], "42");
-        assert_eq!(
-            foto["comentarios"][0]["texto"],
-            "Comentário sintético & conferido"
-        );
+    verificar_posterior(modo, posterior);
+}
+
+fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
+    let Some(posterior) = posterior else {
+        return;
+    };
+    assert_eq!(posterior.status.code(), Some(0));
+    let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
+    assert_eq!(foto["lista_completa"], true);
+    let total = if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+        2
+    } else {
+        1
+    };
+    assert_eq!(foto["total"], total);
+    assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
+    if matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto) {
+        assert_eq!(foto["comentarios"][1]["texto"], " Comentário novo ");
+        assert_ne!(foto["comentarios"][1]["id"], "42");
     }
+    assert_eq!(foto["comentarios"][0]["id"], "42");
+    assert_eq!(
+        foto["comentarios"][0]["texto"],
+        "Comentário sintético & conferido"
+    );
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
-    let esperado = i32::from(matches!(modo, Modo::Parcial | Modo::Desconhecida));
+    let esperado = match modo {
+        Modo::Parcial | Modo::Desconhecida => 1,
+        Modo::EfeitoIncerto => 3,
+        Modo::Completa | Modo::Previa | Modo::Confirmar => 0,
+    };
     assert_eq!(
         saida.status.code(),
         Some(esperado),
@@ -267,11 +338,17 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::Previa) {
+    if matches!(modo, Modo::EfeitoIncerto) {
+        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["retentavel"], false);
+        let orientacao = json["erro"].as_str().unwrap();
+        assert!(orientacao.contains("ies processo comentarios"));
+        assert!(orientacao.contains("Não repita --confirmar"));
+    } else if matches!(modo, Modo::Previa | Modo::Confirmar) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["texto"], " Comentário novo ");
-        assert_eq!(json["confirmado"], false);
-        assert_eq!(json["alterado"], false);
+        assert_eq!(json["confirmado"], matches!(modo, Modo::Confirmar));
+        assert_eq!(json["alterado"], matches!(modo, Modo::Confirmar));
     } else if matches!(modo, Modo::Completa) {
         assert_eq!(json["nup"], NUP);
         assert_eq!(json["total"], 1);
@@ -290,11 +367,22 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
             "lista incompleta ou desconhecida não pode virar vazia ou completa"
         );
     }
-    assert!(
-        eventos.iter().all(|e| e.starts_with("GET ")),
-        "consulta não pode enviar POST: {eventos:?}"
+    let posts = eventos
+        .iter()
+        .filter(|e| e.as_str() == "POST comentario_cadastrar")
+        .count();
+    assert_eq!(
+        posts,
+        usize::from(matches!(modo, Modo::Confirmar | Modo::EfeitoIncerto)),
+        "um único POST somente na confirmação: {eventos:?}"
     );
-    if matches!(modo, Modo::Previa) {
+    assert!(
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST comentario_cadastrar"),
+        "transição inesperada: {eventos:?}"
+    );
+    if matches!(modo, Modo::Previa | Modo::Confirmar | Modo::EfeitoIncerto) {
         assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
     }
     let listagens = eventos
@@ -306,6 +394,7 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
         match modo {
             Modo::Desconhecida => 0,
             Modo::Previa => 2,
+            Modo::Confirmar | Modo::EfeitoIncerto => 3,
             Modo::Completa | Modo::Parcial => 1,
         },
         "a segunda CLI relê os comentários após a prévia"
@@ -328,4 +417,14 @@ fn bdd_257_01_ausencia_de_foto_nao_e_lista_vazia() {
 #[test]
 fn bdd_257_02_previa_observa_formulario_sem_post() {
     executar(Modo::Previa);
+}
+
+#[test]
+fn bdd_257_02_confirmacao_post_unico_e_releitura_independente() {
+    executar(Modo::Confirmar);
+}
+
+#[test]
+fn bdd_257_03_releitura_503_apos_post_nao_repete_escrita() {
+    executar(Modo::EfeitoIncerto);
 }
