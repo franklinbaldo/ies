@@ -89,6 +89,7 @@ fn encaminhar_quatro_gets(
     assert!(rotas[3].contains("acao=procedimento_configurar_detalhe"));
 }
 
+#[derive(Clone, Copy)]
 enum ComandoColunas {
     Listar,
     Previa,
