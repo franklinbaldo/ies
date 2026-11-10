@@ -217,10 +217,8 @@ fn bdd_381_02_caixa_posterior_nao_inclui_documento_vizinho() {
     assert_eq!(json(&saida)["alterado"], true);
     let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);
     assert_eq!(leitura.status.code(), Some(0));
-    let itens = json(&leitura)["bloco"]["itens"]
-        .as_array()
-        .unwrap()
-        .to_vec();
+    let relido = json(&leitura);
+    let itens = relido["bloco"]["itens"].as_array().unwrap();
     assert_eq!(itens.iter().filter(|i| i["documento"] == DOC).count(), 1);
     assert_eq!(
         itens.iter().filter(|i| i["documento"] == "0011518").count(),
