@@ -98,3 +98,36 @@ fn bdd_633_03_cli_real_recusa_validacao_sem_repetir_post() {
     assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
 }
+
+
+/// BDD-633-01: POST com 302 não prova sucesso nem autoriza repetição.
+/// A confirmação vem do GET independente do trabalho e da árvore.
+/// 302 após validação é hipótese sintética, ausente das cassettes GO.
+#[test]
+fn bdd_633_01_cli_real_aceita_302_apenas_apos_releitura_do_processo() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoRedirecionada);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(json["numero"], PEDIDO);
+    assert_eq!(json["id_procedimento"], "10");
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET procedimento_trabalhar",
+            "GET usuario_validar_acesso",
+            "POST usuario_validar_acesso",
+            "GET procedimento_trabalhar",
+            "GET procedimento_visualizar",
+        ]
+    );
+    assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
+    assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
+}
