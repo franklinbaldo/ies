@@ -479,6 +479,7 @@ fn conciliar(
         return Err(C::EnvioNaoAplicado {
             aberto_em: feito.aberto_em,
             depois,
+            anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,
         });
     }
@@ -486,6 +487,7 @@ fn conciliar(
         return Err(C::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
             aberto_em: feito.aberto_em,
             depois,
+            anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,
         });
     }

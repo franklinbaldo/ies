@@ -7,6 +7,7 @@ pub(super) enum EnsaioRemocao {
     IgnorarNoPost,
     TelaSemCheckbox,
     TelaSemCheckboxSemFormularioValido,
+    TelaSemCheckboxEnvioRecusado,
 }
 
 /// Projeta uma instalação sem checkbox na tela de envio, preservando
@@ -39,7 +40,9 @@ pub(super) fn ajustar_resposta(
 ) -> Vec<u8> {
     if matches!(
         ensaio,
-        EnsaioRemocao::TelaSemCheckbox | EnsaioRemocao::TelaSemCheckboxSemFormularioValido
+        EnsaioRemocao::TelaSemCheckbox
+            | EnsaioRemocao::TelaSemCheckboxSemFormularioValido
+            | EnsaioRemocao::TelaSemCheckboxEnvioRecusado
     ) && metodo == "GET"
         && acao == "procedimento_enviar"
     {
