@@ -1,2 +1,0 @@
-cassettes/unb/processo-escritas-unb--47c0acc994ac.md
-cassettes/go/processo-escritas-go--841b0341a184.md
