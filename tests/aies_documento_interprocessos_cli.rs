@@ -364,6 +364,9 @@ mod pdf_numero_repetido;
 #[path = "aies_documento_interprocessos_cli/numero_igual_em_outro_processo.rs"]
 mod numero_igual_em_outro_processo;
 
+#[path = "aies_documento_interprocessos_cli/zeros_opacos.rs"]
+mod zeros_opacos;
+
 // BDD-60-05: duas identidades distintas com o mesmo número SEI na árvore
 // não permitem selecionar arbitrariamente um corpo. Exercita a CLI real.
 #[test]
