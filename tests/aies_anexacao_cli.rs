@@ -277,6 +277,20 @@ fn executar(modo: Modo) {
         }
     };
     let saida = cli(&pasta, arquivos, porta, comando);
+    if matches!(modo, Modo::PreviaPendencia) {
+        let aviso = cli(
+            &pasta,
+            arquivos,
+            porta,
+            &["processo", "anexar", ANEXADO, "--a", PRINCIPAL],
+        );
+        assert_eq!(aviso.status.code(), Some(0));
+        assert!(
+            String::from_utf8_lossy(&aviso.stdout).contains("há documento sem assinatura"),
+            "aviso de prévia ausente: {}",
+            String::from_utf8_lossy(&aviso.stdout)
+        );
+    }
     let posterior = cli(
         &pasta,
         arquivos,
