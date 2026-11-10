@@ -146,11 +146,22 @@ pub(super) fn reconciliar<V: EnvioDoControle>(
     url_controle: &str,
     cookie: &str,
     feito: &mut Criacao,
-    antes: &reconciliacao::FotografiaDosGerados,
+    antes: Option<&reconciliacao::FotografiaDosGerados>,
     especificacao: &str,
     requisicoes: &mut u32,
     causa: CausaPosEscrita,
 ) -> Result<(), ErroCriar> {
+    // Sem fotografia anterior completa não há base de comparação: efeito
+    // incerto sem nova leitura.
+    let Some(antes) = antes else {
+        return Err(causa.inconclusiva(
+            Err(ErroCriar::Fotografia(
+                reconciliacao::ErroFotografia::CoberturaIncompleta,
+            )),
+            None,
+            None,
+        ));
+    };
     let mut observados_antes_da_falha = None;
     // Provas positivas obtidas antes de uma falha posterior continuam
     // observadas, mas NÃO permitem concluir unicidade nem autoria.

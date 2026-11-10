@@ -95,7 +95,8 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = decodificar_atributo(&nome).ok_or(err)?;
+        // Texto, não atributo: o SEI 5 publica "Nome&nbsp;(Formulário)".
+        let nome = crate::entidades_html::decodificar_texto(&nome);
         if !nome.is_empty() {
             tipos.push(nome);
         }
@@ -222,12 +223,17 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
 
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
+/// O parâmetro chama `id` (4.1) ou `idSerie` (SEI 5: PEN, UFRJ e GO).
 fn script_prova_escolha(html: &str) -> bool {
-    guarda_navegacao::script_publica_funcao_de_navegacao(
-        html,
-        "functionescolher(",
-        "functionescolher(id){document.getElementById('hdnIdSerie').value=id;document.getElementById('frmDocumentoEscolherTipo').submit();}",
-    )
+    ["id", "idSerie"].iter().any(|parametro| {
+        guarda_navegacao::script_publica_funcao_de_navegacao(
+            html,
+            "functionescolher(",
+            &format!(
+                "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
+            ),
+        )
+    })
 }
 
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
@@ -337,7 +343,7 @@ pub(crate) fn escolha_do_tipo(
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
-        let nome = decodificar_atributo(&nome).ok_or(E::ListaForaDaForma)?;
+        let nome = crate::entidades_html::decodificar_texto(&nome);
         if nome != tipo {
             continue;
         }
@@ -390,6 +396,8 @@ pub(crate) fn cadastro_redirecionado(
 mod tests;
 #[cfg(test)]
 mod tests_scripts_inertes;
+#[cfg(test)]
+mod tests_telas_reais;
 
 #[cfg(test)]
 #[path = "documento_criar/tests_anties.rs"]

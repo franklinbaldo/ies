@@ -172,7 +172,8 @@ fn conferir_campo(
             valor.is_empty()
         }
         ("input", "radio", "rdoSobrestar") => {
-            let valido = matches!(valor.as_str(), "S" | "V") && !presente("checked")?;
+            // "S" pode vir marcado (UFRJ e GO): é a opção enviada.
+            let valido = valor == "S" || (valor == "V" && !presente("checked")?);
             if valido {
                 *vistos.entry(format!("rdoSobrestar:{valor}")).or_default() += 1;
             }

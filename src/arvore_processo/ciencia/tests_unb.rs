@@ -2,7 +2,7 @@
 //! dentro de `<!--//--><![CDATA[//><!--`, `confirm` comentado e a função
 //! vizinha `cienciaProcessoAnexado`, que não é a ciência do processo. A
 //! retirada do sobrestamento usa o `confirm` ativo, sem `//`.
-use super::sobrestar::ler_endereco_de_retomar;
+use super::super::sobrestar::ler_endereco_de_retomar;
 use super::{url_da_ciencia, url_da_ciencia_do_documento};
 use crate::instalacao::Instalacao;
 
@@ -53,5 +53,17 @@ fn ciencia_do_documento_le_script_em_cdata() {
 #[test]
 fn retomada_aceita_confirm_ativo() {
     let r = ler_endereco_de_retomar(&unb(), TELA, "51897");
+    assert!(r.is_ok(), "{r:?}");
+}
+
+#[test]
+fn ciencia_do_processo_pela_variavel_do_sei_41_e_50() {
+    // UFRJ e GO ao vivo (10/11/2026): a URL vem em variáveis, com a do
+    // processo anexado logo abaixo.
+    let h = "&infra_sistema=100000100&infra_unidade_atual=9516&infra_hash=9999999999999999999999999999999999999999999999999999999999999999";
+    let tela = format!(
+        "<html><head><script>\nvar linkCienciaProcesso = 'controlador.php?acao=procedimento_ciencia&acao_origem=arvore_visualizar&id_procedimento=51897&atualizar_arvore=1{h}';\nvar linkCienciaProcessoAnexado = 'controlador.php?acao=procedimento_anexado_ciencia&id_procedimento=51897&id_procedimento_anexado={h}';\n</script></head></html>"
+    );
+    let r = url_da_ciencia(&unb(), &tela, "51897");
     assert!(r.is_ok(), "{r:?}");
 }

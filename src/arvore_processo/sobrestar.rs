@@ -91,17 +91,8 @@ pub(crate) fn ler_endereco_de_retomar(
     use ErroEnderecoDeRetomar as E;
     let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
         .map_err(|_| ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
-    let mut variaveis = Vec::new();
-    for linha in html.lines().map(str::trim) {
-        if !linha.starts_with("var linkRemoverSobrestamentoProcesso") {
-            continue;
-        }
-        let url = linha
-            .strip_prefix("var linkRemoverSobrestamentoProcesso = '")
-            .and_then(|s| s.strip_suffix("';"))
-            .ok_or(ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
-        variaveis.push(url);
-    }
+    let variaveis = super::concluir::urls_das_variaveis(html, "linkRemoverSobrestamentoProcesso")
+        .map_err(|_| ErroHtml::valor("endereco_de_retomar_fora_da_forma"))?;
     let url = match (funcoes.as_slice(), variaveis.as_slice()) {
         ([], []) => return Err(ErroHtml::ausente("endereco_de_retomar_ausente_na_tela").into()),
         ([url], []) | ([], [url]) => *url,

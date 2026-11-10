@@ -182,6 +182,31 @@ pub(super) fn urls_das_funcoes<'h>(
     Ok(achados)
 }
 
+/// As URLs de `var {nome} = '…';` da tela do nó (SEI 4.1 e 5.0). Outra
+/// variável com o mesmo prefixo (`linkCienciaProcessoAnexado`) não conta.
+pub(super) fn urls_das_variaveis<'h>(
+    html: &'h str,
+    nome: &str,
+) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
+    let declaracao = format!("var {nome}");
+    let ate_a_url = format!("var {nome} = '");
+    let mut achados = Vec::new();
+    for linha in html.lines().map(str::trim) {
+        let Some(resto) = linha.strip_prefix(&declaracao) else {
+            continue;
+        };
+        if !resto.starts_with([' ', '=']) {
+            continue;
+        }
+        let url = linha
+            .strip_prefix(&ate_a_url)
+            .and_then(|s| s.strip_suffix("';"))
+            .ok_or(FuncaoForaDaForma)?;
+        achados.push(url);
+    }
+    Ok(achados)
+}
+
 /// A URL de `concluirProcesso()` na tela do nó do processo `id`, conferida.
 pub(crate) fn ler_funcao_de_concluir(
     instalacao: &Instalacao,

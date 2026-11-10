@@ -404,18 +404,23 @@ fn lista_40_com_duas_acoes_recusa_sem_abrir_cadastro() {
     assert!(requests.iter().all(|req| req.metodo == "GET"));
 }
 
-/// #245: a lista Gerados precisa ter cobertura provada ANTES de uma escrita.
-/// O controle inicial publica cinco registros e apenas a primeira linha;
-/// isso não permite reconciliar futuramente a criação.
+/// Gerados paginados (conta compartilhada do PEN1, 10/11/2026): sem
+/// fotografia completa a escrita segue, e uma resposta incerta ao POST sai
+/// com efeito incerto, sem reconciliar nem repetir.
 #[test]
-fn confirma_recusa_gerados_paginados_antes_de_post_criador() {
+fn gerados_paginados_nao_impedem_o_post_mas_tornam_a_resposta_incerta() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
         "<caption>5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
-    let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];
+    let respostas = vec![
+        ok(parcial),
+        ok(lista(false)),
+        ok(cadastro()),
+        ok("<html><body>resposta inesperada</body></html>".to_owned()),
+    ];
     let (resultado, requests) = rodar_com(&amb, respostas, |sessao, _, _, rede| {
         criar(
             sessao.origem,
@@ -425,12 +430,15 @@ fn confirma_recusa_gerados_paginados_antes_de_post_criador() {
             rede,
         )
     });
+    let erro = resultado.unwrap_err();
+    assert_eq!(erro.saida(), 3);
+    let diagnostico = erro.diagnostico_apos_post().expect("diagnóstico pós-POST");
     assert_eq!(
-        resultado.unwrap_err().subcodigo(),
-        "gerados_sem_cobertura_completa_para_reconciliacao"
+        diagnostico.causa_releitura,
+        Some("gerados_sem_cobertura_completa_para_reconciliacao")
     );
-    assert_eq!(requests.len(), 3);
-    assert!(requests.iter().all(|req| req.metodo == "GET"));
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
 
 /// A restrição à escrita não transforma uma prévia legítima em erro.

@@ -2,10 +2,14 @@
 //! usa o leitor compartilhado de atributos, e a URL da Lista de Ciências
 //! vem exclusivamente da ação CIENCIAS da raiz. Nada executa JavaScript.
 mod javascript;
+#[cfg(test)]
+mod tests_unb;
 pub(crate) use javascript::niveis_js;
 
 use super::barra_do_processo::{FalhaDaBarra, ancoras_da_barra};
-use super::concluir::{EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes};
+use super::concluir::{
+    EnderecoDeEscrita, FuncaoForaDaForma, tela_do_no_da_raiz, urls_das_funcoes, urls_das_variaveis,
+};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_chamada};
 use crate::instalacao::Instalacao;
@@ -114,11 +118,14 @@ pub(crate) fn url_da_ciencia(
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroCienciaNaArvore> {
     use ErroCienciaNaArvore as E;
-    let urls = urls_das_funcoes(html, "cienciaProcesso")
+    let funcoes = urls_das_funcoes(html, "cienciaProcesso")
         .map_err(|FuncaoForaDaForma| E::FuncaoDeCienciaForaDaForma)?;
-    let url = match urls.as_slice() {
-        [] => return Err(E::FuncaoDeCienciaAusenteNaTela),
-        [url] => *url,
+    // SEI 4.1 e 5.0 (UFRJ e GO, 10/11/2026): `var linkCienciaProcesso = '…';`.
+    let variaveis = urls_das_variaveis(html, "linkCienciaProcesso")
+        .map_err(|FuncaoForaDaForma| E::FuncaoDeCienciaForaDaForma)?;
+    let url = match (funcoes.as_slice(), variaveis.as_slice()) {
+        ([], []) => return Err(E::FuncaoDeCienciaAusenteNaTela),
+        ([url], []) | ([], [url]) => *url,
         _ => return Err(E::FuncoesDeCienciaRepetidas),
     };
     conferir_endereco_relativo(instalacao, url, "procedimento_ciencia", id)
