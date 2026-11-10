@@ -6,7 +6,7 @@ use crate::erro_html::ErroHtml;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -48,64 +48,4 @@ pub(crate) enum ErroReabrir {
     },
 }
 
-impl ErroReabrir {
-    /// Categoria pública: o próximo passo de quem chama.
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::ReaberturaNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::NaoConfirmadoNaReabertura { .. } => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Abertura(erro) => erro.status_http().cloned(),
-            Self::Cookie(falha) => falha.status_http().cloned(),
-            Self::TelaDoNo(falha) => falha.status_http().cloned(),
-            Self::TelaDoNoRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::ReaberturaNaoAplicada { falha_do_envio, .. }
-            | Self::NaoConfirmadoNaReabertura { falha_do_envio, .. } => {
-                falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
-            }
-            _ => None,
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Abertura(erro) => erro.mensagem(),
-            Self::UnidadeDaSessaoNaoPublicada => {
-                "a abertura não publicou a unidade da sessão; nada foi reaberto"
-            }
-            Self::SituacaoDoProcessoNaoLidaAntesDeReabrir { .. } => {
-                "a árvore não publica onde o processo está aberto, e a reabertura não poderia ser conferida; nada foi reaberto"
-            }
-            Self::UnidadeDaSessaoJaNaSituacao { .. } => {
-                "a barra oferece reabrir, mas a situação já lista a unidade da sessão; nada foi reaberto"
-            }
-            Self::ReaberturaNaoPublicadaNaBarra { .. } => {
-                "o processo não está aberto na unidade, e a barra não oferece reabrir; nada foi reaberto"
-            }
-            Self::Barra(_) => {
-                "a ação de reabrir da barra não está na forma observada; nada foi reaberto"
-            }
-            Self::Cookie(_) => "o cookie da sessão não pôde ser lido; nada foi reaberto",
-            Self::TelaDoNo(_) | Self::TelaDoNoRedirecionada => {
-                "a tela do nó não foi servida; nada foi reaberto"
-            }
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode `ies login` (nada foi reaberto)"
-            }
-            Self::EnderecoDeReabrir(_) => {
-                "a tela do nó não publica a URL de reabrir na forma observada; nada foi enviado"
-            }
-            Self::ReaberturaNaoAplicada { .. } => {
-                "a árvore lida depois de reabrir não lista a unidade da sessão: o processo não foi reaberto"
-            }
-            Self::NaoConfirmadoNaReabertura { .. } => {
-                "não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir"
-            }
-        }
-    }
-}
+impl ErroReabrir {}

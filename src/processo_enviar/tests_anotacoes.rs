@@ -246,7 +246,6 @@ fn bdd_anotacao_ainda_presente_apos_envio_e_resultado_parcial() {
         erro,
         super::ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
     ));
-    assert_eq!(erro.codigo(), "escrita_diferente_da_solicitada");
     assert_eq!(pedidos.len(), 9);
     assert_eq!(
         pedidos
@@ -339,10 +338,12 @@ fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
         )
     });
     let erro = resultado.expect_err("a anotação não pôde ser relida");
-    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
-        .expect("erro tipado serializável");
-    assert_eq!(json["codigo"], "nao_confirmado");
-    assert_eq!(json["depois"], serde_json::json!([DESTINO]));
+    assert_eq!(
+        erro,
+        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
+            depois: Some(vec![DESTINO.into()])
+        }
+    );
     assert_eq!(
         pedidos
             .iter()
@@ -429,9 +430,6 @@ fn bdd_333_04_arvore_incerta_mas_anotacao_removida_preserva_a_prova() {
             ..
         }
     ));
-    let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro)).unwrap();
-    assert_eq!(json["codigo"], "nao_confirmado");
-    assert_eq!(json["anotacao_depois"], false);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
     assert_eq!(

@@ -26,6 +26,10 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-333-cli";
 const NUP: &str = "00001.000001/2026-01";
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 #[path = "aies_processo_enviar_cli/infra.rs"]
 mod infra;
 use infra::{aceitar, cabecalho, identidade, pedido, preparar_banco};
@@ -408,14 +412,7 @@ fn bdd_333_01_02_previa_nao_muta_e_confirmacao_unica_atualiza_sqlite() {
 fn bdd_333_02_nao_confirmado_depois_do_post_nao_repete_escrita() {
     let confirmacao = args(true);
     let (saidas, pedidos, depois) = executar(&[&confirmacao], true, Some("Nota da origem"));
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(1),
-        "stdout={} stderr={} pedidos={pedidos:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    assert_eq!(json(&saidas[0])["codigo"], "nao_confirmado");
+    falha(&saidas[0], "NaoConfirmadoNoEnvio");
     assert_eq!(
         pedidos
             .iter()

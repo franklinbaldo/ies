@@ -207,12 +207,11 @@ fn concluir(
             .colher(&inicial.html, Some(&inicial.mime));
     }
     if json_mode {
-        if let Err(erro) =
-            crate::saida::imprimir_json(&resultado_troca(troca, descartados, pedidos))
-        {
-            eprintln!("IES: falha ao emitir JSON: {erro}");
-            return std::process::ExitCode::from(1);
-        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&resultado_troca(troca, descartados, pedidos))
+                .expect("JSON serializável")
+        );
     } else {
         println!("{}", humano(troca, pedidos));
     }

@@ -72,7 +72,8 @@ pub(crate) struct CadastroPreparado {
     pub(crate) foto_antes: FotoProcesso,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPreviaExterna {
     /// O cookie privado da sessão não pôde ser lido.
     Cookie(CookieIlegivel),

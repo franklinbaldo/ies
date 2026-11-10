@@ -12,6 +12,9 @@ use iesei::observacao::{TabelaObservada, UnidadeExibida};
 use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use serde_json::Value;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};

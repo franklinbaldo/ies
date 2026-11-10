@@ -13,8 +13,17 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-fn json(resultado: &Output) -> serde_json::Value {
-    serde_json::from_slice(&resultado.stdout).expect("falha deve ser JSON")
+/// Falha de comando convertido (#695): saída 1, stdout vazio e
+/// `Error: <Variante>` no stderr.
+fn assert_falha(saida: &Output, variante: &str) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        saida.stdout.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 #[test]
@@ -35,8 +44,10 @@ fn recusa_numero_invalido_sem_tocar_na_sessao() {
         "--json",
     ]);
     assert_eq!(r.status.code(), Some(2));
-    let valor = json(&r);
-    assert_eq!(valor["codigo"], "entrada_invalida");
+    assert!(
+        r.stdout.is_empty(),
+        "uso inválido é recusado pelo clap, sem JSON"
+    );
 }
 
 #[test]
@@ -54,8 +65,7 @@ fn motivo_valido_vai_ate_sessao_mas_nao_inventa_configuracao() {
             args.push("--confirmar");
         }
         let r = sem_sessao(&args);
-        assert_eq!(r.status.code(), Some(1));
-        assert_eq!(json(&r)["codigo"], "fonte_invalida");
+        assert_falha(&r, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 
@@ -75,8 +85,7 @@ fn motivo_e_texto_opaco_que_segue_ate_a_sessao() {
                 args.push("--confirmar");
             }
             let saida = sem_sessao(&args);
-            assert_eq!(saida.status.code(), Some(1), "{motivo:?}");
-            assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+            assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
         }
     }
 }

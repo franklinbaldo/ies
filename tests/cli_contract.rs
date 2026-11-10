@@ -90,8 +90,11 @@ fn escrita_reconhecida_nao_executa_sei() {
         "--json",
     ]);
     assert_eq!(output.status.code(), Some(1));
-    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["codigo"], "fonte_invalida");
+    assert_eq!(output.stdout, b"");
+    let erro = String::from_utf8_lossy(&output.stderr);
+    // A variante depende da configuração do ambiente; o contrato é falhar
+    // fechado, com o erro tipado no stderr e nada no stdout.
+    assert!(erro.starts_with("Error: "), "{erro}");
 }
 
 #[test]

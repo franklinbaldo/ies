@@ -137,8 +137,11 @@ fn conferir_sessao_gravada<T: TransporteDeLogin>(
         }
         Err(
             FalhaTransporte::PaginaDeLoginRecebidaNoControle
-            | FalhaTransporte::Redirecionamento(_)
-            | FalhaTransporte::AcessoNegado(_),
+            // 3xx e 401/403: a sessão gravada não vale mais.
+            | FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                status: 300..=399 | 401 | 403,
+                ..
+            }),
         ) => Ok(None),
         Err(falha) => Err(ErroLogin::Transporte(falha)),
     }

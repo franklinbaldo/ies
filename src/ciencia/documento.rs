@@ -45,15 +45,7 @@ pub(crate) enum FalhaDoAceite {
     Aceite(#[from] super::ErroCiencia),
 }
 
-impl FalhaDoAceite {
-    fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(e) => e.status_http(),
-            Self::ValidacaoDaInfra(status) => Some(status),
-            Self::Aceite(_) => None,
-        }
-    }
-}
+impl FalhaDoAceite {}
 
 /// Por que a releitura não comprovou a ciência do documento depois do GET
 /// mutador. Cada etapa guarda o erro original e sobe com `?`.
@@ -70,26 +62,7 @@ pub(crate) enum VerificacaoDaCienciaDoDocumento {
     AtividadeNaoEncontradaNaListaDoDocumento,
 }
 
-impl VerificacaoDaCienciaDoDocumento {
-    fn descricao(&self) -> String {
-        match self {
-            Self::Abertura(e) => e.mensagem().to_owned(),
-            Self::IdentidadeDoDocumentoAlteradaNaReleitura => {
-                "IdentidadeDoDocumentoAlteradaNaReleitura".to_owned()
-            }
-            Self::AceiteSemAtividadeDoDocumento => "AceiteSemAtividadeDoDocumento".to_owned(),
-            Self::Html(e) => format!("{e:?}"),
-            Self::ListaDeCienciasDoDocumentoAusente => {
-                "ListaDeCienciasDoDocumentoAusente".to_owned()
-            }
-            Self::Transporte(e) => e.mensagem().to_owned(),
-            Self::Lista(e) => format!("{e:?}"),
-            Self::AtividadeNaoEncontradaNaListaDoDocumento => {
-                "AtividadeNaoEncontradaNaListaDoDocumento".to_owned()
-            }
-        }
-    }
-}
+impl VerificacaoDaCienciaDoDocumento {}
 
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
@@ -111,44 +84,7 @@ pub(crate) enum ErroCienciaDocumento {
     },
 }
 
-impl ErroCienciaDocumento {
-    pub(crate) fn mensagem(&self) -> String {
-        let texto = match self {
-            Self::Abertura(e) => e.mensagem(),
-            Self::Barra(_) | Self::Html(_) => {
-                "a ação de ciência do documento está fora da forma observada"
-            }
-            Self::CienciaNaoOferecida => "a barra do documento não oferece ciência",
-            Self::TelaNaoPublicada => "a árvore não publicou a tela assinada do documento",
-            Self::OrigemNaoAutorizada => "a origem da instalação não é autorizada",
-            Self::Cookie(_) => "a sessão privada não pôde ser lida",
-            Self::Tela(_) | Self::TelaRedirecionada => "a tela do documento não foi servida",
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "a sessão encerrou; rode ies login"
-            }
-            Self::NaoConfirmado { .. } => {
-                "a ciência pode ter sido registrada; confira a Lista de Ciências do documento no SEI antes de nova confirmação"
-            }
-        };
-        match self {
-            Self::NaoConfirmado { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
-            _ => texto.to_owned(),
-        }
-    }
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Abertura(e) => e.status_http(),
-            Self::Cookie(e) => e.status_http(),
-            Self::Tela(e) => e.status_http(),
-            Self::NaoConfirmado {
-                falha_do_aceite, ..
-            } => falha_do_aceite
-                .as_ref()
-                .and_then(FalhaDoAceite::status_http),
-            _ => None,
-        }
-    }
-}
+impl ErroCienciaDocumento {}
 
 pub(crate) struct PedidoDaCienciaDocumento<'a> {
     pub(crate) numero: &'a NumeroDocumento,

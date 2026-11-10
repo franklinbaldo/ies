@@ -209,7 +209,7 @@ fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
         r302(&format!(
             "controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_hash={HASH}"
         )),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];

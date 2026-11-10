@@ -6,7 +6,6 @@ use crate::documento_externo_incluir::{
 #[path = "documento_externo_incluir_cli/confirmar.rs"]
 mod confirmar_remoto;
 
-use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
 use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
@@ -24,7 +23,6 @@ enum FalhaTipoExterno {
 
 #[derive(Debug, Serialize)]
 enum FalhaInclusaoExterna {
-    Processo(NumeroProcessoInvalido),
     Tipo(FalhaTipoExterno),
     Pdf(FalhaPdf),
 }
@@ -56,7 +54,7 @@ fn recusa(json_mode: bool, causa: &FalhaInclusaoExterna, mensagem: &str, status:
 }
 
 #[allow(clippy::too_many_lines)] // Entrada sequencial: inspeção, prévia e recusa de escrita preservadas.
-pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::IncluirExterno {
@@ -71,34 +69,24 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let processo = match NumeroProcesso::novo(processo) {
-        Ok(processo) => processo,
-        Err(falha) => {
-            return Some(recusa(
-                cli.json,
-                &FalhaInclusaoExterna::Processo(falha),
-                "número do processo não aceito",
-                2,
-            ));
-        }
-    };
+    let processo = processo.clone();
     if let Err(falha) = validar_tipo(tipo) {
-        return Some(recusa(
+        return Some(crate::legado(recusa(
             cli.json,
             &FalhaInclusaoExterna::Tipo(falha),
             "tipo externo vazio ou com caractere de controle",
             2,
-        ));
+        )));
     }
     let pdf = match inspecionar_pdf(Path::new(arquivo), None) {
         Ok(pdf) => pdf,
         Err(falha) => {
-            return Some(recusa(
+            return Some(crate::legado(recusa(
                 cli.json,
                 &FalhaInclusaoExterna::Pdf(falha),
                 "arquivo PDF local não passou na inspeção",
                 2,
-            ));
+            )));
         }
     };
     if *confirmar {
@@ -114,7 +102,7 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
         return Some(com_sessao(cli, |sessao, indice| {
             let mut envio = EnvioHttps;
             let mut contagem = Contador::novo(&mut envio);
-            match executar_previa(
+            let previa = executar_previa(
                 sessao,
                 &processo,
                 cli.unidade.as_deref(),
@@ -122,77 +110,52 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
                 &pdf,
                 indice,
                 &mut contagem,
-            ) {
-                Ok(previa) => {
-                    if cli.json {
-                        println!(
-                            "{}",
-                            json!({
-                                "escopo": "previa_web",
-                                "processo": processo.as_str(),
-                                "tipo_solicitado": tipo,
-                                "id_tipo": previa.id_tipo,
-                                "unidade": previa.unidade,
-                                "arquivo": {
-                                    "nome": pdf.nome,
-                                    "tamanho_bytes": pdf.tamanho_bytes,
-                                    "sha256": pdf.sha256,
-                                },
-                                "limite_pdf_bytes": previa.limite_pdf_bytes,
-                                "campos_oferecidos": previa.campos_oferecidos,
-                                "cadastro_sei_observado": true,
-                                "previa_remota": true,
-                                "confirmado": false,
-                                "requisicoes": contagem.feitas(),
-                                "escrita_remota": false
-                            })
-                        );
+            )?;
+            if cli.json {
+                println!(
+                    "{}",
+                    json!({
+                        "escopo": "previa_web",
+                        "processo": processo.as_str(),
+                        "tipo_solicitado": tipo,
+                        "id_tipo": previa.id_tipo,
+                        "unidade": previa.unidade,
+                        "arquivo": {
+                            "nome": pdf.nome,
+                            "tamanho_bytes": pdf.tamanho_bytes,
+                            "sha256": pdf.sha256,
+                        },
+                        "limite_pdf_bytes": previa.limite_pdf_bytes,
+                        "campos_oferecidos": previa.campos_oferecidos,
+                        "cadastro_sei_observado": true,
+                        "previa_remota": true,
+                        "confirmado": false,
+                        "requisicoes": contagem.feitas(),
+                        "escrita_remota": false
+                    })
+                );
+            } else {
+                println!(
+                    "Prévia Web: incluir PDF {} ({} bytes, SHA-256 {}) como {} no processo {} (unidade {}). Limite do SEI: {} bytes. Nenhum arquivo foi enviado e nenhum documento foi cadastrado.",
+                    pdf.nome,
+                    pdf.tamanho_bytes,
+                    pdf.sha256,
+                    tipo,
+                    processo.as_str(),
+                    previa.unidade,
+                    previa.limite_pdf_bytes,
+                );
+                println!(
+                    "Campos oferecidos no cadastro: {}",
+                    if previa.campos_oferecidos.is_empty() {
+                        "(nenhum)".to_owned()
                     } else {
-                        println!(
-                            "Prévia Web: incluir PDF {} ({} bytes, SHA-256 {}) como {} no processo {} (unidade {}). Limite do SEI: {} bytes. Nenhum arquivo foi enviado e nenhum documento foi cadastrado.",
-                            pdf.nome,
-                            pdf.tamanho_bytes,
-                            pdf.sha256,
-                            tipo,
-                            processo.as_str(),
-                            previa.unidade,
-                            previa.limite_pdf_bytes,
-                        );
-                        println!(
-                            "Campos oferecidos no cadastro: {}",
-                            if previa.campos_oferecidos.is_empty() {
-                                "(nenhum)".to_owned()
-                            } else {
-                                previa.campos_oferecidos.join(", ")
-                            }
-                        );
-                        println!("Requisições: {}", contagem.feitas());
+                        previa.campos_oferecidos.join(", ")
                     }
-                    ExitCode::SUCCESS
-                }
-                Err(erro) => {
-                    if cli.json {
-                        let status = erro.status_http();
-                        println!(
-                            "{}",
-                            json!({
-                                "status_http": status.map(|e| e.status),
-                                "mensagem_do_servidor": status.and_then(|e| e.mensagem_do_servidor.as_deref()),
-                                "requisicoes": contagem.feitas(),
-                                "retentavel": false,
-                                "escrita_remota": false
-                            })
-                        );
-                    } else {
-                        eprintln!(
-                            "IES: prévia Web não comprovada ({:?}). Requisições: {}. Nenhum upload ou cadastro enviado.",
-                            erro.causa(),
-                            contagem.feitas()
-                        );
-                    }
-                    ExitCode::from(1)
-                }
+                );
+                println!("Requisições: {}", contagem.feitas());
             }
+            Ok(())
         }));
     }
     if cli.json {
@@ -224,5 +187,5 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
             tipo
         );
     }
-    Some(ExitCode::SUCCESS)
+    Some(crate::legado(ExitCode::SUCCESS))
 }

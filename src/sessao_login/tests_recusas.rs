@@ -297,12 +297,10 @@ fn status_5xx_sai_com_status_e_mensagem_sem_retry() {
     let (erro, roteiro) = erro_com(vec![erro500()]);
     assert_eq!(
         erro,
-        ErroLogin::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
-            StatusHttpRecusado {
-                status: 500,
-                mensagem_do_servidor: Some("Erro acessando o banco.".to_owned())
-            }
-        ))
+        ErroLogin::Transporte(FalhaTransporte::Status(StatusHttpRecusado {
+            status: 500,
+            mensagem_do_servidor: Some("Erro acessando o banco.".to_owned())
+        }))
     );
     assert_eq!(roteiro.pedidos.len(), 1);
     let (erro, roteiro) = erro_com(vec![

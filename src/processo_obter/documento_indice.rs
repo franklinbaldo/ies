@@ -21,7 +21,6 @@ use crate::indice_local::{DocumentoGuardado, url_da_entrada_por_id_com_documento
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa as Redir, OrigemDoTrabalho, conferir_trabalho,
 };
-use crate::transporte::StatusHttpRecusado;
 
 type Aberto = (ArvoreAberta, Option<String>, ResolvidoPor);
 
@@ -117,17 +116,8 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
         Lida::Login => return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Html { .. } => {
-            let status = StatusHttpRecusado::sem_mensagem(200);
-            return Err(P::RespostaDaEntradaPorIdNaoReconhecida(status));
-        }
-        Lida::Falha(falha) => {
-            let status = falha
-                .status_http()
-                .cloned()
-                .ok_or(P::Transporte(falha.clone()))?;
-            return Err(P::RespostaDaEntradaPorIdNaoReconhecida(status));
-        }
+        Lida::Html { .. } => return Err(P::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(P::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {

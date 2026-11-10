@@ -32,7 +32,7 @@ use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios
 use crate::propriedades_processo::{EnderecoDasPropriedades, ErroPropriedades};
 use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::sessao::CookieDaSessao;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, decodificar_resposta};
 
 /// `form#frmProtocoloPesquisaRapida` (`UnB`, GO, PEN1): POST para o `action`
 /// assinado, um controle `txtPesquisaRapida`, enviado pelo `onclick` da
@@ -328,7 +328,6 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             requisicoes.registrar();
             envio.post(s, c)
         });
-        let sem_trabalho = |status| E::PesquisaRapidaSemUrlDeTrabalho(status);
         match resposta {
             Ok(RespostaDoEnvio::Redirecionamento(r)) => match destino(r.localizacao()) {
                 DestinoDoRedirecionamento::Outro => {
@@ -348,17 +347,9 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
                 }
                 _ => Ok(None),
             },
-            Ok(RespostaDoEnvio::Html(_)) => {
-                Err(sem_trabalho(StatusHttpRecusado::sem_mensagem(200)))
-            }
+            Ok(RespostaDoEnvio::Html(_)) => Err(E::PesquisaRapidaSemUrlDeTrabalho),
             Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => Ok(None),
-            Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(status)) => {
-                Err(sem_trabalho(status))
-            }
-            Err(ErroSubmissaoFormulario::Transporte(falha)) => match falha.status_http() {
-                Some(status) => Err(sem_trabalho(status.clone())),
-                None => Err(E::Transporte(falha)),
-            },
+            Err(ErroSubmissaoFormulario::Transporte(falha)) => Err(E::Transporte(falha)),
             Err(outro) => Err(E::Formulario(outro)),
         }
     }
@@ -413,9 +404,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
 /// 302 fora de palpite: login é sessão encerrada; o resto, não observado.
 pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> E {
     match destino(localizacao) {
-        DestinoDoRedirecionamento::Outro => {
-            E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
-        }
+        DestinoDoRedirecionamento::Outro => E::RedirecionamentoNaoReconhecido,
         _ => E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
     }
 }

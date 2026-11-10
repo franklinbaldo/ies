@@ -1,14 +1,13 @@
 //! Comentários no processo: prévia e confirmação condicionada à origem.
 //! Um POST e releitura causal, sem retry ou escrita em produção.
-use crate::processo::NumeroProcesso;
 use crate::processo_comentar_web;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_comentar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao:
             Some(ProcessoAcao::Comentar {
@@ -21,11 +20,12 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(numero) = NumeroProcesso::novo(numero) else {
-        return Some(erro_de_uso(cli.json));
-    };
+    let numero = numero.clone();
     if texto.trim().is_empty() || texto.contains('\0') {
-        return Some(recusa(cli.json, "Informe o texto do comentário."));
+        return Some(crate::legado(recusa(
+            cli.json,
+            "Informe o texto do comentário.",
+        )));
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -34,9 +34,9 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                 sessao.origem,
             )
         {
-            return crate::origem_de_treinamento::recusa(cli.json, causa);
+            return Err(causa.into());
         }
-        match processo_comentar_web::prever(
+        let preview = processo_comentar_web::prever(
             sessao,
             &numero,
             texto,
@@ -44,55 +44,33 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
-        ) {
-            Ok(preview) => {
-                if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "nup": preview.numero,
-                            "id_procedimento": preview.id_procedimento,
-                            "texto": preview.texto,
-                            "confirmado": preview.confirmado,
-                            "alterado": preview.confirmado,
-                            "origem": "web",
-                            "requisicoes": preview.requisicoes,
-                        })
-                    );
-                } else if preview.confirmado {
-                    println!(
-                        "Comentário confirmado por releitura no processo {}. Requisições: {}.",
-                        preview.numero, preview.requisicoes
-                    );
-                } else {
-                    println!(
-                        "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
-                        preview.numero, preview.texto, preview.requisicoes
-                    );
-                }
-                ExitCode::SUCCESS
-            }
-            Err(processo_comentar_web::Erro::NaoConfirmado) => nao_confirmado(cli.json),
-            Err(_) => recusa_previa(cli.json),
+        )?;
+        if cli.json {
+            println!(
+                "{}",
+                json!({
+                    "nup": preview.numero,
+                    "id_procedimento": preview.id_procedimento,
+                    "texto": preview.texto,
+                    "confirmado": preview.confirmado,
+                    "alterado": preview.confirmado,
+                    "origem": "web",
+                    "requisicoes": preview.requisicoes,
+                })
+            );
+        } else if preview.confirmado {
+            println!(
+                "Comentário confirmado por releitura no processo {}. Requisições: {}.",
+                preview.numero, preview.requisicoes
+            );
+        } else {
+            println!(
+                "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
+                preview.numero, preview.texto, preview.requisicoes
+            );
         }
+        Ok(())
     }))
-}
-
-fn nao_confirmado(json_mode: bool) -> ExitCode {
-    let mensagem = "O POST pode ter sido aplicado, mas o comentário não foi confirmado pela releitura; consulte ies processo comentarios antes de tentar novamente. Não repita --confirmar.";
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "nao_confirmado",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
 }
 
 fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
@@ -107,24 +85,6 @@ fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
         );
     } else {
         eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
-}
-
-fn recusa_previa(json_mode: bool) -> ExitCode {
-    const MENSAGEM: &str =
-        "O formulário de comentário não foi comprovado; nenhuma escrita realizada.";
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "operacao_recusada",
-                "erro": MENSAGEM,
-                "retentavel": false,
-            })
-        );
-    } else {
-        eprintln!("IES: {MENSAGEM}");
     }
     ExitCode::from(1)
 }

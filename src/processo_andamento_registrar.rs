@@ -173,16 +173,7 @@ pub(crate) enum Erro {
     Formulario(#[from] ErroSubmissaoFormulario),
     NaoConfirmado,
 }
-impl Erro {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::NaoConfirmado => {
-                "A escrita pode ter sido aplicada; não repita --confirmar. Consulte o histórico para verificar possível resíduo"
-            }
-            _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
-        }
-    }
-}
+impl Erro {}
 /// Fluxo injetável, sem retries, sem redirecionamentos seguidos.
 pub(crate) fn registrar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,

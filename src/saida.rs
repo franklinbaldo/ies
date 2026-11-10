@@ -21,11 +21,6 @@ fn escrever_json<T: Serialize>(valor: &T, formatado: bool) -> std::io::Result<()
     bloqueada.write_all(b"\n")
 }
 
-/// Saída JSON formatada dos resultados de sucesso.
-pub(crate) fn imprimir_json<T: Serialize>(valor: &T) -> std::io::Result<()> {
-    escrever_json(valor, true)
-}
-
 /// Saída JSON compacta das falhas, sem representação intermediária.
 pub(crate) fn imprimir_json_compacto<T: Serialize>(valor: &T) -> std::io::Result<()> {
     escrever_json(valor, false)

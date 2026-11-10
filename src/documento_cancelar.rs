@@ -13,6 +13,7 @@ mod fluxo;
 #[cfg(test)]
 mod tests_fluxo;
 
+#[cfg(test)]
 pub(crate) use erro::{ErroCancelar, FalhaDoCancelamento};
 #[cfg(test)]
 pub(crate) use fluxo::ResultadoDaVerificacao;

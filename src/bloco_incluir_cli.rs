@@ -1,74 +1,60 @@
 //! CLI de `ies bloco incluir BLOCO --documento DOC | --processo NUP [--confirmar]`
 //! (#381; contracts/cli/bloco-incluir.md). Esta fatia (BDD-381-01) entrega a
 //! prévia documental; `--processo` e `--confirmar` recusam antes da rede.
+//! Erros sobem até o `main` (#695).
 use crate::bloco_incluir::{PreviaDocumental, prever_documento};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::SessaoDoProcesso;
-use crate::saida_erro::erro_fonte;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, configuracao};
 use serde_json::json;
-use std::process::ExitCode;
+
+/// O que esta fatia ainda não faz: recusado antes de qualquer requisição.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+enum AindaNaoImplementado {
+    InclusaoDeProcesso,
+    Confirmacao,
+}
 
 pub(crate) fn executar(
     cli: &Cli,
     bloco: &str,
-    documento: Option<&str>,
+    documento: Option<&NumeroDocumento>,
     processo: Option<&str>,
     confirmar: bool,
-) -> ExitCode {
-    if bloco.is_empty() || !bloco.bytes().all(|b| b.is_ascii_digit()) {
-        return uso(cli.json, "número de bloco deve ser decimal");
-    }
+) -> anyhow::Result<()> {
     if processo.is_some() {
-        return erro_fonte(
-            cli.json,
-            "inclusão de processo em bloco ainda não implementada; nenhuma requisição enviada",
-        );
+        return Err(AindaNaoImplementado::InclusaoDeProcesso.into());
     }
-    let Some(Ok(documento)) = documento.map(NumeroDocumento::novo) else {
-        return uso(cli.json, "número de documento inválido");
-    };
+    let documento = documento.ok_or(AindaNaoImplementado::InclusaoDeProcesso)?;
     if confirmar {
-        return erro_fonte(
-            cli.json,
-            "confirmação da inclusão em bloco ainda não implementada; nenhuma requisição enviada",
-        );
+        return Err(AindaNaoImplementado::Confirmacao.into());
     }
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
-    };
-    let referencias = match ReferenciasDaSessao::ler(
-        &arquivos.url_controle,
-        &arquivos.origem,
-        &arquivos.cookie,
-    ) {
-        Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.mensagem()),
-    };
+    let arquivos = configuracao::arquivos_de_acesso()?;
+    let referencias =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let sessao = SessaoDoProcesso {
         url_do_controle: referencias.url_do_controle(),
         origem: referencias.origem(),
         cookie: referencias.cookie(),
     };
-    match prever_documento(
+    let previa = prever_documento(
         &sessao,
         &referencias,
         cli.unidade.as_deref(),
         bloco,
-        &documento,
+        documento,
         &IndiceLocal::da_configuracao(&arquivos),
         &mut EnvioHttps,
-    ) {
-        Ok(previa) => publicar(cli.json, &previa),
-        Err(erro) => erro_fonte(cli.json, &erro.mensagem()),
-    }
+    )?;
+    publicar(cli.json, &previa);
+    Ok(())
 }
 
-fn publicar(json_mode: bool, previa: &PreviaDocumental) -> ExitCode {
+fn publicar(json_mode: bool, previa: &PreviaDocumental) {
     if json_mode {
         println!(
             "{}",
@@ -95,17 +81,4 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) -> ExitCode {
             previa.documento, previa.bloco, previa.requisicoes
         );
     }
-    ExitCode::SUCCESS
-}
-
-fn uso(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({"codigo": "entrada_invalida", "erro": mensagem, "retentavel": false})
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
 }

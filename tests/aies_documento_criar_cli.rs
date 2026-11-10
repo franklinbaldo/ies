@@ -10,6 +10,9 @@ use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use serde_json::Value;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};
@@ -412,16 +415,7 @@ fn bdd_246_02_cli_confirma_um_post_e_releitura() {
 fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     let args = criar(true);
     let (saidas, trilha, quantidade) = executar(&[&args], true);
-    assert_eq!(
-        saidas[0].status.code(),
-        Some(1),
-        "stdout={} stderr={} trilha={trilha:?}",
-        String::from_utf8_lossy(&saidas[0].stdout),
-        String::from_utf8_lossy(&saidas[0].stderr)
-    );
-    let resultado = json(&saidas[0]);
-    assert_eq!(resultado["codigo"], "nao_confirmado");
-    assert_eq!(resultado["retentavel"], false);
+    falha(&saidas[0], "NaoConfirmado");
     assert_eq!(quantidade, 2, "escrita pode ter ocorrido apesar do erro");
     assert_eq!(
         trilha

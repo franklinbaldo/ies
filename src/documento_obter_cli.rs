@@ -484,10 +484,10 @@ fn publicar(
             valor["documentos_omitidos"] = json!(omitidos);
         }
         relogin_cli::anotar(&mut valor, nota);
-        if let Err(erro) = crate::saida::imprimir_json(&valor) {
-            eprintln!("IES: falha ao emitir JSON: {erro}");
-            return std::process::ExitCode::from(1);
-        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&valor).expect("JSON serializável")
+        );
     } else {
         relogin_cli::avisar(json_mode, nota);
         if omitidos > 0 {

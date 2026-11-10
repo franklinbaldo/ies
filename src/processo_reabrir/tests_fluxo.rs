@@ -264,7 +264,6 @@ fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let Err(erro @ R::NaoConfirmadoNaReabertura { .. }) = r else {
         panic!("esperava efeito incerto: {r:?}");
     };
-    assert_eq!(erro.codigo(), "nao_confirmado");
     assert_eq!(
         erro,
         R::NaoConfirmadoNaReabertura {

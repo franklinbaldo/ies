@@ -431,7 +431,7 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
         |rede, submissao, _| {
             rede.chamadas.push("POST criador");
             rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::AcessoNegado(
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(
                 crate::transporte::StatusHttpRecusado {
                     status: 403,
                     mensagem_do_servidor: Some("acesso negado sintético".to_owned()),
@@ -467,7 +467,7 @@ fn falha_http_503_do_post_preserva_mensagem_saneada() {
         |rede, submissao, _| {
             rede.chamadas.push("POST criador");
             rede.submissoes.push(submissao);
-            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::StatusHttpDeErroDoServidor(
+            Err::<RespostaDoPost<Cursor<Vec<u8>>>, _>(FalhaTransporte::Status(
                 crate::transporte::StatusHttpRecusado {
                     status: 503,
                     mensagem_do_servidor: Some("indisponibilidade sintética".to_owned()),

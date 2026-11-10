@@ -45,23 +45,15 @@ pub enum FalhaTransporte {
     /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
-    /// Status HTTP 401 ou 403.
-    AcessoNegado(#[source] StatusHttpRecusado),
+    /// Status HTTP diferente de 200, com o número e o texto do SEI.
+    Status(#[source] StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
     /// sessão não venceu; não há relogin nem nova tentativa.
     BloqueioDeSegurancaDaInstalacao(#[source] StatusHttpRecusado),
-    /// Status HTTP 3xx; o corpo não é lido.
-    Redirecionamento(#[source] StatusHttpRecusado),
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
     /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
     ControleRedirecionadoParaOLogin(#[source] StatusHttpRecusado),
-    /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
-    StatusHttpDeErroDoServidor(#[source] StatusHttpRecusado),
-    /// Status HTTP 429.
-    StatusHttpDeLimiteDeRequisicoes(#[source] StatusHttpRecusado),
-    /// Qualquer outro status diferente de 200.
-    StatusHttpDiferenteDe200(#[source] StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
     CorpoNaoDecodificavelNoCharsetDeclarado,
     PaginaDeLoginRecebidaNoControle,
@@ -101,19 +93,13 @@ impl FalhaTransporte {
             Self::SessaoTrocadaDuranteALeitura => {
                 "a sessão local foi regravada durante a leitura, duas vezes; nada foi pedido ao SEI"
             }
-            Self::AcessoNegado(_) => "SEI negou acesso; a sessão pode estar vencida",
+            Self::Status(_) => "o SEI respondeu com status HTTP diferente de 200",
             Self::BloqueioDeSegurancaDaInstalacao(_) => {
                 "a política de segurança da instalação bloqueou a requisição; espace as execuções"
-            }
-            Self::Redirecionamento(_) => {
-                "redirecionamento recusado; a sessão pode exigir novo login"
             }
             Self::ControleRedirecionadoParaOLogin(_) => {
                 "o SEI redirecionou o Controle para a tela de login; rode ies login"
             }
-            Self::StatusHttpDeErroDoServidor(_) => "o SEI respondeu com erro do servidor (5xx)",
-            Self::StatusHttpDeLimiteDeRequisicoes(_) => "o SEI limitou as requisições (429)",
-            Self::StatusHttpDiferenteDe200(_) => "o SEI respondeu com status HTTP diferente de 200",
             Self::CorpoNaoDecodificavelNoCharsetDeclarado => {
                 "o corpo da resposta não decodifica no charset declarado"
             }

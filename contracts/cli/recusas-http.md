@@ -16,14 +16,17 @@ falhou. Toda resposta do GET Web passa pelas mesmas checagens, na ordem:
 
 | Fato observado | Variante Rust | Subcódigo |
 | --- | --- | --- |
-| Status HTTP 5xx | `StatusHttpDeErroDoServidor` | `status_http_de_erro_do_servidor` |
-| Status HTTP 429 | `StatusHttpDeLimiteDeRequisicoes` | `status_http_de_limite_de_requisicoes` |
-| Outro status diferente de 200 (fora 3xx/401/403) | `StatusHttpDiferenteDe200` | `status_http_diferente_de_200` |
+| Status HTTP diferente de 200 | `Status(StatusHttpRecusado { status, mensagem_do_servidor })` | `status` |
 | `Content-Type` principal diferente de `text/html` | `TipoDeConteudoNaoHtml` | `tipo_de_conteudo_nao_html` |
 | Corpo não decodifica no charset declarado (ou UTF-8) | `CorpoNaoDecodificavelNoCharsetDeclarado` | `corpo_nao_decodificavel_no_charset_declarado` |
 
-3xx, 401/403, limite de tamanho e tela de login mantêm as variantes
-existentes. Nenhuma das recusas autoriza nova tentativa automática.
+O número do status sobe como o transporte o recebeu: não há uma variante
+por faixa (5xx, 429, 401/403, 3xx). Quem decide pelo status casa o
+número, por exemplo `Status(StatusHttpRecusado { status: 401 | 403, .. })`.
+Continuam variantes próprias os fatos que não são o número: a página de
+bloqueio da instalação (403 com WAF), o 302 do Controle para o login,
+o limite de tamanho e a tela de login. Nenhuma das recusas autoriza
+nova tentativa automática.
 
 ## Status e mensagem do SEI nas recusas HTTP (Refs #57)
 

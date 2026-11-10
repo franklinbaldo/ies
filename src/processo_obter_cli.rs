@@ -454,10 +454,10 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> ExitCode {
             if cli.json {
                 let mut valor = json_do_processo(nup, &aberto, comando.sem_documentos);
                 relogin_cli::anotar(&mut valor, nota.as_ref());
-                if let Err(erro) = crate::saida::imprimir_json(&valor) {
-                    eprintln!("IES: falha ao emitir JSON: {erro}");
-                    return std::process::ExitCode::from(1);
-                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&valor).expect("JSON serializável")
+                );
             } else {
                 relogin_cli::avisar(cli.json, nota.as_ref());
                 println!("{}", humano(nup, &aberto, comando.sem_documentos));
