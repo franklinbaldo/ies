@@ -12,8 +12,7 @@ use super::tela::{
 use super::{Destino, MetodoRemocao, PedidoDoEnvio, ProcessoEnviado};
 use crate::formulario_web::{
     CodificacaoDaTela, ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
-    derivar_consulta_ajax,
-    derivar_submissao, enviar_submissao_via,
+    derivar_consulta_ajax, derivar_submissao, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
