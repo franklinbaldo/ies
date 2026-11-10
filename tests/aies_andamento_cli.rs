@@ -243,7 +243,10 @@ fn executar(confirmar: bool, falha_releitura: bool) {
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap();
     if falha_releitura {
-        assert!(falha_aplicada.load(Ordering::SeqCst), "falha pós-POST não exercitada");
+        assert!(
+            falha_aplicada.load(Ordering::SeqCst),
+            "falha pós-POST não exercitada"
+        );
         verificar_incerto(&saida, segunda.as_ref(), &persistido, &pedidos);
     } else {
         verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
@@ -383,9 +386,13 @@ fn verificar_incerto(
     persistido: &Historico,
     pedidos: &[String],
 ) {
-    assert_eq!(saida.status.code(), Some(3), "stdout={} stderr={}",
+    assert_eq!(
+        saida.status.code(),
+        Some(3),
+        "stdout={} stderr={}",
         String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr));
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["codigo"], "efeito_incerto");
     assert_eq!(json["subcodigo"], "efeito_incerto_no_andamento");
@@ -399,17 +406,33 @@ fn verificar_incerto(
     assert_eq!(persistido.linhas.len(), 2);
     assert_eq!(persistido.linhas[0].descricao, TEXTO);
     assert_eq!(persistido.linhas[1].descricao, "Andamento anterior");
-    assert_eq!(pedidos.iter().filter(|p| p.as_str() ==
-        "POST procedimento_atualizar_andamento").count(), 1, "{pedidos:?}");
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|p| p.as_str() == "POST procedimento_atualizar_andamento")
+            .count(),
+        1,
+        "{pedidos:?}"
+    );
     let leitura = segunda.expect("consulta independente do histórico");
-    assert_eq!(leitura.status.code(), Some(0), "stdout={} stderr={}",
+    assert_eq!(
+        leitura.status.code(),
+        Some(0),
+        "stdout={} stderr={}",
         String::from_utf8_lossy(&leitura.stdout),
-        String::from_utf8_lossy(&leitura.stderr));
+        String::from_utf8_lossy(&leitura.stderr)
+    );
     let historico: serde_json::Value = serde_json::from_slice(&leitura.stdout).unwrap();
     let itens = historico["andamentos"]["itens"].as_array().unwrap();
     assert_eq!(itens.len(), 2);
-    assert_eq!(itens[0]["descricao"].as_str().unwrap().split_whitespace()
-        .collect::<Vec<_>>(), TEXTO.split_whitespace().collect::<Vec<_>>());
+    assert_eq!(
+        itens[0]["descricao"]
+            .as_str()
+            .unwrap()
+            .split_whitespace()
+            .collect::<Vec<_>>(),
+        TEXTO.split_whitespace().collect::<Vec<_>>()
+    );
     assert_eq!(itens[1]["descricao"], "Andamento anterior");
 }
 
