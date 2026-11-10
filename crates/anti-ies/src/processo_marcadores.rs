@@ -107,6 +107,7 @@ fn formulario_adicionar(
          action='controlador.php?acao=andamento_marcador_cadastrar&acao_origem=andamento_marcador_cadastrar&arvore=1&id_procedimento={id}&infra_hash={hash}'>\
          <input type='hidden' name='hdnInfraTipoPagina' value='2'>\
          <button type='submit' id='sbmSalvar' name='sbmSalvar' value='Salvar'>Salvar</button>\
+         <button type='button' id='btnVoltar' name='btnVoltar'>Voltar</button>\
          <select id='selMarcador' name='selMarcador'>\
          <option value='null' selected='selected'>&nbsp;</option>"
     );
@@ -150,7 +151,10 @@ pub(crate) fn responder(
         (
             "GET",
             Some("andamento_marcador_gerenciar" | "andamento_marcador_cadastrar")
-        ) | ("POST", Some("andamento_marcador_remover"))
+        ) | (
+            "POST",
+            Some("andamento_marcador_remover" | "andamento_marcador_cadastrar")
+        )
     ) {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
@@ -175,6 +179,34 @@ pub(crate) fn responder(
     };
     if acao == Some("andamento_marcador_cadastrar") {
         return formulario_adicionar(banco, origem, cenario, id, &unidade);
+    }
+    if metodo == "POST" && acao == Some("andamento_marcador_cadastrar") {
+        let (Some(tipo), Some(marcador), Some(protocolo), Some(texto), Some(salvar)) = (
+            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+            campo_formulario_unico(corpo, "hdnIdMarcador"),
+            campo_formulario_unico(corpo, "hdnIdProtocolo"),
+            campo_formulario_unico(corpo, "txaTexto"),
+            campo_formulario_unico(corpo, "sbmSalvar"),
+        ) else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if corpo.split('&').count() != 5 || tipo != "2" || protocolo != id || salvar != "Salvar" {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        }
+        return match iesei::marcadores::atribuir(
+            banco, origem, cenario, id, &unidade, &marcador, &texto,
+        ) {
+            Ok(()) => Resposta::redirecionar(format!(
+                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
+            )),
+            Err(iesei::marcadores::Falha::DadoInvalido) => {
+                Resposta::nova(Estado::RequisicaoInvalida)
+            }
+            Err(
+                iesei::marcadores::Falha::Sqlite(_)
+                | iesei::marcadores::Falha::ProcessoNaoObservado,
+            ) => Resposta::nova(Estado::DadosInsuficientes),
+        };
     }
     if metodo == "POST" {
         let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
