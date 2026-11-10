@@ -112,7 +112,10 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
             assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-            assert_eq!(json(&saida)["subcodigo"], "arquivo_privado_ausente_ou_inacessivel");
+            assert_eq!(
+                json(&saida)["subcodigo"],
+                "arquivo_privado_ausente_ou_inacessivel"
+            );
         }
     }
 }
