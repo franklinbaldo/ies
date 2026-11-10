@@ -3,6 +3,7 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::catalogo_marcadores::{self, Opcao};
 use iesei::instalacao::Instalacao;
 use iesei::marcadores::{self, Marcador, Observacao};
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -81,7 +82,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (cabecalho, evento)
 }
 
-fn estado(sem_marcadores: bool) -> (Connection, Instalacao) {
+fn estado(sem_marcadores: bool, com_catalogo: bool) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -146,6 +147,21 @@ fn estado(sem_marcadores: bool) -> (Connection, Instalacao) {
         },
     )
     .unwrap();
+    if com_catalogo {
+        // Observação independente por unidade: 501 não vem da lista do processo.
+        catalogo_marcadores::registrar(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "TESTE",
+            &[Opcao {
+                id: "501".into(),
+                nome: "Revisão".into(),
+                cor: "azul".into(),
+            }],
+        )
+        .unwrap();
+    }
     (banco, instalacao)
 }
 
@@ -224,6 +240,9 @@ fn executar_caso_cli(
     if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
         argumentos.push("--confirmar");
     }
+    if matches!(caso, Caso::AtribuirAusente) {
+        argumentos.extend(["--texto", "Nova revisão"]);
+    }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
 }
 
@@ -253,6 +272,7 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores | Caso::AtribuirAusente);
+    let com_catalogo = matches!(caso, Caso::AtribuirAusente);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -272,7 +292,7 @@ fn executar(caso: Caso) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado(sem_marcadores);
+        let (banco, instalacao) = estado(sem_marcadores, com_catalogo);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -361,9 +381,14 @@ fn conferir(
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if matches!(caso, Caso::AtribuirAusente) {
-        assert_eq!(saida.status.code(), Some(0), "BDD-255-01 deve oferecer prévia da atribuição quando catálogo independente é observado");
+        assert_eq!(
+            saida.status.code(),
+            Some(0),
+            "BDD-255-01 deve oferecer prévia da atribuição quando catálogo independente é observado"
+        );
         assert_eq!(json["nada_a_fazer"], false);
         assert_eq!(json["alterado"], false);
+        assert_eq!(json["texto"], "Nova revisão");
         assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
         assert_eq!(persistido.total_declarado, 0);
         assert_eq!(releitura.status.code(), Some(0));
