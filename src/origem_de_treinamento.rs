@@ -1,7 +1,15 @@
-//! Onde cada `--confirmar` pode gravar. Decisão do proprietário
-//! (10/11/2026): a escrita que passou em ensaio ao vivo em treinamento fica
-//! aprovada para produção, para uso dos usuários; as demais gravam só nas
-//! instalações públicas de treinamento. Conferido antes da primeira requisição.
+//! Onde cada `--confirmar` pode gravar. Decisões do proprietário
+//! (10/11/2026): a escrita aprovada em ensaio ao vivo fica liberada para
+//! produção, para uso dos usuários; as demais gravam só nas instalações
+//! públicas de treinamento. Conferido antes da primeira requisição.
+//!
+//! **Aprovação exige ensaio em todas as instalações de treinamento**
+//! ([`ORIGENS`]); uma instalação que bloqueie por motivo alheio ao IES
+//! (WAF, Cloudflare, conta recusada) fica `NOT_RUN` no relatório e não
+//! impede a aprovação. Exceção expressa do proprietário: as quatro escritas
+//! aprovadas antes desta regra só na `UnB` (incluir externo, prazo,
+//! relacionar, andamento) continuam liberadas enquanto a cobertura das
+//! demais é feita. Nenhuma outra escrita entra sem as sete instalações.
 
 /// Instalações de `docs/interfaces/credenciais-de-treinamento.md` e a
 /// bancada reservada `sei.test` do anti-IES. Comparação exata da URL base:
@@ -51,9 +59,14 @@ pub(crate) enum Escrita {
 impl Escrita {
     /// Ensaio ao vivo aprovado em treinamento, com relatório:
     /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
-    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`;
+    /// - prazo, nas sete instalações:
+    ///   `docs/validacao-live/2026-11-10-processo-prazo-7-instalacoes.md`;
     /// - relacionar e andamento:
     ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`.
+    ///
+    /// Enviar removendo anotações passou só na `UnB`
+    /// (`docs/validacao-live/2026-11-10-processo-enviar-remover-anotacoes-unb.md`)
+    /// e aguarda as outras seis instalações.
     fn aprovada_em_treinamento(self) -> bool {
         matches!(
             self,
@@ -111,6 +124,13 @@ mod tests {
             assert!(exigir(Escrita::ProcessoPrazo, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoRelacionar, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoAndamento, producao_ou_parecida).is_ok());
+            assert!(
+                exigir(
+                    Escrita::ProcessoEnviarRemovendoAnotacoes,
+                    producao_ou_parecida
+                )
+                .is_err()
+            );
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
     }
