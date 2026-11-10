@@ -14,7 +14,9 @@ unresolved_steps: 0
 
 Origem: matriz de demonstrações do Todos. **Leitura CLI Rust BDD-257-01
 implementada sinteticamente**, ainda sem validação live e sem confronto
-semântico independente. A escrita `processo comentar` está bloqueada.
+semântico independente. A prévia GET de `processo comentar` com lista existente está em implementação
+na PR #659 e não executa POST; `--confirmar` é recusado antecipadamente.
+A escrita de comentários permanece bloqueada.
 Os estados do Todos abaixo não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
@@ -71,6 +73,11 @@ Estado registrado no Todos: **demonstrada**.
   `comentario_listar`. Isso **não é replay nem confronto semântico**.
 - `tests/aies_comentarios_cli.rs`: prova apenas do ciclo sintético, com
   GET sem POST, SQLite v33 e causas tipadas para lista incompleta/ausente.
+- PR #659: cenário BDD-257-02 de prévia via CLI real com GET de listagem e
+  GET do formulário publicado; zero POST. O RED inicial foi observado no
+  [CI #42796263728](https://github.com/franklinbaldo/ies/actions/runs/42796263728)
+  (exit 2 por ausência de `processo comentar`), além do erro Rustfmt;
+  o GREEN precisa de CI oficial no head final.
 - **Confronto semântico independente:** NOT_RUN. **Treinamento/live:** NOT_RUN.
 
 ## Limite da evidência
