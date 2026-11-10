@@ -1,23 +1,22 @@
 //! BDD-255-02: uma única remoção, derivada do formulário efetivamente servido.
 //! O GET de gerenciamento não autoriza POST sem handler, hidden e ação assinada.
-use super::{decidir, Decisao, ErroMarcar, Operacao, Rotulo};
+use super::{Decisao, ErroMarcar, Operacao, Rotulo, decidir};
+use crate::Cli;
 use crate::formulario_web::{
-    consulta_do_controlador, derivar_submissao_com_action, enviar_submissao_via,
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio,
-    TelaServida,
+    OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
+    consulta_do_controlador, derivar_submissao_com_action, enviar_submissao_via,
 };
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{ler_cookie, obter_tela, Contador, FalhaDaTela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
-    abrir_para_escrever, obter_processo, EnvioDoProcesso, Marcadores,
-    PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
+    EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
+    abrir_para_escrever, obter_processo,
 };
 use crate::saida_erro;
-use crate::Cli;
 use crate::visao_do_controle::EnvioDoControle as _;
 use serde_json::json;
 use std::process::ExitCode;
@@ -47,7 +46,12 @@ fn falha(cli: &Cli, erro: ErroMarcar, reqs: u8) -> ExitCode {
 }
 
 fn falha_transporte(cli: &Cli, erro: &crate::transporte::FalhaTransporte) -> ExitCode {
-    saida_erro::erro_fonte_http(cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http())
+    saida_erro::erro_fonte_http(
+        cli.json,
+        erro.subcodigo(),
+        erro.mensagem(),
+        erro.status_http(),
+    )
 }
 
 fn falha_formulario(cli: &Cli, erro: &crate::formulario_web::ErroSubmissaoFormulario) -> ExitCode {
@@ -102,16 +106,18 @@ fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
 }
 
 fn efeito_incerto(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
-    let mensagem =
-        "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
+    let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
     if cli.json {
-        println!("{}", json!({
-            "codigo": "efeito_incerto",
-            "erro": mensagem,
-            "retentavel": false,
-            "requisicoes": requisicoes,
-            "ausente_relido": ausente_relido
-        }));
+        println!(
+            "{}",
+            json!({
+                "codigo": "efeito_incerto",
+                "erro": mensagem,
+                "retentavel": false,
+                "requisicoes": requisicoes,
+                "ausente_relido": ausente_relido
+            })
+        );
     } else {
         eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
     }
@@ -142,7 +148,10 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         Ok(aberto) => aberto,
         Err(erro) => {
             return saida_erro::erro_fonte_http(
-                cli.json, erro.subcodigo(), erro.mensagem(), erro.status_http(),
+                cli.json,
+                erro.subcodigo(),
+                erro.mensagem(),
+                erro.status_http(),
             );
         }
     };
@@ -158,26 +167,37 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     };
     if decisao == Decisao::NadaAFazer {
         if cli.json {
-            println!("{}", json!({
-                "nup": nup.as_str(),
-                "id_procedimento": aberto.arvore.processo.id,
-                "unidade": unidade,
-                "marcador": format!("{}#{}",rotulo.id,rotulo.nome),
-                "acao": "retirar",
-                "confirmado": false,
-                "alterado": false,
-                "nada_a_fazer": true,
-                "retirada_possivel": false,
-                "requisicoes": rede.feitas()
-            }));
+            println!(
+                "{}",
+                json!({
+                    "nup": nup.as_str(),
+                    "id_procedimento": aberto.arvore.processo.id,
+                    "unidade": unidade,
+                    "marcador": format!("{}#{}",rotulo.id,rotulo.nome),
+                    "acao": "retirar",
+                    "confirmado": false,
+                    "alterado": false,
+                    "nada_a_fazer": true,
+                    "retirada_possivel": false,
+                    "requisicoes": rede.feitas()
+                })
+            );
         } else {
-            println!("Processo {}: nada a fazer com {} (retirar). Requisições: {}.",
-                nup.as_str(), rotulo.id, rede.feitas());
+            println!(
+                "Processo {}: nada a fazer com {} (retirar). Requisições: {}.",
+                nup.as_str(),
+                rotulo.id,
+                rede.feitas()
+            );
         }
         return ExitCode::SUCCESS;
     }
     let Some(link) = acoes.marcadores.ok().flatten() else {
-        return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        );
     };
     let cookie = match ler_cookie(sessao) {
         Ok(cookie) => cookie,
@@ -187,21 +207,46 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return falha_transporte(cli, &erro),
         Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada) => {
-            return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas());
+            return falha(
+                cli,
+                ErroMarcar::RemocaoSemFormularioObservado,
+                rede.feitas(),
+            );
         }
     };
     let Some(acao) = action_de_remocao(&html, &rotulo.id) else {
-        return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        );
     };
     let Some(codificacao) = codificacao_da_tela(&mime) else {
-        return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        );
     };
     let Some(instalacao) = Instalacao::interpretar(sessao.origem) else {
-        return falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::RemocaoSemFormularioObservado,
+            rede.feitas(),
+        );
     };
-    let tela = TelaServida { url: link.as_str(), html: &html, codificacao };
+    let tela = TelaServida {
+        url: link.as_str(),
+        html: &html,
+        codificacao,
+    };
     let submissao = match derivar_submissao_com_action(
-        &REMOVER, &instalacao, &tela, unidade, &[("hdnInfraItemId", rotulo.id.as_str())], Some(&acao),
+        &REMOVER,
+        &instalacao,
+        &tela,
+        unidade,
+        &[("hdnInfraItemId", rotulo.id.as_str())],
+        Some(&acao),
     ) {
         Ok(submissao) => submissao,
         Err(erro) => return falha_formulario(cli, &erro),
@@ -214,7 +259,11 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     if !tentativa {
         return match resposta {
             Err(erro) => falha_formulario(cli, &erro),
-            _ => falha(cli, ErroMarcar::RemocaoSemFormularioObservado, rede.feitas()),
+            _ => falha(
+                cli,
+                ErroMarcar::RemocaoSemFormularioObservado,
+                rede.feitas(),
+            ),
         };
     }
     let aceito = matches!(
@@ -230,9 +279,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
                 && novo.unidade.as_deref() == Some(unidade) =>
         {
             match &novo.marcadores {
-                Marcadores::Lidos(lidos)
-                    if lidos.itens.len() == lidos.total_declarado =>
-                {
+                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
                     Some(!lidos.itens.iter().any(|m| m.id == rotulo.id))
                 }
                 _ => None,
@@ -244,22 +291,31 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         return efeito_incerto(cli, rede.feitas(), ausente);
     }
     if cli.json {
-        println!("{}", json!({
-            "nup": nup.as_str(),
-            "id_procedimento": aberto.arvore.processo.id,
-            "unidade": unidade,
-            "marcador": format!("{}#{}",rotulo.id,rotulo.nome),
-            "acao": "retirar",
-            "origem": "web",
-            "confirmado": true,
-            "alterado": true,
-            "nada_a_fazer": false,
-            "retirada_possivel": true,
-            "requisicoes": rede.feitas()
-        }));
+        println!(
+            "{}",
+            json!({
+                "nup": nup.as_str(),
+                "id_procedimento": aberto.arvore.processo.id,
+                "unidade": unidade,
+                "marcador": format!("{}#{}",rotulo.id,rotulo.nome),
+                "acao": "retirar",
+                "origem": "web",
+                "confirmado": true,
+                "alterado": true,
+                "nada_a_fazer": false,
+                "retirada_possivel": true,
+                "requisicoes": rede.feitas()
+            })
+        );
     } else {
-        println!("Remoção confirmada: marcador {}#{} do processo {} (unidade {}). Requisições: {}.",
-            rotulo.id, rotulo.nome, nup.as_str(), unidade, rede.feitas());
+        println!(
+            "Remoção confirmada: marcador {}#{} do processo {} (unidade {}). Requisições: {}.",
+            rotulo.id,
+            rotulo.nome,
+            nup.as_str(),
+            unidade,
+            rede.feitas()
+        );
     }
     ExitCode::SUCCESS
 }
