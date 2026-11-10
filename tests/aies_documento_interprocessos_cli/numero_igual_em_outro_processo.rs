@@ -1,6 +1,6 @@
 //! BDD-60-05: mesmo número SEI em processos distintos não deve causar
 //! seleção de corpo alheio quando --processo delimita explicitamente a busca.
-//! Hipótese sintética não capturada nos cards UnB de número e busca.
+//! Hipótese sintética não capturada nos cards `UnB` de número e busca.
 use super::*;
 
 #[test]
