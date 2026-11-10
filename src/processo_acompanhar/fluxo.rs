@@ -70,6 +70,7 @@ pub(crate) enum EstadoDoAcompanhamento {
     Previa { ja_estava: bool },
     ConfirmadoSemMudanca,
     Incluido,
+    Removido,
 }
 
 impl EstadoDoAcompanhamento {
@@ -81,11 +82,11 @@ impl EstadoDoAcompanhamento {
     }
 
     pub(crate) fn confirmado(self) -> bool {
-        matches!(self, Self::ConfirmadoSemMudanca | Self::Incluido)
+        matches!(self, Self::ConfirmadoSemMudanca | Self::Incluido | Self::Removido)
     }
 
     pub(crate) fn alterado(self) -> bool {
-        matches!(self, Self::Incluido)
+        matches!(self, Self::Incluido | Self::Removido)
     }
 }
 
@@ -218,10 +219,6 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroPrevia> {
-    // A exclusão exige formulário próprio; só a inclusão pode confirmar.
-    if pedido.confirmar && pedido.deixar {
-        return Err(ErroPrevia::ConfirmacaoNaoImplementada);
-    }
     if pedido.deixar && pedido.observacao.is_some() {
         return Err(ErroHtml::valor("pedido_de_acompanhamento_invalido").into());
     }
@@ -239,6 +236,7 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let res = rede.get_sem_seguir(link.as_str(), &cookie)?;
+    let mut exclusao = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
         let url = redirecionamento_do_gerenciar(
             &instalacao,
@@ -248,8 +246,30 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
         )?;
         (Vec::new(), Some(url))
     } else {
+        let mime = res.resposta.mime.clone();
         let html = decodificar_resposta(res.resposta)?;
         let antes = acompanhamentos_da_lista(&html)?;
+        if pedido.deixar && pedido.confirmar {
+            let alvo = antes
+                .iter()
+                .any(|linha| pedido.grupo.is_none_or(|grupo| linha.grupo == grupo));
+            if alvo {
+                let alvo = alvo_para_deixar(&antes, pedido.grupo)?;
+                let destino = super::exclusao::destino_oferecido(
+                    &instalacao, &html, &id, &alvo.id,
+                )?;
+                let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+                    .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+                let tela = crate::formulario_web::TelaServida {
+                    url: link.as_str(),
+                    html: &html,
+                    codificacao,
+                };
+                exclusao = Some(super::submissao::derivar_exclusao(
+                    &instalacao, &tela, &unidade, &alvo.id, &destino,
+                )?);
+            }
+        }
         let url = if pedido.deixar {
             None
         } else {
@@ -299,6 +319,21 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     if plano.estado.ja_estava() {
         plano.estado = EstadoDoAcompanhamento::ConfirmadoSemMudanca;
         return Ok(plano);
+    }
+    if pedido.deixar {
+        let submissao = exclusao
+            .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
+        return confirmar_remocao(
+            &mut rede,
+            sessao,
+            &instalacao,
+            &id,
+            link.as_str(),
+            &cookie,
+            &antes,
+            plano,
+            submissao,
+        );
     }
     let submissao = submissao.ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?;
     confirmar_inclusao(
@@ -372,3 +407,73 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
 #[cfg(test)]
 #[path = "tests_fluxo.rs"]
 mod tests;
+
+/// Depois do único POST, comprovar a perda exclusiva da linha escolhida.
+/// Resposta do POST ou releitura insuficiente devolvem efeito incerto (saída 3).
+#[allow(clippy::too_many_arguments)] // Contexto exato da mesma leitura e submissão.
+fn confirmar_remocao<V: EnvioDoProcesso>(
+    rede: &mut Contador<'_, V>,
+    sessao: &SessaoDoProcesso<'_>,
+    instalacao: &Instalacao,
+    id: &str,
+    link: &str,
+    cookie: &str,
+    antes: &[Acompanhamento],
+    mut plano: Previa,
+    submissao: SubmissaoDerivada,
+) -> Result<Previa, ErroPrevia> {
+    let mut enviado = false;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |formulario, cookie| {
+        enviado = true;
+        rede.post(formulario, cookie)
+    });
+    if !enviado {
+        return Err(ErroPrevia::Formulario(
+            resposta
+                .err()
+                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
+        ));
+    }
+    let aceite = match &resposta {
+        Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) => {
+            redirecionamento.localizacao()
+                .and_then(|local| {
+                    crate::formulario_web::consulta_do_controlador(
+                        local,
+                        redirecionamento.url_do_envio(),
+                    )
+                })
+                .is_some_and(|consulta| {
+                    crate::arvore_processo::conferir_endereco_relativo(
+                        instalacao,
+                        &format!("controlador.php?{consulta}"),
+                        "acompanhamento_gerenciar",
+                        id,
+                    ).is_ok()
+                })
+        }
+        _ => false,
+    };
+    let depois = rede.get_sem_seguir(link, cookie).ok().and_then(|res| {
+        if res.resposta.status_code == 302 {
+            // Sem comprovação da última linha removida, nunca afirmar êxito.
+            return None;
+        }
+        decodificar_resposta(res.resposta)
+            .ok()
+            .and_then(|html| acompanhamentos_da_lista(&html).ok())
+    });
+    let confirmado = aceite && depois.as_deref().is_some_and(|linhas| {
+        super::conferir_remocao(
+            antes,
+            linhas,
+            plano.id_de_remocao.as_deref().unwrap_or_default(),
+        ).is_ok()
+    });
+    if !confirmado {
+        return Err(ErroPrevia::EfeitoIncerto);
+    }
+    plano.estado = EstadoDoAcompanhamento::Removido;
+    plano.requisicoes = rede.feitas();
+    Ok(plano)
+}
