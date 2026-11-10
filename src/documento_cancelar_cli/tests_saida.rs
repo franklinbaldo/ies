@@ -58,8 +58,8 @@ fn falha_de_cancelamento_apresentada_diretamente_do_enum() {
     assert_eq!(
         super::linhas_da_falha(&erro),
         vec![
-            format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo()),
-            "IES: resposta da escrita: redirecionamento_do_cancelamento_nao_reconhecido".to_owned(),
+            format!("IES: {}", erro.mensagem()),
+            "IES: resposta da escrita: RedirecionamentoNaoReconhecido".to_owned(),
         ]
     );
 }
@@ -69,7 +69,7 @@ fn falha_sem_detalhes_nao_cria_linhas_artificiais() {
     let erro = ErroCancelar::DocumentoJaCancelado;
     assert_eq!(
         super::linhas_da_falha(&erro),
-        vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())]
+        vec![format!("IES: {}", erro.mensagem())]
     );
 }
 

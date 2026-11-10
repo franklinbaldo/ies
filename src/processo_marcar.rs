@@ -18,7 +18,8 @@ pub(crate) enum Decisao {
     NadaAFazer,
     PreviaDeRetirada,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroMarcar {
     RotuloSemSeparador,
     IdDoMarcadorNaoDecimal,
@@ -33,9 +34,6 @@ pub(crate) enum ErroMarcar {
     UnidadeDaSessaoNaoPublicada,
 }
 impl ErroMarcar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
             Self::RotuloSemSeparador => "identifique o marcador por id#nome",

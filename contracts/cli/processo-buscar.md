@@ -85,7 +85,7 @@ Controle), `origem: "web"` e `requisicoes`.
   `processo_inexistente`: significa "a pesquisa não devolveu nada para esta
   conta/unidade", sujeito a permissões e restrições de acesso.
 
-## Erros tipados (saída 1, `fonte_invalida` com `subcodigo`)
+## Erros tipados (saída 1, `fonte_invalida`)
 
 - `validacao_recusada_pelo_sei`: 200 com `txaInfraValidacao`; publica
   `mensagem_do_servidor` saneada.

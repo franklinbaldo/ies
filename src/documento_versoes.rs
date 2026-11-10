@@ -8,20 +8,15 @@ use std::num::NonZeroU32;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersaoDocumento(NonZeroU32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroVersao {
     LinhaIncompleta,
     LinkInseguro,
     DocumentoDivergente,
     ListaIncompleta,
     VersaoNaoObservada,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroVersao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    Html(#[from] ErroHtml),
 }
 
 impl VersaoDocumento {
@@ -467,10 +462,5 @@ pub(crate) mod testes {
                 )))
             );
         }
-        assert_eq!(
-            ErroVersao::Html(ErroHtml::repetido("legendas_historico_versoes_repetidas"))
-                .subcodigo(),
-            "legendas_historico_versoes_repetidas"
-        );
     }
 }

@@ -46,18 +46,12 @@ fn falha(cli: &Cli, erro: ErroMarcar, reqs: u8) -> ExitCode {
 }
 
 fn falha_transporte(cli: &Cli, erro: &crate::transporte::FalhaTransporte) -> ExitCode {
-    saida_erro::erro_fonte_http(
-        cli.json,
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    )
+    saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
 }
 
 fn falha_formulario(cli: &Cli, erro: &crate::formulario_web::ErroSubmissaoFormulario) -> ExitCode {
     saida_erro::erro_fonte_http(
         cli.json,
-        erro.subcodigo(),
         "o formulário não corresponde à transição observada",
         erro.status_http(),
     )
@@ -105,13 +99,13 @@ fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
         && procedimento == Some(id)
 }
 
-fn efeito_incerto(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
+fn nao_confirmado(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> ExitCode {
     let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
     if cli.json {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false,
                 "requisicoes": requisicoes,
@@ -121,7 +115,7 @@ fn efeito_incerto(cli: &Cli, requisicoes: u8, ausente_relido: Option<bool>) -> E
     } else {
         eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn saida_sem_alteracao(
@@ -208,17 +202,15 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     rotulo: &Rotulo,
 ) -> Result<crate::formulario_web::SubmissaoDerivada, ExitCode> {
     let cookie = ler_cookie(sessao).map_err(|erro| {
-        saida_erro::erro_fonte_http(
-            cli.json,
-            crate::erro_publico::folha(&erro),
-            erro.mensagem(),
-            erro.status_http(),
-        )
+        saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
     })?;
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
         Err(FalhaDaTela::Transporte(erro)) => return Err(falha_transporte(cli, &erro)),
-        Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada) => {
+        Err(
+            FalhaDaTela::Redirecionada
+            | FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+        ) => {
             return Err(falha(
                 cli,
                 ErroMarcar::RemocaoSemFormularioObservado,
@@ -286,12 +278,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
         Ok(aberto) => aberto,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let Some(unidade) = aberto.unidade.as_deref() else {
@@ -363,7 +350,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
         _ => None,
     };
     if !aceito || ausente != Some(true) {
-        return efeito_incerto(cli, rede.feitas(), ausente);
+        return nao_confirmado(cli, rede.feitas(), ausente);
     }
     saida_confirmada(
         cli,

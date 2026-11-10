@@ -408,14 +408,13 @@ fn verificar_incerto(
 ) {
     assert_eq!(
         saida.status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["codigo"], "efeito_incerto");
-    assert_eq!(json["subcodigo"], "efeito_incerto");
+    assert_eq!(json["codigo"], "nao_confirmado");
     let mensagem = json["erro"].as_str().unwrap();
     assert!(mensagem.contains("não repita --confirmar"), "{mensagem}");
     assert!(mensagem.contains("histórico"), "{mensagem}");
@@ -467,6 +466,6 @@ fn bdd_259_02_confirmacao_unica_com_releitura_da_cli() {
 }
 
 #[test]
-fn bdd_259_03_efeito_incerto_sem_reenvio_e_consulta_independente() {
+fn bdd_259_03_nao_confirmado_sem_reenvio_e_consulta_independente() {
     executar(true, true);
 }

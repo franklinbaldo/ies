@@ -3,7 +3,8 @@ use crate::erro_html::ErroHtml;
 use crate::html_atributos::ErroAtributoHtml;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroSubmissaoFormulario {
     EfeitoDaOperacaoNaoAvaliado,
     UnidadeDaTelaDiferenteDaSolicitada,
@@ -47,19 +48,12 @@ pub(crate) enum ErroSubmissaoFormulario {
     /// pela validação da Infra. Status 200 e a mensagem saneada.
     ValidacaoRecusadaPeloSei(StatusHttpRecusado),
     /// Tag de abertura servida que o tokenizador de atributos recusou.
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    AtributoHtml(#[from] ErroAtributoHtml),
+    Transporte(#[from] FalhaTransporte),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroSubmissaoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
     /// Na validação da Infra, status 200 e a mensagem do SEI.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {

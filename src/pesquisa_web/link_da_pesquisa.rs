@@ -9,15 +9,13 @@ use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// Uma variante por fato verificável do link no Controle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDaPesquisa {
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroLinkDaPesquisa {}
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
 /// da tela servida e conferida na instalação. Nenhuma requisição.

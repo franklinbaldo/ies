@@ -57,7 +57,7 @@ na confirmação sintética, **abertura + GET do formulário + 1 POST
 + 1 GET de verificação**. Requisições posteriores à escrita verificam o
 estado persistido no mesmo SQLite. Uso inválido, exclusão fora do simulador e confirmação
 em release resultam em **zero requisições**. Uma resposta inconclusiva
-após o POST retorna código 3 sem retry, redirecionamento seguido ou
+após o POST retorna código 1 sem retry, redirecionamento seguido ou
 restauração de tela.
 
 ## Falhas e subcódigos
@@ -93,7 +93,7 @@ Aproveitam-se os cenários, não a arquitetura Python.
 [`aies_prazo_cli.rs`](../../tests/aies_prazo_cli.rs) executam a CLI real
 por TLS loopback até o anti-IES e SQLite v21, com POST único e
 verificação por GET para data e número de dias. A resposta 403 após
-persistir a data produz código 3, sem repetição. O tipo `dias` preserva
+persistir a data produz código 1, sem repetição. O tipo `dias` preserva
 a contagem observada sem inventar data de calendário. A integridade dos
 ZIPs UnB/GO foi verificada separadamente; **paridade semântica com as
 respostas originais e treinamento continuam NOT_RUN**.

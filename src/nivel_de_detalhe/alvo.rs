@@ -12,7 +12,8 @@ pub(crate) enum AlvoDasColunas {
 }
 
 /// Erro de uso em `--definir` (saída 2, zero requisições).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDaListaDeColunas {
     ListaDeColunasVazia,
     /// Item vazio entre vírgulas (`tipo,,anotacao`).
@@ -27,10 +28,6 @@ pub(crate) enum ErroDaListaDeColunas {
 }
 
 impl ErroDaListaDeColunas {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::ListaDeColunasVazia => "--definir exige `todas` ou uma lista de colunas",

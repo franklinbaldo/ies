@@ -40,20 +40,13 @@ pub enum TelaDosComentarios {
     Lista(ComentariosLidos),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroComentarios {
     VisaoNaoPublicada,
     TextoDoComentarioNaoPublicado,
     ListaIncompleta,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-
-impl ErroComentarios {
-    #[must_use]
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    Html(#[from] ErroHtml),
 }
 
 fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, tag: &str) -> Vec<Tag<'p>> {
@@ -130,11 +123,11 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 }
 
 /// Falhas verificáveis ao procurar a ação publicada na barra do processo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDosComentarios {
     EnderecoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Posicionamento das colunas observadas na tela, sem ordem pressuposta.

@@ -9,31 +9,27 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTelaDeEnvio {
     TelaDeEnvioDeOutroProcesso,
     TelaDeEnvioComOpcoesPreenchidas,
     OrgaoDaTelaDeEnvioNaoSelecionado,
     AutocompletarDeUnidadeNaoDeclarado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
-impl ErroTelaDeEnvio {}
-
 /// Por que a consulta do autocomplete não deu a lista de unidades.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaConsulta {
     /// Derivação ou cookie: nada saiu.
-    #[causa(interna)]
-    Derivacao(ErroSubmissaoFormulario),
+    Derivacao(#[from] ErroSubmissaoFormulario),
     /// Rede, tempo, status, tamanho, charset.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl FalhaDaConsulta {
@@ -46,14 +42,13 @@ impl FalhaDaConsulta {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEnviar {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Cookie(#[from] CookieIlegivel),
     /// A abertura do processo (a de `ies processo NUP`) falhou.
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeEnviar {
         motivo: MotivoAbertoEm,
@@ -68,18 +63,13 @@ pub(crate) enum ErroEnviar {
     EnvioNaoPublicadoNaBarra {
         aberto_em: Vec<String>,
     },
-    #[causa(interna)]
-    Barra(ErroEnviarNaBarra),
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
+    Barra(#[from] ErroEnviarNaBarra),
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaDaEscritaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     CharsetDaTelaNaoSuportado,
-    #[causa(interna)]
-    TelaDeEnvio(ErroTelaDeEnvio),
-    #[causa(interna)]
-    Consulta(FalhaDaConsulta),
+    TelaDeEnvio(#[from] ErroTelaDeEnvio),
+    Consulta(#[from] FalhaDaConsulta),
     /// O checkbox não foi servido ou está indisponível na tela atual.
     RemocaoDeAnotacoesNaoOferecida,
     /// Confirmação pública fechada enquanto a nova escrita não foi validada em treinamento.
@@ -92,15 +82,14 @@ pub(crate) enum ErroEnviar {
     /// A tentativa de limpar foi relida, mas a anotação segue preenchida: não tramitar.
     AnotacaoNaoLimpaAntesDeEnviar,
     /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
-    EfeitoIncertoNaLimpezaDaAnotacao,
+    NaoConfirmadoNaLimpezaDaAnotacao,
     /// O envio foi confirmado; a releitura da anotação falhou.
-    EfeitoIncertoNaRemocaoDeAnotacoes {
+    NaoConfirmadoNaRemocaoDeAnotacoes {
         /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.
         depois: Option<Vec<String>>,
     },
     /// A anotação da origem não foi lida antes de enviar.
-    #[causa(interna)]
-    Anotacoes(super::anotacoes::ErroDasAnotacoes),
+    Anotacoes(#[from] super::anotacoes::ErroDasAnotacoes),
     DestinoNaoOferecidoPeloSei {
         oferecidos: Vec<String>,
     },
@@ -111,8 +100,7 @@ pub(crate) enum ErroEnviar {
         aberto_em: Vec<String>,
     },
     /// Derivação do POST ou falha antes de ele sair (cookie).
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     /// A leitura depois do envio não lista o destino.
     EnvioNaoAplicado {
         aberto_em: Vec<String>,
@@ -126,7 +114,7 @@ pub(crate) enum ErroEnviar {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNoEnvio {
+    NaoConfirmadoNoEnvio {
         aberto_em: Vec<String>,
         anotacao_depois: Option<bool>,
         falha_do_envio: Option<FalhaDoEnvio>,
@@ -135,10 +123,6 @@ pub(crate) enum ErroEnviar {
 }
 
 impl ErroEnviar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
@@ -146,20 +130,10 @@ impl ErroEnviar {
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
             | Self::AnotacoesNaoRemovidasAposEnvio { .. }
             | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
-            Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
-            | Self::EfeitoIncertoNaLimpezaDaAnotacao => "efeito_incerto",
+            Self::NaoConfirmadoNoEnvio { .. }
+            | Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
+            | Self::NaoConfirmadoNaLimpezaDaAnotacao => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
-            | Self::EfeitoIncertoNaLimpezaDaAnotacao => 3,
-            _ => 1,
         }
     }
 
@@ -173,7 +147,7 @@ impl ErroEnviar {
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::EnvioNaoAplicado { falha_do_envio, .. }
             | Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-            | Self::EfeitoIncertoNoEnvio { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNoEnvio { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -205,7 +179,9 @@ impl ErroEnviar {
             Self::TelaDaEscrita(_) | Self::TelaDaEscritaRedirecionada => {
                 "a tela Enviar Processo não foi servida; nada foi enviado"
             }
-            Self::SessaoEncerrada => "a sessão encerrou; rode `ies login` (nada foi enviado)",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode `ies login` (nada foi enviado)"
+            }
             Self::CharsetDaTelaNaoSuportado => {
                 "a tela de envio declara um charset não suportado; nada foi enviado"
             }
@@ -227,10 +203,10 @@ impl ErroEnviar {
             Self::AnotacaoNaoLimpaAntesDeEnviar => {
                 "a anotação continua preenchida; o processo não foi enviado"
             }
-            Self::EfeitoIncertoNaLimpezaDaAnotacao => {
+            Self::NaoConfirmadoNaLimpezaDaAnotacao => {
                 "não foi possível comprovar a limpeza da anotação; o processo não foi enviado; não repita a gravação"
             }
-            Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. } => {
+            Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. } => {
                 "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
             }
             Self::Anotacoes(erro) => erro.mensagem(),
@@ -250,7 +226,7 @@ impl ErroEnviar {
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
                 "o processo foi enviado, mas a unidade da sessão não ficou como pedido (manter aberto)"
             }
-            Self::EfeitoIncertoNoEnvio { .. } => {
+            Self::NaoConfirmadoNoEnvio { .. } => {
                 "não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir"
             }
         }

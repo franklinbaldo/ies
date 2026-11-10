@@ -2,14 +2,14 @@
 //! Nunca sobrescreve destino existente, não publica conteúdo em diagnóstico.
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoTexto {
     NomeAusente,
     DiretorioAusente,
     DestinoJaExiste,
     EscritaFalhou,
 }
-impl ErroArquivoTexto {}
 /// A falha da gravação privada única nos subcódigos do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     use crate::arquivo_privado::FalhaDaGravacao as F;

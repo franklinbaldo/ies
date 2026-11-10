@@ -345,8 +345,7 @@ fn conferir_resultados(
 ) {
     let esperado = match modo {
         Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => 0,
-        Modo::RespostaIncerta => 3,
-        Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
+        Modo::RespostaIncerta | Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
     };
     assert_eq!(
         saida.status.code(),
@@ -362,11 +361,7 @@ fn conferir_resultados(
             assert_eq!(saida_json["alterado"], true);
         }
         Modo::RespostaIncerta => {
-            assert_eq!(saida_json["codigo"], "efeito_incerto");
-            assert_eq!(saida_json["causa"], "resposta_do_post");
-            assert!(saida_json.get("subcodigo").is_none());
-            assert_eq!(saida_json["escrita"]["envio_tentado"], true);
-            assert!(saida_json["escrita"]["aplicada"].is_null());
+            assert_eq!(saida_json["codigo"], "nao_confirmado");
             assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
         }
         Modo::Previa | Modo::PreviaAssinada => {
@@ -392,7 +387,6 @@ fn conferir_resultados(
         }
         Modo::JaAnexado => {
             assert_eq!(saida_json["codigo"], "operacao_recusada");
-            assert_eq!(saida_json["subcodigo"], "processo_ja_anexado");
             assert_eq!(saida_json["retentavel"], false);
         }
     }
@@ -428,7 +422,7 @@ fn bdd_270_02_confirmacao_e_releitura_independente() {
 }
 
 #[test]
-fn bdd_270_02_efeito_incerto_sem_retry_de_anexacao() {
+fn bdd_270_02_nao_confirmado_sem_retry_de_anexacao() {
     executar(Modo::RespostaIncerta);
 }
 

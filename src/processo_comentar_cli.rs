@@ -21,9 +21,8 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroProcesso::novo(numero) {
-        Ok(numero) => numero,
-        Err(e) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+    let Ok(numero) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
     if texto.trim().is_empty() || texto.contains('\0') {
         return Some(recusa(cli.json, "Informe o texto do comentário."));
@@ -73,19 +72,19 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(processo_comentar_web::Erro::EfeitoIncerto) => efeito_incerto(cli.json),
-            Err(causa) => recusa_previa(cli.json, &causa),
+            Err(processo_comentar_web::Erro::NaoConfirmado) => nao_confirmado(cli.json),
+            Err(_) => recusa_previa(cli.json),
         }
     }))
 }
 
-fn efeito_incerto(json_mode: bool) -> ExitCode {
+fn nao_confirmado(json_mode: bool) -> ExitCode {
     let mensagem = "O POST pode ter sido aplicado, mas o comentário não foi confirmado pela releitura; consulte ies processo comentarios antes de tentar novamente. Não repita --confirmar.";
     if json_mode {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false
             })
@@ -93,7 +92,7 @@ fn efeito_incerto(json_mode: bool) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
@@ -112,7 +111,7 @@ fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {
     ExitCode::from(1)
 }
 
-fn recusa_previa(json_mode: bool, causa: &processo_comentar_web::Erro) -> ExitCode {
+fn recusa_previa(json_mode: bool) -> ExitCode {
     const MENSAGEM: &str =
         "O formulário de comentário não foi comprovado; nenhuma escrita realizada.";
     if json_mode {
@@ -120,7 +119,6 @@ fn recusa_previa(json_mode: bool, causa: &processo_comentar_web::Erro) -> ExitCo
             "{}",
             json!({
                 "codigo": "operacao_recusada",
-                "causa": causa,
                 "erro": MENSAGEM,
                 "retentavel": false,
             })

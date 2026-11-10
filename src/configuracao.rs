@@ -7,7 +7,8 @@ pub struct ArquivosDeAcesso {
     pub origem: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroConfiguracao {
     UrlDoControleSemCaminho,
     CookieSemCaminhoConfigurado,
@@ -20,9 +21,6 @@ pub enum ErroConfiguracao {
 }
 
 impl ErroConfiguracao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn mensagem(self) -> &'static str {
         match self {
             Self::UrlDoControleSemCaminho => "defina IES_URL_CONTROLE_FILE",
@@ -263,7 +261,8 @@ impl ArquivoPrivado {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoPrivado {
     CaminhoNaoAbsoluto(ArquivoPrivado),
     Ausente(ArquivoPrivado),
@@ -275,9 +274,6 @@ pub enum ErroArquivoPrivado {
     MetadadosNaoLidos(ArquivoPrivado),
 }
 impl ErroArquivoPrivado {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn arquivo(self) -> ArquivoPrivado {
         match self {
             Self::CaminhoNaoAbsoluto(a)

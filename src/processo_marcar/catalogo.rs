@@ -233,12 +233,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
         Ok(resposta) => resposta,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let Some(unidade) = aberto.unidade.as_deref() else {
@@ -341,7 +336,7 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente = releitura_comprova(sessao, indice, pedido, rede, (id, unidade), (rotulo, texto));
     if !aceito || presente != Some(true) {
-        return efeito_incerto(cli, rede.feitas(), presente);
+        return nao_confirmado(cli, rede.feitas(), presente);
     }
     saida_confirmada(cli, nup, id, unidade, rotulo, texto, rede.feitas())
 }
@@ -373,13 +368,13 @@ fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
         && procedimento == Some(id)
 }
 
-fn efeito_incerto(cli: &Cli, requisicoes: u8, presente_relido: Option<bool>) -> ExitCode {
+fn nao_confirmado(cli: &Cli, requisicoes: u8, presente_relido: Option<bool>) -> ExitCode {
     let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
     if cli.json {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false,
                 "requisicoes": requisicoes,
@@ -389,7 +384,7 @@ fn efeito_incerto(cli: &Cli, requisicoes: u8, presente_relido: Option<bool>) -> 
     } else {
         eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn saida_confirmada(

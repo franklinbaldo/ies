@@ -114,13 +114,6 @@ fn definir_recusa_lista_vazia_item_vazio_chave_desconhecida_e_repetida() {
             coluna: C::TipoProcesso
         })
     );
-    assert_eq!(
-        E::ColunaDesconhecida {
-            chave: String::new()
-        }
-        .subcodigo(),
-        "coluna_desconhecida"
-    );
 }
 
 #[test]
@@ -233,12 +226,6 @@ fn controle_enviavel_fora_do_observado_e_recusado() {
             "{extra}"
         );
     }
-    assert_eq!(
-        crate::erro_publico::folha(&ErroNivelDeDetalhe::Html(ErroHtml::valor(
-            "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
-        ))),
-        "campo_nao_previsto_no_formulario_do_nivel_de_detalhe"
-    );
 }
 
 #[test]

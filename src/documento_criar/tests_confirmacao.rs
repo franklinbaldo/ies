@@ -146,7 +146,7 @@ fn redirect_sem_location_nao_prova_a_criacao_mesmo_com_arvore_alterada() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -173,13 +173,13 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::EfeitoIncertoNoEnvio(_))
+        Err(ErroPreviaCriacao::NaoConfirmadoNoEnvio(_))
     ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
 #[test]
-fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
+fn dois_documentos_novos_sao_nao_confirmado_apos_post_unico() {
     let mut rede = RedeSintetica::default();
     let cookie = CookieDaSessao::sintetico("PHPSESSID=SINTETICO");
     let resultado = postar_e_verificar(
@@ -194,7 +194,7 @@ fn dois_documentos_novos_sao_efeito_incerto_apos_post_unico() {
             Ok(foto(2))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -216,7 +216,7 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::EfeitoIncertoNaReleitura(
+        Err(ErroPreviaCriacao::NaoConfirmadoNaReleitura(
             ErroProcessoObter::Transporte(FalhaTransporte::Rede)
         ))
     ));
@@ -337,7 +337,7 @@ fn redirect_para_host_externo_nao_comprova_criacao() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -413,7 +413,7 @@ fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
 }
@@ -444,7 +444,6 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
         },
     );
     let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
-    assert_eq!(erro.subcodigo(), "efeito_incerto_no_envio");
     let http = erro.status_http().expect("preservar status HTTP do POST");
     assert_eq!(http.status, 403);
     assert_eq!(
@@ -525,7 +524,7 @@ fn redirecionamento_invalido_ou_id_alheio_nao_confirma() {
                 Ok(foto(1))
             },
         );
-        assert!(matches!(resultado, Err(ErroPreviaCriacao::EfeitoIncerto)));
+        assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
         assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
         assert_eq!(rede.submissoes.len(), 1);
     }
@@ -569,7 +568,6 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
         erro.causa_envio(),
         Some(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
     ));
-    assert_eq!(erro.subcodigo(), "efeito_incerto_no_envio");
     let status = erro.status_http().expect("causa de validacao preservada");
     assert_eq!(status.status, 200);
     assert_eq!(

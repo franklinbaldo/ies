@@ -17,8 +17,8 @@ vez e por pedido explícito, pela tela "Assinatura de Documento" que a
 o contrato exige o cargo escrito por extenso para confirmar.
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete; saídas 0
-sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Só a Web e a mesma
+confirmação e verificação; escrita não confirmada nunca se repete; saídas 0
+sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Só a Web e a mesma
 sessão; nenhuma URL montada (só as publicadas pela árvore e pela tela do
 documento).
 
@@ -107,7 +107,7 @@ como servido, `selCargoFuncao=<--cargo>` e `pwdSenha=<senha>`, no charset
 da tela. A janela não publica `lnkInfraUnidade`
 (`ConferenciaDaUnidade::NaTelaDeOrigemDoLink`).
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: HTML 200 da própria tela cujo `inicializar()` começa com
 `//se realizou assinatura` seguido de `finalizar();` (sete instalações).
@@ -120,7 +120,7 @@ verificação reconcilia, uma vez.
 | Esperada | as de antes + uma com o assinante e o cargo | 0 | `alterado: true` |
 | Não esperada | idem | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
 | Qualquer | iguais às de antes | 1 | `escrita_nao_aplicada` / `assinatura_nao_aplicada` |
-| Qualquer | outra mudança, fora da forma, ou leitura falhou | 3 | `efeito_incerto` / `efeito_incerto_na_assinatura` (`verificacao`) |
+| Qualquer | outra mudança, fora da forma, ou leitura falhou | 3 | `nao_confirmado` / `nao_confirmado_na_assinatura` (`verificacao`) |
 
 Falha **antes** do POST (abertura, árvore, telas, credenciais, derivação)
 não é escrita: saída 1. Antes de repetir à mão, conferir com
@@ -147,7 +147,7 @@ conteúdo depois invalida a assinatura). Não há comando que desfaça.
 
 `assinaturas`: `{"nome", "cargo", "unidade"}` da árvore. `edicao`:
 `nao_assinado`, `assinado`, `nao_publicada` ou `fora_da_forma`. Nunca URL,
-`infra_hash`, cookie ou senha. Falhas: `{"codigo", "subcodigo", "erro",
+`infra_hash`, cookie ou senha. Falhas: `{"codigo", "erro",
 "retentavel": false}` mais `cargos`, `assinaturas_depois`,
 `falha_do_envio`, `verificacao` e `status_http` quando houver. A prévia
 humana termina com "Para assinar, repita com --cargo e --confirmar".

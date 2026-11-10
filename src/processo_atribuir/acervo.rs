@@ -2,6 +2,7 @@
 //! Confere ZIPs, membros, schema e host antes de usar o leitor real.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
+use crate::erro_publico::Rotulo as _;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -59,7 +60,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                             None => Resultado::NaoAplicavel("id_do_processo_nao_observado"),
                             Some(id) => match super::ler_tela(&html, &id) {
                                 Ok(_) => Resultado::Lido,
-                                Err(erro) => Resultado::Recusado(erro.subcodigo()),
+                                Err(erro) => Resultado::Recusado(erro.rotulo()),
                             },
                         }
                     }

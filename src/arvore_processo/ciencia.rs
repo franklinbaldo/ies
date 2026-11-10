@@ -14,7 +14,8 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_chamada};
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCienciaNaArvore {
     BarraDeCienciaForaDaForma,
     CienciaRepetidaNaBarra,

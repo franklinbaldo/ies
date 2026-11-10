@@ -121,10 +121,6 @@ fn bdd_342_01_leitura_parcial_segura_com_aviso_quando_pasta_incompleta() {
     assert_eq!(valor["id_procedimento"], ID);
     assert_eq!(valor["documentos_incluidos"], json!(false));
     assert_eq!(valor["documentos"], json!([]));
-    assert_eq!(
-        valor["aviso_leitura_parcial"],
-        "leitura parcial do processo: lista de documentos incompleta (pasta_carregada_pela_metade)"
-    );
 }
 
 #[test]

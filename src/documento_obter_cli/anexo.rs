@@ -42,13 +42,12 @@ pub(super) fn limite_invalido(json_mode: bool) -> ExitCode {
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": "limite_de_anexo_invalido",
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [limite_de_anexo_invalido]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }

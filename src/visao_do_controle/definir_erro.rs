@@ -8,11 +8,11 @@ use crate::transporte::StatusHttpRecusado;
 /// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
 /// tela de login, com o sinal de gravação). O pedido saiu: o efeito é
 /// incerto até a leitura.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDoSalvar {
     /// Rede, tempo esgotado, 5xx, outro status, MIME, charset, tamanho, login.
-    #[causa(interna)]
-    Envio(ErroSubmissaoFormulario),
+    Envio(#[from] ErroSubmissaoFormulario),
     /// 302 recebido e não seguido.
     Redirecionamento302,
     /// HTML 200 com a tela do Nível sem o sinal de gravação (`''=='1'`).
@@ -22,10 +22,6 @@ pub(crate) enum FalhaDoSalvar {
 }
 
 impl FalhaDoSalvar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Status e mensagem do SEI, quando a resposta foi uma recusa HTTP.
     pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
         match self {
@@ -59,11 +55,11 @@ pub(crate) struct ColunasDefinidas {
     pub(crate) reconciliado_por: Option<FalhaDoSalvar>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDefinirColunas {
     /// Falha antes do POST de salvar: nada foi salvo.
-    #[causa(interna)]
-    Leitura(ErroVisaoDoControle),
+    Leitura(#[from] ErroVisaoDoControle),
     ColunaIndisponivelNestaInstalacao {
         coluna: ColunaDoDetalhe,
     },
@@ -79,7 +75,7 @@ pub(crate) enum ErroDefinirColunas {
         observadas: Vec<ColunaDoDetalhe>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaConfiguracaoDeColunas {
+    NaoConfirmadoNaConfiguracaoDeColunas {
         plano: Box<PlanoDasColunas>,
         falha_do_salvar: Option<FalhaDoSalvar>,
         verificacao: Box<VerificacaoDasColunas>,
@@ -87,25 +83,13 @@ pub(crate) enum ErroDefinirColunas {
 }
 
 impl ErroDefinirColunas {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. } => "fonte_invalida",
             Self::ConfiguracaoDeColunasNaoAplicada { .. } => "escrita_nao_aplicada",
             Self::MarcasDiferentesDoAlvoAposSalvar { .. } => "escrita_diferente_da_solicitada",
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => "efeito_incerto",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => 3,
-            _ => 1,
+            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => "nao_confirmado",
         }
     }
 
@@ -121,7 +105,7 @@ impl ErroDefinirColunas {
             Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
                 "a configuração lida depois de salvar não é a pedida nem a de antes"
             }
-            Self::EfeitoIncertoNaConfiguracaoDeColunas { .. } => {
+            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => {
                 "não se sabe se as colunas foram alteradas; confira com `ies unidade colunas` antes de repetir"
             }
         }

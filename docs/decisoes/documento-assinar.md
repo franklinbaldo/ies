@@ -65,7 +65,7 @@ com o cargo escolhido.
   observada e a segunda assinatura não poderia ser conferida.
 - Uma escrita, nunca repetida; a resposta sem `finalizar()` não decide:
   a leitura reconcilia, e só "mesmas assinaturas" é não aplicada (1); o
-  resto é efeito incerto (3).
+  resto é escrita não confirmada (3).
 
 ## Evidências verificáveis
 

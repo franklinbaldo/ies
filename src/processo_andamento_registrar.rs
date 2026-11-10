@@ -41,7 +41,8 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTela {
     HtmlInvalido,
     FormularioAusenteOuDuplicado,
@@ -155,46 +156,30 @@ pub(crate) struct Resultado {
     pub(crate) total_depois: Option<u64>,
     pub(crate) resposta_inesperada: Option<&'static str>,
 }
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Erro {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
-    #[causa(interna)]
-    Barra(ErroAndamentoNaBarra),
+    Barra(#[from] ErroAndamentoNaBarra),
     AcaoNaoOferecida,
     HistoricoNaoPublicado,
     UnidadeNaoPublicada,
-    #[causa(interna)]
-    Tela(FalhaDaTela),
-    #[causa(interna)]
-    FormatoDaTela(ErroTela),
+    Tela(#[from] FalhaDaTela),
+    FormatoDaTela(#[from] ErroTela),
     CharsetNaoSuportado,
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(acao = "conferir_escrita")]
-    EfeitoIncerto,
+    Formulario(#[from] ErroSubmissaoFormulario),
+    NaoConfirmado,
 }
 impl Erro {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::EfeitoIncerto => {
+            Self::NaoConfirmado => {
                 "A escrita pode ter sido aplicada; não repita --confirmar. Consulte o histórico para verificar possível resíduo"
             }
             _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
-        }
-    }
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto) {
-            3
-        } else {
-            1
         }
     }
 }
@@ -268,12 +253,12 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     };
     // A escrita saiu: mesmo se o POST falhou, jamais repetir.
     let depois =
-        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::EfeitoIncerto)?;
+        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::NaoConfirmado)?;
     let Andamentos::Lidos(depois) = depois.andamentos else {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     };
     if !inserido_uma_vez(&antes, &depois, texto) {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     }
     resultado.total_depois = Some(depois.total_declarado);
     resultado.requisicoes = rede.feitas();

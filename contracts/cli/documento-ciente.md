@@ -26,7 +26,7 @@ A Lista de Ciências do processo ou de outro documento não serve. O SEI
 registra sempre em nome do usuário da sessão; não inferir outros usuários.
 
 Uma recusa, 302, timeout, árvore ou lista ilegível após GET mutador implicam
-`efeito_incerto_na_ciencia_do_documento` e saída 3; jamais repetir escrita
+`nao_confirmado_na_ciencia_do_documento` e saída 1; jamais repetir escrita
 automaticamente. A prévia nunca consulta `documento_ciencia`. Na apresentação humana, identifica documento, rótulo e processo, acrescentando a unidade apenas quando observada na abertura; separa as frases com espaçamento normal e exibe `--confirmar` e a contagem de requisições. A saída JSON mantém a unidade opcional e não inventa dado ausente. A causa tipada
 do único GET mutador permanece em `falha_do_aceite` na saída JSON:
 transporte/status HTTP, validação da Infra (HTTP 200 com mensagem saneada),
@@ -60,7 +60,7 @@ mostra. Não confundir ausência de prova com ausência de efeito.
 - `ciencia_nao_oferecida_no_documento` — barra sem botão
 - `tela_da_ciencia_do_documento_nao_publicada` — nó sem tela vinculada
 - `tela_da_ciencia_do_documento_redirecionada` — prévia redirecionada
-- `efeito_incerto_na_ciencia_do_documento` — escrita sem prova posterior
+- `nao_confirmado_na_ciencia_do_documento` — escrita sem prova posterior
 
 Erros HTML de origem, de duplicidade e atributos têm causa
 `ErroHtml` tipada; erros de transporte conservam a causa original.
@@ -84,7 +84,7 @@ estão pendentes; não declarar a capacidade concluída sem eles.
 Também no aceite documental, `atualizarArvore` precisa constar em
 código reconhecido da resposta: texto em comentário, literal ou
 `<template>` não comprova `id_atividade`. A ausência de prova
-depois do GET potencialmente mutador é efeito incerto, saída 3,
+depois do GET potencialmente mutador é escrita não confirmada, saída 1,
 sem repetição da escrita.
 
 
@@ -94,7 +94,7 @@ A prova estática exige atualizarArvore('url') com um único argumento
 literal. Um argumento adicional pode lançar uma exceção antes da
 recarga e não comprova uma ciência documental. O leitor compartilhado
 recusa a forma não observada; após o GET mutador, verifica por leitura
-e devolve efeito incerto, sem retry ou sucesso por ciência anterior.
+e devolve escrita não confirmada, sem retry ou sucesso por ciência anterior.
 
 
 ### Lista de Ciências em contêiner inerte (#271)
@@ -103,7 +103,7 @@ O parser HTML pode encontrar `table#tblAndamentos` dentro de um
 `<template>` ancestral. Essa tabela não integra a interface exibida e
 não comprova ciência, ainda que seu checkbox contenha o `id_atividade`
 do aceite. A releitura a recusa como forma não observada, retorna
-**efeito incerto (3)** e não repete o GET de escrita. Também se recusa
+**escrita não confirmada (3)** e não repete o GET de escrita. Também se recusa
 `<template>` descendente da tabela, sem aceitar IDs antigos ou ocultos.
 
 ## Segunda ciência e HTML inerte (#271, 06/11/2026)
@@ -113,12 +113,12 @@ O Todos `tests/test_documento_ciente_010.py` @323eb01 registrou que a
 `txaInfraValidacao`: «Usuário já deu ciência neste documento.».
 A recusa HTTP 200 preserva a causa tipada `ValidacaoDaInfra`, não comprova
 nova escrita e não autoriza repetição. Teste sintético: 6 GET totais,
-um GET potencialmente mutador, uma releitura e saída 3.
+um GET potencialmente mutador, uma releitura e saída 1.
 
 O HTML da Lista de Ciências sob `<noscript>`, ou contendo checkbox dentro
 dele, não comprova ciência em contexto com JavaScript habilitado. O
 reconhecedor rejeita `<noscript>` ou `<template>` ancestral/descendente
-da tabela de prova; a confirmação sem prova fica em **efeito incerto (3)**.
+da tabela de prova; a confirmação sem prova fica em **escrita não confirmada (3)**.
 Teste documental: 7 GET, exatamente 1 mutador, sem retry. Nenhum efeito
 adicional da prévia. Falta validar as formas nas instalações de treinamento.
 
@@ -127,7 +127,7 @@ adicional da prévia. Falta validar as formas nas instalações de treinamento.
 Em `<noscript>`, um `<script>` não executado não comprova a recarga
 da árvore nem o `id_atividade` do documento quando a sessão Web usa JS.
 O leitor compartilhado recusa a forma inerte, mesmo que o parser HTML
-a exponha, e a ausência de prova após o GET único resulta em saída 3,
+a exponha, e a ausência de prova após o GET único resulta em saída 1,
 sem repetir escrita. RED do leitor e do fluxo de processo:
 [CI 42302428489](https://github.com/franklinbaldo/ies/actions/runs/42302428489),
 2 falhas novas / 1.775 PASS / 22 ignored preexistentes.
@@ -166,21 +166,21 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 ## Recusa Infra HTTP 200 na apresentação (#271)
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
-com HTTP **200**. A saída `--json` publica `codigo: efeito_incerto`,
+com HTTP **200**. A saída `--json` publica `codigo: nao_confirmado`,
 `status_http: 200`, `mensagem_do_servidor` saneada e `requisicoes` reais
 observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
-A saída humana mantém a mensagem de recusa e acrescenta a **contagem de requisições observadas** no efeito incerto, orientando a conferir a Lista de Ciências antes de outra confirmação e a **não repetir a escrita**. Não proíbe nova prévia: ela é somente leitura. O JSON mantém o mesmo número de requisições e os campos anteriores.
+A saída humana mantém a mensagem de recusa e acrescenta a **contagem de requisições observadas** na escrita não confirmada, orientando a conferir a Lista de Ciências antes de outra confirmação e a **não repetir a escrita**. Não proíbe nova prévia: ela é somente leitura. O JSON mantém o mesmo número de requisições e os campos anteriores.
 Testes públicos de apresentação preservam a contagem sintética de
 **6 GET, um potencialmente mutador, nenhum retry**; live NOT_RUN.
  
-## Mensagem JSON de efeito incerto (#271, 07/11/2026)
+## Mensagem JSON de escrita não confirmada (#271, 07/11/2026)
 
 O campo `erro` do JSON, assim como a apresentação humana, orienta
 consultar a **Lista de Ciências do documento** antes de uma **nova confirmação**
 quando o efeito for incerto. Não sugere repetir a escrita nem proíbe
-nova prévia exclusivamente de leitura. Conserva `codigo=efeito_incerto`,
-saída 3, `requisicoes` observadas, HTTP e causa original, sem GET extra.
+nova prévia exclusivamente de leitura. Conserva `codigo=nao_confirmado`,
+saída 1, `requisicoes` observadas, HTTP e causa original, sem GET extra.
 RED da regressão JSON:
 [CI 42367722667](https://github.com/franklinbaldo/ies/actions/runs/42367722667),
 **1 FAIL novo, 1.872 PASS, 24 ignored**, antes da correção.

@@ -20,16 +20,17 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let anexado = match NumeroProcesso::novo(numero) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(anexado) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
-    let principal = match NumeroProcesso::novo(a) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(principal) = NumeroProcesso::novo(a) else {
+        return Some(erro_de_uso(cli.json));
     };
     if anexado.as_str() == principal.as_str() {
-        return Some(falha(cli.json, "anexacao_ao_mesmo_processo"));
+        return Some(falha(
+            cli.json,
+            "anexação recusada pela tela ou pelos dados informados",
+        ));
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -48,39 +49,31 @@ pub(crate) fn tentar_anexar(cli: &Cli) -> Option<ExitCode> {
         };
         match prever(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(preview) => publicar(cli.json, &preview),
-            Err(FalhaAnexar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
+            Err(FalhaAnexar::Abertura(erro)) => {
+                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+            }
             Err(erro) => falha_tipado(cli.json, &erro),
         }
     }))
 }
-fn falha(json_mode: bool, subcodigo: &str) -> ExitCode {
+fn falha(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "operacao_recusada",
-                "subcodigo": subcodigo,
-                "erro": "anexação recusada pela tela ou pelos dados informados",
+                "erro": mensagem,
                 "retentavel": false,
             })
         );
     } else {
-        eprintln!("IES: anexação recusada [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(1)
 }
 fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
-    let FalhaAnexar::EfeitoIncerto(etapa) = erro else {
-        return falha(
-            json_mode,
-            erro.subcodigo_legado()
-                .expect("a recusa comum conserva o subcódigo legado"),
-        );
+    let FalhaAnexar::NaoConfirmado(_) = erro else {
+        return falha(json_mode, &erro.mensagem());
     };
     let mensagem = "O efeito da anexação não pôde ser comprovado. Confira a lista no SEI; não repita --confirmar.";
     if json_mode {
@@ -89,9 +82,7 @@ fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
-                "causa": etapa,
-                "escrita": {"envio_tentado": true, "aplicada": null},
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false
             })
@@ -99,7 +90,7 @@ fn falha_tipado(json_mode: bool, erro: &FalhaAnexar) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {

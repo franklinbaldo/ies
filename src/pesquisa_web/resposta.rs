@@ -40,7 +40,8 @@ pub(crate) enum RespostaDaPesquisa {
 }
 
 /// Uma variante por fato verificável da resposta 200.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRespostaDaPesquisa {
     RespostaDaPesquisaNaoReconhecida,
     TabelaDeResultadoEAvisoDeSemResultadoNaMesmaResposta,
@@ -50,18 +51,12 @@ pub(crate) enum ErroRespostaDaPesquisa {
     NumeroDaBarraDeContagemForaDoFormato,
     FaixaDaBarraDeContagemImpossivel,
     LinhasDaTabelaDiferentesDaFaixaDaBarra,
-    #[causa(interna)]
-    Resultado(ErroResultadoPesquisa),
+    Resultado(#[from] ErroResultadoPesquisa),
     /// Linha da pesquisa em documentos (`ies documento buscar`).
-    #[causa(interna)]
-    Documento(super::documentos::ErroDocumentoDaPesquisa),
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Documento(#[from] super::documentos::ErroDocumentoDaPesquisa),
+    AtributoHtml(#[from] ErroAtributoHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroRespostaDaPesquisa {}
 
 /// Número da barra: grupos de 3 dígitos separados por `.` (o primeiro com
 /// 1 a 3, sem zero à esquerda); qualquer outra forma é `None`.

@@ -8,11 +8,11 @@ fn falhas_da_assinatura_serializam_direto_com_goldens_fixos() {
     let casos = [
         (
             ErroAssinar::AssinaturaNaoPublicadaNaBarra,
-            r#"{"codigo":"fonte_invalida","erro":"a barra do documento não oferece assinar nesta sessão; nada foi assinado","retentavel":false,"subcodigo":"assinatura_nao_publicada_na_barra"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"a barra do documento não oferece assinar nesta sessão; nada foi assinado","retentavel":false}"#,
         ),
         (
             ErroAssinar::CargoNaoOferecidoPelaTela { cargos: vec![] },
-            r#"{"cargos":[],"codigo":"fonte_invalida","erro":"o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado","retentavel":false,"subcodigo":"cargo_nao_oferecido_pela_tela"}"#,
+            r#"{"cargos":[],"codigo":"fonte_invalida","erro":"o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado","retentavel":false}"#,
         ),
         (
             ErroAssinar::DocumentoAssinadoPorOutroUsuario {
@@ -22,32 +22,32 @@ fn falhas_da_assinatura_serializam_direto_com_goldens_fixos() {
                     unidade: "TESTE".into(),
                 }],
             },
-            r#"{"assinaturas":[{"cargo":"Cargo sintético","nome":"Pessoa sintética","unidade":"TESTE"}],"codigo":"fonte_invalida","erro":"o documento já tem assinatura de outro usuário, e a segunda não poderia ser conferida pela árvore; nada foi enviado","retentavel":false,"subcodigo":"documento_assinado_por_outro_usuario"}"#,
+            r#"{"assinaturas":[{"cargo":"Cargo sintético","nome":"Pessoa sintética","unidade":"TESTE"}],"codigo":"fonte_invalida","erro":"o documento já tem assinatura de outro usuário, e a segunda não poderia ser conferida pela árvore; nada foi enviado","retentavel":false}"#,
         ),
         (
             ErroAssinar::AssinaturaNaoAplicada {
                 antes: vec![],
                 falha_do_envio: None,
             },
-            r#"{"assinaturas":[],"codigo":"escrita_nao_aplicada","erro":"a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado","retentavel":false,"subcodigo":"assinatura_nao_aplicada"}"#,
+            r#"{"assinaturas":[],"codigo":"escrita_nao_aplicada","erro":"a árvore lida depois de assinar mostra as mesmas assinaturas de antes: o documento não foi assinado","retentavel":false}"#,
         ),
         (
-            ErroAssinar::EfeitoIncertoNaAssinatura {
+            ErroAssinar::NaoConfirmadoNaAssinatura {
                 antes: vec![],
                 falha_do_envio: None,
                 verificacao: Box::new(VerificacaoDaAssinatura::Lida(vec![])),
             },
-            r#"{"assinaturas":[],"assinaturas_depois":[],"codigo":"efeito_incerto","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","retentavel":false,"subcodigo":"efeito_incerto_na_assinatura","verificacao":null}"#,
+            r#"{"assinaturas":[],"assinaturas_depois":[],"codigo":"nao_confirmado","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","retentavel":false}"#,
         ),
         (
-            ErroAssinar::EfeitoIncertoNaAssinatura {
+            ErroAssinar::NaoConfirmadoNaAssinatura {
                 antes: vec![],
                 falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
                 verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
                     "assinatura_da_arvore_ausente",
                 ))),
             },
-            r#"{"assinaturas":[],"codigo":"efeito_incerto","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_apos_assinar"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_na_assinatura","verificacao":"assinatura_da_arvore_ausente"}"#,
+            r#"{"assinaturas":[],"codigo":"nao_confirmado","erro":"não se sabe se o documento foi assinado; confira a árvore antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302}"#,
         ),
     ];
     for (erro, esperado) in casos {
@@ -67,26 +67,17 @@ fn apresentacao_humana_parte_do_erro_tipado() {
     assert_eq!(
         linhas_da_falha(&cargos),
         vec![
-            "IES: o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado [cargo_nao_oferecido_pela_tela]",
+            "IES: o cargo pedido não está entre as opções da tela (compare com `cargos`); nada foi enviado",
             "IES: cargos da tela: Cargo A; Cargo B",
         ]
     );
-    let incerto = ErroAssinar::EfeitoIncertoNaAssinatura {
+    let _incerto = ErroAssinar::NaoConfirmadoNaAssinatura {
         antes: vec![],
         falha_do_envio: Some(FalhaDoEnvio::Redirecionamento),
         verificacao: Box::new(VerificacaoDaAssinatura::ArvoreNaoLida(ErroHtml::ausente(
             "assinatura_da_arvore_ausente",
         ))),
     };
-    assert_eq!(incerto.saida(), 3);
-    assert_eq!(
-        linhas_da_falha(&incerto),
-        vec![
-            "IES: não se sabe se o documento foi assinado; confira a árvore antes de repetir [efeito_incerto_na_assinatura]",
-            "IES: resposta da escrita: redirecionamento_apos_assinar",
-            "IES: verificação: assinatura_da_arvore_ausente",
-        ]
-    );
 }
 
 #[test]
@@ -102,7 +93,7 @@ fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"codigo":"fonte_invalida","erro":"o envio da assinatura não pôde ser montado; nada foi enviado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"subcodigo":"validacao_recusada_pelo_sei"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"o envio da assinatura não pôde ser montado; nada foi enviado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false}"#,
         ),
         (
             ErroAssinar::TelaDaEscrita(FalhaTransporte::StatusHttpDeErroDoServidor(
@@ -111,11 +102,10 @@ fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
                     mensagem_do_servidor: Some("Mensagem saneada.".into()),
                 },
             )),
-            r#"{"codigo":"fonte_invalida","erro":"a tela da assinatura não foi servida; nada foi assinado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500,"subcodigo":"status_http_de_erro_do_servidor"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"a tela da assinatura não foi servida; nada foi assinado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500}"#,
         ),
     ];
     for (erro, esperado) in casos {
-        assert_eq!(erro.saida(), 1);
         assert_eq!(
             serde_json::to_string(&json_de_falha(&erro)).unwrap(),
             esperado

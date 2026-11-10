@@ -39,20 +39,16 @@ pub(crate) struct Previa {
 }
 
 /// Uma variante por causa; o diagnóstico é derivado do tipo Rust.
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Erro {
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
-    #[causa(transparente)]
-    Html(ErroHtml),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Html(#[from] ErroHtml),
+    Transporte(#[from] FalhaTransporte),
+    Cookie(#[from] CookieIlegivel),
     TelaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     UnidadeNaoPublicada,
     SituacaoNaoLida(MotivoAbertoEm),
     ProcessoForaDaUnidade,
@@ -61,9 +57,8 @@ pub(crate) enum Erro {
     SalvarNaoOferecido,
     OrigemNaoAutorizada,
     CharsetNaoSuportado,
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
-    EfeitoIncerto,
+    Formulario(#[from] ErroSubmissaoFormulario),
+    NaoConfirmado,
 }
 
 /// A prévia não altera a anotação; confirmação tenta exatamente um POST.
@@ -94,7 +89,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|falha| match falha {
         FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
         FalhaDaTela::Redirecionada => Erro::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => Erro::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            Erro::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     })?;
     let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
     let mut alterado = false;
@@ -139,7 +136,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             .ok()
             .and_then(|(html, _)| crate::processo_enviar::texto_anotacao(&html, &id).ok());
         if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
-            return Err(Erro::EfeitoIncerto);
+            return Err(Erro::NaoConfirmado);
         }
         alterado = true;
     }

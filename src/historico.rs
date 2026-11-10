@@ -5,15 +5,13 @@ use crate::html_atributos::nos_com_id;
 use crate::processo::{Andamento, DetalheProcesso, NumeroProcesso};
 
 /// Condições específicas do parser, independentes de mensagens.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroHistorico {
     NumeroDoHistoricoDiferenteDoSolicitado,
     HistoricoVazio,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroHistorico {}
 
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     let valor = no.inner_text(parser);
@@ -221,10 +219,6 @@ mod tests {
         assert_eq!(
             erro,
             ErroHistorico::Html(ErroHtml::repetido("tabelas_do_historico_repetidas"))
-        );
-        assert_eq!(
-            crate::erro_publico::folha(&erro),
-            "tabelas_do_historico_repetidas"
         );
     }
 

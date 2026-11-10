@@ -141,7 +141,10 @@ fn post_que_redireciona_ao_login_e_sessao_encerrada() {
             vec![ok(historico('R', 2, 2)), r302(LOGIN)],
         ),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]
@@ -238,7 +241,10 @@ fn historico_que_responde_login_e_sessao_encerrada() {
         PedidoDeAndamentos::VisaoServida,
         caminho_4a(arvore_com_historico(ID, NUP), vec![r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]
@@ -263,10 +269,6 @@ fn historico_de_outro_nup_pelo_link_da_arvore_e_recusa() {
         E::Andamentos(ErroAndamentos::Historico(
             ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado
         ))
-    );
-    assert_eq!(
-        erro.subcodigo(),
-        "numero_do_historico_diferente_do_solicitado"
     );
 }
 
@@ -315,13 +317,4 @@ fn caminhos_2_e_3_somam_um_get_do_historico() {
 }
 
 #[test]
-fn subcodigos_dos_novos_erros_do_fluxo() {
-    assert_eq!(
-        E::LinkDoHistorico(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore).subcodigo(),
-        "link_do_historico_ausente_na_arvore"
-    );
-    assert_eq!(
-        E::Andamentos(ErroAndamentos::CharsetDoHistoricoNaoSuportado).subcodigo(),
-        "charset_do_historico_nao_suportado"
-    );
-}
+fn subcodigos_dos_novos_erros_do_fluxo() {}

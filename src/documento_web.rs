@@ -9,15 +9,13 @@ pub struct IdentidadeDoDocumento {
     pub tipo: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroTituloDocumento {
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroTituloDocumento {}
 
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -220,15 +218,14 @@ mod tests {
 }
 
 /// Erros de extração textual; não convertidos em mensagens livres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroCorpoDocumento {
     CorpoVazio,
     CorpoComConteudoExecutavel,
     TextoAcimaDoLimite,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-impl ErroCorpoDocumento {}
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
     nome.eq_ignore_ascii_case("svg") || nome.eq_ignore_ascii_case("template")

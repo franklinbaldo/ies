@@ -20,14 +20,13 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroDocumento::novo(numero) {
-        Ok(v) => v,
-        Err(e) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+    let Ok(numero) = NumeroDocumento::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(p)) => Some(p),
-        Some(Err(e)) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+        Some(Err(_)) => return Some(erro_de_uso(cli.json)),
     };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaCienciaDocumento {
@@ -96,24 +95,20 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(
-                crate::erro_publico::folha(erro),
-                erro.mensagem(),
-                erro.status_http()
-            )
+            crate::saida_erro::linha_humana(&erro.mensagem(), erro.status_http())
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 /// Orienta sobre a escrita incerta com a contagem realmente observada.
 /// A prévia é somente leitura: o que não pode ser repetido é a escrita.
 fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
     match erro {
-        ErroCienciaDocumento::EfeitoIncerto { requisicoes, .. } => Some(format!(
+        ErroCienciaDocumento::NaoConfirmado { requisicoes, .. } => Some(format!(
             "IES: {requisicoes} requisições; não repetir a escrita; conferir a Lista de Ciências no SEI antes de qualquer nova confirmação"
         )),
         _ => None,
@@ -122,26 +117,12 @@ fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
 
 pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
-        "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
-        "subcodigo": crate::erro_publico::folha(erro),
+        "codigo": if matches!(erro, ErroCienciaDocumento::NaoConfirmado { .. }) { "nao_confirmado" } else { "fonte_invalida" },
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaDocumento::EfeitoIncerto {
-        motivo,
-        requisicoes,
-        falha_do_aceite,
-    } = erro
-    {
-        saida["verificacao"] = json!(crate::erro_publico::folha(motivo));
+    if let ErroCienciaDocumento::NaoConfirmado { requisicoes, .. } = erro {
         saida["requisicoes"] = json!(requisicoes);
-        if let Some(falha) = falha_do_aceite {
-            saida["falha_do_aceite"] = json!({
-                "subcodigo": crate::erro_publico::folha(falha),
-                "causa": crate::erro_publico::caminho_de(falha),
-                "detalhe": falha.detalhe()
-            });
-        }
     }
     if let Some(http) = erro.status_http() {
         saida["status_http"] = json!(http.status);
@@ -195,7 +176,7 @@ mod testes_previa {
     /// incerta e não sugerir que a próxima prévia (somente leitura) é proibida.
     #[test]
     fn erro_humano_da_ciencia_documental_informa_requests_e_nao_proibe_previa() {
-        let erro = ErroCienciaDocumento::EfeitoIncerto {
+        let erro = ErroCienciaDocumento::NaoConfirmado {
             motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
             requisicoes: 6,
             falha_do_aceite: None,
@@ -216,7 +197,7 @@ mod testes_previa {
     /// O aviso humano já distingue releitura da Lista e nova confirmação.
     #[test]
     fn erro_json_documental_orienta_conferir_lista_antes_de_confirmar() {
-        let erro = ErroCienciaDocumento::EfeitoIncerto {
+        let erro = ErroCienciaDocumento::NaoConfirmado {
             motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividadeDoDocumento,
             requisicoes: 6,
             falha_do_aceite: None,
@@ -226,9 +207,8 @@ mod testes_previa {
         assert!(mensagem.contains("Lista de Ciências"), "{mensagem}");
         assert!(mensagem.contains("antes de nova confirmação"), "{mensagem}");
         assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
-        assert_eq!(publicado["codigo"], "efeito_incerto");
+        assert_eq!(publicado["codigo"], "nao_confirmado");
         assert_eq!(publicado["requisicoes"], 6);
-        assert_eq!(erro.saida(), 3);
     }
 
     #[test]

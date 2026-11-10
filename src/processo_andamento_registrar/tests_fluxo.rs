@@ -139,7 +139,7 @@ fn se_historico_nao_mudou_o_efeito_e_incerto_sem_retry() {
     respostas.push(ok(tree()));
     respostas.push(ok(pagina(1)));
     let (resultado, pedidos) = rodar(&amb, true, respostas);
-    assert!(matches!(resultado, Err(Erro::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(Erro::NaoConfirmado)));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
     assert_eq!(pedidos.len(), 9);
 }
@@ -184,7 +184,7 @@ fn post_preserva_espacos_e_quebra_de_linha_sem_repetir_escrita() {
     let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
         registrar(sessao, nup, "  novo\ntexto  ", true, None, indice, roteiro)
     });
-    assert!(matches!(resultado, Err(Erro::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(Erro::NaoConfirmado)));
     let postagens: Vec<_> = pedidos
         .iter()
         .filter(|pedido| pedido.metodo == "POST")

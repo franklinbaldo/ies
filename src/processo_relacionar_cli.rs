@@ -23,13 +23,11 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(nup) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
-    let outro = match NumeroProcesso::novo(com) {
-        Ok(n) => n,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(outro) = NumeroProcesso::novo(com) else {
+        return Some(erro_de_uso(cli.json));
     };
     // A identidade é conhecida pela própria entrada da CLI: não abrir
     // sessão, índice ou rede para tentar relacionar o processo consigo mesmo.
@@ -58,28 +56,24 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<ExitCode> {
         };
         match prever(sessao, &pedido, indice, &mut EnvioHttps) {
             Ok(preview) => publicar(cli.json, &preview),
-            Err(FalhaRelacionar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
+            Err(FalhaRelacionar::Abertura(erro)) => {
+                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+            }
             Err(erro) => falha(cli.json, &erro),
         }
     }))
 }
 
 fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
-    let incerto = erro.saida() == 3;
+    let incerto = matches!(erro, FalhaRelacionar::NaoConfirmado(_));
     let mensagem = if incerto {
-        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita."
+        "O envio não comprovou a alteração do relacionamento. Confira o SEI antes de qualquer nova confirmação; não repita a escrita.".to_owned()
     } else {
-        "Operação recusada ou prévia indisponível"
+        erro.mensagem()
     };
     if json_mode {
         let mut resposta = json!({
-            "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
-            "subcodigo": erro.subcodigo(),
+            "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
             "erro": mensagem,
             "retentavel": false,
         });
@@ -91,9 +85,9 @@ fn falha(json_mode: bool, erro: &FalhaRelacionar) -> ExitCode {
         }
         println!("{resposta}");
     } else {
-        eprintln!("IES: {mensagem} [{}]", erro.subcodigo());
+        eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 fn publicar(json_mode: bool, previa: &Previa) -> ExitCode {

@@ -27,7 +27,7 @@ pub(crate) fn tentar_reabrir(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => reabrir(cli, &nup, *confirmar),
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
@@ -50,12 +50,9 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
                 }
                 ExitCode::SUCCESS
             }
-            Err(ErroReabrir::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
+            Err(ErroReabrir::Abertura(erro)) => {
+                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+            }
             Err(erro) => {
                 if cli.json {
                     if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(&erro))
@@ -67,7 +64,7 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
                         eprintln!("{linha}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     })
@@ -126,12 +123,7 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
 
 /// JSON da falha depois da abertura.
 pub(crate) fn json_de_falha(erro: &ErroReabrir) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
+    let mut valor = FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http());
     match erro {
         ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo } => {
             valor.motivo = Some(motivo.como_texto());
@@ -149,13 +141,12 @@ pub(crate) fn json_de_falha(erro: &ErroReabrir) -> FalhaDaSituacao<'_> {
             valor.depois = Some(depois);
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroReabrir::EfeitoIncertoNaReabertura {
+        ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
@@ -188,8 +179,7 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
             linhas.push(format!("Reaberto. Aberto em, relido: {}", refs(depois)));
             if let Some(falha) = &feito.reconciliado_por {
                 linhas.push(format!(
-                    "A resposta não foi a esperada ({}); a leitura confirmou.",
-                    falha.subcodigo()
+                    "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));
             }
         }
@@ -203,12 +193,12 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
 fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
     use ErroReabrir as E;
 
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     let aberto_em = match erro {
         E::UnidadeDaSessaoJaNaSituacao { aberto_em }
         | E::ReaberturaNaoPublicadaNaBarra { aberto_em }
         | E::ReaberturaNaoAplicada { aberto_em, .. }
-        | E::EfeitoIncertoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
@@ -223,16 +213,11 @@ fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
     }
     let falha_do_envio = match erro {
         E::ReaberturaNaoAplicada { falha_do_envio, .. }
-        | E::EfeitoIncertoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
-    }
-    if let E::EfeitoIncertoNaReabertura { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
+        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
     linhas
 }

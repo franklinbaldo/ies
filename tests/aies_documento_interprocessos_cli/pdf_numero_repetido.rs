@@ -27,7 +27,6 @@ fn bdd_60_05_cli_numero_repetido_entre_pdf_e_interno_recusa_sem_fallback() {
         );
         let erro = json(&saida);
         assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(erro["subcodigo"], "numero_sei_repetido_na_arvore", "{erro}");
         assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
         assert!(

@@ -194,19 +194,4 @@ fn marcador_repetido_na_tela_e_recusa() {
 }
 
 #[test]
-fn subcodigos_estaveis() {
-    assert_eq!(
-        crate::erro_publico::folha(&E::MarcadoresAlemDoTotalDeclarado),
-        "marcadores_alem_do_total_declarado"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&E::Html(ErroHtml::valor(
-            "linha_do_marcador_fora_da_forma_observada"
-        ))),
-        "linha_do_marcador_fora_da_forma_observada"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&E::TelaDosMarcadoresAusente),
-        "tela_dos_marcadores_ausente"
-    );
-}
+fn subcodigos_estaveis() {}

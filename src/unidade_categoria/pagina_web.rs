@@ -17,23 +17,16 @@ use crate::transporte::envio_post::{TelaDoControle, enviar_post, ler_tela_do_con
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(super) enum ErroPaginaWeb {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Caixa(ErroCaixa),
-    #[causa(interna)]
-    Pagina(ErroPaginaDoControle),
-    #[causa(interna)]
-    Visao(ErroVisaoDoControle),
+    Transporte(#[from] FalhaTransporte),
+    Caixa(#[from] ErroCaixa),
+    Pagina(#[from] ErroPaginaDoControle),
+    Visao(#[from] ErroVisaoDoControle),
 }
 
 impl ErroPaginaWeb {
-    pub(super) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(super) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(erro) => erro.mensagem(),
@@ -55,9 +48,6 @@ impl ErroPaginaWeb {
 }
 
 impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
-    fn subcodigo(&self) -> &'static str {
-        ErroPaginaWeb::subcodigo(self)
-    }
     fn mensagem(&self) -> &'static str {
         ErroPaginaWeb::mensagem(self)
     }
@@ -174,7 +164,6 @@ mod tests {
             ErroSubmissaoFormulario::Transporte(recusa(502)),
         ));
         assert_eq!(post.status_http().map(|h| h.status), Some(502));
-        assert_eq!(post.subcodigo(), "status_http_de_erro_do_servidor");
         let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
         assert_eq!(local.status_http(), None);
     }

@@ -259,16 +259,15 @@ fn unidade_fora_depois_e_nao_aplicada() {
 }
 
 #[test]
-fn leitura_que_falha_ou_nao_le_a_situacao_e_efeito_incerto() {
+fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, feitos) = escrita_com(ok(resposta_da_reabertura()), Err(FalhaTransporte::Rede));
-    let Err(erro @ R::EfeitoIncertoNaReabertura { .. }) = r else {
+    let Err(erro @ R::NaoConfirmadoNaReabertura { .. }) = r else {
         panic!("esperava efeito incerto: {r:?}");
     };
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.codigo(), "efeito_incerto");
+    assert_eq!(erro.codigo(), "nao_confirmado");
     assert_eq!(
         erro,
-        R::EfeitoIncertoNaReabertura {
+        R::NaoConfirmadoNaReabertura {
             aberto_em: vec![],
             falha_do_envio: None,
             verificacao: Box::new(V::LeituraFalhou(
@@ -286,7 +285,7 @@ fn leitura_que_falha_ou_nao_le_a_situacao_e_efeito_incerto() {
     let (r, _) = escrita_com(r302(&volta_a_arvore()), ok(sobrestado));
     assert_eq!(
         r,
-        Err(R::EfeitoIncertoNaReabertura {
+        Err(R::NaoConfirmadoNaReabertura {
             aberto_em: vec![],
             falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
             verificacao: Box::new(V::SituacaoNaoLida(

@@ -204,7 +204,10 @@ fn abrir_pastas_que_responde_login_ou_outro_processo_e_erro() {
         None,
         pelo_controle(vec![ok(arvore_fechada()), r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     let amb = ambiente();
     let outra = arvore_aberta().replace(NUP, "00002.000002/2026-02");
     let (r, _) = rodar(

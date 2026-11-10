@@ -26,25 +26,14 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroDocumento::novo(numero) {
-        Ok(n) => n,
-        Err(e) => {
-            return Some(uso_invalido(
-                cli.json,
-                e.subcodigo(),
-                "número de documento inválido",
-            ));
-        }
+    let Ok(numero) = NumeroDocumento::novo(numero) else {
+        return Some(uso_invalido(cli.json, "número de documento inválido"));
     };
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(n)) => Some(n),
-        Some(Err(e)) => {
-            return Some(uso_invalido(
-                cli.json,
-                e.subcodigo(),
-                "número de processo inválido",
-            ));
+        Some(Err(_)) => {
+            return Some(uso_invalido(cli.json, "número de processo inválido"));
         }
     };
     Some(com_sessao(cli, |sessao, indice| {
@@ -84,26 +73,26 @@ pub(crate) fn tentar_cancelar(cli: &Cli) -> Option<ExitCode> {
                         eprintln!("{linha}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     }))
 }
 
-fn uso_invalido(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn uso_invalido(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
-            json!({"codigo":"entrada_invalida","subcodigo":subcodigo,"erro":mensagem,"retentavel":false})
+            json!({"codigo":"entrada_invalida","erro":mensagem,"retentavel":false})
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
 
 fn json_da_falha_do_envio(f: &FalhaDoCancelamento) -> Value {
-    let mut valor = json!({"subcodigo":f.subcodigo()});
+    let mut valor = json!({});
     if let Some(http) = f.status_http()
         && let Some(obj) = valor.as_object_mut()
     {
@@ -118,25 +107,17 @@ fn json_da_falha_do_envio(f: &FalhaDoCancelamento) -> Value {
 }
 
 fn json_da_falha(e: &ErroCancelar) -> Value {
-    let mut valor = json_base_da_falha(e.codigo(), e.subcodigo(), e.mensagem(), e.status_http());
-    if let Some(obj) = valor.as_object_mut() {
-        match e {
-            ErroCancelar::CancelamentoNaoAplicado {
-                falha_do_envio: Some(f),
-            } => {
-                obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-            }
-            ErroCancelar::EfeitoIncerto {
-                falha_do_envio,
-                verificacao,
-            } => {
-                obj.insert("verificacao".to_owned(), json!(verificacao.motivo()));
-                if let Some(f) = falha_do_envio {
-                    obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
-                }
-            }
-            _ => {}
+    let mut valor = json_base_da_falha(e.codigo(), e.mensagem(), e.status_http());
+    if let Some(obj) = valor.as_object_mut()
+        && let ErroCancelar::CancelamentoNaoAplicado {
+            falha_do_envio: Some(f),
         }
+        | ErroCancelar::NaoConfirmado {
+            falha_do_envio: Some(f),
+            ..
+        } = e
+    {
+        obj.insert("falha_do_envio".to_owned(), json_da_falha_do_envio(f));
     }
     valor
 }
@@ -171,7 +152,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
         falha_do_envio: feito
             .resultado
             .falha_do_envio()
-            .map(|f| crate::saida_erro::FalhaPublica::nova(f.subcodigo(), f.status_http())),
+            .map(|f| crate::saida_erro::FalhaPublica::nova(f.status_http())),
         id_documento: &feito.id_documento,
         motivo: &feito.motivo,
         numero: &feito.numero,
@@ -207,19 +188,14 @@ fn json_do_sucesso(feito: &DocumentoCancelado) -> Value {
 /// Mensagens humanas do cancelamento derivadas da falha tipada, sem
 /// construir JSON ou reclassificar sua causa.
 fn linhas_da_falha(erro: &ErroCancelar) -> Vec<String> {
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     let falha_do_envio = match erro {
         ErroCancelar::CancelamentoNaoAplicado { falha_do_envio }
-        | ErroCancelar::EfeitoIncerto { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | ErroCancelar::NaoConfirmado { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
-    }
-    if let ErroCancelar::EfeitoIncerto { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
+        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
     linhas
 }

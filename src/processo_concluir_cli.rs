@@ -30,23 +30,22 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<ExitCode> {
     };
     Some(match NumeroProcesso::novo(numero) {
         Ok(nup) => concluir(cli, &nup, *confirmar),
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
-pub(crate) fn erro_de_uso(json_mode: bool, subcodigo: &str) -> ExitCode {
+pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": "número de processo inválido",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: número de processo inválido [{subcodigo}]");
+        eprintln!("IES: número de processo inválido");
     }
     ExitCode::from(2)
 }
@@ -60,7 +59,7 @@ pub(crate) fn com_sessao(
 ) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
     };
     let lidos = transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
@@ -69,7 +68,7 @@ pub(crate) fn com_sessao(
     );
     let referencias = match lidos {
         Ok(referencias) => referencias,
-        Err(falha) => return erro_fonte(cli.json, falha.subcodigo(), falha.mensagem()),
+        Err(falha) => return erro_fonte(cli.json, falha.mensagem()),
     };
     let sessao = SessaoDoProcesso {
         url_do_controle: referencias.url_do_controle(),
@@ -109,12 +108,9 @@ fn concluir_na_sessao(
             }
             ExitCode::SUCCESS
         }
-        Err(ErroConcluir::Abertura(erro)) => saida_erro::erro_fonte_http(
-            cli.json,
-            erro.subcodigo(),
-            erro.mensagem(),
-            erro.status_http(),
-        ),
+        Err(ErroConcluir::Abertura(erro)) => {
+            saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+        }
         Err(erro) => publicar_falha(cli.json, &erro),
     }
 }
@@ -122,7 +118,7 @@ fn concluir_na_sessao(
 /// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
 /// seus dados observáveis na fronteira JSON.
 pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
-    crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
+    crate::saida_erro::FalhaPublica::nova(falha.status_http())
 }
 
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
@@ -176,22 +172,16 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> Value {
 /// reabrir`): códigos, mensagem e o status HTTP, quando houver.
 pub(crate) fn json_base_da_falha(
     codigo: &str,
-    subcodigo: &str,
     mensagem: &str,
     status: Option<StatusHttpRecusado>,
 ) -> Value {
-    serde_json::to_value(FalhaDaSituacao::nova(codigo, subcodigo, mensagem, status))
+    serde_json::to_value(FalhaDaSituacao::nova(codigo, mensagem, status))
         .expect("a projeção de falha só possui valores JSON")
 }
 
 /// JSON da falha depois da abertura.
 pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
+    let mut valor = FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http());
     match erro {
         ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo } => {
             valor.motivo = Some(motivo.como_texto());
@@ -209,13 +199,12 @@ pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
             valor.depois = Some(depois);
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroConcluir::EfeitoIncertoNaConclusao {
+        ErroConcluir::NaoConfirmadoNaConclusao {
             aberto_em,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
@@ -233,7 +222,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 /// Publica a falha já em JSON (também a de `processo reabrir`): o JSON, ou
@@ -242,22 +231,12 @@ pub(crate) fn publicar_valor_da_falha(json_mode: bool, valor: &Value, saida: u8)
     if json_mode {
         println!("{valor}");
     } else {
-        eprintln!(
-            "IES: {} [{}]",
-            valor["erro"].as_str().unwrap_or_default(),
-            valor["subcodigo"].as_str().unwrap_or_default()
-        );
+        eprintln!("IES: {}", valor["erro"].as_str().unwrap_or_default());
         for campo in ["aberto_em", "depois"] {
             if let Some(lista) = valor[campo].as_array() {
                 let siglas: Vec<_> = lista.iter().filter_map(Value::as_str).collect();
                 eprintln!("IES: {campo}: {}", lista_humana(&siglas));
             }
-        }
-        if let Some(falha) = valor["falha_do_envio"]["subcodigo"].as_str() {
-            eprintln!("IES: resposta da escrita: {falha}");
-        }
-        if let Some(motivo) = valor["verificacao"].as_str() {
-            eprintln!("IES: verificação: {motivo}");
         }
     }
     ExitCode::from(saida)
@@ -293,8 +272,7 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
             linhas.push(format!("Concluído. Aberto em, relido: {}", refs(depois)));
             if let Some(falha) = &feito.reconciliado_por {
                 linhas.push(format!(
-                    "A resposta não foi a esperada ({}); a leitura confirmou.",
-                    falha.subcodigo()
+                    "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));
             }
         }
@@ -308,12 +286,12 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
 fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
     use ErroConcluir as E;
 
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     let aberto_em = match erro {
         E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
         | E::ConclusaoNaoPublicadaNaBarra { aberto_em }
         | E::ConclusaoNaoAplicada { aberto_em, .. }
-        | E::EfeitoIncertoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
@@ -328,16 +306,11 @@ fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
     }
     let falha_do_envio = match erro {
         E::ConclusaoNaoAplicada { falha_do_envio, .. }
-        | E::EfeitoIncertoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
-    }
-    if let E::EfeitoIncertoNaConclusao { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
+        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
     linhas
 }

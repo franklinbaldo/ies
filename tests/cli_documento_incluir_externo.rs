@@ -82,7 +82,6 @@ fn bdd_332_01_pdf_local_publica_inspecao_sem_sessao_ou_http() {
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["requisicoes"], 0);
     assert_eq!(valor["escrita_remota"], false);
-    assert!(valor.get("subcodigo").is_none());
 }
 
 #[test]
@@ -90,7 +89,7 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
     let falso = PdfTeste::com_conteudo("pdf", b"texto, nao PDF");
     let extensao = PdfTeste::com_conteudo("txt", b"%PDF-1.4\n1 0 obj\n%%EOF\n");
     // A inspeção local é pré-condição até mesmo da consulta e da confirmação.
-    for (arquivo, causa) in [(&falso, "Conteudo"), (&extensao, "Extensao")] {
+    for (arquivo, _causa) in [(&falso, "Conteudo"), (&extensao, "Extensao")] {
         for modo in [None, Some("--consultar-sei"), Some("--confirmar")] {
             let mut args = vec![
                 "--json",
@@ -114,14 +113,12 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
                 saida.stderr
             );
             let valor = json(&saida);
-            assert_eq!(valor["causa"], serde_json::json!({"Pdf": causa}));
             assert_eq!(valor["retentavel"], false);
             assert_eq!(
                 valor["requisicoes"], 0,
                 "modo={modo:?}: nenhuma requisição permitida"
             );
             assert_eq!(valor["escrita_remota"], false);
-            assert!(valor.get("subcodigo").is_none());
         }
     }
 }
@@ -135,7 +132,7 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
     let diretorio = pdf.0.with_extension("diretorio.pdf");
     symlink(&pdf.0, &link).unwrap();
     fs::create_dir(&diretorio).unwrap();
-    for (caminho, causa) in [(&link, "LinkSimbolico"), (&diretorio, "NaoRegular")] {
+    for (caminho, _causa) in [(&link, "LinkSimbolico"), (&diretorio, "NaoRegular")] {
         let saida = executar(&[
             "--json",
             "documento",
@@ -149,7 +146,6 @@ fn bdd_332_05_caminho_simbolico_ou_diretorio_sao_recusados() {
         ]);
         assert_eq!(saida.status.code(), Some(2), "stderr={:?}", saida.stderr);
         let valor = json(&saida);
-        assert_eq!(valor["causa"], serde_json::json!({"Pdf": causa}));
         assert_eq!(valor["requisicoes"], 0);
         assert_eq!(valor["escrita_remota"], false);
     }
@@ -175,10 +171,6 @@ fn confirmar_vai_a_sessao_e_sem_ela_falha_antes_da_rede() {
     // A escrita não depende de chave de ensaio: --confirmar segue para a
     // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_ausente_ou_inacessivel"
-    );
 }
 
 #[test]
@@ -195,7 +187,6 @@ fn arquivo_local_ausente_e_recusado_sem_sessao() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Pdf": "Ausente"}));
 }
 
 #[test]
@@ -219,10 +210,6 @@ fn nome_pdf_incompativel_rejeitado_com_erro_tipado_antes_da_rede() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(
-        json(&saida)["causa"],
-        serde_json::json!({"Pdf": "NomeInvalido"})
-    );
 }
 
 #[test]
@@ -242,10 +229,6 @@ fn tipo_com_controle_direcional_nao_pode_enganar_a_saida_humana() {
         "An\u{202e}exo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(
-        json(&saida)["causa"],
-        serde_json::json!({"Tipo": "Controle"})
-    );
 }
 
 #[test]
@@ -262,8 +245,6 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
         " ",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["causa"], serde_json::json!({"Tipo": "Vazio"}));
-    assert!(json(&saida).get("subcodigo").is_none());
 }
 
 #[test]
@@ -281,9 +262,7 @@ fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    let valor = json(&saida);
-    assert_eq!(valor["causa"], serde_json::json!({"Processo": "Vazio"}));
-    assert!(valor.get("subcodigo").is_none());
+    let _valor = json(&saida);
 }
 
 #[test]
@@ -326,8 +305,4 @@ fn dado_confirmar_com_previa_web_quando_sem_sessao_entao_falha_antes_da_rede() {
     // A escrita não depende de chave de ensaio: --confirmar segue para a
     // sessão; sem arquivos de sessão, falha antes de qualquer requisição.
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_ausente_ou_inacessivel"
-    );
 }

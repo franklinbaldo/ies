@@ -13,6 +13,7 @@ use crate::arvore_processo::{
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
+use crate::erro_publico::Rotulo as _;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -31,7 +32,7 @@ fn tela(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Optio
     let instalacao = gravacao::instalacao(json)?;
     Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
         Ok(_) => "documento selecionado na árvore".to_owned(),
-        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => format!("`{}`", erro.rotulo()),
     })
 }
 
@@ -54,7 +55,7 @@ fn arvore(html: &str, item: &serde_json::Value, json: &serde_json::Value) -> Vec
                 Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar",
                 Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo",
                 Ok(ConteudoNaArvore::Vazio) => "vazio",
-                Err(erro) => crate::erro_publico::folha(&erro),
+                Err(erro) => erro.rotulo(),
             };
             format!("`{icone}` → `{forma}`")
         })
@@ -93,16 +94,16 @@ fn anexo(item: &serde_json::Value) -> String {
                 "sem texto"
             }
         ),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{}`", erro.mensagem()),
     }
 }
 
 fn conteudo(html: &str) -> String {
     match identidade_do_titulo(html) {
-        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => format!("`{}`", erro.rotulo()),
         Ok(_) => match texto_do_corpo(html) {
             Ok(_) => "título e texto lidos".to_owned(),
-            Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+            Err(erro) => format!("`{}`", erro.rotulo()),
         },
     }
 }

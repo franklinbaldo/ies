@@ -14,7 +14,8 @@ pub struct ResultadoPesquisa {
     pub numero: NumeroProcesso,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroResultadoPesquisa {
     LinhaDePesquisaSemLinkDoProcesso,
     LinkDeProcessoSemClasseReconhecida,
@@ -26,16 +27,12 @@ pub enum ErroResultadoPesquisa {
     LinkDePesquisaComAcaoSemIgual,
     LinkDePesquisaComIdentificadorSemIgual,
     LinkDePesquisaComIdentificadorDoProcessoNaoDecimal,
-    #[causa(interna)]
-    NumeroDePesquisa(NumeroProcessoInvalido),
+    NumeroDePesquisa(#[from] NumeroProcessoInvalido),
     /// `a.protocoloNormal` de `documento_visualizar` na linha cujo link do
     /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroResultadoPesquisa {}
 
 // O controlador PHP decodifica nomes de query e normaliza pontos/espacos
 // para '_'. %5F, '.' ou '+' podem sobrescrever acao/id_procedimento.

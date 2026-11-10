@@ -21,10 +21,6 @@ pub(crate) fn executar_setup(setup: &SetupArgs, json_mode: bool) -> ExitCode {
             }
             ExitCode::SUCCESS
         }
-        Err(codigo) => erro_fonte(
-            json_mode,
-            codigo,
-            "não foi possível gravar a configuração local",
-        ),
+        Err(_) => erro_fonte(json_mode, "não foi possível gravar a configuração local"),
     }
 }

@@ -26,7 +26,7 @@ pub(crate) fn definir_colunas(
     };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
     let lido = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
@@ -34,12 +34,7 @@ pub(crate) fn definir_colunas(
     let (sessao, tela) = match lido {
         Ok(lido) => lido,
         Err(falha) => {
-            return saida_erro::erro_fonte_http(
-                json_mode,
-                falha.subcodigo(),
-                falha.mensagem(),
-                falha.status_http(),
-            );
+            return saida_erro::erro_fonte_http(json_mode, falha.mensagem(), falha.status_http());
         }
     };
     let colheita = crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao);
@@ -82,7 +77,6 @@ pub(crate) fn definir_colunas(
 fn erro_de_uso(json_mode: bool, erro: &ErroDaListaDeColunas) -> ExitCode {
     let mut valor = json!({
         "codigo": "entrada_invalida",
-        "subcodigo": erro.subcodigo(),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
@@ -97,7 +91,7 @@ fn erro_de_uso(json_mode: bool, erro: &ErroDaListaDeColunas) -> ExitCode {
     if json_mode {
         println!("{valor}");
     } else {
-        eprintln!("IES: {} [{}]", erro.mensagem(), erro.subcodigo());
+        eprintln!("IES: {} ({})", erro.mensagem(), erro.mensagem());
     }
     ExitCode::from(2)
 }
@@ -113,7 +107,6 @@ fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
 
 fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
     let mut valor = Map::new();
-    valor.insert("subcodigo".to_owned(), json!(falha.subcodigo()));
     if let Some(http) = falha.status_http() {
         // 200: validação da Infra, só a mensagem.
         if http.status != 200 {
@@ -173,9 +166,10 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
                 campos,
                 metodo: "POST",
             }),
-        falha_do_salvar: feito.reconciliado_por.as_ref().map(|falha| {
-            crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
-        }),
+        falha_do_salvar: feito
+            .reconciliado_por
+            .as_ref()
+            .map(|falha| crate::saida_erro::FalhaPublica::nova(falha.status_http())),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
         origem: "web",
@@ -219,7 +213,7 @@ fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
 }
 
 fn json_da_visao(erro: &ErroVisaoDoControle) -> Value {
-    saida_erro::json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http())
+    saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http())
 }
 
 /// JSON da falha.
@@ -228,7 +222,6 @@ pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
         ErroDefinirColunas::Leitura(leitura) => json_da_visao(leitura),
         _ => json!({
             "codigo": erro.codigo(),
-            "subcodigo": erro.subcodigo(),
             "erro": erro.mensagem(),
             "retentavel": false,
         }),
@@ -254,7 +247,7 @@ pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
             objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
             objeto.insert("observadas".to_owned(), chaves(observadas));
         }
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             plano,
             falha_do_salvar,
             verificacao,
@@ -262,14 +255,9 @@ pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
             objeto.insert("antes".to_owned(), chaves(&plano.antes));
             objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
             inserir_falha(objeto, falha_do_salvar.as_ref());
-            let (observadas, lida) = match &**verificacao {
-                VerificacaoDasColunas::Marcadas(marcadas) => (chaves(marcadas), Value::Null),
-                VerificacaoDasColunas::LeituraFalhou(falha) => {
-                    (Value::Null, json!(falha.subcodigo()))
-                }
-            };
-            objeto.insert("observadas".to_owned(), observadas);
-            objeto.insert("verificacao".to_owned(), lida);
+            if let VerificacaoDasColunas::Marcadas(marcadas) = &**verificacao {
+                objeto.insert("observadas".to_owned(), chaves(marcadas));
+            }
         }
     }
     valor
@@ -292,12 +280,12 @@ fn inserir_falha(objeto: &mut Map<String, Value>, falha: Option<&FalhaDoSalvar>)
 /// A apresentação humana não depende da projeção JSON.
 fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
     use ErroDefinirColunas as E;
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
 
     let plano = match erro {
         E::ConfiguracaoDeColunasNaoAplicada { plano, .. }
         | E::MarcasDiferentesDoAlvoAposSalvar { plano, .. }
-        | E::EfeitoIncertoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
+        | E::NaoConfirmadoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
         _ => None,
     };
     if let Some(plano) = plano {
@@ -309,7 +297,7 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
         E::MarcasDiferentesDoAlvoAposSalvar { observadas, .. } => {
             linhas.push(format!("IES: {}", linha("observadas", observadas)));
         }
-        E::EfeitoIncertoNaConfiguracaoDeColunas { verificacao, .. } => {
+        E::NaoConfirmadoNaConfiguracaoDeColunas { verificacao, .. } => {
             if let VerificacaoDasColunas::Marcadas(observadas) = verificacao.as_ref() {
                 linhas.push(format!("IES: {}", linha("observadas", observadas)));
             }
@@ -321,13 +309,13 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
         E::ConfiguracaoDeColunasNaoAplicada {
             falha_do_salvar, ..
         }
-        | E::EfeitoIncertoNaConfiguracaoDeColunas {
+        | E::NaoConfirmadoNaConfiguracaoDeColunas {
             falha_do_salvar, ..
         } => falha_do_salvar.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha {
-        linhas.push(format!("IES: resposta do salvar: {}", falha.subcodigo()));
+        linhas.push(format!("IES: resposta do salvar: {falha:?}"));
     }
     linhas
 }
@@ -340,7 +328,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroDefinirColunas) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 fn lista_humana(nomes: &[&str]) -> String {
@@ -385,8 +373,7 @@ fn humano(feito: &ColunasDefinidas) -> String {
     }
     if let Some(falha) = &feito.reconciliado_por {
         linhas.push(format!(
-            "IES: a resposta do salvar não foi a esperada ({}); a leitura mostrou o alvo.",
-            falha.subcodigo()
+            "IES: a resposta do salvar não foi a esperada ({falha:?}); a leitura mostrou o alvo."
         ));
     }
     if let (false, Some(campos)) = (feito.confirmado, &feito.campos_do_envio) {

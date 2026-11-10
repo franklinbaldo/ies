@@ -53,7 +53,8 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
 };
 
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPaginaDoControle {
     PaginaExigeVisaoResumida,
     CharsetDaTelaNaoSuportado,
@@ -85,12 +86,9 @@ pub(crate) enum ErroPaginaDoControle {
         categoria: Categoria,
     },
     RedirecionamentoAposPaginar,
-    #[causa(interna)]
-    Formulario(ErroControleDoFormulario),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Caixa(ErroCaixa),
+    Formulario(#[from] ErroControleDoFormulario),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Caixa(#[from] ErroCaixa),
 }
 
 impl ErroPaginaDoControle {

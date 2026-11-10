@@ -17,25 +17,17 @@ use serde_json::{Value, json};
 mod paginacao;
 use std::process::ExitCode;
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum FalhaLeitura {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Controle(ErroCaixa),
-    #[causa(interna)]
-    Bloco(ErroBloco),
-    #[causa(interna)]
-    Detalhe(ErroHtml),
-    #[causa(interna)]
-    Submissao(ErroSubmissaoFormulario),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Transporte(#[from] FalhaTransporte),
+    Controle(#[from] ErroCaixa),
+    Bloco(#[from] ErroBloco),
+    Detalhe(#[source] ErroHtml),
+    Submissao(#[from] ErroSubmissaoFormulario),
+    Html(#[source] ErroHtml),
 }
 impl FalhaLeitura {
-    fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     fn mensagem(&self) -> &'static str {
         match self {
             Self::Html(e) => e.mensagem,
@@ -149,22 +141,17 @@ fn executar_leitura(
     if let Some(numero) = numero
         && (numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()))
     {
-        return erro_uso(
-            cli.json,
-            "numero_do_bloco_invalido",
-            "número de bloco deve ser decimal",
-        );
+        return erro_uso(cli.json, "número de bloco deve ser decimal");
     }
     if pagina.is_some_and(|p| p > 2) || (pagina == Some(2) && tipo != TipoBloco::Interno) {
         return erro_fonte(
             cli.json,
-            ErroBloco::PaginaDeBlocosNaoImplementada.subcodigo(),
             "paginação de blocos ainda não implementada: nenhuma requisição enviada",
         );
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(a) => a,
-        Err(e) => return erro_fonte(cli.json, e.subcodigo(), e.mensagem()),
+        Err(e) => return erro_fonte(cli.json, e.mensagem()),
     };
     let sessao = match ReferenciasDaSessao::ler(
         &arquivos.url_controle,
@@ -173,12 +160,7 @@ fn executar_leitura(
     ) {
         Ok(s) => s,
         Err(e) => {
-            return crate::saida_erro::erro_fonte_http(
-                cli.json,
-                e.subcodigo(),
-                e.mensagem(),
-                e.status_http(),
-            );
+            return crate::saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http());
         }
     };
     match ler_via(
@@ -222,23 +204,17 @@ fn executar_leitura(
             }
             ExitCode::SUCCESS
         }
-        Err(e) => crate::saida_erro::erro_fonte_http(
-            cli.json,
-            e.subcodigo(),
-            e.mensagem(),
-            e.status_http(),
-        ),
+        Err(e) => crate::saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http()),
     }
 }
-fn erro_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn erro_uso(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
-            json!({"codigo":"entrada_invalida","subcodigo":subcodigo,
-            "erro":mensagem,"retentavel":false})
+            json!({"codigo":"entrada_invalida","erro":mensagem,"retentavel":false})
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -252,11 +228,7 @@ pub(crate) fn executar(cli: &Cli, bloco: &Bloco) -> ExitCode {
             crate::esquema_cli::show_noun_help("bloco");
             ExitCode::SUCCESS
         }
-        _ => erro_uso(
-            cli.json,
-            "opcoes_de_bloco_incompativeis",
-            "número e listagem não podem ser combinados",
-        ),
+        _ => erro_uso(cli.json, "número e listagem não podem ser combinados"),
     }
 }
 #[cfg(test)]

@@ -2,7 +2,8 @@
 use serde_json::Value;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,
@@ -10,9 +11,6 @@ pub enum ErroArquivoCaixa {
     EscritaDeArquivoFalhou,
 }
 impl ErroArquivoCaixa {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub fn mensagem(self) -> &'static str {
         match self {
             Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",

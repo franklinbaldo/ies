@@ -34,7 +34,7 @@ pelo `subcodigo`: os únicos usos eram testes e o próprio verificador.
 - **Decisão separada de diagnóstico.** `Acao` (corrigir argumentos,
   relogar, trocar de instalação, conferir a escrita, reportar) é o
   contrato de decisão; a causa é diagnóstico.
-- **Sem "efeito incerto".** Uma escrita é descrita por fatos (`enviada`,
+- **Sem "escrita não confirmada".** Uma escrita é descrita por fatos (`enviada`,
   `aplicada`) e pela causa exata; depois de uma falha, a operação lê de
   novo para reconciliar, sem repetir a escrita.
 - **Serde sob demanda.** O domínio propaga `Result`, `Option` e `enum` sem
@@ -118,8 +118,8 @@ Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
 - A mensagem é a genérica do problema (`ErroHtml::ausente("onde")`);
   `.com_mensagem("...")` só onde o ponto tem texto próprio. A igualdade
   compara `onde` e `problema`, não a mensagem.
-- Um `enum` com outras causas compõe com `#[causa(transparente)]
-  Html(ErroHtml)`: o `From` derivado deixa `?` e `.into()` converterem, e
+- Um `enum` com outras causas compõe com `Html(#[from] ErroHtml)`
+  (`thiserror`): o `From` derivado deixa `?` e `.into()` converterem, e
   o caminho não repete `html`. Um leitor que só falha por forma devolve
   `ErroHtml`.
 - A variante de forma que algum código casa fora de teste (`match` em
@@ -148,7 +148,13 @@ módulo de leitura de tela (`MODULOS_DE_TELA`).
 
 - Erro novo: tipo perto da detecção, uma origem em regra, propagação
   direta e serialização na fronteira. Não introduzir subcódigos.
-- Tabelas `subcodigos-*.md` deixam de ser a fonte; caem quando os
-  contratos migrarem.
+- Tabelas `subcodigos-*.md`, o gate `subcodigos` e o trait `Causa`
+  com caminho/folha/ação foram removidos (10/11/2026). A saída pública
+  é `codigo` + `erro` (mensagem) + HTTP.
+- O derive próprio (`ies-derive`) saiu (#674): os erros usam `thiserror`.
+  `#[from]` gera o `From`; `#[source]` liga a causa. `status_http()` e
+  `sessao_encerrada()` percorrem a cadeia `source()`, achando
+  `StatusHttpRecusado` ou `erro_publico::SessaoEncerrada` por `downcast`.
+  Não usar `#[error(transparent)]`: ele esconde o nó interno da cadeia.
 - `?` em vez de `map_err` para compor causas; um `From` manual só onde
   a origem não é um erro do projeto (`io`, `rusqlite`).

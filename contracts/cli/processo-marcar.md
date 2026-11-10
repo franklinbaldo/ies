@@ -47,12 +47,12 @@ origem de treinamento, catálogo e formulário da unidade conferidos, **um POST*
 e aceite causal por 302 do mesmo processo. Só declara sucesso após nova leitura
 independente confirmar o mesmo `id#nome` e o texto solicitado. Uma resposta
 incerta, inclusive 403 depois de POST efetivamente aplicado, resulta em
-**saída 3**, sem repetir o envio.
+**saída 1**, sem repetir o envio.
 A confirmação de **retirada** exige origem de treinamento autorizada,
 formulário específico observado e um único POST. Só declara sucesso se o
 redirecionamento 302 identifica a operação de retirada no mesmo processo
 **e** uma consulta independente demonstra ausência do marcador. Falha na
-prova causal ou na releitura após o envio resulta em **saída 3**, sem nova
+prova causal ou na releitura após o envio resulta em **saída 1**, sem nova
 tentativa, com a orientação de não repetir a confirmação. O código não
 executa JavaScript e não classifica erros pelo texto da mensagem.
 
@@ -83,7 +83,7 @@ Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
-A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
+A tabela abaixo descreve as variantes; a saída pública traz só a mensagem.
 Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
 a confirmação depende da resposta causal e da releitura independente.
 

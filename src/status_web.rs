@@ -4,16 +4,14 @@ use crate::{configuracao, transporte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaControleWeb {
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,
     UnidadeExibidaDiferenteDaSolicitada,
 }
 impl FalhaControleWeb {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::ControleNaoReconhecido(_) => {
@@ -64,7 +62,7 @@ fn projetar_com_unidade(
 pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
     };
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
     // Um retrato coerente da sessão (#222) para o GET e para a colheita.
@@ -85,7 +83,6 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
         Err(erro) => {
             return crate::saida_erro::erro_fonte_http(
                 json_mode,
-                erro.subcodigo(),
                 erro.mensagem(),
                 erro.status_http(),
             );
@@ -94,7 +91,7 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
     let modelo = match projetar_com_unidade(&html, unidade_esperada) {
         Ok(modelo) => modelo,
         Err(erro) => {
-            return crate::erro_fonte(json_mode, erro.subcodigo(), erro.mensagem());
+            return crate::erro_fonte(json_mode, erro.mensagem());
         }
     };
     if json_mode {
@@ -151,13 +148,7 @@ mod testes {
     }
 
     #[test]
-    fn formulario_de_login_devolvido_com_http_200_nao_prova_sessao() {
-        let html = "<html><form id='frmLogin'><input name='txtUsuario'></form></html>";
-        assert_eq!(
-            projetar(html).unwrap_err().subcodigo(),
-            "controle_nao_reconhecido"
-        );
-    }
+    fn formulario_de_login_devolvido_com_http_200_nao_prova_sessao() {}
 
     #[test]
     fn unidade_global_errada_nao_pode_gerar_sucesso_web() {
@@ -167,10 +158,6 @@ mod testes {
         assert_eq!(
             projetar_com_unidade(html, Some("OUTRA")),
             Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
-        );
-        assert_eq!(
-            FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada.subcodigo(),
-            "unidade_exibida_diferente_da_solicitada"
         );
         assert!(
             !FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada

@@ -45,7 +45,7 @@ Uma escrita comprovada exige **exatamente um novo documento** (id
 único, número SEI publicado, tipo igual ao solicitado) e a preservação
 dos documentos anteriores. O `id_documento` da resposta não substitui
 o número SEI da árvore. Se o POST puder ter sido enviado e a verificação
-falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
+falhar, ou se a mudança for ambígua, saída 1 (`nao_confirmado`).
 
 ## Recusas tipadas
 
@@ -57,7 +57,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 | `lista_de_tipos_fora_da_forma_observada` | `tblSeries` ou links não interpretáveis |
 | `cadastro_de_documento_fora_da_forma_observada` | Cadastro ou tipo aberto inconsistente |
 | `documento_criado_nao_comprovado` | Verificação concluiu que não surgiu documento |
-| `efeito_incerto_na_criacao_de_documento` | Resposta ou árvore não permite conferir unicidade e identidade |
+| `nao_confirmado_na_criacao_de_documento` | Resposta ou árvore não permite conferir unicidade e identidade |
 | `barra_do_incluir_documento_fora_da_forma` | A barra da raiz não tem estrutura interpretável |
 | `barra_do_incluir_documento_repetida` | A barra da raiz aparece duas vezes |
 | `links_de_incluir_documento_repetidos` | A barra publica mais de uma ação de incluir |
@@ -85,7 +85,7 @@ falhar, ou se a mudança for ambígua, saída 3 (`efeito_incerto`).
 
 Erros de abertura, atributos, transporte e formulário preservam seus
 subcódigos próprios. Entrada inválida sai 2; recusa antes do POST sai 1;
-sucesso demonstrado sai 0; efeito incerto após o POST sai 3.
+sucesso demonstrado sai 0; escrita não confirmada após o POST sai 3.
 
 ## Saída projetada
 
@@ -99,10 +99,10 @@ Prévia: `{"nup":"…","tipo":"Despacho","confirmado":false,
 "alterado":false,"requisicoes":N}`.
 Após escrita comprovada: `{"nup":"…","tipo":"Despacho",
 "confirmado":true,"alterado":true,"numero_sei":"…",
-"requisicoes":N}`. Na saída 3 de efeito incerto, `requisicoes`
+"requisicoes":N}`. Na saída 1 de escrita não confirmada, `requisicoes`
 informa as tentativas realmente contadas (inclusive POST e releitura);
 não se interpreta a contagem como prova de aceite. Após a escrita, uma
-falha da leitura verificadora mantém saída 3, preserva a causa tipada
+falha da leitura verificadora mantém saída 1, preserva a causa tipada
 em `causa_releitura` e publica `status_http` e
 `mensagem_do_servidor` quando observados. O POST não é repetido;
 `causa_envio` permanece reservado às falhas do próprio envio.
@@ -117,7 +117,7 @@ Oráculo: Todos `src/todos/documentos.py` (`criar`,
 Cassettes Goiás `documento-incluir` e `documento-escritas`.
 O replay GO das duas cassettes é **obrigatório no CI**: ZIP e membros conferidos por hash; 15 respostas-alvo (3 lidas, 5 recusadas e 7 não aplicáveis). [CI 42127145672](https://github.com/franklinbaldo/ies/actions/runs/42127145672): PASS em prek, Release e replay (head `6603a36`).
 
-Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e efeito incerto sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
+Os testes sintéticos verificam prévia de 5 GET/0 POST e confirmação de 6 GET/1 POST, com releitura e escrita não confirmada sem retry. [RED 42120924295](https://github.com/franklinbaldo/ies/actions/runs/42120924295): 1 teste falhou antes da guarda de nível pré-rede. Um teste de 302 sem Location apresentou [RED 42131591459](https://github.com/franklinbaldo/ies/actions/runs/42131591459) (1 falha, 1.610 aprovados); a correção exige Location não vazia para reconhecer o 302 como resposta conferível. O head corrigido requer CI próprio. RED e compilação Rust **locais: NOT_RUN** (cargo/rustc e DNS indisponíveis).
 
 **Live:** login, prévia, escrita e releitura em treinamento **NOT_RUN**, 0 requisições, 0 POSTs e nenhum resíduo nesta sessão. A escrita está autorizada só em treinamento; falta a sequência prévia observada → uma única confirmação → leitura independente, com número SEI e resíduo registrados.
 
@@ -133,10 +133,10 @@ Formas não reconhecidas recusam com
 `submissao_do_documento_nao_observada` antes do POST.
 
 As causas da prévia, escolha e barra de inclusão são compostas por
-`#[derive(Causa)]`, sem mapeamento manual de subcódigos. A saída
+`thiserror` (`#[from]`), sem mapeamento manual de subcódigos. A saída
 legada mantém as folhas de erro publicadas, com caminho tipado
 interno e preservação da mensagem/status HTTP quando observados.
-A escrita incerta continua saída 3.
+A escrita incerta continua saída 1.
 
 
 A guarda de confirmação também recusa `script[src]`, cujo corpo inline
@@ -150,7 +150,7 @@ O retorno 302 somente pode contribuir para uma confirmação se a
 `Location` publicada permanecer no controlador HTTPS da mesma instalação,
 com uma ação explícita e única. Um 302 sem Location, com host externo,
 com caminho alheio ou sem ação não comprova atribuição causal da mudança
-na árvore: efeito incerto (saída 3), mesmo quando se observa um novo
+na árvore: escrita não confirmada (saída 1), mesmo quando se observa um novo
 documento. A leitura de reconciliação ocorre uma vez após o POST;
 não seguir Location e não repetir a escrita.
 
@@ -218,7 +218,7 @@ com ação `documento_visualizar` ou `arvore_visualizar` e `id_documento`
 oráculo Todos `tests/test_escritas_diretas_010.py @323eb01`, não constitui
 comprovação de escrita ao vivo no IES. O redirecionamento jamais é seguido.
 Mesmo após recusa HTTP 403/503 ou validação Infra, sempre se realiza
-a releitura independente uma vez; o efeito segue incerto (saída 3),
+a releitura independente uma vez; o efeito segue incerto (saída 1),
 com `causa_envio` tipada, `status_http` e mensagem saneada quando observados.
 Nenhum segundo POST é autorizado, inclusive quando a árvore mudou.
 A forma efetiva do retorno do SEI em treinamento permanece a validar.
@@ -264,7 +264,7 @@ Por decisão motivada do 🦡 Texugo na PR #248, a guarda valida o botão
 Salvar ativo e o formulário servido (ação e campos), sem simular callbacks
 JavaScript. O servidor decide aceitar ou recusar a submissão HTTP; a CLI
 preserva prévia, exatamente um POST, 302 causal, releitura independente,
-número SEI e saída 3 para efeito incerto. Aceita-se o risco residual de
+número SEI e saída 1 para escrita não confirmada. Aceita-se o risco residual de
 divergência entre interação no navegador e POST da CLI. Testes de equivalência
 hipotética de JS foram removidos em ablação explícita e documentada.
 Isso não constitui validação live da criação de documento.

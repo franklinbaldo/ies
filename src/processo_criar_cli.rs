@@ -14,18 +14,13 @@ use apresentacao::informar_sucesso;
 use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 enum ErroEntradaCriacao {
     Tipo,
     Especificacao,
     Interessado,
     Hipotese,
-}
-
-impl ErroEntradaCriacao {
-    fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
 }
 
 fn texto_valido(valor: &str) -> bool {
@@ -74,13 +69,12 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": erro.subcodigo(),
                 "erro": "argumento de criação de processo vazio ou com caractere de controle",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: argumento de criação inválido [{}]", erro.subcodigo());
+        eprintln!("IES: argumento de criação inválido ({erro:?})");
     }
     ExitCode::from(2)
 }
@@ -105,7 +99,7 @@ fn json_da_recusa_criadora(
     mensagem: &str,
     requisicoes: u32,
 ) -> serde_json::Value {
-    let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+    let mut valor = json_de_erro_fonte(mensagem, erro.status_http());
     valor["requisicoes"] = json!(requisicoes);
     if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
         valor["limite_da_especificacao"] = json!(limite);
@@ -144,15 +138,12 @@ fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) ->
     let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
     if let Some(opcoes) = erro.opcoes_para_escolha() {
         if json_mode {
-            let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+            let mut valor = json_de_erro_fonte(mensagem, erro.status_http());
             valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
             valor["requisicoes"] = json!(requisicoes);
             println!("{valor}");
         } else {
-            eprintln!(
-                "{}",
-                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-            );
+            eprintln!("{}", linha_humana(mensagem, erro.status_http()));
             eprintln!("IES: hipóteses legais ofertadas no AJAX:");
             for (id, nome) in opcoes {
                 eprintln!("  {id}#{nome}");
@@ -167,41 +158,34 @@ fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) ->
         return ExitCode::from(1);
     }
     if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         eprintln!(
             "IES: especificação com {tamanho} unidades UTF-16; máximo publicado pelo cadastro: {limite}. Nenhuma escrita foi tentada."
         );
         return ExitCode::from(1);
     }
     if erro.nao_aplicada_comprovada() {
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         eprintln!(
             "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
         );
         return ExitCode::from(1);
     }
-    erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http())
+    erro_fonte_http(false, mensagem, erro.status_http())
 }
 
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
     if !json_mode {
         eprintln!("IES: {requisicoes} requisições efetivamente tentadas neste fluxo.");
     }
-    if erro.saida() != 3 {
+    if !erro.apos_post() {
         return erro_antes_da_escrita(json_mode, erro, requisicoes);
     }
     // O GET de reconciliação é só observação: sem conferir tipo e
     // especificação de cada NUP, jamais afirmar "não aplicada" ou habilitar retry.
     if json_mode {
         let mut valor = json!({
-            "codigo": "efeito_incerto",
-            "subcodigo": erro.subcodigo(),
+            "codigo": "nao_confirmado",
             "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
             "retentavel": false,
             "requisicoes": requisicoes
@@ -228,10 +212,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
     } else {
         // A linha humana preserva o HTTP saneado também na saída 3.
         let mensagem = "criação não confirmada; não repita o POST";
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
@@ -258,7 +239,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
         }
         eprintln!("IES: confira a caixa Gerados antes de tentar novamente.");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 /// Valida os argumentos antes de acessar os arquivos privados da sessão.
@@ -286,7 +267,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+        Err(erro) => return Some(erro_fonte(cli.json, erro.mensagem())),
     };
     let referencias = match transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
@@ -294,7 +275,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         &arquivos.cookie,
     ) {
         Ok(referencias) => referencias,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+        Err(erro) => return Some(erro_fonte(cli.json, erro.mensagem())),
     };
     let pedido = PedidoCriar {
         tipo,
@@ -392,7 +373,6 @@ mod tests {
                 mensagem_do_servidor: Some("Cadastro recusado".to_owned()),
             },
         ));
-        assert_eq!(recusada.saida(), 1);
         let json = json_da_recusa_criadora(&recusada, "Recusa reconhecida", 4);
         assert_eq!(json["desfecho"], "nao_aplicada");
         assert_eq!(json["requisicoes"], 4);
@@ -408,7 +388,6 @@ mod tests {
                 mensagem_do_servidor: Some("Proibido".to_owned()),
             }),
         ));
-        assert_eq!(http.saida(), 3); // não autorizar repetição após 403
         let json_http = json_da_recusa_criadora(&http, "Recusa HTTP", 4);
         assert!(json_http.get("desfecho").is_none());
         assert!(json_http.get("repeticao_segura_com_nova_previa").is_none());
@@ -442,7 +421,7 @@ mod tests {
 
     #[test]
     fn coincidencia_parcial_no_json_nao_vira_candidatos_ambiguos() {
-        let mut parcial = json!({"codigo": "efeito_incerto"});
+        let mut parcial = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut parcial,
             EvidenciaDeCoincidencia::Parcial,
@@ -455,7 +434,7 @@ mod tests {
         assert!(parcial.get("desfecho").is_none());
         assert!(parcial.get("candidatos_compativeis").is_none());
 
-        let mut completa = json!({"codigo": "efeito_incerto"});
+        let mut completa = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut completa,
             EvidenciaDeCoincidencia::Multiplas,
@@ -467,7 +446,7 @@ mod tests {
             json!(["NUP-sintetico-10", "NUP-sintetico-11"])
         );
         assert!(completa.get("coincidencias_parciais_conferidas").is_none());
-        let mut unica = json!({"codigo": "efeito_incerto"});
+        let mut unica = json!({"codigo": "nao_confirmado"});
         anexar_coincidencias_json(
             &mut unica,
             EvidenciaDeCoincidencia::UnicaSemProvaCausal,

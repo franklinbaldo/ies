@@ -25,27 +25,14 @@ pub(crate) struct FalhaDaSituacao<'a> {
     retentavel: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     status_http: Option<u16>,
-    subcodigo: &'a str,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) sugestoes_guardadas: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[expect(
-        clippy::option_option,
-        reason = "o contrato distingue campo ausente de verificação nula"
-    )]
-    pub(crate) verificacao: Option<Option<&'static str>>,
 }
 
 impl<'a> FalhaDaSituacao<'a> {
-    pub(crate) fn nova(
-        codigo: &'a str,
-        subcodigo: &'a str,
-        erro: &'a str,
-        http: Option<StatusHttpRecusado>,
-    ) -> Self {
+    pub(crate) fn nova(codigo: &'a str, erro: &'a str, http: Option<StatusHttpRecusado>) -> Self {
         Self {
             codigo,
-            subcodigo,
             erro,
             status_http: http
                 .as_ref()

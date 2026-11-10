@@ -6,6 +6,7 @@
 use super::{Leitor, Registro, Resultado};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_reconhecido::unidade_do_controle;
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
@@ -120,11 +121,10 @@ fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
 /// Requisição 1 do comando: transporte, unidade reconhecida e link do menu.
 fn controle(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     let lido = decodificar_resposta(web(r))
-        .map_err(|f| f.subcodigo())
+        .map_err(|f| f.mensagem())
         .and_then(|html| {
-            let unidade = unidade_do_controle(&html).map_err(|e| e.subcodigo())?;
-            link_da_pesquisa(&c.instalacao, &url(r), &html)
-                .map_err(|e| crate::erro_publico::folha(&e))?;
+            let unidade = unidade_do_controle(&html).map_err(|e| e.rotulo())?;
+            link_da_pesquisa(&c.instalacao, &url(r), &html).map_err(|e| e.rotulo())?;
             Ok(unidade)
         });
     match lido {
@@ -146,7 +146,7 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     };
     let derivada = derivar(r, &url(r), |tela| {
         derivar_pesquisa_de_protocolo(&c.instalacao, tela, unidade, TERMO_DE_PROVA)
-            .map_err(|e| crate::erro_publico::folha(&e))
+            .map_err(|e| e.rotulo())
     });
     match derivada {
         Ok(submissao) => {
@@ -165,9 +165,9 @@ fn derivar<T>(
     f: impl FnOnce(&TelaServida<'_>) -> Result<T, &'static str>,
 ) -> Result<T, &'static str> {
     let mime = gravacao::mime(r.item);
-    let html = decodificar_resposta(web(r)).map_err(|f| f.subcodigo())?;
+    let html = decodificar_resposta(web(r)).map_err(|f| f.mensagem())?;
     let codificacao = codificacao_da_tela(&mime)
-        .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.subcodigo())?;
+        .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.rotulo())?;
     f(&TelaServida {
         url,
         html: &html,
@@ -199,7 +199,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&falha_do_envio(erro));
+            let sub = crate::erro_publico::rotulo(&falha_do_envio(erro));
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -216,7 +216,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let interpretado = match interpretar_envio(enviada, &c.instalacao) {
         Ok(i) => i,
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&erro);
+            let sub = erro.rotulo();
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -281,13 +281,13 @@ fn plano(
             return c.lido(Leitor::PlanoDaPagina, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            let sub = crate::erro_publico::folha(&erro);
+            let sub = erro.rotulo();
             return c.registro(Leitor::PlanoDaPagina, r.passo, Resultado::Recusado(sub));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         derivar_pagina_da_pesquisa(&c.instalacao, tela, unidade, TERMO_DE_PROVA, pedido.inicio)
-            .map_err(|e| crate::erro_publico::folha(&e))
+            .map_err(|e| e.rotulo())
     });
     match derivada {
         Ok(_) => c.lido(Leitor::PlanoDaPagina, r.passo, "pagina_2_planejada"),

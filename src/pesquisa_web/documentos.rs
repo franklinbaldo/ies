@@ -61,24 +61,19 @@ pub(crate) enum RespostaDeDocumentos {
 }
 
 /// Uma variante por fato verificável da linha de documento.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDocumentoDaPesquisa {
     /// Recusa da leitura comum do link do processo e da árvore.
-    #[causa(interna)]
-    Linha(ErroResultadoPesquisa),
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
+    Linha(#[from] ErroResultadoPesquisa),
+    AtributoHtml(#[from] ErroAtributoHtml),
     LinhaDeDocumentoSemIdDocumentoNoLinkDoProcesso,
     LinkDoDocumentoDiferenteDoProcesso,
     NumeroSeiComLinkDiferenteDoDocumento,
     LinhaDaPesquisaForaDeUmRegistro,
-    #[causa(interna)]
-    NumeroDoProcesso(NumeroProcessoInvalido),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    NumeroDoProcesso(#[from] NumeroProcessoInvalido),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroDocumentoDaPesquisa {}
 
 #[cfg(test)]
 mod tests;

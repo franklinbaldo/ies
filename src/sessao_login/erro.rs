@@ -25,16 +25,14 @@ impl CampoDasCredenciais {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLogin {
-    #[causa(interna)]
-    Configuracao(ErroConfiguracao),
+    Configuracao(#[from] ErroConfiguracao),
     /// Origem da instalação ilegível ou fora do formato `Instalacao`.
-    #[causa(interna)]
-    Origem(super::fluxo::OrigemIlegivel),
+    Origem(#[from] super::fluxo::OrigemIlegivel),
     CaminhoDasCredenciaisNaoInformado,
-    #[causa(interna)]
-    ArquivoDeCredenciais(super::credenciais::CredenciaisIlegiveis),
+    ArquivoDeCredenciais(#[from] super::credenciais::CredenciaisIlegiveis),
     CampoDasCredenciaisAusente(CampoDasCredenciais),
     CampoDasCredenciaisRepetido(CampoDasCredenciais),
     CampoDasCredenciaisVazio(CampoDasCredenciais),
@@ -42,8 +40,7 @@ pub(crate) enum ErroLogin {
     LoginEmAndamentoEmOutroProcesso,
     ArquivoDeLockDoLoginInacessivel,
     /// URL ou cookie gravados que o transporte recusa antes da rede.
-    #[causa(interna)]
-    ArquivoDaSessao(super::fluxo::SessaoGravadaInvalida),
+    ArquivoDaSessao(#[from] super::fluxo::SessaoGravadaInvalida),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
     RedirecionamentoSemLocalizacao,
@@ -57,8 +54,7 @@ pub(crate) enum ErroLogin {
     CaptchaExigido,
     SegundoFatorExigido,
     RegraDoOnsubmitDoLoginNaoObservada,
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     /// A tela de login voltou depois do POST: o SEI recusou a credencial.
     CredencialRecusada {
         mensagem_do_servidor: Option<String>,
@@ -69,17 +65,11 @@ pub(crate) enum ErroLogin {
     DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
     UnidadeExibidaDiferenteDaSolicitada,
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Transporte(#[from] FalhaTransporte),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroLogin {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Html(e) => e.mensagem,

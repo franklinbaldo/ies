@@ -128,7 +128,7 @@ fn closure_recebe_post_corpo_cabecalhos_e_cookie_da_sessao() {
 
 #[test]
 fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
-    for (status, falha) in [
+    for (status, _falha) in [
         (301, "redirecionamento"),
         (303, "redirecionamento"),
         (307, "redirecionamento"),
@@ -139,7 +139,6 @@ fn redirecionamento_nao_302_e_negacao_apos_envio_sao_falhas_de_transporte() {
         let E::Transporte(obtida) = r.unwrap_err() else {
             panic!("{status}: esperava falha de transporte")
         };
-        assert_eq!(obtida.subcodigo(), falha, "{status}");
         assert_eq!(
             obtida.status_http().map(|h| i32::from(h.status)),
             Some(status)
@@ -293,7 +292,6 @@ fn erro_500_apos_envio_expoe_status_e_mensagem_pela_submissao() {
     );
     assert_eq!(n, 1);
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     let http = erro.status_http().expect("status do POST");
     assert_eq!(http.status, 500);
     assert_eq!(
@@ -321,7 +319,6 @@ fn resposta_200_com_validacao_da_infra_e_recusa_com_a_mensagem() {
         let (r, n) = enviar_com(200, &com_validacao(corpo, "Protocolo inv&aacute;lido."));
         let erro = r.unwrap_err();
         assert_eq!(n, 1);
-        assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei", "{corpo}");
         let http = erro.status_http().expect("mensagem do SEI");
         assert_eq!(http.status, 200);
         assert_eq!(

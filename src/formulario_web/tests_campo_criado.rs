@@ -96,13 +96,6 @@ fn campo_criado_ja_publicado_pela_tela_e_recusado() {
             campo: "selInfraUnidades".into()
         })
     );
-    assert_eq!(
-        E::CampoCriadoPeloScriptJaPublicado {
-            campo: String::new()
-        }
-        .subcodigo(),
-        "campo_criado_pelo_script_ja_publicado"
-    );
 }
 
 #[test]

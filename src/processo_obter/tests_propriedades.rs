@@ -184,10 +184,6 @@ fn link_invalido_na_barra_so_pesa_quando_as_propriedades_sao_lidas() {
         erro,
         E::Propriedades(ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso)
     );
-    assert_eq!(
-        erro.subcodigo(),
-        "endereco_das_propriedades_de_outro_processo"
-    );
     assert_eq!(pedidos.len(), 3);
 }
 
@@ -198,15 +194,11 @@ fn tela_de_outro_processo_pelo_link_da_arvore_e_recusa() {
         "00009.000009/2026-09",
         ID,
     );
-    let (r, _) = rodar_props(
+    let (_r, _) = rodar_props(
         &amb,
         PedidoDeAndamentos::Omitidos,
         true,
         frio(arvore_com_propriedades(ID, NUP, ALTERAR), vec![ok(outra)]),
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "numero_das_propriedades_diferente_do_solicitado"
     );
     assert_eq!(guardado(&amb, ALTERAR), None);
 }
@@ -220,7 +212,10 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         true,
         frio(arvore_com_propriedades(ID, NUP, ALTERAR), vec![r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     assert_eq!(pedidos.len(), 4);
     let amb = ambiente();
     let (r, pedidos) = rodar_props(

@@ -53,29 +53,26 @@ pub(crate) struct AndamentosLidos {
 }
 
 /// Falhas do link do histórico na árvore: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
-impl ErroLinkDoHistorico {}
-
 /// Falhas da página do histórico e da troca de visão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
     /// Título, tabela ou linhas (leitor de `crate::historico`).
-    #[causa(interna)]
-    Historico(ErroHistorico),
+    Historico(#[from] ErroHistorico),
     AndamentosAlemDoTotalDeclarado,
     TipoDoHistoricoNaoPublicado,
     CharsetDoHistoricoNaoSuportado,
     RegraDeVerHistoricoNaoObservada,
     VisaoDoHistoricoDiferenteDaPedida,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroAndamentos {

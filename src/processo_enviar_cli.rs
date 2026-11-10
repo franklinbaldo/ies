@@ -34,13 +34,11 @@ pub(crate) fn tentar_enviar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(nup) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
-    let sigla = match sigla_de_destino(para) {
-        Ok(sigla) => sigla,
-        Err(subcodigo) => return Some(destino_invalido(cli.json, subcodigo)),
+    let Ok(sigla) = sigla_de_destino(para) else {
+        return Some(destino_invalido(cli.json));
     };
     Some(enviar(
         cli,
@@ -65,19 +63,18 @@ pub(crate) fn sigla_de_destino(para: &[String]) -> Result<&str, &'static str> {
     Ok(sigla)
 }
 
-fn destino_invalido(json_mode: bool, subcodigo: &str) -> ExitCode {
+fn destino_invalido(json_mode: bool) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": "destino inválido: informe uma sigla de unidade em --para",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: destino inválido: informe uma sigla de unidade em --para [{subcodigo}]");
+        eprintln!("IES: destino inválido: informe uma sigla de unidade em --para");
     }
     ExitCode::from(2)
 }
@@ -121,12 +118,9 @@ fn enviar(
                 }
                 ExitCode::SUCCESS
             }
-            Err(ErroEnviar::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
+            Err(ErroEnviar::Abertura(erro)) => {
+                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+            }
             Err(erro) => {
                 if cli.json {
                     if let Err(falha) = crate::saida::imprimir_json_compacto(
@@ -143,7 +137,7 @@ fn enviar(
                         eprintln!("{mensagem}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     })
@@ -198,7 +192,7 @@ fn texto_das_sugestoes(sugestoes: &[String]) -> Option<String> {
 /// verificação. Não constrói nem interpreta `serde_json::Value`.
 fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     use ErroEnviar as E;
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     let aberto_em = match erro {
         E::ProcessoNaoAbertoNaUnidadeDaSessao { aberto_em }
         | E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
@@ -206,14 +200,14 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
         | E::ProcessoJaAbertoNoDestino { aberto_em }
         | E::EnvioNaoAplicado { aberto_em, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { aberto_em, .. }
-        | E::EfeitoIncertoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
         E::EnvioNaoAplicado { depois, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
         E::AnotacoesNaoRemovidasAposEnvio { depois }
-        | E::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
+        | E::NaoConfirmadoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
         _ => None,
     };
     for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
@@ -225,18 +219,13 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     let falha_do_envio = match erro {
         E::EnvioNaoAplicado { falha_do_envio, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-        | E::EfeitoIncertoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
-    if let E::EfeitoIncertoNoEnvio { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
-    }
-    if let E::EfeitoIncertoNoEnvio {
+    if let E::NaoConfirmadoNoEnvio {
         anotacao_depois: Some(false),
         ..
     } = erro
@@ -325,12 +314,7 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoEnviado) -> Value {
 
 /// JSON da falha depois da abertura.
 pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(
-        erro.codigo(),
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
+    let mut valor = FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http());
     match erro {
         ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo } => {
             valor.motivo = Some(motivo.como_texto());
@@ -362,18 +346,17 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }
-        | ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
+        | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois } => {
             valor.depois = depois.as_deref();
         }
-        ErroEnviar::EfeitoIncertoNoEnvio {
+        ErroEnviar::NaoConfirmadoNoEnvio {
             aberto_em,
             anotacao_depois,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
             valor.anotacao_depois = *anotacao_depois;
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}

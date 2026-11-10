@@ -57,41 +57,36 @@ pub(crate) enum FalhaRelacionar {
     DestinoDaConsultaDivergente,
     ConsultaNaoXml,
     /// O POST pode ter sido enviado; causa preservada quando disponível.
-    EfeitoIncerto(Option<ErroSubmissaoFormulario>),
+    NaoConfirmado(Option<ErroSubmissaoFormulario>),
 }
 impl FalhaRelacionar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
+    /// O que aconteceu, a partir do erro interno quando há um.
+    pub(crate) fn mensagem(&self) -> String {
         match self {
-            Self::Cookie(e) => crate::erro_publico::folha(e),
-            Self::Abertura(erro) => erro.subcodigo(),
-            Self::Barra(erro) => erro.subcodigo(),
-            Self::LinkNaoPublicado => "relacionar_nao_publicado_na_barra",
-            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
-                erro.subcodigo()
+            Self::Cookie(e) => e.mensagem().to_owned(),
+            Self::Abertura(e) => e.mensagem().to_owned(),
+            Self::Tela(f) | Self::ConsultaTransporte(f) | Self::ConsultaResposta(f) => {
+                f.mensagem().to_owned()
             }
-            Self::TelaRedirecionada => "tela_de_relacionamentos_redirecionada",
-            Self::SessaoEncerrada => "sessao_encerrada_rode_ies_login",
-            Self::Estrutura(subcodigo) => subcodigo,
-            Self::ConsultaDerivacao(erro) => erro.subcodigo(),
-            Self::RelacionamentoConsigoMesmo => "relacionamento_consigo_mesmo",
-            Self::RemocaoNaoOferecida => "remocao_de_relacionamento_nao_oferecida",
-            Self::DestinoDaConsultaDivergente => "destino_da_consulta_diverge_do_pedido",
-            Self::ConsultaNaoXml => "resposta_da_consulta_nao_xml",
-            Self::EfeitoIncerto(_) => "efeito_incerto",
-        }
-    }
-
-    pub(crate) const fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto(_)) {
-            3
-        } else {
-            1
+            Self::Barra(e) => format!("a barra não oferece a ação na forma observada ({e:?})"),
+            Self::ConsultaDerivacao(e) => format!("a consulta não pôde ser montada ({e:?})"),
+            Self::Estrutura(onde) => format!("a tela não está na forma observada ({onde})"),
+            Self::LinkNaoPublicado => "a barra não publica a ação".to_owned(),
+            Self::TelaRedirecionada => "a tela da ação foi redirecionada".to_owned(),
+            Self::SessaoEncerrada => "a sessão encerrou; rode ies login".to_owned(),
+            Self::RelacionamentoConsigoMesmo => {
+                "um processo não se relaciona consigo mesmo".to_owned()
+            }
+            Self::RemocaoNaoOferecida => "a remoção do relacionamento não é oferecida".to_owned(),
+            Self::DestinoDaConsultaDivergente => "a consulta devolveu outro processo".to_owned(),
+            Self::ConsultaNaoXml => "a consulta não respondeu em XML".to_owned(),
+            Self::NaoConfirmado(_) => "o relacionamento não foi confirmado".to_owned(),
         }
     }
 
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
-            Self::EfeitoIncerto(Some(causa)) => causa.status_http(),
+            Self::NaoConfirmado(Some(causa)) => causa.status_http(),
             _ => None,
         }
     }
@@ -232,7 +227,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => E::SessaoEncerrada,
     })?;
     let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;
     if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {

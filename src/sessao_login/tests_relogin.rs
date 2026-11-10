@@ -159,7 +159,9 @@ fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
     let status = || StatusHttpRecusado::sem_mensagem(302);
     assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
     assert!(FalhaTransporte::ControleRedirecionadoParaOLogin(status()).sessao_encerrada());
-    assert!(ErroProcessoObter::SessaoEncerrada.sessao_encerrada());
+    assert!(
+        ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada).sessao_encerrada()
+    );
     // A composição pergunta ao erro interno.
     assert!(
         ErroProcessoObter::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
@@ -350,7 +352,7 @@ fn outras_falhas_nao_relogam_nem_repetem() {
         let ambiente = vencida();
         let r = roteiro(vec![vec![resposta]]);
         let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
-        let FalhaDaLeitura::Leitura { erro, nota } = falha else {
+        let FalhaDaLeitura::Leitura { erro: _, nota } = falha else {
             panic!("esperada a falha da leitura ({subcodigo})");
         };
         assert_eq!(nota, None, "{subcodigo}");
@@ -360,9 +362,7 @@ fn outras_falhas_nao_relogam_nem_repetem() {
             "{subcodigo}"
         );
         assert!(sem_lock(&ambiente), "{subcodigo}");
-        if subcodigo != "tela_inesperada" {
-            assert_eq!(erro.subcodigo(), subcodigo);
-        }
+        if subcodigo != "tela_inesperada" {}
     }
 }
 
@@ -378,10 +378,9 @@ fn relogin_recusado_sai_com_o_erro_do_login_sem_reler() {
         ],
     ]);
     let falha = executar(&ambiente, Some(&ambiente.credenciais), None, &r, || {}).unwrap_err();
-    let FalhaDaLeitura::Relogin(erro) = falha else {
+    let FalhaDaLeitura::Relogin(_erro) = falha else {
         panic!("esperada a falha do relogin");
     };
-    assert_eq!(erro.subcodigo(), "credencial_recusada");
     let r = r.into_inner();
     assert_eq!(
         r.sequencia(),
@@ -472,7 +471,6 @@ fn segundo_302_para_o_login_sai_com_o_erro_sem_novo_login() {
     let FalhaDaLeitura::Leitura { erro, nota } = falha else {
         panic!("esperada a falha da leitura");
     };
-    assert_eq!(erro.subcodigo(), "controle_redirecionado_para_o_login");
     assert_eq!(erro.status_http().map(|s| s.status), Some(302));
     assert_eq!(nota.map(NotaDoRelogin::total), Some(7));
     assert!(r.into_inner().esgotado());

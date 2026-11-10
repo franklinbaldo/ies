@@ -52,14 +52,12 @@ pub(crate) enum ConteudoNaArvore {
     Vazio,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConteudoNaArvore {
     EnderecoDoConteudoDeOutroDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroConteudoNaArvore {}
 
 /// Lê o `.src` do `DOCUMENTO` de id `id_documento` numa árvore já
 /// conferida por [`super::ler_arvore`].

@@ -14,7 +14,6 @@ fn bdd_88_03_cli_nao_inventa_versao_ausente_do_historico() {
     assert_eq!(saida.status.code(), Some(1));
     let valor = json(&saida);
     assert_eq!(valor["documento"], DOC);
-    assert_eq!(valor["subcodigo"], "versao_nao_observada");
     assert!(!pasta.0.join("0011519.v2.html").exists());
 }
 
@@ -44,7 +43,6 @@ fn bdd_88_03_cli_documento_nao_acessivel_na_sessao() {
         "documento ausente virou sucesso"
     );
     let valor = json(&saida);
-    assert!(valor["subcodigo"].is_string(), "recusa sem causa: {valor}");
     assert!(
         valor["documentos"].is_null(),
         "publicou documento não observado: {valor}"

@@ -10,6 +10,7 @@ use super::{Leitor, Lista, Registro, Replay, Resultado};
 use crate::caixa_detalhada::ValorDaColuna;
 use crate::cassette::acervo::gravacao::Resposta;
 use crate::dominio::Categoria;
+use crate::erro_publico::Rotulo as _;
 use crate::html_atributos::valor_do_atributo;
 use crate::pagina_do_controle::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::paginas::faixa_na_pagina;
@@ -82,7 +83,7 @@ pub(super) fn da_tabela(
     match crate::paginacao_controle::paginador_da_tabela(html, categoria) {
         Ok(true) => p.formas.push("paginador_publicado".into()),
         Ok(false) => p.formas.push("sem_paginador".into()),
-        Err(erro) => p.formas.push(format!("paginador_{}", erro.subcodigo())),
+        Err(erro) => p.formas.push(format!("paginador_{}", erro.rotulo())),
     }
     match planejar_r(html, categoria) {
         Ok(contagens) => p.contagens = contagens,
@@ -93,10 +94,10 @@ pub(super) fn da_tabela(
 
 fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64)>, &'static str> {
     use crate::pagina_do_controle::planejar as plano;
-    let faixa = faixa_na_pagina(html, categoria).map_err(|e| e.subcodigo())?;
+    let faixa = faixa_na_pagina(html, categoria).map_err(|e| e.rotulo())?;
     // A página exibida pela faixa (páginas cheias antes dela).
     let exibida = faixa.map_or(1, |f| (f.inicio - 1) / (f.fim - f.inicio + 1) + 1);
-    match plano(html, categoria, exibida).map_err(|e| crate::erro_publico::folha(&e))? {
+    match plano(html, categoria, exibida).map_err(|e| e.rotulo())? {
         PlanoDaPagina::JaExibida => {}
         PlanoDaPagina::Pedir { .. } => return Err("pagina_exibida_nao_reconhecida"),
     }
@@ -117,7 +118,7 @@ fn planejar_r(html: &str, categoria: Categoria) -> Result<Vec<(&'static str, u64
             contagens.push(("paginas", paginas as u64));
         }
         Ok(PlanoDaPagina::JaExibida) => return Err("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => return Err(crate::erro_publico::folha(&erro)),
+        Err(erro) => return Err(erro.rotulo()),
     }
     Ok(contagens)
 }
@@ -148,10 +149,10 @@ pub(super) fn detalhada(
         Ok(leitura) => leitura,
         Err(erro) => {
             lista.resultado = fora.map_or(
-                Resultado::Recusado(erro.subcodigo()),
+                Resultado::Recusado(erro.mensagem()),
                 Resultado::NaoAplicavel,
             );
-            lista.formas.push(format!("recusa_{}", erro.subcodigo()));
+            lista.formas.push(format!("recusa_{}", erro.mensagem()));
             saida.registros.push(lista);
             return;
         }
@@ -200,7 +201,7 @@ pub(super) fn detalhada(
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             colheita.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => colheita.resultado = Resultado::Recusado(crate::erro_publico::folha(&erro)),
+        Err(erro) => colheita.resultado = Resultado::Recusado(erro.rotulo()),
     }
     saida.registros.push(colheita);
 }
@@ -217,7 +218,7 @@ fn posicao_da_d(
     let pos = match posicao(html, leitura) {
         Ok(pos) => pos,
         Err(erro) => {
-            reg.resultado = Resultado::Recusado(erro.subcodigo());
+            reg.resultado = Resultado::Recusado(erro.mensagem());
             return reg;
         }
     };
@@ -234,7 +235,7 @@ fn posicao_da_d(
     match planejar(&pos, pos.indice + 1) {
         Ok(None) => {}
         Ok(Some(_)) => reg.resultado = Resultado::Recusado("pagina_exibida_nao_reconhecida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => reg.resultado = Resultado::Recusado(erro.mensagem()),
     }
     if pos.paginas <= pos.indice + 1 || reg.resultado != Resultado::Lido {
         return reg;
@@ -250,7 +251,7 @@ fn posicao_da_d(
             ]);
         }
         Ok(None) => reg.resultado = Resultado::Recusado("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => reg.resultado = Resultado::Recusado(erro.mensagem()),
     }
     reg
 }

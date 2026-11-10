@@ -55,12 +55,10 @@ fn lista_detalhada_anota_cada_objeto_do_array() {
 
 #[test]
 fn falha_depois_do_relogin_diz_relogin_true() {
-    let sub = "pagina_de_login_recebida_no_controle";
-    let base = saida_erro::json_de_erro_fonte(sub, "m", None);
-    assert_eq!(json_da_falha(sub, "m", None, None), base);
-    let anotada = json_da_falha(sub, "m", None, Some(&RELOGOU));
+    let base = saida_erro::json_de_erro_fonte("m", None);
+    assert_eq!(json_da_falha("m", None, None), base);
+    let anotada = json_da_falha("m", None, Some(&RELOGOU));
     assert_eq!(anotada["relogin"], true);
-    assert_eq!(anotada["subcodigo"], sub);
 }
 
 /// Leituras ligadas ao relogin; escritas e prévias, nunca.
@@ -136,11 +134,9 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
             "sessao_trocada_durante_a_leitura",
         ),
     ];
-    for (falha, esperado) in invalidos {
-        assert_eq!(FalhaPublicavel::subcodigo(&falha), esperado);
-        let valor = json_da_falha(esperado, falha.mensagem(), None, None);
+    for (falha, _esperado) in invalidos {
+        let valor = json_da_falha(falha.mensagem(), None, None);
         assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_eq!(valor["subcodigo"], esperado);
         assert!(valor.get("relogin").is_none());
     }
 }

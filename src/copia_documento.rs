@@ -15,11 +15,11 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroCopia {
     /// `--saida DIR` ausente ou não diretório.
-    #[causa(interna)]
-    DiretorioDeSaida(ErroArquivoTexto),
+    DiretorioDeSaida(#[from] ErroArquivoTexto),
     DestinoInseguro,
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
@@ -31,13 +31,7 @@ pub enum ErroCopia {
     GravacaoFalhou,
     LeituraFalhou,
     EdicaoIgualABase,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroCopia {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    Html(#[from] ErroHtml),
 }
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {

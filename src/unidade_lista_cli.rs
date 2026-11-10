@@ -21,7 +21,7 @@ pub(super) fn listar_processos_da_unidade(
 ) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.
@@ -59,17 +59,13 @@ pub(super) fn listar_processos_da_unidade(
 
 /// Falha `fonte_invalida` da troca de visão ou da leitura da D.
 pub(crate) fn erro_da_visao(json_mode: bool, erro: &ErroVisaoDoControle) -> ExitCode {
-    let valor = crate::saida_erro::json_de_erro_fonte(
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    );
+    let valor = crate::saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http());
     if json_mode {
         println!("{valor}");
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+            crate::saida_erro::linha_humana(erro.mensagem(), erro.status_http())
         );
     }
     ExitCode::from(1)
@@ -121,7 +117,7 @@ pub(crate) fn mostrar_caixa_detalhada(
                 }
                 ExitCode::SUCCESS
             }
-            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+            Err(erro) => erro_fonte(json_mode, erro.mensagem()),
         };
     }
     if json_mode {

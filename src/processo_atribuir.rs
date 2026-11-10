@@ -45,22 +45,16 @@ pub(crate) struct TelaDaAtribuicao {
     pub(crate) usuarios: Vec<UsuarioDaAtribuicao>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAtribuir {
     UsuarioNaoAtribuivel,
     UsuarioAmbiguo,
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
     CharsetDaTelaNaoSuportado,
-    #[causa(transparente)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroAtribuir {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
+    Formulario(#[from] ErroSubmissaoFormulario),
+    Html(#[from] ErroHtml),
 }
 
 type E = ErroAtribuir;

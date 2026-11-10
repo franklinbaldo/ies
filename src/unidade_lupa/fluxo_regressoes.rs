@@ -74,13 +74,8 @@ fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
     };
     let falha =
         FalhaDaLupa::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(recusa.clone()));
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(falha.status_http(), Some(&recusa));
-    let json = crate::saida_erro::json_de_erro_fonte(
-        falha.subcodigo(),
-        "recusa na lupa",
-        falha.status_http(),
-    );
+    let json = crate::saida_erro::json_de_erro_fonte("recusa na lupa", falha.status_http());
     assert_eq!(json["status_http"], 503);
     assert_eq!(json["mensagem_do_servidor"], "indisponivel");
     assert!(json.get("url").is_none());
@@ -308,7 +303,6 @@ fn transporte_recusado_conta_tentativa_sem_retry() {
     )
     .err()
     .expect("HTTP 503 deve falhar");
-    assert_eq!(falha.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(falha.status_http().map(|s| s.status), Some(503));
     assert_eq!(requisicoes, 1);
     assert_eq!(rede.gets, 1, "sem retry da tentativa recusada");

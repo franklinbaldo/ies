@@ -37,7 +37,6 @@ fn numero_documento_invalido_falha_antes_de_sessao() {
         assert_eq!(saida.status.code(), Some(2));
         let json: serde_json::Value = serde_json::from_slice(&saida.stdout).expect("JSON");
         assert_eq!(json["codigo"], "entrada_invalida");
-        assert_eq!(json["subcodigo"], "vazio");
     }
 }
 

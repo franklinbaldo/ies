@@ -17,7 +17,6 @@ pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
 
 /// Falha de leitura publicável como `fonte_invalida`.
 pub(crate) trait FalhaPublicavel {
-    fn subcodigo(&self) -> &'static str;
     fn mensagem(&self) -> &'static str;
     fn status_http(&self) -> Option<&StatusHttpRecusado>;
     /// O fato tipado que dispara o relogin único.
@@ -27,9 +26,6 @@ pub(crate) trait FalhaPublicavel {
 macro_rules! publicavel {
     ($($tipo:ty),*) => {$(
         impl FalhaPublicavel for $tipo {
-            fn subcodigo(&self) -> &'static str {
-                <$tipo>::subcodigo(self)
-            }
             fn mensagem(&self) -> &'static str {
                 <$tipo>::mensagem(self)
             }
@@ -126,12 +122,11 @@ pub(crate) fn avisar(json_mode: bool, nota: Option<&NotaDoRelogin>) {
 
 /// O JSON da falha de leitura, com `relogin` quando houve relogin.
 pub(crate) fn json_da_falha(
-    subcodigo: &str,
     mensagem: &str,
     http: Option<&StatusHttpRecusado>,
     nota: Option<&NotaDoRelogin>,
 ) -> Value {
-    let mut valor = saida_erro::json_de_erro_fonte(subcodigo, mensagem, http);
+    let mut valor = saida_erro::json_de_erro_fonte(mensagem, http);
     anotar(&mut valor, nota);
     valor
 }
@@ -144,12 +139,12 @@ pub(crate) fn publicar_falha<E: FalhaPublicavel>(
     match falha {
         FalhaDaLeitura::Relogin(erro) => crate::sessao_login_cli::falhar(json_mode, erro),
         FalhaDaLeitura::Leitura { erro, nota } => {
-            let (sub, msg, http) = (erro.subcodigo(), erro.mensagem(), erro.status_http());
+            let (msg, http) = (erro.mensagem(), erro.status_http());
             if json_mode {
-                println!("{}", json_da_falha(sub, msg, http, nota.as_ref()));
+                println!("{}", json_da_falha(msg, http, nota.as_ref()));
             } else {
                 avisar(json_mode, nota.as_ref());
-                eprintln!("{}", saida_erro::linha_humana(sub, msg, http));
+                eprintln!("{}", saida_erro::linha_humana(msg, http));
             }
             ExitCode::from(1)
         }

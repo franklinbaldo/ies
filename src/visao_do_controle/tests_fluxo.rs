@@ -121,14 +121,14 @@ fn falha_do_post_de_pagina_vindo_da_r_e_publicada_sem_post_de_volta() {
     let d1 = TelaD::nova(5, 0, 2, vec![1, 2]);
     let d3 = TelaD::nova(5, 2, 2, vec![10]);
     let erro_500 = "<html><div id='divInfraExcecao'>Erro.</div></html>".to_owned();
-    for (resposta, subcodigo) in [
+    for (resposta, _subcodigo) in [
         ((500, erro_500), "status_http_de_erro_do_servidor"),
         (
             (200, d3.html()),
             "faixa_da_resposta_diferente_da_pagina_solicitada",
         ),
     ] {
-        let (resultado, registro) = listar(r().html(), Some(2), vec![(200, d1.html()), resposta]);
+        let (_resultado, registro) = listar(r().html(), Some(2), vec![(200, d1.html()), resposta]);
         assert_eq!(
             registro,
             [
@@ -136,7 +136,6 @@ fn falha_do_post_de_pagina_vindo_da_r_e_publicada_sem_post_de_volta() {
                 "POST visao=D pagina=1"
             ]
         );
-        assert_eq!(resultado.unwrap_err().subcodigo(), subcodigo);
     }
 }
 

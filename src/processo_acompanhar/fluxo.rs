@@ -20,34 +20,22 @@ use crate::processo_obter::{
 };
 use crate::transporte::{FalhaTransporte, decodificar_resposta};
 use crate::visao_do_controle::EnvioDoControle as _;
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPrevia {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
     LinkNaoPublicado,
-    #[causa(interna)]
-    Barra(ErroAcompanharNaBarra),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Estrutura(ErroAcompanhar),
-    #[causa(interna)]
-    Formulario(crate::formulario_web::ErroSubmissaoFormulario),
+    Barra(#[from] ErroAcompanharNaBarra),
+    Transporte(#[from] FalhaTransporte),
+    Estrutura(#[from] ErroAcompanhar),
+    Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
     ConfirmacaoNaoImplementada,
-    EfeitoIncerto,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-
-impl ErroPrevia {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
+    NaoConfirmado,
+    Html(#[from] ErroHtml),
 }
 
 pub(crate) struct Pedido<'a> {
@@ -356,7 +344,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
         conferir_inclusao(antes, linhas, &plano.grupo, &plano.observacao).is_ok()
     });
     if !verificado {
-        return Err(ErroPrevia::EfeitoIncerto);
+        return Err(ErroPrevia::NaoConfirmado);
     }
     // Somente depois da prova exata podemos publicar o ID observado.
     let novo = depois
@@ -368,7 +356,7 @@ fn confirmar_inclusao<V: EnvioDoProcesso>(
                     && linha.observacao == plano.observacao
             })
         })
-        .ok_or(ErroPrevia::EfeitoIncerto)?;
+        .ok_or(ErroPrevia::NaoConfirmado)?;
     plano.id_de_remocao = Some(novo.id.clone());
     plano.estado = EstadoDoAcompanhamento::Incluido;
     plano.requisicoes = rede.feitas();

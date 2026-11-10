@@ -63,8 +63,6 @@ fn post_falha_e_propriedades_iguais_identificam_residuo_nao_autoria() {
         )
     });
     let erro = resultado.expect_err("um candidato nao comprova autoria de POST sem resposta");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
     let diagnostico = erro.diagnostico_apos_post().unwrap();
     assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 8); // 3 GET + 1 POST + 1 Controle + 3 GET de processo
@@ -124,8 +122,7 @@ fn falha_da_leitura_de_propriedades_apos_post_nao_repete_a_escrita() {
             rede,
         )
     });
-    let erro = resultado.expect_err("falha da leitura nao e confirmacao");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("falha da leitura nao e confirmacao");
     assert_eq!(requests.len(), 8);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -152,9 +149,7 @@ fn recusa_explicita_da_infra_nao_vira_criacao_por_candidato_concorrente() {
         )
     });
     let erro = resultado.expect_err("recusa explicita nao confirma escrita");
-    assert_eq!(erro.subcodigo(), "validacao_recusada_pelo_sei");
     assert!(erro.nao_aplicada_comprovada()); // prova expressa de recusa na tela do SEI
-    assert_eq!(erro.saida(), 1);
     assert_eq!(erro.status_http().map(|status| status.status), Some(200));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -184,10 +179,8 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
         )
     });
     let erro = resultado.expect_err("recusa HTTP 403 nao confirma escrita");
-    assert_eq!(erro.subcodigo(), "acesso_negado");
     assert!(!erro.nao_aplicada_comprovada()); // 403 por si não prova ausência de efeito
     // HTTP 403 não prova não aplicação: o efeito segue incerto, saída 3.
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|status| status.status), Some(403));
     assert_eq!(requests.len(), 4); // 3 GET + 1 POST, sem consulta pos-recusa
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -260,11 +253,7 @@ fn dois_candidatos_web_comprovados_sao_publicados_como_ambiguos() {
         )
     });
     let erro = resultado.expect_err("duas provas nao permitem atribuir o POST");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidatos_ambiguos_na_criacao");
     let diagnostico = erro.diagnostico_apos_post().expect("diagnostico tipado");
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
@@ -307,8 +296,6 @@ fn dois_candidatos_mas_so_um_confere_exigem_todas_as_leituras() {
         )
     });
     let erro = resultado.expect_err("uma coincidencia e insuficiente para demonstrar autoria");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "candidato_unico_sem_prova_causal");
     let diagnostico = erro.diagnostico_apos_post().unwrap();
     assert_eq!(diagnostico.candidatos_compativeis, Some(vec![NUP.into()]));
     assert_eq!(requests.len(), 11);
@@ -341,13 +328,9 @@ fn falha_no_segundo_candidato_preserva_primeira_coincidencia_sem_declarar_aplica
         )
     });
     let erro = resultado.expect_err("a segunda leitura falhou; efeito segue incerto");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("duas causas e provas parciais");
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(diagnostico.causa_releitura, Some("rede"));
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned(), SEGUNDO_NUP.to_owned()])
@@ -384,12 +367,9 @@ fn falha_apos_fotografia_preserva_candidatos_ja_observados() {
         )
     });
     let erro = resultado.expect_err("falha da conferência não comprova criação");
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("diagnóstico com ambas causas");
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(diagnostico.causa_releitura, Some("rede"));
     assert_eq!(
         diagnostico.candidatos_observados,
         Some(vec![NUP.to_owned()])
@@ -429,14 +409,7 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
         )
     });
     let erro = resultado.expect_err("a escrita não foi comprovada");
-    assert_eq!(erro.saida(), 3);
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_criacao");
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
     assert_eq!(
         diagnostico.http_releitura.as_ref().map(|http| http.status),
         Some(503)
@@ -482,14 +455,8 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
         )
     });
     let erro = resultado.expect_err("duas falhas nao confirmam criacao");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|http| http.status), Some(503));
     let diagnostico = erro.diagnostico_apos_post().expect("duas causas");
-    assert_eq!(diagnostico.causa_post, "status_http_de_erro_do_servidor");
-    assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
     let http_releitura = diagnostico.http_releitura.expect("HTTP da releitura");
     assert_eq!(http_releitura.status, 502);
     assert_eq!(

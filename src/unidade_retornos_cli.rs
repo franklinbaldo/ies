@@ -11,11 +11,11 @@ pub(super) fn listar(unidade: Option<&str>, json_mode: bool, mes: Option<&str>) 
     // Antes de ler arquivos privados e antes de qualquer pedido.
     let alvo = match unidade_retornos_web::mes_pedido(mes) {
         Ok(mes) => mes,
-        Err(e) => return erro_fonte(json_mode, crate::erro_publico::folha(&e), e.mensagem()),
+        Err(e) => return erro_fonte(json_mode, e.mensagem()),
     };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(e) => return erro_fonte(json_mode, e.subcodigo(), e.mensagem()),
+        Err(e) => return erro_fonte(json_mode, e.mensagem()),
     };
     let lido = relogin_cli::ler(&arquivos, unidade, || {
         let sessao =

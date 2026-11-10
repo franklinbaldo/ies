@@ -15,8 +15,8 @@ na barra. Observação em [troca de unidade](../../docs/como-o-sei-funciona/troc
 comportamento de referência no Todos (`src/todos/sei/troca.py`).
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete; saídas 0
-sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Só a Web, na mesma
+confirmação e verificação; escrita não confirmada nunca se repete; saídas 0
+sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Só a Web, na mesma
 sessão; nenhum login.
 
 **A troca vale para toda a sessão da conta.** A unidade é estado do cookie
@@ -133,7 +133,7 @@ Antes do POST (saída 1, nada mudou): as do GET do Controle (como
 formulário e as do lock (`login_em_andamento_em_outro_processo`).
 
 Depois do POST enviado, qualquer desvio do observado sai com **3**,
-`codigo: efeito_incerto`, `subcodigo: efeito_incerto_na_troca_de_unidade`
+`codigo: nao_confirmado`
 e `etapa` (`envio`, `primeiro_redirecionamento`, `segundo_redirecionamento`
 ou `controle_da_unidade_nova`) com `falha` (o subcódigo do fato). A URL da
 sessão não é regravada e nenhum outro pedido sai: a unidade pode ter

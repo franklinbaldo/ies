@@ -42,7 +42,7 @@ ou GET da função de retirada) e uma nova leitura da árvore. Não há
 retry de escrita, execução de JavaScript ou seguimento do 302. A
 conferência exige `Sobrestado` na unidade para sobrestar, e
 `AbertoEm::Unidades` com a unidade ativa para retomar. Se a
-verificação falhar, sai com código 3 (efeito incerto). Um 302
+verificação falhar, sai com código 1 (escrita não confirmada). Um 302
 isolado nunca prova a escrita. O JSON de sucesso só publica
 `alterado:true` e `reconciliado_por_leitura:true` após
 verificação. **Autenticação e escrita live ainda NOT_RUN**; o
@@ -101,7 +101,7 @@ ainda não foram testados com esta implementação. Live: NOT_RUN,
 | `endereco_de_retomar_nao_reconhecido` | URL assinada não reconhecida |
 | `endereco_de_retomar_de_outro_processo` | URL de outro id |
 | `sobrestamento_ou_retomada_nao_aplicados` | Leitura confirma que o estado não mudou |
-| `efeito_incerto_no_sobrestamento` | Leitura posterior falhou ou não decidiu (saída 3) |
+| `nao_confirmado_no_sobrestamento` | Leitura posterior falhou ou não decidiu (saída 1) |
 
 [Decisão](../../docs/decisoes/processo-sobrestar.md) ·
 [live](../../docs/validacao-live/2026-11-05-processo-sobrestar.md) ·

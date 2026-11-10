@@ -166,35 +166,3 @@ automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
 
-## Cobertura documental dos subcódigos
-
-O hook `subcodigos` executa `python3 -I scripts/subcodigos.py`, só stdlib,
-sem rede, sobre os arquivos atuais de `src` e `crates`. Não mantém lista
-fixa de emissores. Tokeniza comentários simples/aninhados, strings normais
-e raw, escapes, caracteres, lifetimes e delimitadores equilibrados;
-lê literais dentro de funções `subcodigo` e `subcodigo_*`, além de valores
-literais de chaves JSON `subcodigo`. Comentários, funções de mensagem,
-arquivos de testes/acervo e itens inline `#[cfg(test)]` são excluídos.
-Funções delegadas contribuem por suas próprias definições, sem exigir
-repetição do literal no chamador. Declarações de trait sem corpo não
-consomem a função seguinte. Fonte malformada ou literal não classificável
-em função de subcódigo faz o hook falhar para revisão.
-
-A documentação vem da coluna `Subcódigo`/`Subcódigos` das tabelas de
-`docs/erros-tipados.md` e `contracts/cli/*.md`, inclusive os complementos
-“Falhas tipadas”. Curingas, prosa, campos de apresentação e exemplos em
-blocos de código não dão cobertura. Um literal emitido sem tabela falha;
-um documentado sem literal detectado apenas avisa. Aviso não demonstra
-aposentadoria: há chamadas que passam literais por parâmetros de helpers.
-
-`scripts/subcodigos_permitidos.json` é uma lista inicialmente vazia.
-Cada exceção exige `subcodigo` e `justificativa` não vazia, sem duplicatas;
-a justificativa deve explicar por que dispensar documentação e quando
-revisar. As exceções são mostradas no diagnóstico. Não usar para mascarar
-um contrato que falta escrever.
-
-É análise léxica conservadora, não AST nem prova de fluxo: não expande
-macros, não resolve tipos/delegações, chamadas indiretas ou strings
-construídas; não interpreta `cfg` arbitrário nem comprova alcance pela
-CLI. Os testes sintéticos entram no hook `scripts-python` já existente.
-Não há workflow ou conjunto alternativo de checks.

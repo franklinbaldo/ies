@@ -64,44 +64,33 @@ impl EstadoDaMudanca {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroSobrestamento {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     UnidadeNaoPublicada,
     SituacaoNaoLida(MotivoAbertoEm),
-    #[causa(interna)]
-    Barra(ErroAcaoSobrestar),
+    Barra(#[from] ErroAcaoSobrestar),
     JaSobrestado,
     NaoSobrestado,
     ForaDaUnidade,
     SobrestadoEmOutraUnidade,
     AcaoNaoOferecida,
     MotivoVazio,
-    #[causa(interna)]
-    TelaDaEscrita(FalhaTransporte),
+    TelaDaEscrita(#[from] FalhaTransporte),
     TelaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     CharsetNaoSuportado,
-    #[causa(interna)]
-    TelaSobrestar(tela::ErroTela),
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    EnderecoDeRetomar(ErroEnderecoDeRetomar),
+    TelaSobrestar(#[from] tela::ErroTela),
+    Formulario(#[from] ErroSubmissaoFormulario),
+    EnderecoDeRetomar(#[from] ErroEnderecoDeRetomar),
     EscritaNaoAplicada,
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 impl ErroSobrestamento {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Cookie(e) => e.mensagem(),
@@ -118,7 +107,9 @@ impl ErroSobrestamento {
             Self::TelaDaEscrita(_) | Self::TelaRedirecionada => {
                 "a tela da escrita não foi servida; nenhuma escrita enviada"
             }
-            Self::SessaoEncerrada => "sessão encerrada; rode ies login; nada enviado",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "sessão encerrada; rode ies login; nada enviado"
+            }
             Self::CharsetNaoSuportado => "charset da tela não suportado; nada enviado",
             Self::TelaSobrestar(_) => {
                 "formulário de sobrestamento fora da forma observada; nada enviado"
@@ -128,9 +119,7 @@ impl ErroSobrestamento {
                 "endereço de retomar fora da forma observada; nada enviado"
             }
             Self::EscritaNaoAplicada => "releitura confirmou que a ação não foi aplicada",
-            Self::EfeitoIncerto => {
-                "efeito incerto após escrita; consulte processo antes de repetir"
-            }
+            Self::NaoConfirmado => "escrita não confirmada; consulte processo antes de repetir",
         }
     }
 

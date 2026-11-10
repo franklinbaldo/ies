@@ -20,24 +20,19 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
     },
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroInteressado {
     AutocompletarNaoDeclarado,
     DerivacaoRecusada,
     NaoOferecido,
     Ambiguo,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
-    #[causa(interna)]
-    Transporte(crate::transporte::FalhaTransporte),
+    Transporte(#[from] crate::transporte::FalhaTransporte),
 }
 
 impl ErroInteressado {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
     }

@@ -18,7 +18,7 @@ A PR #659 entregou a prévia; a PR #661 habilitou `--confirmar`
 exclusivamente nas origens públicas de treinamento (incluindo
 `sei.test` na bancada). A confirmação deriva a requisição do formulário
 publicado, faz POST único e relê a lista completa exigindo id e texto
-exatos. Sem confirmação, saída 3 sem retry. Essa implementação **não**
+exatos. Sem confirmação, saída 1 sem retry. Essa implementação **não**
 equivale a confronto semântico de cassettes nem a validação live.
 Os estados do Todos abaixo não são vereditos do IES.
 Os estados do Todos abaixo não são vereditos do IES.

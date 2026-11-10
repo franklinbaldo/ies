@@ -27,7 +27,6 @@ fn comando_recusa_numero_vazio_antes_da_sessao() {
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "vazio");
 }
 
 #[test]
@@ -51,7 +50,6 @@ fn confirmar_recusa_sem_sessao_ativa() {
 fn mesma_identidade_recusa_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json"]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["subcodigo"], "anexacao_ao_mesmo_processo");
 }
 
 #[test]

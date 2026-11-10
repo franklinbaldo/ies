@@ -52,14 +52,12 @@ pub(crate) enum ConcluirNaBarra {
 }
 
 /// Recusas da leitura da barra (só pesam quando se pede para concluir).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConcluirNaBarra {
     EnderecoDaConclusaoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroConcluirNaBarra {}
 
 /// A ação de concluir da barra do processo `id`; `Ok(None)` se a barra
 /// não oferece concluir (nem link nem função).
@@ -137,14 +135,12 @@ pub(super) fn tela_do_no_da_raiz(
 }
 
 /// Recusas da leitura de `concluirProcesso()` na tela do nó.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroFuncaoDeConcluir {
     EnderecoDaConclusaoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroFuncaoDeConcluir {}
 
 const CONFIRM: &str = "if (confirm(";
 const LOCATION: &str = "location.href = '";

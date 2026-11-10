@@ -250,10 +250,6 @@ fn aviso_de_sem_resultado_com_barra_de_contagem_e_ambiguo() {
         ler_resposta_html(&html),
         Err(E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta)
     );
-    assert_eq!(
-        crate::erro_publico::folha(&E::AvisoDeSemResultadoEBarraDeContagemNaMesmaResposta),
-        "aviso_de_sem_resultado_e_barra_de_contagem_na_mesma_resposta"
-    );
 }
 
 #[test]

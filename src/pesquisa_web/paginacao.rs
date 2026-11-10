@@ -30,12 +30,10 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 };
 
 /// Uma variante por fato verificável da paginação da pesquisa.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo {
-        solicitada: u32,
-        paginas: u64,
-    },
+    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
@@ -43,11 +41,8 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroPaginacaoDaPesquisa {}
 
 /// O que a paginação precisa da resposta da página 1, em processos ou em
 /// documentos: a forma e, na lista, a faixa e o total da barra.

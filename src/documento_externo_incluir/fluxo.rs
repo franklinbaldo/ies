@@ -123,7 +123,9 @@ fn da_tela(erro: FalhaDaTela) -> ErroPreviaExterna {
     match erro {
         FalhaDaTela::Transporte(e) => ErroPreviaExterna::Transporte(e),
         FalhaDaTela::Redirecionada => ErroPreviaExterna::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => ErroPreviaExterna::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            ErroPreviaExterna::SessaoEncerrada
+        }
     }
 }
 

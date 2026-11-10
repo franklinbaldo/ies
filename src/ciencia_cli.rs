@@ -31,7 +31,7 @@ pub(crate) fn tentar_ciente(cli: &Cli) -> Option<ExitCode> {
                 Err(erro) => publicar_erro(cli.json, &erro),
             }
         }),
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
@@ -75,17 +75,13 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(
-                crate::erro_publico::folha(erro),
-                erro.mensagem(),
-                erro.status_http()
-            )
+            crate::saida_erro::linha_humana(&erro.mensagem(), erro.status_http())
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 /// Efeito incerto apenas depois do GET de escrita: contagem observada e
@@ -96,32 +92,18 @@ fn aviso_da_falha(erro: &ErroCienciaProcesso) -> Option<String> {
 }
 
 pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
-    let codigo = if erro.saida() == 3 {
-        "efeito_incerto"
+    let codigo = if erro.requisicoes().is_some() {
+        "nao_confirmado"
     } else {
         "fonte_invalida"
     };
     let mut objeto = json!({
         "codigo": codigo,
-        "subcodigo": crate::erro_publico::folha(erro),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaProcesso::EfeitoIncerto {
-        motivo,
-        requisicoes,
-        falha_do_aceite,
-    } = erro
-    {
-        objeto["verificacao"] = json!(crate::erro_publico::folha(motivo));
+    if let ErroCienciaProcesso::NaoConfirmado { requisicoes, .. } = erro {
         objeto["requisicoes"] = json!(requisicoes);
-        if let Some(falha) = falha_do_aceite {
-            objeto["falha_do_aceite"] = json!({
-                "subcodigo": crate::erro_publico::folha(falha),
-                "causa": crate::erro_publico::caminho_de(falha),
-                "detalhe": falha.detalhe()
-            });
-        }
     }
     if let Some(http) = erro.status_http() {
         objeto["status_http"] = json!(http.status);
@@ -139,8 +121,8 @@ mod testes_aviso {
     /// RED #271: apos um GET potencialmente mutador, a orientacao publica
     /// deve apontar a prova independente, sem sugerir nova escrita.
     #[test]
-    fn efeito_incerto_indica_lista_antes_de_nova_confirmacao() {
-        let erro = ErroCienciaProcesso::EfeitoIncerto {
+    fn nao_confirmado_indica_lista_antes_de_nova_confirmacao() {
+        let erro = ErroCienciaProcesso::NaoConfirmado {
             motivo: crate::ciencia::VerificacaoDaCiencia::AceiteSemIdDeAtividade,
             requisicoes: 6,
             falha_do_aceite: None,
@@ -150,20 +132,18 @@ mod testes_aviso {
         assert!(mensagem.contains("antes de nova confirmação"), "{mensagem}");
         assert!(!mensagem.contains("antes de repetir"), "{mensagem}");
         assert_eq!(erro.requisicoes(), Some(6));
-        assert_eq!(erro.saida(), 3);
         assert_eq!(
             aviso_da_falha(&erro).as_deref(),
             Some("IES: 6 requisições; não repetir a escrita")
         );
-        assert_eq!(json_de_erro(&erro)["codigo"], "efeito_incerto");
+        assert_eq!(json_de_erro(&erro)["codigo"], "nao_confirmado");
         assert_eq!(json_de_erro(&erro)["requisicoes"], 6);
     }
 
     #[test]
-    fn falha_antes_da_escrita_nao_exibe_efeito_incerto() {
+    fn falha_antes_da_escrita_nao_exibe_nao_confirmado() {
         let erro = ErroCienciaProcesso::CienciaNaoOferecida;
         assert_eq!(erro.requisicoes(), None);
-        assert_eq!(erro.saida(), 1);
         assert!(aviso_da_falha(&erro).is_none());
     }
 }

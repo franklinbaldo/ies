@@ -33,15 +33,8 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(erro) => {
-            return Some(erro_de_uso(
-                cli,
-                erro.subcodigo(),
-                "número de processo inválido",
-            ));
-        }
+    let Ok(nup) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli, "número de processo inválido"));
     };
     let (bruto, operacao) = if let Some(rotulo) = marcador {
         (rotulo.as_str(), Operacao::Atribuir)
@@ -49,20 +42,16 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
         (rotulo.as_str(), Operacao::Retirar)
     } else {
         // O clap exige exatamente um dos dois, sem tentar abrir a sessão.
-        return Some(erro_de_uso(
-            cli,
-            "marcador_nao_informado",
-            "informe --marcador ou --retirar",
-        ));
+        return Some(erro_de_uso(cli, "informe --marcador ou --retirar"));
     };
     let rotulo = match interpretar_rotulo(bruto) {
         Ok(rotulo) => rotulo,
-        Err(erro) => return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem())),
+        Err(erro) => return Some(erro_de_uso(cli, erro.mensagem())),
     };
     if let Some(texto) = texto
         && let Err(erro) = validar_texto(texto)
     {
-        return Some(erro_de_uso(cli, erro.subcodigo(), erro.mensagem()));
+        return Some(erro_de_uso(cli, erro.mensagem()));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
         if *confirmar
@@ -98,17 +87,16 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
     }))
 }
 
-fn erro_de_uso(cli: &Cli, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn erro_de_uso(cli: &Cli, mensagem: &str) -> ExitCode {
     if cli.json {
         println!(
             "{}",
             json!({
-                "codigo": "entrada_invalida", "subcodigo": subcodigo,
-                "erro": mensagem, "retentavel": false
+                "codigo": "entrada_invalida", "erro": mensagem, "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -118,16 +106,15 @@ pub(crate) fn falha(cli: &Cli, erro: ErroMarcar, requisicoes: u8) -> ExitCode {
         println!(
             "{}",
             json!({
-                "codigo": "fonte_invalida", "subcodigo": erro.subcodigo(),
-                "erro": erro.mensagem(), "retentavel": false,
+                "codigo": "fonte_invalida", "erro": erro.mensagem(), "retentavel": false,
                 "requisicoes": requisicoes
             })
         );
     } else {
         eprintln!(
-            "IES: {} [{}]; requisições: {}",
+            "IES: {} ({}); requisições: {}",
             erro.mensagem(),
-            erro.subcodigo(),
+            erro.mensagem(),
             requisicoes
         );
     }
@@ -163,12 +150,7 @@ fn previa<E: EnvioDoProcesso>(
     let aberto = match obter_processo(sessao, &pedido, indice, envio) {
         Ok(aberto) => aberto,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let n = aberto.requisicoes;

@@ -45,7 +45,7 @@ A próxima etapa deve obter Gerados antes/depois, verificar tipo e
 especificação dos candidatos por leitura independente e preservar a
 causa original do POST sem expor URLs/cookies. Os quatro desfechos
 exigidos pela issue continuam pendentes; não liberar novos
-`--confirmar` para ensaios de efeito incerto.
+`--confirmar` para ensaios de escrita não confirmada.
 
 ### Guarda anterior à escrita, continuação da #245
 
@@ -68,7 +68,7 @@ a confirmação e não constitui validação autenticada ao vivo.
 ### Releitura única depois de falha do POST — 06/11 (#245)
 
 A evidência do ensaio UnB anterior mostrou uma criação real mesmo
-quando o POST voltou à CLI com saída 3. Foi rejeitada a alternativa
+quando o POST voltou à CLI com saída 1. Foi rejeitada a alternativa
 de repetir o POST, seguir o redirect ou afirmar não aplicação só porque
 o NUP não surgiu na resposta. O caminho escolhido reutiliza a
 fotografia completa prévia de Gerados e, exclusivamente após falha
@@ -107,7 +107,7 @@ propriedades. Para cada candidato é necessário comprovar unidade,
 ID/NUP, tipo e especificação. A correspondência exata com todos os
 candidatos conferidos é necessária, mas **não prova a autoria de um POST
 sem resposta** numa conta compartilhada. Mesmo se for única, o resultado
-permanece inconclusivo (saída 3), como detalha a
+permanece inconclusivo (saída 1), como detalha a
 [decisão causal](concorrencia-pos-post.md). Sem propriedades publicadas,
 falha fechado e preserva a causa do POST.
 O novo leitor consome 1 GET da caixa e 3 GET por candidato; não faz
@@ -127,7 +127,7 @@ adversarial com a conta compartilhada precedeu a correção.
 Quando a releitura observa dois processos novos e a conferência da
 identidade, da unidade, do tipo e da especificação confirma **ambos**,
 nenhum deles prova autoria do POST que falhou. Adotado um desfecho
-público distinto, `candidatos_ambiguos_na_criacao`, com saída 3,
+público distinto, `candidatos_ambiguos_na_criacao`, com saída 1,
 NUPs comprovadamente compatíveis e causa do POST preservada.
 Alternativas rejeitadas: escolher o primeiro e contar candidatos como
 prova de criação; ou esconder a ambiguidade sob o diagnóstico genérico.
@@ -147,7 +147,7 @@ status 403 produzido possivelmente por um intermediário. Apenas a
 primeira prova permite emitir `desfecho: nao_aplicada` com saída 1,
 causa original e a orientação de **nova prévia antes de nova confirmação**.
 `retentavel: false` permanece: não há retry automático. Status 4xx sem
-essa prova conserva o subcódigo/status e retorna **saída 3 (efeito
+essa prova conserva o subcódigo/status e retorna **saída 1 (efeito
 incerto)**, sem desfecho de não aplicação nem autorização de retry;
 não se consulta Gerados após esses HTTP 4xx porque candidato concorrente
 não deve virar sucesso da nossa operação.
@@ -165,7 +165,7 @@ A escrita live em outra instalação de treinamento ainda está NOT_RUN.
 
 A fotografia posterior completa prova quais NUPs foram observados na
 caixa Gerados, não sua autoria. Se a conferência de um candidato falhar
-por transporte, HTML ou propriedades, a saída 3 preserva a causa da
+por transporte, HTML ou propriedades, a saída 1 preserva a causa da
 falha **e** os candidatos já identificados. Antes, esse erro descartava
 o retrato e publicava `null` como se o Controle não tivesse sido lido.
 A alternativa de tratar o candidato como criação foi rejeitada: não há
@@ -178,9 +178,9 @@ verificador que falha), com um POST único e sem retry.
 
 Um POST que devolveu `Location` válido ainda precisa da leitura
 independente para provar o NUP. Antes, erro de rede ou HTTP no GET
-verificador era descartado e substituído por `efeito_incerto_na_criacao`,
+verificador era descartado e substituído por `nao_confirmado_na_criacao`,
 sem conservar status HTTP. A decisão foi manter um invólucro
-`VerificacaoAposPost` para assinalar efeito incerto (saída 3), mas
+`VerificacaoAposPost` para assinalar escrita não confirmada (saída 1), mas
 propagar a causa tipada da leitura, status HTTP e mensagem saneada.
 Também se propagam erros estruturais da tela/árvore, sem reduzir todas
 as falhas a um erro genérico. A alternativa de confiar no `Location`
@@ -210,7 +210,7 @@ resposta do POST e, na ausência dela, consulta a releitura;
 `status_http_releitura` expõe separadamente o segundo estágio quando
 observado. A mensagem da releitura vem do saneador existente. Sem
 requisição nova, sem retry e sem alterar a classificação de efeito
-incerto (saída 3).
+incerto (saída 1).
 
 RED test-first no CI 42217861035: **1 FAIL novo, 1.708 PASS, 22 ignored
 preexistentes**, falha `None != Some(503)` no teste de releitura
@@ -232,7 +232,7 @@ observado`.
 
 A distinção entre resultado completo e parcial é estrutural: uma
 leitura que falhou permanece `Err`, mesmo com coincidências anteriores.
-A saída é 3 com subcódigo `efeito_incerto_na_criacao`; JSON usa
+A saída é 3 com subcódigo `nao_confirmado_na_criacao`; JSON usa
 `coincidencias_parciais_conferidas`, não
 `desfecho: candidatos_ambiguos`. O humano esclarece que não há prova
 de unicidade nem autoria. Nenhum GET/POST adicional, retry ou
@@ -251,7 +251,7 @@ considerar o NUP suficiente publicava `confirmado: true` antes da leitura
 das propriedades. A escolha agora é reutilizar o leitor de propriedades
 existente, a partir do link servido na árvore (sem construir URL), e
 comparar esses três campos antes de confirmar. Falta do link, falha da
-leitura ou divergência encerram com saída 3 e causa tipada; sem retry.
+leitura ou divergência encerram com saída 1 e causa tipada; sem retry.
 
 O novo teste adversarial usa 3 GET de preparo, 1 POST de criação,
 1 GET de tela, 1 GET de árvore e 1 GET de propriedades (7 requisições
@@ -276,7 +276,7 @@ coincidirem; leitura incompleta continua inconclusiva.
 
 Alternativa recusada: usar nível divergente como prova de não aplicação.
 Não elimina a possibilidade de escrita não observada, portanto manter
-`SemCorrespondenciaObservada`/saída 3 é necessário. Na ausência de
+`SemCorrespondenciaObservada`/saída 1 é necessário. Na ausência de
 nova prova, não anunciar repetição segura.
 
 ## Identidade dos interessados na prova de escrita (06/11, #245)
@@ -292,7 +292,7 @@ prova após `Location` e às coincidências parciais de outros candidatos.
 
 Alternativas recusadas: confiar somente no NUP ou tipo/especificação,
 atribuir autoria por aproximação e pedir nova tela. Uma divergência não
-prova que o POST falhou: o fluxo permanece inconclusivo, saída 3,
+prova que o POST falhou: o fluxo permanece inconclusivo, saída 1,
 sem retry. Na ausência de interessados explícitos, não se inventa uma
 restrição. Testes usam apenas fixtures sintéticas já derivadas de
 estruturas observadas; nenhum ensaio live adicional.
@@ -307,7 +307,7 @@ apenas ID/NUP, propriedades, tipo, nível e interessados não prova que o
 (falso positivo), reler Gerados novamente (requisição extra sem superar
 a identidade anterior), ou rejeitar o sucesso quando o ID já foi visto.
 Escolhida a última: causa tipada `id_preexistente_no_retorno_criador`,
-saída 3, sem abrir o processo antigo, sem retry. RED test-first no
+saída 1, sem abrir o processo antigo, sem retry. RED test-first no
 [CI 42271272286](https://github.com/franklinbaldo/ies/actions/runs/42271272286):
 **1 FAIL novo, 1.733 PASS e 22 ignorados preexistentes**; o sistema
 publicava `confirmado: true` para o NUP preexistente. Budget após

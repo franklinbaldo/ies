@@ -1,7 +1,7 @@
 //! Lista comentários publicados na barra de um processo, sem POST mutador.
 use crate::processo::NumeroProcesso;
 use crate::processo_comentarios::VisaoDosComentarios;
-use crate::processo_comentarios_web::{self, Erro};
+use crate::processo_comentarios_web;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Domain, Processo, ProcessoAcao};
@@ -16,9 +16,8 @@ pub(crate) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(nup) => nup,
-        Err(e) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+    let Ok(nup) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
     Some(com_sessao(
         cli,
@@ -72,24 +71,22 @@ pub(crate) fn tentar_ler(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(erro) => falha(cli, &erro),
+            Err(_) => falha(cli),
         },
     ))
 }
 
-fn falha(cli: &Cli, erro: &Erro) -> ExitCode {
-    let causa = crate::erro_publico::caminho_de(erro);
+fn falha(cli: &Cli) -> ExitCode {
     let mensagem = "a lista completa de comentários não foi comprovada; nenhuma escrita realizada";
     if cli.json {
         println!(
             "{}",
             json!({
-                "codigo": "fonte_invalida", "causa": causa,
-                "erro": mensagem, "retentavel": false
+                "codigo": "fonte_invalida", "erro": mensagem, "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{}]", causa.join("/"));
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(1)
 }

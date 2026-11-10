@@ -74,7 +74,9 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
         obter_tela(&mut rede, &cookie, acao.tela_do_no.as_str()).map_err(|falha| match falha {
             FalhaDaTela::Transporte(falha) => R::TelaDoNo(falha),
             FalhaDaTela::Redirecionada => R::TelaDoNoRedirecionada,
-            FalhaDaTela::SessaoEncerrada => R::SessaoEncerrada,
+            FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                R::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            }
         })?;
     let (url, forma) = ler_endereco_de_reabrir(&instalacao, &html, &id)?;
     feito.forma = Some(forma);
@@ -96,7 +98,7 @@ fn conciliar(
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoReaberto, R> {
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
-        return Err(R::EfeitoIncertoNaReabertura {
+        return Err(R::NaoConfirmadoNaReabertura {
             aberto_em: feito.aberto_em,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),

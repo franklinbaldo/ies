@@ -29,7 +29,6 @@ fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
-        assert_eq!(valor["subcodigo"], "confirmacao_nao_implementada");
         assert_eq!(valor["retentavel"], false);
     }
 }
@@ -38,7 +37,6 @@ fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
 fn entrada_invalida_e_combinacoes_impossiveis() {
     let saida = sem_sessao(&["processo", "acompanhar", " ", "--json"]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "vazio");
 
     let saida = sem_sessao(&[
         "processo",

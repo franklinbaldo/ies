@@ -5,6 +5,7 @@
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
+use crate::erro_publico::Rotulo as _;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -76,7 +77,7 @@ fn conferir_lista(item: &Value, atividade: Option<ProvaPendente>) -> Resultado {
     match atividade_na_lista(&html, id) {
         Ok(true) => Resultado::Lido,
         Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-        Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     }
 }
 
@@ -158,7 +159,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                         });
                         Resultado::Lido
                     }
-                    Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
+                    Err(erro) => Resultado::Recusado(erro.rotulo()),
                 };
                 (leitor, resultado)
             }

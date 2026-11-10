@@ -24,7 +24,7 @@ const NUP: &str = "00001.000001/2026-01";
 
 #[test]
 fn uso_invalido_sai_com_2_antes_da_configuracao() {
-    for (args, subcodigo) in [
+    for (args, _subcodigo) in [
         (
             vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
             "vazio",
@@ -53,7 +53,6 @@ fn uso_invalido_sai_com_2_antes_da_configuracao() {
             assert_eq!(saida.status.code(), Some(2), "{args:?}");
             let valor = json(&saida);
             assert_eq!(valor["codigo"], "entrada_invalida");
-            assert_eq!(valor["subcodigo"], subcodigo, "{args:?}");
         }
     }
 }
@@ -108,8 +107,4 @@ fn bdd_remover_anotacoes_e_opcao_da_cli_sem_confirmacao_cega() {
     assert_eq!(saida.status.code(), Some(1));
     assert_eq!(json(&saida)["codigo"], "fonte_invalida");
     // Sem trava de ensaio: a confirmação segue para a sessão, que falta.
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_ausente_ou_inacessivel"
-    );
 }

@@ -1,5 +1,5 @@
 //! Cenários sintéticos da #212; não há dados de sessão ou acesso à rede.
-use super::{ErroConfiguracao as Publico, FalhaConfiguracaoLocal as F, ler_configuracao_local};
+use super::{FalhaConfiguracaoLocal as F, ler_configuracao_local};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -53,10 +53,6 @@ fn ausente_tem_causa_distinta_e_subcodigo_publico_legado() {
     let pasta = Pasta::nova();
     let causa = ler_configuracao_local(&pasta.arquivo()).err().unwrap();
     assert_eq!(causa, F::Ausente);
-    assert_eq!(
-        Publico::from(causa).subcodigo(),
-        "arquivo_de_configuracao_nao_pode_ser_lido"
-    );
 }
 
 #[test]
@@ -82,14 +78,6 @@ fn json_invalido_nao_e_campo_invalido() {
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
         Some(F::CampoInvalido)
-    );
-    assert_eq!(
-        Publico::from(F::JsonInvalido).subcodigo(),
-        "arquivo_configuracao_json_invalido"
-    );
-    assert_eq!(
-        Publico::from(F::CampoInvalido).subcodigo(),
-        "arquivo_configuracao_campo_invalido"
     );
 }
 
@@ -120,10 +108,6 @@ fn permissao_aberta_eh_recusada_antes_da_leitura() {
         ler_configuracao_local(&pasta.arquivo()).err(),
         Some(F::PermissoesAbertas)
     );
-    assert_eq!(
-        Publico::from(F::PermissoesAbertas).subcodigo(),
-        "arquivo_configuracao_permissoes_abertas"
-    );
 }
 
 #[cfg(unix)]
@@ -137,10 +121,6 @@ fn link_simbolico_nao_e_seguido() {
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
         Some(F::LinkSimbolico)
-    );
-    assert_eq!(
-        Publico::from(F::LinkSimbolico).subcodigo(),
-        "arquivo_configuracao_link_simbolico"
     );
 }
 

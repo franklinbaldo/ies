@@ -44,7 +44,6 @@ fn recusa(json_mode: bool, causa: &FalhaInclusaoExterna, mensagem: &str, status:
         println!(
             "{}",
             json!({
-                "causa": causa,
                 "retentavel": false,
                 "requisicoes": 0,
                 "escrita_remota": false
@@ -177,7 +176,6 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<ExitCode> {
                         println!(
                             "{}",
                             json!({
-                                "causa": erro.causa(),
                                 "status_http": status.map(|e| e.status),
                                 "mensagem_do_servidor": status.and_then(|e| e.mensagem_do_servidor.as_deref()),
                                 "requisicoes": contagem.feitas(),

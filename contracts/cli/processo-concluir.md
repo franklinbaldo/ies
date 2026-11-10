@@ -17,8 +17,8 @@ a verificação é a situação `aberto_em` que
 [`ies processo NUP`](processo-obter-situacao.md) já lê.
 
 Segue as invariantes de escrita do [contrato da CLI](../cli.md): prévia,
-confirmação e verificação; efeito incerto nunca se repete; saídas 0
-sucesso, 1 falha, 2 uso inválido, 3 efeito incerto. Só a Web, a mesma
+confirmação e verificação; escrita não confirmada nunca se repete; saídas 0
+sucesso, 1 falha, 2 uso inválido, 3 escrita não confirmada. Só a Web, a mesma
 sessão; nenhuma URL montada (só as publicadas pela barra e pela tela do nó).
 
 ## Entrada
@@ -92,7 +92,7 @@ como servidos, `rdoConcluir=S`, `txtPrazoReaberturaProgramada=`,
 unidade é a conferida na tela do processo
 (`ConferenciaDaUnidade::NaTelaDeOrigemDoLink`).
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: na forma `tela`, 302 (não seguido) com `Location`
 `controlador.php?acao=arvore_visualizar…` ou `controlador.php?acao=principal…`,
@@ -110,7 +110,7 @@ leitura de verificação reconcilia, uma vez.
 | Esperada | sem a unidade da sessão | 0 | `alterado: true` |
 | Não esperada | sem a unidade da sessão | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
 | Qualquer | com a unidade da sessão | 1 | `escrita_nao_aplicada` / `conclusao_nao_aplicada` (com `falha_do_envio`, se houver) |
-| Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_na_conclusao` (`verificacao`: subcódigo ou motivo) |
+| Qualquer | leitura falhou ou situação não lida | 3 | `nao_confirmado` / `nao_confirmado_na_conclusao` (`verificacao`: subcódigo ou motivo) |
 
 Um SEI que processe a escrita depois da leitura não é detectável: antes de
 repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
@@ -134,7 +134,7 @@ continuam como estavam (observado). Desfaz-se com
 
 `forma` é `tela`, `funcao` ou `null` (nada a fazer). `depois` são as
 siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `aberto_em`,
+`{"codigo", "erro", "retentavel": false}` mais `aberto_em`,
 `depois`, `falha_do_envio`, `verificacao` e `status_http` quando houver.
 A saída humana termina com "Para concluir, repita com --confirmar" na
 prévia.

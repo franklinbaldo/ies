@@ -29,17 +29,14 @@ impl CategoriaLista {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCategoria {
     UnidadeNaoObservada,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
-    #[causa(interna)]
-    FaixaNaoPublicavel(crate::erro_web::ErroCaixa),
+    FaixaNaoPublicavel(#[from] crate::erro_web::ErroCaixa),
 }
 impl FalhaCategoria {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::FaixaNaoPublicavel(_) => "a legenda da categoria não comprova total e faixa",
@@ -79,19 +76,12 @@ pub(crate) fn publicar_lista(
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
 ) -> ExitCode {
-    let leitura = match paginas::juntar(&[html.to_owned()], unidade) {
-        Ok(leitura) => leitura,
-        Err(erro) => {
-            return erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "Controle de Processos não reconhecido",
-            );
-        }
+    let Ok(leitura) = paginas::juntar(&[html.to_owned()], unidade) else {
+        return erro_fonte(json_mode, "Controle de Processos não reconhecido");
     };
     let mut modelo = match selecionar(&leitura, categoria, "web") {
         Ok(modelo) => modelo,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     if let Some(caminho) = destino {
         return match arquivo_caixa::gravar(caminho, &modelo) {
@@ -114,7 +104,7 @@ pub(crate) fn publicar_lista(
                 }
                 ExitCode::SUCCESS
             }
-            Err(erro) => erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+            Err(erro) => erro_fonte(json_mode, erro.mensagem()),
         };
     }
     if json_mode {
@@ -150,7 +140,7 @@ pub(crate) fn listar_categoria(
 ) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     // Cada tentativa relê a sessão e colhe na geração gravada agora.
     let lido = relogin_cli::ler(&arquivos, unidade, || {
@@ -190,10 +180,6 @@ mod tests {
         assert_eq!(
             selecionar(&leitura, CategoriaLista::Gerados, "web"),
             Err(FalhaCategoria::UnidadeNaoObservada)
-        );
-        assert_eq!(
-            FalhaCategoria::UnidadeNaoObservada.subcodigo(),
-            "unidade_nao_observada"
         );
     }
 
@@ -251,11 +237,7 @@ mod tests {
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
              <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         let leitura = paginas::juntar(&[html.to_owned()], None).unwrap();
-        let erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
-        assert_eq!(
-            erro.subcodigo(),
-            "legenda_sem_faixa_com_total_diferente_das_linhas"
-        );
+        let _erro = selecionar(&leitura, CategoriaLista::Recebidos, "web").unwrap_err();
         assert!(selecionar(&leitura, CategoriaLista::Gerados, "web").is_ok());
     }
 

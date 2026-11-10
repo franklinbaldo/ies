@@ -13,7 +13,8 @@ pub(crate) struct Registro {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCache {
     Diretorio,
     Gravacao,
@@ -22,9 +23,6 @@ pub(crate) enum FalhaCache {
 }
 
 impl FalhaCache {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
             Self::Diretorio => "diretório do cache local indisponível ou inseguro",

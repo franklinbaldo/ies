@@ -14,8 +14,8 @@ explícito, pela ação "Reabrir Processo" que a barra do nó `PROCESSO` da
 árvore publica. É o espelho de [`ies processo concluir`](processo-concluir.md):
 mesma abertura, mesma verificação por `aberto_em`, mesmas invariantes de
 escrita do [contrato da CLI](../cli.md) (prévia, confirmação e
-verificação; efeito incerto nunca se repete; saídas 0 sucesso, 1 falha, 2
-uso inválido, 3 efeito incerto). Só a Web, a mesma sessão; nenhuma URL
+verificação; escrita não confirmada nunca se repete; saídas 0 sucesso, 1 falha, 2
+uso inválido, 3 escrita não confirmada). Só a Web, a mesma sessão; nenhuma URL
 montada (só as publicadas pela barra e pela tela do nó). Estrutura
 observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-do-processo.md).
 
@@ -73,7 +73,7 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
 | URL sem `procedimento_reabrir` assinado | `endereco_da_reabertura_nao_reconhecido` |
 | URL de outro `id_procedimento` | `endereco_da_reabertura_de_outro_processo` |
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: HTML 200 sem tela de login nem validação da Infra (nas
 gravações, uma página no molde de `arvore_visualizar`). Qualquer outra
@@ -86,7 +86,7 @@ verificação reconcilia, uma vez.
 | Esperada | com a unidade da sessão | 0 | `alterado: true` |
 | Não esperada | com a unidade da sessão | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
 | Qualquer | sem a unidade da sessão | 1 | `escrita_nao_aplicada` / `reabertura_nao_aplicada` (com `falha_do_envio`, se houver) |
-| Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_na_reabertura` (`verificacao`: subcódigo ou motivo) |
+| Qualquer | leitura falhou ou situação não lida | 3 | `nao_confirmado` / `nao_confirmado_na_reabertura` (`verificacao`: subcódigo ou motivo) |
 
 Um SEI que processe a escrita depois da leitura não é detectável: antes de
 repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
@@ -110,7 +110,7 @@ continuam como estavam. Desfaz-se com `ies processo concluir`.
 `forma` é `funcao`, `variavel` ou `null` (antes de pedir a tela do nó: na
 prévia e quando não há o que fazer). `depois` são as siglas lidas na
 verificação. Nunca URL, `infra_hash` ou cookie. Falhas: `{"codigo",
-"subcodigo", "erro", "retentavel": false}` mais `aberto_em`, `depois`,
+"erro", "retentavel": false}` mais `aberto_em`, `depois`,
 `motivo`, `falha_do_envio`, `verificacao` e `status_http` quando houver. A
 saída humana termina com "Para reabrir, repita com --confirmar" na prévia.
 

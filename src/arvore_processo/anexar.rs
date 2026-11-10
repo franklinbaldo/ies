@@ -8,16 +8,11 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO_DE_ANEXAR: &str = "procedimento_anexar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAnexarNaBarra {
     EnderecoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-impl ErroAnexarNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    Html(#[from] ErroHtml),
 }
 pub(crate) fn ler_anexar_da_barra(
     instalacao: &Instalacao,

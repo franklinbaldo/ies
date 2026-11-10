@@ -3,7 +3,8 @@
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCadastro {
     TipoDeCadastroDivergente,
     NivelNaoOferecido,
@@ -11,18 +12,8 @@ pub(crate) enum ErroCadastro {
     AssuntoDesabilitado,
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
-    EspecificacaoAcimaDoLimite {
-        limite: usize,
-        tamanho: usize,
-    },
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-
-impl ErroCadastro {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    EspecificacaoAcimaDoLimite { limite: usize, tamanho: usize },
+    Html(#[from] ErroHtml),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

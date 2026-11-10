@@ -1,10 +1,10 @@
 //! Falhas técnicas de interpretação e paginação Web; não são entidades do SEI.
 use crate::dominio::Categoria;
 use crate::erro_html::ErroHtml;
-use std::fmt;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}", self.texto())]
 pub enum ErroCaixa {
     TabelaAusente {
         categoria: Categoria,
@@ -80,14 +80,10 @@ pub enum ErroCaixa {
     ContextoNaoVerificavel,
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroCaixa {
-    pub fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub fn categoria(&self) -> Option<Categoria> {
         match self {
             Self::TabelaAusente { categoria }
@@ -124,16 +120,16 @@ impl ErroCaixa {
     }
 }
 
-impl fmt::Display for ErroCaixa {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "leitura da caixa: {}", self.subcodigo())?;
-        if let Some(categoria) = self.categoria() {
-            write!(f, " ({})", categoria.rotulo())?;
-        }
-        if let Some(id) = self.id() {
-            write!(f, " (id {id})")?;
-        }
-        Ok(())
+impl ErroCaixa {
+    fn texto(&self) -> String {
+        let categoria = self
+            .categoria()
+            .map(|c| format!(" ({})", c.rotulo()))
+            .unwrap_or_default();
+        let id = self
+            .id()
+            .map(|id| format!(" (id {id})"))
+            .unwrap_or_default();
+        format!("leitura da caixa: {self:?}{categoria}{id}")
     }
 }
-impl std::error::Error for ErroCaixa {}

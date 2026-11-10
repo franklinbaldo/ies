@@ -44,10 +44,6 @@ fn bdd_333_05_remocao_nao_observada_recusa_sem_post_de_escrita() {
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
-    assert_eq!(
-        json(&saidas[0])["subcodigo"],
-        "remocao_de_anotacoes_nao_oferecida"
-    );
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem, None);
     assert!(
@@ -104,7 +100,7 @@ fn bdd_333_04_confirmacao_da_cli_local_comprova_envio_e_remocao() {
 }
 
 #[test]
-fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
+fn bdd_333_04_releitura_indisponivel_falha_e_nao_repete_post() {
     let mut confirmacao = args(true);
     confirmacao.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
@@ -116,12 +112,12 @@ fn bdd_333_04_releitura_indisponivel_retorna_3_e_nao_repete_post() {
     );
     assert_eq!(
         saidas[0].status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={} pedidos={pedidos:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
-    assert_eq!(json(&saidas[0])["codigo"], "efeito_incerto");
+    assert_eq!(json(&saidas[0])["codigo"], "nao_confirmado");
     assert_eq!(
         pedidos
             .iter()
@@ -156,7 +152,6 @@ fn bdd_333_04_envio_aplicado_mas_anotacao_nao_removida_nao_declaro_sucesso() {
     );
     let resultado = json(&saidas[0]);
     assert_eq!(resultado["codigo"], "escrita_diferente_da_solicitada");
-    assert_eq!(resultado["subcodigo"], "anotacoes_nao_removidas_apos_envio");
     assert_eq!(
         resultado["depois"],
         serde_json::json!(["ORIGEM", "DESTINO"]),
@@ -196,8 +191,7 @@ fn bdd_333_05_destino_nao_oferecido_recusa_sem_tramitacao() {
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr),
     );
-    let falha = json(&saidas[0]);
-    assert_eq!(falha["subcodigo"], "destino_nao_oferecido_pelo_sei");
+    let _falha = json(&saidas[0]);
     assert_eq!(depois.aberto_em, ["ORIGEM"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
     assert!(
@@ -225,10 +219,6 @@ fn bdd_333_05_recusa_da_remocao_nao_bloqueia_envio_basico_posterior() {
     envio_basico.retain(|arg| *arg != "--manter-aberto");
     let (saidas, pedidos, depois) = executar(&[&recusada, &envio_basico], false, None);
     assert_eq!(saidas[0].status.code(), Some(1), "{pedidos:?}");
-    assert_eq!(
-        json(&saidas[0])["subcodigo"],
-        "remocao_de_anotacoes_nao_oferecida"
-    );
     assert_eq!(
         saidas[1].status.code(),
         Some(0),

@@ -81,8 +81,7 @@ status foi 200) e a linha humana ganha `(SEI: mensagem)`. Em `colunas
 Textarea vazio ou ausente não muda a classificação.
 
 ```json
-{"codigo":"fonte_invalida","subcodigo":"status_http_de_erro_do_servidor",
- "erro":"o SEI respondeu com erro do servidor (5xx)","retentavel":false,
+{"codigo":"fonte_invalida", "erro":"o SEI respondeu com erro do servidor (5xx)","retentavel":false,
  "status_http":500,"mensagem_do_servidor":"Erro acessando o banco de dados."}
 ```
 

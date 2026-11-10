@@ -19,7 +19,7 @@ a verificação é a situação `aberto_em` que
 Segue as invariantes de escrita do [contrato da CLI](../cli.md) e as peças
 de [`processo concluir`](processo-concluir.md) (abertura, cookie, tela antes
 da escrita, leitura de verificação). Saídas 0 sucesso, 1 falha, 2 uso
-inválido, 3 efeito incerto. Só a Web, a mesma sessão; nenhuma URL montada:
+inválido, 3 escrita não confirmada. Só a Web, a mesma sessão; nenhuma URL montada:
 o link da barra, o `action` da tela e a URL do autocomplete que o script
 da tela declara.
 
@@ -130,10 +130,10 @@ da tela declara.
    Com checkbox, outro GET de `anotacao_registrar` exige `txaDescricao`
    vazio e a mesma identidade de processo. Presença de texto após o
    envio é alteração parcial (saída 1); releitura indisponível ou
-   inconclusiva é efeito incerto (saída 3), sem retry. No fallback,
+   inconclusiva é escrita não confirmada (saída 1), sem retry. No fallback,
    a limpeza e a releitura acontecem antes do envio: anotação ainda
    preenchida recusa o envio (1); leitura inconclusiva da limpeza recusa
-   o envio com saída 3. O envio posterior continua sujeito à
+   o envio com saída 1. O envio posterior continua sujeito à
    reconciliação do destino já existente.
 
 ## Conferência da tela "Enviar Processo"
@@ -190,7 +190,7 @@ ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete
 | Identidade divergente | `anotacao_de_outro_processo` |
 | Campos repetidos | `campos_de_anotacao_repetidos` |
 
-## Resposta e efeito incerto
+## Resposta e escrita não confirmada
 
 **Esperada**: 302 (não seguido) com `Location`
 `controlador.php?acao=arvore_visualizar…`, `acao_origem=procedimento_enviar`
@@ -207,10 +207,10 @@ não é o esperado. Qualquer outra
 | Não esperada | idem | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
 | Qualquer | sem o destino | 1 | `escrita_nao_aplicada` / `envio_nao_aplicado` |
 | Qualquer | destino, mas a unidade da sessão diferente do pedido | 1 | `escrita_diferente_da_solicitada` / `situacao_da_origem_diferente_da_pedida_apos_envio` |
-| Qualquer | leitura falhou ou situação não lida | 3 | `efeito_incerto` / `efeito_incerto_no_envio` |
+| Qualquer | leitura falhou ou situação não lida | 3 | `nao_confirmado` / `nao_confirmado_no_envio` |
 
 Quando o fallback já comprovou a limpeza e a releitura da tramitação falha,
-continua sendo saída 3, mas a saída humana e o JSON preservam o fato
+continua sendo saída 1, mas a saída humana e o JSON preservam o fato
 `anotacao_depois: false` (ausência relida antes de tentar enviar). Isso
 **não** significa que a tramitação tenha sido comprovada.
 
@@ -238,7 +238,7 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
 ```
 
 Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `aberto_em`,
+`{"codigo", "erro", "retentavel": false}` mais `aberto_em`,
 `oferecidos`, `candidatos`, `depois`, `falha_do_envio`, `verificacao` e
 `status_http` quando houver. A saída humana da prévia termina com "Para
 enviar, repita com --confirmar".

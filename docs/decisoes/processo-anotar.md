@@ -55,7 +55,7 @@ atribuir à CLI uma alteração concorrente; aceitar apenas o 302 não provaria
 persistência. A estratégia exige **ambas**: 302 do POST com identidade/ação
 conferidas e GET independente do formulário contendo o texto solicitado,
 sem repetir a escrita. Recusa, perda de resposta ou releitura inconclusiva
-após tentativa de POST resultam em `efeito_incerto` (saída 3).
+após tentativa de POST resultam em `nao_confirmado` (saída 1).
 Anotação não vazia preexistente é recusada antes do POST, sem ampliar o
 BDD para sobrescrita. [PR #654](https://github.com/franklinbaldo/ies/pull/654)
 contém os testes da CLI real.

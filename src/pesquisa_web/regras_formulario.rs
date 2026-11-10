@@ -7,7 +7,8 @@ use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use ErroRegraDoFormularioDePesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRegraDoFormularioDePesquisa {
     OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
     AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
@@ -26,13 +27,9 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     NenhumTipoDeDocumentoMarcadoNaTela,
     AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
     /// Tag de abertura que o tokenizador de atributos recusou.
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    AtributoHtml(#[from] ErroAtributoHtml),
+    Html(#[from] ErroHtml),
 }
-
-impl ErroRegraDoFormularioDePesquisa {}
 
 /// Onde pesquisar: o rádio `rdoPesquisarEm` que a operação marca.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

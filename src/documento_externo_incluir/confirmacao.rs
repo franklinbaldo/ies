@@ -35,17 +35,9 @@ pub(crate) enum FalhaConfirmacao {
     TemporarioSemCadastro(FalhaCadastroEnvio),
     CadastroIncerto(ErroSubmissaoFormulario),
     ReleituraIncerta(ErroProcessoObter),
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 impl FalhaConfirmacao {
-    pub(crate) fn codigo_saida(&self) -> u8 {
-        match self {
-            Self::FotoInicialIncompleta
-            | Self::FotoInicialInconsistente
-            | Self::UploadRecusado(_) => 1,
-            _ => 3,
-        }
-    }
     pub(crate) fn temporario_possivel(&self) -> bool {
         !matches!(
             self,
@@ -92,7 +84,7 @@ where
         FalhaUpload::Recusado { .. } | FalhaUpload::PreparacaoMultipart(_) => {
             E::UploadRecusado(erro)
         }
-        FalhaUpload::EfeitoIncerto { .. } => E::UploadIncerto(erro),
+        FalhaUpload::NaoConfirmado { .. } => E::UploadIncerto(erro),
     })?;
     let submissao = preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
         .map_err(E::TemporarioSemCadastro)?;
@@ -104,7 +96,7 @@ where
     let depois = leitura.map_err(E::ReleituraIncerta)?;
 
     if depois.id != antes.id || depois.pastas_nao_carregadas {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     }
     // A árvore rotula o externo com o número entre parênteses (UnB, live
     // 09/11/2026 e cassette documento-mover-cancelar-unb): `Anexo (0012272)`.
@@ -113,22 +105,22 @@ where
         &depois.documentos,
         |rotulo, numero| rotulo == format!("{tipo} ({numero})"),
     )
-    .map_err(|_| E::EfeitoIncerto)?;
+    .map_err(|_| E::NaoConfirmado)?;
     let novo = depois
         .documentos
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
-        .ok_or(E::EfeitoIncerto)?;
+        .ok_or(E::NaoConfirmado)?;
     // A árvore publica "documento_pdf" para PDFs externos (UnB/GO).
     // Número, rótulo e redirect não bastam para confirmar a inclusão externa:
     // documento interno concorrente ou natureza não observada são incertos.
     if novo.natureza.icone.as_deref() != Some("documento_pdf")
         || novo.natureza.cancelado != Some(false)
     {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     }
     let RespostaDoEnvio::Redirecionamento(redir) = resposta else {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     };
     if !redir.localizacao().is_some_and(|location| {
         crate::documento_criar::redirecionamento_do_mesmo_controlador(
@@ -137,7 +129,7 @@ where
             &novo.id,
         )
     }) {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     }
     Ok(numero)
 }

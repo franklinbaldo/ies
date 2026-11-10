@@ -19,8 +19,8 @@ a hierarquia de subclasses Python quando a família é fechada.
   mensagem variável para simular casos diferentes.
 - O tipo Rust (`enum` e seus campos) identifica a falha. **Não introduzir
   subcódigos novos, métodos de tradução ou catálogos paralelos** (ADR 0005).
-  O campo `subcodigo` só permanece nos contratos legados até sua migração;
-  não é critério de classificação no domínio.
+  A saída pública não tem `subcodigo` nem `causa`: só `codigo`, `erro`
+  (mensagem) e, quando houver, `status_http`/`mensagem_do_servidor`.
 - Preserve o erro concreto até a borda de apresentação. Não inspecione
   o texto para tomar decisões; evite `String` como tipo de erro
   para condições conhecidas.
@@ -37,8 +37,6 @@ a hierarquia de subclasses Python quando a família é fechada.
 `NumeroDoHistoricoDiferenteDoSolicitado`, `HistoricoAusente` e
 `LinhaInvalida`. As funções não precisam devolver uma string para
 classificar a falha: os consumidores fazem `match` nas variantes.
-O campo público `subcodigo`, quando ainda exigido por contrato legado,
-é produzido apenas na fronteira de apresentação, sem nova fonte de verdade.
 Nomes descrevem a condição observada, evitando qualificadores vagos
 como `ambíguo` e `divergente`.
 
@@ -62,7 +60,6 @@ atalho para classificar a falha. Ver o
 - [Erros das leituras](erros-tipados/leituras.md): anexo externo, pesquisa em documentos, versões e filtros da pesquisa.
 - [Erros das escritas](erros-tipados/escritas.md): concluir, reabrir, assinar e enviar o processo.
 - [Erros locais](erros-tipados/locais.md): configuração local e gravação privada de arquivos.
-- [Catálogo legado de subcódigos](erros-tipados/catalogo.md): inventário histórico para compatibilidade; não autoriza novos códigos, tabelas ou helpers.
 
 
 ## Subcódigos legados de blocos (#256)

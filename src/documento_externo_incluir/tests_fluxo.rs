@@ -245,7 +245,7 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
         resultado,
         Err(
             super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-                super::super::confirmacao::FalhaConfirmacao::EfeitoIncerto
+                super::super::confirmacao::FalhaConfirmacao::NaoConfirmado
             )
         )
     ));

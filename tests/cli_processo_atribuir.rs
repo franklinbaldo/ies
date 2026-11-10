@@ -24,9 +24,8 @@ fn confirmar_sem_sessao_nao_tenta_rede() {
         args.extend_from_slice(&["--confirmar", "--json"]);
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor: serde_json::Value =
+        let _valor: serde_json::Value =
             serde_json::from_slice(&saida.stdout).expect("JSON na saída");
-        assert!(valor["subcodigo"].is_string(), "erro tipado: {valor}");
     }
 }
 

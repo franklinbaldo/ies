@@ -210,10 +210,6 @@ fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
         erro,
         E::Marcadores(ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
     );
-    assert_eq!(
-        erro.subcodigo(),
-        "endereco_dos_marcadores_de_outro_processo"
-    );
     assert_eq!(pedidos.len(), 3);
 }
 
@@ -221,15 +217,11 @@ fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
 fn tela_de_outro_processo_pelo_link_da_barra_e_recusa_e_nao_e_guardada() {
     let amb = ambiente();
     let outra = tela_dos_marcadores("00009.000009/2026-09", ID);
-    let (r, _) = rodar_marc(
+    let (_r, _) = rodar_marc(
         &amb,
         PedidoDeAndamentos::Omitidos,
         SO_MARCADORES,
         frio(arvore_completa(ID), vec![ok(outra)]),
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "numero_dos_marcadores_diferente_do_solicitado"
     );
     assert_eq!(guardado(&amb), None);
 }
@@ -255,7 +247,10 @@ fn tela_sem_tabela_nao_vira_lista_vazia() {
 #[test]
 fn login_ou_503_na_tela_falham_sem_retry() {
     for (resposta, esperado) in [
-        (r302(LOGIN), Some(E::SessaoEncerrada)),
+        (
+            r302(LOGIN),
+            Some(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
+        ),
         ((503, String::new(), None), None),
     ] {
         let amb = ambiente();

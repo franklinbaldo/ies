@@ -7,29 +7,21 @@ use super::resposta::ErroRespostaDaPesquisa;
 use crate::erro_web::ErroCaixa;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroBuscaDeProcesso {
     /// GET do Controle ou da tela de pesquisa (inclui sessão vencida).
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// O Controle não foi reconhecido em nenhuma visão.
-    #[causa(interna)]
-    Controle(ErroCaixa),
+    Controle(#[from] ErroCaixa),
     UnidadeDoControleDiferenteDaSolicitada,
     CharsetDaTelaNaoSuportado,
-    #[causa(interna)]
-    Link(ErroLinkDaPesquisa),
-    #[causa(interna)]
-    Pesquisa(ErroPesquisaProtocolo),
-    #[causa(interna)]
-    Paginacao(ErroPaginacaoDaPesquisa),
+    Link(#[from] ErroLinkDaPesquisa),
+    Pesquisa(#[from] ErroPesquisaProtocolo),
+    Paginacao(#[from] ErroPaginacaoDaPesquisa),
 }
 
 impl ErroBuscaDeProcesso {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Transporte(erro) => erro.mensagem(),

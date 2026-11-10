@@ -5,19 +5,13 @@
 use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroListaDeTipos {
     TipoNaoOferecido,
     TipoSemAcao,
     ListaIncompleta,
-    #[causa(transparente)]
-    Html(ErroHtml),
-}
-
-impl ErroListaDeTipos {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
+    Html(#[from] ErroHtml),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

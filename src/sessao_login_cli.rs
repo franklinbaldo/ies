@@ -26,7 +26,7 @@ pub(crate) fn json_do_resultado(resultado: &ResultadoDoLogin) -> Value {
 /// JSON da falha `fonte_invalida`, com `status_http`, `mensagem_do_servidor`
 /// e `status_do_proxy` quando houver.
 pub(crate) fn json_do_erro(erro: &ErroLogin) -> Value {
-    let mut valor = json_de_erro_fonte(erro.subcodigo(), erro.mensagem(), erro.status_http());
+    let mut valor = json_de_erro_fonte(erro.mensagem(), erro.status_http());
     if let (Some(texto), Some(objeto)) = (erro.mensagem_do_servidor(), valor.as_object_mut()) {
         objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
     }
@@ -43,7 +43,7 @@ pub(crate) fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
     if json_mode {
         println!("{}", json_do_erro(erro));
     } else {
-        let linha = linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http());
+        let linha = linha_humana(erro.mensagem(), erro.status_http());
         match (erro.status_http(), erro.mensagem_do_servidor()) {
             (None, Some(texto)) => eprintln!("{linha} ({texto})"),
             _ => match erro.status_do_proxy() {
@@ -121,7 +121,6 @@ mod tests {
             mensagem_do_servidor: Some("Senha inválida.".to_owned()),
         });
         assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_eq!(valor["subcodigo"], "credencial_recusada");
         assert_eq!(valor["mensagem_do_servidor"], "Senha inválida.");
         assert!(valor.get("status_http").is_none());
         let valor = json_do_erro(&ErroLogin::Transporte(
@@ -133,7 +132,6 @@ mod tests {
         assert_eq!(valor["status_http"], 502);
         assert_eq!(valor["mensagem_do_servidor"], "Bad Gateway");
         let valor = json_do_erro(&ErroLogin::CaptchaExigido);
-        assert_eq!(valor["subcodigo"], "captcha_exigido");
         assert!(valor.get("mensagem_do_servidor").is_none());
     }
 }

@@ -107,10 +107,6 @@ fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     assert_eq!(r.unwrap_err(), E::EntradaPorIdRecusada);
     assert_eq!(pedidos, [get(&url_entrada(ID))]);
     assert_eq!(amb.indice.entrada_por_id(&inst), Some(false));
-    assert_eq!(
-        E::EntradaPorIdRecusada.subcodigo(),
-        "entrada_por_id_recusada"
-    );
 }
 
 #[test]
@@ -138,7 +134,10 @@ fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
     let inst = instalacao();
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     assert_eq!(pedidos.len(), 1);
     assert_eq!(amb.indice.entrada_por_id(&inst), None);
 }
@@ -210,7 +209,6 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         vec![ok(controle(&[])), ok(validacao.to_owned())],
     );
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "pesquisa_rapida_sem_url_de_trabalho");
     assert_eq!(
         erro.status_http()
             .and_then(|s| s.mensagem_do_servidor.as_deref()),
@@ -230,12 +228,18 @@ fn falhas_fora_de_palpite() {
     // Tela do processo responde login: sessão encerrada.
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP)])), r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Controle com a tela de login.
     let login = "<form action='/sip/login.php'><input id='txtUsuario'></form>";
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(login.to_owned())]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Árvore de outro processo num caminho que não é palpite.
     let amb = ambiente();
     let (r, _) = rodar(
@@ -262,24 +266,16 @@ fn falhas_fora_de_palpite() {
     assert_eq!(pedidos.len(), 1);
     // `--unidade` diferente: para no Controle.
     let amb = ambiente();
-    let (r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "unidade_do_controle_diferente_da_solicitada"
-    );
+    let (_r, pedidos) = rodar(&amb, Some("OUTRA"), vec![ok(controle(&[(ID, NUP)]))]);
     assert_eq!(pedidos.len(), 1);
     // 302 da tela do processo para outro lugar.
     let amb = ambiente();
-    let (r, _) = rodar(
+    let (_r, _) = rodar(
         &amb,
         None,
         vec![
             ok(controle(&[(ID, NUP)])),
             r302("https://sei.exemplo.gov.br/sei/inicio.php"),
         ],
-    );
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "redirecionamento_nao_reconhecido"
     );
 }
