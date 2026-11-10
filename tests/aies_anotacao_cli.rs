@@ -122,12 +122,14 @@ fn estado(texto_anotacao: &str) -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
+#[derive(Clone, Copy)]
 enum Caso<'a> {
     Consulta(&'a str),
     Registro,
     Retirada,
 }
 
+#[derive(Clone, Copy)]
 enum Resultado {
     Previa,
     Confirmado,
