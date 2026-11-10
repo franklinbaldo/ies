@@ -9,15 +9,10 @@ pub struct ArquivosDeAcesso {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroConfiguracao {
-    #[causa(nome = "caminho_url_controle_nao_informado")]
     UrlDoControleSemCaminho,
-    #[causa(nome = "caminho_cookie_nao_informado")]
     CookieSemCaminhoConfigurado,
-    #[causa(nome = "caminho_origem_nao_informado")]
     OrigemAutorizadaNaoConfigurada,
-    #[causa(nome = "arquivo_configuracao_nao_pode_ser_lido")]
     ArquivoDeConfiguracaoNaoPodeSerLido,
-    #[causa(nome = "arquivo_configuracao_permissoes_inseguras")]
     ArquivoConfiguracaoPermissoesAbertas,
     ArquivoConfiguracaoLinkSimbolico,
     ArquivoConfiguracaoJsonInvalido,
@@ -270,20 +265,13 @@ impl ArquivoPrivado {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoPrivado {
-    #[causa(nome = "caminho_privado_nao_absoluto")]
     CaminhoNaoAbsoluto(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_ausente")]
     Ausente(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_link_simbolico")]
     LinkSimbolico(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_nao_regular")]
     NaoRegular(ArquivoPrivado),
-    #[causa(nome = "arquivo_privado_vazio")]
     Vazio(ArquivoPrivado),
     #[cfg_attr(not(unix), allow(dead_code))]
-    #[causa(nome = "arquivo_privado_permissoes_inseguras")]
     PermissoesInseguras(ArquivoPrivado),
-    #[causa(nome = "metadados_arquivo_privado_nao_lidos")]
     MetadadosNaoLidos(ArquivoPrivado),
 }
 impl ErroArquivoPrivado {

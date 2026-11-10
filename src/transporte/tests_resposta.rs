@@ -15,9 +15,9 @@ fn status_http_inesperado_e_classificado_pela_faixa_observavel() {
         (429, "status_http_de_limite_de_requisicoes"),
         (404, "status_http_diferente_de_200"),
         (204, "status_http_diferente_de_200"),
-        (401, "sessao_nao_autorizada"),
-        (403, "sessao_nao_autorizada"),
-        (301, "redirecionamento_recusado"),
+        (401, "acesso_negado"),
+        (403, "acesso_negado"),
+        (301, "redirecionamento"),
     ] {
         let falha = decodificar_resposta(resposta(status, "text/html", b"<html>")).unwrap_err();
         assert_eq!(falha.subcodigo(), esperado, "status {status}");

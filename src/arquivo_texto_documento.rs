@@ -4,13 +4,9 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroArquivoTexto {
-    #[causa(nome = "destino_texto_documento_sem_nome")]
     NomeAusente,
-    #[causa(nome = "diretorio_texto_documento_ausente")]
     DiretorioAusente,
-    #[causa(nome = "arquivo_texto_documento_ja_existe")]
     DestinoJaExiste,
-    #[causa(nome = "escrita_texto_documento_falhou")]
     EscritaFalhou,
 }
 impl ErroArquivoTexto {}

@@ -67,31 +67,21 @@ impl EstadoDaMudanca {
 pub(crate) enum ErroSobrestamento {
     #[causa(interna)]
     Abertura(ErroProcessoObter),
-    #[causa(nome = "unidade_do_sobrestamento_nao_publicada")]
     UnidadeNaoPublicada,
-    #[causa(nome = "situacao_antes_do_sobrestamento_nao_lida")]
     SituacaoNaoLida(MotivoAbertoEm),
     #[causa(interna)]
     Barra(ErroAcaoSobrestar),
-    #[causa(nome = "processo_ja_sobrestado")]
     JaSobrestado,
-    #[causa(nome = "processo_nao_sobrestado")]
     NaoSobrestado,
-    #[causa(nome = "processo_nao_aberto_na_unidade_para_sobrestar")]
     ForaDaUnidade,
-    #[causa(nome = "processo_sobrestado_em_outra_unidade")]
     SobrestadoEmOutraUnidade,
-    #[causa(nome = "acao_de_sobrestamento_nao_oferecida")]
     AcaoNaoOferecida,
-    #[causa(nome = "motivo_do_sobrestamento_vazio")]
     MotivoVazio,
     #[causa(interna)]
     TelaDaEscrita(FalhaTransporte),
-    #[causa(nome = "tela_de_sobrestamento_redirecionada")]
     TelaRedirecionada,
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
-    #[causa(nome = "charset_da_tela_de_sobrestar_nao_suportado")]
     CharsetNaoSuportado,
     #[causa(interna)]
     TelaSobrestar(tela::ErroTela),
@@ -99,9 +89,7 @@ pub(crate) enum ErroSobrestamento {
     Formulario(ErroSubmissaoFormulario),
     #[causa(interna)]
     EnderecoDeRetomar(ErroEnderecoDeRetomar),
-    #[causa(nome = "sobrestamento_ou_retomada_nao_aplicados")]
     EscritaNaoAplicada,
-    #[causa(nome = "efeito_incerto_no_sobrestamento")]
     EfeitoIncerto,
 }
 

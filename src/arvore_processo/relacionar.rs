@@ -9,7 +9,6 @@ pub(crate) const ACAO_DE_RELACIONAR: &str = "procedimento_relacionar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroRelacionarNaBarra {
-    #[causa(nome = "endereco_de_relacionar_de_outro_processo")]
     EnderecoDeOutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

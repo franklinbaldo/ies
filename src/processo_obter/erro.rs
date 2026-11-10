@@ -20,10 +20,9 @@ pub(crate) enum ErroProcessoObter {
     Controle(ErroBuscaDeProcesso),
     /// A entrada por id respondeu a recusa característica ("Link sem
     /// assinatura" no `login.php`); a sessão morreu.
-    #[causa(nome = "entrada_por_id_recusada_rode_ies_login")]
     EntradaPorIdRecusada,
     /// Tela de login (200 ou 302 sem a mensagem de recusa) fora de palpite.
-    #[causa(nome = "sessao_encerrada_rode_ies_login")]
+    #[causa(sessao_encerrada)]
     SessaoEncerrada,
     /// A entrada por id respondeu outra coisa que o 302 observado.
     RespostaDaEntradaPorIdNaoReconhecida(StatusHttpRecusado),

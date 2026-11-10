@@ -42,15 +42,10 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroTela {
-    #[causa(nome = "tela_do_andamento_invalida")]
     HtmlInvalido,
-    #[causa(nome = "formulario_do_andamento_ausente_ou_duplicado")]
     FormularioAusenteOuDuplicado,
-    #[causa(nome = "controles_do_andamento_ausentes_ou_duplicados")]
     ControleAusenteOuDuplicado,
-    #[causa(nome = "formulario_do_andamento_de_outro_processo")]
     ProtocoloDiferente,
-    #[causa(nome = "campo_inesperado_no_formulario_do_andamento")]
     CampoInesperado,
 }
 impl ErroTela {

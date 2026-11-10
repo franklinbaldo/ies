@@ -9,9 +9,7 @@ use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 enum ErroHtmlPrivado {
-    #[causa(nome = "html_privado_exige_um_documento")]
     QuantidadeDeDocumentos,
-    #[causa(nome = "opcoes_de_documento_incompativeis_com_html_privado")]
     OpcoesDeDocumentoSemEvidencia,
     #[causa(interna)]
     Numero(documento::NumeroDocumentoInvalido),
@@ -21,7 +19,6 @@ enum ErroHtmlPrivado {
     Titulo(documento_web::ErroTituloDocumento),
     #[causa(interna)]
     Corpo(documento_web::ErroCorpoDocumento),
-    #[causa(nome = "numero_do_html_diferente_do_solicitado")]
     NumeroDiferenteDoSolicitado,
     #[causa(interna)]
     Exportacao(arquivo_texto_documento::ErroArquivoTexto),

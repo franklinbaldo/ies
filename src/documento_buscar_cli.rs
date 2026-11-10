@@ -20,9 +20,7 @@ use std::process::ExitCode;
 /// Termo da pesquisa em documentos: texto opaco do campo Protocolo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum TermoDeDocumentoInvalido {
-    #[causa(nome = "termo_de_documento_vazio")]
     Vazio,
-    #[causa(nome = "termo_de_documento_contem_controle")]
     Controle,
 }
 

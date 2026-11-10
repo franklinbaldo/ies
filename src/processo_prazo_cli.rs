@@ -149,7 +149,7 @@ fn previsualizar(
         Err(erro) => {
             return recusar(
                 cli.json,
-                erro.subcodigo(),
+                crate::erro_publico::folha(&erro),
                 "o link de controle de prazo não corresponde ao processo ou à forma observada",
             );
         }

@@ -10,7 +10,6 @@ pub(crate) const ACAO_DE_ANEXAR: &str = "procedimento_anexar";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAnexarNaBarra {
-    #[causa(nome = "endereco_de_anexar_de_outro_processo")]
     EnderecoDeOutroProcesso,
     #[causa(transparente)]
     Html(ErroHtml),

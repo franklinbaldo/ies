@@ -26,19 +26,14 @@ const MAX_RESPOSTA: usize = 16 * 1024;
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDoProxy {
     /// O valor da variável não segue `[http://][cred@]host:porta[/]`.
-    #[causa(nome = "endereco_de_proxy_invalido")]
     EnderecoInvalido,
     /// Esquema diferente de `http://` (`https://`, `socks5://`...).
-    #[causa(nome = "proxy_com_esquema_nao_suportado")]
     EsquemaNaoSuportado,
     /// DNS ou conexão TCP ao proxy falhou; nada foi enviado ao SEI.
-    #[causa(nome = "proxy_inacessivel")]
     Inacessivel,
     /// O proxy respondeu ao `CONNECT` fora do HTTP/1.x esperado.
-    #[causa(nome = "resposta_do_proxy_nao_interpretavel")]
     RespostaNaoInterpretavel,
     /// O proxy respondeu ao `CONNECT` com status fora de 2xx.
-    #[causa(nome = "proxy_recusou_o_tunel")]
     RecusouOTunel { status: u16 },
 }
 

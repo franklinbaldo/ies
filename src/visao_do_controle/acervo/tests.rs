@@ -114,7 +114,7 @@ fn redirecionamento_e_tela_de_login_sao_recusas_do_transporte() {
     assert_eq!(
         resultado(&replay, Leitor::Transporte),
         [
-            &Resultado::Recusado("redirecionamento_recusado"),
+            &Resultado::Recusado("redirecionamento"),
             &Resultado::Recusado("pagina_de_login_recebida_no_controle"),
         ]
     );
@@ -142,7 +142,7 @@ fn unidade_da_tela_anterior_diferente_e_recusada() {
         resultado(&replay, Leitor::UnidadeSolicitada),
         [
             &Resultado::Lido,
-            &Resultado::Recusado("unidade_da_tela_diferente_da_solicitada"),
+            &Resultado::Recusado("unidade_diferente_da_solicitada"),
         ]
     );
     assert!(

@@ -16,7 +16,7 @@ fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(result["subcodigo"], "caminho_url_controle_nao_informado");
+    assert_eq!(result["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]
@@ -30,7 +30,7 @@ fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
         .unwrap();
     assert_eq!(resposta.status.code(), Some(1));
     let dados: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
-    assert_eq!(dados["subcodigo"], "caminho_origem_nao_informado");
+    assert_eq!(dados["subcodigo"], "origem_autorizada_nao_configurada");
 }
 
 #[test]

@@ -23,5 +23,5 @@ fn mes_invalido_falha_antes_de_ler_sessao_ou_rede() {
     let resposta = ies(&["--json", "unidade", "retornos", "--mes", "2026-13"]);
     assert_eq!(resposta.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
-    assert_eq!(json["subcodigo"], "mes_dos_retornos_invalido");
+    assert_eq!(json["subcodigo"], "mes_da_cli_invalido");
 }

@@ -18,17 +18,11 @@ pub(crate) struct FotografiaDosGerados {
 pub(crate) enum ErroFotografia {
     #[causa(interna)]
     Caixa(crate::erro_web::ErroCaixa),
-    #[causa(nome = "gerados_sem_cobertura_completa_para_reconciliacao")]
     CoberturaIncompleta,
-    #[causa(nome = "nup_repetido_na_fotografia_de_gerados")]
     NupRepetido,
-    #[causa(nome = "identidade_ja_observada_alterada_na_reconciliacao")]
     IdentidadeAlterada,
-    #[causa(nome = "identidade_anterior_ausente_na_reconciliacao")]
     IdentidadeAnteriorAusente,
-    #[causa(nome = "link_do_candidato_nao_comprovado")]
     LinkDoCandidatoNaoComprovado,
-    #[causa(nome = "links_do_candidato_repetidos")]
     LinksDoCandidatoRepetidos,
 }
 

@@ -54,35 +54,20 @@ impl LeituraDetalhada {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroDetalhada {
-    #[causa(nome = "modo_detalhado_nao_confirmado")]
     VisualizacaoIncorreta,
-    #[causa(nome = "unidade_da_detalhada_ausente")]
     UnidadeNaoIdentificada,
-    #[causa(nome = "unidade_da_detalhada_diferente_da_solicitada")]
     UnidadeDiferente,
-    #[causa(nome = "contexto_detalhado_alterado")]
     ContextoDiferente,
-    #[causa(nome = "colunas_da_linha_detalhada_diferentes")]
     ColunasDaLinhaDiferentes,
-    #[causa(nome = "classes_de_estado_diferentes_no_link_detalhado")]
     ClassesDeEstadoDiferentesNoLink,
-    #[causa(nome = "total_detalhado_nao_declarado")]
     TotalNaoDeclarado,
-    #[causa(nome = "faixa_detalhada_sem_intervalo_com_paginacao")]
     FaixaSemIntervaloComPaginacao,
-    #[causa(nome = "faixa_detalhada_descontinua")]
     FaixaDescontinua,
-    #[causa(nome = "total_detalhado_alterado")]
     TotalAlterado,
-    #[causa(nome = "limite_paginas_detalhadas")]
     LimitePaginas,
-    #[causa(nome = "rotulo_da_celula_detalhada_diferente_do_cabecalho")]
     RotuloDaCelulaDiferenteDoCabecalho,
-    #[causa(nome = "itens_da_celula_detalhada_nao_separados")]
     ItensDaCelulaNaoSeparados,
-    #[causa(nome = "cabecalho_detalhado_diferente_entre_paginas")]
     CabecalhoDiferenteEntrePaginas,
-    #[causa(nome = "texto_fora_dos_marcadores_na_celula_detalhada")]
     TextoForaDosMarcadoresNaCelula,
     #[causa(transparente)]
     Html(ErroHtml),

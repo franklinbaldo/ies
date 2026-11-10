@@ -233,7 +233,7 @@ fn falhas_de_troca_sao_apresentadas_direto_do_tipo_sem_json() {
     assert_eq!(
         linhas[1],
         format!(
-            "IES: etapa segundo_redirecionamento: redirecionamento_da_troca_sem_localizacao; {AVISO_DE_ESCOPO}"
+            "IES: etapa segundo_redirecionamento: redirecionamento_sem_localizacao; {AVISO_DE_ESCOPO}"
         )
     );
     assert_eq!(linhas[2], "IES: 3 requisições.");

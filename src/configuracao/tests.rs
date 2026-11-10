@@ -55,7 +55,7 @@ fn ausente_tem_causa_distinta_e_subcodigo_publico_legado() {
     assert_eq!(causa, F::Ausente);
     assert_eq!(
         Publico::from(causa).subcodigo(),
-        "arquivo_configuracao_nao_pode_ser_lido"
+        "arquivo_de_configuracao_nao_pode_ser_lido"
     );
 }
 
@@ -122,7 +122,7 @@ fn permissao_aberta_eh_recusada_antes_da_leitura() {
     );
     assert_eq!(
         Publico::from(F::PermissoesAbertas).subcodigo(),
-        "arquivo_configuracao_permissoes_inseguras"
+        "arquivo_configuracao_permissoes_abertas"
     );
 }
 
