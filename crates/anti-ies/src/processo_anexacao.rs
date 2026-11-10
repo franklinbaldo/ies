@@ -1,7 +1,12 @@
 //! Formulário de anexação em estado SQLite, somente em bancada sintética.
 //! Hipótese declarada em Todos/src/todos/anexacao.py @323eb01.
 use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
-use iesei::{anexacoes, instalacao::Instalacao, processos};
+use iesei::{
+    anexacoes,
+    editor_documento::{self, SituacaoAssinaturas},
+    instalacao::Instalacao,
+    processos,
+};
 use rusqlite::Connection;
 use std::fmt::Write as _;
 
@@ -105,8 +110,8 @@ pub(crate) fn identificar(
     })
 }
 
-/// Consulta de assinaturas publicada como AJAX. O anti-IES declara apenas a
-/// hipótese "S"; esta não é uma evidência empírica de assinaturas no SEI.
+/// Consulta de assinaturas publicada como AJAX. A resposta deriva do estado
+/// documental sintético, nunca da leitura de uma assinatura real do SEI.
 pub(crate) fn consulta(
     metodo: &str,
     alvo: &str,
@@ -132,10 +137,23 @@ pub(crate) fn consulta(
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
+    let Ok(situacao) = editor_documento::situacao_assinaturas_anexacao(banco, origem, cenario, &id)
+    else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let resultado = match situacao {
+        SituacaoAssinaturas::SemPendencias => "S",
+        SituacaoAssinaturas::Pendentes => "N",
+        SituacaoAssinaturas::NaoObservadas => {
+            return Resposta::nova(Estado::DadosInsuficientes);
+        }
+    };
     Resposta {
         estado: Estado::Ok,
         tipo_conteudo: "application/xml; charset=utf-8",
-        corpo: "<complementos><complemento nome=\"Anexacao\">S</complemento></complementos>".into(),
+        corpo: format!(
+            "<complementos><complemento nome=\"Anexacao\">{resultado}</complemento></complementos>"
+        ),
         localizacao: None,
         corpo_binario: None,
     }

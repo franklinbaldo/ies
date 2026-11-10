@@ -4,6 +4,8 @@
 use anti_ies::atender_http;
 use iesei::anexacoes;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
+use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
+use iesei::editor_documento::{self, Oferta};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
@@ -11,6 +13,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::num::NonZeroU32;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -160,7 +163,78 @@ enum Modo {
     Aceite,
     RespostaIncerta,
     Previa,
+    PreviaPendencia,
+    PreviaAssinada,
+    PreviaSemObservacao,
     JaAnexado,
+}
+
+/// Estado inicial sintético para uma das hipóteses de anexação.
+fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
+    if matches!(
+        modo,
+        Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao
+    ) {
+        documento_versoes::guardar(
+            banco,
+            CENARIO,
+            &DocumentoSimulado {
+                instalacao: instalacao.clone(),
+                id_documento: "77".into(),
+                id_procedimento: "22".into(),
+                numero_processo: ANEXADO.into(),
+                numero: "770000".into(),
+                tipo: "Despacho".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "10/11/2026".into(),
+                    html_corpo: "<p>Documento com observação de assinatura</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        if !matches!(modo, Modo::PreviaSemObservacao) {
+            editor_documento::registrar_oferta(
+                banco,
+                instalacao,
+                CENARIO,
+                "77",
+                Oferta {
+                    editavel: true,
+                    assinaturas: u32::from(matches!(modo, Modo::PreviaAssinada)),
+                },
+            )
+            .unwrap();
+        }
+    }
+    if matches!(modo, Modo::JaAnexado) {
+        anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
+    }
+}
+
+fn conferir_aviso_pendencia(
+    modo: Modo,
+    pasta: &Pasta,
+    arquivos: [&std::path::Path; 4],
+    porta: u16,
+) {
+    if !matches!(modo, Modo::PreviaPendencia) {
+        return;
+    }
+    let aviso = cli(
+        pasta,
+        arquivos,
+        porta,
+        &["processo", "anexar", ANEXADO, "--a", PRINCIPAL],
+    );
+    assert_eq!(aviso.status.code(), Some(0));
+    assert!(
+        String::from_utf8_lossy(&aviso.stdout).contains("há documento sem assinatura"),
+        "aviso de prévia ausente: {}",
+        String::from_utf8_lossy(&aviso.stdout)
+    );
 }
 
 fn executar(modo: Modo) {
@@ -186,10 +260,8 @@ fn executar(modo: Modo) {
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado();
-        if matches!(modo, Modo::JaAnexado) {
-            anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
-        }
+        let (mut banco, instalacao) = estado();
+        preparar_estado(modo, &mut banco, &instalacao);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -235,11 +307,14 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-        Modo::Previa | Modo::JaAnexado => {
-            &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
-        }
+        Modo::Previa
+        | Modo::PreviaPendencia
+        | Modo::PreviaAssinada
+        | Modo::PreviaSemObservacao
+        | Modo::JaAnexado => &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL],
     };
     let saida = cli(&pasta, arquivos, porta, comando);
+    conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
     let posterior = cli(
         &pasta,
         arquivos,
@@ -269,9 +344,9 @@ fn conferir_resultados(
     pedidos: &[String],
 ) {
     let esperado = match modo {
-        Modo::Aceite | Modo::Previa => 0,
+        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => 0,
         Modo::RespostaIncerta => 3,
-        Modo::JaAnexado => 1,
+        Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
     };
     assert_eq!(
         saida.status.code(),
@@ -294,12 +369,26 @@ fn conferir_resultados(
             assert!(saida_json["escrita"]["aplicada"].is_null());
             assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
         }
-        Modo::Previa => {
+        Modo::Previa | Modo::PreviaAssinada => {
             assert_eq!(saida_json["principal"], PRINCIPAL);
             assert_eq!(saida_json["anexado"], ANEXADO);
             assert_eq!(saida_json["documentos_assinados"], true);
             assert_eq!(saida_json["confirmado"], false);
             assert_eq!(saida_json["alterado"], false);
+        }
+        Modo::PreviaPendencia => {
+            assert_eq!(saida_json["principal"], PRINCIPAL);
+            assert_eq!(saida_json["anexado"], ANEXADO);
+            assert_eq!(saida_json["documentos_assinados"], false);
+            assert_eq!(saida_json["confirmado"], false);
+            assert_eq!(saida_json["alterado"], false);
+        }
+        Modo::PreviaSemObservacao => {
+            assert!(saida_json.get("documentos_assinados").is_none());
+            assert!(
+                !saida.status.success(),
+                "assinatura não observada não é assinatura comprovada"
+            );
         }
         Modo::JaAnexado => {
             assert_eq!(saida_json["codigo"], "operacao_recusada");
@@ -346,6 +435,21 @@ fn bdd_270_02_efeito_incerto_sem_retry_de_anexacao() {
 #[test]
 fn bdd_270_01_previa_nao_anexa_e_preserva_o_principal() {
     executar(Modo::Previa);
+}
+
+#[test]
+fn bdd_270_01_previa_avisa_documento_sem_assinatura_e_nao_anexa() {
+    executar(Modo::PreviaPendencia);
+}
+
+#[test]
+fn consulta_com_assinatura_positiva_observada_preserva_previa() {
+    executar(Modo::PreviaAssinada);
+}
+
+#[test]
+fn consulta_sem_observacao_de_assinatura_nao_inventa_assinada() {
+    executar(Modo::PreviaSemObservacao);
 }
 
 #[test]
