@@ -186,7 +186,10 @@ fn conferir_previa_humana(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta_
     assert_eq!(preview.status.code(), Some(0));
     let humano = String::from_utf8_lossy(&preview.stdout);
     assert!(humano.contains("Prévia: retirar marcador 501#Revisão"));
-    assert!(humano.contains("A escrita ainda não está disponível"));
+    assert!(humano.contains("Esta prévia não alterou o processo"));
+    assert!(humano.contains("--confirmar em treinamento"));
+    assert!(humano.contains("formulário conferido"));
+    assert!(!humano.contains("A escrita ainda não está disponível"));
 }
 
 #[derive(Clone, Copy)]
