@@ -26,8 +26,7 @@ fn bdd_60_05_cli_humana_recusa_duplicidade_na_arvore_do_processo() {
             "a pessoa deve ver a causa específica: {mensagem}"
         );
         assert!(
-            !mensagem.contains("Conteudo exclusivo")
-                && !mensagem.contains("Outro corpo"),
+            !mensagem.contains("Conteudo exclusivo") && !mensagem.contains("Outro corpo"),
             "a ambiguidade não publica documento escolhido arbitrariamente: {mensagem}"
         );
         assert!(
@@ -74,7 +73,9 @@ fn bdd_60_05_cli_humana_nao_oferece_documento_de_outro_nup() {
         "não publicar corpo do documento alheio: {mensagem}"
     );
     assert!(
-        !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+        !trilha
+            .iter()
+            .any(|pedido| pedido == "GET documento_visualizar"),
         "nenhum GET de corpo de DOC_B: {trilha:?}"
     );
     assert!(
