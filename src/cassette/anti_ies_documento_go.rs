@@ -162,6 +162,50 @@ fn confrontar_recusas_de_versoes(
     }
 }
 
+/// Reconstrói o estado a partir do card e exige imutabilidade completa após HTTP.
+fn servir_historico_de_cassette(
+    documento: DocumentoSimulado,
+    instalacao: iesei::instalacao::Instalacao,
+    incluir_corpo: bool,
+) -> (SocketAddr, std::thread::JoinHandle<()>) {
+    let quantidade = documento.revisoes.len();
+    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let endereco = escuta.local_addr().unwrap();
+    // GET de versão inexistente e identidade documental contraditória são
+    // perturbações sintéticas dos IDs observados, não respostas do SEI.
+    let pedidos = 5 + 3 * usize::from(incluir_corpo);
+    let tarefa = std::thread::spawn(move || {
+        let mut banco = Connection::open_in_memory().unwrap();
+        iniciar(&banco).unwrap();
+        guardar(&mut banco, "cassette-historico-sei", &documento).unwrap();
+        for _ in 0..pedidos {
+            let (mut fluxo, _) = escuta.accept().unwrap();
+            anti_ies::atender_http(
+                &mut fluxo,
+                Some((&banco, &instalacao, "cassette-historico-sei")),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            i64::try_from(quantidade).unwrap()
+        );
+        assert_eq!(
+            iesei::documento_versoes::ler(
+                &banco,
+                &instalacao,
+                "cassette-historico-sei",
+                &documento.id_documento,
+            )
+            .unwrap(),
+            Some(documento),
+            "GETs e métodos recusados devem preservar todos os campos do documento"
+        );
+    });
+    (endereco, tarefa)
+}
+
 fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool) {
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(caminho_card);
@@ -209,7 +253,6 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         }),
         "versões sem corpo capturado ficam apenas com estrutura vazia"
     );
-    let quantidade = revisoes.len();
     let documento = DocumentoSimulado {
         instalacao: instalacao.clone(),
         id_documento: id.to_owned(),
@@ -222,40 +265,8 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
             .map_or(rotulo_observado, |(_, tipo, _)| tipo.clone()),
         revisoes,
     };
-    let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let endereco = escuta.local_addr().unwrap();
-    // GET de versão inexistente e identidade documental contraditória são
-    // perturbações sintéticas dos IDs observados, não respostas do SEI.
-    let pedidos = 5 + 3 * usize::from(conteudo.is_some());
-    let tarefa = std::thread::spawn(move || {
-        let mut banco = Connection::open_in_memory().unwrap();
-        iniciar(&banco).unwrap();
-        guardar(&mut banco, "cassette-historico-sei", &documento).unwrap();
-        for _ in 0..pedidos {
-            let (mut fluxo, _) = escuta.accept().unwrap();
-            anti_ies::atender_http(
-                &mut fluxo,
-                Some((&banco, &instalacao, "cassette-historico-sei")),
-            )
-            .unwrap();
-        }
-        assert_eq!(
-            banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
-                .unwrap(),
-            i64::try_from(quantidade).unwrap()
-        );
-        assert_eq!(
-            iesei::documento_versoes::ler(
-                &banco,
-                &instalacao,
-                "cassette-historico-sei",
-                &documento.id_documento,
-            )
-            .unwrap(),
-            Some(documento),
-            "GETs e métodos recusados devem preservar todos os campos do documento"
-        );
-    });
+    let (endereco, tarefa) =
+        servir_historico_de_cassette(documento, instalacao, conteudo.is_some());
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
