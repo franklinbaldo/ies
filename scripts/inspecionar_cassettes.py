@@ -138,6 +138,9 @@ def verificar(caminho, arquivos):
                     args.get("acao_origem") == ["procedimento_atribuicao_cadastrar"],
                 )
                 formatos_redirect_atribuicao[classe] += 1
+    nome_card = Path(caminho).name
+    if card['installation'] == 'unb' and 'bloco-incluir-anotar-retirar' in nome_card:
+        _diagnostico_bloco_escolher(interacoes)
     # Nunca imprimir valores de URLs, corpos, cookies, tokens, hashes de sessao ou HTML.
     nome = Path(caminho).name
     print(f"PASS {card['installation']} {nome}: {len(interacoes)} interacoes; SHA-1/SHA-256 OK")
@@ -150,6 +153,69 @@ def verificar(caminho, arquivos):
         print("ATTRIBUTION_302_SHAPES", sorted(formatos_redirect_atribuicao.items()))
     return len(interacoes)
 
+
+
+
+def _campos_por_nome(corpo):
+    """Somente PRESENCA de campos permitidos: jamais registra conteudo bruto."""
+    permitidos = (
+        "selBloco", "hdnDocumentosItensSelecionados", "hdnDocumentosItens",
+        "hdnDocumentosNroItens", "sbmIncluir", "chkDocumentosItem0",
+    )
+    if isinstance(corpo, dict):
+        texto = " ".join(str(k) for k in corpo.keys())
+        return [c for c in permitidos if c in corpo or c in texto]
+    if isinstance(corpo, str):
+        return [c for c in permitidos if re.search(r"(?:^|[&?])" + c + r"=", corpo)]
+    return []
+
+
+def _diagnostico_bloco_escolher(interacoes):
+    """Diferencia metodos, aceite, navegacao e lacuna de prova sem imprimir segredos."""
+    for i, item in enumerate(interacoes):
+        req = item.get("request") or {}
+        metodo, acao, _ = detalhes_requisicao(req)
+        if acao != "bloco_escolher":
+            continue
+        resp = item.get("response") or {}
+        cabecalhos = resp.get("headers") or {}
+        destino = next(
+            (valor for nome, valor in cabecalhos.items()
+             if str(nome).lower() == "location" and isinstance(valor, str)),
+            "",
+        )
+        argumentos_destino = parse_qs(urlsplit(destino).query)
+        acao_destino = argumentos_destino.get("acao", [])
+        acao_segura = (
+            acao_destino[0] if len(acao_destino) == 1
+            and re.fullmatch(r"[a-z_]{1,64}", acao_destino[0]) else None
+        )
+        dados = req.get("body", req.get("data", req.get("payload", None)))
+        campos = _campos_por_nome(dados)
+        anterior = detalhes_requisicao(interacoes[i - 1].get("request"))[:2] if i else None
+        posterior = (
+            detalhes_requisicao(interacoes[i + 1].get("request"))[:2]
+            if i + 1 < len(interacoes) else None
+        )
+        corpo_resposta = resp.get("body", "")
+        formulario = (
+            isinstance(corpo_resposta, str)
+            and "frmBlocoEscolher" in corpo_resposta
+        )
+        print(
+            "BLOCO_ESCOLHER_SHAPE",
+            "idx=", i + 1,
+            "method=", metodo,
+            "status=", resp.get("status_code"),
+            "request_keys=", sorted(req.keys()),
+            "body_kind=", type(dados).__name__,
+            "allowed_form_keys=", campos,
+            "response_keys=", sorted(resp.keys()),
+            "response_form_marker=", formulario,
+            "redirect_action=", acao_segura,
+            "previous=", anterior,
+            "next=", posterior,
+        )
 
 def argumentos():
     if len(sys.argv) > 1:
