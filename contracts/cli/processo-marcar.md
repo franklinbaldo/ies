@@ -29,26 +29,31 @@ publica URL assinada, cookie ou `infra_hash`.
 - Se o id não consta da lista completa, retirar também é idempotente,
   saída 0, sem escrita. Se o mesmo id tem nome diferente, recusa.
 - Se está presente e o pedido é retirar, produz **prévia** com a unidade,
-  id, nome e `requisicoes` realmente contadas. `--confirmar` recusa
-  `remocao_sem_formulario_observado`: **nenhum POST**.
+  id, nome e `requisicoes` realmente contadas, sem POST. Em origem autorizada
+  de treinamento, `--confirmar` só envia uma remoção quando observa os
+  campos ocultos e o `action` de `acaoRemover` no formulário servido.
+  Falta de formulário comprovado recusa sem POST.
 - Se está ausente e o pedido é atribuir, recusa
   `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
   existir **no processo** para provar que ele existe **na unidade**.
 
-A prévia não reivindica a escrita como implementada. Se `--confirmar` for
-pedido, a CLI explica **antes de abrir sessão ou rede** que a confirmação
-não está disponível e orienta a executar sem `--confirmar` para consultar
-uma prévia. A instrução é idêntica nas saídas humana e JSON; não promete
-que a prévia tenha removido ou atribuído o marcador. O código não executa
-JavaScript e não interpreta mensagem do SEI para classificação.
+A prévia não reivindica uma escrita. A confirmação de **atribuição** ainda
+é recusada antes de sessão ou rede, com orientação para consultar a prévia.
+A confirmação de **retirada** exige origem de treinamento autorizada,
+formulário específico observado e um único POST. Só declara sucesso se o
+redirecionamento 302 identifica a operação de retirada no mesmo processo
+**e** uma consulta independente demonstra ausência do marcador. Falha na
+prova causal ou na releitura após o envio resulta em **saída 3**, sem nova
+tentativa, com a orientação de não repetir a confirmação. O código não
+executa JavaScript e não classifica erros pelo texto da mensagem.
 
 ## Orçamento e sequência da fatia
 
 `ies processo NUP --sem-andamentos --sem-propriedades` com exigência da
 unidade e leitura de marcadores. Requisições variam conforme abertura e
-cache, mas são contadas pelo leitor. Não ocorre requisição adicional para
-prévia, idempotência ou recusa. `--confirmar` neste recorte faz **zero
-requisições de escrita**. O teste `previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post`
+cache, mas são contadas pelo leitor. A prévia, idempotência e recusa não
+escrevem. Para retirada confirmada, a CLI lê a tela de gerenciamento,
+envia no máximo **um POST** e relê o processo independentemente. O teste `previa_de_retirada_e_confirmacao_bloqueada_usam_quatro_get_zero_post`
 usa uma abertura fria sintética pelo Controle: **3 GET para abrir o
 processo + 1 GET para a tela dos marcadores = 4 GET, 0 POST**, tanto
 na prévia quanto na confirmação recusada. O transporte roteirizado
@@ -68,9 +73,8 @@ Entrada inválida não lê configuração.
 ## Inventário normativo de subcódigos
 
 A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
-Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto
-a escrita não for observada, `--confirmar` recusa
-`escrita_ainda_fechada` antes de abrir a sessão.
+Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto a atribuição ainda não tiver formulário/catálogo validado,
+`--marcador --confirmar` recusa `escrita_ainda_fechada` antes da sessão.
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
@@ -81,8 +85,8 @@ a escrita não for observada, `--confirmar` recusa
 | `lista_de_marcadores_parcial` | Linhas observadas diferentes do total declarado |
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
 | `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
-| `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
-| `escrita_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
+| `remocao_sem_formulario_observado` | Remoção sem ação/controles observados no formulário servido |
+| `escrita_ainda_fechada` | `--marcador --confirmar`: atribuição ainda fechada, saída 1 e 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
 | `texto_do_marcador_longo` | Texto excede 250 caracteres |
@@ -111,11 +115,13 @@ camada de leitura existente. A saída de prévia JSON traz
 
 ## Ainda faltam (sem promessa de escrita)
 
-Observar na cassette e ao vivo os formulários de **catálogo da unidade,
-atribuição e remoção** (incluindo URLs assinadas e resposta), testes RED
-do POST único derivado de `formulario_web`, prévia de atribuição ausente,
-reconciliação por releitura após envio, saída 3 no efeito incerto, replay e
-validação live UnB. Somente depois disso habilitar `--confirmar`.
+Restam catálogo da unidade e atribuição ausente, confronto semântico
+independente com as cassettes de **remoção**, prévia e escrita live em UnB
+e nas demais instalações autorizadas, incluindo resíduo e orçamento. O
+POST único de retirada e sua releitura estão implementados **somente com
+prova sintética** pela CLI real ↔ anti-IES ↔ SQLite; a equivalência com
+uma instalação SEI ainda não foi comprovada. A atribuição com `--confirmar`
+permanece fechada.
 Escritas são autorizadas apenas em **treinamento**, com prévia, um único
 envio e verificação por leitura, nunca retry.
 
