@@ -155,7 +155,10 @@ pub(super) fn abrir_trabalho<V: EnvioDoProcesso>(
             )?;
             let resultado =
                 rede.abrir_da_tela(contexto, trabalho, (&nova_tela, &novo_mime), validada, id);
-            if resultado.as_ref().is_err_and(|erro| erro.sessao_encerrada()) {
+            if resultado
+                .as_ref()
+                .is_err_and(|erro| erro.sessao_encerrada())
+            {
                 return Err(ErroValidacaoAcesso::ReleituraNaoConfirmada.into());
             }
             return resultado;
