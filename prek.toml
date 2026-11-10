@@ -59,7 +59,7 @@ stages = ["pre-push"]
 
 [[repos.hooks]]
 id = "scripts-python"
-name = "Autotestes sintéticos dos scripts Python (benchmark pareado, saneador de HAR, auditoria OSV, subcódigos)"
+name = "Autotestes sintéticos dos scripts Python"
 entry = "python3 -I -m unittest discover -s scripts -p test_*.py"
 language = "system"
 pass_filenames = false
@@ -67,9 +67,9 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "auditoria-osv"
-name = "Dependências crates.io sem avisos abertos no OSV"
-entry = "python3 -I scripts/osv_audit.py"
+id = "auditoria-dependencias"
+name = "Avisos de segurança das dependências (cargo-deny)"
+entry = "sh -c 'if command -v cargo-deny >/dev/null; then cargo deny check advisories; elif [ -n \"$CI\" ]; then echo cargo-deny ausente no CI; exit 1; else echo NOT_RUN: cargo-deny ausente; fi'"
 language = "system"
 pass_filenames = false
 always_run = true
