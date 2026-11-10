@@ -206,10 +206,7 @@ fn sobrestar_post_redirecionado_ao_login_nao_prova_efeito_concorrente() {
         Acao::Sobrestar,
         Some("Aguarda decisao"),
         true,
-        respostas_sobrestar(
-            r302("controlador.php?acao=login"),
-            ok(sobrestado()),
-        ),
+        respostas_sobrestar(r302("controlador.php?acao=login"), ok(sobrestado())),
     );
     assert_eq!(resultado, Err(E::EfeitoIncerto));
     assert_eq!(pedidos, pedidos_sobrestar());
