@@ -12,8 +12,10 @@ unresolved_steps: 0
 
 # processo.comentarios
 
-Origem: matriz de demonstrações do Todos. IES Rust: NÃO IMPLEMENTADO.
-Os estados abaixo pertencem ao Todos, não são vereditos do IES.
+Origem: matriz de demonstrações do Todos. **Leitura CLI Rust BDD-257-01
+implementada sinteticamente**, ainda sem validação live e sem confronto
+semântico independente. A escrita `processo comentar` está bloqueada.
+Os estados do Todos abaixo não são vereditos do IES.
 
 As referências #N são passos de roteiro; o link leva à revisão com
 o mesmo cenário, mas ainda não certifica igualdade de revisão.
@@ -60,6 +62,16 @@ Estado registrado no Todos: **demonstrada**.
 Estado registrado no Todos: **demonstrada**.
 
 - `comentarios-ciclo-go#3,7,8` → [comentarios-ciclo-go--76c984b41a29.md](../../cassettes/go/comentarios-ciclo-go--76c984b41a29.md), [comentarios-ciclo-go--8bf61843326d.md](../../cassettes/go/comentarios-ciclo-go--8bf61843326d.md) (revisões não desambiguadas)
+
+## Verificações da implementação
+
+- O workflow `inspecionar-cassettes.yml` verificou duas capturas,
+  [UnB/GO, 76 interações](https://github.com/franklinbaldo/ies/actions/runs/42786966461),
+  SHA-1/SHA-256, esquema e estrutura dos métodos, incluindo GET
+  `comentario_listar`. Isso **não é replay nem confronto semântico**.
+- `tests/aies_comentarios_cli.rs`: prova apenas do ciclo sintético, com
+  GET sem POST, SQLite v33 e causas tipadas para lista incompleta/ausente.
+- **Confronto semântico independente:** NOT_RUN. **Treinamento/live:** NOT_RUN.
 
 ## Limite da evidência
 

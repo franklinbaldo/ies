@@ -428,3 +428,6 @@ fn http_historico_e_conteudo_recusam_identidade_de_protocolo_conflitante() {
 
 #[path = "aies_navegacao_identidade_http/parametros_repetidos.rs"]
 mod parametros_repetidos;
+
+#[path = "aies_navegacao_identidade_http/trabalhar_ambiguidade.rs"]
+mod trabalhar_ambiguidade;

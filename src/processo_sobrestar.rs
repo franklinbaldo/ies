@@ -189,8 +189,7 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     let oferecida = match acao {
         Acao::Sobrestar => acoes.sobrestar,
         Acao::Retomar => acoes.retomar,
-    }
-    .map_err(ErroSobrestamento::Barra)?;
+    }?;
     let endereco = oferecida.ok_or(ErroSobrestamento::AcaoNaoOferecida)?;
     Ok((
         Previa {
