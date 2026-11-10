@@ -236,7 +236,7 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         .flat_map(|t| t.children().all(parser))
         .filter_map(tl::Node::as_tag)
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("script"))
-        .map(|t| t.inner_text(parser).to_string())
+        .map(|t| t.raw().as_utf8_str().into_owned())
         .collect();
 
     let mut urls = Vec::new();
@@ -244,7 +244,10 @@ pub(super) fn url_exclusao(html: &str) -> Result<String, &'static str> {
         let Some(script) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let texto = script.inner_text(parser).to_string();
+        // Fonte bruta, não inner_text: o SEI 4 da `UnB` envolve o script em
+        // `<!--//--><![CDATA[//><!--`, que o tokenizador lê como comentário
+        // e inner_text omite (live de 10/11/2026, lista de relacionamentos).
+        let texto = script.raw().as_utf8_str().into_owned();
         if inertes.contains(&texto) {
             continue;
         }

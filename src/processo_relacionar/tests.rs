@@ -167,3 +167,14 @@ fn remocao_sem_passos_ou_com_handler_duplicado_e_recusada() {
     let duplicada = servido.replace("</script>", "function acaoRemover(id){}\n</script>");
     assert!(super::tela::url_exclusao(&duplicada).is_err());
 }
+
+/// Dado o script do SEI 4 da `UnB` envolto em `<!--//--><![CDATA[//><!--`
+/// (live de 10/11/2026), quando preparo a remoção, então a função é achada.
+#[test]
+fn extrai_action_de_script_envolto_em_comentario_cdata_da_unb() {
+    let envolto = tela_com_remocao_servida()
+        .replace("<script>\n", "<script type=\"text/javascript\" charset=\"iso-8859-1\" >\n<!--//--><![CDATA[//><!--\n")
+        .replace("</script>", "//--><!]]>\n</script>");
+    let url = super::tela::url_exclusao(&envolto).unwrap();
+    assert!(url.starts_with("controlador.php?acao=procedimento_excluir_relacionamento&"));
+}
