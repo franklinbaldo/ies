@@ -6,6 +6,7 @@ pub(super) enum EnsaioRemocao {
     Normal,
     IgnorarNoPost,
     TelaSemCheckbox,
+    TelaSemCheckboxSemFormularioValido,
 }
 
 /// Projeta uma instalação sem checkbox na tela de envio, preservando
@@ -36,9 +37,25 @@ pub(super) fn ajustar_resposta(
     metodo: &str,
     acao: &str,
 ) -> Vec<u8> {
-    if ensaio == EnsaioRemocao::TelaSemCheckbox && metodo == "GET" && acao == "procedimento_enviar"
+    if matches!(
+        ensaio,
+        EnsaioRemocao::TelaSemCheckbox | EnsaioRemocao::TelaSemCheckboxSemFormularioValido
+    ) && metodo == "GET"
+        && acao == "procedimento_enviar"
     {
-        ocultar_checkbox_na_resposta(resposta)
+        let resposta = ocultar_checkbox_na_resposta(resposta);
+        if ensaio == EnsaioRemocao::TelaSemCheckboxSemFormularioValido {
+            // Hipótese sintética: a tela permite escolher o destino, mas o
+            // método servido não admite submissão; a limpeza é independente.
+            let texto = String::from_utf8(resposta).unwrap();
+            let original = "<form id='frmAtividadeListar' method='post'";
+            assert!(texto.contains(original));
+            texto
+                .replacen(original, "<form id='frmAtividadeListar' method='noop'", 1)
+                .into_bytes()
+        } else {
+            resposta
+        }
     } else {
         resposta
     }
