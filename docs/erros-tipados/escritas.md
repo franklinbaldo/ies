@@ -25,7 +25,7 @@ que impede a escrita (abertura, situação não lida, barra, tela do nó,
 cookie: saída 1, nada enviado) e o resultado depois dela,
 `ReaberturaNaoAplicada` (a leitura não lista a unidade) e
 `EfeitoIncertoNaReabertura` (saída 1). A resposta não esperada é a mesma
-`FalhaDoEnvio` de concluir, com a variante `RedirecionamentoNaReabertura`;
+`FalhaDoEnvio` de concluir, com o erro `RedirecionamentoNaReabertura`;
 a verificação é a mesma `VerificacaoPorLeitura`
 ([contrato](../../contracts/cli/processo-reabrir.md)).
 

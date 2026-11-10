@@ -5,7 +5,6 @@
 //! `https://`/`http://` no host do pedido anterior (o GO responde
 //! `http://`). Os espaços literais do `msg` saem como `%20` (a serialização
 //! do navegador); a URL devolvida é sempre `https://`.
-use super::FalhaDepoisDoEnvio as F;
 use super::tela::conferir_consulta;
 use crate::formulario_web::consulta_do_controlador;
 
@@ -15,23 +14,23 @@ pub(crate) fn url_do_salto(
     localizacao: &str,
     url_anterior: &str,
     id_unidade: &str,
-) -> Result<String, F> {
+) -> Result<String, super::FalhaDepoisDoEnvio> {
     let serializada = localizacao.replace(' ', "%20");
     let consulta = consulta_do_controlador(&serializada, url_anterior)
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+        .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     if !serializada.bytes().all(|b| (33..=126).contains(&b)) || serializada.contains(['#', '\\']) {
-        return Err(F::LocalizacaoForaDaFormaObservada);
+        return Err(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada);
     }
     let unidade = conferir_consulta(consulta, "procedimento_controlar", hash_do_salto)
-        .map_err(|_| F::LocalizacaoForaDaFormaObservada)?
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+        .map_err(|_| super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?
+        .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     if unidade != id_unidade {
-        return Err(F::LocalizacaoDeOutraUnidade);
+        return Err(super::FalhaDepoisDoEnvio::LocalizacaoDeOutraUnidade);
     }
     let base = url_anterior
         .strip_prefix("https://")
         .and_then(|r| r.split('?').next())
-        .ok_or(F::LocalizacaoForaDaFormaObservada)?;
+        .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     Ok(format!("https://{base}?{consulta}"))
 }
 

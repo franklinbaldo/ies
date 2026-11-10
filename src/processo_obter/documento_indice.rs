@@ -11,7 +11,7 @@
 //!   árvore pelo número (a15), com as pastas abertas só se ele não estiver
 //!   à vista.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::documento::{ErroDocumentoObter as E, FimDaLeitura, NoLido, localizar};
+use super::documento::{ErroDocumentoObter, FimDaLeitura, NoLido, localizar};
 use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
@@ -30,7 +30,7 @@ pub(super) fn pelo_indice<V: EnvioDoProcesso, F: FimDaLeitura>(
     rede: &mut Rede<'_, V>,
     numero: &str,
     leitura: F,
-) -> Result<Option<F::Saida>, E> {
+) -> Result<Option<F::Lido>, ErroDocumentoObter> {
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let Some(guardado) = indice.documento_por_numero(instalacao, numero) else {
         return Ok(None);
@@ -75,7 +75,7 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     rede: &mut Rede<'_, V>,
     numero: &str,
     leitura: F,
-) -> Result<F::Saida, E> {
+) -> Result<F::Lido, ErroDocumentoObter> {
     let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
     let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(
         ErroHtml::ausente("numero_sei_ausente_da_arvore_do_processo")
@@ -101,7 +101,6 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     guardado: &DocumentoGuardado,
     numero: &str,
 ) -> Result<Option<Aberto>, ErroProcessoObter> {
-    use ErroProcessoObter as P;
     let (indice, instalacao) = (contexto.indice, &contexto.instalacao);
     let (id, documento) = (&guardado.id_procedimento, &guardado.id_documento);
     let recusada = indice.entrada_por_id(instalacao) == Some(false)
@@ -115,18 +114,24 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Html { .. } => return Err(P::RespostaDaEntradaPorIdNaoReconhecida),
-        Lida::Falha(falha) => return Err(P::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Html { .. } => return Err(ErroProcessoObter::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {
             // A recusa derrubou a sessão: registrar e parar, sem relogin.
             indice.registrar_entrada_por_id_com_documento(instalacao, false);
-            return Err(P::EntradaPorIdRecusada);
+            return Err(ErroProcessoObter::EntradaPorIdRecusada);
         }
         DestinoDoRedirecionamento::Login => {
-            return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
         }
         DestinoDoRedirecionamento::Outro => {}
     }
@@ -142,14 +147,18 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             esquecer();
             return Ok(None);
         }
-        Err(erro) => return Err(P::Redirecionamento(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Redirecionamento(erro)),
     };
     indice.registrar_entrada_por_id_com_documento(instalacao, true);
     let (html, mime) = match rede.get(trabalho.as_str())? {
         Lida::Html { html, mime } => (html, mime),
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(P::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Falha(falha) => return Err(P::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     let tela = match ler_tela_do_documento(instalacao, &html, documento, contexto.unidade_pedida) {
         Ok((tela, processo)) if processo == *id => tela,
@@ -157,7 +166,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             esquecer();
             return Ok(None);
         }
-        Err(erro) => return Err(P::Tela(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Tela(erro)),
     };
     match rede.abrir_da_tela(contexto, trabalho.as_str(), (&html, &mime), tela, id) {
         Ok((aberta, unidade)) => Ok(Some((
@@ -165,7 +174,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
             Some(unidade),
             ResolvidoPor::IndiceEntradaDocumento,
         ))),
-        Err(P::Arvore(erro)) if erro.diverge_do_pedido() => {
+        Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             indice.esquecer_processo(instalacao, contexto.nup);
             esquecer();
             Ok(None)

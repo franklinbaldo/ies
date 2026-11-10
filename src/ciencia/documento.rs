@@ -94,8 +94,8 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<CienciaDoDocumento, ErroCienciaDocumento> {
-    use ErroCienciaDocumento as E;
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroCienciaDocumento::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let abertura = PedidoDoDocumento {
         numero: pedido.numero,
@@ -105,7 +105,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
     };
     let aberto = abrir_documento_na_arvore(sessao, &abertura, indice, &mut rede)?;
     if !ciencia_do_documento_na_barra(&aberto.html, &aberto.id_documento)? {
-        return Err(E::CienciaNaoOferecida);
+        return Err(ErroCienciaDocumento::CienciaNaoOferecida);
     }
     let mut feito = CienciaDoDocumento {
         numero: aberto.numero,
@@ -129,13 +129,13 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &feito.id_documento,
         &feito.id_procedimento,
     )
-    .ok_or(E::TelaNaoPublicada)?;
+    .ok_or(ErroCienciaDocumento::TelaNaoPublicada)?;
     let cookie = ler_cookie(sessao)?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|e| match e {
-        FalhaDaTela::Transporte(falha) => E::Tela(falha),
-        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
+        FalhaDaTela::Transporte(falha) => ErroCienciaDocumento::Tela(falha),
+        FalhaDaTela::Redirecionada => ErroCienciaDocumento::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroCienciaDocumento::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     })?;
     let url = url_da_ciencia_do_documento(
@@ -144,7 +144,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &feito.id_documento,
         &feito.id_procedimento,
     )
-    .map_err(E::Html)?;
+    .map_err(ErroCienciaDocumento::Html)?;
     // Este GET pode gravar a ciência. Após qualquer resposta ou timeout,
     // apenas releitura, nunca segundo GET mutador.
     let aceite = ler_aceite(
@@ -178,12 +178,12 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             feito.usuario = usuario;
             Ok(feito)
         }
-        Ok((false, _)) => Err(E::NaoConfirmado {
+        Ok((false, _)) => Err(ErroCienciaDocumento::NaoConfirmado {
             motivo: VerificacaoDaCienciaDoDocumento::AtividadeNaoEncontradaNaListaDoDocumento,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
-        Err(motivo) => Err(E::NaoConfirmado {
+        Err(motivo) => Err(ErroCienciaDocumento::NaoConfirmado {
             motivo,
             requisicoes: rede.feitas(),
             falha_do_aceite,

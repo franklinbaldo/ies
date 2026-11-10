@@ -51,7 +51,7 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 
 ## Recusas tipadas
 
-| Variante ou `onde` (stderr) | Critério |
+| Erro ou `onde` (stderr) | Critério |
 | --- | --- |
 | `ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
 | `ErroCriar::TipoAusente` | Não há opção exata na lista completa |

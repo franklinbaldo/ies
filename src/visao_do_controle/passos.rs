@@ -3,8 +3,7 @@
 use super::envio::{EnvioDoControle, Redirecionado, Sessao, TelaAtual};
 use super::plano::{PedidoDePagina, valores_ocultos};
 use super::{
-    CAMPOS_USUARIO, ErroVisaoDoControle as E, PAGINAR_VISAO_DETALHADA, TROCAR_VISAO_DO_CONTROLE,
-    Visao,
+    CAMPOS_USUARIO, ErroVisaoDoControle, PAGINAR_VISAO_DETALHADA, TROCAR_VISAO_DO_CONTROLE, Visao,
 };
 use crate::caixa_detalhada::{LeituraDetalhada, ler_paginas};
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
@@ -12,33 +11,33 @@ use crate::erro_html::ErroHtml;
 use crate::formulario_web::localizar_formulario;
 use crate::pagina_do_controle::{ErroPaginaDoControle, campos_do_usuario};
 
-pub(super) fn contexto(html: &str) -> Result<ContextoPagina, E> {
-    contexto_da_pagina(html).map_err(E::Caixa)
+pub(super) fn contexto(html: &str) -> Result<ContextoPagina, ErroVisaoDoControle> {
+    contexto_da_pagina(html).map_err(ErroVisaoDoControle::Caixa)
 }
 
 /// Rótulo publicado em `lnkInfraUnidade`, conferido com `--unidade`.
 pub(super) fn unidade_da_tela(
     contexto: &ContextoPagina,
     solicitada: Option<&str>,
-) -> Result<String, E> {
+) -> Result<String, ErroVisaoDoControle> {
     let unidade = contexto.unidade.clone().ok_or(ErroHtml::ausente(
         "identificacao_da_unidade_ausente_no_controle",
     ))?;
     if solicitada.is_some_and(|s| s.split_whitespace().collect::<Vec<_>>().join(" ") != unidade) {
-        return Err(E::UnidadeDiferenteDaSolicitada);
+        return Err(ErroVisaoDoControle::UnidadeDiferenteDaSolicitada);
     }
     Ok(unidade)
 }
 
 /// Controles de usuário que o `submit()` repete, com os valores servidos.
-fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, E> {
+fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, ErroVisaoDoControle> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        E::Caixa(crate::erro_web::ErroCaixa::Html(ErroHtml::html(
+        ErroVisaoDoControle::Caixa(crate::erro_web::ErroCaixa::Html(ErroHtml::html(
             "html_da_caixa_invalido",
         )))
     })?;
     let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
-    campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(E::Formulario)
+    campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(ErroVisaoDoControle::Formulario)
 }
 
 /// `trocarVisualizacao(destino)`: um POST; a resposta é a visão `destino`
@@ -47,7 +46,7 @@ pub(super) fn trocar<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     tela: &TelaAtual,
     destino: Visao,
-) -> Result<TelaAtual, E> {
+) -> Result<TelaAtual, ErroVisaoDoControle> {
     let usuario = campos_do_formulario(&tela.html)?;
     let mut campos: Vec<(&str, &str)> = usuario
         .iter()
@@ -62,20 +61,23 @@ pub(super) fn trocar<V: EnvioDoControle>(
     )?;
     let obtido = contexto(&nova.html)?;
     if obtido.unidade.as_deref() != Some(sessao.unidade) {
-        return Err(E::UnidadeAlteradaAoTrocarVisao);
+        return Err(ErroVisaoDoControle::UnidadeAlteradaAoTrocarVisao);
     }
     let certa = match destino {
         Visao::Resumida => obtido.eh_resumida(),
         Visao::Detalhada => obtido.eh_detalhada(),
     };
     if !certa {
-        return Err(E::VisaoNaoTrocadaAposEnvio { esperada: destino });
+        return Err(ErroVisaoDoControle::VisaoNaoTrocadaAposEnvio { esperada: destino });
     }
     Ok(nova)
 }
 
-pub(super) fn ler_detalhada(html: &str, unidade: &str) -> Result<LeituraDetalhada, E> {
-    ler_paginas(&[html.to_owned()], Some(unidade)).map_err(E::Detalhada)
+pub(super) fn ler_detalhada(
+    html: &str,
+    unidade: &str,
+) -> Result<LeituraDetalhada, ErroVisaoDoControle> {
+    ler_paginas(&[html.to_owned()], Some(unidade)).map_err(ErroVisaoDoControle::Detalhada)
 }
 
 /// `infraAcaoPaginar('=', indice, 'Detalhado')`: um POST a partir da tela D;
@@ -85,7 +87,7 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
     tela: &TelaAtual,
     pedido: PedidoDePagina,
     criterio: Option<&str>,
-) -> Result<(TelaAtual, LeituraDetalhada), E> {
+) -> Result<(TelaAtual, LeituraDetalhada), ErroVisaoDoControle> {
     let usuario = campos_do_formulario(&tela.html)?;
     let indice = pedido.indice.to_string();
     let mut campos: Vec<(&str, &str)> = usuario
@@ -101,10 +103,12 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
     )?;
     let obtido = contexto(&nova.html)?;
     if obtido.unidade.as_deref() != Some(sessao.unidade) {
-        return Err(E::Pagina(ErroPaginaDoControle::UnidadeAlteradaAposPaginar));
+        return Err(ErroVisaoDoControle::Pagina(
+            ErroPaginaDoControle::UnidadeAlteradaAposPaginar,
+        ));
     }
     if !obtido.eh_detalhada() {
-        return Err(E::Pagina(
+        return Err(ErroVisaoDoControle::Pagina(
             ErroPaginaDoControle::VisualizacaoAlteradaAposPaginar,
         ));
     }
@@ -113,14 +117,14 @@ pub(super) fn paginar_detalhada<V: EnvioDoControle>(
         .map(String::as_str)
         != criterio
     {
-        return Err(E::CriteriosDaVisaoDetalhadaAlteradosAposPaginar);
+        return Err(ErroVisaoDoControle::CriteriosDaVisaoDetalhadaAlteradosAposPaginar);
     }
     let leitura = ler_detalhada(&nova.html, sessao.unidade)?;
     if leitura.total_declarado != pedido.total {
-        return Err(E::TotalDeclaradoAlteradoAposPaginar);
+        return Err(ErroVisaoDoControle::TotalDeclaradoAlteradoAposPaginar);
     }
     if leitura.faixa_observada != pedido.esperada {
-        return Err(E::FaixaDaRespostaDiferenteDaPaginaSolicitada);
+        return Err(ErroVisaoDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada);
     }
     Ok((nova, leitura))
 }

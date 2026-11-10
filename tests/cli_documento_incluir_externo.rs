@@ -110,7 +110,7 @@ fn bdd_332_05_pdf_falso_e_extensao_incorreta_recusados_antes_da_rede() {
                 args.push(modo);
             }
             // Sem arquivos de sessão válidos, só a inspeção local poderia
-            // produzir esta variante: nenhuma requisição foi feita.
+            // produzir este erro: nenhuma requisição foi feita.
             let saida = executar(&args);
             falha(&saida, causa);
         }
@@ -239,7 +239,7 @@ fn tipo_vazio_nao_acessa_arquivo_nem_sessao() {
 }
 
 #[test]
-fn numero_invalido_expoe_tipo_de_causa_sem_subcodigo() {
+fn numero_invalido_expoe_o_tipo_da_causa() {
     let pdf = PdfTeste::novo();
     let saida = executar(&[
         "--json",

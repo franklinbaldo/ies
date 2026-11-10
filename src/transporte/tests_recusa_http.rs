@@ -1,5 +1,5 @@
 //! RED/GREEN: toda recusa por status publica o número e o que o SEI disse,
-//! com os subcódigos de sempre, um único pedido e 64 KiB lidos no máximo.
+//! com os erros de sempre, um único pedido e 64 KiB lidos no máximo.
 use super::corpo_de_recusa::LIMITE;
 use super::*;
 use std::cell::Cell;

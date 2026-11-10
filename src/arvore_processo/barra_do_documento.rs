@@ -66,7 +66,6 @@ pub(crate) fn ler_barra_do_documento(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<BarraDoDocumento, ErroBarraDoDocumento> {
-    use ErroBarraDoDocumento as E;
     let nada = BarraDoDocumento {
         versoes: None,
         edicao: EdicaoNaBarra::NaoPublicada,
@@ -84,9 +83,9 @@ pub(crate) fn ler_barra_do_documento(
         };
         let lidos = atributos(tag)
             .map_err(|e| ErroHtml::atributo("barra_do_documento_fora_da_forma_observada", e))?;
-        let valor = |nome| -> Result<Option<String>, E> {
+        let valor = |nome| -> Result<Option<String>, ErroBarraDoDocumento> {
             match lidos.valor(nome).map_err(|e| {
-                E::Html(ErroHtml::atributo(
+                ErroBarraDoDocumento::Html(ErroHtml::atributo(
                     "barra_do_documento_fora_da_forma_observada",
                     e,
                 ))
@@ -94,7 +93,7 @@ pub(crate) fn ler_barra_do_documento(
                 Some(bruto) => {
                     decodificar_atributo(bruto)
                         .map(Some)
-                        .ok_or(E::Html(ErroHtml::valor(
+                        .ok_or(ErroBarraDoDocumento::Html(ErroHtml::valor(
                             "barra_do_documento_fora_da_forma_observada",
                         )))
                 }
@@ -128,9 +127,11 @@ pub(crate) fn ler_barra_do_documento(
     };
     let recusa = |r| match r {
         EnderecoRecusado::NaoReconhecido => {
-            E::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido"))
+            ErroBarraDoDocumento::Html(ErroHtml::valor("link_das_versoes_nao_reconhecido"))
         }
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDasVersoesDeOutroDocumento,
+        EnderecoRecusado::DeOutroProcesso => {
+            ErroBarraDoDocumento::EnderecoDasVersoesDeOutroDocumento
+        }
     };
     conferir_endereco_relativo_por(
         instalacao,
@@ -164,7 +165,6 @@ fn acao_do_href(href: &str) -> Option<&str> {
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
 pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
-    use ErroBarraDoDocumento as E;
     let mut indice = None;
     for linha in html.split('\n') {
         if let Ok(Some((i, argumentos))) = ler_declaracao(linha)
@@ -190,7 +190,7 @@ pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBa
             return Err(ErroHtml::valor("barra_do_documento_fora_da_forma_observada").into());
         };
         if texto.replace(lido).is_some() {
-            return Err(E::BarrasRepetidasNaArvore);
+            return Err(ErroBarraDoDocumento::BarrasRepetidasNaArvore);
         }
     }
     Ok(texto)

@@ -1,5 +1,5 @@
 //! RED/GREEN da leitura do `Location` que vai para a tela de login.
-use super::login::{DestinoDoRedirecionamento as D, destino};
+use super::login::{DestinoDoRedirecionamento, destino};
 
 #[test]
 fn recusa_caracteristica_da_entrada_sem_assinatura() {
@@ -11,7 +11,7 @@ fn recusa_caracteristica_da_entrada_sem_assinatura() {
     ] {
         assert_eq!(
             destino(Some(localizacao)),
-            D::RecusaSemAssinatura,
+            DestinoDoRedirecionamento::RecusaSemAssinatura,
             "{localizacao}"
         );
     }
@@ -27,7 +27,11 @@ fn login_sem_a_mensagem_e_sessao_vencida() {
         "https://sei.exemplo.gov.br/sip/login.php?msg=Link%20sem%20assinatura%20nenhuma",
         "https://sei.exemplo.gov.br/sip/login.php?msg=Link%2",
     ] {
-        assert_eq!(destino(Some(localizacao)), D::Login, "{localizacao}");
+        assert_eq!(
+            destino(Some(localizacao)),
+            DestinoDoRedirecionamento::Login,
+            "{localizacao}"
+        );
     }
 }
 
@@ -40,6 +44,10 @@ fn outros_destinos() {
         Some("https://sei.exemplo.gov.br/sei/controlador.php?acao=login.php"),
         Some("https://sei.exemplo.gov.br/sei/naologin.php?msg=Link%20sem%20assinatura"),
     ] {
-        assert_eq!(destino(localizacao), D::Outro, "{localizacao:?}");
+        assert_eq!(
+            destino(localizacao),
+            DestinoDoRedirecionamento::Outro,
+            "{localizacao:?}"
+        );
     }
 }

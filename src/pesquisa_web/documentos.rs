@@ -60,7 +60,7 @@ pub(crate) enum RespostaDeDocumentos {
     SemResultado,
 }
 
-/// Uma variante por fato verificável da linha de documento.
+/// um erro por fato verificável da linha de documento.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDocumentoDaPesquisa {

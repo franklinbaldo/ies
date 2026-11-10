@@ -1,6 +1,5 @@
 //! RED/GREEN da tela "Assinatura de Documento" e da resposta do POST, na
 //! forma das sete instalações (`documento-escritas-*`). HTML sintético.
-use super::erro::ErroTelaDeAssinatura as E;
 use super::tela::{TelaDeAssinatura, assinatura_realizada, conferir_tela_de_assinatura};
 use super::tests_apoio::*;
 use crate::erro_html::ErroHtml;
@@ -36,31 +35,31 @@ fn cargo_unico_e_o_da_tela_mesmo_sem_selected() {
 fn recusas_da_tela() {
     let padrao = tela_padrao();
     let casos = [
-        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), E::Html(ErroHtml::ausente("formulario_de_assinatura_ausente"))),
-        (padrao.clone(), E::TelaDeAssinaturaDeOutroDocumento),
+        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), super::erro::ErroTelaDeAssinatura::Html(ErroHtml::ausente("formulario_de_assinatura_ausente"))),
+        (padrao.clone(), super::erro::ErroTelaDeAssinatura::TelaDeAssinaturaDeOutroDocumento),
         (
             padrao.replace("<input type=\"hidden\" id=\"hdnIdBlocos\"", "<input type=\"text\" name=\"txtExtra\" value=\"\" /><input type=\"hidden\" id=\"hdnIdBlocos\""),
-            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
+            super::erro::ErroTelaDeAssinatura::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
         ),
         (
             padrao.replace(&format!("value=\"{ASSINANTE}\""), "value=\" \""),
-            E::AssinanteNaoPublicadoNaTela,
+            super::erro::ErroTelaDeAssinatura::AssinanteNaoPublicadoNaTela,
         ),
         (
             padrao.replace("<option value=\"0\" selected=\"selected\">", "<option value=\"0\">"),
-            E::OrgaoDoAssinanteNaoSelecionado,
+            super::erro::ErroTelaDeAssinatura::OrgaoDoAssinanteNaoSelecionado,
         ),
         (
             padrao.replace("type=\"password\" id=\"pwdSenha\"", "type=\"hidden\" id=\"pwdSenha\""),
-            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
+            super::erro::ErroTelaDeAssinatura::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
         ),
         (
             padrao.replace("<input type=\"password\" id=\"pwdSenha\" name=\"pwdSenha\"", "<input type=\"password\" id=\"pwdSenha\""),
-            E::Html(ErroHtml::ausente("campo_de_senha_ausente_na_tela")),
+            super::erro::ErroTelaDeAssinatura::Html(ErroHtml::ausente("campo_de_senha_ausente_na_tela")),
         ),
         (
             padrao.replace("type=\"button\" accesskey=\"A\"", "type=\"submit\" accesskey=\"A\""),
-            E::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
+            super::erro::ErroTelaDeAssinatura::Html(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura")),
         ),
     ];
     for (i, (html, erro)) in casos.iter().enumerate() {

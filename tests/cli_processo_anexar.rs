@@ -2,6 +2,10 @@
 //! Origem dos cenários: Todos/src/todos/anexacao.py @323eb01, adaptados.
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 const PRINCIPAL: &str = "00001.000001/2026-01";
 const ANEXADO: &str = "00001.000002/2026-01";
 
@@ -15,19 +19,6 @@ fn executar(args: &[&str]) -> Output {
         .env("IES_INDICE_FILE", "/nao/existe/ies.sqlite3")
         .output()
         .expect("IES deve iniciar")
-}
-
-/// Falha de comando convertido (#695): saída 1, stdout vazio e
-/// `Error: <Variante>` no stderr.
-fn assert_falha(saida: &Output, variante: &str) {
-    assert_eq!(saida.status.code(), Some(1));
-    assert!(
-        saida.stdout.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 #[test]
@@ -51,19 +42,19 @@ fn confirmar_recusa_sem_sessao_ativa() {
         "--confirmar",
         "--json",
     ]);
-    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]
 fn mesma_identidade_recusa_antes_da_sessao() {
     let saida = executar(&["processo", "anexar", PRINCIPAL, "--a", PRINCIPAL, "--json"]);
-    assert_falha(&saida, "AnexacaoAoProprioProcesso");
+    falha(&saida, "AnexacaoAoProprioProcesso");
 }
 
 #[test]
 fn previa_sem_sessao_falha_fechado() {
     let saida = executar(&["processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--json"]);
-    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]

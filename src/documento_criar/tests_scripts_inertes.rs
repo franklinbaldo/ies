@@ -13,8 +13,8 @@ const EXIBIR: &str = r"function exibirSeries(tipo) {
     document.getElementById('frmDocumentoEscolherTipo').submit();
 }";
 
-fn script_inerte(codigo: &str, variante: usize) -> String {
-    match variante {
+fn script_inerte(codigo: &str, forma: usize) -> String {
+    match forma {
         0 => format!("<template><script>{codigo}</script></template>"),
         1 => format!("<script type='application/json'>{codigo}</script>"),
         2 => format!("<!-- <script>{codigo}</script> -->"),
@@ -28,12 +28,12 @@ fn escolher_ignora_codigo_em_template_json_ou_comentario_html() {
     let tabela = r##"<table id="tblSeries"><tr><td>
         <a href="#" onclick="escolher(291)">Despacho</a>
         </td></tr></table>"##;
-    for variante in 0..3 {
-        let tela = format!("{}{}", script_inerte(ESCOLHER, variante), tabela);
+    for forma in 0..3 {
+        let tela = format!("{}{}", script_inerte(ESCOLHER, forma), tabela);
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
             Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "variante inerte {variante} não pode autorizar navegação POST"
+            "forma inerte {forma} não pode autorizar navegação POST"
         );
     }
     let ativa = format!("<script>{ESCOLHER}</script>{tabela}");
@@ -48,12 +48,12 @@ fn filtro_exibir_todos_ignora_script_inerte() {
     let botoes = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
         <table id="tblSeries"></table>"#;
-    for variante in 0..3 {
-        let tela = format!("{}{}", script_inerte(EXIBIR, variante), botoes);
+    for forma in 0..3 {
+        let tela = format!("{}{}", script_inerte(EXIBIR, forma), botoes);
         assert_eq!(
             filtro_de_todos(&tela),
             Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "variante inerte {variante} não pode autorizar POST do filtro"
+            "forma inerte {forma} não pode autorizar POST do filtro"
         );
     }
     let ativa = format!("<script>{EXIBIR}</script>{botoes}");
@@ -71,7 +71,7 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
     let filtro = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
         <table id="tblSeries"></table>"#;
-    for (variante, montar) in [
+    for (forma, montar) in [
         (0, format!("/* {ESCOLHER} */")),
         (1, format!("const exemplo = `{ESCOLHER}`;")),
         (2, format!("if (false) {{ {ESCOLHER} }}")),
@@ -80,10 +80,10 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
             Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "função escolher inerte em JS ativo variante {variante}"
+            "função escolher inerte em JS ativo forma {forma}"
         );
     }
-    for (variante, montar) in [
+    for (forma, montar) in [
         (0, format!("// {EXIBIR}")),
         (1, format!("const exemplo = `{EXIBIR}`;")),
         (2, format!("if (false) {{ {EXIBIR} }}")),
@@ -92,7 +92,7 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
         assert_eq!(
             filtro_de_todos(&tela),
             Err(ErroCriar::LinkDoTipoNaoNavegavel),
-            "função exibirSeries inerte em JS ativo variante {variante}"
+            "função exibirSeries inerte em JS ativo forma {forma}"
         );
     }
 }

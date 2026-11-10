@@ -1,6 +1,5 @@
 //! RED/GREEN da troca para a visão completa: regra servida conferida
 //! literalmente e POST derivado pelo primitivo de formulário.
-use super::ErroAndamentos as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -34,7 +33,7 @@ fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
     ] {
         assert_eq!(
             conferir_regra_de_ver_historico(&trocado),
-            Err(E::RegraDeVerHistoricoNaoObservada)
+            Err(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada)
         );
     }
 }

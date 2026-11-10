@@ -4,7 +4,7 @@
 //! sequências exatas de requisições de cada caminho. Fixtures sintéticas na
 //! estrutura gravada; ids e nomes inventados.
 use super::destino::{orgao_da_sigla, termo_alargado};
-use super::erro::{ErroEnviar as R, FalhaDaConsulta};
+use super::erro::{ErroEnviar, FalhaDaConsulta};
 use super::tela::conferir_tela_de_envio;
 use super::tests_apoio::*;
 use super::{Destino, ProcessoEnviado};
@@ -46,7 +46,7 @@ fn vazia() -> String {
 }
 
 /// Prévia no GO com as `consultas` respondidas na ordem.
-fn no_go(para: &str, consultas: Vec<String>) -> (Result<ProcessoEnviado, R>, Vec<Pedido>) {
+fn no_go(para: &str, consultas: Vec<String>) -> (Result<ProcessoEnviado, ErroEnviar>, Vec<Pedido>) {
     let mut depois = vec![ok(tela_de_envio_go(ID))];
     depois.extend(consultas.into_iter().map(ok));
     rodar_envio(
@@ -177,7 +177,7 @@ fn quatro_consultas_no_maximo_e_so_a_sigla_exata() {
     let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), gecont_de_outros()]);
     assert_eq!(
         r,
-        Err(R::DestinoNaoOferecidoPeloSei {
+        Err(ErroEnviar::DestinoNaoOferecidoPeloSei {
             oferecidos: vec![
                 "AGRODEFESA/GECONT-18440 - Gerencia".into(),
                 "CASACIVIL/GECONT-18148 - Gerencia".into(),
@@ -196,7 +196,10 @@ fn quatro_consultas_no_maximo_e_so_a_sigla_exata() {
             vazia(),
         ],
     );
-    assert_eq!(r, Err(R::DestinoNaoOferecidoPeloSei { oferecidos: vec![] }));
+    assert_eq!(
+        r,
+        Err(ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos: vec![] })
+    );
     assert_eq!(feitos, quatro);
     let dois = resposta_xml(&[
         ("1", "ABC/GECONT-18141 - Um"),
@@ -205,7 +208,7 @@ fn quatro_consultas_no_maximo_e_so_a_sigla_exata() {
     let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), vazia(), dois]);
     assert_eq!(
         r,
-        Err(R::VariosDestinosComASigla {
+        Err(ErroEnviar::VariosDestinosComASigla {
             candidatos: vec![
                 "ABC/GECONT-18141 - Um".into(),
                 "abc/gecont-18141 - Dois".into()
@@ -222,7 +225,10 @@ fn varios_no_orgao_e_recusa_sem_voltar_ao_da_tela() {
         ("2", "ABC/GECONT-18141 - Dois"),
     ]);
     let (r, feitos) = no_go(ABC, vec![dois]);
-    assert!(matches!(r, Err(R::VariosDestinosComASigla { .. })), "{r:?}");
+    assert!(
+        matches!(r, Err(ErroEnviar::VariosDestinosComASigla { .. })),
+        "{r:?}"
+    );
     assert_eq!(feitos, pedidos_da_busca(&[filtrada()]));
 }
 
@@ -231,13 +237,17 @@ fn falha_de_uma_consulta_encerra_a_busca() {
     let (r, feitos) = no_go(ABC, vec!["<html>login</html>".into()]);
     assert_eq!(
         r,
-        Err(R::Consulta(FalhaDaConsulta::RespostaDoAutocompletarNaoXml))
+        Err(ErroEnviar::Consulta(
+            FalhaDaConsulta::RespostaDoAutocompletarNaoXml
+        ))
     );
     assert_eq!(feitos, pedidos_da_busca(&[filtrada()]));
     let (r, feitos) = no_go(ABC, vec![vazia(), vazia(), "<html/>".into()]);
     assert_eq!(
         r,
-        Err(R::Consulta(FalhaDaConsulta::RespostaDoAutocompletarNaoXml))
+        Err(ErroEnviar::Consulta(
+            FalhaDaConsulta::RespostaDoAutocompletarNaoXml
+        ))
     );
     assert_eq!(
         feitos,
@@ -271,7 +281,10 @@ fn sem_orgao_do_prefixo_a_busca_e_no_orgao_da_tela() {
     );
     // Sem `/`, uma consulta só, como sempre (vazia: não oferecido).
     let (r, feitos) = no_go("TESTE", vec![vazia()]);
-    assert_eq!(r, Err(R::DestinoNaoOferecidoPeloSei { oferecidos: vec![] }));
+    assert_eq!(
+        r,
+        Err(ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos: vec![] })
+    );
     assert_eq!(
         feitos,
         pedidos_da_busca(&[corpo_da_consulta_com("TESTE", "")])

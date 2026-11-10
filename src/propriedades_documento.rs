@@ -118,7 +118,7 @@ pub(crate) fn ler_link(
             .strip_prefix("controlador.php?")
             .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("acao=")));
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
-        // externos publicam as variantes _recebido (cassette UFRJ #60).
+        // externos publicam as ações `_recebido` (cassette UFRJ #60).
         let fonte = match acao {
             Some("documento_alterar") => "documento_alterar",
             Some("documento_consultar") => "documento_consultar",

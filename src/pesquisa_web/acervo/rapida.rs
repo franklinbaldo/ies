@@ -11,10 +11,10 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
         .into_iter()
         .filter(|r| (r.operacao, r.metodo, r.status) == ("protocolo_pesquisa_rapida", "POST", 302))
         .map(|r| {
-            let url_do_post = r.item["response"]["url"].as_str();
+            let url_do_post = r.interacao["response"]["url"].as_str();
             let resultado = match (origem.as_ref(), url_do_post) {
                 (Some(origem), Some(url)) => match conferir_trabalho(
-                    gravacao::localizacao(r.item),
+                    gravacao::localizacao(r.interacao),
                     url,
                     origem,
                     OrigemDoTrabalho::PesquisaRapida,

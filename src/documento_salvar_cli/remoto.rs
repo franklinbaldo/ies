@@ -49,7 +49,7 @@ fn corpo_sintetico(html: &str) -> Option<&str> {
     partes_da_foto(html).map(|(_, corpo, _)| corpo)
 }
 
-/// Um fato por variante, com a causa; nada foi gravado, salvo em
+/// Um fato por erro, com a causa; nada foi gravado, salvo em
 /// `EdicaoNaoComprovada`.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]

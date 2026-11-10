@@ -18,12 +18,13 @@ pub(crate) fn ler_relacionar_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroRelacionarNaBarra> {
-    use ErroRelacionarNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor("barra_do_processo_fora_da_forma_observada")),
-        FalhaDaBarra::Repetidas => {
-            E::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
-        }
+        FalhaDaBarra::Fora => ErroRelacionarNaBarra::Html(ErroHtml::valor(
+            "barra_do_processo_fora_da_forma_observada",
+        )),
+        FalhaDaBarra::Repetidas => ErroRelacionarNaBarra::Html(ErroHtml::repetido(
+            "barras_do_processo_repetidas_na_arvore",
+        )),
     })?;
     let links: Vec<_> = ancoras
         .iter()
@@ -35,10 +36,10 @@ pub(crate) fn ler_relacionar_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO_DE_RELACIONAR, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => {
-                    E::Html(ErroHtml::valor("endereco_de_relacionar_nao_reconhecido"))
-                }
-                EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+                EnderecoRecusado::NaoReconhecido => ErroRelacionarNaBarra::Html(ErroHtml::valor(
+                    "endereco_de_relacionar_nao_reconhecido",
+                )),
+                EnderecoRecusado::DeOutroProcesso => ErroRelacionarNaBarra::EnderecoDeOutroProcesso,
             }),
         _ => Err(ErroHtml::repetido("links_de_relacionar_repetidos_na_barra").into()),
     }

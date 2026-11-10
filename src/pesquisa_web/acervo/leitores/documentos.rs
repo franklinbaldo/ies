@@ -20,7 +20,6 @@ use crate::pesquisa_web::formulario_pesquisa::{
 use crate::pesquisa_web::paginacao::{
     Contagem, ErroPaginacaoDaPesquisa, conferir_contagem, planejar_pagina_por,
 };
-use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa as R;
 use crate::pesquisa_web::regras_formulario::PesquisarEm;
 use crate::pesquisa_web::resposta::pagina_selecionada;
 use crate::transporte::decodificar_resposta;
@@ -90,7 +89,7 @@ fn primeiro_envio(
     let url_do_envio = submissao.url().to_owned();
     let gravada = RespostaDoPost {
         resposta: web(r),
-        localizacao: gravacao::localizacao(r.item).map(str::to_owned),
+        localizacao: gravacao::localizacao(r.interacao).map(str::to_owned),
     };
     let leitor = Leitor::EnvioEmDocumentos;
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
@@ -110,7 +109,7 @@ fn primeiro_envio(
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
-        Err(ErroPesquisaProtocolo::Redirecionamento(R::IdDocumentoAusenteNoRedirecionamento)) => {
+        Err(ErroPesquisaProtocolo::Redirecionamento(crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento)) => {
             let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
             return vec![c.registro(leitor, r.passo, motivo)];
         }

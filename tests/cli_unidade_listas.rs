@@ -143,13 +143,7 @@ fn ajuda_da_unidade_lista_os_tres_comandos_da_caixa() {
 /// (os arquivos não existem), logo sem requisição.
 #[test]
 fn definir_com_lista_invalida_e_uso_invalido_sem_requisicao() {
-    for (lista, _subcodigo) in [
-        ("", "lista_de_colunas_vazia"),
-        ("tipo,,anotacao", "item_vazio_na_lista_de_colunas"),
-        ("tipo,processo", "coluna_desconhecida"),
-        ("Tipo", "coluna_desconhecida"),
-        ("tipo,tipo", "coluna_repetida_na_lista"),
-    ] {
+    for lista in ["", "tipo,,anotacao", "tipo,processo", "Tipo", "tipo,tipo"] {
         for confirmar in [false, true] {
             let mut args = vec!["unidade", "colunas", "--definir", lista, "--json"];
             if confirmar {

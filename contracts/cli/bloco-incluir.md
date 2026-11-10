@@ -107,12 +107,12 @@ Se já presente, `alterado:false` e nenhuma nova escrita. `confirmado`
 representa a solicitação do usuário; não é prova autônoma de efeito.
 Na prévia, apresentar que a confirmação é necessária.
 
-Causas observáveis são variantes Rust tipadas preservadas até a
+Causas observáveis são erros tipados preservados até a
 fronteira (ADR 0005), sem catálogo/subcódigo novo: alvo ambiguamente
 identificado, bloco de tipo inadequado, item já presente, ação ou
 formulário não oferecido, recusa da instalação e leitura insuficiente.
 Falha antes da escrita: saída 1, sem mutação. Após tentativa de
-escrita sem prova suficiente: **saída 1** com uma variante tipada de
+escrita sem prova suficiente: **saída 1** com um erro tipado de
 efeito incerto (a confirmação, BDD-381-02, ainda não existe no código),
 carregando o que foi observado e orientando nova consulta de leitura,
 **nunca retry** (decisão [#681](https://github.com/franklinbaldo/ies/issues/681)).

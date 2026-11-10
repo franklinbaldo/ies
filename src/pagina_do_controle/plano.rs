@@ -1,6 +1,6 @@
 //! Plano de `--pagina N`, sem rede: tamanho da página pela faixa e pelo
 //! índice publicados, número de páginas pelo total declarado.
-use super::{ErroPaginaDoControle as E, PlanoDaPagina};
+use super::{ErroPaginaDoControle, PlanoDaPagina};
 use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::Categoria;
 use crate::erro_html::ErroHtml;
@@ -35,20 +35,20 @@ pub(super) fn campo_da_pagina(categoria: Categoria) -> &'static str {
     }
 }
 
-fn html_invalido(_: impl Sized) -> E {
-    E::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
+fn html_invalido(_: impl Sized) -> ErroPaginaDoControle {
+    ErroPaginaDoControle::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
 }
 
 /// Índice (a partir de 0) que a tela publica em `hdn{T}PaginaAtual`.
-fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, E> {
+fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, ErroPaginaDoControle> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(html_invalido)?;
-    let ilegivel = || E::PaginaAtualDaTabelaIlegivel { categoria };
+    let ilegivel = || ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel { categoria };
     let nos = nos_com_id(&dom, campo_da_pagina(categoria)).map_err(html_invalido)?;
     let [no] = nos.as_slice() else {
         return Err(if nos.is_empty() {
             ilegivel()
         } else {
-            E::CamposDePaginaAtualDaTabelaRepetidos { categoria }
+            ErroPaginaDoControle::CamposDePaginaAtualDaTabelaRepetidos { categoria }
         });
     };
     let tag = no
@@ -70,24 +70,24 @@ fn plano_sem_linhas(
     categoria: Categoria,
     atual: usize,
     pagina: usize,
-) -> Result<PlanoDaPagina, E> {
+) -> Result<PlanoDaPagina, ErroPaginaDoControle> {
     let caixa = crate::caixa::parse_html(html)?;
     let linhas = match categoria {
         Categoria::Recebidos => caixa.recebidos.processos.len(),
         Categoria::Gerados => caixa.gerados.processos.len(),
     };
     if linhas > 0 {
-        return Err(E::Caixa(
+        return Err(ErroPaginaDoControle::Caixa(
             ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria },
         ));
     }
     if atual != 0 {
-        return Err(E::PaginaAtualDaTabelaIncompativelComAFaixa { categoria });
+        return Err(ErroPaginaDoControle::PaginaAtualDaTabelaIncompativelComAFaixa { categoria });
     }
     if pagina == 1 {
         Ok(PlanoDaPagina::JaExibida)
     } else {
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria,
             solicitada: pagina,
             paginas: 1,
@@ -117,20 +117,20 @@ pub(crate) fn planejar(
     html: &str,
     categoria: Categoria,
     pagina: usize,
-) -> Result<PlanoDaPagina, E> {
+) -> Result<PlanoDaPagina, ErroPaginaDoControle> {
     let contexto = contexto_da_pagina(html)?;
     if !contexto.eh_resumida() {
-        return Err(E::PaginaExigeVisaoResumida);
+        return Err(ErroPaginaDoControle::PaginaExigeVisaoResumida);
     }
     let atual = pagina_atual(html, categoria)?;
     let Some(faixa) = faixa_na_pagina(html, categoria)? else {
         return plano_sem_linhas(html, categoria, atual, pagina);
     };
     let tamanho = tamanho_da_pagina(atual, faixa)
-        .ok_or(E::PaginaAtualDaTabelaIncompativelComAFaixa { categoria })?;
+        .ok_or(ErroPaginaDoControle::PaginaAtualDaTabelaIncompativelComAFaixa { categoria })?;
     let paginas = faixa.total.div_ceil(tamanho);
     if pagina == 0 || pagina > paginas {
-        return Err(E::PaginaForaDoIntervalo {
+        return Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria,
             solicitada: pagina,
             paginas,
@@ -140,7 +140,7 @@ pub(crate) fn planejar(
         return Ok(PlanoDaPagina::JaExibida);
     }
     if !paginador_da_tabela(html, categoria)? {
-        return Err(E::PaginadorDaTabelaNaoPublicado { categoria });
+        return Err(ErroPaginaDoControle::PaginadorDaTabelaNaoPublicado { categoria });
     }
     let indice = pagina - 1;
     Ok(PlanoDaPagina::Pedir {

@@ -5,6 +5,10 @@
 //! a senha nunca aparece. Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
     let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
     comando
@@ -19,19 +23,6 @@ fn sem_sessao(args: &[&str], credenciais: Option<&str>) -> Output {
         None => comando.env_remove("IES_CREDENCIAIS_FILE"),
     };
     comando.output().expect("IES deve iniciar")
-}
-
-/// Falha de comando convertido (#695): saída 1, stdout vazio e
-/// `Error: <Variante>` no stderr.
-fn assert_falha(saida: &Output, variante: &str) {
-    assert_eq!(saida.status.code(), Some(1));
-    assert!(
-        saida.stdout.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 #[test]
@@ -61,7 +52,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         let mut args = vec!["documento", "assinar", "0000101", "--json"];
         args.extend_from_slice(extra);
         let saida = sem_sessao(&args, Some("/nao/existe/credenciais"));
-        assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 
@@ -122,5 +113,5 @@ fn confirmar_sem_credenciais_e_recusa_antes_da_rede() {
     let _ = std::fs::remove_dir_all(&pasta);
     // A recusa vem antes da rede: com o proxy morto, qualquer pedido
     // teria virado falha de transporte, não de credenciais.
-    assert_falha(&saida, "Credenciais");
+    falha(&saida, "Credenciais");
 }

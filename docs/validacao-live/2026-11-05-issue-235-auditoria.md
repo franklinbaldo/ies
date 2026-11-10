@@ -26,7 +26,7 @@ implementada, mas a validação ao vivo não foi executada. A análise foi feita
   `requisicoes`.
 - `colunas --definir` consulta a sessão e o Controle fora de
   `relogin_cli::ler`; seu JSON de sucesso não publica
-  `requisicoes`. A variante com `--confirmar` pode salvar e conferir
+  `requisicoes`. A execução com `--confirmar` pode salvar e conferir
   por leitura: ela **não** deve ser executada em treinamento sob esta
   autorização, que abrange apenas leituras.
 - `relogin_cli::anotar_com_total` introduz `requisicoes` somente

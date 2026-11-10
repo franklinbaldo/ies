@@ -34,8 +34,8 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
 }
 
 /// O parâmetro `chave` da URL da resposta gravada.
-fn parametro(item: &serde_json::Value, chave: &str) -> Option<String> {
-    let url = item["response"]["url"].as_str()?;
+fn parametro(interacao: &serde_json::Value, chave: &str) -> Option<String> {
+    let url = interacao["response"]["url"].as_str()?;
     let (_, consulta) = url.split_once('?')?;
     consulta
         .split('&')
@@ -47,7 +47,7 @@ fn parametro(item: &serde_json::Value, chave: &str) -> Option<String> {
 fn tela(
     inst: &Instalacao,
     html: &str,
-    item: &serde_json::Value,
+    interacao: &serde_json::Value,
     doc: &str,
 ) -> (String, Option<TelaDeAssinatura>) {
     let lida = match conferir_tela_de_assinatura(html, doc) {
@@ -57,7 +57,7 @@ fn tela(
     let Some(cargo) = lida.cargo_da_tela.clone() else {
         return ("conferida, sem cargo sugerido".into(), Some(lida));
     };
-    let url = item["response"]["url"].as_str().unwrap_or("");
+    let url = interacao["response"]["url"].as_str().unwrap_or("");
     let servida = TelaServida {
         url,
         html,
@@ -145,9 +145,9 @@ fn replay_de_documento_assinar_no_acervo() {
         };
         let mut estado = Estado::default();
         for r in gravacao::respostas(json) {
-            let html = || html_da_resposta(r.item).ok();
-            let doc = parametro(r.item, "id_documento").unwrap_or_default();
-            let processo = gravacao::id_procedimento(r.item).unwrap_or_default();
+            let html = || html_da_resposta(r.interacao).ok();
+            let doc = parametro(r.interacao, "id_documento").unwrap_or_default();
+            let processo = gravacao::id_procedimento(r.interacao).unwrap_or_default();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_visualizar", "GET", 200) => {
                     let Some(h) = html() else { continue };
@@ -171,7 +171,7 @@ fn replay_de_documento_assinar_no_acervo() {
                 }
                 ("documento_assinar", "GET", 200) => {
                     let Some(h) = html() else { continue };
-                    let (classe, lida) = tela(&inst, &h, r.item, &doc);
+                    let (classe, lida) = tela(&inst, &h, r.interacao, &doc);
                     somar(&mut contagem, "tela de assinatura", classe, nome);
                     if let Some(lida) = lida {
                         estado.tela.insert(doc.clone(), lida);

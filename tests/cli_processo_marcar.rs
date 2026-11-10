@@ -12,7 +12,7 @@ fn sem_sessao(args: &[&str]) -> Output {
         .output()
         .expect("IES deve iniciar")
 }
-/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
 fn sem_arquivos_de_sessao(saida: &Output) {
     assert_eq!(saida.status.code(), Some(1));
     assert!(saida.stdout.is_empty(), "falha não publica stdout");
@@ -24,11 +24,7 @@ fn sem_arquivos_de_sessao(saida: &Output) {
 }
 #[test]
 fn marcador_invalido_sai_2_antes_de_ler_sessao() {
-    for (rotulo, _subcodigo) in [
-        ("sem-separador", "rotulo_sem_separador"),
-        ("x#Nome", "id_do_marcador_nao_decimal"),
-        ("501# ", "nome_do_marcador_vazio"),
-    ] {
+    for rotulo in ["sem-separador", "x#Nome", "501# "] {
         let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", rotulo, "--json"]);
         assert_eq!(saida.status.code(), Some(2), "{rotulo}");
     }

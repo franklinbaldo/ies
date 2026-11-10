@@ -14,7 +14,7 @@ pub enum ErroArquivoCaixa {
 /// (`0600`, sem seguir link no destino). O diretório é da pessoa: o modo
 /// dele não é conferido.
 pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> {
-    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
+    use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
 
     if destino.file_name().is_none() {
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
@@ -31,16 +31,16 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         Politica::exclusiva().diretorio_do_usuario(),
     )
     .map_err(|falha| match falha {
-        F::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
-        F::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
-        F::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
+        FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoCaixa::DestinoSemNomeDeArquivo,
+        FalhaDaGravacao::DiretorioAusente => ErroArquivoCaixa::DiretorioDeDestinoAusente,
+        FalhaDaGravacao::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        F::DiretorioGravavelPorOutros
-        | F::DestinoNaoEhArquivoRegular
-        | F::AcimaDoLimite
-        | F::CriacaoFalhou
-        | F::EscritaFalhou
-        | F::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
+        FalhaDaGravacao::DiretorioGravavelPorOutros
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoCaixa::EscritaDeArquivoFalhou,
     })?;
     Ok(bytes.len())
 }

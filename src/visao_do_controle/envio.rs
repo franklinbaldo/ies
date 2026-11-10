@@ -1,7 +1,6 @@
 //! Envio injetável das requisições da troca de visão: cada chamada de
 //! `post`/`get` é uma requisição real única (sem retry); os testes contam
 //! e conferem a sequência.
-use super::ErroVisaoDoControle as E;
 use crate::formulario_web::{
     OperacaoDeFormulario, RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida,
     derivar_submissao, enviar_submissao_via,
@@ -137,8 +136,9 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
         operacao: &OperacaoDeFormulario,
         campos: &[(&str, &str)],
         redirecionado: Redirecionado,
-    ) -> Result<TelaAtual, E> {
-        let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+    ) -> Result<TelaAtual, super::ErroVisaoDoControle> {
+        let codificacao = codificacao_da_tela(&tela.mime)
+            .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
         let servida = TelaServida {
             url: &tela.url,
             html: &tela.html,
@@ -164,8 +164,10 @@ impl<V: EnvioDoControle> Sessao<'_, V> {
                 Ok(TelaAtual { url, html, mime })
             }
             RespostaDoEnvio::Redirecionamento(_) => Err(match redirecionado {
-                Redirecionado::AoTrocarVisao => E::RedirecionamentoAoTrocarVisao,
-                Redirecionado::AoPaginar => E::RedirecionamentoAposPaginar,
+                Redirecionado::AoTrocarVisao => {
+                    super::ErroVisaoDoControle::RedirecionamentoAoTrocarVisao
+                }
+                Redirecionado::AoPaginar => super::ErroVisaoDoControle::RedirecionamentoAposPaginar,
             }),
         }
     }

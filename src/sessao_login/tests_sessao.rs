@@ -3,7 +3,7 @@
 use super::cookies::PoteDeCookies;
 use super::redirecionamento::resolver_no_host;
 use super::tests_apoio::*;
-use super::{CampoDasCredenciais as C, Credenciais, ErroLogin, RespostaHttp, http, tela};
+use super::{CampoDasCredenciais, Credenciais, ErroLogin, RespostaHttp, http, tela};
 use crate::erro_html::ErroHtml;
 
 #[test]
@@ -21,15 +21,15 @@ fn credenciais_recusam_campo_ausente_repetido_vazio_ou_desconhecido() {
     for (texto, erro) in [
         (
             "usuario=u\nsenha=s\n",
-            ErroLogin::CampoDasCredenciaisAusente(C::Orgao),
+            ErroLogin::CampoDasCredenciaisAusente(CampoDasCredenciais::Orgao),
         ),
         (
             "usuario=u\nusuario=v\nsenha=s\norgao=o",
-            ErroLogin::CampoDasCredenciaisRepetido(C::Usuario),
+            ErroLogin::CampoDasCredenciaisRepetido(CampoDasCredenciais::Usuario),
         ),
         (
             "usuario=u\nsenha=\norgao=o",
-            ErroLogin::CampoDasCredenciaisVazio(C::Senha),
+            ErroLogin::CampoDasCredenciaisVazio(CampoDasCredenciais::Senha),
         ),
         (
             "usuario=u\nsenha=s\norgao=o\nsistema=SEI",

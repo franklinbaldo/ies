@@ -107,13 +107,13 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         1,
         "não inventar resposta ausente na cassette"
     );
-    let ids = gravacao::parametro(originais[0].item, "id_documento");
+    let ids = gravacao::parametro(originais[0].interacao, "id_documento");
     let id_observado = ids.first().copied().expect("id_documento observado no GET");
     assert!(
         ids.iter().all(|valor| *valor == id_observado),
         "o GET original deve apontar para um único documento"
     );
-    let html_original = html_da_resposta(originais[0].item).unwrap();
+    let html_original = html_da_resposta(originais[0].interacao).unwrap();
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
     assert!(!texto_original.contains("infra_hash"));
@@ -198,7 +198,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
         .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
         .collect();
     assert_eq!(originais.len(), 1, "usar somente o histórico gravado");
-    let ids = gravacao::parametro(originais[0].item, "id_documento");
+    let ids = gravacao::parametro(originais[0].interacao, "id_documento");
     let id = ids.first().copied().expect("id_documento na requisição");
     assert!(
         ids.iter().all(|valor| *valor == id),
@@ -209,7 +209,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id, &numero_observado);
     let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
-    let html_original = html_da_resposta(originais[0].item).unwrap();
+    let html_original = html_da_resposta(originais[0].interacao).unwrap();
     let historico_original =
         crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
     let atual = historico_original

@@ -76,7 +76,7 @@ permite confirmar o efeito depois da leitura. Um POST sem resposta é
 **sempre escrita não confirmada (saída 1)**, mesmo que a árvore passe a mostrar
 o usuário pedido ou a remoção: outro agente pode ter realizado a
 mudança no intervalo. A leitura nova ainda registra
-`atribuicao_relida` na variante (`None` = não observada, texto vazio =
+`atribuicao_relida` no erro (`None` = não observada, texto vazio =
 remoção observada), como **possível resíduo e não prova de autoria**.
 O erro original do envio fica preservado no erro tipado, sem retry.
 **Não repita a confirmação de escrita não confirmada**, mesmo quando a

@@ -32,7 +32,7 @@ fn conferir_mesmos_bytes(feito: &DocumentoCancelado) {
 }
 
 #[test]
-fn previa_igual_ao_contrato_legado() {
+fn previa_publica_os_campos_do_contrato() {
     conferir_mesmos_bytes(&exemplo());
 }
 

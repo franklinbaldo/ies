@@ -32,64 +32,65 @@ pub(crate) fn conferir_cadastro(
     descricao: Option<&str>,
     nivel: Option<&str>,
 ) -> Result<(), ErroCriar> {
-    use ErroCriar as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::CadastroForaDaForma)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroCriar::CadastroForaDaForma)?;
     let formularios =
-        nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| E::CadastroForaDaForma)?;
+        nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| ErroCriar::CadastroForaDaForma)?;
     let [formulario] = formularios.as_slice() else {
-        return Err(E::CadastroForaDaForma);
+        return Err(ErroCriar::CadastroForaDaForma);
     };
     let formulario = formulario
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(E::CadastroForaDaForma)?;
+        .ok_or(ErroCriar::CadastroForaDaForma)?;
     if !formulario.name().as_utf8_str().eq_ignore_ascii_case("form")
         || valor_do_atributo(formulario, "method")
-            .map_err(|_| E::CadastroForaDaForma)?
+            .map_err(|_| ErroCriar::CadastroForaDaForma)?
             .as_deref()
             != Some("post")
     {
-        return Err(E::CadastroForaDaForma);
+        return Err(ErroCriar::CadastroForaDaForma);
     }
-    let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(|_| E::CadastroForaDaForma)?;
+    let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(|_| ErroCriar::CadastroForaDaForma)?;
     let [rotulo] = rotulos.as_slice() else {
-        return Err(E::CadastroForaDaForma);
+        return Err(ErroCriar::CadastroForaDaForma);
     };
     let rotulo = rotulo
         .get(dom.parser())
         .and_then(tl::Node::as_tag)
-        .ok_or(E::CadastroForaDaForma)?;
+        .ok_or(ErroCriar::CadastroForaDaForma)?;
     if !rotulo.name().as_utf8_str().eq_ignore_ascii_case("label") {
-        return Err(E::CadastroForaDaForma);
+        return Err(ErroCriar::CadastroForaDaForma);
     }
     let lido = rotulo
         .inner_text(dom.parser())
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let lido = decodificar_atributo(&lido).ok_or(E::CadastroForaDaForma)?;
+    let lido = decodificar_atributo(&lido).ok_or(ErroCriar::CadastroForaDaForma)?;
     if lido != tipo {
-        return Err(E::TipoDoCadastroDiferente);
+        return Err(ErroCriar::TipoDoCadastroDiferente);
     }
     if descricao.is_some_and(|valor| !valor.is_empty()) {
-        let controles = nos_com_id(&dom, "txtDescricao").map_err(|_| E::CadastroForaDaForma)?;
+        let controles =
+            nos_com_id(&dom, "txtDescricao").map_err(|_| ErroCriar::CadastroForaDaForma)?;
         let [controle] = controles.as_slice() else {
-            return Err(E::DescricaoNaoOferecida);
+            return Err(ErroCriar::DescricaoNaoOferecida);
         };
         let controle = controle
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(E::DescricaoNaoOferecida)?;
+            .ok_or(ErroCriar::DescricaoNaoOferecida)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
             || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
                 .as_deref()
                 != Some("txtDescricao")
             || crate::html_atributos::atributo_presente(controle, "disabled")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
         {
-            return Err(E::DescricaoNaoOferecida);
+            return Err(ErroCriar::DescricaoNaoOferecida);
         }
     }
     if let Some(nivel) = nivel {
@@ -97,34 +98,34 @@ pub(crate) fn conferir_cadastro(
             "publico" => ("optPublico", "0"),
             "restrito" => ("optRestrito", "1"),
             "sigiloso" => ("optSigiloso", "2"),
-            _ => return Err(E::NivelNaoOferecido),
+            _ => return Err(ErroCriar::NivelNaoOferecido),
         };
-        let controles = nos_com_id(&dom, id).map_err(|_| E::CadastroForaDaForma)?;
+        let controles = nos_com_id(&dom, id).map_err(|_| ErroCriar::CadastroForaDaForma)?;
         let [controle] = controles.as_slice() else {
-            return Err(E::NivelNaoOferecido);
+            return Err(ErroCriar::NivelNaoOferecido);
         };
         let controle = controle
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
-            .ok_or(E::NivelNaoOferecido)?;
+            .ok_or(ErroCriar::NivelNaoOferecido)?;
         if !controle.name().as_utf8_str().eq_ignore_ascii_case("input")
             || !controle_oferecido(&dom, formulario, controle)?
             || valor_do_atributo(controle, "name")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
                 .as_deref()
                 != Some("rdoNivelAcesso")
             || valor_do_atributo(controle, "type")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
                 .as_deref()
                 != Some("radio")
             || valor_do_atributo(controle, "value")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
                 .as_deref()
                 != Some(valor)
             || crate::html_atributos::atributo_presente(controle, "disabled")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
         {
-            return Err(E::NivelNaoOferecido);
+            return Err(ErroCriar::NivelNaoOferecido);
         }
     }
     if nivel.is_some() {
@@ -142,7 +143,6 @@ fn conferir_controles_obrigatorios(
     descricao: Option<&str>,
     nivel: Option<&str>,
 ) -> Result<(), ErroCriar> {
-    use ErroCriar as E;
     for tag in formulario
         .children()
         .all(dom.parser())
@@ -157,28 +157,29 @@ fn conferir_controles_obrigatorios(
             continue;
         }
         if !crate::html_atributos::atributo_presente(tag, "required")
-            .map_err(|_| E::CadastroForaDaForma)?
+            .map_err(|_| ErroCriar::CadastroForaDaForma)?
             || crate::html_atributos::atributo_presente(tag, "disabled")
-                .map_err(|_| E::CadastroForaDaForma)?
+                .map_err(|_| ErroCriar::CadastroForaDaForma)?
             || !controle_oferecido(dom, formulario, tag)?
         {
             continue;
         }
-        let tipo_controle = valor_do_atributo(tag, "type").map_err(|_| E::CadastroForaDaForma)?;
+        let tipo_controle =
+            valor_do_atributo(tag, "type").map_err(|_| ErroCriar::CadastroForaDaForma)?;
         if matches!(
             tipo_controle.as_deref(),
             Some("hidden" | "submit" | "button" | "reset" | "image")
         ) {
             continue;
         }
-        let nome = valor_do_atributo(tag, "name").map_err(|_| E::CadastroForaDaForma)?;
+        let nome = valor_do_atributo(tag, "name").map_err(|_| ErroCriar::CadastroForaDaForma)?;
         let atendido = match nome.as_deref() {
             Some("txtDescricao") => descricao.is_some_and(|s| !s.trim().is_empty()),
             Some("rdoNivelAcesso") => nivel.is_some(),
             _ => false,
         };
         if !atendido {
-            return Err(E::CampoObrigatorioNaoAtendido);
+            return Err(ErroCriar::CampoObrigatorioNaoAtendido);
         }
     }
     Ok(())

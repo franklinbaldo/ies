@@ -4,7 +4,7 @@
 //! reconciliação do contrato. Nenhum 302 é seguido; nenhuma escrita é
 //! repetida.
 use super::destino::{ler_resposta_da_consulta, resolver_destino};
-use super::erro::{ErroEnviar as C, FalhaDaConsulta};
+use super::erro::{ErroEnviar, FalhaDaConsulta};
 use super::tela::{
     AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
     campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
@@ -48,8 +48,8 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     pedido: &PedidoDoEnvio<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<ProcessoEnviado, C> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(C::Abertura(
+) -> Result<ProcessoEnviado, ErroEnviar> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroEnviar::Abertura(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
     let mut rede = Contador::novo(envio);
@@ -58,9 +58,9 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let unidade = aberto
         .unidade
         .clone()
-        .ok_or(C::UnidadeDaSessaoNaoPublicada)?;
+        .ok_or(ErroEnviar::UnidadeDaSessaoNaoPublicada)?;
     let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|motivo| C::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
+        .map_err(|motivo| ErroEnviar::SituacaoDoProcessoNaoLidaAntesDeEnviar { motivo })?;
     let link = conferir_link_do_envio(acoes.enviar, &aberto_em, &unidade)?;
     let id = aberto.arvore.processo.id.clone();
     let cookie = ler_cookie(sessao)?;
@@ -83,7 +83,7 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     )?;
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
-        return Err(C::ProcessoJaAbertoNoDestino { aberto_em });
+        return Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em });
     }
     let mut feito = ProcessoEnviado {
         nup: pedido.nup.as_str().to_owned(),
@@ -146,7 +146,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
     tela: &TelaLida,
     pedido: &PedidoDoEnvio<'_>,
     feito: &ProcessoEnviado,
-) -> Result<Option<FalhaDoEnvio>, C> {
+) -> Result<Option<FalhaDoEnvio>, ErroEnviar> {
     let campos = campos_do_envio(
         &tela.conferida,
         &feito.destino,
@@ -162,24 +162,24 @@ fn submeter_envio<V: EnvioDoProcesso>(
     let submissao = derivar_submissao(&ENVIAR_PROCESSO, instalacao, &servida, "", &pares)
         .map_err(|causa| erro_apos_limpeza(feito, causa))?;
     enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
-        C::Formulario(causa) => erro_apos_limpeza(feito, causa),
+        ErroEnviar::Formulario(causa) => erro_apos_limpeza(feito, causa),
         outro => outro,
     })
 }
 
 /// Só o formulário de envio falhou: um POST de limpeza anterior já foi
 /// comprovado por GET. Preserva a causa tipada e as unidades observadas.
-fn erro_apos_limpeza(feito: &ProcessoEnviado, causa: ErroSubmissaoFormulario) -> C {
+fn erro_apos_limpeza(feito: &ProcessoEnviado, causa: ErroSubmissaoFormulario) -> ErroEnviar {
     if feito.metodo_remocao == Some(MetodoRemocao::LimparAnotacao)
         && feito.anotacao_antes == Some(true)
         && feito.anotacao_depois == Some(false)
     {
-        C::FormularioAposLimpezaComprovada {
+        ErroEnviar::FormularioAposLimpezaComprovada {
             aberto_em: feito.aberto_em.clone(),
             causa,
         }
     } else {
-        C::Formulario(causa)
+        ErroEnviar::Formulario(causa)
     }
 }
 
@@ -192,9 +192,9 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
     mut feito: ProcessoEnviado,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
-) -> Result<ProcessoEnviado, C> {
+) -> Result<ProcessoEnviado, ErroEnviar> {
     if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
-        let link = link_anotacao.ok_or(C::RemocaoDeAnotacoesSemVerificacao)?;
+        let link = link_anotacao.ok_or(ErroEnviar::RemocaoDeAnotacoesSemVerificacao)?;
         feito.anotacao_depois =
             observar_anotacao_depois(rede, cookie, link, &feito.id_procedimento);
     }
@@ -203,12 +203,12 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
         match feito.anotacao_depois {
             Some(false) => {}
             Some(true) => {
-                return Err(C::AnotacoesNaoRemovidasAposEnvio {
+                return Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
                     depois: feito.depois,
                 });
             }
             None => {
-                return Err(C::NaoConfirmadoNaRemocaoDeAnotacoes {
+                return Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
                     depois: feito.depois,
                 });
             }
@@ -225,19 +225,19 @@ fn conferir_link_do_envio(
     >,
     aberto_em: &[String],
     unidade: &str,
-) -> Result<crate::arvore_processo::EnderecoDeEscrita, C> {
+) -> Result<crate::arvore_processo::EnderecoDeEscrita, ErroEnviar> {
     let aberta = aberto_em.iter().any(|sigla| sigla == unidade);
     match (enviar, aberta) {
-        (Ok(None) | Err(_), false) => Err(C::ProcessoNaoAbertoNaUnidadeDaSessao {
+        (Ok(None) | Err(_), false) => Err(ErroEnviar::ProcessoNaoAbertoNaUnidadeDaSessao {
             aberto_em: aberto_em.to_vec(),
         }),
-        (Ok(Some(_)), false) => Err(C::UnidadeDaSessaoAusenteDaSituacao {
+        (Ok(Some(_)), false) => Err(ErroEnviar::UnidadeDaSessaoAusenteDaSituacao {
             aberto_em: aberto_em.to_vec(),
         }),
-        (Ok(None), true) => Err(C::EnvioNaoPublicadoNaBarra {
+        (Ok(None), true) => Err(ErroEnviar::EnvioNaoPublicadoNaBarra {
             aberto_em: aberto_em.to_vec(),
         }),
-        (Err(erro), true) => Err(C::Barra(erro)),
+        (Err(erro), true) => Err(ErroEnviar::Barra(erro)),
         (Ok(Some(link)), true) => Ok(link),
     }
 }
@@ -249,7 +249,7 @@ fn escolher_metodo(
     anotacao_antes: Option<bool>,
     link: Option<&str>,
     anotacao_lida: Option<&AnotacaoLida>,
-) -> Result<Option<MetodoRemocao>, C> {
+) -> Result<Option<MetodoRemocao>, ErroEnviar> {
     if !pedido.remover_anotacoes {
         return Ok(None);
     }
@@ -258,17 +258,17 @@ fn escolher_metodo(
     } else if anotacao_antes.is_some() {
         if !anotacao_lida.is_some_and(|lida| super::anotacoes::salvar_oferecido(&lida.html)) {
             return Err(if pedido.confirmar {
-                C::RemocaoDeAnotacoesSemVerificacao
+                ErroEnviar::RemocaoDeAnotacoesSemVerificacao
             } else {
-                C::RemocaoDeAnotacoesNaoOferecida
+                ErroEnviar::RemocaoDeAnotacoesNaoOferecida
             });
         }
         MetodoRemocao::LimparAnotacao
     } else {
-        return Err(C::RemocaoDeAnotacoesNaoOferecida);
+        return Err(ErroEnviar::RemocaoDeAnotacoesNaoOferecida);
     };
     if pedido.confirmar && link.is_none() {
-        return Err(C::RemocaoDeAnotacoesSemVerificacao);
+        return Err(ErroEnviar::RemocaoDeAnotacoesSemVerificacao);
     }
     Ok(Some(metodo))
 }
@@ -280,24 +280,24 @@ fn ler_anotacao_antes<V: EnvioDoProcesso>(
     cookie: &str,
     link: Option<&str>,
     id: &str,
-) -> Result<Option<AnotacaoLida>, C> {
+) -> Result<Option<AnotacaoLida>, ErroEnviar> {
     let Some(link) = link else {
         return Ok(None);
     };
     let (html, mime) = obter_tela(rede, cookie, link).map_err(|falha| match falha {
         FalhaDaTela::Transporte(falha) => {
-            C::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(falha))
+            ErroEnviar::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(falha))
         }
         FalhaDaTela::Redirecionada => {
-            C::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada)
+            ErroEnviar::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada)
         }
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            C::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroEnviar::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     })?;
     let presente = super::anotacoes::anotacao_presente(&html, id)
         .map_err(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes)?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(ErroEnviar::CharsetDaTelaNaoSuportado)?;
     Ok(Some(AnotacaoLida {
         presente,
         html,
@@ -315,7 +315,7 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
     link: &str,
     lida: &AnotacaoLida,
     id: &str,
-) -> Result<(), C> {
+) -> Result<(), ErroEnviar> {
     let servida = TelaServida {
         url: link,
         html: &lida.html,
@@ -334,15 +334,17 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         rede.post(s, c)
     });
     if !saiu {
-        return Err(C::Formulario(
+        return Err(ErroEnviar::Formulario(
             resposta.expect_err("sem POST só falha na derivação"),
         ));
     }
     // Mesmo erro de transporte pós-POST não autoriza retry. A leitura decide.
     match conferir_anotacao_depois(rede, cookie, link, id, None) {
         Ok(()) => Ok(()),
-        Err(C::AnotacoesNaoRemovidasAposEnvio { .. }) => Err(C::AnotacaoNaoLimpaAntesDeEnviar),
-        Err(_) => Err(C::NaoConfirmadoNaLimpezaDaAnotacao),
+        Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }) => {
+            Err(ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar)
+        }
+        Err(_) => Err(ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao),
     }
 }
 
@@ -354,13 +356,13 @@ fn conferir_anotacao_depois<V: EnvioDoProcesso>(
     link: &str,
     id: &str,
     unidades_apos_envio: Option<&[String]>,
-) -> Result<(), C> {
+) -> Result<(), ErroEnviar> {
     match observar_anotacao_depois(rede, cookie, link, id) {
         Some(false) => Ok(()),
-        Some(true) => Err(C::AnotacoesNaoRemovidasAposEnvio {
+        Some(true) => Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
-        None => Err(C::NaoConfirmadoNaRemocaoDeAnotacoes {
+        None => Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
             depois: unidades_apos_envio.map(ToOwned::to_owned),
         }),
     }
@@ -385,16 +387,16 @@ fn ler_tela<V: EnvioDoProcesso>(
     cookie: &str,
     url: &str,
     id: &str,
-) -> Result<TelaLida, C> {
+) -> Result<TelaLida, ErroEnviar> {
     let (html, mime) = obter_tela(rede, cookie, url).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(falha) => C::TelaDaEscrita(falha),
-        FalhaDaTela::Redirecionada => C::TelaDaEscritaRedirecionada,
+        FalhaDaTela::Transporte(falha) => ErroEnviar::TelaDaEscrita(falha),
+        FalhaDaTela::Redirecionada => ErroEnviar::TelaDaEscritaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            C::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroEnviar::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     })?;
     let conferida = conferir_tela_de_envio(&html, id)?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(C::CharsetDaTelaNaoSuportado)?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(ErroEnviar::CharsetDaTelaNaoSuportado)?;
     Ok(TelaLida {
         url: url.to_owned(),
         html,
@@ -411,7 +413,7 @@ fn consultar_destino<V: EnvioDoProcesso>(
     instalacao: &Instalacao,
     tela: &TelaLida,
     para: &str,
-) -> Result<Destino, C> {
+) -> Result<Destino, ErroEnviar> {
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,
@@ -427,11 +429,11 @@ fn consultar_destino<V: EnvioDoProcesso>(
             &conferida.autocompletar,
             &campos,
         )
-        .map_err(|erro| C::Consulta(FalhaDaConsulta::Derivacao(erro)))?;
+        .map_err(|erro| ErroEnviar::Consulta(FalhaDaConsulta::Derivacao(erro)))?;
         let resposta = rede
             .post(consulta, cookie)
-            .map_err(|falha| C::Consulta(FalhaDaConsulta::Transporte(falha)))?;
-        ler_resposta_da_consulta(resposta).map_err(C::Consulta)
+            .map_err(|falha| ErroEnviar::Consulta(FalhaDaConsulta::Transporte(falha)))?;
+        ler_resposta_da_consulta(resposta).map_err(ErroEnviar::Consulta)
     })
 }
 
@@ -442,7 +444,7 @@ fn enviar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     submissao: SubmissaoDerivada,
     id: &str,
-) -> Result<Option<FalhaDoEnvio>, C> {
+) -> Result<Option<FalhaDoEnvio>, ErroEnviar> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
@@ -457,7 +459,7 @@ fn enviar<V: EnvioDoProcesso>(
         }
         Ok(RespostaDoEnvio::Html(_)) => Ok(Some(FalhaDoEnvio::RespostaDoEnvioSemRedirecionamento)),
         Err(erro) if enviado => Ok(Some(FalhaDoEnvio::Envio(erro))),
-        Err(erro) => Err(C::Formulario(erro)),
+        Err(erro) => Err(ErroEnviar::Formulario(erro)),
     }
 }
 
@@ -466,9 +468,9 @@ fn conciliar(
     mut feito: ProcessoEnviado,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
-) -> Result<ProcessoEnviado, C> {
+) -> Result<ProcessoEnviado, ErroEnviar> {
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
-        return Err(C::NaoConfirmadoNoEnvio {
+        return Err(ErroEnviar::NaoConfirmadoNoEnvio {
             aberto_em: feito.aberto_em,
             anotacao_depois: feito.anotacao_depois,
             falha_do_envio: falha,
@@ -476,7 +478,7 @@ fn conciliar(
         });
     };
     if !depois.contains(&feito.destino.sigla) {
-        return Err(C::EnvioNaoAplicado {
+        return Err(ErroEnviar::EnvioNaoAplicado {
             aberto_em: feito.aberto_em,
             depois,
             anotacao_depois: feito.anotacao_depois,
@@ -484,7 +486,7 @@ fn conciliar(
         });
     }
     if depois.contains(&feito.unidade) != feito.manter_aberto {
-        return Err(C::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
+        return Err(ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
             aberto_em: feito.aberto_em,
             depois,
             anotacao_depois: feito.anotacao_depois,

@@ -3,7 +3,6 @@
 //! leitura de verificação, com a tabela de reconciliação do contrato.
 //! Nenhum 302 é seguido; nenhuma escrita é repetida. As peças são as de
 //! `processo concluir` (`processo_concluir::escrita`).
-use super::erro::ErroReabrir as R;
 use super::{PedidoDaReabertura, ProcessoReaberto};
 use crate::arvore_processo::ler_endereco_de_reabrir;
 use crate::indice_local::IndiceLocal;
@@ -23,19 +22,21 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
     pedido: &PedidoDaReabertura<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<ProcessoReaberto, R> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(R::Abertura(
-        ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
-    ))?;
+) -> Result<ProcessoReaberto, super::erro::ErroReabrir> {
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(super::erro::ErroReabrir::Abertura(
+            ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+        ))?;
     let mut rede = Contador::novo(envio);
     let leitura = |unidade_exigida| leitura(pedido.nup, pedido.unidade, unidade_exigida);
     let (aberto, acoes) = abrir_para_escrever(sessao, &leitura(true), indice, &mut rede)?;
     let unidade = aberto
         .unidade
         .clone()
-        .ok_or(R::UnidadeDaSessaoNaoPublicada)?;
-    let aberto_em = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|motivo| R::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo })?;
+        .ok_or(super::erro::ErroReabrir::UnidadeDaSessaoNaoPublicada)?;
+    let aberto_em = siglas_abertas(&aberto.arvore.aberto_em).map_err(|motivo| {
+        super::erro::ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo }
+    })?;
     let na_unidade = aberto_em.contains(&unidade);
     let mut feito = ProcessoReaberto {
         nup: pedido.nup.as_str().to_owned(),
@@ -53,12 +54,12 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
     let acao = match (acoes.reabrir?, na_unidade) {
         (None, true) => return Ok(feito),
         (Some(_), true) => {
-            return Err(R::UnidadeDaSessaoJaNaSituacao {
+            return Err(super::erro::ErroReabrir::UnidadeDaSessaoJaNaSituacao {
                 aberto_em: feito.aberto_em,
             });
         }
         (None, false) => {
-            return Err(R::ReaberturaNaoPublicadaNaBarra {
+            return Err(super::erro::ErroReabrir::ReaberturaNaoPublicadaNaBarra {
                 aberto_em: feito.aberto_em,
             });
         }
@@ -72,10 +73,10 @@ pub(crate) fn reabrir_processo<V: EnvioDoProcesso>(
     let id = feito.id_procedimento.clone();
     let (html, _) =
         obter_tela(&mut rede, &cookie, acao.tela_do_no.as_str()).map_err(|falha| match falha {
-            FalhaDaTela::Transporte(falha) => R::TelaDoNo(falha),
-            FalhaDaTela::Redirecionada => R::TelaDoNoRedirecionada,
+            FalhaDaTela::Transporte(falha) => super::erro::ErroReabrir::TelaDoNo(falha),
+            FalhaDaTela::Redirecionada => super::erro::ErroReabrir::TelaDoNoRedirecionada,
             FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                R::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                super::erro::ErroReabrir::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
         })?;
     let (url, forma) = ler_endereco_de_reabrir(&instalacao, &html, &id)?;
@@ -96,16 +97,16 @@ fn conciliar(
     mut feito: ProcessoReaberto,
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
-) -> Result<ProcessoReaberto, R> {
+) -> Result<ProcessoReaberto, super::erro::ErroReabrir> {
     let VerificacaoPorLeitura::Lida(depois) = verificacao else {
-        return Err(R::NaoConfirmadoNaReabertura {
+        return Err(super::erro::ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em: feito.aberto_em,
             falha_do_envio: falha,
             verificacao: Box::new(verificacao),
         });
     };
     if !depois.contains(&feito.unidade) {
-        return Err(R::ReaberturaNaoAplicada {
+        return Err(super::erro::ErroReabrir::ReaberturaNaoAplicada {
             aberto_em: feito.aberto_em,
             depois,
             falha_do_envio: falha,

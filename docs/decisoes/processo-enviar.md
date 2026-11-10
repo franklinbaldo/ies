@@ -70,7 +70,7 @@ as duas coisas juntas exigem a consulta, que é um POST de leitura.
   a leitura não provaria nada).
 - O POST leva só o observado: ocultos como servidos, `hdnUnidades =
   ID±DESCRIÇÃO`, `selOrgao`, os textos vazios e, com `--manter-aberto`,
-  `chkSinManterAberto=on` (a variante gravada nos 25 envios). Sem
+  `chkSinManterAberto=on` (a forma gravada nos 25 envios). Sem
   `--manter-aberto` a caixa vai como servida; esse efeito não está
   gravado e é o que o live deve medir primeiro.
 - Resposta esperada: o 302 para `arvore_visualizar` com

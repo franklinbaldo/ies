@@ -1,6 +1,6 @@
 //! Fluxo do cancelamento: abre o documento, confere o formulário observado,
 //! prévia sem POST, uma escrita e uma nova leitura (sem retries/redirects).
-use super::erro::{ErroCancelar as E, FalhaDoCancelamento as F, VerificacaoDoCancelamento as Ver};
+use super::erro::{ErroCancelar, FalhaDoCancelamento, VerificacaoDoCancelamento as Ver};
 use super::ler_link_cancelar;
 use crate::arvore_processo::ProcessoNaArvore;
 use crate::documento::NumeroDocumento;
@@ -49,7 +49,9 @@ pub(crate) struct PedidoDoCancelamento<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ResultadoDaVerificacao {
     Previa,
-    Cancelado { falha_do_envio: Option<F> },
+    Cancelado {
+        falha_do_envio: Option<FalhaDoCancelamento>,
+    },
 }
 
 impl ResultadoDaVerificacao {
@@ -57,7 +59,7 @@ impl ResultadoDaVerificacao {
         matches!(self, Self::Cancelado { .. })
     }
 
-    pub(crate) fn falha_do_envio(&self) -> Option<&F> {
+    pub(crate) fn falha_do_envio(&self) -> Option<&FalhaDoCancelamento> {
         match self {
             Self::Previa => None,
             Self::Cancelado { falha_do_envio } => falha_do_envio.as_ref(),
@@ -81,11 +83,12 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
     pedido: &PedidoDoCancelamento<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<DocumentoCancelado, E> {
-    let instalacao =
-        Instalacao::interpretar(sessao.origem).ok_or(E::Abertura(ErroDocumentoObter::Processo(
-            ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
-        )))?;
+) -> Result<DocumentoCancelado, ErroCancelar> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroCancelar::Abertura(
+        ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(
+            FalhaTransporte::OrigemNaoAutorizada,
+        )),
+    ))?;
     let motivo = pedido.motivo;
     let mut rede = Contador::novo(envio);
     let leitura = PedidoDoDocumento {
@@ -94,10 +97,10 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         unidade: pedido.unidade,
         anexo: PedidoDoAnexo::default(),
     };
-    let aberto =
-        abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede).map_err(E::Abertura)?;
+    let aberto = abrir_documento_na_arvore(sessao, &leitura, indice, &mut rede)
+        .map_err(ErroCancelar::Abertura)?;
     if aberto.natureza.cancelado == Some(true) {
-        return Err(E::DocumentoJaCancelado);
+        return Err(ErroCancelar::DocumentoJaCancelado);
     }
     let link = ler_link_cancelar(
         &instalacao,
@@ -105,18 +108,20 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         &aberto.id_documento,
         &aberto.processo.id,
     )
-    .map_err(E::Link)?
-    .ok_or(E::CancelamentoNaoOferecido)?;
+    .map_err(ErroCancelar::Link)?
+    .ok_or(ErroCancelar::CancelamentoNaoOferecido)?;
     if aberto.natureza.cancelado != Some(false) {
-        return Err(E::EstadoAntesNaoObservado);
+        return Err(ErroCancelar::EstadoAntesNaoObservado);
     }
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|f| match f {
-        FalhaDaTela::Transporte(falha) => E::Tela(falha),
-        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => E::SessaoEncerrada,
+        FalhaDaTela::Transporte(falha) => ErroCancelar::Tela(falha),
+        FalhaDaTela::Redirecionada => ErroCancelar::TelaRedirecionada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            ErroCancelar::SessaoEncerrada
+        }
     })?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(E::CharsetNaoSuportado)?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(ErroCancelar::CharsetNaoSuportado)?;
     let tela = TelaServida {
         url: link.as_str(),
         html: &html,
@@ -135,7 +140,7 @@ pub(crate) fn cancelar_documento<V: EnvioDoProcesso>(
         aberto.unidade.as_deref().unwrap_or_default(),
         &[("txaMotivo", motivo)],
     )
-    .map_err(E::Formulario)?;
+    .map_err(ErroCancelar::Formulario)?;
     let feito = DocumentoCancelado {
         numero: aberto.numero,
         id_documento: aberto.id_documento,
@@ -159,8 +164,8 @@ fn reconciliar<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     rede: &mut Contador<'_, V>,
     mut feito: DocumentoCancelado,
-    falha: Option<F>,
-) -> Result<DocumentoCancelado, E> {
+    falha: Option<FalhaDoCancelamento>,
+) -> Result<DocumentoCancelado, ErroCancelar> {
     // Sempre uma leitura nova depois de enviar. Até uma resposta 5xx pode
     // ter cancelado; a escrita irreversível jamais é repetida.
     let verificacao = match abrir_documento_na_arvore(sessao, leitura, indice, rede) {
@@ -193,10 +198,10 @@ fn reconciliar<V: EnvioDoProcesso>(
         Ver::Lida {
             cancelado: Some(false),
             ..
-        } => Err(E::CancelamentoNaoAplicado {
+        } => Err(ErroCancelar::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),
-        outra => Err(E::NaoConfirmado {
+        outra => Err(ErroCancelar::NaoConfirmado {
             falha_do_envio: falha,
             verificacao: Box::new(outra),
         }),
@@ -210,16 +215,16 @@ pub(super) fn conferir_formulario(
     tela: &TelaServida<'_>,
     processo: &str,
     documento: &str,
-) -> Result<(), E> {
+) -> Result<(), ErroCancelar> {
     use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| E::FormularioDeOutroDocumento)?;
-    let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(E::Formulario)?;
+        .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
+    let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(ErroCancelar::Formulario)?;
     let action = valor_do_atributo(form, "action")
-        .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
-        .ok_or(E::FormularioDeOutroDocumento)?;
+        .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
+        .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
-        .ok_or(E::FormularioDeOutroDocumento)?;
+        .ok_or(ErroCancelar::FormularioDeOutroDocumento)?;
     conferir_endereco_relativo_por(
         instalacao,
         &action,
@@ -227,7 +232,7 @@ pub(super) fn conferir_formulario(
         "id_procedimento",
         processo,
     )
-    .map_err(|_| E::FormularioDeOutroDocumento)?;
+    .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
     conferir_endereco_relativo_por(
         instalacao,
         &action,
@@ -235,7 +240,7 @@ pub(super) fn conferir_formulario(
         "id_documento",
         documento,
     )
-    .map_err(|_| E::FormularioDeOutroDocumento)?;
+    .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
     let mut motivos = 0;
     for tag in form
         .children()
@@ -244,19 +249,20 @@ pub(super) fn conferir_formulario(
         .filter_map(tl::Node::as_tag)
     {
         let nome = valor_do_atributo(tag, "name")
-            .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?;
+            .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?;
         if nome.as_deref() == Some("txaMotivo") {
             if tag.name().as_utf8_str() != "textarea"
-                || crate::html_atributos::atributo_presente(tag, "disabled")
-                    .map_err(|f| E::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
+                || crate::html_atributos::atributo_presente(tag, "disabled").map_err(|f| {
+                    ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f))
+                })?
             {
-                return Err(E::MotivoNaoPublicadoNaTela);
+                return Err(ErroCancelar::MotivoNaoPublicadoNaTela);
             }
             motivos += 1;
         }
     }
     if motivos != 1 {
-        return Err(E::MotivoNaoPublicadoNaTela);
+        return Err(ErroCancelar::MotivoNaoPublicadoNaTela);
     }
     Ok(())
 }
@@ -302,7 +308,7 @@ fn enviar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     submissao: SubmissaoDerivada,
     feito: &DocumentoCancelado,
-) -> Result<Option<F>, E> {
+) -> Result<Option<FalhaDoCancelamento>, ErroCancelar> {
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
@@ -317,10 +323,10 @@ fn enviar<V: EnvioDoProcesso>(
                 &feito.id_documento,
             )
         }))
-        .then_some(F::RedirecionamentoNaoReconhecido)),
-        Ok(RespostaDoEnvio::Html(_)) => Ok(Some(F::RespostaSemRedirecionamento)),
-        Err(erro) if enviado => Ok(Some(F::Envio(erro))),
-        Err(erro) => Err(E::Formulario(erro)),
+        .then_some(FalhaDoCancelamento::RedirecionamentoNaoReconhecido)),
+        Ok(RespostaDoEnvio::Html(_)) => Ok(Some(FalhaDoCancelamento::RespostaSemRedirecionamento)),
+        Err(erro) if enviado => Ok(Some(FalhaDoCancelamento::Envio(erro))),
+        Err(erro) => Err(ErroCancelar::Formulario(erro)),
     }
 }
 

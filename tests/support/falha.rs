@@ -1,9 +1,9 @@
 //! Contrato de falha da CLI (#695): saída 1, stdout vazio e o erro tipado
-//! no stderr como `Error: <Variante>`. Só o nome da variante é conferido.
+//! no stderr como `Error: <Erro>`. Só o nome da erro é conferido.
 use std::process::Output;
 
 #[track_caller]
-pub fn falha(saida: &Output, variante: &str) {
+pub fn falha(saida: &Output, erro: &str) {
     let stderr = String::from_utf8_lossy(&saida.stderr);
     assert_eq!(saida.status.code(), Some(1), "stderr: {stderr}");
     assert!(
@@ -18,15 +18,15 @@ pub fn falha(saida: &Output, variante: &str) {
         .chars()
         .take_while(|c| c.is_alphanumeric() || *c == '_')
         .collect();
-    assert_eq!(nome, variante, "stderr: {stderr}");
+    assert_eq!(nome, erro, "stderr: {stderr}");
 }
 
-/// [`falha`] com o invólucro `variante` e, na cadeia `Caused by:` que o
-/// anyhow imprime, uma causa da variante `causa`. Só nomes são conferidos.
+/// [`falha`] com o invólucro `erro` e, na cadeia `Caused by:` que o
+/// anyhow imprime, uma causa da erro `causa`. Só nomes são conferidos.
 #[track_caller]
 #[allow(dead_code)] // Nem todo alvo que inclui o suporte usa as causas.
-pub fn falha_por(saida: &Output, variante: &str, causa: &str) {
-    falha(saida, variante);
+pub fn falha_por(saida: &Output, erro: &str, causa: &str) {
+    falha(saida, erro);
     let stderr = String::from_utf8_lossy(&saida.stderr);
     let causas: Vec<String> = stderr
         .split_once("\n\nCaused by:\n")

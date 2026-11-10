@@ -13,7 +13,7 @@ use crate::processo_obter::pastas::aberta_inteira_da_pagina;
 pub(super) fn ler(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Vec<Registro> {
     // Árvore sem nó `PROCESSO` não declara NUP: o leitor diz por quê.
     let nup = c.nup(id).unwrap_or("");
-    let abrir = gravacao::parametro(r.item, "abrir_pastas") == ["1"];
+    let abrir = gravacao::parametro(r.interacao, "abrir_pastas") == ["1"];
     let lida = if abrir {
         aberta_inteira_da_pagina(&c.instalacao, nup, html, id)
     } else {
@@ -167,12 +167,13 @@ fn natureza(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Regist
 }
 
 fn links(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> [Registro; 3] {
-    use crate::historico_processo::ErroLinkDoHistorico as H;
     let historico = match &aberta.historico {
         Ok(_) => Resultado::Lido,
-        Err(H::LinkDoHistoricoAusenteNaArvore) => Resultado::NaoAplicavel(
-            crate::erro_publico::rotulo(&H::LinkDoHistoricoAusenteNaArvore),
-        ),
+        Err(crate::historico_processo::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore) => {
+            Resultado::NaoAplicavel(crate::erro_publico::rotulo(
+                &crate::historico_processo::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore,
+            ))
+        }
         Err(erro) => Resultado::Recusado(erro.rotulo()),
     };
     let propriedades = match &aberta.propriedades {

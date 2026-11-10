@@ -8,14 +8,14 @@ description: Erros tipados, causas preservadas e compatibilidade das saídas leg
 
 O IES adota a disciplina do [Todos](https://github.com/franklinbaldo/todos/blob/main/docs/agentes/erros.md):
 cada condição semanticamente distinta tem identidade tipada; mensagem
-não determina lógica de tratamento. Em Rust, variantes de `enum` substituem
+não determina lógica de tratamento. Em Rust, os erros de um `enum` fechado substituem
 a hierarquia de subclasses Python quando a família é fechada.
 ## Regras
 
 - Declare erro junto à operação ou adaptador que o produz; não faça
   de falhas técnicas entidades administrativas do SEI.
-- Use variante específica por condição, com campos tipados quando
-  contexto for necessário. Não construa uma variante genérica com
+- Use um erro específico por condição, com campos tipados quando
+  contexto for necessário. Não construa um erro genérico com
   mensagem variável para simular casos diferentes.
 - O tipo Rust (`enum` e seus campos) identifica a falha. **Não introduzir
   subcódigos novos, métodos de tradução ou catálogos paralelos** (ADR 0005).
@@ -33,14 +33,14 @@ a hierarquia de subclasses Python quando a família é fechada.
 
 ## Primeiro recorte aplicado
 
-`src/historico.rs` devolve `ErroHistorico` com variantes como
+`src/historico.rs` devolve `ErroHistorico` com erros como
 `NumeroDoHistoricoDiferenteDoSolicitado`, `HistoricoAusente` e
 `LinhaInvalida`. As funções não precisam devolver uma string para
-classificar a falha: os consumidores fazem `match` nas variantes.
+classificar a falha: os consumidores fazem `match` nos erros.
 Nomes descrevem a condição observada, evitando qualificadores vagos
 como `ambíguo` e `divergente`.
 
-`ErroCaixa` e `FalhaTransporte` já utilizam variantes específicas.
+`ErroCaixa` e `FalhaTransporte` já utilizam erros específicos.
 Revisões posteriores devem acrescentar dados úteis e padronizar
 categoria e apresentação, sem alterar códigos públicos desnecessariamente.
 
@@ -48,7 +48,7 @@ categoria e apresentação, sem alterar códigos públicos desnecessariamente.
 
 `FalhaTransporte` carrega `StatusHttpRecusado` (status e mensagem
 saneada do SEI) em 3xx, 401/403, 429, 5xx e outro status; por isso
-deixou de ser `Copy`. A **variante** é a identidade tipada da falha;
+deixou de ser `Copy`. O **nome do erro** é a identidade tipada da falha;
 o subcódigo é apenas representação de compatibilidade da CLI antiga.
 Status e mensagem saneada são dados de apresentação, nunca um
 atalho para classificar a falha. Ver o

@@ -118,7 +118,7 @@ na mesma árvore é pulado. A migração 1 → 2 cria a tabela e as colunas
   `transporte`), exatamente um `acao` igual à coluna, exatamente um
   `infra_hash` de 64 hexadecimais, nenhum `acao_ajax`, e
   `infra_unidade_atual`, se presente, igual à unidade. Cada recusa é uma
-  variante de `RegistroRecusado`, sem dados. Nenhuma expressão regular.
+  erro de `RegistroRecusado`, sem dados. Nenhuma expressão regular.
 - **`geracao_sessao`** é uma chave opaca do chamador (será o SHA-256 do
   cookie, como `cookie_sha256` do marcador de geração do login). O
   índice não lê arquivos de sessão. `link()` só devolve linhas da

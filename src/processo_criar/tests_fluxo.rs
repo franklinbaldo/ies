@@ -284,7 +284,7 @@ fn previa_com_interessado_unico_conferido_por_ajax() {
     );
 }
 
-/// Revisão da #249: a recusa HTTP do GET preserva subcódigo e status do SEI.
+/// Revisão da #249: a recusa HTTP do GET preserva o erro e o status do SEI.
 #[test]
 fn recusa_http_do_get_preserva_status_e_nao_segue() {
     let amb = ambiente();
@@ -309,7 +309,7 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
 }
 
 /// Caso de Todos `tests/test_processo_criar_escolher_tipo_010.py` @323eb01:
-/// a variante 4.1 exige um POST de seleção (só abre cadastro) e somente
+/// a versão 4.1 exige um POST de seleção (só abre cadastro) e somente
 /// um POST criador. Após esse segundo POST, há duas leituras de verificação.
 #[test]
 fn confirma_41_com_post_de_escolha_e_post_criador_unicos() {

@@ -22,7 +22,7 @@ três processos da mesma lista abriram normalmente.
 ## IES
 
 Antes: `endereco_da_arvore_nao_reconhecido`, como se o HTML estivesse fora da
-forma. Agora: variante própria `ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso`,
+forma. Agora: erro próprio `ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso`,
 com a mensagem "o SEI exige validar o acesso com a senha antes de abrir este
 processo; o IES ainda não faz essa validação". Saída 1, sem nova requisição.
 Árvore vazia **sem** a modal continua como endereço não reconhecido.

@@ -1,7 +1,7 @@
 //! RED/GREEN do fluxo de `processo concluir`: sequências exatas de
 //! requisições (orçamento do contrato), decisão antes de escrever, uma
 //! escrita nas duas formas e a tabela de reconciliação. Telas sintéticas.
-use super::erro::{ErroConcluir as C, FalhaDoEnvio, VerificacaoPorLeitura as V};
+use super::erro::{ErroConcluir, FalhaDoEnvio, VerificacaoPorLeitura};
 use super::tests_apoio::*;
 use super::{FormaDaConclusao, ProcessoConcluido};
 use crate::arvore_processo::{ErroFuncaoDeConcluir, MotivoAbertoEm};
@@ -204,16 +204,16 @@ fn ja_fechado_na_unidade_e_sem_acao_e_sucesso_sem_escrita() {
 
 #[test]
 fn recusas_antes_de_escrever_so_custam_a_abertura() {
-    let casos: Vec<(String, C)> = vec![
+    let casos: Vec<(String, ErroConcluir)> = vec![
         (
             arvore(&["OUTRA"], &tela()),
-            C::UnidadeDaSessaoAusenteDaSituacao {
+            ErroConcluir::UnidadeDaSessaoAusenteDaSituacao {
                 aberto_em: siglas(&["OUTRA"]),
             },
         ),
         (
             arvore(&[UNIDADE], vazio()),
-            C::ConclusaoNaoPublicadaNaBarra {
+            ErroConcluir::ConclusaoNaoPublicadaNaBarra {
                 aberto_em: siglas(&[UNIDADE]),
             },
         ),
@@ -224,13 +224,13 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
                 &format!("Processo sobrestado na unidade {}.<br />", ancora(UNIDADE)),
                 &tela(),
             ),
-            C::SituacaoDoProcessoNaoLidaAntesDeConcluir {
+            ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir {
                 motivo: MotivoAbertoEm::RaizPublicaOSobrestamento,
             },
         ),
         (
             arvore(&[UNIDADE], &[tela()[0].clone(), ACAO_FUNCAO.to_owned()]),
-            C::Barra(crate::arvore_processo::ErroConcluirNaBarra::Html(
+            ErroConcluir::Barra(crate::arvore_processo::ErroConcluirNaBarra::Html(
                 ErroHtml::repetido("formas_de_concluir_repetidas_na_barra"),
             )),
         ),
@@ -253,15 +253,20 @@ fn tela_recusada_ou_redirecionada_nao_envia_o_post() {
     let casos = vec![
         (
             ok(outro),
-            C::TelaDeConclusao(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso),
+            ErroConcluir::TelaDeConclusao(
+                super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso,
+            ),
         ),
         (
             ok(marcada),
-            C::TelaDeConclusao(
+            ErroConcluir::TelaDeConclusao(
                 super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida,
             ),
         ),
-        (r302(&volta_a_arvore()), C::TelaDaEscritaRedirecionada),
+        (
+            r302(&volta_a_arvore()),
+            ErroConcluir::TelaDaEscritaRedirecionada,
+        ),
     ];
     for (resposta, erro) in casos {
         let amb = ambiente();
@@ -280,7 +285,7 @@ fn tela_do_no_sem_a_funcao_nao_escreve() {
     let (r, feitos) = rodar(&amb, true, respostas);
     assert_eq!(
         r,
-        Err(C::FuncaoDeConcluir(ErroFuncaoDeConcluir::Html(
+        Err(ErroConcluir::FuncaoDeConcluir(ErroFuncaoDeConcluir::Html(
             ErroHtml::ausente("funcao_de_concluir_ausente_na_tela_do_no")
         )))
     );
@@ -288,7 +293,10 @@ fn tela_do_no_sem_a_funcao_nao_escreve() {
 }
 
 /// A forma `tela` com `resposta` ao POST e `depois` na verificação.
-fn tela_com(resposta: Resposta, depois: Resposta) -> (Result<ProcessoConcluido, C>, Vec<Pedido>) {
+fn tela_com(
+    resposta: Resposta,
+    depois: Resposta,
+) -> (Result<ProcessoConcluido, ErroConcluir>, Vec<Pedido>) {
     let amb = ambiente();
     let respostas = com(
         abertura(arvore(&[UNIDADE], &tela())),
@@ -319,7 +327,7 @@ fn unidade_ainda_aberta_depois_e_nao_aplicada() {
     let (r, feitos) = tela_com(r302(&volta_a_arvore()), ok(arvore(&[UNIDADE], &tela())));
     assert_eq!(
         r,
-        Err(C::ConclusaoNaoAplicada {
+        Err(ErroConcluir::ConclusaoNaoAplicada {
             aberto_em: siglas(&[UNIDADE]),
             depois: siglas(&[UNIDADE]),
             falha_do_envio: None,
@@ -330,7 +338,7 @@ fn unidade_ainda_aberta_depois_e_nao_aplicada() {
     let (r, _) = tela_com(r302(&fora), ok(arvore(&[UNIDADE], &tela())));
     assert_eq!(
         r,
-        Err(C::ConclusaoNaoAplicada {
+        Err(ErroConcluir::ConclusaoNaoAplicada {
             aberto_em: siglas(&[UNIDADE]),
             depois: siglas(&[UNIDADE]),
             falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecido),
@@ -341,15 +349,15 @@ fn unidade_ainda_aberta_depois_e_nao_aplicada() {
 #[test]
 fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, feitos) = tela_com(r302(&volta_a_arvore()), Err(FalhaTransporte::Rede));
-    let Err(erro @ C::NaoConfirmadoNaConclusao { .. }) = r else {
+    let Err(erro @ ErroConcluir::NaoConfirmadoNaConclusao { .. }) = r else {
         panic!("esperava efeito incerto: {r:?}");
     };
-    let C::NaoConfirmadoNaConclusao { verificacao, .. } = &erro else {
+    let ErroConcluir::NaoConfirmadoNaConclusao { verificacao, .. } = &erro else {
         unreachable!()
     };
     assert_eq!(
         **verificacao,
-        V::LeituraFalhou(crate::processo_obter::ErroProcessoObter::Transporte(
+        VerificacaoPorLeitura::LeituraFalhou(crate::processo_obter::ErroProcessoObter::Transporte(
             FalhaTransporte::Rede
         ))
     );
@@ -363,10 +371,10 @@ fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, _) = tela_com(r302(&volta_a_arvore()), ok(sobrestado));
     assert_eq!(
         r,
-        Err(C::NaoConfirmadoNaConclusao {
+        Err(ErroConcluir::NaoConfirmadoNaConclusao {
             aberto_em: siglas(&[UNIDADE]),
             falha_do_envio: None,
-            verificacao: Box::new(V::SituacaoNaoLida(
+            verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
                 MotivoAbertoEm::RaizPublicaOSobrestamento
             )),
         })

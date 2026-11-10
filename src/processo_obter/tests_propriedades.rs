@@ -1,7 +1,6 @@
 //! RED/GREEN das propriedades depois da árvore: sequências exatas de
 //! requisições (frio, quente, `--sem-propriedades`, `--sem-andamentos`),
 //! fallback `procedimento_consultar`, índice e recusas. Nenhum POST.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::NUP;
@@ -182,7 +181,9 @@ fn link_invalido_na_barra_so_pesa_quando_as_propriedades_sao_lidas() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        E::Propriedades(ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso)
+        super::ErroProcessoObter::Propriedades(
+            ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso
+        )
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -214,7 +215,7 @@ fn login_ou_503_na_tela_falham_sem_retry() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
     assert_eq!(pedidos.len(), 4);
     let amb = ambiente();
@@ -227,7 +228,10 @@ fn login_ou_503_na_tela_falham_sem_retry() {
             vec![(503, String::new(), None)],
         ),
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 4);
 }
 
@@ -371,6 +375,9 @@ fn guardado_que_responde_503_falha_sem_tentar_o_da_arvore() {
             (503, String::new(), None),
         ],
     );
-    assert!(matches!(r.unwrap_err(), E::Transporte(_)));
+    assert!(matches!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::Transporte(_)
+    ));
     assert_eq!(pedidos.len(), 2);
 }

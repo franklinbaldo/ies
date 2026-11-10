@@ -2,8 +2,8 @@
 //!
 //! Cada erro é declarado no módulo que o levanta, com `thiserror`:
 //! `#[from]` compõe pelo `?` e `#[source]` liga a causa. Fatos como "sessão
-//! encerrada" ou o status HTTP do SEI são decididos por `match` nas
-//! variantes de cada tipo, nunca por `downcast` na cadeia `source()`.
+//! encerrada" ou o status HTTP do SEI são decididos por `match` em
+//! cada tipo, nunca por `downcast` na cadeia `source()`.
 
 /// A sessão do SEI acabou: decide o relogin das leituras pelo tipo.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -14,7 +14,7 @@ pub struct SessaoEncerrada;
 #[path = "erro_publico/tests.rs"]
 mod tests;
 
-/// Rótulo estável de um erro tipado para replays e testes: o `Debug` da variante.
+/// Rótulo de um erro tipado para replays e testes: o seu `Debug`.
 #[cfg(test)]
 pub(crate) trait Rotulo {
     fn rotulo(&self) -> &'static str;

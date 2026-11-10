@@ -103,16 +103,15 @@ fn tela_com_todas_marcadas_como_go_e_booleano_antes_dos_atributos() {
 
 #[test]
 fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
-    use ErroNivelDeDetalhe as E;
     let base = tela(&[]);
     assert_eq!(
         ler_nivel_de_detalhe(&tela_com(&[], &[])),
-        Err(E::NenhumaOpcaoDoDetalhePublicada)
+        Err(ErroNivelDeDetalhe::NenhumaOpcaoDoDetalhePublicada)
     );
     let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinAtribuicao\"", 1);
     assert_eq!(
         ler_nivel_de_detalhe(&repetida),
-        Err(E::OpcaoDoDetalheRepetida {
+        Err(ErroNivelDeDetalhe::OpcaoDoDetalheRepetida {
             coluna: ColunaDoDetalhe::Atribuicao
         })
     );
@@ -123,14 +122,14 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&extra),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroNivelDeDetalhe::Html(ErroHtml::valor(
             "opcao_do_nivel_de_detalhe_nao_prevista"
         )))
     );
     let rotulo = base.replacen(">Prioridade</label>", ">Urgência</label>", 1);
     assert_eq!(
         ler_nivel_de_detalhe(&rotulo),
-        Err(E::RotuloDaOpcaoDoDetalheDiferente {
+        Err(ErroNivelDeDetalhe::RotuloDaOpcaoDoDetalheDiferente {
             coluna: ColunaDoDetalhe::Prioridade
         })
     );
@@ -141,18 +140,18 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&acao),
-        Err(E::AcaoDoFormularioDoNivelDeDetalheDiferente)
+        Err(ErroNivelDeDetalhe::AcaoDoFormularioDoNivelDeDetalheDiferente)
     );
     assert_eq!(
         ler_nivel_de_detalhe("<html><form id='x'></form></html>"),
-        Err(E::Html(ErroHtml::ausente(
+        Err(ErroNivelDeDetalhe::Html(ErroHtml::ausente(
             "formulario_do_nivel_de_detalhe_ausente"
         )))
     );
     let dois = format!("{base}{base}");
     assert_eq!(
         ler_nivel_de_detalhe(&dois),
-        Err(E::Html(ErroHtml::repetido(
+        Err(ErroNivelDeDetalhe::Html(ErroHtml::repetido(
             "formularios_do_nivel_de_detalhe_repetidos"
         )))
     );
@@ -187,7 +186,6 @@ fn tela_da_unb_sem_prioridade_publica_a_opcao_indisponivel() {
 
 #[test]
 fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
-    use ErroNivelDeDetalhe as E;
     let base = tela_com(&onze_da_unb(), &[]);
     let desconhecida = base.replacen(
         "</form>",
@@ -196,21 +194,21 @@ fn subconjunto_ainda_recusa_caixa_desconhecida_repetida_ou_rotulo_trocado() {
     );
     assert_eq!(
         ler_nivel_de_detalhe(&desconhecida),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroNivelDeDetalhe::Html(ErroHtml::valor(
             "opcao_do_nivel_de_detalhe_nao_prevista"
         )))
     );
     let repetida = base.replacen("name=\"chkSinAnotacao\"", "name=\"chkSinMarcadores\"", 1);
     assert_eq!(
         ler_nivel_de_detalhe(&repetida),
-        Err(E::OpcaoDoDetalheRepetida {
+        Err(ErroNivelDeDetalhe::OpcaoDoDetalheRepetida {
             coluna: ColunaDoDetalhe::Marcadores
         })
     );
     let rotulo = base.replacen(">Marcadores</label>", ">Etiquetas</label>", 1);
     assert_eq!(
         ler_nivel_de_detalhe(&rotulo),
-        Err(E::RotuloDaOpcaoDoDetalheDiferente {
+        Err(ErroNivelDeDetalhe::RotuloDaOpcaoDoDetalheDiferente {
             coluna: ColunaDoDetalhe::Marcadores
         })
     );

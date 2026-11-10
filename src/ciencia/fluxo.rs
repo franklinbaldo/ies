@@ -84,8 +84,8 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<CienciaDoProcesso, ErroCienciaProcesso> {
-    use ErroCienciaProcesso as E;
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroCienciaProcesso::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -93,8 +93,12 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )?;
-    let tela = acoes.ciencia?.ok_or(E::CienciaNaoOferecida)?;
-    let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
+    let tela = acoes
+        .ciencia?
+        .ok_or(ErroCienciaProcesso::CienciaNaoOferecida)?;
+    let unidade = aberto
+        .unidade
+        .ok_or(ErroCienciaProcesso::UnidadeNaoPublicada)?;
     let mut resultado = CienciaDoProcesso {
         nup: pedido.nup.as_str().to_owned(),
         id_procedimento: aberto.arvore.processo.id,
@@ -110,10 +114,10 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
     }
     let cookie = ler_cookie(sessao)?;
     let (html, _) = obter_tela(&mut rede, &cookie, tela.as_str()).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(e) => E::Tela(e),
-        FalhaDaTela::Redirecionada => E::TelaRedirecionada,
+        FalhaDaTela::Transporte(e) => ErroCienciaProcesso::Tela(e),
+        FalhaDaTela::Redirecionada => ErroCienciaProcesso::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            ErroCienciaProcesso::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
         }
     })?;
     let url = url_da_ciencia(&instalacao, &html, &resultado.id_procedimento)?;
@@ -144,12 +148,12 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
             resultado.usuario = usuario;
             Ok(resultado)
         }
-        Ok((false, _)) => Err(E::NaoConfirmado {
+        Ok((false, _)) => Err(ErroCienciaProcesso::NaoConfirmado {
             motivo: VerificacaoDaCiencia::AtividadeNaoEncontradaNaListaRelida,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
-        Err(motivo) => Err(E::NaoConfirmado {
+        Err(motivo) => Err(ErroCienciaProcesso::NaoConfirmado {
             motivo,
             requisicoes: rede.feitas(),
             falha_do_aceite,

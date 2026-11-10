@@ -4,7 +4,6 @@ use super::*;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use Categoria::Recebidos;
-use ErroPaginaDoControle as E;
 use std::cell::Cell;
 use std::fs;
 use std::io::Cursor;
@@ -60,7 +59,7 @@ fn obter(
     status: i32,
     devolvida: &str,
     chamadas: &Cell<usize>,
-) -> Result<Option<String>, E> {
+) -> Result<Option<String>, ErroPaginaDoControle> {
     let (_pasta, arquivo) = cookie();
     let (url, html) = (url(), pen1().html());
     obter_pagina_via(
@@ -95,7 +94,7 @@ fn pagina_ja_exibida_ou_fora_do_intervalo_nao_envia() {
     assert_eq!(obter(1, 200, "", &chamadas), Ok(None));
     assert!(matches!(
         obter(3, 200, "", &chamadas),
-        Err(E::PaginaForaDoIntervalo { .. })
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo { .. })
     ));
     assert_eq!(chamadas.get(), 0);
 }
@@ -108,13 +107,19 @@ fn falhas_da_resposta_sao_tipadas_e_sem_nova_tentativa() {
         (
             200,
             login.to_owned(),
-            E::Submissao(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio),
+            ErroPaginaDoControle::Submissao(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio),
         ),
-        (302, String::new(), E::RedirecionamentoAposPaginar),
+        (
+            302,
+            String::new(),
+            ErroPaginaDoControle::RedirecionamentoAposPaginar,
+        ),
         (
             200,
             "<html><p>sem tabela</p></html>".to_owned(),
-            E::Submissao(ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta),
+            ErroPaginaDoControle::Submissao(
+                ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta,
+            ),
         ),
     ];
     for (status, corpo, esperado) in casos {
@@ -139,10 +144,16 @@ fn contexto_alterado_na_resposta_e_recusado() {
     let mut hash_g = segunda();
     hash_g.hash_g = "ffff";
     for (tela, esperado) in [
-        (unidade, E::UnidadeAlteradaAposPaginar),
-        (modo, E::VisualizacaoAlteradaAposPaginar),
-        (hash_r, E::CriteriosRecebidosAlteradosAposPaginar),
-        (hash_g, E::CriteriosGeradosAlteradosAposPaginar),
+        (unidade, ErroPaginaDoControle::UnidadeAlteradaAposPaginar),
+        (modo, ErroPaginaDoControle::VisualizacaoAlteradaAposPaginar),
+        (
+            hash_r,
+            ErroPaginaDoControle::CriteriosRecebidosAlteradosAposPaginar,
+        ),
+        (
+            hash_g,
+            ErroPaginaDoControle::CriteriosGeradosAlteradosAposPaginar,
+        ),
     ] {
         let chamadas = Cell::new(0);
         assert_eq!(obter(2, 200, &tela.html(), &chamadas), Err(esperado));
@@ -156,21 +167,24 @@ fn total_ou_faixa_diferentes_da_pagina_pedida_sao_recusados() {
     let chamadas = Cell::new(0);
     assert_eq!(
         obter(2, 200, &total.html(), &chamadas),
-        Err(E::TotalDeclaradoAlteradoAposPaginar {
+        Err(ErroPaginaDoControle::TotalDeclaradoAlteradoAposPaginar {
             categoria: Recebidos
         })
     );
     assert_eq!(
         obter(2, 200, &repetida.html(), &chamadas),
-        Err(E::FaixaDaRespostaDiferenteDaPaginaSolicitada {
-            categoria: Recebidos
-        })
+        Err(
+            ErroPaginaDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada {
+                categoria: Recebidos
+            }
+        )
     );
 }
 
 #[test]
 fn erro_e_debug_nao_expoem_valores_servidos() {
-    let erro = E::Submissao(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede));
+    let erro =
+        ErroPaginaDoControle::Submissao(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede));
     let texto = format!("{erro:?}");
     assert!(!texto.contains("cccc") && !texto.contains("PHPSESSID"));
 }
@@ -184,9 +198,11 @@ fn erro_503_do_post_com_pagina_valida_e_recusa_com_status_e_mensagem() {
     );
     let erro = obter(2, 503, &corpo, &chamadas).unwrap_err();
     assert_eq!(chamadas.get(), 1, "sem nova tentativa");
-    let E::Submissao(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
-        crate::transporte::FalhaTransporte::Status(http),
-    )) = erro
+    let ErroPaginaDoControle::Submissao(
+        crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+            crate::transporte::FalhaTransporte::Status(http),
+        ),
+    ) = erro
     else {
         panic!("esperado o status do POST: {erro:?}");
     };

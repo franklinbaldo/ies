@@ -4,7 +4,7 @@
 //! `<itens><item id="…" descricao="SIGLA - Nome"></item>…</itens>` (vazio
 //! quando nada casa). A sigla é o texto de `descricao` antes de ` - `.
 use super::Destino;
-use super::erro::{ErroEnviar, FalhaDaConsulta as F};
+use super::erro::{ErroEnviar, FalhaDaConsulta};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{RespostaDoPost, decodificar_atributo};
 use crate::html_atributos::valor_do_atributo;
@@ -16,10 +16,10 @@ const MAXIMO_DE_ITENS: usize = 500;
 /// `(id, descricao)` de cada `<item>` da resposta, sem rede.
 pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     resposta: RespostaDoPost<R>,
-) -> Result<Vec<(String, String)>, F> {
+) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
     let resposta = resposta.resposta;
     if resposta.status_code != 200 {
-        return Err(F::Transporte(recusar_status(resposta)));
+        return Err(FalhaDaConsulta::Transporte(recusar_status(resposta)));
     }
     let principal = resposta
         .mime
@@ -29,22 +29,26 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
         .trim()
         .to_ascii_lowercase();
     if !matches!(principal.as_str(), "application/xml" | "text/xml") {
-        return Err(F::RespostaDoAutocompletarNaoXml);
+        return Err(FalhaDaConsulta::RespostaDoAutocompletarNaoXml);
     }
     if resposta
         .content_length
         .is_some_and(|tamanho| tamanho > crate::MAX_HTML_BYTES)
     {
-        return Err(F::Transporte(FalhaTransporte::RespostaExcessiva));
+        return Err(FalhaDaConsulta::Transporte(
+            FalhaTransporte::RespostaExcessiva,
+        ));
     }
     let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
-    let texto = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| F::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado))?;
+    let texto =
+        crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|_| {
+            FalhaDaConsulta::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        })?;
     itens_do_autocompletar(&texto)
 }
 
 /// Os itens de um `<itens>` único; cada `<item>` com `id` e `descricao`.
-pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, F> {
+pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>, FalhaDaConsulta> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::valor("resposta_do_autocompletar_fora_da_forma_observada"))?;
     let parser = dom.parser();
@@ -66,7 +70,7 @@ pub(crate) fn itens_do_autocompletar(xml: &str) -> Result<Vec<(String, String)>,
                 .flatten()
                 .and_then(|bruto| decodificar_atributo(&bruto))
                 .filter(|valor| !valor.trim().is_empty())
-                .ok_or(F::Html(ErroHtml::valor(
+                .ok_or(FalhaDaConsulta::Html(ErroHtml::valor(
                     "resposta_do_autocompletar_fora_da_forma_observada",
                 )))
         };
@@ -166,14 +170,14 @@ pub(crate) fn termo_alargado(para: &str) -> Option<String> {
 /// ou sem ela). Um item exato decide, vários recusam; nenhum em todas:
 /// não oferecido, com a última resposta. `consultar(termo, orgao)` faz um
 /// POST; uma falha encerra a busca, sem repetir nada.
-pub(crate) fn resolver_destino<F>(
+pub(crate) fn resolver_destino<FalhaDaConsulta>(
     para: &str,
     orgao_da_tela: &str,
     orgaos: &[(String, String)],
-    mut consultar: F,
+    mut consultar: FalhaDaConsulta,
 ) -> Result<Destino, ErroEnviar>
 where
-    F: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
+    FalhaDaConsulta: FnMut(&str, &str) -> Result<Vec<(String, String)>, ErroEnviar>,
 {
     let para = para.trim();
     let alargado = termo_alargado(para);

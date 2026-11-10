@@ -40,7 +40,7 @@ em dois outros pontos:
 - **salvar remoto (#89, futuro):** lerá a versão N do SEI para confirmar
   que ainda é a atual e comparará o hash com a vN local.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `base_versao_ausente` | nenhuma versão local, ou `DOC.vN.html` da base falta |
 | `versao_editada_ausente` | `DOC.v(N+1).html` falta |

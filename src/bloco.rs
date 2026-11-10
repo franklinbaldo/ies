@@ -195,7 +195,6 @@ fn ler_linhas(
     nomes: &[String],
     tipo: TipoBloco,
 ) -> Result<(Vec<BlocoLido>, Vec<String>), ErroBloco> {
-    use ErroBloco as E;
     let posicao = |s: &str| {
         nomes
             .iter()
@@ -244,16 +243,17 @@ fn ler_linhas(
             .map(|a| {
                 valor_do_atributo(a, "href")
                     .map_err(|e| {
-                        E::Html(
+                        ErroBloco::Html(
                             ErroHtml::atributo("link_de_blocos_nao_reconhecido", e)
                                 .com_mensagem("link de blocos ausente ou ambíguo na tela"),
                         )
                     })
                     .and_then(|x| {
-                        x.and_then(|s| decodificar_atributo(&s)).ok_or(E::Html(
-                            ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                                .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-                        ))
+                        x.and_then(|s| decodificar_atributo(&s))
+                            .ok_or(ErroBloco::Html(
+                                ErroHtml::valor("link_de_blocos_nao_reconhecido")
+                                    .com_mensagem("link de blocos ausente ou ambíguo na tela"),
+                            ))
                     })
             });
         let href = hrefs.next().ok_or(

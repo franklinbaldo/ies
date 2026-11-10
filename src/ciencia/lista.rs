@@ -8,11 +8,10 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 /// conferir a URL da lista contra o alvo e a sessão: o HTML isolado não prova
 /// qual processo serviu a tabela. Não deduz usuário nem data não observados.
 pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, ErroCiencia> {
-    use ErroCiencia as E;
     if !identificador(atividade) {
-        return Err(E::ListaDeCienciasForaDaFormaObservada);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
-    let fora = E::ListaDeCienciasForaDaFormaObservada;
+    let fora = ErroCiencia::ListaDeCienciasForaDaFormaObservada;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(|_| fora)?;
@@ -104,6 +103,6 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     match ocorrencias {
         0 => Ok(false),
         1 => Ok(true),
-        _ => Err(E::AtividadesRepetidasNaLista),
+        _ => Err(ErroCiencia::AtividadesRepetidasNaLista),
     }
 }

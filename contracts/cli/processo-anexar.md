@@ -27,7 +27,7 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 
 ## Subcódigos
 
-| Variante ou `onde` (stderr) | Fato identificado |
+| Erro ou `onde` (stderr) | Fato identificado |
 | --- | --- |
 | `FalhaAnexar::LinkNaoPublicado` | O processo aberto não publica ação de anexar. |
 | `FalhaAnexar::NaoConfirmado` | Recusa histórica da fatia de prévia; não representa o caminho atual de confirmação em treinamento. |

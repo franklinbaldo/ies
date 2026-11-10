@@ -17,7 +17,7 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(
                     FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
@@ -49,7 +49,7 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
                     "Atribuição recusada.".into()
@@ -203,7 +203,7 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: None,
             leitura: Some(Box::new(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
@@ -238,7 +238,7 @@ fn post_sem_resposta_e_releitura_503_permanecem_nao_confirmado() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
@@ -274,7 +274,7 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(
                     FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
@@ -332,7 +332,7 @@ fn sem_resposta_e_atribuicao_concorrente_exigem_nao_confirmado() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
@@ -357,7 +357,7 @@ fn sem_resposta_e_remocao_concorrente_exigem_nao_confirmado() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
