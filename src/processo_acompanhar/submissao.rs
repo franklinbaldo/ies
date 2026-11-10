@@ -50,3 +50,37 @@ pub(crate) fn derivar_inclusao(
     )
     .map_err(ErroPrevia::Formulario)
 }
+
+/// Exclusão pelo `submit()` do formulário observado na lista. Sem botão.
+const EXCLUIR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "acompanhamento_excluir",
+    formulario: "frmGerenciarAcompanhamento",
+    envio: EnvioDoFormulario::SubmitPorScript,
+    campos_ocultos_exigidos: &["hdnInfraItemId"],
+    campos_ocultos_reescritos: &["hdnInfraItemId"],
+    campos_usuario: &[],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::AcompanhamentoEspecial,
+    },
+};
+
+/// A action assinada e o alvo foram conferidos na mesma tela servida.
+pub(crate) fn derivar_exclusao(
+    instalacao: &Instalacao,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    id_alvo: &str,
+    action_observada: &str,
+) -> Result<SubmissaoDerivada, ErroPrevia> {
+    crate::formulario_web::derivar_submissao_com_action(
+        &EXCLUIR,
+        instalacao,
+        tela,
+        unidade,
+        &[("hdnInfraItemId", id_alvo)],
+        Some(action_observada),
+    )
+    .map_err(ErroPrevia::Formulario)
+}
