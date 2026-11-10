@@ -230,7 +230,11 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-fn identidade_no_estado(cena: Cena, banco: &Connection, instalacao: &Instalacao) -> (String, String) {
+fn identidade_no_estado(
+    cena: Cena,
+    banco: &Connection,
+    instalacao: &Instalacao,
+) -> (String, String) {
     let controle = banco_cassettes::ler(banco, instalacao, CENARIO)
         .unwrap()
         .unwrap();
