@@ -195,13 +195,14 @@ enum Caso {
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
+    RetirarConfirmado,
 }
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
         Caso::AtribuirExistente => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
-        Caso::RetirarPresente => ("--retirar", "501#Revisão"),
+        Caso::RetirarPresente | Caso::RetirarConfirmado => ("--retirar", "501#Revisão"),
     }
 }
 
@@ -222,6 +223,7 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 
 fn executar(caso: Caso) {
     let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores);
+    let confirmado = matches!(caso, Caso::RetirarConfirmado);
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -290,7 +292,10 @@ fn executar(caso: Caso) {
         cert.as_path(),
     ];
     let (operacao, marcador) = pedido(caso);
-    let argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
+    let mut argumentos = vec!["--json", "processo", "marcar", NUP, operacao, marcador];
+    if confirmado {
+        argumentos.push("--confirmar");
+    }
     let saida = executar_cli(&pasta, arquivos, porta_proxy, &argumentos);
     if matches!(caso, Caso::RetirarPresente) {
         conferir_previa_humana(&pasta, arquivos, porta_proxy);
@@ -322,6 +327,7 @@ fn executar(caso: Caso) {
         &pedidos,
         sem_marcadores,
         matches!(caso, Caso::RetirarPresente),
+        confirmado,
     );
 }
 fn conferir(
@@ -331,6 +337,7 @@ fn conferir(
     pedidos: &[String],
     sem_marcadores: bool,
     retirada_presente: bool,
+    confirmado: bool,
 ) {
     assert_eq!(
         saida.status.code(),
@@ -340,11 +347,11 @@ fn conferir(
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nada_a_fazer"], !retirada_presente);
+    assert_eq!(json["nada_a_fazer"], !retirada_presente && !confirmado);
     // Presença observada não demonstra que o formulário permite escrever.
-    assert_eq!(json["retirada_possivel"], false);
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
+    assert_eq!(json["retirada_possivel"], confirmado);
+    assert_eq!(json["confirmado"], confirmado);
+    assert_eq!(json["alterado"], confirmado);
     assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
         releitura.status.code(),
@@ -354,17 +361,29 @@ fn conferir(
         String::from_utf8_lossy(&releitura.stderr)
     );
     let processo: serde_json::Value = serde_json::from_slice(&releitura.stdout).unwrap();
-    let total = usize::from(!sem_marcadores);
+    let total = usize::from(!sem_marcadores && !confirmado);
     assert_eq!(processo["marcadores_total_declarado"], total);
     assert_eq!(processo["marcadores"].as_array().unwrap().len(), total);
     assert_eq!(persistido.total_declarado, total);
     assert_eq!(persistido.itens.len(), total);
-    if !sem_marcadores {
+    if !sem_marcadores && !confirmado {
         assert_eq!(processo["marcadores"][0]["rotulo"], "501#Revisão");
         assert_eq!(processo["marcadores"][0]["texto"], "Conferir");
         assert_eq!(persistido.itens[0].id, "501");
     }
-    assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 0);
+    assert_eq!(
+        pedidos.iter().filter(|p| p.starts_with("POST ")).count(),
+        usize::from(confirmado)
+    );
+    if confirmado {
+        assert_eq!(
+            pedidos
+                .iter()
+                .filter(|p| p.as_str() == "POST andamento_marcador_remover")
+                .count(),
+            1
+        );
+    }
     assert!(
         pedidos
             .iter()
@@ -391,4 +410,9 @@ fn bdd_255_03_retirar_de_processo_sem_marcadores_nao_inventa_lista() {
 fn bdd_255_02_previa_de_retirar_presente_mantem_marcador_na_releitura() {
     // Fase prévia apenas: status 0 não significa que remoção foi confirmada.
     executar(Caso::RetirarPresente);
+}
+
+#[test]
+fn bdd_255_02_retirar_presente_confirmado_exige_post_unico_e_releitura() {
+    executar(Caso::RetirarConfirmado);
 }
