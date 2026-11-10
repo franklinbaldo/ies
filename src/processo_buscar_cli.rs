@@ -5,18 +5,15 @@ use crate::colheita_do_controle::Colheita;
 use crate::indice_local::IndiceLocal;
 use crate::pesquisa_web::alvo::EmProcessos;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
-use crate::pesquisa_web::filtros::{FiltrosDaPesquisa, data_valida};
+use crate::pesquisa_web::filtros::FiltrosDaPesquisa;
 use crate::pesquisa_web::fluxo::{
     BuscaRealizada, PedidoDeBusca, SessaoDaBusca, buscar_colhendo_filtrado,
 };
 use crate::pesquisa_web::resposta::RespostaDaPesquisa;
 use crate::processo::NumeroProcesso;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{
-    Cli, Domain, Processo, ProcessoAcao, configuracao, erro_fonte, relogin_cli, transporte,
-};
+use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, relogin_cli, transporte};
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
 /// Opções de leitura de `ies processo NUP` que não combinam com `buscar`.
 fn opcoes_de_leitura_presentes(comando: &Processo) -> bool {
@@ -26,22 +23,6 @@ fn opcoes_de_leitura_presentes(comando: &Processo) -> bool {
         || comando.sem_andamentos
         || comando.sem_propriedades
         || comando.andamentos_completos
-}
-
-fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
 }
 
 /// O JSON da resposta observada; nunca HTML, links, cookies ou `infra_hash`.
@@ -115,46 +96,33 @@ fn humano(termo: &NumeroProcesso, busca: &BuscaRealizada) -> String {
     )
 }
 
+/// Termo e datas já conferidos pelo clap; o período e a mistura com as
+/// opções de leitura são uso inválido (saída 2) antes da configuração.
 fn buscar(
     cli: &Cli,
     comando: &Processo,
-    termo: &str,
+    termo: &NumeroProcesso,
     pagina: Option<u32>,
     filtros: FiltrosDaPesquisa<'_>,
-) -> ExitCode {
-    if filtros.de.is_some_and(|v| !data_valida(v)) || filtros.ate.is_some_and(|v| !data_valida(v)) {
-        return erro_de_uso(
-            cli.json,
-            "data deve estar em DD/MM/AAAA e existir no calendário",
-        );
-    }
+) -> anyhow::Result<()> {
     if let (Some(de), Some(ate)) = (filtros.de, filtros.ate) {
         let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
         let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
         if inicio > fim {
-            return erro_de_uso(cli.json, "data inicial posterior à final");
+            crate::uso_invalido::recusar("--de posterior a --ate");
         }
     }
     if opcoes_de_leitura_presentes(comando) {
-        return erro_de_uso(
-            cli.json,
-            "opções de leitura do processo não combinam com buscar",
-        );
+        crate::uso_invalido::recusar("opções de leitura de `ies processo` não combinam com buscar");
     }
-    let Ok(termo) = NumeroProcesso::novo(termo) else {
-        return erro_de_uso(cli.json, "termo de pesquisa inválido");
-    };
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
-    };
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let pedido = PedidoDeBusca {
         termo: termo.as_str(),
         pagina,
         unidade: cli.unidade.as_deref(),
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
-    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
+    let (mut busca, nota) = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
         let referencias = transporte::sessao::ReferenciasDaSessao::ler(
             &arquivos.url_controle,
             &arquivos.origem,
@@ -175,29 +143,25 @@ fn buscar(
             &colheita,
             &mut EnvioHttps,
         )
-    });
-    match lido {
-        Ok((mut busca, nota)) => {
-            busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
-            if cli.json {
-                let mut valor = json_da_busca(&termo, &busca);
-                relogin_cli::anotar(&mut valor, nota.as_ref());
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&valor).expect("JSON serializável")
-                );
-            } else {
-                relogin_cli::avisar(cli.json, nota.as_ref());
-                println!("{}", humano(&termo, &busca));
-            }
-            ExitCode::SUCCESS
-        }
-        Err(falha) => relogin_cli::publicar_falha(cli.json, &falha),
+    })
+    .map_err(relogin_cli::subir)?;
+    busca.requisicoes = relogin_cli::somar(busca.requisicoes, nota.as_ref());
+    if cli.json {
+        let mut valor = json_da_busca(termo, &busca);
+        relogin_cli::anotar(&mut valor, nota.as_ref());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&valor).expect("JSON serializável")
+        );
+    } else {
+        relogin_cli::avisar(cli.json, nota.as_ref());
+        println!("{}", humano(termo, &busca));
     }
+    Ok(())
 }
 
 /// `Some` só para `ies processo buscar`.
-pub(crate) fn tentar_buscar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_buscar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(comando) = &cli.command else {
         return None;
     };

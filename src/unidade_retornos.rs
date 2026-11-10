@@ -24,17 +24,7 @@ pub(crate) enum ErroRetornos {
     PaginacaoDosRetornosNaoObservada,
 }
 
-impl ErroRetornos {
-    pub(crate) fn mensagem(self) -> &'static str {
-        match self {
-            Self::TelaDeRetornosDesconhecida => "estrutura da lista de retornos nao reconhecida",
-            Self::ListaDeRetornosIncompleta => "legenda e linhas dos retornos nao conferem",
-            Self::PaginacaoDosRetornosNaoObservada => {
-                "lista de retornos paginada sem derivacao segura demonstrada"
-            }
-        }
-    }
-}
+impl ErroRetornos {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
     valor_do_atributo(tag, nome).map_err(|_| ErroRetornos::TelaDeRetornosDesconhecida)

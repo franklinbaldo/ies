@@ -3,7 +3,7 @@
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
-use crate::transporte::{self, FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::{self, FalhaTransporte};
 use crate::unidade_retornos::{self, ErroRetornos, Retorno};
 use crate::url_observada::{UrlHttps, pasta};
 use std::collections::HashSet;
@@ -22,41 +22,11 @@ pub(crate) enum ErroLeituraRetornos {
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
 }
-impl ErroLeituraRetornos {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(e) => e.mensagem(),
-            Self::Controle(_) => "Controle de Processos nao reconhecido",
-            Self::Tabela(e) => e.mensagem(),
-            Self::LinkDeRetornosAusente => "link Retorno Programado ausente no Controle",
-            Self::LinkDeRetornosAmbiguo => "varios links Retorno Programado na mesma tela",
-            Self::LinkDeRetornosForaDaInstalacao => {
-                "link de retornos invalido ou fora da instalacao"
-            }
-            Self::CalendarioDosRetornosDesconhecido => {
-                "calendario ou link Ver todo o mes nao reconhecido"
-            }
-            Self::MesDosRetornosInacessivel => "o calendario nao chega ao mes solicitado",
-            Self::MesDaCliInvalido => "mes deve ser AAAA-MM valido",
-            Self::UnidadeDiferenteDaSolicitada => "Controle mostra outra unidade",
-        }
-    }
-}
-impl crate::relogin_cli::FalhaPublicavel for ErroLeituraRetornos {
-    fn mensagem(&self) -> &'static str {
-        self.mensagem()
-    }
-    fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
-    }
-    fn sessao_encerrada(&self) -> bool {
-        crate::erro_publico::Causa::sessao_encerrada(self)
-    }
-}
+crate::relogin_cli::encerravel!(ErroLeituraRetornos);
 
-/// Somente numeros e limites do mes, sem depender do fuso da maquina.
-pub(crate) fn mes_pedido(valor: Option<&str>) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
-    let Some(s) = valor else { return Ok(None) };
+/// `--mes AAAA-MM` (parser do clap: saída 2): somente numeros e limites do
+/// mes, sem depender do fuso da maquina.
+pub(crate) fn mes_da_cli(s: &str) -> Result<(u16, u8), ErroLeituraRetornos> {
     let (Some((a, m)), true) = (s.split_once('-'), s.len() == 7) else {
         return Err(ErroLeituraRetornos::MesDaCliInvalido);
     };
@@ -69,7 +39,7 @@ pub(crate) fn mes_pedido(valor: Option<&str>) -> Result<Option<(u16, u8)>, ErroL
     if unidade_retornos::ultimo_dia(a, m).is_none() {
         return Err(ErroLeituraRetornos::MesDaCliInvalido);
     }
-    Ok(Some((a, m)))
+    Ok((a, m))
 }
 
 /// Nao pode aparecer em logs: contem URL assinada.

@@ -67,21 +67,6 @@ fn consulta_malformada_ou_com_chave_nao_canonica_eh_recusada() {
 }
 
 #[test]
-fn recusas_http_preservam_o_status_e_a_mensagem_saneada() {
-    let recusa = crate::transporte::StatusHttpRecusado {
-        status: 503,
-        mensagem_do_servidor: Some("indisponivel".to_owned()),
-    };
-    let falha = FalhaDaLupa::Transporte(FalhaTransporte::Status(recusa.clone()));
-    assert_eq!(falha.status_http(), Some(&recusa));
-    let json = crate::saida_erro::json_de_erro_fonte("recusa na lupa", falha.status_http());
-    assert_eq!(json["status_http"], 503);
-    assert_eq!(json["mensagem_do_servidor"], "indisponivel");
-    assert!(json.get("url").is_none());
-    assert!(json.get("cookie").is_none());
-}
-
-#[test]
 fn link_assinado_ambiguo_nao_dispara_segunda_requisicao() {
     use crate::formulario_web::RespostaDoPost;
     use crate::transporte::RespostaWeb;
@@ -302,7 +287,15 @@ fn transporte_recusado_conta_tentativa_sem_retry() {
     )
     .err()
     .expect("HTTP 503 deve falhar");
-    assert_eq!(falha.status_http().map(|s| s.status), Some(503));
+    assert_eq!(
+        falha,
+        FalhaDaLupa::Transporte(FalhaTransporte::Status(
+            crate::transporte::StatusHttpRecusado {
+                status: 503,
+                mensagem_do_servidor: Some("serviço indisponível".to_owned()),
+            }
+        ))
+    );
     assert_eq!(requisicoes, 1);
     assert_eq!(rede.gets, 1, "sem retry da tentativa recusada");
 }

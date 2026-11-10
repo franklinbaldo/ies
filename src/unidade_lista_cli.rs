@@ -8,24 +8,20 @@ use crate::relogin_cli::{self, NotaDoRelogin};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::{self, ErroVisaoDoControle, TelaAtual};
-use crate::{arquivo_caixa, configuracao, dominio, erro_fonte, saida};
+use crate::{arquivo_caixa, configuracao, dominio, saida};
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
 pub(super) fn listar_processos_da_unidade(
     unidade: Option<&str>,
     json_mode: bool,
     destino: Option<&Path>,
     pagina: Option<usize>,
-) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.
-    let lido = relogin_cli::ler(&arquivos, unidade, || {
+    let (leitura, nota) = relogin_cli::ler(&arquivos, unidade, || {
         let indice = IndiceLocal::da_configuracao(&arquivos);
         let sessao =
             ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
@@ -48,27 +44,10 @@ pub(super) fn listar_processos_da_unidade(
                 colheita: &colheita,
             }),
         )
-    });
-    match lido {
-        Ok((leitura, nota)) => {
-            mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, nota.as_ref())
-        }
-        Err(falha) => relogin_cli::publicar_falha(json_mode, &falha),
-    }
-}
-
-/// Falha `fonte_invalida` da troca de visão ou da leitura da D.
-pub(crate) fn erro_da_visao(json_mode: bool, erro: &ErroVisaoDoControle) -> ExitCode {
-    let valor = crate::saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http());
-    if json_mode {
-        println!("{valor}");
-    } else {
-        eprintln!(
-            "{}",
-            crate::saida_erro::linha_humana(erro.mensagem(), erro.status_http())
-        );
-    }
-    ExitCode::from(1)
+    })
+    .map_err(relogin_cli::subir)?;
+    mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, nota.as_ref())?;
+    Ok(())
 }
 
 /// A lista D: um array com **uma** lista `categoria: null` e `colunas_ausentes`.
@@ -97,28 +76,24 @@ pub(crate) fn mostrar_caixa_detalhada(
     json_mode: bool,
     destino: Option<&Path>,
     nota: Option<&NotaDoRelogin>,
-) -> ExitCode {
+) -> Result<(), arquivo_caixa::ErroArquivoCaixa> {
     let mut saida = json_da_detalhada(leitura, origem);
     if let Some(caminho) = destino {
         // O arquivo guarda só a lista; `relogin` vai na linha de stdout.
-        return match arquivo_caixa::gravar(caminho, &saida) {
-            Ok(bytes) => {
-                if json_mode {
-                    let mut valor = json!({
-                        "arquivo": "gravado",
-                        "bytes": bytes,
-                        "escopo": "caixa_detalhada_verificada"
-                    });
-                    relogin_cli::anotar_com_total(&mut valor, nota);
-                    println!("{valor}");
-                } else {
-                    relogin_cli::avisar(json_mode, nota);
-                    println!("IES: caixa detalhada verificada gravada em arquivo privado.");
-                }
-                ExitCode::SUCCESS
-            }
-            Err(erro) => erro_fonte(json_mode, erro.mensagem()),
-        };
+        let bytes = arquivo_caixa::gravar(caminho, &saida)?;
+        if json_mode {
+            let mut valor = json!({
+                "arquivo": "gravado",
+                "bytes": bytes,
+                "escopo": "caixa_detalhada_verificada"
+            });
+            relogin_cli::anotar_com_total(&mut valor, nota);
+            println!("{valor}");
+        } else {
+            relogin_cli::avisar(json_mode, nota);
+            println!("IES: caixa detalhada verificada gravada em arquivo privado.");
+        }
+        return Ok(());
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut saida, nota);
@@ -130,7 +105,7 @@ pub(crate) fn mostrar_caixa_detalhada(
         relogin_cli::avisar(json_mode, nota);
         println!("{}", humano_da_detalhada(leitura));
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 fn humano_da_detalhada(leitura: &LeituraDetalhada) -> String {

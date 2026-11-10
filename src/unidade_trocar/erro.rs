@@ -5,7 +5,7 @@ use super::tela::UnidadeOferecida;
 use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 /// Onde, depois do POST enviado, a sequência observada se desfez.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,16 +16,7 @@ pub(crate) enum EtapaDaTroca {
     ControleDaUnidadeNova,
 }
 
-impl EtapaDaTroca {
-    pub(crate) fn nome(self) -> &'static str {
-        match self {
-            Self::Envio => "envio",
-            Self::PrimeiroRedirecionamento => "primeiro_redirecionamento",
-            Self::SegundoRedirecionamento => "segundo_redirecionamento",
-            Self::ControleDaUnidadeNova => "controle_da_unidade_nova",
-        }
-    }
-}
+impl EtapaDaTroca {}
 
 /// O fato observado depois do POST, sem URL nem corpo.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -48,15 +39,7 @@ pub(crate) enum FalhaDepoisDoEnvio {
     UnidadeDoControleDiferenteDaPedida,
 }
 
-impl FalhaDepoisDoEnvio {
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Envio(erro) => erro.status_http(),
-            Self::Transporte(falha) => falha.status_http(),
-            _ => None,
-        }
-    }
-}
+impl FalhaDepoisDoEnvio {}
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -83,53 +66,4 @@ pub(crate) enum ErroTroca {
     Html(#[from] ErroHtml),
 }
 
-impl ErroTroca {
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::NaoConfirmado { .. } => "nao_confirmado",
-            _ => "fonte_invalida",
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Html(e) => e.mensagem,
-            Self::Transporte(falha) => falha.mensagem(),
-            Self::ControleNaoReconhecido(_) => {
-                "resposta não contém Controle de Processos verificável"
-            }
-            Self::UnidadeExibidaDiferenteDaSolicitada => {
-                "a unidade mostrada pelo SEI não corresponde à solicitada"
-            }
-            Self::LinksDeTrocaDivergentes => {
-                "o Controle publica links de troca de unidade diferentes"
-            }
-            Self::ListaDeUnidadesIncompleta => {
-                "a lista de unidades não tem o total que a legenda declara"
-            }
-            Self::UnidadeMarcadaDiferenteDaAtiva => {
-                "a unidade marcada na tela de troca não é a ativa no Controle"
-            }
-            Self::SelecaoDeUnidadePorScriptNaoPublicada => {
-                "a tela não publica selecionarUnidade() com selInfraUnidades"
-            }
-            Self::UnidadeNaoOferecida { .. } => "a tela de troca não oferece a unidade pedida",
-            Self::SiglaDeUnidadeAmbigua { .. } => {
-                "a sigla pedida aparece em mais de uma unidade da tela de troca"
-            }
-            Self::Submissao(_) => "o formulário de troca de unidade não pôde ser derivado",
-            Self::NaoConfirmado { .. } => {
-                "a troca foi enviada e a resposta não é a observada: a unidade da sessão pode ter mudado; não repita, confira com ies login --forcar"
-            }
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(falha) => falha.status_http(),
-            Self::Submissao(erro) => erro.status_http(),
-            Self::NaoConfirmado { falha, .. } => falha.status_http(),
-            _ => None,
-        }
-    }
-}
+impl ErroTroca {}

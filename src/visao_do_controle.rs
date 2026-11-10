@@ -31,9 +31,9 @@ use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 pub(crate) use definir::definir_colunas;
-pub(crate) use definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
-};
+pub(crate) use definir_erro::ColunasDefinidas;
+#[cfg(test)]
+pub(crate) use definir_erro::{ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas};
 pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;

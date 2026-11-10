@@ -11,6 +11,19 @@ pub(crate) struct FiltrosDaPesquisa<'a> {
     pub(crate) ate: Option<&'a str>,
 }
 
+/// `--de`/`--ate` DD/MM/AAAA que existe no calendário (parser do clap: saída 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct DataForaDoCalendario;
+
+pub(crate) fn data_da_cli(data: &str) -> Result<String, DataForaDoCalendario> {
+    if data_valida(data) {
+        Ok(data.to_owned())
+    } else {
+        Err(DataForaDoCalendario)
+    }
+}
+
 /// Datas DD/MM/AAAA, sem normalização silenciosa e sem dependências novas.
 pub(crate) fn data_valida(data: &str) -> bool {
     let b = data.as_bytes();

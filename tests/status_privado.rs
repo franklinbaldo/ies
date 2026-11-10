@@ -3,6 +3,22 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
+/// A falha é o valor tipado inteiro: `Error: <Debug>` na primeira linha.
+#[track_caller]
+fn falha_exata(saida: &Output, valor: &str) {
+    let variante = valor.split('(').next().unwrap();
+    falha(saida, variante);
+    let stderr = String::from_utf8_lossy(&saida.stderr);
+    assert_eq!(
+        stderr.lines().next(),
+        Some(format!("Error: {valor}").as_str())
+    );
+}
+
 fn pasta_teste() -> PathBuf {
     let agora = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -84,9 +100,7 @@ fn preflight_recusa_origem_antes_de_tentar_abrir_cookie_inexistente() {
     let url = arquivo_privado_com(&dir, "url", &url_assinada_teste());
     let origem = arquivo_privado_com(&dir, "origem", "https://outro.exemplo/sei");
     let output = executar_sessao_local(&url, &dir.join("cookie-inexistente"), &origem);
-    assert_eq!(output.status.code(), Some(1));
-    let resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(resposta["acesso_remoto"], false);
+    falha_exata(&output, "OrigemNaoAutorizada");
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -97,14 +111,14 @@ fn preflight_distingue_cookie_invalido_e_url_sem_assinatura() {
     let cookie = arquivo_privado_com(&dir, "cookie", "Cookie: PHPSESSID=FICTICIO");
     let origem = arquivo_privado_com(&dir, "origem", "https://sei.exemplo/sei");
     let erro_cookie = executar_sessao_local(&url, &cookie, &origem);
-    let _resposta: serde_json::Value = serde_json::from_slice(&erro_cookie.stdout).unwrap();
+    falha_exata(&erro_cookie, "CookieInvalido");
     fs::write(
         &url,
         "https://sei.exemplo/sei/controlador.php?acao=procedimento_controlar",
     )
     .unwrap();
     let erro_url = executar_sessao_local(&url, &cookie, &origem);
-    let _resposta: serde_json::Value = serde_json::from_slice(&erro_url.stdout).unwrap();
+    falha(&erro_url, "UrlInvalida");
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -131,10 +145,8 @@ fn arquivo_de_cookie_ausente_tem_erro_especifico_e_sem_caminho_exposto() {
     let origem = arquivo(&dir, "origem");
     let cookie = dir.join("cookie-ausente");
     let output = executar(&url, &cookie, &origem, true);
-    assert_eq!(output.status.code(), Some(1), "{output:?}");
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["arquivo"], "cookie");
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("cookie-ausente"));
+    falha_exata(&output, "Ausente(Cookie)");
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("cookie-ausente"));
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -165,13 +177,11 @@ fn link_simbolico_e_permissoes_inseguras_sao_falhas_distintas() {
     let elo = dir.join("cookie");
     symlink(&cookie, &elo).unwrap();
     let saida_link = executar(&url, &elo, &origem, true);
-    let link: serde_json::Value = serde_json::from_slice(&saida_link.stdout).unwrap();
-    assert_eq!(link["arquivo"], "cookie");
+    falha_exata(&saida_link, "LinkSimbolico(Cookie)");
     fs::remove_file(&elo).unwrap();
     fs::set_permissions(&origem, fs::Permissions::from_mode(0o644)).unwrap();
     let saida_permissao = executar(&url, &cookie, &origem, true);
-    let permissoes: serde_json::Value = serde_json::from_slice(&saida_permissao.stdout).unwrap();
-    assert_eq!(permissoes["arquivo"], "origem");
+    falha_exata(&saida_permissao, "PermissoesInseguras(Origem)");
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -183,9 +193,7 @@ fn arquivo_vazio_nao_recebe_selo_de_validacao() {
     let origem = dir.join("origem");
     fs::write(&origem, "").unwrap();
     let output = executar(&url, &cookie, &origem, true);
-    assert_eq!(output.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["arquivo"], "origem");
+    falha_exata(&output, "Vazio(Origem)");
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -195,8 +203,6 @@ fn caminho_relativo_nao_e_interpretado_a_partir_do_diretorio_atual() {
     let cookie = arquivo(&dir, "cookie");
     let origem = arquivo(&dir, "origem");
     let output = executar(Path::new("url-relative"), &cookie, &origem, true);
-    assert_eq!(output.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(json["arquivo"], "url_controle");
+    falha_exata(&output, "CaminhoNaoAbsoluto(UrlControle)");
     fs::remove_dir_all(dir).unwrap();
 }

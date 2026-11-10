@@ -5,7 +5,8 @@ use clap::{Args, Subcommand};
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 pub(crate) struct Processo {
-    pub(crate) numero: Option<String>,
+    #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+    pub(crate) numero: Option<crate::processo::NumeroProcesso>,
     /// Omite documentos da leitura
     #[arg(long)]
     pub(crate) sem_documentos: bool,
@@ -13,7 +14,7 @@ pub(crate) struct Processo {
     #[arg(long)]
     pub(crate) sem_marcadores: bool,
     /// Omite andamentos da leitura
-    #[arg(long)]
+    #[arg(long, conflicts_with = "andamentos_completos")]
     pub(crate) sem_andamentos: bool,
     /// Omite propriedades adicionais da leitura
     #[arg(long)]
@@ -82,7 +83,8 @@ pub(crate) enum ProcessoAcao {
     /// Pesquisa processo na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// NUP inteiro ou parte do número, como digitado no campo Protocolo
-        termo: String,
+        #[arg(value_parser = crate::processo::NumeroProcesso::novo)]
+        termo: crate::processo::NumeroProcesso,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
             long,
@@ -97,10 +99,18 @@ pub(crate) enum ProcessoAcao {
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
         /// Data inicial no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
+        #[arg(
+            long,
+            value_name = "DD/MM/AAAA",
+            value_parser = crate::pesquisa_web::filtros::data_da_cli
+        )]
         de: Option<String>,
         /// Data final no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
+        #[arg(
+            long,
+            value_name = "DD/MM/AAAA",
+            value_parser = crate::pesquisa_web::filtros::data_da_cli
+        )]
         ate: Option<String>,
     },
     /// Envia o processo a uma unidade (prévia; com --confirmar, um POST e a

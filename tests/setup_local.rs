@@ -1,5 +1,9 @@
 use std::{fs, process::Command};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 #[test]
 fn setup_grava_apenas_caminhos_e_nao_sobrescreve_configuracao() {
     let dir = std::env::temp_dir().join(format!("ies-setup-{}", std::process::id()));
@@ -49,8 +53,7 @@ fn setup_grava_apenas_caminhos_e_nao_sobrescreve_configuracao() {
         .args(args)
         .output()
         .unwrap();
-    assert_eq!(segunda.status.code(), Some(1));
-    let _valor: serde_json::Value = serde_json::from_slice(&segunda.stdout).unwrap();
+    falha(&segunda, "ConfiguracaoJaExisteOuSemPermissao");
     let status = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["status", "--json"])
         .env("IES_CONFIG_FILE", &destino)

@@ -144,10 +144,10 @@ mod unidade_retornos_web;
 mod unidade_trocar;
 mod unidade_trocar_cli;
 mod url_observada;
+mod uso_invalido;
 mod visao_do_controle;
 
 use clap::{Args, Parser, Subcommand};
-use serde_json::json;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -286,7 +286,10 @@ enum UnidadeAcao {
         atualizar: bool,
     },
     /// Pesquisa no índice local por sigla ou descrição, sem rede
-    Pesquisar { termo: String },
+    Pesquisar {
+        #[arg(value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        termo: String,
+    },
     /// Mostra a unidade ativa pelo rótulo publicado na página do Controle
     Atual,
     /// Lista os processos da unidade na visão detalhada, com colunas; a sessão fica na D
@@ -305,8 +308,12 @@ enum UnidadeAcao {
     /// Mostra as 12 opções do Nível de detalhe; com --definir, prévia da escrita
     Colunas {
         /// Colunas a deixar marcadas: `todas` (as publicadas) ou chaves separadas por vírgula; sem --confirmar, só prévia
-        #[arg(long, value_name = "todas|LISTA")]
-        definir: Option<String>,
+        #[arg(
+            long,
+            value_name = "todas|LISTA",
+            value_parser = nivel_de_detalhe::AlvoDasColunas::interpretar
+        )]
+        definir: Option<nivel_de_detalhe::AlvoDasColunas>,
         /// Salva a configuração pedida (um POST) e confere por leitura
         #[arg(long, requires = "definir")]
         confirmar: bool,
@@ -314,6 +321,7 @@ enum UnidadeAcao {
     /// Troca a unidade ativa da sessão; vale para toda a sessão da conta (todos os agentes que a usam). Sem --confirmar, só prévia
     Trocar {
         /// Sigla como a tela Trocar Unidade a mostra (byte a byte)
+        #[arg(value_parser = unidade_trocar_cli::sigla_da_troca)]
         sigla: String,
         /// Envia a troca (um POST) e confere pelo Controle da unidade nova
         #[arg(long)]
@@ -326,8 +334,8 @@ enum UnidadeAcao {
     /// Lista os retornos programados da unidade na tela Web do SEI
     Retornos {
         /// Mes AAAA-MM (ausente: mes marcado como hoje pelo SEI)
-        #[arg(long, value_name = "AAAA-MM")]
-        mes: Option<String>,
+        #[arg(long, value_name = "AAAA-MM", value_parser = unidade_retornos_web::mes_da_cli)]
+        mes: Option<(u16, u8)>,
     },
 }
 
@@ -387,12 +395,12 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
         .or_else(|| processo_comentar_cli::tentar_comentar(cli))
         .or_else(|| processo_anotar_cli::tentar_anotar(cli))
         .or_else(|| processo_andamento_registrar_cli::tentar_registrar(cli))
-        .or_else(|| processo_buscar_cli::tentar_buscar(cli).map(legado))
+        .or_else(|| processo_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_buscar_cli::tentar_buscar(cli))
         .or_else(|| documento_html_privado_cli::tentar_ler(cli))
         .or_else(|| documento_salvar_cli::tentar_salvar_documento(cli))
         .or_else(|| documento_obter_cli::tentar_obter(cli))
-        .or_else(|| processo_obter_cli::tentar_obter(cli).map(legado))
+        .or_else(|| processo_obter_cli::tentar_obter(cli))
         .or_else(|| processo_atribuir_cli::tentar_atribuir(cli))
         .or_else(|| processo_marcar_cli::tentar_marcar(cli))
         .or_else(|| processo_concluir_cli::tentar_concluir(cli))
@@ -413,37 +421,29 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<anyhow::Result<()>
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
 fn run(cli: &Cli) -> anyhow::Result<()> {
-    if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
-        return legado(status);
+    if let Some(saida) = unidade_indice_cli::tentar_consulta_local(cli) {
+        return saida;
     }
     if let Some(saida) = tentar_operacao_documento_ou_processo(cli) {
         return saida;
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
-        Domain::Esquema => return legado(esquema_cli::mostrar_esquema(cli.json)),
-        Domain::Setup(setup) => return legado(setup_cli::executar_setup(setup, cli.json)),
+        Domain::Esquema => {
+            esquema_cli::mostrar_esquema(cli.json);
+            return Ok(());
+        }
+        Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
         Domain::Login(LoginArgs { forcar }) => {
-            return legado(sessao_login_cli::executar_login(
-                cli.json,
-                *forcar,
-                cli.unidade.as_deref(),
-            ));
+            return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
         }
         Domain::Status(args) => {
-            return legado(status_cli::mostrar_status(
-                cli.json,
-                args,
-                cli.unidade.as_deref(),
-            ));
+            return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
         }
         Domain::Unidade(Unidade { acao: Some(acao) }) => {
-            return legado(cli_unidade_aux::executar(cli, acao));
+            return cli_unidade_aux::executar(cli, acao);
         }
         _ => {}
-    }
-    if let Some(status) = processo_obter_cli::validar_numero(cli) {
-        return legado(status);
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -472,27 +472,13 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         }
         _ => {}
     }
-    legado(comando_nao_implementado(cli))
+    Err(ComandoSemImplementacaoNoSei(format!("{:?}", cli.command)).into())
 }
 
-fn comando_nao_implementado(cli: &Cli) -> ExitCode {
-    let detail = format!("{:?}", cli.command);
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "erro": "Comando definido preliminarmente, mas sem implementação SEI",
-                "codigo": "nao_implementado",
-                "retentavel": false,
-                "dados": { "comando": detail },
-                "proximo_passo": "Implementar após aprovação do contrato CLI"
-            })
-        );
-    } else {
-        eprintln!("IES: comando ainda não implementado no SEI ({detail})");
-    }
-    ExitCode::from(1)
-}
+/// O comando existe na superfície Clap, mas ainda não tem fluxo SEI.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+struct ComandoSemImplementacaoNoSei(String);
 
 /// Ponte para os módulos ainda não convertidos (#695): eles já imprimiram a
 /// própria falha; aqui só o código de saída é preservado.

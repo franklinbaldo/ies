@@ -21,6 +21,6 @@ fn ajuda_da_unidade_publica_retornos_e_mes() {
 fn mes_invalido_falha_antes_de_ler_sessao_ou_rede() {
     // Caso Todos tests/test_unidade_listar_retornos_010.py @323eb01.
     let resposta = ies(&["--json", "unidade", "retornos", "--mes", "2026-13"]);
-    assert_eq!(resposta.status.code(), Some(1));
-    let _json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    assert_eq!(resposta.status.code(), Some(2));
+    assert_eq!(resposta.stdout, b"");
 }

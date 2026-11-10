@@ -33,7 +33,7 @@ fn exportar_detalhada(html: &str, nome: &str) -> String {
     let caminho = destino(nome);
     assert_eq!(
         mostrar_caixa_detalhada(&leitura, "web", true, Some(&caminho), None),
-        ExitCode::SUCCESS
+        Ok(())
     );
     let texto = fs::read_to_string(&caminho).unwrap();
     fs::remove_file(&caminho).unwrap();
