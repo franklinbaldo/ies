@@ -76,12 +76,20 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
     };
     let tela = match ler_tela_do_processo(instalacao, &html, &id, contexto.unidade_pedida) {
         Ok(tela) => tela,
-        // Unidade distinta ou validação de senha não são link envelhecido:
-        // nenhum outro caminho pode contornar essa recusa de acesso.
-        Err(
-            erro @ (ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada
-            | ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso),
-        ) => {
+        // A modal também pode surgir no link já colhido no Controle:
+        // validar nesse mesmo link, uma vez, e reler o trabalho e a árvore.
+        Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
+            let (arvore, unidade) = crate::processo_obter::validacao_acesso::abrir_trabalho(
+                rede,
+                contexto,
+                link.url(),
+                &id,
+                (&html, &mime),
+            )?;
+            return Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar)));
+        }
+        // Unidade distinta não é link envelhecido; recusa sem fallback.
+        Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
             return Err(E::Tela(erro));
         }
         // Não é a tela deste processo: o link envelheceu.

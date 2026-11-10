@@ -35,6 +35,7 @@ pub(crate) enum ErroProcessoObter {
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
     Formulario(#[from] ErroSubmissaoFormulario),
+    ValidacaoDeAcesso(#[from] super::validacao_acesso::ErroValidacaoAcesso),
     Tela(#[from] ErroTelaDoProcesso),
     Arvore(#[from] ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
@@ -59,6 +60,7 @@ impl ErroProcessoObter {
             Self::Controle(erro) => erro.sessao_encerrada(),
             Self::SessaoEncerrada(_) => true,
             Self::Formulario(erro) => erro.sessao_encerrada(),
+            Self::ValidacaoDeAcesso(erro) => erro.sessao_encerrada(),
             Self::FormularioDoHistorico(erro) => erro.sessao_encerrada(),
             Self::EntradaPorIdRecusada
             | Self::RespostaDaEntradaPorIdNaoReconhecida
@@ -85,6 +87,7 @@ impl ErroProcessoObter {
             Self::Transporte(erro) => erro.status_http(),
             Self::Controle(erro) => erro.status_http(),
             Self::Formulario(erro) => erro.status_http(),
+            Self::ValidacaoDeAcesso(erro) => erro.status_http(),
             Self::FormularioDoHistorico(erro) => erro.status_http(),
             _ => None,
         }

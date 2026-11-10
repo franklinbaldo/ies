@@ -25,6 +25,7 @@ pub(crate) mod login;
 mod marcadores;
 mod pastas;
 mod propriedades;
+mod validacao_acesso;
 
 #[cfg(test)]
 mod tests_consulta_parcial;

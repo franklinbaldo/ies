@@ -58,3 +58,44 @@ pub(crate) enum ErroLogin {
     Transporte(#[from] FalhaTransporte),
     Html(#[from] ErroHtml),
 }
+
+impl ErroLogin {
+    /// A sessão do SEI acabou no meio do caminho (validação de acesso
+    /// durante uma leitura): decide o relogin único por `match`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(falha) => falha.sessao_encerrada(),
+            Self::Formulario(erro) => erro.sessao_encerrada(),
+            Self::Configuracao(_)
+            | Self::Origem(_)
+            | Self::CaminhoDasCredenciaisNaoInformado
+            | Self::ArquivoDeCredenciais(_)
+            | Self::CampoDasCredenciaisAusente(_)
+            | Self::CampoDasCredenciaisRepetido(_)
+            | Self::CampoDasCredenciaisVazio(_)
+            | Self::LinhaDasCredenciaisSemCampoConhecido
+            | Self::LoginEmAndamentoEmOutroProcesso
+            | Self::ArquivoDeLockDoLoginInacessivel
+            | Self::ArquivoDaSessao(_)
+            | Self::ControleDaSessaoExistenteNaoReconhecido(_)
+            | Self::RedirecionamentoSemLocalizacao
+            | Self::LocalizacaoDeRedirecionamentoNaoInterpretavel
+            | Self::RedirecionamentoParaForaDaInstalacao
+            | Self::RedirecionamentosAcimaDoLimite
+            | Self::RedirecionamentoQueRepetiriaOEnvioDoLogin
+            | Self::CookieRecebidoForaDoFormatoAceito
+            | Self::CharsetDaTelaDeLoginNaoSuportado
+            | Self::CaptchaExigido
+            | Self::SegundoFatorExigido
+            | Self::RegraDoOnsubmitDoLoginNaoObservada
+            | Self::CredencialRecusada { .. }
+            | Self::ControleAposOLoginNaoReconhecido(_)
+            | Self::CookieDaSessaoNaoRecebido
+            | Self::DestinoDaSessaoNaoEhArquivoRegular(_)
+            | Self::DiretorioDaSessaoGravavelPorOutros(_)
+            | Self::GravacaoDaSessaoFalhou(_)
+            | Self::UnidadeExibidaDiferenteDaSolicitada
+            | Self::Html(_) => false,
+        }
+    }
+}
