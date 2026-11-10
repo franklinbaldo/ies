@@ -15,12 +15,20 @@ fn bdd_257_02_expoe_previa_mas_recusa_confirmar_sem_sessao() {
         .filter_map(|linha| linha.split_whitespace().next())
         .collect();
     assert!(comandos.contains(&"comentar"), "prévia deve ser pública");
-    assert!(comandos.contains(&"comentarios"), "leitura deve ser pública");
+    assert!(
+        comandos.contains(&"comentarios"),
+        "leitura deve ser pública"
+    );
 
     let bloqueada = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([
-            "--json", "processo", "comentar", "00001.000001/2026-01",
-            "--texto", "Comentário seguro", "--confirmar",
+            "--json",
+            "processo",
+            "comentar",
+            "00001.000001/2026-01",
+            "--texto",
+            "Comentário seguro",
+            "--confirmar",
         ])
         .env_remove("IES_ORIGEM_FILE")
         .env_remove("IES_COOKIE_FILE")
@@ -30,5 +38,10 @@ fn bdd_257_02_expoe_previa_mas_recusa_confirmar_sem_sessao() {
     assert_eq!(bloqueada.status.code(), Some(1));
     let resposta: serde_json::Value = serde_json::from_slice(&bloqueada.stdout).unwrap();
     assert_eq!(resposta["codigo"], "operacao_recusada");
-    assert!(resposta["erro"].as_str().unwrap().contains("Nenhuma requisição"));
+    assert!(
+        resposta["erro"]
+            .as_str()
+            .unwrap()
+            .contains("Nenhuma requisição")
+    );
 }
