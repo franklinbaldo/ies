@@ -1,2 +1,0 @@
-cassettes/go/documento-numero-e-busca-go--f26b4140acb8.md
-cassettes/ufrj/documento-numero-e-busca-ufrj--d0b23f01b824.md
