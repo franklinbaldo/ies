@@ -45,7 +45,7 @@ fn atender_quatro_gets(listener: &TcpListener) {
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     configurar_banco(&mut banco, &instalacao);
     for _ in 0..4 {
-        let mut tcp = aceitar(&listener);
+        let mut tcp = aceitar(listener);
         atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
     }
     let opcoes = colunas_detalhe::ler(&banco, &instalacao, CENARIO)
@@ -63,7 +63,7 @@ fn encaminhar_quatro_gets(
     let tls = TlsAcceptor::new(identidade).unwrap();
     let mut rotas = Vec::new();
     for _ in 0..4 {
-        let mut tcp = aceitar(&proxy);
+        let mut tcp = aceitar(proxy);
         assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
         tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
             .unwrap();
