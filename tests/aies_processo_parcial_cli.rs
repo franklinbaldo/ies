@@ -300,7 +300,11 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             canal.flush().unwrap();
         }
     });
-    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada).then(|| {
+    let credenciais = matches!(
+        cena,
+        Cena::ValidacaoComCredenciais | Cena::ValidacaoRecusada
+    )
+    .then(|| {
         pasta.privado(
             "credenciais",
             "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n",
