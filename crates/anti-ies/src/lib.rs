@@ -27,6 +27,7 @@ mod processo_relacionar;
 mod processo_sobrestamento;
 mod protocolo_sintetico;
 mod rotas;
+mod validacao_acesso;
 use iesei::banco_cassettes::ler;
 use iesei::instalacao::Instalacao;
 use iesei::retornos_cassettes::{Mes, PeriodoMensal, Situacao, ler as ler_retornos};
