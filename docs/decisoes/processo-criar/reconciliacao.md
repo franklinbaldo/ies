@@ -21,7 +21,7 @@ critérios de prévia, seleção do tipo ou submissão única.
 A conciliação histórica **já confirmou por leitura** que a única
 confirmação incerta da UnB de treinamento foi aplicada:
 NUP `23106.001875/2026-93`, id `51731`
-([evidência](../validacao-live/2026-11-05-processo-criar-reconciliacao.md)).
+([evidência](../../validacao-live/2026-11-05-processo-criar-reconciliacao.md)).
 Essa confirmação **não será repetida**. O relato anterior de efeito
 inconclusivo se refere à resposta da CLI no momento do POST, não ao
 resultado conhecido posteriormente.
