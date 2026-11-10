@@ -1,0 +1,28 @@
+//! BDD-633-02 com a CLI real contra anti-IES e SQLite.
+use super::*;
+
+/// BDD-633-02: CLI real, TLS local, modal do anti-IES e SQLite.
+/// Caso sintetico, sem corpo da modal observado em cassette.
+#[test]
+fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoExigida);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(1),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert!(
+        json["erro"]
+            .as_str()
+            .is_some_and(|e| e.contains("validar o acesso"))
+    );
+    assert!(json.get("documentos").is_none());
+    assert_eq!(
+        pedidos,
+        ["GET procedimento_controlar", "GET procedimento_trabalhar"]
+    );
+}
