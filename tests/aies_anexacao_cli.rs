@@ -306,8 +306,8 @@ fn executar(modo: Modo) {
     });
     let pdf_antes = matches!(modo, Modo::PdfAposAnexacao)
         .then(|| pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "antes"));
-    let processo_antes = matches!(modo, Modo::PdfAposAnexacao)
-        .then(|| ler_processo(&pasta, arquivos, porta));
+    let processo_antes =
+        matches!(modo, Modo::PdfAposAnexacao).then(|| ler_processo(&pasta, arquivos, porta));
     let comando: &[&str] = match modo {
         Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta => &[
             "--json",
