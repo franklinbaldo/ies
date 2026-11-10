@@ -227,6 +227,9 @@ fn executar(caso: Caso) {
     });
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let pedidos = Arc::clone(&trilha);
+    // Inspecionar somente estrutura do GET, sem URLs ou corpos em logs.
+    let controles = Arc::new(Mutex::new(Vec::<(bool, bool, bool)>::new()));
+    let controles_no_tunel = Arc::clone(&controles);
     let sinal = Arc::clone(&parar);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(tls_id).unwrap();
@@ -242,6 +245,14 @@ fn executar(caso: Caso) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            if evento == "GET andamento_marcador_gerenciar" {
+                let tela = String::from_utf8_lossy(&resposta);
+                controles_no_tunel.lock().unwrap().push((
+                    tela.contains("id='btnAdicionar'"),
+                    tela.contains("id='btnRemover'"),
+                    tela.contains("acaoRemover("),
+                ));
+            }
             pedidos.lock().unwrap().push(evento);
             canal.write_all(&resposta).unwrap();
             canal.flush().unwrap();
@@ -281,6 +292,16 @@ fn executar(caso: Caso) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
+    let controles = controles.lock().unwrap().clone();
+    if !sem_marcadores {
+        assert!(!controles.is_empty(), "gerenciamento não foi servido");
+        assert!(
+            controles.iter().all(|vistos| *vistos == (true, true, true)),
+            "GET de gerenciamento deve oferecer adicionar, remover e remoção individual"
+        );
+    } else {
+        assert!(controles.is_empty(), "zero marcadores usa 302 sem formulário de gerenciamento");
+    }
     conferir(
         &saida,
         &releitura,
