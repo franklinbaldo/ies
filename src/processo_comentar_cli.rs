@@ -1,5 +1,5 @@
-//! Comentários no processo: prévia real e confirmação ainda fechada.
-//! A prévia não deriva nem envia POST; origem de produção nunca é escrita.
+//! Comentários no processo: prévia e confirmação condicionada à origem.
+//! Um POST e releitura causal, sem retry ou escrita em produção.
 use crate::processo::NumeroProcesso;
 use crate::processo_comentar_web;
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
@@ -28,18 +28,22 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
     if texto.trim().is_empty() || texto.contains('\0') {
         return Some(recusa(cli.json, "Informe o texto do comentário."));
     }
-    if *confirmar {
-        return Some(recusa(
-            cli.json,
-            "A confirmação de comentário ainda não foi comprovada. Nenhuma requisição foi feita.",
-        ));
-    }
     Some(com_sessao(
         cli,
-        |sessao, indice| match processo_comentar_web::prever(
+        |sessao, indice| {
+            if *confirmar
+                && let Err(causa) = crate::origem_de_treinamento::exigir(
+                    crate::origem_de_treinamento::Escrita::ProcessoComentar,
+                    sessao.origem,
+                )
+            {
+                return crate::origem_de_treinamento::recusa(cli.json, causa);
+            }
+            match processo_comentar_web::prever(
             sessao,
             &numero,
             texto,
+            *confirmar,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
@@ -52,23 +56,50 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                             "nup": preview.numero,
                             "id_procedimento": preview.id_procedimento,
                             "texto": preview.texto,
-                            "confirmado": false,
-                            "alterado": false,
+                            "confirmado": preview.confirmado,
+                            "alterado": preview.confirmado,
                             "origem": "web",
                             "requisicoes": preview.requisicoes,
                         })
                     );
                 } else {
-                    println!(
-                        "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
-                        preview.numero, preview.texto, preview.requisicoes
-                    );
+                    if preview.confirmado {
+                        println!(
+                            "Comentário confirmado por releitura no processo {}. Requisições: {}.",
+                            preview.numero, preview.requisicoes
+                        );
+                    } else {
+                        println!(
+                            "Prévia: comentar no processo {}: {:?}. Nenhuma escrita. Requisições: {}.",
+                            preview.numero, preview.texto, preview.requisicoes
+                        );
+                    }
                 }
                 ExitCode::SUCCESS
             }
+            Err(processo_comentar_web::Erro::EfeitoIncerto) => efeito_incerto(cli.json),
             Err(causa) => recusa_previa(cli.json, &causa),
+            }
         },
     ))
+}
+
+
+fn efeito_incerto(json_mode: bool) -> ExitCode {
+    let mensagem = "O POST pode ter sido aplicado, mas o comentário não foi confirmado pela releitura; consulte ies processo comentarios antes de tentar novamente. Não repita --confirmar.";
+    if json_mode {
+        println!(
+            "{}",
+            json!({
+                "codigo": "efeito_incerto",
+                "erro": mensagem,
+                "retentavel": false
+            })
+        );
+    } else {
+        eprintln!("IES: {mensagem}");
+    }
+    ExitCode::from(3)
 }
 
 fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {

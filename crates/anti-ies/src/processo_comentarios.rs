@@ -55,9 +55,56 @@ fn pagina_cadastro(id: &str) -> Resposta {
     ))
 }
 
+
+/// Hipótese de confirmação: POST único no formulário servido e redirect
+/// para lista com identidade do aceite. A autoria/data são sintéticas.
+fn gravar(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+) -> Resposta {
+    let Some(pares) = crate::processo_envio::pares(corpo) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    let campo = |nome| crate::processo_envio::campo_unico(&pares, nome);
+    let Some(texto) = campo("txaDescricao").and_then(crate::processo_envio::decodificar_formulario)
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
+    if pares.len() != 2 || campo("sbmCadastrarComentario") != Some("Cadastrar")
+        || texto.trim().is_empty()
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    let Ok(Some(foto)) = iesei::comentarios::ler(banco, origem, cenario, id) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let Some(anterior) = foto.itens.first() else {
+        return Resposta::nova(Estado::DadosInsuficientes);
+    };
+    let novo = Comentario {
+        id: String::new(),
+        data_hora: "10/11/2026 09:00".to_owned(),
+        unidade: anterior.unidade.clone(),
+        usuario: anterior.usuario.clone(),
+        texto,
+        protocolo: None,
+        tipo: None,
+    };
+    match iesei::comentarios::acrescentar(banco, origem, cenario, id, novo) {
+        Ok(id_aceito) => Resposta::redirecionar(format!(
+            "controlador.php?acao=comentario_listar&id_procedimento={id}&id_comentario={id_aceito}"
+        )),
+        Err(_) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
 pub(crate) fn responder(
     metodo: &str,
     alvo: &str,
+    corpo: &str,
     banco: &Connection,
     origem: &Instalacao,
     cenario: &str,
@@ -70,7 +117,7 @@ pub(crate) fn responder(
     {
         return Resposta::nova(Estado::NaoEncontrado);
     }
-    if metodo != "GET" {
+    if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
@@ -79,6 +126,13 @@ pub(crate) fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     let cadastro = parametro_unico(alvo, "acao") == Some("comentario_cadastrar");
+    if metodo == "POST" {
+        return if cadastro {
+            gravar(corpo, banco, origem, cenario, id)
+        } else {
+            Resposta::nova(Estado::MetodoNaoPermitido)
+        };
+    }
     match iesei::comentarios::ler(banco, origem, cenario, id) {
         Ok(Some(_)) if cadastro => pagina_cadastro(id),
         Ok(Some(foto)) if foto.itens.is_empty() => {
