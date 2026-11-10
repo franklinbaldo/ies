@@ -34,8 +34,9 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         }
         return Some(ExitCode::from(2));
     }
-    Some(com_sessao(cli, |sessao, indice| {
-        match processo_anotar::prever(
+    Some(com_sessao(
+        cli,
+        |sessao, indice| match processo_anotar::prever(
             sessao,
             &nup,
             texto,
@@ -94,6 +95,6 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::from(1)
             }
-        }
-    }))
+        },
+    ))
 }
