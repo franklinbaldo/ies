@@ -28,23 +28,23 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
         ));
     }
     let aceite = match &resposta {
-        Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) => {
-            redirecionamento.localizacao()
-                .and_then(|local| {
-                    crate::formulario_web::consulta_do_controlador(
-                        local,
-                        redirecionamento.url_do_envio(),
-                    )
-                })
-                .is_some_and(|consulta| {
-                    crate::arvore_processo::conferir_endereco_relativo(
-                        instalacao,
-                        &format!("controlador.php?{consulta}"),
-                        "acompanhamento_gerenciar",
-                        id,
-                    ).is_ok()
-                })
-        }
+        Ok(RespostaDoEnvio::Redirecionamento(redirecionamento)) => redirecionamento
+            .localizacao()
+            .and_then(|local| {
+                crate::formulario_web::consulta_do_controlador(
+                    local,
+                    redirecionamento.url_do_envio(),
+                )
+            })
+            .is_some_and(|consulta| {
+                crate::arvore_processo::conferir_endereco_relativo(
+                    instalacao,
+                    &format!("controlador.php?{consulta}"),
+                    "acompanhamento_gerenciar",
+                    id,
+                )
+                .is_ok()
+            }),
         _ => false,
     };
     let depois = rede.get_sem_seguir(link, cookie).ok().and_then(|res| {
@@ -56,13 +56,15 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
             .ok()
             .and_then(|html| acompanhamentos_da_lista(&html).ok())
     });
-    let confirmado = aceite && depois.as_deref().is_some_and(|linhas| {
-        super::conferir_remocao(
-            antes,
-            linhas,
-            plano.id_de_remocao.as_deref().unwrap_or_default(),
-        ).is_ok()
-    });
+    let confirmado = aceite
+        && depois.as_deref().is_some_and(|linhas| {
+            super::conferir_remocao(
+                antes,
+                linhas,
+                plano.id_de_remocao.as_deref().unwrap_or_default(),
+            )
+            .is_ok()
+        });
     if !confirmado {
         return Err(ErroPrevia::EfeitoIncerto);
     }
