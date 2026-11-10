@@ -362,9 +362,8 @@ pub fn controlar(
     if let Some(observacao) = detalhe {
         // A ação só é oferecida quando o estado da tela foi explicitamente
         // informado no SQLite. Sem linha de configuração, não há link.
-        let configuracao = match iesei::colunas_detalhe::ler(banco, instalacao, cenario) {
-            Ok(configuracao) => configuracao,
-            Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+        let Ok(configuracao) = iesei::colunas_detalhe::ler(banco, instalacao, cenario) else {
+            return Resposta::nova(Estado::DadosInsuficientes);
         };
         if configuracao
             .as_ref()
