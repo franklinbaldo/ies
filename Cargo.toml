@@ -6,7 +6,6 @@ license = "MIT"
 description = "CLI Rust para interacao com o SEI, guiada por contratos de dominio"
 
 [dependencies]
-base64 = "0.23"
 clap = { version = "4.5", features = ["derive"] }
 iesei = { path = "crates/iesei" }
 ureq = { version = "3", default-features = false, features = ["native-tls"] }
@@ -21,10 +20,10 @@ time = { version = "0.3", features = ["parsing", "macros"] }
 thiserror = "2"
 tl = "0.7.8"
 
-# Só os testes leem cassettes (ZIP do acervo e SHA-1 do card): o binário de
-# produção não liga `zip` nem `sha1`. `base64` segue em [dependencies] porque
-# o proxy monta `Proxy-Authorization: Basic` em produção.
+# Só os testes leem cassettes (ZIP do acervo, corpos em base64 e SHA-1 do
+# card): o binário de produção não liga `zip`, `base64` nem `sha1`.
 [dev-dependencies]
+base64 = "0.23"
 native-tls = "0.2.18"
 cucumber = "0.23"
 futures = "0.3"
