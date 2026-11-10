@@ -12,7 +12,7 @@ Este complemento preserva as regras e a evolução incremental do
 
 ## Reconciliação automática após resposta incerta (#245 — fatia em andamento)
 
-A confirmação atual ainda pode devolver `efeito_incerto_na_criacao`/saída 3
+A confirmação atual ainda pode devolver `nao_confirmado_na_criacao`/saída 1
 quando o POST criador falha ou não apresenta resultado verificável.
 A reconciliação está ligada à CLI, com classificação conservadora dos candidatos; não há autorização
 para repetir o POST de criação da UnB que já produziu
@@ -64,7 +64,7 @@ Depois de uma falha observada **após iniciar o POST criador**, o fluxo faz
 com o retrato integral anterior. Orçamento de teste: **3 GET de prévia,
 1 POST criador e 1 GET de reconciliação = 5 pedidos, sem retry**.
 Se até essa leitura falha, a saída é 3 e preserva as duas causas.
-Se dá certo, ainda é saída 3: a diferença são **candidatos observados**,
+Se dá certo, ainda é saída 1: a diferença são **candidatos observados**,
 não prova da aplicação ou de que repetir a escrita é seguro.
 O JSON publica `causa_post`, `causa_releitura` e
 `candidatos_observados_na_caixa` (null se releitura falhou), mas nunca
@@ -95,7 +95,7 @@ fotografia completa de Gerados obtida antes do envio. Reporta a causa
 nomeada `resposta_inesperada_apos_post_criador` ou
 `localizacao_invalida_apos_post_criador`, os candidatos apenas observados
 e a causa independente da releitura, quando esta falhar. A resposta continua
-`efeito_incerto_na_criacao`/saída 3 porque diferença de Gerados, inclusive
+`nao_confirmado_na_criacao`/saída 1 porque diferença de Gerados, inclusive
 vazia, não prova por si só criação nem não aplicação. A conferência de cada candidato por `processo NUP` e a classificação
 conservadora já estão ligadas ao fluxo Web.
 
@@ -109,7 +109,7 @@ por candidato**, sem retry. A conferência prova a identidade e
 as propriedades de um **candidato**, mas não atribui causalidade ao POST
 sem resposta em uma conta compartilhada: um agente concorrente poderia
 ter criado um processo indistinguível na mesma janela. Mesmo havendo
-exatamente um correspondente, o resultado é saída 3, possível resíduo
+exatamente um correspondente, o resultado é saída 1, possível resíduo
 e causa do POST preservada. Duas ou mais coincidências são ambíguas;
 nenhuma ou leitura interrompida continua inconclusiva. Somente um
 `Location` legítimo vinculado ao POST e verificado por leituras
@@ -129,7 +129,7 @@ a saída é 1, com causa original e `desfecho: "nao_aplicada"` no JSON:
 `repeticao_segura_com_nova_previa: true` só permite uma nova decisão
 explícita após prévia; `retentavel: false` veda retry automático.
 HTTP 4xx isolado (inclusive 403) **não prova ausência de efeito**,
-retorna **saída 3** (`efeito_incerto`), com subcódigo, status HTTP e
+retorna **saída 1** (`nao_confirmado`), com subcódigo, status HTTP e
 mensagem saneada, sem publicar `nao_aplicada` nem habilitar repetição.
 Somente a recusa expressa da Infra retorna **saída 1**. Ambos encerram
 após **3 GET + 1 POST**, sem reler Gerados nem atribuir criação
@@ -148,9 +148,9 @@ NUPs observados, além de `causa_post` e da fotografia posterior.
 No humano, identifica a ambiguidade e os NUPs, sem inferir o autor da
 escrita nem recomendar repetição. Com dois candidatos, a prova usa
 **3 GET antes + 1 POST criador + 1 GET Controle + 6 GET de processos = 11
-requisições** sintéticas, sem retry. Uma única correspondência após verificar todos **continua saída 3**
+requisições** sintéticas, sem retry. Uma única correspondência após verificar todos **continua saída 1**
 (`possivel_residuo`) sem resposta causal do POST; zero correspondências
-**não** prova não aplicação e mantém saída 3. Recusa expressa da Infra
+**não** prova não aplicação e mantém saída 1. Recusa expressa da Infra
 é prova distinta de não aplicação.
 
 
@@ -159,7 +159,7 @@ requisições** sintéticas, sem retry. Uma única correspondência após verifi
 Um redirecionamento esperado do POST criador não basta para afirmar
 aplicação: a tela do processo e sua árvore ainda devem ser lidas.
 Se um GET verificador falhar por transporte ou HTTP, a CLI conserva
-**saída 3** (efeito incerto), o subcódigo original do GET, eventual
+**saída 1** (escrita não confirmada), o subcódigo original do GET, eventual
 `status_http` e mensagem saneada do servidor. Uma falha estrutural
 da tela ou da árvore também mantém sua causa específica; nunca se
 atribui sucesso com base somente no `Location`. Não há retry nem
@@ -197,7 +197,7 @@ já obtidas não desaparecem: o diagnóstico publica
 `coincidencias_parciais_conferidas` com os NUPs efetivamente verificados,
 e mantém `candidatos_observados_na_caixa` com todos os NUPs da fotografia.
 Isso **não** permite concluir que a escrita foi aplicada, nem que a
-correspondência é única: saída **3**, `efeito_incerto_na_criacao`,
+correspondência é única: saída **3**, `nao_confirmado_na_criacao`,
 sem `desfecho` conclusivo e sem retry.
 
 `candidatos_compativeis` e `desfecho: candidatos_ambiguos` permanecem
@@ -215,7 +215,7 @@ Um processo concorrente com mesmo tipo e especificação, mas nível
 `restrito` quando o pedido foi `publico` (ou vice-versa), **não**
 comprova esta escrita. Nível ausente tampouco autoriza conclusão positiva
 ou negativa. O classificador retorna `SemCorrespondenciaObservada` para
-nível divergente, e a CLI mantém saída 3 com a fotografia posterior.
+nível divergente, e a CLI mantém saída 1 com a fotografia posterior.
 
 O orçamento não muda: **3 GET de preparação + 1 POST tentado + 1 GET
 do Controle + 3 GET de verificação = 8 pedidos**, exatamente um POST,
@@ -235,7 +235,7 @@ explícito significa que o pedido não impôs essa condição adicional.
 
 Divergência não prova não aplicação: no caminho pós-`Location`, saída
 3 com a causa de divergência; na reconciliação, candidato não coincidente
-e saída 3 se faltar outra prova. A conferência reutiliza o terceiro GET
+e saída 1 se faltar outra prova. A conferência reutiliza o terceiro GET
 de propriedades, **sem novo request, POST, retry ou execução de JS**.
 
 ## `Location` aponta para ID anterior ao POST (#245)
@@ -244,7 +244,7 @@ Mesmo com `302 Location` sintaticamente válido, tela, árvore e propriedades
 coincidentes, não se declara **criação nova** se o `id_procedimento`
 retornado já consta da fotografia **completa** dos Gerados anterior ao POST.
 Esta evidência negativa evita atribuir uma identidade antiga ao POST
-presente. O resultado é efeito incerto (**saída 3**), subcódigo
+presente. O resultado é escrita não confirmada (**saída 1**), subcódigo
 `id_preexistente_no_retorno_criador`, sem recomendar repetição,
 sem abrir o processo preexistente e sem tentar outro POST. O caso adversarial
 sintético exige **3 GET iniciais + 1 POST = 4 requisições**,
@@ -261,7 +261,7 @@ pode produzir exatamente a mesma diferença durante a janela observada.
 
 O classificador tipado devolve `CoincidenciaUnica` (fato sobre
 propriedades), mas a fronteira de escrita **não** define
-`confirmado: true`: devolve código 3, subcódigo
+`confirmado: true`: devolve código 1, subcódigo
 `candidato_unico_sem_prova_causal`, JSON `desfecho: possivel_residuo`,
 `candidatos_compativeis`, causa original do POST e proibição de retry.
 Com dois candidatos dos quais só um coincide, lê **ambos** antes de
@@ -284,8 +284,8 @@ O campo JSON `requisicoes` e a mensagem humana refletem o número
 **efetivamente tentado** de chamadas ao transporte na operação: incluem
 GETs de preparação, o único POST criador, eventual AJAX de consulta,
 releitura de Gerados e verificações independentes já realizadas. Não
-são orçamento estimado nem prova de aplicação. Mesmo com saída 3
-por efeito incerto, a contagem é conservada; nunca habilita retry.
+são orçamento estimado nem prova de aplicação. Mesmo com saída 1
+por escrita não confirmada, a contagem é conservada; nunca habilita retry.
 Falhas antes da primeira chamada publicam zero.
 
 Regressões offline: prévia 3 GET/0 POST; recusa de unidade após 1 GET;

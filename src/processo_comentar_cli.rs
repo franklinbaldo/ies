@@ -72,19 +72,19 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(processo_comentar_web::Erro::EfeitoIncerto) => efeito_incerto(cli.json),
+            Err(processo_comentar_web::Erro::NaoConfirmado) => nao_confirmado(cli.json),
             Err(_) => recusa_previa(cli.json),
         }
     }))
 }
 
-fn efeito_incerto(json_mode: bool) -> ExitCode {
+fn nao_confirmado(json_mode: bool) -> ExitCode {
     let mensagem = "O POST pode ter sido aplicado, mas o comentário não foi confirmado pela releitura; consulte ies processo comentarios antes de tentar novamente. Não repita --confirmar.";
     if json_mode {
         println!(
             "{}",
             json!({
-                "codigo": "efeito_incerto",
+                "codigo": "nao_confirmado",
                 "erro": mensagem,
                 "retentavel": false
             })
@@ -92,7 +92,7 @@ fn efeito_incerto(json_mode: bool) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem}");
     }
-    ExitCode::from(3)
+    ExitCode::from(1)
 }
 
 fn recusa(json_mode: bool, mensagem: &str) -> ExitCode {

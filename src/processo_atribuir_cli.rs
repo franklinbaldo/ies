@@ -74,7 +74,7 @@ pub(crate) fn json_de_falha(erro: &ErroProcessoAtribuir) -> serde_json::Value {
                 objeto.insert("motivo".to_owned(), json!(motivo));
                 objeto.insert("requisicoes".to_owned(), json!(requisicoes));
             }
-            ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao {
+            ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
                 requisicoes,
                 atribuicao_relida,
                 ..
@@ -99,7 +99,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
         );
         // O estado observado depois do POST pode ser um resíduo real,
         // mas não identifica qual sessão provocou a mudança.
-        if let ErroProcessoAtribuir::EfeitoIncertoNaAtribuicao {
+        if let ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             atribuicao_relida: Some(login),
             ..
         } = erro
@@ -108,7 +108,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroProcessoAtribuir) -> ExitCode {
             eprintln!("Estado relido: {estado} (não comprova o efeito deste POST).");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 /// Traduz o estado único do domínio para os dois campos do contrato JSON legado.

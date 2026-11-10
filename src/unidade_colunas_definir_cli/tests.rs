@@ -78,8 +78,8 @@ fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
 }
 
 #[test]
-fn efeito_incerto_publica_codigo_causa_e_verificacao() {
-    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+fn nao_confirmado_publica_codigo_causa_e_verificacao() {
+    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
         plano: Box::new(plano()),
         falha_do_salvar: Some(erro_500()),
         verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
@@ -87,7 +87,7 @@ fn efeito_incerto_publica_codigo_causa_e_verificacao() {
         )),
     };
     let valor = json_de_falha(&erro);
-    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(valor["codigo"], "nao_confirmado");
     assert_eq!(valor["retentavel"], false);
     assert_eq!(valor["antes"], json!(["atribuicao", "tipo"]));
     assert_eq!(valor["alvo"], json!(["atribuicao", "anotacao"]));
@@ -108,7 +108,7 @@ fn coluna_indisponivel_e_leitura_sao_fonte_invalida() {
 
 #[test]
 fn falha_do_salvar_sem_sinal_de_gravacao_sai_so_com_o_subcodigo() {
-    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
         plano: Box::new(plano()),
         falha_do_salvar: Some(FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao),
         verificacao: Box::new(VerificacaoDasColunas::LeituraFalhou(
@@ -151,7 +151,7 @@ fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
 #[test]
 fn falhas_de_colunas_sao_apresentadas_sem_interpretar_json() {
     let antes = plano();
-    let erro = ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+    let erro = ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
         plano: Box::new(antes.clone()),
         falha_do_salvar: Some(erro_500()),
         verificacao: Box::new(VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])),
@@ -160,7 +160,6 @@ fn falhas_de_colunas_sao_apresentadas_sem_interpretar_json() {
     assert_eq!(linhas[1], "IES: antes: atribuicao, tipo");
     assert_eq!(linhas[2], "IES: alvo: atribuicao, anotacao");
     assert_eq!(linhas[3], "IES: observadas: atribuicao");
-    assert_eq!(erro.saida(), 3);
 
     let diferente = ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar {
         plano: Box::new(antes),

@@ -160,7 +160,7 @@ semântica de assinatura ou status HTTP entre instalações.
 3. A lista de versões, o rodapé e o HTML relido concordam sobre N+1?
    Há atraso, cache ou diferença na versão publicada?
 4. Como distinguir conflito concorrente, recusa definitiva e
-   efeito incerto após timeout, 5xx ou resposta desconhecida?
+   escrita não confirmada após timeout, 5xx ou resposta desconhecida?
 5. A assinatura é removida na abertura ou no salvar? E com
    múltiplos assinantes? **Não executar em assinado sem roteiro
    específico autorizado.**

@@ -57,7 +57,7 @@ pub(super) fn json_de_falha(erro: &ErroAssinar) -> FalhaAssinatura<'_> {
             valor.assinaturas = Some(assinaturas_publicas(antes));
             valor.dados.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroAssinar::EfeitoIncertoNaAssinatura {
+        ErroAssinar::NaoConfirmadoNaAssinatura {
             antes,
             falha_do_envio,
             verificacao,
@@ -66,7 +66,6 @@ pub(super) fn json_de_falha(erro: &ErroAssinar) -> FalhaAssinatura<'_> {
             if let VerificacaoDaAssinatura::Lida(depois) = verificacao.as_ref() {
                 valor.assinaturas_depois = Some(assinaturas_publicas(depois));
             }
-            valor.dados.verificacao = Some(verificacao.motivo());
             valor.dados.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
@@ -82,16 +81,11 @@ pub(super) fn linhas_da_falha(erro: &ErroAssinar) -> Vec<String> {
     }
     let falha_do_envio = match erro {
         ErroAssinar::AssinaturaNaoAplicada { falha_do_envio, .. }
-        | ErroAssinar::EfeitoIncertoNaAssinatura { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | ErroAssinar::NaoConfirmadoNaAssinatura { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    if let ErroAssinar::EfeitoIncertoNaAssinatura { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
     }
     linhas
 }

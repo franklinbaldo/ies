@@ -265,19 +265,18 @@ fn leitura_sem_caneta_e_assinatura_nao_aplicada() {
             falha_do_envio: Some(FalhaDoEnvio::RespostaSemFinalizacao),
         }
     );
-    assert_eq!(erro.saida(), 1);
     assert_eq!(feitos, pedidos_da_escrita());
 }
 
 #[test]
-fn falha_depois_do_envio_e_leitura_falha_sao_efeito_incerto_sem_retry() {
+fn falha_depois_do_envio_e_leitura_falha_sao_nao_confirmado_sem_retry() {
     let respostas = com(
         ate_a_tela(arvore_do_documento('N', &[])),
         vec![Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)],
     );
     let (r, feitos) = rodar_assinar(Some(CARGO), true, respostas);
     let erro = r.unwrap_err();
-    let A::EfeitoIncertoNaAssinatura {
+    let A::NaoConfirmadoNaAssinatura {
         falha_do_envio,
         verificacao,
         ..
@@ -292,13 +291,12 @@ fn falha_depois_do_envio_e_leitura_falha_sao_efeito_incerto_sem_retry() {
         )))
     );
     assert!(matches!(verificacao.as_ref(), V::LeituraFalhou(_)));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(feitos, pedidos_da_escrita());
     assert!(!format!("{erro:?}").contains(SENHA));
 }
 
 #[test]
-fn caneta_com_outro_cargo_e_efeito_incerto() {
+fn caneta_com_outro_cargo_e_nao_confirmado() {
     let respostas = com(
         ate_a_tela(arvore_do_documento('N', &[])),
         vec![
@@ -307,6 +305,5 @@ fn caneta_com_outro_cargo_e_efeito_incerto() {
         ],
     );
     let (r, _) = rodar_assinar(Some(CARGO), true, respostas);
-    let erro = r.unwrap_err();
-    assert_eq!(erro.saida(), 3);
+    let _erro = r.unwrap_err();
 }

@@ -94,7 +94,7 @@ pub(crate) enum ErroSobrestamento {
     #[causa(interna)]
     EnderecoDeRetomar(ErroEnderecoDeRetomar),
     EscritaNaoAplicada,
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 impl ErroSobrestamento {
@@ -124,9 +124,7 @@ impl ErroSobrestamento {
                 "endereço de retomar fora da forma observada; nada enviado"
             }
             Self::EscritaNaoAplicada => "releitura confirmou que a ação não foi aplicada",
-            Self::EfeitoIncerto => {
-                "efeito incerto após escrita; consulte processo antes de repetir"
-            }
+            Self::NaoConfirmado => "escrita não confirmada; consulte processo antes de repetir",
         }
     }
 

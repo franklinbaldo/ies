@@ -90,9 +90,9 @@ pub(crate) enum ErroEnviar {
     /// A tentativa de limpar foi relida, mas a anotação segue preenchida: não tramitar.
     AnotacaoNaoLimpaAntesDeEnviar,
     /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
-    EfeitoIncertoNaLimpezaDaAnotacao,
+    NaoConfirmadoNaLimpezaDaAnotacao,
     /// O envio foi confirmado; a releitura da anotação falhou.
-    EfeitoIncertoNaRemocaoDeAnotacoes {
+    NaoConfirmadoNaRemocaoDeAnotacoes {
         /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.
         depois: Option<Vec<String>>,
     },
@@ -124,7 +124,7 @@ pub(crate) enum ErroEnviar {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
-    EfeitoIncertoNoEnvio {
+    NaoConfirmadoNoEnvio {
         aberto_em: Vec<String>,
         anotacao_depois: Option<bool>,
         falha_do_envio: Option<FalhaDoEnvio>,
@@ -140,20 +140,10 @@ impl ErroEnviar {
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. }
             | Self::AnotacoesNaoRemovidasAposEnvio { .. }
             | Self::AnotacaoNaoLimpaAntesDeEnviar => "escrita_diferente_da_solicitada",
-            Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
-            | Self::EfeitoIncertoNaLimpezaDaAnotacao => "efeito_incerto",
+            Self::NaoConfirmadoNoEnvio { .. }
+            | Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
+            | Self::NaoConfirmadoNaLimpezaDaAnotacao => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNoEnvio { .. }
-            | Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
-            | Self::EfeitoIncertoNaLimpezaDaAnotacao => 3,
-            _ => 1,
         }
     }
 
@@ -167,7 +157,7 @@ impl ErroEnviar {
             Self::Formulario(erro) => erro.status_http().cloned(),
             Self::EnvioNaoAplicado { falha_do_envio, .. }
             | Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-            | Self::EfeitoIncertoNoEnvio { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNoEnvio { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -221,10 +211,10 @@ impl ErroEnviar {
             Self::AnotacaoNaoLimpaAntesDeEnviar => {
                 "a anotação continua preenchida; o processo não foi enviado"
             }
-            Self::EfeitoIncertoNaLimpezaDaAnotacao => {
+            Self::NaoConfirmadoNaLimpezaDaAnotacao => {
                 "não foi possível comprovar a limpeza da anotação; o processo não foi enviado; não repita a gravação"
             }
-            Self::EfeitoIncertoNaRemocaoDeAnotacoes { .. } => {
+            Self::NaoConfirmadoNaRemocaoDeAnotacoes { .. } => {
                 "o processo foi enviado, mas não foi possível comprovar a remoção da anotação; não repita o envio"
             }
             Self::Anotacoes(erro) => erro.mensagem(),
@@ -244,7 +234,7 @@ impl ErroEnviar {
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
                 "o processo foi enviado, mas a unidade da sessão não ficou como pedido (manter aberto)"
             }
-            Self::EfeitoIncertoNoEnvio { .. } => {
+            Self::NaoConfirmadoNoEnvio { .. } => {
                 "não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir"
             }
         }

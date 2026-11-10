@@ -143,7 +143,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     });
     let resposta = resultado.map_err(|erro| {
         if enviou {
-            E::EfeitoIncerto(Some(erro))
+            E::NaoConfirmado(Some(erro))
         } else {
             E::ConsultaDerivacao(erro)
         }
@@ -153,10 +153,10 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(E::EfeitoIncerto(None)),
+        _ => return Err(E::NaoConfirmado(None)),
     }
-    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
+    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::NaoConfirmado(None))?;
+    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::NaoConfirmado(None))?;
     // Um id removido não prova a remoção do NUP: a relação pode ter
     // reaparecido sob outro id, ou outra relação pode ter sido perdida.
     let destino_permanece = linhas
@@ -171,7 +171,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             })
         });
     if destino_permanece || !outras_preservadas {
-        return Err(E::EfeitoIncerto(None));
+        return Err(E::NaoConfirmado(None));
     }
     Ok(())
 }
@@ -231,7 +231,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
     });
     let resposta = resultado.map_err(|erro| {
         if enviou {
-            E::EfeitoIncerto(Some(erro))
+            E::NaoConfirmado(Some(erro))
         } else {
             E::ConsultaDerivacao(erro)
         }
@@ -243,10 +243,10 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(E::EfeitoIncerto(None)),
+        _ => return Err(E::NaoConfirmado(None)),
     }
-    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::EfeitoIncerto(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::EfeitoIncerto(None))?;
+    let (nova_tela, _) = obter_tela(rede, cookie, link).map_err(|_| E::NaoConfirmado(None))?;
+    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| E::NaoConfirmado(None))?;
     let destino_confirmado = linhas
         .iter()
         .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino));
@@ -256,7 +256,7 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         })
     });
     if !destino_confirmado || !anteriores_preservados {
-        return Err(E::EfeitoIncerto(None));
+        return Err(E::NaoConfirmado(None));
     }
     Ok(())
 }

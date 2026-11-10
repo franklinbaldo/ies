@@ -43,7 +43,7 @@ Com `--confirmar`, o primitivo deve enviar uma única vez o
 formulário derivado, com efeito avaliado de criação de processo.
 Desabilitar redirecionamento automático; obter identidade da
 resposta e reler a árvore. Falha posterior à escrita cuja leitura
-não confirme a identidade é efeito incerto (3), sem repetição.
+não confirme a identidade é escrita não confirmada (3), sem repetição.
 Não tratar simples HTTP 200/302 como prova suficiente.
 
 Não usar regex nem executar JavaScript. Extrair atributos
@@ -84,7 +84,7 @@ A confirmação 4.0 simulada requer **6 requisições**: três GET da
 prévia, um POST criador e dois GET de verificação. Na variante 4.1/5.0
 testada, a escolha de tipo adiciona um POST **não criador**: são
 **7 requisições**, dois POST de efeitos distintos e dois GET finais.
-Os dois fluxos rejeitam efeito incerto sem repetir a escrita.
+Os dois fluxos rejeitam escrita não confirmada sem repetir a escrita.
 
 O parser rejeita `Location` com duas ocorrências de `acao` (mesmo
 quando uma é esperada), com duas ocorrências de `id_procedimento`
@@ -115,7 +115,7 @@ comprimento superior **antes** de derivar a submissão criadora (inclusive
 antes de consultas AJAX dependentes). Sem atributo, não inferir limite.
 A causa tipada expõe apenas contagem e máximo no diagnóstico JSON/humano.
 O mecanismo não muda a validação do servidor: o SEI continua soberano,
-e resposta pós-POST incerta continua saída 3, sem retry.
+e resposta pós-POST incerta continua saída 1, sem retry.
 
 Testes de transporte sintéticos: prévia 101/100 e confirmação 101/100
 recusam com **3 GET / 0 POST**; 51 emoji não-BMP contam 102 unidades

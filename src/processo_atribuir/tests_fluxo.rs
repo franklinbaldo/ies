@@ -333,8 +333,7 @@ fn falha_do_post_e_releitura_sem_prova_sai_tres_sem_retry() {
     respostas.push(Err(FalhaTransporte::Rede));
     respostas.push(ok(arvore_atual("aluno20")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
-    let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.unwrap_err();
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
@@ -350,7 +349,7 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        E::EfeitoIncertoNaAtribuicao {
+        E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(falha),
             leitura: None,
             atribuicao_relida: Some(atual),
@@ -360,7 +359,6 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
             crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
         ) && atual == "aluno2"
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

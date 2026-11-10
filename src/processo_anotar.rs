@@ -63,7 +63,7 @@ pub(crate) enum Erro {
     CharsetNaoSuportado,
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 
 /// A prévia não altera a anotação; confirmação tenta exatamente um POST.
@@ -139,7 +139,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             .ok()
             .and_then(|(html, _)| crate::processo_enviar::texto_anotacao(&html, &id).ok());
         if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
-            return Err(Erro::EfeitoIncerto);
+            return Err(Erro::NaoConfirmado);
         }
         alterado = true;
     }

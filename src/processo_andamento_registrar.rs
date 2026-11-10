@@ -175,22 +175,15 @@ pub(crate) enum Erro {
     CharsetNaoSuportado,
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    EfeitoIncerto,
+    NaoConfirmado,
 }
 impl Erro {
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
-            Self::EfeitoIncerto => {
+            Self::NaoConfirmado => {
                 "A escrita pode ter sido aplicada; não repita --confirmar. Consulte o histórico para verificar possível resíduo"
             }
             _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
-        }
-    }
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto) {
-            3
-        } else {
-            1
         }
     }
 }
@@ -264,12 +257,12 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
     };
     // A escrita saiu: mesmo se o POST falhou, jamais repetir.
     let depois =
-        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::EfeitoIncerto)?;
+        obter_processo(sessao, &pedido, indice, &mut rede).map_err(|_| Erro::NaoConfirmado)?;
     let Andamentos::Lidos(depois) = depois.andamentos else {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     };
     if !inserido_uma_vez(&antes, &depois, texto) {
-        return Err(Erro::EfeitoIncerto);
+        return Err(Erro::NaoConfirmado);
     }
     resultado.total_depois = Some(depois.total_declarado);
     resultado.requisicoes = rede.feitas();

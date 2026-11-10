@@ -292,9 +292,8 @@ fn bdd_releitura_da_anotacao_falha_apos_envio_sem_retry() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { .. }
+        super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));
     assert_eq!(
@@ -340,10 +339,9 @@ fn bdd_333_04_remocao_incerta_preserva_destino_comprovado_na_saida_json() {
         )
     });
     let erro = resultado.expect_err("a anotação não pôde ser relida");
-    assert_eq!(erro.saida(), 3);
     let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
         .expect("erro tipado serializável");
-    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["codigo"], "nao_confirmado");
     assert_eq!(json["depois"], serde_json::json!([DESTINO]));
     assert_eq!(
         pedidos
@@ -424,16 +422,15 @@ fn bdd_333_04_arvore_incerta_mas_anotacao_removida_preserva_a_prova() {
         )
     });
     let erro = resultado.expect_err("árvore incerta não autoriza sucesso");
-    assert_eq!(erro.saida(), 3);
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNoEnvio {
+        super::ErroEnviar::NaoConfirmadoNoEnvio {
             anotacao_depois: Some(false),
             ..
         }
     ));
     let json = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro)).unwrap();
-    assert_eq!(json["codigo"], "efeito_incerto");
+    assert_eq!(json["codigo"], "nao_confirmado");
     assert_eq!(json["anotacao_depois"], false);
     assert_eq!(pedidos.len(), 9);
     assert_eq!(pedidos.last(), Some(&get(&absoluta(&link_anotacao()))));

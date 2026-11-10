@@ -177,7 +177,7 @@ fn conciliar(
     let depois = match verificacao {
         VerificacaoPorLeitura::Lida(ref siglas) => siglas.clone(),
         _ => {
-            return Err(C::EfeitoIncertoNaConclusao {
+            return Err(C::NaoConfirmadoNaConclusao {
                 aberto_em: feito.aberto_em,
                 falha_do_envio: falha,
                 verificacao: Box::new(verificacao),

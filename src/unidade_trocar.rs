@@ -210,7 +210,7 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
     cookie: &str,
     escolhida: &UnidadeOferecida,
 ) -> Result<ControleLido, ErroTroca> {
-    let incerto = |etapa, falha| ErroTroca::EfeitoIncerto { etapa, falha };
+    let incerto = |etapa, falha| ErroTroca::NaoConfirmado { etapa, falha };
     let mut enviado = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
         enviado = true;
@@ -269,12 +269,12 @@ fn enviar_e_verificar<V: EnvioDaTroca>(
 /// O Controle da unidade nova mostra a sigla pedida.
 fn verificar(novo: ControleLido, escolhida: &UnidadeOferecida) -> Result<ControleLido, ErroTroca> {
     let etapa = EtapaDaTroca::ControleDaUnidadeNova;
-    let sigla = unidade_do_controle(&novo.html).map_err(|e| ErroTroca::EfeitoIncerto {
+    let sigla = unidade_do_controle(&novo.html).map_err(|e| ErroTroca::NaoConfirmado {
         etapa,
         falha: F::ControleNaoReconhecido(e),
     })?;
     if sigla != escolhida.sigla {
-        return Err(ErroTroca::EfeitoIncerto {
+        return Err(ErroTroca::NaoConfirmado {
             etapa,
             falha: F::UnidadeDoControleDiferenteDaPedida,
         });

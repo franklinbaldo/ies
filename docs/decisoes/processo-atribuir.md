@@ -52,7 +52,7 @@ sem requisições. A prévia foi extraída para um fluxo injetável com testes
 O fluxo interno de transporte agora envia um POST no máximo uma vez,
 reabre a árvore e compara a atribuição na unidade e no processo originais.
 Falha do POST não gera retry. Se a releitura não comprovar exatamente o
-pedido, a operação devolve efeito incerto (saída 3). A revisão da PR #316
+pedido, a operação devolve escrita não confirmada (saída 1). A revisão da PR #316
 identificou um risco adicional: **releitura coincidente depois de HTTP 403
 ou validação da Infra não prova que o nosso POST escreveu**; outro agente
 pode ter modificado o processo no intervalo. A resposta recusada não
@@ -69,7 +69,7 @@ pode ser confirmada pela releitura; não há nova escrita nem navegação
 pelo Location. Uma **falha de rede sem resposta não prova autoria**,
 mesmo que a árvore relida coincida: outro agente pode ter feito a mesma
 atribuição/remoção. Conserva-se a falha original, o estado relido como
-possível resíduo e a saída 3, sem retry. Esta regra corrige o falso
+possível resíduo e a saída 1, sem retry. Esta regra corrige o falso
 sucesso apontado na revisão 🦅 de #316 (head `72bab3b`). O 302 do aceite observado no Todos @323eb01 também publica
 `acao_origem=procedimento_atribuicao_cadastrar`. Não basta a ação de
 destino com o ID correto: um 302 sem ação de origem não vincula o POST
@@ -77,7 +77,7 @@ destino com o ID correto: um 302 sem ação de origem não vincula o POST
 [42267049782](https://github.com/franklinbaldo/ies/actions/runs/42267049782)
 demonstrou dois falsos sucessos (atribuir/remover): **2 FAIL novos,
 1.739 PASS, 23 ignored existentes**, com seis tentativas por caso.
-Agora a falta de origem resulta em saída 3, sem segundo POST nem seguir
+Agora a falta de origem resulta em saída 1, sem segundo POST nem seguir
 Location. Não se aceita origem diferente ou repetida.
 Uma resposta
 HTML 200 genérica também não é prova do POST, mesmo quando a árvore
@@ -85,12 +85,12 @@ coincide: a escrita pode ter sido feita por outro agente. O teste-first
 [RED 42257965685](https://github.com/franklinbaldo/ies/actions/runs/42257965685)
 reproduziu o falso sucesso na atribuição e na remoção (**2 FAIL novos,
 1.737 PASS, 23 ignored preexistentes**), com 4 GET prévios, 1 POST e
-1 GET independente em cada caso. A correção conserva efeito incerto
-(saída 3), sem retry, até existir aceite observado para HTML 200.
+1 GET independente em cada caso. A correção conserva escrita não confirmada
+(saída 1), sem retry, até existir aceite observado para HTML 200.
 Os testes injetados afirmam 5 GET e 1 POST (6 tentativas) a frio, tanto
 em atribuição quanto em remoção, e as regressões de concorrência exigem
 a mesma contagem exata. A confirmação pela CLI está restrita à origem exata da UnB de treinamento;
-o ensaio ao vivo de 09/11/2026 terminou com efeito incerto (saída 3)
+o ensaio ao vivo de 09/11/2026 terminou com escrita não confirmada (saída 1)
 e possível resíduo, sem comprovação causal. O replay específico offline
 continua obrigatório no CI.
 Não confundir a cobertura sintética com autorização para enviar.
@@ -108,7 +108,7 @@ saneada da releitura quando a tentativa de POST não publicou HTTP.
 Alternativa rejeitada: repetir a abertura por outra rota após 503,
 porque violaria o orçamento de uma verificação e obscureceria o diagnóstico.
 A escrita permanece fechada nas origens não autorizadas; na UnB de treinamento,
-o POST único de 09/11/2026 produziu saída 3 e não autoriza inferir sucesso.
+o POST único de 09/11/2026 produziu saída 1 e não autoriza inferir sucesso.
 
 ## Evidências verificáveis
 
@@ -130,8 +130,8 @@ derivado; não comprovam POST nem efeito no SEI.
 `--confirmar` recusa `origem_fora_do_treinamento` antes de qualquer
 rede em origens que não são [instalações públicas de treinamento](../../docs/interfaces/credenciais-de-treinamento.md).
 O fluxo injetável possui testes de POST único,
-releitura e saída 3. Prévia em duas instalações de treinamento já
-comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão segue provisória: a confirmação ao vivo teve efeito incerto,
+releitura e saída 1. Prévia em duas instalações de treinamento já
+comprovada: UnB (atribuição) e [GO (`--remover`, 5 requisições)](../validacao-live/2026-11-06-processo-atribuir-go.md). A decisão segue provisória: a confirmação ao vivo teve escrita não confirmada,
 e a remoção em treinamento ainda não foi executada. O RED observou 4 testes falhando,
 1.689 aprovados no [CI 42195656454](https://github.com/franklinbaldo/ies/actions/runs/42195656454).
 
@@ -162,12 +162,12 @@ anti-IES e o SQLite efêmero, depois invoca outra vez `ies processo NUP`
 na mesma bancada para observar a alteração ou remoção. Sua execução
 sintética não autoriza afirmar paridade dos efeitos de POST das cassettes
 nem sucesso em treinamento externo. A confirmação remota recebeu em 09/11/2026 um ensaio controlado na UnB,
-com prévia válida, POST único, saída 3 e estado posterior observado, mas
+com prévia válida, POST único, saída 1 e estado posterior observado, mas
 sem prova causal. A remoção remota segue **NOT_RUN**. A ampliação para outras
 instalações depende de observação e revisão independentes.
 
 ## Evidência que altera a decisão (09/11/2026)
 
-O [relatório de treinamento da #264](../validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md) registra uma confirmação pela CLI Rust, na origem UnB de treinamento, após duas prévias válidas. O POST foi único; a releitura encontrou `aluno2`, mas a CLI devolveu **saída 3** por falta de prova causal da alteração. A [PR #605](https://github.com/franklinbaldo/ies/pull/605) foi integrada com [CI oficial 7/7](https://github.com/franklinbaldo/ies/actions/runs/42703581460).
+O [relatório de treinamento da #264](../validacao-live/2026-11-09-processo-atribuir-unb-post-incerto.md) registra uma confirmação pela CLI Rust, na origem UnB de treinamento, após duas prévias válidas. O POST foi único; a releitura encontrou `aluno2`, mas a CLI devolveu **saída 1** por falta de prova causal da alteração. A [PR #605](https://github.com/franklinbaldo/ies/pull/605) foi integrada com [CI oficial 7/7](https://github.com/franklinbaldo/ies/actions/runs/42703581460).
 
 **Decisão preservada:** não declarar sucesso pela mera coincidência entre estado pedido e estado relido. Não repetir o POST incerto, não alegar resíduo limpo e não realizar remoção como suposta prova retroativa. A compatibilidade sintética IES↔anti-IES↔SQLite permaneceu PASS anterior; as respostas 302 dos POSTs históricos não trazem o ID decimal singular exigido para confirmação estrita, de modo que o confronto causal com cassette permanece pendente. Nenhum teste live de remoção foi executado.

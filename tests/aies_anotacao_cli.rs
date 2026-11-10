@@ -248,7 +248,7 @@ fn executar_caso(caso: Caso<'_>, resultado: Resultado, modo_json: bool) {
     let pedidos = trilha.lock().unwrap().clone();
     assert_eq!(
         saida.status.code(),
-        Some(if resposta_recusada { 3 } else { 0 }),
+        Some(i32::from(resposta_recusada)),
         "stdout={} stderr={} HTTP={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
@@ -293,7 +293,7 @@ fn executar_caso(caso: Caso<'_>, resultado: Resultado, modo_json: bool) {
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if resposta_recusada {
         // O servidor aplicou, mas o túnel devolveu 403: estado final não prova autoria.
-        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["codigo"], "nao_confirmado");
         assert_eq!(json["retentavel"], false);
     } else {
         assert_eq!(json["nup"], NUP);
@@ -338,7 +338,7 @@ fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
 }
 
 #[test]
-fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
+fn bdd_anot_02_403_apos_post_aplicado_exige_nao_confirmado() {
     executar_caso(Caso::Registro, Resultado::Recusado, true);
 }
 
@@ -366,6 +366,6 @@ fn bdd_anot_04_remove_uma_vez_e_confere_vazio_por_releitura() {
 }
 
 #[test]
-fn bdd_anot_04_403_apos_remocao_aplicada_exige_efeito_incerto() {
+fn bdd_anot_04_403_apos_remocao_aplicada_exige_nao_confirmado() {
     executar_caso(Caso::Retirada, Resultado::Recusado, true);
 }

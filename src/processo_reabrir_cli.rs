@@ -64,7 +64,7 @@ fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
                         eprintln!("{linha}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     })
@@ -141,13 +141,12 @@ pub(crate) fn json_de_falha(erro: &ErroReabrir) -> FalhaDaSituacao<'_> {
             valor.depois = Some(depois);
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
-        ErroReabrir::EfeitoIncertoNaReabertura {
+        ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}
@@ -199,7 +198,7 @@ fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
         E::UnidadeDaSessaoJaNaSituacao { aberto_em }
         | E::ReaberturaNaoPublicadaNaBarra { aberto_em }
         | E::ReaberturaNaoAplicada { aberto_em, .. }
-        | E::EfeitoIncertoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
@@ -214,16 +213,11 @@ fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
     }
     let falha_do_envio = match erro {
         E::ReaberturaNaoAplicada { falha_do_envio, .. }
-        | E::EfeitoIncertoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    if let E::EfeitoIncertoNaReabertura { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
     }
     linhas
 }

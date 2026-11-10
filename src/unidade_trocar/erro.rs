@@ -80,7 +80,7 @@ pub(crate) enum ErroTroca {
     },
     #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
-    EfeitoIncerto {
+    NaoConfirmado {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,
     },
@@ -91,16 +91,8 @@ pub(crate) enum ErroTroca {
 impl ErroTroca {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
-            Self::EfeitoIncerto { .. } => "efeito_incerto",
+            Self::NaoConfirmado { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncerto { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -131,7 +123,7 @@ impl ErroTroca {
                 "a sigla pedida aparece em mais de uma unidade da tela de troca"
             }
             Self::Submissao(_) => "o formulário de troca de unidade não pôde ser derivado",
-            Self::EfeitoIncerto { .. } => {
+            Self::NaoConfirmado { .. } => {
                 "a troca foi enviada e a resposta não é a observada: a unidade da sessão pode ter mudado; não repita, confira com ies login --forcar"
             }
         }
@@ -141,7 +133,7 @@ impl ErroTroca {
         match self {
             Self::Transporte(falha) => falha.status_http(),
             Self::Submissao(erro) => erro.status_http(),
-            Self::EfeitoIncerto { falha, .. } => falha.status_http(),
+            Self::NaoConfirmado { falha, .. } => falha.status_http(),
             _ => None,
         }
     }

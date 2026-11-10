@@ -414,13 +414,13 @@ fn bdd_246_04_cli_nao_atribui_autoria_sem_location_correspondente() {
     let (saidas, trilha, quantidade) = executar(&[&args], true);
     assert_eq!(
         saidas[0].status.code(),
-        Some(3),
+        Some(1),
         "stdout={} stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saidas[0].stdout),
         String::from_utf8_lossy(&saidas[0].stderr)
     );
     let resultado = json(&saidas[0]);
-    assert_eq!(resultado["codigo"], "efeito_incerto");
+    assert_eq!(resultado["codigo"], "nao_confirmado");
     assert_eq!(resultado["retentavel"], false);
     assert_eq!(quantidade, 2, "escrita pode ter ocorrido apesar do erro");
     assert_eq!(

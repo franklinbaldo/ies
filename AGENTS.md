@@ -144,7 +144,7 @@ Antes de codificar ou testar, sincronize a branch com a `main` a cada rodada:
   com parsing estruturado via `html_atributos`, respeitando cookies e arquivos privados.
 - O fluxo de escrita segue: **prévia ao vivo → confirmação única com `--confirmar` →
   verificação independente por releitura**, registrando o resíduo gerado.
-  Efeito incerto conclui com código 3 sem repetição automática.
+  Escrita sem confirmação por releitura é falha (saída 1, `nao_confirmado`) e nunca se repete automaticamente.
 - Não contorne os limites, gates ou escopos quando houver bloqueio:
   tente alternativa segura, registre o impedimento e continue WIP.
 
@@ -217,8 +217,8 @@ O que falta implementar e em que ordem está na
 - **Publicar só o observado.** `total_declarado` e `faixa_observada`,
   nunca "completo"; `null` é "não observado", não "não tem"; NUP e ids são
   opacos.
-- **Escrita com prévia, `--confirmar` e verificação por leitura.** Efeito
-  incerto sai com código 3 e nunca se repete nem troca de backend.
+- **Escrita com prévia, `--confirmar` e verificação por leitura.** Sucesso
+  só com releitura confirmada; o resto é falha (saída 1) e nunca se repete.
 - **Peças únicas, sem despachante genérico.** Um cliente HTTPS (proxy,
   sem redirect, limites), um primitivo de formulário com regras por
   operação; nada de `agir`, `Action` ou `PageModel`.
@@ -276,7 +276,7 @@ O `okf-parser` roda pelo `uvx`, sem instalação, na versão do `prek.toml`:
 OKF="uvx --from okf-parser==0.48.2 okf-parser"
 $OKF check . --require-spec .okf/specs/{slug}.md --normative-spec  # o gate
 $OKF inventory .                       # conceitos por tipo
-$OKF search . "efeito incerto" --type Contract --context 1
+$OKF search . "escrita não confirmada" --type Contract --context 1
 $OKF sql . "SELECT path FROM concepts WHERE concept_type = 'Guide'"
 ```
 

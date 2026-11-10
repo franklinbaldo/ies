@@ -247,7 +247,7 @@ pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
             objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
             objeto.insert("observadas".to_owned(), chaves(observadas));
         }
-        ErroDefinirColunas::EfeitoIncertoNaConfiguracaoDeColunas {
+        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             plano,
             falha_do_salvar,
             verificacao,
@@ -255,14 +255,9 @@ pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
             objeto.insert("antes".to_owned(), chaves(&plano.antes));
             objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
             inserir_falha(objeto, falha_do_salvar.as_ref());
-            let (observadas, lida) = match &**verificacao {
-                VerificacaoDasColunas::Marcadas(marcadas) => (chaves(marcadas), Value::Null),
-                VerificacaoDasColunas::LeituraFalhou(falha) => {
-                    (Value::Null, json!(falha.mensagem()))
-                }
-            };
-            objeto.insert("observadas".to_owned(), observadas);
-            objeto.insert("verificacao".to_owned(), lida);
+            if let VerificacaoDasColunas::Marcadas(marcadas) = &**verificacao {
+                objeto.insert("observadas".to_owned(), chaves(marcadas));
+            }
         }
     }
     valor
@@ -290,7 +285,7 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
     let plano = match erro {
         E::ConfiguracaoDeColunasNaoAplicada { plano, .. }
         | E::MarcasDiferentesDoAlvoAposSalvar { plano, .. }
-        | E::EfeitoIncertoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
+        | E::NaoConfirmadoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
         _ => None,
     };
     if let Some(plano) = plano {
@@ -302,7 +297,7 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
         E::MarcasDiferentesDoAlvoAposSalvar { observadas, .. } => {
             linhas.push(format!("IES: {}", linha("observadas", observadas)));
         }
-        E::EfeitoIncertoNaConfiguracaoDeColunas { verificacao, .. } => {
+        E::NaoConfirmadoNaConfiguracaoDeColunas { verificacao, .. } => {
             if let VerificacaoDasColunas::Marcadas(observadas) = verificacao.as_ref() {
                 linhas.push(format!("IES: {}", linha("observadas", observadas)));
             }
@@ -314,7 +309,7 @@ fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
         E::ConfiguracaoDeColunasNaoAplicada {
             falha_do_salvar, ..
         }
-        | E::EfeitoIncertoNaConfiguracaoDeColunas {
+        | E::NaoConfirmadoNaConfiguracaoDeColunas {
             falha_do_salvar, ..
         } => falha_do_salvar.as_ref(),
         _ => None,
@@ -333,7 +328,7 @@ fn publicar_falha(json_mode: bool, erro: &ErroDefinirColunas) -> ExitCode {
             eprintln!("{linha}");
         }
     }
-    ExitCode::from(erro.saida())
+    ExitCode::from(1)
 }
 
 fn lista_humana(nomes: &[&str]) -> String {

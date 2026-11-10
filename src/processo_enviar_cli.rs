@@ -137,7 +137,7 @@ fn enviar(
                         eprintln!("{mensagem}");
                     }
                 }
-                ExitCode::from(erro.saida())
+                ExitCode::from(1)
             }
         }
     })
@@ -200,14 +200,14 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
         | E::ProcessoJaAbertoNoDestino { aberto_em }
         | E::EnvioNaoAplicado { aberto_em, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { aberto_em, .. }
-        | E::EfeitoIncertoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
+        | E::NaoConfirmadoNoEnvio { aberto_em, .. } => Some(aberto_em.as_slice()),
         _ => None,
     };
     let depois = match erro {
         E::EnvioNaoAplicado { depois, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { depois, .. } => Some(depois.as_slice()),
         E::AnotacoesNaoRemovidasAposEnvio { depois }
-        | E::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
+        | E::NaoConfirmadoNaRemocaoDeAnotacoes { depois } => depois.as_deref(),
         _ => None,
     };
     for (campo, lista) in [("aberto_em", aberto_em), ("depois", depois)] {
@@ -219,18 +219,13 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
     let falha_do_envio = match erro {
         E::EnvioNaoAplicado { falha_do_envio, .. }
         | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { falha_do_envio, .. }
-        | E::EfeitoIncertoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
+        | E::NaoConfirmadoNoEnvio { falha_do_envio, .. } => falha_do_envio.as_ref(),
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
         linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
-    if let E::EfeitoIncertoNoEnvio { verificacao, .. } = erro
-        && let Some(motivo) = verificacao.motivo()
-    {
-        linhas.push(format!("IES: verificação: {motivo}"));
-    }
-    if let E::EfeitoIncertoNoEnvio {
+    if let E::NaoConfirmadoNoEnvio {
         anotacao_depois: Some(false),
         ..
     } = erro
@@ -351,18 +346,17 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }
-        | ErroEnviar::EfeitoIncertoNaRemocaoDeAnotacoes { depois } => {
+        | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois } => {
             valor.depois = depois.as_deref();
         }
-        ErroEnviar::EfeitoIncertoNoEnvio {
+        ErroEnviar::NaoConfirmadoNoEnvio {
             aberto_em,
             anotacao_depois,
             falha_do_envio,
-            verificacao,
+            ..
         } => {
             valor.aberto_em = Some(aberto_em);
             valor.anotacao_depois = *anotacao_depois;
-            valor.verificacao = Some(verificacao.motivo());
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         _ => {}

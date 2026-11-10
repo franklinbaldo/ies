@@ -72,7 +72,7 @@ independente. Também relê o editor para observar a contagem de assinaturas
 após a publicação; sem ambas as conferências, não declara sucesso.
 O JSON confirmado informa `assinaturas_apos: 0` somente quando observado.
 Resposta inconclusiva após a tentativa de POST resulta em
-`efeito_incerto`, sem retry. O editor da simulação usa uma região
+`nao_confirmado`, sem retry. O editor da simulação usa uma região
 `main#corpoEditavel`; essa hipótese **não representa uma compatibilidade
 validada com o HTML de editores reais do SEI**. Mesclagem por seção e
 validação em treinamento continuam fora do escopo.

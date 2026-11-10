@@ -46,7 +46,7 @@ pub(crate) enum ErroReabrir {
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: a escrita saiu e a leitura não decide o efeito.
-    EfeitoIncertoNaReabertura {
+    NaoConfirmadoNaReabertura {
         aberto_em: Vec<String>,
         falha_do_envio: Option<FalhaDoEnvio>,
         verificacao: Box<VerificacaoPorLeitura>,
@@ -58,16 +58,8 @@ impl ErroReabrir {
     pub(crate) fn codigo(&self) -> &'static str {
         match self {
             Self::ReaberturaNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::EfeitoIncertoNaReabertura { .. } => "efeito_incerto",
+            Self::NaoConfirmadoNaReabertura { .. } => "nao_confirmado",
             _ => "fonte_invalida",
-        }
-    }
-
-    /// 3 só para efeito incerto; as demais recusas saem com 1.
-    pub(crate) fn saida(&self) -> u8 {
-        match self {
-            Self::EfeitoIncertoNaReabertura { .. } => 3,
-            _ => 1,
         }
     }
 
@@ -78,7 +70,7 @@ impl ErroReabrir {
             Self::TelaDoNo(falha) => falha.status_http().cloned(),
             Self::TelaDoNoRedirecionada => Some(StatusHttpRecusado::sem_mensagem(302)),
             Self::ReaberturaNaoAplicada { falha_do_envio, .. }
-            | Self::EfeitoIncertoNaReabertura { falha_do_envio, .. } => {
+            | Self::NaoConfirmadoNaReabertura { falha_do_envio, .. } => {
                 falha_do_envio.as_ref().and_then(FalhaDoEnvio::status_http)
             }
             _ => None,
@@ -114,7 +106,7 @@ impl ErroReabrir {
             Self::ReaberturaNaoAplicada { .. } => {
                 "a árvore lida depois de reabrir não lista a unidade da sessão: o processo não foi reaberto"
             }
-            Self::EfeitoIncertoNaReabertura { .. } => {
+            Self::NaoConfirmadoNaReabertura { .. } => {
                 "não se sabe se o processo foi reaberto; confira com `ies processo NUP` antes de repetir"
             }
         }

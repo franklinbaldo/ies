@@ -27,7 +27,7 @@ pub(super) fn verificar<V: EnvioDoControle>(
     .map_err(E::Tela)?;
     let arvore = get(envio, tela_lida.arvore.as_str(), cookie, requisicoes)?;
     let nup =
-        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::EfeitoIncerto)?;
+        crate::arvore_processo::nup_declarado_na_arvore(&arvore.html).ok_or(E::NaoConfirmado)?;
     crate::arvore_processo::ler_arvore(&arvore.html, &nup, id).map_err(E::Arvore)?;
     let endereco = crate::arvore_processo::ler_link_das_propriedades(instalacao, &arvore.html, id)
         .map_err(E::Propriedades)?

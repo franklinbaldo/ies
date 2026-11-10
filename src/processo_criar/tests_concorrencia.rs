@@ -33,7 +33,6 @@ fn red_candidato_identico_de_outro_agente_nao_prova_autoria_do_post() {
         )
     });
     let erro = resultado.expect_err("sem resposta ao POST, candidato unico nao prova causalidade");
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("preservar provas observadas");

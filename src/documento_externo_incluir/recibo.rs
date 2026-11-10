@@ -18,7 +18,7 @@ pub(crate) enum FalhaUpload {
         motivo: String,
     },
     /// Depois de um POST, ausência de prova não significa ausência de temporário.
-    EfeitoIncerto {
+    NaoConfirmado {
         status_http: Option<u16>,
     },
 }
@@ -31,7 +31,7 @@ pub(crate) fn interpretar_resposta(
 ) -> Result<ReciboUpload, FalhaUpload> {
     // Um POST de upload pode ter criado um temporário mesmo quando o resultado
     // não é reconhecido. Nunca transformar ausência de prova em novo envio.
-    let incerto = || FalhaUpload::EfeitoIncerto {
+    let incerto = || FalhaUpload::NaoConfirmado {
         status_http: Some(status_http),
     };
     if status_http != 200 {
@@ -84,7 +84,7 @@ pub(crate) fn interpretar_http<R: std::io::Read>(
     tamanho_esperado: u64,
 ) -> Result<ReciboUpload, FalhaUpload> {
     let status_http = u16::try_from(resposta.status_code).unwrap_or(0);
-    let incerto = || FalhaUpload::EfeitoIncerto {
+    let incerto = || FalhaUpload::NaoConfirmado {
         status_http: Some(status_http),
     };
     if status_http != 200
@@ -138,7 +138,7 @@ mod tests {
         for status in [302, 403, 500, 503] {
             assert_eq!(
                 interpretar_resposta(status, RECIBO, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(status),
                 })
             );
@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn corpo_vazio_html_ou_recibo_truncado_eh_efeito_incerto() {
+    fn corpo_vazio_html_ou_recibo_truncado_eh_nao_confirmado() {
         for corpo in [
             "",
             "<html><title>Login</title></html>",
@@ -155,7 +155,7 @@ mod tests {
         ] {
             assert_eq!(
                 interpretar_resposta(200, corpo, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );
@@ -169,7 +169,7 @@ mod tests {
             let diferente = RECIBO.replace("application/pdf", mime);
             assert_eq!(
                 interpretar_resposta(200, &diferente, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200)
                 }),
                 "{mime}"
@@ -182,7 +182,7 @@ mod tests {
         for (nome, tamanho) in [("outro.pdf", 68), ("prova.pdf", 67)] {
             assert_eq!(
                 interpretar_resposta(200, RECIBO, nome, tamanho),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );
@@ -198,7 +198,7 @@ mod tests {
         ] {
             assert_eq!(
                 interpretar_resposta(200, corpo, "prova.pdf", 68),
-                Err(FalhaUpload::EfeitoIncerto {
+                Err(FalhaUpload::NaoConfirmado {
                     status_http: Some(200),
                 })
             );

@@ -156,7 +156,7 @@ fn enviada<V: EnvioDoControle>(
     // Após iniciar a escrita, até uma falha de transporte tem efeito incerto.
     resultado.map_err(|erro| {
         if eh_escrita && tentou {
-            ErroCriar::EfeitoIncerto
+            ErroCriar::NaoConfirmado
         } else {
             ErroCriar::Submissao(erro)
         }
@@ -412,7 +412,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
     };
     let retorno = redirecionamento
         .localizacao()
-        .ok_or(E::EfeitoIncerto)
+        .ok_or(E::NaoConfirmado)
         .and_then(|localizacao| {
             retorno_da_criacao(&instalacao, localizacao, redirecionamento.url_do_envio())
         });

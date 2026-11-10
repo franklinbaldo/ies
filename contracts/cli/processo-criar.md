@@ -65,19 +65,19 @@ que não publicaram essa consulta.
 Uma única submissão do cadastro publicado; sem retry nem
 redirect automático. A resposta esperada é um 302 para
 a árvore com `id_procedimento`, cuja identidade deve ser
-confirmada em leituras novas de tela e árvore, associada a um NUP não vazio. Uma terceira leitura, das propriedades oferecidas pela barra do processo, deve demonstrar tipo, especificação e nível de acesso iguais aos solicitados. Resposta 302 e NUP sem essas propriedades não permitem publicar `confirmado: true` (saída 3; sem retry).
+confirmada em leituras novas de tela e árvore, associada a um NUP não vazio. Uma terceira leitura, das propriedades oferecidas pela barra do processo, deve demonstrar tipo, especificação e nível de acesso iguais aos solicitados. Resposta 302 e NUP sem essas propriedades não permitem publicar `confirmado: true` (saída 1; sem retry).
 A resposta sozinha nunca prova a criação. No `Location`, aceitar
 **uma única** ocorrência da ação `procedimento_trabalhar` e **um único**
 `id_procedimento` numérico; quaisquer repetições, mesmo com um
 parâmetro inválido, são ambiguidade e resultam em
-`efeito_incerto_na_criacao` (saída 3), sem seguir a URL assinada.
+`nao_confirmado_na_criacao` (saída 1), sem seguir a URL assinada.
 Na escolha de tipo por link, aplicar a mesma regra a `acao` e
 `id_tipo_procedimento` antes de qualquer GET.
 
 Falha definitivamente anterior ao envio: saída 1 (ou 2
 para argumentos inválidos). Depois de iniciar a escrita,
 qualquer resultado que não permita estabelecer a identidade
-e o efeito exige `efeito_incerto`, saída 3, sem repetir POST.
+e o efeito exige `nao_confirmado`, saída 1, sem repetir POST.
 O usuário deve conferir a unidade antes de nova tentativa.
 
 ## Subcódigos do leitor de tipos
@@ -121,7 +121,7 @@ implementação Rust e sem afirmar aprovação do verificador:
 - `hipotese_legal_nao_identificada`
 - `interessado_de_processo_ambiguo`
 - `criacao_de_processo_recusada`
-- `efeito_incerto_na_criacao`
+- `nao_confirmado_na_criacao`
 
 Subcódigos já emitidos pelo leitor offline da lista de tipos:
 `lista_de_tipos_html_invalido`, `tabela_de_tipos_ausente_ou_repetida`,
@@ -138,10 +138,10 @@ Esses subcódigos precisam de tipos reais e integração a
 | --- | --- |
 | `cadastro_de_processo_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `cadastro_nao_devolvido_apos_escolha` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `efeito_incerto_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
-| `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; efeito incerto, saída 3 |
+| `nao_confirmado_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
+| `propriedades_divergentes_apos_post_criador` | Tipo, especificação ou nível lido nas propriedades não corresponde ao POST; escrita não confirmada, saída 1 |
 | `candidatos_ambiguos_na_criacao` | Mais de um candidato comprovadamente compatível após POST incerto; não atribuir autoria nem repetir |
-| `candidato_unico_sem_prova_causal` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 3, possível resíduo, sem retry |
+| `candidato_unico_sem_prova_causal` | Um único candidato novo tem propriedades iguais, mas POST não respondeu: não há vínculo causal; saída 1, possível resíduo, sem retry |
 | `falha_de_transporte_na_criacao` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `formulario_de_criacao_nao_reconhecido` | Etapa observada não satisfeita; não repetir operação automaticamente |
 | `interessado_de_processo_nao_resolvido` | Etapa observada não satisfeita; não repetir operação automaticamente |
@@ -206,7 +206,7 @@ a prévia 4.0 tem **3 GET**; a confirmação 4.0 tem **6 pedidos**
 a confirmação 4.1 tem **7 pedidos** (5 GET, 1 POST de seleção
 e 1 POST criador). Não extrapolar esses totais a instalações reais
 sem observação e replay. Em URLs ambíguas recusar antes da próxima
-requisição; depois de iniciar a escrita, saída 3 sem retry.
+requisição; depois de iniciar a escrita, saída 1 sem retry.
 
 [Observação](../../docs/como-o-sei-funciona/inicio-do-processo.md)
 e [decisão](../../docs/decisoes/processo-criar.md).

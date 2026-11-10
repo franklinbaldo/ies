@@ -105,9 +105,9 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
 }
 
 fn publicar_erro(json_mode: bool, erro: &ErroPrevia) -> ExitCode {
-    let incerto = matches!(erro, ErroPrevia::EfeitoIncerto);
+    let incerto = matches!(erro, ErroPrevia::NaoConfirmado);
     let valor = json!({
-        "codigo": if incerto { "efeito_incerto" } else { "operacao_recusada" },
+        "codigo": if incerto { "nao_confirmado" } else { "operacao_recusada" },
         "erro": if incerto {
             "A inclusão pode ter ocorrido, mas a releitura não comprovou o efeito. Não repita a escrita."
         } else {

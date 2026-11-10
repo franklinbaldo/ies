@@ -147,7 +147,7 @@ fn aceite_de_outro_documento_nunca_prova_ciencia() {
         ok(arvore_com_lista()),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(E::NaoConfirmado { .. })));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos
@@ -168,10 +168,9 @@ fn falha_da_escrita_nao_repetida_seguida_de_leitura() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     assert!(matches!(
         erro,
-        E::EfeitoIncerto {
+        E::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
                 FalhaTransporte::Rede
             )),
@@ -205,7 +204,6 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|s| s.status), Some(403));
     assert!(
         erro.status_http()
@@ -214,7 +212,7 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
     );
     assert!(matches!(
         erro,
-        E::EfeitoIncerto {
+        E::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
                 FalhaTransporte::AcessoNegado(_)
             )),
@@ -247,7 +245,6 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|s| s.status), Some(200));
     assert_eq!(
         erro.status_http()
@@ -256,7 +253,7 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     );
     assert!(matches!(
         erro,
-        E::EfeitoIncerto {
+        E::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::ValidacaoDaInfra(_)),
             requisicoes: 6,
             ..
@@ -283,7 +280,7 @@ fn lista_com_atividade_divergente_nao_prova() {
         ok(lista("42458")),
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
-    assert!(matches!(resultado, Err(E::EfeitoIncerto { .. })));
+    assert!(matches!(resultado, Err(E::NaoConfirmado { .. })));
     assert_eq!(pedidos.len(), 7);
 }
 
@@ -431,8 +428,7 @@ fn tabela_da_lista_em_template_nao_confirma_apos_get_mutador() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3, "sem prova na lista, efeito é incerto");
-    assert!(matches!(erro, E::EfeitoIncerto { requisicoes: 7, .. }));
+    assert!(matches!(erro, E::NaoConfirmado { requisicoes: 7, .. }));
     assert_eq!(pedidos.len(), 7);
     assert_eq!(
         pedidos
@@ -464,7 +460,7 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("validacao Infra nao e sucesso");
     let saida = crate::ciencia_documento_cli::json_da_falha(&erro);
-    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["codigo"], "nao_confirmado");
     assert_eq!(saida["status_http"], serde_json::json!(200));
     assert_eq!(saida["mensagem_do_servidor"], "Solicitacao recusada");
     assert_eq!(saida["requisicoes"], 6);

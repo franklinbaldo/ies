@@ -224,11 +224,10 @@ fn falhas_de_troca_sao_apresentadas_direto_do_tipo_sem_json() {
     assert_eq!(linhas[1], "IES: candidatas: PR-A, PR-A");
     assert_eq!(linhas[2], "IES: 1 requisições.");
 
-    let incerta = ErroTroca::EfeitoIncerto {
+    let incerta = ErroTroca::NaoConfirmado {
         etapa: crate::unidade_trocar::EtapaDaTroca::SegundoRedirecionamento,
         falha: crate::unidade_trocar::FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
     };
     let linhas = linhas_da_falha(&incerta, 3);
     assert_eq!(linhas[2], "IES: 3 requisições.");
-    assert_eq!(incerta.saida(), 3);
 }

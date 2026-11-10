@@ -114,7 +114,7 @@ pub(crate) enum ErroCienciaDocumento {
     TelaRedirecionada,
     #[causa(sessao_encerrada)]
     SessaoEncerrada,
-    EfeitoIncerto {
+    NaoConfirmado {
         motivo: VerificacaoDaCienciaDoDocumento,
         requisicoes: u8,
         falha_do_aceite: Option<FalhaDoAceite>,
@@ -134,20 +134,13 @@ impl ErroCienciaDocumento {
             Self::Cookie(_) => "a sessão privada não pôde ser lida",
             Self::Tela(_) | Self::TelaRedirecionada => "a tela do documento não foi servida",
             Self::SessaoEncerrada => "a sessão encerrou; rode ies login",
-            Self::EfeitoIncerto { .. } => {
+            Self::NaoConfirmado { .. } => {
                 "a ciência pode ter sido registrada; confira a Lista de Ciências do documento no SEI antes de nova confirmação"
             }
         };
         match self {
-            Self::EfeitoIncerto { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
+            Self::NaoConfirmado { motivo, .. } => format!("{texto} ({})", motivo.descricao()),
             _ => texto.to_owned(),
-        }
-    }
-    pub(crate) fn saida(&self) -> u8 {
-        if matches!(self, Self::EfeitoIncerto { .. }) {
-            3
-        } else {
-            1
         }
     }
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
@@ -155,7 +148,7 @@ impl ErroCienciaDocumento {
             Self::Abertura(e) => e.status_http(),
             Self::Cookie(e) => e.status_http(),
             Self::Tela(e) => e.status_http(),
-            Self::EfeitoIncerto {
+            Self::NaoConfirmado {
                 falha_do_aceite, ..
             } => falha_do_aceite
                 .as_ref()
@@ -260,12 +253,12 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             feito.usuario = usuario;
             Ok(feito)
         }
-        Ok((false, _)) => Err(E::EfeitoIncerto {
+        Ok((false, _)) => Err(E::NaoConfirmado {
             motivo: VerificacaoDaCienciaDoDocumento::AtividadeNaoEncontradaNaListaDoDocumento,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
-        Err(motivo) => Err(E::EfeitoIncerto {
+        Err(motivo) => Err(E::NaoConfirmado {
             motivo,
             requisicoes: rede.feitas(),
             falha_do_aceite,

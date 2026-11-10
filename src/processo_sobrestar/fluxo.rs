@@ -81,7 +81,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 if let Err(e) = resposta {
                     return Err(E::Formulario(e));
                 }
-                return Err(E::EfeitoIncerto);
+                return Err(E::NaoConfirmado);
             }
             // Um 302 esperado é evidência, nunca prova suficiente. 200,
             // 502 ou resposta perdida exigem a mesma verificação por leitura.
@@ -110,11 +110,11 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     };
     let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
-    let depois = verificado.map_err(|_| E::EfeitoIncerto)?.arvore.aberto_em;
+    let depois = verificado.map_err(|_| E::NaoConfirmado)?.arvore.aberto_em;
     // O estado posterior pode ter mudado por outro agente; resposta de
     // escrita recusada ou perdida não prova autoria, mesmo se coincidir.
     if !resposta_de_escrita_aceita {
-        return Err(E::EfeitoIncerto);
+        return Err(E::NaoConfirmado);
     }
     let aplicado = match (acao, depois) {
         (Acao::Sobrestar, AbertoEm::Sobrestado(unidades)) => {
@@ -123,7 +123,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         (Acao::Retomar, AbertoEm::Unidades(unidades)) => {
             unidades.iter().any(|u| u.sigla == previa.unidade)
         }
-        (_, AbertoEm::NaoLido(_)) => return Err(E::EfeitoIncerto),
+        (_, AbertoEm::NaoLido(_)) => return Err(E::NaoConfirmado),
         _ => false,
     };
     if !aplicado {

@@ -15,8 +15,8 @@ testes e pelas instalações reais.
 - Não existe `agir`, `Action` ou `PageModel` como contrato público.
 - `--json` e `--unidade` são globais; falhas operacionais são estruturadas.
   `--unidade` é pré-condição conferida na tela, nunca um rótulo ecoado.
-- Códigos de saída: 0 sucesso, 1 falha, 2 uso inválido, 3 efeito incerto.
-- Escritas exigem prévia, confirmação e verificação; efeito incerto nunca se repete automaticamente.
+- Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
+- Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.
 - Esta superfície de demonstração não é integral: o inventário será aprovado comando a comando.
 
@@ -61,7 +61,7 @@ legado do Todos faz parte do contrato público por pressuposição.
 - `ies processo marcar NUP --marcador ID#NOME|--retirar ID#NOME [--texto T] [--confirmar]` (prévia e idempotência pela leitura Web; escrita ainda fechada, [contrato](cli/processo-marcar.md))
 - `ies processo sobrestar NUP --motivo TEXTO [--confirmar]` e
   `ies processo retomar NUP [--confirmar]` ([contrato parcial](cli/processo-sobrestar.md):
-  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 3 se incerto)
+  prévia Web; `--confirmar` com uma escrita e verificação por releitura, saída 1 se não confirmada)
 - `ies processo enviar NUP --para SIGLA [--manter-aberto] [--confirmar]`
   ([contrato](cli/processo-enviar.md))
 - `ies processo ciente NUP [--confirmar]` (ciência Web: um GET mutador,
@@ -125,9 +125,9 @@ e saída 1; opção obrigatória ausente é erro do clap (2).
   [listas Recebidos e Gerados](cli/unidade-recebidos-gerados.md) com forma única
   e [colunas do Nível de detalhe](cli/unidade-colunas.md).
 - [unidade.definir_colunas](cli/unidade-definir-colunas.md): escrita do Nível de
-  detalhe; sem `--confirmar`, prévia sem POST de salvar; efeito incerto sai com 3.
+  detalhe; sem `--confirmar`, prévia sem POST de salvar; escrita não confirmada sai com 1.
 - [unidade.trocar](cli/unidade-trocar.md): troca da unidade da sessão; prévia
-  sem POST, efeito incerto sai com 3; vale para todos os agentes da sessão.
+  sem POST, escrita não confirmada sai com 1; vale para todos os agentes da sessão.
 - [indice.caminho](cli/indice-caminho.md): descoberta local do SQLite, sem rede.
 - [sessao.login](cli/sessao-login.md): `ies login`, credenciais em arquivo
   `0600`, um GET de conferência da sessão gravada, redirecionamentos só no

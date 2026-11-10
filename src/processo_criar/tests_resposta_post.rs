@@ -28,7 +28,6 @@ fn post_criador_responde_html_200_e_rele_gerados_sem_retry() {
         )
     });
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
     assert_eq!(diagnostico.candidatos_observados, Some(vec![]));
     assert_eq!(requests.len(), 5);
@@ -62,7 +61,6 @@ fn location_ambigua_rele_controle_sem_seguir_location() {
         )
     });
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.saida(), 3);
     let _diagnostico = erro.diagnostico_apos_post().expect("releitura obrigatoria");
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -192,8 +190,7 @@ fn redirecionamento_valido_com_propriedades_divergentes_nao_confirma() {
             rede,
         )
     });
-    let erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("Location e árvore não provam o cadastro solicitado");
     assert_eq!(requests.len(), 7); // 3 GET + 1 POST + tela + árvore + propriedades
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
     assert_eq!(requests[6].metodo, "GET");
@@ -226,7 +223,6 @@ fn redirecionamento_valido_get_verificador_503_preserva_causa_http() {
         )
     });
     let erro = resultado.expect_err("sem GET verificador não se confirma a criação");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|status| status.status), Some(503));
     assert_eq!(requests.len(), 5); // 3 GET + 1 POST criador + 1 GET verificador
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
@@ -254,8 +250,7 @@ fn redirecionamento_valido_get_verificador_sem_rede_preserva_causa() {
             rede,
         )
     });
-    let erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("falha da leitura é incerta, não recusa do POST");
     assert_eq!(requests.len(), 5);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -283,8 +278,7 @@ fn location_para_id_preexistente_nao_confirma_criacao() {
             rede,
         )
     });
-    let erro = resultado.expect_err("ID preexistente não comprova nova criação");
-    assert_eq!(erro.saida(), 3);
+    let _erro = resultado.expect_err("ID preexistente não comprova nova criação");
     assert_eq!(requests.len(), 4); // 3 GET de preparação + 1 POST, zero GET inútil
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -320,7 +314,6 @@ fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
         )
     });
     let erro = resultado.expect_err("nível divergente não comprova a criação");
-    assert_eq!(erro.saida(), 3);
     assert_eq!(
         erro.diagnostico_apos_post().unwrap().candidatos_observados,
         Some(vec![NUP.to_owned()])

@@ -149,19 +149,19 @@ fn falha_de_rede_no_post_nao_repete_e_reconcilia_pela_leitura() {
 }
 
 #[test]
-fn falha_na_releitura_depois_do_post_e_efeito_incerto_sem_retry() {
+fn falha_na_releitura_depois_do_post_e_nao_confirmado_sem_retry() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::NaoConfirmado)));
     assert_eq!(pedidos, requests_post());
 }
 
 #[test]
-fn lista_apos_post_sem_linha_nova_e_efeito_incerto() {
+fn lista_apos_post_sem_linha_nova_e_nao_confirmado() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista("Outro"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::EfeitoIncerto)));
+    assert!(matches!(resultado, Err(ErroPrevia::NaoConfirmado)));
     assert_eq!(pedidos, requests_post());
 }

@@ -125,7 +125,7 @@ fn bdd_333_04_anotacao_ja_vazia_nao_grava_limpeza() {
 }
 
 #[test]
-fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
+fn bdd_333_04_limpeza_inconclusiva_falha_sem_tramitar() {
     // Dado o envio sem checkbox e a anotação preenchida;
     // Quando executo ies processo enviar NUP --para SIGLA --remover-anotacoes --confirmar;
     // Então uma releitura inconclusiva retorna saída 3 sem enviar nem repetir limpeza.
@@ -139,9 +139,8 @@ fn bdd_333_04_limpeza_inconclusiva_retorna_3_sem_tramitar() {
     let erro = resultado.expect_err("sem releitura não há envio autorizado");
     assert!(matches!(
         erro,
-        super::ErroEnviar::EfeitoIncertoNaLimpezaDaAnotacao
+        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao
     ));
-    assert_eq!(erro.saida(), 3);
     assert_eq!(
         pedidos
             .iter()
@@ -194,10 +193,9 @@ fn bdd_333_04_envio_incerto_preserva_a_limpeza_ja_comprovada_na_saida() {
         ],
     ));
     let erro = resultado.expect_err("o destino não foi comprovado");
-    assert_eq!(erro.saida(), 3);
     let saida = serde_json::to_value(crate::processo_enviar_cli::json_de_falha(&erro))
         .expect("erro tipado serializável");
-    assert_eq!(saida["codigo"], "efeito_incerto");
+    assert_eq!(saida["codigo"], "nao_confirmado");
     assert_eq!(
         saida["anotacao_depois"], false,
         "limpeza confirmada não pode desaparecer da falha"

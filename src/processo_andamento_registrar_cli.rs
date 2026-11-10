@@ -83,15 +83,15 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
             Err(e) => publicar_valor_da_falha(
                 cli.json,
                 &json_base_da_falha(
-                    if e.saida() == 3 {
-                        "efeito_incerto"
+                    if matches!(e, Erro::NaoConfirmado) {
+                        "nao_confirmado"
                     } else {
                         "fonte_invalida"
                     },
                     e.mensagem(),
                     None,
                 ),
-                e.saida(),
+                1,
             ),
         }
     }))

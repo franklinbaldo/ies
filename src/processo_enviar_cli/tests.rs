@@ -77,7 +77,7 @@ fn falhas_levam_as_listas() {
         oferecidos: vec!["OUTRA - Outra".into()],
     });
     assert_eq!(oferecidos["oferecidos"], json!(["OUTRA - Outra"]));
-    let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
+    let incerto = ErroEnviar::NaoConfirmadoNoEnvio {
         aberto_em: vec!["TESTE".into()],
         anotacao_depois: None,
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
@@ -86,10 +86,8 @@ fn falhas_levam_as_listas() {
         )),
     };
     let valor = json_de_falha(&incerto);
-    assert_eq!(valor["codigo"], "efeito_incerto");
+    assert_eq!(valor["codigo"], "nao_confirmado");
     assert_eq!(valor["status_http"], 302);
-    assert!(valor["verificacao"].is_string());
-    assert_eq!(incerto.saida(), 3);
 }
 
 #[test]
@@ -178,7 +176,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                 "OUTRA - Destino publicado pelo SEI",
             )])),
         ]);
-        let ((valor, mensagem, _subcodigo, saida), pedidos) =
+        let ((valor, mensagem, _subcodigo), pedidos) =
             rodar_com(&ambiente, respostas, |sessao, nup, indice, roteiro| {
                 let pedido = PedidoDoEnvio {
                     nup,
@@ -201,7 +199,6 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                         &erro, sessao, indice, DESTINO,
                     )),
                     erro.rotulo().to_owned(),
-                    erro.saida(),
                 )
             });
         // Quatro GET de navegação e um POST apenas de consulta.
@@ -211,7 +208,6 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
             vec!["GET", "GET", "GET", "GET", "POST"],
         );
         assert_eq!(pedidos.len(), 5);
-        assert_eq!(saida, 1);
         let esperado = if unidade_da_lista == Some(ativa.as_str()) {
             r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"sugestoes_guardadas":["TESTE_1_1 - Unidade guardada"]}"#
         } else {
@@ -273,7 +269,7 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
     let linhas = super::linhas_da_falha(&nao_aplicado);
     assert_eq!(linhas[1], "IES: aberto_em: TESTE");
     assert_eq!(linhas[2], "IES: depois: OUTRA");
-    let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
+    let incerto = ErroEnviar::NaoConfirmadoNoEnvio {
         aberto_em: vec![],
         anotacao_depois: None,
         falha_do_envio: None,
@@ -283,8 +279,6 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
     };
     let linhas = super::linhas_da_falha(&incerto);
     assert_eq!(linhas[1], "IES: aberto_em: (nenhuma unidade)");
-    assert_eq!(linhas[2], "IES: verificação: html_da_raiz_nao_publicado");
-    assert_eq!(incerto.saida(), 3);
 }
 
 #[test]
@@ -309,13 +303,13 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false}"#,
         ),
         (
-            ErroEnviar::EfeitoIncertoNoEnvio {
+            ErroEnviar::NaoConfirmadoNoEnvio {
                 aberto_em: vec![],
                 anotacao_depois: None,
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302,"verificacao":null}"#,
+            r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302}"#,
         ),
     ];
     for (erro, esperado) in casos {

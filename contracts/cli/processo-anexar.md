@@ -13,7 +13,7 @@ implementation: partial
 
 ## Estado desta fatia
 
-**Prévia e confirmação com prova sintética.** A CLI lê a árvore do principal e o link assinado `procedimento_anexar`, faz GET de `frmProcedimentoAnexar` e as consultas AJAX `protocolo_RI1023` e `procedimento_anexacao_verificar`. Sem `--confirmar`, não envia o POST de anexação. Com `--confirmar`, somente em origens de treinamento autorizadas, deriva os campos do formulário servido, efetua **um único POST** e exige aceite do redirecionamento, nova leitura da lista e árvore do principal que contenha o anexado. Quando o efeito não pode ser comprovado, informa **saída 3 e não repete a escrita**. Este caminho passou em laboratório com CLI Rust real ↔ anti-IES ↔ SQLite, mas ainda não demonstra fidelidade semântica às cassettes nem validação externa.
+**Prévia e confirmação com prova sintética.** A CLI lê a árvore do principal e o link assinado `procedimento_anexar`, faz GET de `frmProcedimentoAnexar` e as consultas AJAX `protocolo_RI1023` e `procedimento_anexacao_verificar`. Sem `--confirmar`, não envia o POST de anexação. Com `--confirmar`, somente em origens de treinamento autorizadas, deriva os campos do formulário servido, efetua **um único POST** e exige aceite do redirecionamento, nova leitura da lista e árvore do principal que contenha o anexado. Quando o efeito não pode ser comprovado, informa **saída 1 e não repete a escrita**. Este caminho passou em laboratório com CLI Rust real ↔ anti-IES ↔ SQLite, mas ainda não demonstra fidelidade semântica às cassettes nem validação externa.
 
 O processo principal é conferido por NUP na abertura, e o anexado pelo NUP completo retornado pela consulta. O destino igual ao principal, duplicado na lista ou identificado ambiguamente é recusado. A lista pode vir ausente, como na tela de zero anexados observada. `N` na consulta de assinaturas significa que há documento não assinado; a prévia **avisa**, mas não executa.
 
@@ -47,4 +47,4 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 
 ## Critérios ainda pendentes
 
-**Comprovado apenas sinteticamente:** formulário derivado, POST único, aceite 302 e releitura por outra execução da CLI sobre SQLite, além de saída 3 para HTTP 503 injetado sem retry. **Pendentes:** confronto semântico independente IES e anti-IES ↔ cassettes e prévia/validação externa em UnB e segunda instalação de treinamento, com relatório e resíduo. Nenhuma escrita é autorizada fora de treinamento.
+**Comprovado apenas sinteticamente:** formulário derivado, POST único, aceite 302 e releitura por outra execução da CLI sobre SQLite, além de saída 1 para HTTP 503 injetado sem retry. **Pendentes:** confronto semântico independente IES e anti-IES ↔ cassettes e prévia/validação externa em UnB e segunda instalação de treinamento, com relatório e resíduo. Nenhuma escrita é autorizada fora de treinamento.
