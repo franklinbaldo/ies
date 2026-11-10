@@ -8,7 +8,7 @@ use crate::arvore_processo::Assinante;
 use crate::documento::NumeroDocumento;
 use crate::documento_assinar::{
     Confirmacao, DocumentoAssinado, ErroAssinar, FalhaDoEnvio, PedidoDaAssinatura,
-    assinar_documento, edicao_como_texto,
+    ResultadoDaAssinatura, assinar_documento, edicao_como_texto,
 };
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -163,6 +163,25 @@ pub(crate) fn json_da_falha(falha: &FalhaDoEnvio) -> Value {
 
 /// JSON do sucesso (prévia, já assinado, ou assinado e conferido).
 pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
+    let (confirmado, alterado, ja_assinado, assinaturas_depois, edicao_depois, reconciliado_por) =
+        match &feito.resultado {
+            ResultadoDaAssinatura::Previa => (false, false, false, None, None, None),
+            ResultadoDaAssinatura::JaAssinadoPelaSessao { confirmacao_pedida } => {
+                (*confirmacao_pedida, false, true, None, None, None)
+            }
+            ResultadoDaAssinatura::Comprovada {
+                assinatura_depois,
+                edicao_depois,
+                reconciliado_por,
+            } => (
+                true,
+                true,
+                false,
+                Some(std::slice::from_ref(assinatura_depois)),
+                Some(*edicao_depois),
+                reconciliado_por.as_ref(),
+            ),
+        };
     let mut valor = json!({
         "numero": feito.numero,
         "id_documento": feito.id_documento,
@@ -170,21 +189,21 @@ pub(crate) fn json_de_sucesso(feito: &DocumentoAssinado) -> Value {
         "processo": {"nup": feito.processo.nup, "id": feito.processo.id},
         "unidade": feito.unidade,
         "origem": "web",
-        "confirmado": feito.confirmado,
-        "alterado": feito.alterado,
+        "confirmado": confirmado,
+        "alterado": alterado,
         "assinante": feito.assinante,
         "cargo": feito.cargo,
         "cargo_da_tela": feito.cargo_da_tela,
         "cargos": feito.cargos,
-        "ja_assinado_pela_sessao": feito.ja_assinado_pela_sessao,
+        "ja_assinado_pela_sessao": ja_assinado,
         "assinaturas": json_das_assinaturas(&feito.assinaturas),
-        "assinaturas_depois": feito.assinaturas_depois.as_deref().map(json_das_assinaturas),
+        "assinaturas_depois": assinaturas_depois.map(json_das_assinaturas),
         "edicao": edicao_como_texto(feito.edicao),
-        "edicao_depois": feito.edicao_depois.map(edicao_como_texto),
-        "reconciliado_por_leitura": feito.reconciliado_por.is_some(),
+        "edicao_depois": edicao_depois.map(edicao_como_texto),
+        "reconciliado_por_leitura": reconciliado_por.is_some(),
         "requisicoes": feito.requisicoes,
     });
-    if let (Some(falha), Some(objeto)) = (&feito.reconciliado_por, valor.as_object_mut()) {
+    if let (Some(falha), Some(objeto)) = (reconciliado_por, valor.as_object_mut()) {
         objeto.insert("falha_do_envio".to_owned(), json_da_falha(falha));
     }
     valor
@@ -224,30 +243,38 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
         format!("Assinante: {}", feito.assinante),
         format!("Assinaturas: {}", linha_das_assinaturas(&feito.assinaturas)),
     ];
-    if feito.ja_assinado_pela_sessao {
-        linhas.push("Nada a fazer: o documento já está assinado por este usuário.".to_owned());
-    } else if feito.alterado {
-        let depois = feito.assinaturas_depois.as_deref().unwrap_or_default();
-        linhas.push(format!(
-            "Assinado. Assinaturas, relidas: {}",
-            linha_das_assinaturas(depois)
-        ));
-        if let Some(falha) = &feito.reconciliado_por {
+    match &feito.resultado {
+        ResultadoDaAssinatura::JaAssinadoPelaSessao { .. } => {
+            linhas.push("Nada a fazer: o documento já está assinado por este usuário.".to_owned());
+        }
+        ResultadoDaAssinatura::Comprovada {
+            assinatura_depois,
+            reconciliado_por,
+            ..
+        } => {
             linhas.push(format!(
-                "A resposta não foi a esperada ({}); a leitura confirmou.",
-                falha.subcodigo()
+                "Assinado. Assinaturas, relidas: {}",
+                linha_das_assinaturas(std::slice::from_ref(assinatura_depois))
             ));
+            if let Some(falha) = reconciliado_por {
+                linhas.push(format!(
+                    "A resposta não foi a esperada ({}); a leitura confirmou.",
+                    falha.subcodigo()
+                ));
+            }
         }
-    } else {
-        linhas.push(format!("Cargos da tela: {}", feito.cargos.join("; ")));
-        linhas.push(format!(
-            "Cargo sugerido pela tela: {}",
-            feito.cargo_da_tela.as_deref().unwrap_or("(nenhum)")
-        ));
-        if let Some(cargo) = &feito.cargo {
-            linhas.push(format!("Cargo pedido: {cargo} (conferido)"));
+        ResultadoDaAssinatura::Previa => {
+            linhas.push(format!("Cargos da tela: {}", feito.cargos.join("; ")));
+            linhas.push(format!(
+                "Cargo sugerido pela tela: {}",
+                feito.cargo_da_tela.as_deref().unwrap_or("(nenhum)")
+            ));
+            if let Some(cargo) = &feito.cargo {
+                linhas.push(format!("Cargo pedido: {cargo} (conferido)"));
+            }
+            linhas
+                .push("Para assinar (não se desfaz), repita com --cargo e --confirmar".to_owned());
         }
-        linhas.push("Para assinar (não se desfaz), repita com --cargo e --confirmar".to_owned());
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
