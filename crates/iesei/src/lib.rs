@@ -12,6 +12,7 @@ pub mod cancelamento_documento;
 pub mod catalogo_marcadores;
 pub mod ciencia_documental;
 pub mod ciencia_processo;
+pub mod colunas_detalhe;
 pub mod comentarios;
 pub mod criacao_processo;
 pub mod detalhada_cassettes;
