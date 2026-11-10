@@ -152,7 +152,7 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
             aberto_em: siglas(&[UNIDADE]),
             depois: siglas(&[UNIDADE]),
             anotacao_depois: None,
-                falha_do_envio: None,
+            falha_do_envio: None,
         }
     );
     assert_eq!(erro.codigo(), "escrita_nao_aplicada");
