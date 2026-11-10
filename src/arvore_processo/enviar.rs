@@ -14,11 +14,11 @@ use crate::instalacao::Instalacao;
 pub(crate) const ACAO_DE_ENVIAR: &str = "procedimento_enviar";
 
 /// Recusas da leitura da barra (só pesam quando se pede para enviar).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEnviarNaBarra {
     EnderecoDoEnvioDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// O link da tela de envio na barra do processo `id`; `Ok(None)` se a

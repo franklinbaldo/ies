@@ -18,7 +18,8 @@ pub(crate) enum Decisao {
     NadaAFazer,
     PreviaDeRetirada,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroMarcar {
     RotuloSemSeparador,
     IdDoMarcadorNaoDecimal,

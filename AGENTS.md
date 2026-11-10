@@ -196,7 +196,8 @@ O que falta implementar e em que ordem está na
   O erro é declarado perto do ponto que o levanta. Use Serde apenas nos
   tipos efetivamente serializados ou desserializados na fronteira,
   sem derives internos preventivos, subcódigos ou tabelas paralelas.
-  `Causa` permanece para consumidores legados durante a migração.
+  Derive com `thiserror` (`#[from]` para compor pelo `?`, `#[source]`
+  para ligar a causa); não há derive próprio de erro.
   Classifique e teste por `match`/`matches!` na variante, nunca pelo
   texto. Propague o erro original com `?` sem embrulhar; crie uma variante
   contextual só se acrescentar um fato ou decisão observável. Cada falha

@@ -137,6 +137,8 @@ fn mapear_tela(falha: FalhaDaTela) -> E {
     match falha {
         FalhaDaTela::Transporte(e) => E::TelaDaEscrita(e),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     }
 }

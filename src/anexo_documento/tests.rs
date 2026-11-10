@@ -213,7 +213,7 @@ fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
     )));
     assert_eq!(
         ler(resposta(&[("content-type", "text/html")], login)),
-        Err(ErroAnexo::TelaDeLogin)
+        Err(ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada))
     );
     let excecao =
         b"<html><body><div id=\"divInfraExcecao\">Anexo n\xe3o encontrado.</div></body></html>";

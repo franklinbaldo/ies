@@ -94,7 +94,8 @@ pub(crate) struct PropriedadesLidas {
 }
 
 /// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -108,8 +109,7 @@ pub(crate) enum ErroPropriedades {
     ListaOcultaDasPropriedadesNaoObservada,
     NivelDeAcessoNaoMarcado,
     TextoDasPropriedadesNaoDecodificado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroPropriedades {

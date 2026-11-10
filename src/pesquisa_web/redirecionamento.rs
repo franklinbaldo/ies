@@ -10,7 +10,8 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 use ErroRedirecionamentoDaPesquisa as E;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoAusente,
     LocalizacaoDoRedirecionamentoAcimaDoLimite,

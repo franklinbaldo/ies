@@ -14,10 +14,10 @@ pub(crate) struct FotografiaDosGerados {
     por_id: BTreeMap<String, String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroFotografia {
-    #[causa(interna)]
-    Caixa(crate::erro_web::ErroCaixa),
+    Caixa(#[from] crate::erro_web::ErroCaixa),
     CoberturaIncompleta,
     NupRepetido,
     IdentidadeAlterada,

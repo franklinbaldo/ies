@@ -38,7 +38,8 @@ pub(crate) fn data_valida(data: &str) -> bool {
     ano > 0 && dia > 0 && dia <= limite
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroFiltro {
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,

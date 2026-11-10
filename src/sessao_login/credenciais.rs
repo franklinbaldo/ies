@@ -82,8 +82,8 @@ impl Credenciais {
 
 /// O arquivo privado de credenciais ausente, inseguro ou ilegível. Tipo próprio da etapa; o nome
 /// público é o motivo do transporte (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum CredenciaisIlegiveis {
-    #[causa(transparente)]
-    Arquivo(crate::transporte::FalhaTransporte),
+    Arquivo(#[from] crate::transporte::FalhaTransporte),
 }

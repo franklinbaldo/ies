@@ -73,7 +73,7 @@ pub(crate) fn ler_com_relogin<T, E, L: TransporteDeLogin>(
         Err(erro) => erro,
     };
     let credenciais = credenciais_presentes(contexto.credenciais);
-    // Só o fato tipado `#[causa(sessao_encerrada)]` dispara; nenhum outro
+    // Só o fato tipado `erro_publico::SessaoEncerrada` na cadeia `source()` dispara; nenhum outro
     // (403, WAF, 3xx, transporte, tela inesperada) reloga.
     if !sessao_encerrada(&erro) || credenciais.is_none() {
         return Err(FalhaDaLeitura::Leitura { erro, nota: None });

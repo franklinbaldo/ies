@@ -141,7 +141,10 @@ fn post_que_redireciona_ao_login_e_sessao_encerrada() {
             vec![ok(historico('R', 2, 2)), r302(LOGIN)],
         ),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]
@@ -238,7 +241,10 @@ fn historico_que_responde_login_e_sessao_encerrada() {
         PedidoDeAndamentos::VisaoServida,
         caminho_4a(arvore_com_historico(ID, NUP), vec![r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
 }
 
 #[test]

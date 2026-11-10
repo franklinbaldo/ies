@@ -82,7 +82,8 @@ pub(crate) enum TelaDosMarcadores {
 }
 
 /// Falhas do link na barra e da tela: uma variante por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
     BarraDoProcessoForaDaFormaObservada,
     BarrasDoProcessoRepetidasNaArvore,
@@ -93,8 +94,7 @@ pub(crate) enum ErroMarcadores {
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroMarcadores {

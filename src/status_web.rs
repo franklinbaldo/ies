@@ -4,7 +4,8 @@ use crate::{configuracao, transporte};
 use serde_json::{Value, json};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaControleWeb {
     ControleNaoReconhecido(ErroCaixa),
     IdentidadeUnidadeNaoObservada,

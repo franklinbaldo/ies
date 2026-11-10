@@ -34,7 +34,8 @@ pub(crate) enum AlvoDaCiencia<'a> {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroCiencia {
     AceiteSemAtividade,
     AtividadesAmbiguas,

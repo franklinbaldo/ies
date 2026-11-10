@@ -10,20 +10,18 @@ use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::propriedades_processo::ErroPropriedades;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroProcessoObter {
     /// Cookie, URL privada, rede ou status de uma requisição.
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     /// GET do Controle (sessão, reconhecimento, unidade): os de `processo buscar`.
-    #[causa(interna)]
-    Controle(ErroBuscaDeProcesso),
+    Controle(#[from] ErroBuscaDeProcesso),
     /// A entrada por id respondeu a recusa característica ("Link sem
     /// assinatura" no `login.php`); a sessão morreu.
     EntradaPorIdRecusada,
     /// Tela de login (200 ou 302 sem a mensagem de recusa) fora de palpite.
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
     /// A entrada por id respondeu outra coisa que o 302 observado.
     RespostaDaEntradaPorIdNaoReconhecida(StatusHttpRecusado),
     /// A pesquisa rápida não respondeu o 302 para `procedimento_trabalhar`.
@@ -31,34 +29,24 @@ pub(crate) enum ErroProcessoObter {
     /// 302 fora das formas observadas (nem trabalho, nem login).
     RedirecionamentoNaoReconhecido(StatusHttpRecusado),
     /// O 302 para `procedimento_trabalhar` não passou na conferência.
-    #[causa(interna)]
-    Redirecionamento(ErroRedirecionamentoDaPesquisa),
+    Redirecionamento(#[from] ErroRedirecionamentoDaPesquisa),
     LinkDoProcessoNoControleNaoReconhecido(ErroRedirecionamentoDaPesquisa),
     CharsetDoControleNaoSuportado,
     /// Derivação ou envio do formulário da pesquisa rápida.
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
-    #[causa(interna)]
-    Tela(ErroTelaDoProcesso),
-    #[causa(interna)]
-    Arvore(ErroArvore),
+    Formulario(#[from] ErroSubmissaoFormulario),
+    Tela(#[from] ErroTelaDoProcesso),
+    Arvore(#[from] ErroArvore),
     /// O link do histórico na árvore (só quando os andamentos são lidos).
-    #[causa(interna)]
-    LinkDoHistorico(ErroLinkDoHistorico),
+    LinkDoHistorico(#[from] ErroLinkDoHistorico),
     /// A página do histórico ou a troca de visão.
-    #[causa(interna)]
-    Andamentos(ErroAndamentos),
+    Andamentos(#[from] ErroAndamentos),
     /// Derivação ou envio do formulário `verHistorico('P')`.
-    #[causa(interna)]
-    FormularioDoHistorico(super::andamentos::HistoricoNaoPedido),
+    FormularioDoHistorico(#[from] super::andamentos::HistoricoNaoPedido),
     /// O link das propriedades na barra ou a tela delas.
-    #[causa(interna)]
-    Propriedades(ErroPropriedades),
+    Propriedades(#[from] ErroPropriedades),
     /// O link dos marcadores na barra ou a tela deles.
-    #[causa(interna)]
-    Marcadores(ErroMarcadores),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Marcadores(#[from] ErroMarcadores),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroProcessoObter {
@@ -70,7 +58,9 @@ impl ErroProcessoObter {
             Self::EntradaPorIdRecusada => {
                 "a instalação recusou a entrada sem assinatura e encerrou a sessão; rode ies login"
             }
-            Self::SessaoEncerrada => "o SEI devolveu a tela de login; rode ies login",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "o SEI devolveu a tela de login; rode ies login"
+            }
             Self::RespostaDaEntradaPorIdNaoReconhecida(_) => {
                 "a entrada por id não respondeu como observado"
             }

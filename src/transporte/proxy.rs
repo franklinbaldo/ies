@@ -23,7 +23,8 @@ pub(crate) const VARIAVEIS_DE_EXCECAO: [&str; 2] = ["no_proxy", "NO_PROXY"];
 const MAX_RESPOSTA: usize = 16 * 1024;
 
 /// Recusas do proxy, uma por fato.
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum FalhaDoProxy {
     /// O valor da variável não segue `[http://][cred@]host:porta[/]`.
     EnderecoInvalido,

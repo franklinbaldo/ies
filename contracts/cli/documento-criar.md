@@ -133,7 +133,7 @@ Formas não reconhecidas recusam com
 `submissao_do_documento_nao_observada` antes do POST.
 
 As causas da prévia, escolha e barra de inclusão são compostas por
-`#[derive(Causa)]`, sem mapeamento manual de subcódigos. A saída
+`thiserror` (`#[from]`), sem mapeamento manual de subcódigos. A saída
 legada mantém as folhas de erro publicadas, com caminho tipado
 interno e preservação da mensagem/status HTTP quando observados.
 A escrita incerta continua saída 1.

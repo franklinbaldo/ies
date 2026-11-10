@@ -9,11 +9,11 @@ use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAndamentoNaBarra {
     OutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Só links publicados na barra conferida; nenhuma URL montada no IES.

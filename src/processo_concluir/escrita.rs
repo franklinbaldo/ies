@@ -64,10 +64,10 @@ pub(crate) fn verificar<V: EnvioDoProcesso>(
 /// requisição. Tipo próprio da etapa: os fluxos o recebem por `From` numa
 /// variante `Cookie`, distinta do transporte das telas; o nome público é o
 /// motivo concreto (`transparente`).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum CookieIlegivel {
-    #[causa(transparente)]
-    Arquivo(FalhaTransporte),
+    Arquivo(#[from] FalhaTransporte),
 }
 
 impl CookieIlegivel {
@@ -88,13 +88,12 @@ pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, Cookie
 }
 
 /// Por que uma tela pedida antes da escrita não foi servida.
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaTela {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
+    Transporte(#[from] FalhaTransporte),
     Redirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
 }
 
 /// GET de uma tela antes da escrita (a de conclusão ou a do nó): HTML 200.
@@ -110,7 +109,9 @@ pub(crate) fn obter_tela<V: EnvioDoProcesso>(
     let mime = resposta.resposta.mime.clone();
     match decodificar_resposta(resposta.resposta) {
         Ok(html) => Ok((html, mime)),
-        Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Err(FalhaDaTela::SessaoEncerrada),
+        Err(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => Err(FalhaDaTela::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
         Err(falha) => Err(FalhaDaTela::Transporte(falha)),
     }
 }

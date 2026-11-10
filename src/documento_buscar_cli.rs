@@ -18,7 +18,8 @@ use serde_json::{Value, json};
 use std::process::ExitCode;
 
 /// Termo da pesquisa em documentos: texto opaco do campo Protocolo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum TermoDeDocumentoInvalido {
     Vazio,
     Controle,

@@ -8,15 +8,15 @@ use std::num::NonZeroU32;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersaoDocumento(NonZeroU32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroVersao {
     LinhaIncompleta,
     LinkInseguro,
     DocumentoDivergente,
     ListaIncompleta,
     VersaoNaoObservada,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl VersaoDocumento {

@@ -227,7 +227,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(|e| match e {
         FalhaDaTela::Transporte(falha) => E::Tela(falha),
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => E::SessaoEncerrada,
     })?;
     let relacionados = ler_linhas(&html).map_err(E::Estrutura)?;
     if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {

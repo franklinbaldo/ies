@@ -448,7 +448,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
 fn fora_do_html(lida: Lida) -> ErroProcessoObter {
     match lida {
         Lida::Redirecionamento(local) => fora_de_palpite(local.as_deref()),
-        Lida::Login => ErroProcessoObter::SessaoEncerrada,
+        Lida::Login => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
         Lida::Falha(falha) => ErroProcessoObter::Transporte(falha),
         Lida::Html { .. } => {
             ErroProcessoObter::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(200))
