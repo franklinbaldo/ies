@@ -79,19 +79,27 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 erro.status_http(),
             ),
             Err(erro) => {
-                let subcodigo = erro.subcodigo();
+                use crate::erro_publico::Causa;
+                let causa = crate::erro_publico::caminho_de(&erro);
+                let mensagem = "o SEI não publicou a anotação deste processo para esta unidade; nenhuma escrita foi realizada";
                 if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "codigo": "fonte_invalida",
-                            "subcodigo": subcodigo,
-                            "erro": "o SEI não publicou a anotação deste processo para esta unidade; nenhuma escrita foi realizada",
-                            "retentavel": false
-                        })
-                    );
+                    let mut saida = json!({
+                        "codigo": "fonte_invalida",
+                        "causa": causa,
+                        "erro": mensagem,
+                        "retentavel": false
+                    });
+                    if let Some(http) = erro.status_http() {
+                        if http.status != 200 {
+                            saida["status_http"] = json!(http.status);
+                        }
+                        if let Some(mensagem_do_servidor) = &http.mensagem_do_servidor {
+                            saida["mensagem_do_servidor"] = json!(mensagem_do_servidor);
+                        }
+                    }
+                    println!("{saida}");
                 } else {
-                    eprintln!("IES: anotação não disponível para prévia [{subcodigo}]");
+                    eprintln!("IES: {mensagem} [{}]", causa.join("/"));
                 }
                 ExitCode::from(1)
             }
