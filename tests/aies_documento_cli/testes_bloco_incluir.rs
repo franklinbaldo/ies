@@ -1,0 +1,97 @@
+//! BDD-381-01 (#381): prévia de inclusão de documento em bloco de assinatura.
+//! CLI real → TLS local → anti-IES → SQLite. Hipótese sintética derivada do
+//! card `bloco-incluir-anotar-retirar-unb` (barra do documento com
+//! `bloco_escolher`; `frmBlocoEscolher` com `selBloco` e caixas por número
+//! SEI); não valida equivalência ao SEI de treinamento.
+use super::*;
+use iesei::bloco_detalhe::{self, Detalhe, Item};
+use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
+
+const BLOCO: &str = "2195";
+
+/// Documento 42 (DOC) disponível; bloco 2195 de assinatura sem DOC.
+fn preparar(pasta: &Pasta) {
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    blocos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Assinatura,
+            total: 1,
+            faixa: Some((1, 1)),
+            linhas: vec![LinhaBloco {
+                numero: BLOCO.into(),
+                estado: "Gerado".into(),
+                descricao: "Despachos de teste".into(),
+            }],
+        },
+    )
+    .unwrap();
+    bloco_detalhe::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Detalhe {
+            numero: BLOCO.into(),
+            tipo: Tipo::Assinatura,
+            total: 1,
+            faixa: Some((1, 1)),
+            itens: vec![Item {
+                processo: "00001.000002/2026-02".into(),
+                documento: Some("0011600".into()),
+                tipo: Some("Ofício".into()),
+                anotacoes: String::new(),
+            }],
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn bdd_381_01_previa_documental_sem_incluir() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    // Documento até a árvore, tela de escolha do bloco; Controle, lista e
+    // detalhe do bloco. Nenhum POST de inclusão.
+    let saida = executar(
+        &pasta,
+        &["--json", "bloco", "incluir", BLOCO, "--documento", DOC],
+        REQUISICOES_DA_PREVIA,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let previa = json(&saida);
+    assert_eq!(previa["bloco"], BLOCO);
+    assert_eq!(previa["tipo_bloco"], "assinatura");
+    assert_eq!(previa["alvo"]["documento"], DOC);
+    assert_eq!(previa["presente_antes"], false);
+    assert_eq!(previa["confirmado"], false);
+    assert_eq!(previa["alterado"], false);
+    assert!(previa["presente_depois"].is_null());
+
+    // Leitura independente: o bloco continua sem DOC.
+    let pasta_leitura = Pasta::nova();
+    preparar(&pasta_leitura);
+    let lido = executar(&pasta_leitura, &["--json", "bloco", BLOCO], 3);
+    assert_eq!(lido.status.code(), Some(0));
+    let itens = json(&lido)["bloco"]["itens"].clone();
+    assert!(
+        itens
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["documento"] != DOC),
+        "{itens}"
+    );
+}
+
+/// Pesquisa, Controle até a árvore do documento, tela de escolha; Controle,
+/// lista e detalhe do bloco.
+const REQUISICOES_DA_PREVIA: usize = 8;
