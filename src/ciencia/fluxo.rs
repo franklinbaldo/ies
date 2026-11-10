@@ -162,12 +162,8 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         &leitura(pedido.nup, pedido.unidade, true),
         indice,
         &mut rede,
-    )
-    .map_err(E::Abertura)?;
-    let tela = acoes
-        .ciencia
-        .map_err(E::Barra)?
-        .ok_or(E::CienciaNaoOferecida)?;
+    )?;
+    let tela = acoes.ciencia?.ok_or(E::CienciaNaoOferecida)?;
     let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
     let mut resultado = CienciaDoProcesso {
         nup: pedido.nup.as_str().to_owned(),
@@ -188,7 +184,7 @@ pub(crate) fn ciencia_no_processo<V: EnvioDoProcesso>(
         FalhaDaTela::Redirecionada => E::TelaRedirecionada,
         FalhaDaTela::SessaoEncerrada => E::SessaoEncerrada,
     })?;
-    let url = url_da_ciencia(&instalacao, &html, &resultado.id_procedimento).map_err(E::Barra)?;
+    let url = url_da_ciencia(&instalacao, &html, &resultado.id_procedimento)?;
 
     // A partir daqui um único GET da própria ciência: qualquer falha exige
     // verificação por leitura, jamais nova tentativa de escrita.
@@ -237,11 +233,8 @@ fn ler_aceite<V: EnvioDoProcesso>(
     url: &str,
     id_procedimento: &str,
 ) -> Result<String, FalhaDoAceiteProcesso> {
-    let resposta = rede
-        .get_sem_seguir(url, cookie)
-        .map_err(FalhaDoAceiteProcesso::Transporte)?;
-    let html =
-        decodificar_resposta(resposta.resposta).map_err(FalhaDoAceiteProcesso::Transporte)?;
+    let resposta = rede.get_sem_seguir(url, cookie)?;
+    let html = decodificar_resposta(resposta.resposta)?;
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
         return Err(FalhaDoAceiteProcesso::ValidacaoDaInfra(
             StatusHttpRecusado {

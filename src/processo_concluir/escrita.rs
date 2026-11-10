@@ -65,9 +65,12 @@ pub(crate) fn ler_cookie(sessao: &SessaoDoProcesso<'_>) -> Result<String, FalhaT
 }
 
 /// Por que uma tela pedida antes da escrita não foi servida.
+#[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum FalhaDaTela {
+    #[causa(interna)]
     Transporte(FalhaTransporte),
     Redirecionada,
+    #[causa(acao = "relogar", sessao_encerrada)]
     SessaoEncerrada,
 }
 
@@ -77,9 +80,7 @@ pub(crate) fn obter_tela<V: EnvioDoProcesso>(
     cookie: &str,
     url: &str,
 ) -> Result<(String, String), FalhaDaTela> {
-    let resposta = rede
-        .get_sem_seguir(url, cookie)
-        .map_err(FalhaDaTela::Transporte)?;
+    let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(FalhaDaTela::Redirecionada);
     }
