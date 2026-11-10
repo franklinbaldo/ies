@@ -8,7 +8,6 @@
 use super::endereco::conferir_endereco_relativo;
 use super::literais::{Literal, indice_do_html, ler_declaracao, ler_html};
 use super::{EnderecoDaArvore, ErroArvore, VinculoDeAnexacao};
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 
@@ -24,9 +23,7 @@ pub(crate) fn ler_vinculo_de_anexacao(
     let Some(texto) = html_da_raiz(html)? else {
         return Ok(None);
     };
-    let fora = ErroArvore::Html(ErroHtml::html(
-        "html_do_no_do_processo_fora_da_forma_observada",
-    ));
+    let fora = ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
     let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora)?;
     let parser = dom.parser();
     let mut achado = None;
@@ -34,15 +31,15 @@ pub(crate) fn ler_vinculo_de_anexacao(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(href) = lidos.valor("href").map_err(|_| fora)? else {
+        let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
+        let Some(href) = lidos.valor("href").map_err(ErroArvore::Atributo)? else {
             continue;
         };
         if !pares(href).any(|(chave, _)| chave == CHAVE_DO_ANEXADO) {
             continue;
         }
         if achado.is_some() {
-            return Err(ErroHtml::repetido("vinculos_de_anexacao_repetidos").into());
+            return Err(ErroArvore::VinculosDeAnexacaoRepetidos);
         }
         achado = Some(conferir(instalacao, href, &texto_unico(tag, parser), id)?);
     }
@@ -79,7 +76,7 @@ pub(super) fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
                 continue;
             };
             if texto.is_some() {
-                return Err(ErroHtml::repetido("vinculos_de_anexacao_repetidos").into());
+                return Err(ErroArvore::VinculosDeAnexacaoRepetidos);
             }
             texto = Some(lido);
         }
@@ -102,9 +99,7 @@ fn conferir(
     texto: &str,
     id: &str,
 ) -> Result<VinculoDeAnexacao, ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor(
-        "vinculo_de_anexacao_fora_da_forma_observada",
-    ));
+    let fora = ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)

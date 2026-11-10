@@ -63,7 +63,7 @@ pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), super::E
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("a"))
         .ok_or(fora)?;
     let onclick = valor_do_atributo(link, "onclick")
-        .map_err(|_| fora)?
+        .map_err(super::ErroAndamentos::Atributo)?
         .and_then(|bruto| decodificar_atributo(&bruto))
         .ok_or(fora)?;
     if onclick != "verHistorico('P');" {

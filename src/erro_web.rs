@@ -1,6 +1,5 @@
 //! Falhas técnicas de interpretação e paginação Web; não são entidades do SEI.
 use crate::dominio::Categoria;
-use crate::erro_html::ErroHtml;
 
 /// Nunca inclui HTML, cookies, URLs ou conteúdo de processos nas mensagens.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -80,7 +79,13 @@ pub enum ErroCaixa {
     ContextoNaoVerificavel,
     ContextoDaPaginaDiferenteDoAnterior,
     SemPaginas,
-    Html(#[from] ErroHtml),
+    HashesDeCriteriosGeradosRepetidosNoControle,
+    HashesDeCriteriosRecebidosRepetidosNoControle,
+    HtmlDaCaixaInvalido,
+    AtributoDaCaixaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    IdentificacoesDaUnidadeRepetidasNoControle,
+    TiposDeVisualizacaoRepetidosNoControle,
+    UnidadeInesperada,
 }
 
 impl ErroCaixa {

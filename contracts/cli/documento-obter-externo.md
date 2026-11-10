@@ -104,7 +104,7 @@ da pessoa); o nome final nunca é seguido.
 
 ## Falhas tipadas
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
 | `LimiteDoAnexoInvalido` (saída 2) | `IES_LIMITE_ANEXO_BYTES` não é inteiro de 1 a 2 GiB |
 | `ErroAnexo::SemTipoDeConteudo` | resposta 200 sem `Content-Type` |

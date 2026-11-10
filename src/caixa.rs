@@ -1,7 +1,6 @@
 //! Parser Web puro: HTML -> `CaixaDeEntrada` tipada; sem estado de sessão ou JSON.
 use crate::classe_link_processo::{ClassesDeEstadoDiferentesNoLink, estado_do_link};
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
@@ -10,8 +9,7 @@ pub(crate) use vazia::lista_vazia_comprovada;
 
 /// Lido da fonte da tag; tag ilegível não vira atributo ausente.
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroCaixa> {
-    valor_do_atributo(tag, nome)
-        .map_err(|e| ErroCaixa::Html(ErroHtml::atributo("html_da_caixa_invalido", e)))
+    valor_do_atributo(tag, nome).map_err(ErroCaixa::AtributoDaCaixaIlegivel)
 }
 
 pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
@@ -71,8 +69,7 @@ fn ler_linhas(
     let parser = dom.parser();
     // A primeira ocorrência do ID não comprova que não houve uma segunda tabela.
     // Se duas existem, escolher uma pode omitir processos apesar dos totais declarados.
-    let candidatas =
-        nos_com_id(dom, table_id).map_err(|e| ErroHtml::atributo("html_da_caixa_invalido", e))?;
+    let candidatas = nos_com_id(dom, table_id).map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
     let primeira = match candidatas.as_slice() {
         [] if vazia::lista_vazia_comprovada(dom, categoria)? => return Ok((Some(0), Vec::new())),
         [] => return Err(ErroCaixa::TabelaAusente { categoria }),
@@ -168,7 +165,7 @@ fn ler_linhas(
 
 pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     Ok(CaixaDeEntrada {
         recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
         gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
@@ -179,7 +176,7 @@ pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
 /// leitura e com as mesmas recusas de [`parse_html`].
 pub(crate) fn linhas_com_link(html: &str) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     let mut todas = Vec::new();
     for (tabela, categoria) in [
         ("tblProcessosRecebidos", Categoria::Recebidos),

@@ -69,24 +69,24 @@ hipótese sintética em HTTPS local, mas não a validação live.
 
 ## Subcódigos desta fatia
 
-| Erro ou `onde` (stderr) | Fato |
+| Erro (stderr) | Fato |
 | --- | --- |
-| `barra_dos_comentarios_fora_da_forma_observada` | barra do processo fora da forma observada |
-| `barras_dos_comentarios_repetidas_na_arvore` | mais de uma barra no nó PROCESSO |
-| `links_dos_comentarios_repetidos_na_barra` | links de comentários repetidos |
-| `endereco_dos_comentarios_nao_reconhecido` | link fora do formato assinado observado |
+| `ErroLinkDosComentarios::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | barra do processo fora da forma observada |
+| `ErroLinkDosComentarios::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | mais de uma barra no nó PROCESSO |
+| `ErroLinkDosComentarios::LinksDosComentariosRepetidosNaBarra` | links de comentários repetidos |
+| `ErroLinkDosComentarios::EnderecoDosComentariosNaoReconhecido` | link fora do formato assinado observado |
 | `ErroLinkDosComentarios::EnderecoDeOutroProcesso` | identidade do processo no link divergente |
-| `html_dos_comentarios_nao_interpretado` | HTML ou atributo inválido |
-| `tela_de_comentarios_nao_reconhecida` | nem lista nem cadastro publicado |
-| `formularios_de_comentarios_repetidos` | formulário repetido |
+| `ErroComentarios::HtmlDosComentariosNaoInterpretado` | HTML ou atributo inválido |
+| `ErroComentarios::TelaDeComentariosNaoReconhecida` | nem lista nem cadastro publicado |
+| `ErroComentarios::FormulariosDeComentariosRepetidos` | formulário repetido |
 | `ErroComentarios::VisaoNaoPublicada` | P/T ausente ou inválida |
-| `tabela_de_comentarios_ausente` | tabela não publicada |
-| `tabelas_de_comentarios_repetidas` | tabela duplicada |
-| `legenda_dos_comentarios_invalida` | total não legível |
-| `cabecalho_dos_comentarios_invalido` | colunas essenciais não identificadas |
-| `linha_do_comentario_invalida` | linha fora da estrutura |
+| `ErroComentarios::TabelaDeComentariosAusente` | tabela não publicada |
+| `ErroComentarios::TabelasDeComentariosRepetidas` | tabela duplicada |
+| `ErroComentarios::LegendaDosComentariosInvalida` | total não legível |
+| `ErroComentarios::CabecalhoDosComentariosInvalido` | colunas essenciais não identificadas |
+| `ErroComentarios::LinhaDoComentarioInvalida` | linha fora da estrutura |
 | `TextoDoComentarioNaoPublicado` | falta a linha de texto 4.x |
-| `id_do_comentario_repetido` | ID repetido |
+| `ErroComentarios::IdDoComentarioRepetido` | ID repetido |
 | `ErroComentarios::ListaIncompleta` | total diferente do número de linhas |
 | `FalhaDaConferencia::IdDoAceiteAusente` | id do 302 ausente |
 | `ComentarioNaoVisivelNaReleitura` | id aceito não visto |

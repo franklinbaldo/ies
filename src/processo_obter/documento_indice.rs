@@ -16,7 +16,6 @@ use super::fluxo::{abrir_processo, link_da_arvore, link_de_trabalho};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{EnvioDoProcesso, ErroProcessoObter, ResolvidoPor, SessaoDoProcesso};
 use crate::arvore_processo::{ErroTelaDoProcesso, ler_tela_do_documento};
-use crate::erro_html::ErroHtml;
 use crate::indice_local::{DocumentoGuardado, url_da_entrada_por_id_com_documento};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa as Redir, OrigemDoTrabalho, conferir_trabalho,
@@ -77,10 +76,8 @@ pub(super) fn pelo_processo<V: EnvioDoProcesso, F: FimDaLeitura>(
     leitura: F,
 ) -> Result<F::Lido, ErroDocumentoObter> {
     let (aberta, unidade, resolvido_por) = abrir_processo(contexto, sessao, rede, false)?;
-    let no = localizar(&aberta.arvore.documentos, numero)?.ok_or(
-        ErroHtml::ausente("numero_sei_ausente_da_arvore_do_processo")
-            .com_mensagem("o número SEI não está na árvore do processo informado"),
-    )?;
+    let no = localizar(&aberta.arvore.documentos, numero)?
+        .ok_or(ErroDocumentoObter::NumeroSeiAusenteDaArvoreDoProcesso)?;
     let lido = NoLido {
         html: &aberta.html,
         no,
@@ -187,7 +184,7 @@ fn entrada_com_documento<V: EnvioDoProcesso>(
 mod tests {
     use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
     use crate::documento::NumeroDocumento;
-    use crate::erro_html::ErroHtml;
+
     use crate::processo_obter::tests_apoio::*;
     use crate::processo_obter::{
         ErroDocumentoObter, PedidoDoAnexo, PedidoDoDocumento, SessaoDoProcesso, obter_documento,
@@ -233,7 +230,7 @@ mod tests {
         let resultado = obter_documento(&sessao, &pedido, &amb.indice, &mut rede);
         assert_eq!(
             resultado.unwrap_err(),
-            ErroDocumentoObter::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
+            ErroDocumentoObter::NumeroSeiRepetidoNaArvore
         );
         assert_eq!(rede.pedidos, [get(&url_arvore(ID))]);
         assert!(amb.indice.documento_por_numero(&inst, "0000101").is_none());

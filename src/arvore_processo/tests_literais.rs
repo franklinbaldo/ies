@@ -1,7 +1,6 @@
 //! RED/GREEN do leitor de literais: escapes, formas recusadas e linhas
 //! que não declaram nó. Linhas sintéticas na forma observada.
 use super::literais::{Literal, ler_declaracao};
-use crate::erro_html::ErroHtml;
 
 fn texto(s: &str) -> Literal {
     Literal::Texto(s.to_owned())
@@ -61,29 +60,29 @@ fn formas_recusadas() {
         // Indentada ou com texto antes.
         (
             r#"  Nos[0] = new infraArvoreNo("A");"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         (
             r#"x=1;Nos[0] = new infraArvoreNo("A");"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         // Sem o fechamento exato, ou com algo depois.
         (
             r#"Nos[0] = new infraArvoreNo("A")"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A"); x();"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         // Índice que não é decimal.
         (
             r#"Nos[i] = new infraArvoreNo("A");"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         (
             r#"Nos[] = new infraArvoreNo("A");"#,
-            super::ErroArvore::Html(ErroHtml::valor("declaracao_de_no_fora_da_forma_observada")),
+            super::ErroArvore::DeclaracaoDeNoForaDaFormaObservada,
         ),
         // Expressões, identificadores e concatenação não são literais.
         (
@@ -117,11 +116,11 @@ fn formas_recusadas() {
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\x41");"#,
-            super::ErroArvore::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
+            super::ErroArvore::EscapeDeNoNaoReconhecido,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\u{41}");"#,
-            super::ErroArvore::Html(ErroHtml::valor("escape_de_no_nao_reconhecido")),
+            super::ErroArvore::EscapeDeNoNaoReconhecido,
         ),
         (
             r#"Nos[0] = new infraArvoreNo("A\");"#,

@@ -3,7 +3,6 @@
 //! mudança de layout não pode embaralhar campos.
 use super::ErroDetalhada;
 use crate::dominio::Categoria;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use crate::nivel_de_detalhe::{CabecalhoDaColuna, ColunaDoDetalhe, texto_colapsado};
@@ -59,7 +58,7 @@ pub(crate) fn serializar_categoria<S: Serializer>(
 }
 
 fn ilegivel(_: impl Sized) -> ErroDetalhada {
-    ErroDetalhada::Html(ErroHtml::html("html_detalhado_nao_interpretado"))
+    ErroDetalhada::HtmlDetalhadoNaoInterpretado
 }
 
 /// Texto visível com entidades conhecidas decodificadas e espaços colapsados.
@@ -123,9 +122,7 @@ fn papel_do_rotulo(rotulo: &str) -> Result<PapelDaColuna, ErroDetalhada> {
     }
     ColunaDoDetalhe::pelo_cabecalho(rotulo)
         .map(PapelDaColuna::Configurada)
-        .ok_or(ErroDetalhada::Html(ErroHtml::valor(
-            "cabecalho_da_visao_detalhada_nao_reconhecido",
-        )))
+        .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
 }
 
 fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, ErroDetalhada> {
@@ -145,12 +142,10 @@ fn papel(dom: &tl::VDom<'_>, th: &tl::HTMLTag<'_>) -> Result<PapelDaColuna, Erro
                 return papel_do_rotulo(&rotulo);
             }
             rotulo_do_icone(div, parser)?
-                .ok_or(ErroDetalhada::Html(ErroHtml::valor(
-                    "cabecalho_da_visao_detalhada_nao_reconhecido",
-                )))
+                .ok_or(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido)
                 .and_then(|rotulo| papel_do_rotulo(&rotulo))
         }
-        _ => Err(ErroHtml::valor("cabecalho_da_visao_detalhada_nao_reconhecido").into()),
+        _ => Err(ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido),
     }
 }
 
@@ -171,15 +166,15 @@ pub(super) fn papeis_do_cabecalho(
         let novo = papel(dom, th)?;
         if novo != PapelDaColuna::SemRotulo && papeis.contains(&novo) {
             return Err(if novo == PapelDaColuna::Processo {
-                ErroDetalhada::Html(ErroHtml::repetido("cabecalho_processo_detalhado_repetido"))
+                ErroDetalhada::CabecalhoProcessoDetalhadoRepetido
             } else {
-                ErroDetalhada::Html(ErroHtml::repetido("coluna_da_visao_detalhada_repetida"))
+                ErroDetalhada::ColunaDaVisaoDetalhadaRepetida
             });
         }
         papeis.push(novo);
     }
     if !papeis.contains(&PapelDaColuna::Processo) {
-        return Err(ErroHtml::ausente("cabecalho_processo_detalhado_ausente").into());
+        return Err(ErroDetalhada::CabecalhoProcessoDetalhadoAusente);
     }
     Ok(papeis)
 }
@@ -221,7 +216,7 @@ pub(super) fn valor_da_celula(
         return Ok(ValorDaColuna::Itens(itens));
     }
     if !tags(dom, celula, "div", "divItemCelula")?.is_empty() {
-        return Err(ErroHtml::valor("itens_nao_previstos_na_celula_detalhada").into());
+        return Err(ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada);
     }
     Ok(ValorDaColuna::Texto(
         (!completo.is_empty()).then_some(completo),

@@ -83,7 +83,9 @@ fn barra_fora_da_forma_ou_repetida_e_recusa() {
     let fora = base().replace("Nos[0].acoes = '';", "Nos[0].acoes = montar();");
     assert_eq!(
         ler(&fora),
-        Err(crate::marcadores_processo::ErroMarcadores::BarraDoProcessoForaDaFormaObservada)
+        Err(crate::marcadores_processo::ErroMarcadores::Barra(
+            crate::arvore_processo::ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada
+        ))
     );
     let repetida = com_acoes(&[gerenciar("10")]).replacen(
         "Nos[0].src = '';",
@@ -92,6 +94,8 @@ fn barra_fora_da_forma_ou_repetida_e_recusa() {
     );
     assert_eq!(
         ler(&repetida),
-        Err(crate::marcadores_processo::ErroMarcadores::BarrasDoProcessoRepetidasNaArvore)
+        Err(crate::marcadores_processo::ErroMarcadores::Barra(
+            crate::arvore_processo::ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore
+        ))
     );
 }

@@ -25,9 +25,11 @@ const CONSULTA: ConsultaAjax = ConsultaAjax {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroHipotese {
-    // Formato de tela não é categoria de domínio: o `ErroHtml` diz onde a
-    // leitura falhou, e a causa é tipada por `Problema`.
-    Html(#[from] crate::erro_html::ErroHtml),
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    HipoteseLegalAjaxNaoDeclarada,
+    HipoteseLegalAjaxNaoDerivada,
+    HipoteseLegalAjaxRespostaNaoReconhecida,
     OpcaoNaoUnica,
     OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
@@ -39,21 +41,15 @@ pub(crate) enum ErroHipotese {
 
 impl ErroHipotese {
     fn consulta_nao_declarada() -> Self {
-        Self::Html(crate::erro_html::ErroHtml::ausente(
-            "hipotese_legal_ajax_nao_declarada",
-        ))
+        Self::HipoteseLegalAjaxNaoDeclarada
     }
 
     fn consulta_nao_derivada() -> Self {
-        Self::Html(crate::erro_html::ErroHtml::valor(
-            "hipotese_legal_ajax_nao_derivada",
-        ))
+        Self::HipoteseLegalAjaxNaoDerivada
     }
 
     fn resposta_nao_reconhecida() -> Self {
-        Self::Html(crate::erro_html::ErroHtml::html(
-            "hipotese_legal_ajax_resposta_nao_reconhecida",
-        ))
+        Self::HipoteseLegalAjaxRespostaNaoReconhecida
     }
 
     /// Somente opções distintas, habilitadas e imprimíveis realmente vistas no
@@ -70,10 +66,13 @@ impl ErroHipotese {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
-            Self::Html(_)
+            Self::HipoteseLegalAjaxNaoDeclarada
+            | Self::HipoteseLegalAjaxNaoDerivada
+            | Self::HipoteseLegalAjaxRespostaNaoReconhecida
             | Self::OpcaoNaoUnica
             | Self::OpcoesDisponiveis(_)
             | Self::EscolhaNaoOferecida
+            | Self::Atributo(_)
             | Self::EscolhaInlineNaoVerificada => None,
         }
     }
@@ -125,8 +124,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
         {
             continue;
         }
-        let valor = valor_do_atributo(opcao, "value")
-            .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
+        let valor = valor_do_atributo(opcao, "value").map_err(ErroHipotese::Atributo)?;
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };

@@ -11,6 +11,8 @@ pub(crate) enum EscolhaExterna {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroEscolhaExterna {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(crate::html_atributos::ErroAtributoHtml),
     NaoOferecido,
     Ambiguo,
     ForaDaForma,
@@ -43,14 +45,12 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
         {
             continue;
         }
-        let Some(href) =
-            valor_do_atributo(tag, "href").map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+        let Some(href) = valor_do_atributo(tag, "href").map_err(ErroEscolhaExterna::Atributo)?
         else {
             continue;
         };
         let href = decodificar_atributo(&href).ok_or(ErroEscolhaExterna::ForaDaForma)?;
-        let onclick =
-            valor_do_atributo(tag, "onclick").map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
+        let onclick = valor_do_atributo(tag, "onclick").map_err(ErroEscolhaExterna::Atributo)?;
         // A classificação vem da ação, nunca do texto da âncora.
         let pelo_link = href.starts_with("controlador.php?")
             && href
@@ -106,7 +106,7 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
     if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
         || atributo_presente(select, "disabled").map_err(|_| ErroEscolhaExterna::ForaDaForma)?
         || valor_do_atributo(select, "name")
-            .map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            .map_err(ErroEscolhaExterna::Atributo)?
             .as_deref()
             != Some("selSerie")
     {
@@ -125,15 +125,15 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
         .ok_or(ErroEscolhaExterna::ForaDaForma)?;
     if !flag.name().as_utf8_str().eq_ignore_ascii_case("input")
         || valor_do_atributo(flag, "type")
-            .map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            .map_err(ErroEscolhaExterna::Atributo)?
             .as_deref()
             != Some("hidden")
         || valor_do_atributo(flag, "name")
-            .map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            .map_err(ErroEscolhaExterna::Atributo)?
             .as_deref()
             != Some("hdnFlagDocumentoCadastro")
         || valor_do_atributo(flag, "value")
-            .map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            .map_err(ErroEscolhaExterna::Atributo)?
             .as_deref()
             != Some("1")
     {
@@ -162,7 +162,7 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
             continue;
         }
         let id = valor_do_atributo(tag, "value")
-            .map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            .map_err(ErroEscolhaExterna::Atributo)?
             .ok_or(ErroEscolhaExterna::ForaDaForma)?;
         if id.is_empty() || id == "null" {
             return Err(ErroEscolhaExterna::ForaDaForma);

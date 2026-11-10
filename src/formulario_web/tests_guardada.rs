@@ -5,7 +5,6 @@ use super::super::{
     EstadoDeSessao, OperacaoDeFormulario, ResultadoDoEnvio,
 };
 use super::derivar_submissao_guardada;
-use crate::erro_html::ErroHtml;
 
 const HASH: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
@@ -109,6 +108,6 @@ fn operacao_com_botao_ou_ocultos_nao_cabe_no_envio_guardado() {
     let (url, referer) = (action(), controle());
     assert_eq!(
         derivar_submissao_guardada(&com_botao, &instalacao(), &url, &referer, &[]).unwrap_err(),
-        ErroSubmissaoFormulario::Html(ErroHtml::ausente("formulario_ausente_na_tela"))
+        ErroSubmissaoFormulario::FormularioAusenteNaTela
     );
 }

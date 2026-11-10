@@ -1,6 +1,5 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
 //! Oráculo de cenários: Todos `src/todos/sei/blocos_lista.py` @323eb01.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -35,9 +34,22 @@ impl TipoBloco {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBloco {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     FaixaDeBlocosIncoerente,
     PaginaDeBlocosNaoImplementada,
-    Html(#[from] ErroHtml),
+    BlocoNaoEncontradoNaPagina,
+    CabecalhoDeBlocosNaoReconhecido,
+    HtmlDeBlocosInvalido,
+    LegendaDeBlocosInvalida,
+    LinhaDeBlocoForaDaForma,
+    LinkDeBlocosAusente,
+    LinkDeBlocosNaoReconhecido,
+    LinksDeBlocosRepetidos,
+    NumeroDoBlocoInvalido,
+    NumeroDoBlocoRepetido,
+    TabelaDeBlocosAusente,
+    TabelasDeBlocosRepetidas,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -81,9 +93,7 @@ impl ListaComLinks {
             .filter(|(b, _)| b.numero == numero);
         match (encontrados.next(), encontrados.next()) {
             (Some((_, href)), None) => Ok(href),
-            _ => Err(ErroHtml::ausente("bloco_nao_encontrado_na_pagina")
-                .com_mensagem("bloco não observado nesta página da unidade")
-                .into()),
+            _ => Err(ErroBloco::BlocoNaoEncontradoNaPagina),
         }
     }
 }
@@ -109,13 +119,13 @@ fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<String>, ErroBloco> {
     let linhas = tabela
         .query_selector(parser, "tr")
-        .ok_or(ErroHtml::valor("cabecalho_de_blocos_nao_reconhecido"))?;
+        .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
     let mut headers = None;
     for no in linhas {
         let linha = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("cabecalho_de_blocos_nao_reconhecido"))?;
+            .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
         let th: Vec<_> = linha
             .children()
             .top()
@@ -126,15 +136,15 @@ fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<S
             .collect();
         if !th.is_empty() {
             if headers.is_some() {
-                return Err(ErroHtml::valor("cabecalho_de_blocos_nao_reconhecido").into());
+                return Err(ErroBloco::CabecalhoDeBlocosNaoReconhecido);
             }
             headers = Some(th.iter().map(|t| texto_tag(t, parser)).collect::<Vec<_>>());
         }
     }
-    let h = headers.ok_or(ErroHtml::valor("cabecalho_de_blocos_nao_reconhecido"))?;
+    let h = headers.ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)?;
     for nome in ["Número", "Estado", "Descrição"] {
         if h.iter().filter(|v| *v == nome).count() != 1 {
-            return Err(ErroHtml::valor("cabecalho_de_blocos_nao_reconhecido").into());
+            return Err(ErroBloco::CabecalhoDeBlocosNaoReconhecido);
         }
     }
     Ok(h)
@@ -143,28 +153,28 @@ fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<S
 fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>), ErroBloco> {
     let (inicio, resto) = legenda
         .split_once(" registros")
-        .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?;
+        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
     let total = inicio
         .split_whitespace()
         .last()
-        .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?
+        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?
         .trim_start_matches('(')
         .replace('.', "")
         .parse::<usize>()
-        .map_err(|_| ErroHtml::valor("legenda_de_blocos_invalida"))?;
+        .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
     if let Some((_, intervalo)) = resto.split_once(" - ") {
         let (de, ate) = intervalo
             .split_once(" a ")
-            .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?;
+            .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
         let de = de
             .parse::<usize>()
-            .map_err(|_| ErroHtml::valor("legenda_de_blocos_invalida"))?;
+            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
         let ate = ate
             .chars()
             .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<usize>()
-            .map_err(|_| ErroHtml::valor("legenda_de_blocos_invalida"))?;
+            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
         if de == 0 || ate < de || ate > total || ate - de + 1 != observados {
             return Err(ErroBloco::FaixaDeBlocosIncoerente);
         }
@@ -210,7 +220,7 @@ fn ler_linhas(
         let linha = no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("linha_de_bloco_fora_da_forma"))?;
+            .ok_or(ErroBloco::LinhaDeBlocoForaDaForma)?;
         let td: Vec<_> = linha
             .children()
             .top()
@@ -223,52 +233,36 @@ fn ler_linhas(
             continue;
         }
         if td.len() != nomes.len() {
-            return Err(ErroHtml::valor("linha_de_bloco_fora_da_forma").into());
+            return Err(ErroBloco::LinhaDeBlocoForaDaForma);
         }
         let numero = td[indice_numero].inner_text(parser).into_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(ErroHtml::valor("numero_do_bloco_invalido").into());
+            return Err(ErroBloco::NumeroDoBlocoInvalido);
         }
         if !vistos.insert(numero.clone()) {
-            return Err(ErroHtml::repetido("numero_do_bloco_repetido").into());
+            return Err(ErroBloco::NumeroDoBlocoRepetido);
         }
         let mut hrefs = td[indice_numero]
             .query_selector(parser, "a")
-            .ok_or(
-                ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                    .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-            )?
+            .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)?
             .filter_map(|n| n.get(parser))
             .filter_map(tl::Node::as_tag)
             .map(|a| {
                 valor_do_atributo(a, "href")
-                    .map_err(|e| {
-                        ErroBloco::Html(
-                            ErroHtml::atributo("link_de_blocos_nao_reconhecido", e)
-                                .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-                        )
-                    })
+                    .map_err(ErroBloco::Atributo)
                     .and_then(|x| {
                         x.and_then(|s| decodificar_atributo(&s))
-                            .ok_or(ErroBloco::Html(
-                                ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                                    .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-                            ))
+                            .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)
                     })
             });
-        let href = hrefs.next().ok_or(
-            ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-        )??;
+        let href = hrefs
+            .next()
+            .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)??;
         if hrefs.next().is_some() {
-            return Err(ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                .com_mensagem("link de blocos ausente ou ambíguo na tela")
-                .into());
+            return Err(ErroBloco::LinkDeBlocosNaoReconhecido);
         }
         if !href.contains("acao=rel_bloco_protocolo_listar") {
-            return Err(ErroHtml::valor("link_de_blocos_nao_reconhecido")
-                .com_mensagem("link de blocos ausente ou ambíguo na tela")
-                .into());
+            return Err(ErroBloco::LinkDeBlocosNaoReconhecido);
         }
         links.push(href);
         itens.push(BlocoLido {
@@ -284,30 +278,29 @@ fn ler_linhas(
 
 pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_de_blocos_invalido"))?;
+        .map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblBlocos")
-        .map_err(|e| ErroHtml::atributo("html_de_blocos_invalido", e))?;
+    let tabelas = nos_com_id(&dom, "tblBlocos").map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
     let tabela = match tabelas.as_slice() {
-        [] => return Err(ErroHtml::ausente("tabela_de_blocos_ausente").into()),
+        [] => return Err(ErroBloco::TabelaDeBlocosAusente),
         [no] => no
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::ausente("tabela_de_blocos_ausente"))?,
-        _ => return Err(ErroHtml::repetido("tabelas_de_blocos_repetidas").into()),
+            .ok_or(ErroBloco::TabelaDeBlocosAusente)?,
+        _ => return Err(ErroBloco::TabelasDeBlocosRepetidas),
     };
     if tabela.name() != "table" {
-        return Err(ErroHtml::ausente("tabela_de_blocos_ausente").into());
+        return Err(ErroBloco::TabelaDeBlocosAusente);
     }
     let mut captions = tabela
         .query_selector(parser, "caption")
-        .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?;
+        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
     let legenda = captions
         .next()
         .and_then(|no| no.get(parser))
-        .ok_or(ErroHtml::valor("legenda_de_blocos_invalida"))?;
+        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
     if captions.next().is_some() {
-        return Err(ErroHtml::valor("legenda_de_blocos_invalida").into());
+        return Err(ErroBloco::LegendaDeBlocosInvalida);
     }
     let nomes = cabecalhos(tabela, parser)?;
     let (itens, links) = ler_linhas(tabela, parser, &nomes, tipo)?;
@@ -333,10 +326,7 @@ pub(crate) fn resolver_link(
     acao: &str,
     numero: Option<&str>,
 ) -> Result<String, ErroBloco> {
-    let nao = ErroBloco::Html(
-        ErroHtml::valor("link_de_blocos_nao_reconhecido")
-            .com_mensagem("link de blocos ausente ou ambíguo na tela"),
-    );
+    let nao = ErroBloco::LinkDeBlocosNaoReconhecido;
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
@@ -382,16 +372,14 @@ pub(crate) fn link_do_menu(
     tipo: TipoBloco,
 ) -> Result<String, ErroBloco> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_de_blocos_invalido"))?;
+        .map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href")
-            .map_err(|e| ErroHtml::atributo("html_de_blocos_invalido", e))?
-        else {
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroBloco::Atributo)? else {
             continue;
         };
         let Some(href) = decodificar_atributo(&bruto) else {
@@ -405,13 +393,9 @@ pub(crate) fn link_do_menu(
         }
     }
     match candidatos.as_slice() {
-        [] => Err(ErroHtml::ausente("link_de_blocos_ausente")
-            .com_mensagem("link de blocos ausente ou ambíguo na tela")
-            .into()),
+        [] => Err(ErroBloco::LinkDeBlocosAusente),
         [href] => resolver_link(instalacao, url, href, tipo.acao(), None),
-        _ => Err(ErroHtml::repetido("links_de_blocos_repetidos")
-            .com_mensagem("link de blocos ausente ou ambíguo na tela")
-            .into()),
+        _ => Err(ErroBloco::LinksDeBlocosRepetidos),
     }
 }
 
@@ -461,7 +445,7 @@ mod tests {
             )
             .err()
             .unwrap(),
-            ErroBloco::Html(ErroHtml::repetido("numero_do_bloco_repetido"))
+            ErroBloco::NumeroDoBlocoRepetido
         );
         assert_eq!(
             ler_lista(&pagina(&um, "Lista (3 registros):"), TipoBloco::Interno)
@@ -502,9 +486,7 @@ mod tests {
                 "bloco_interno_listar",
                 None
             ),
-            Err(ErroBloco::Html(ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido"
-            )))
+            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
         );
         assert_eq!(
             resolver_link(
@@ -514,9 +496,7 @@ mod tests {
                 "bloco_interno_listar",
                 None
             ),
-            Err(ErroBloco::Html(ErroHtml::valor(
-                "link_de_blocos_nao_reconhecido"
-            )))
+            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
         );
     }
 }

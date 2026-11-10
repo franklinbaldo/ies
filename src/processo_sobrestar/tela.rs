@@ -10,6 +10,8 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     NaoInterpretada,
     FormularioAusente,
     OutroProcesso,
@@ -47,7 +49,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     let form =
         localizar_formulario(&dom, OPERACAO.formulario).map_err(|_| ErroTela::FormularioAusente)?;
     let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        valor_do_atributo(tag, nome).map_err(|_| ErroTela::NaoInterpretada)
+        valor_do_atributo(tag, nome).map_err(ErroTela::Atributo)
     };
     let presente = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
         atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada)
@@ -139,8 +141,7 @@ fn conferir_campo(
     id: &str,
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
-    let atributo =
-        |nome: &'static str| valor_do_atributo(tag, nome).map_err(|_| ErroTela::NaoInterpretada);
+    let atributo = |nome: &'static str| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
     let presente =
         |nome: &'static str| atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();

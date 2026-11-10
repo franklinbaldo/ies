@@ -8,7 +8,6 @@
 //! publicado pela árvore**: o IES nunca monta um (ADR 0003).
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, indice_do_src, ler_declaracao, ler_src};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 const VISUALIZAR: &str = "documento_visualizar";
@@ -24,13 +23,17 @@ impl EnderecoDoConteudo {
     }
 
     /// Endereço assinado oferecido no cadastro, nunca construído pelo IES.
-    pub(crate) fn do_cadastro(inst: &Instalacao, href: &str, id: &str) -> Result<Self, ErroHtml> {
+    pub(crate) fn do_cadastro(
+        inst: &Instalacao,
+        href: &str,
+        id: &str,
+    ) -> Result<Self, ErroConteudoNaArvore> {
         if acao_unica(href) != Some(DOWNLOAD) || id_anexo_unico(href) != Some(id) {
-            return Err(ErroHtml::valor("link_anexo_cadastro_invalido"));
+            return Err(ErroConteudoNaArvore::LinkAnexoCadastroInvalido);
         }
         conferir_endereco_relativo_por(inst, href, DOWNLOAD, "id_anexo", id)
             .map(Self)
-            .map_err(|_| ErroHtml::valor("link_anexo_cadastro_invalido"))
+            .map_err(|_| ErroConteudoNaArvore::LinkAnexoCadastroInvalido)
     }
 }
 
@@ -56,7 +59,12 @@ pub(crate) enum ConteudoNaArvore {
 #[error("{self:?}")]
 pub(crate) enum ErroConteudoNaArvore {
     EnderecoDoConteudoDeOutroDocumento,
-    Html(#[from] ErroHtml),
+    DocumentoAusenteDaArvore,
+    EnderecoDoConteudoNaoReconhecido,
+    LinkAnexoCadastroInvalido,
+    LinkDoConteudoAusenteNaArvore,
+    LinkDoConteudoForaDaFormaObservada,
+    LinkDoConteudoRepetidoNaArvore,
 }
 
 /// Lê o `.src` do `DOCUMENTO` de id `id_documento` numa árvore já
@@ -79,21 +87,21 @@ pub(crate) fn ler_conteudo_na_arvore(
                 _ => None,
             }
         })
-        .ok_or(ErroHtml::ausente("documento_ausente_da_arvore"))?;
+        .ok_or(ErroConteudoNaArvore::DocumentoAusenteDaArvore)?;
     let mut lidos = Vec::new();
     for linha in html.split('\n') {
         match ler_src(linha) {
             Ok(Some((i, texto))) if i == indice => lidos.push(texto),
             Err(_) if indice_do_src(linha) == Some(indice) => {
-                return Err(ErroHtml::valor("link_do_conteudo_fora_da_forma_observada").into());
+                return Err(ErroConteudoNaArvore::LinkDoConteudoForaDaFormaObservada);
             }
             _ => {}
         }
     }
     let src = match lidos.as_slice() {
-        [] => return Err(ErroHtml::ausente("link_do_conteudo_ausente_na_arvore").into()),
+        [] => return Err(ErroConteudoNaArvore::LinkDoConteudoAusenteNaArvore),
         [um] => um,
-        _ => return Err(ErroHtml::repetido("link_do_conteudo_repetido_na_arvore").into()),
+        _ => return Err(ErroConteudoNaArvore::LinkDoConteudoRepetidoNaArvore),
     };
     if src.is_empty() {
         return Ok(ConteudoNaArvore::Vazio);
@@ -103,14 +111,10 @@ pub(crate) fn ler_conteudo_na_arvore(
             // O link não traz `id_documento`: o id conferido é o `id_anexo`
             // único e decimal do próprio link; a ligação é o nó (Refs #60).
             let id_anexo = id_anexo_unico(src)
-                .ok_or(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido"))?;
+                .ok_or(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)?;
             conferir_endereco_relativo_por(instalacao, src, DOWNLOAD, "id_anexo", id_anexo)
                 .map(|url| ConteudoNaArvore::DownloadDeAnexo(EnderecoDoConteudo(url)))
-                .map_err(|_| {
-                    ErroConteudoNaArvore::Html(ErroHtml::valor(
-                        "endereco_do_conteudo_nao_reconhecido",
-                    ))
-                })
+                .map_err(|_| ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido)
         }
         Some(VISUALIZAR) => conferir_endereco_relativo_por(
             instalacao,
@@ -122,13 +126,13 @@ pub(crate) fn ler_conteudo_na_arvore(
         .map(|url| ConteudoNaArvore::Visualizar(EnderecoDoConteudo(url)))
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => {
-                ErroConteudoNaArvore::Html(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido"))
+                ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido
             }
             EnderecoRecusado::DeOutroProcesso => {
                 ErroConteudoNaArvore::EnderecoDoConteudoDeOutroDocumento
             }
         }),
-        _ => Err(ErroHtml::valor("endereco_do_conteudo_nao_reconhecido").into()),
+        _ => Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido),
     }
 }
 

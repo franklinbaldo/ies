@@ -1,6 +1,5 @@
 //! Identificação estrutural de controles de paginação no Controle Web.
 //! Não interpreta comandos JavaScript nem emite requisições.
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::valor_do_atributo;
 
@@ -8,7 +7,7 @@ use crate::html_atributos::valor_do_atributo;
 /// pelo total da legenda da primeira página, mesmo quando coincide.
 pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     let parser = dom.parser();
     for seletor in ["a", "select"] {
         if let Some(elementos) = dom.query_selector(seletor) {
@@ -16,8 +15,8 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
                 let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
                     continue;
                 };
-                let id = valor_do_atributo(tag, "id")
-                    .map_err(|e| ErroHtml::atributo("html_da_caixa_invalido", e))?;
+                let id =
+                    valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
                 if id.is_some_and(|nome| {
                     nome.starts_with("lnkInfraProximaPagina")
                         || nome.starts_with("lnkInfraPaginaAnterior")
@@ -50,7 +49,7 @@ pub(crate) fn paginador_da_tabela(
 /// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
 pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_da_caixa_invalido"))?;
+        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
     let parser = dom.parser();
     for (seletor, marcas) in [
         (
@@ -68,8 +67,7 @@ pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, E
             let Some(tag) = elemento.get(parser).and_then(tl::Node::as_tag) else {
                 continue;
             };
-            let id = valor_do_atributo(tag, "id")
-                .map_err(|e| ErroHtml::atributo("html_da_caixa_invalido", e))?;
+            let id = valor_do_atributo(tag, "id").map_err(ErroCaixa::AtributoDaCaixaIlegivel)?;
             let resto = id.as_deref().and_then(|nome| {
                 nome.strip_prefix(if seletor == "a" { "lnk" } else { "sel" })?
                     .strip_prefix(prefixo)

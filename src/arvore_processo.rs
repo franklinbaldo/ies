@@ -74,25 +74,25 @@ mod tests_sobrestar;
 #[cfg(test)]
 pub(crate) mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use acompanhar::{ErroAcompanharNaBarra, ler_acompanhar_da_barra};
 pub(crate) use andamento::{ErroAndamentoNaBarra, ler_andamento_da_barra};
 use anexados::{AnexadoLido, conferir_anexados, ler_anexado};
 pub(crate) use anexar::{ErroAnexarNaBarra, ler_anexar_da_barra};
 pub(crate) use assinatura::{
-    ACAO_DE_ASSINAR, Assinante, ErroLinkDeAssinar, ler_assinatura_na_arvore, ler_link_de_assinar,
-    tela_do_documento,
+    ACAO_DE_ASSINAR, Assinante, ErroAssinaturaNaArvore, ErroLinkDeAssinar,
+    ler_assinatura_na_arvore, ler_link_de_assinar, tela_do_documento,
 };
 pub(crate) use atribuir::{ErroAtribuirNaBarra, ler_atribuir_da_barra};
 pub(crate) use barra_do_documento::barra_do_no;
 pub(crate) use barra_do_documento::{
     BarraDoDocumento, EdicaoNaBarra, ErroBarraDoDocumento, ler_barra_do_documento,
 };
-pub(crate) use barra_do_processo::ler_link_das_anotacoes;
+pub(crate) use barra_do_processo::ErroBarraDoProcesso;
 pub(crate) use barra_do_processo::ler_link_dos_comentarios;
 pub(crate) use barra_do_processo::{
     EnderecoDoIncluirDocumento, ErroLinkIncluirDocumento, ler_link_de_incluir_documento,
 };
+pub(crate) use barra_do_processo::{ErroLinkDasAnotacoes, ler_link_das_anotacoes};
 pub(crate) use barra_do_processo::{
     ErroLinkPrazo, ler_link_das_propriedades, ler_link_do_prazo, ler_link_dos_marcadores,
 };
@@ -119,8 +119,8 @@ pub(crate) use natureza::NaturezaDoDocumento;
 pub(crate) use pastas::ler_acao_de_abrir_pastas;
 use pastas::{NoDePasta, Pai};
 pub(crate) use reabrir::{
-    ErroEnderecoDeReabrir, FormaDaReabertura, ReabrirNaBarra, ler_endereco_de_reabrir,
-    ler_reabrir_da_barra,
+    ErroEnderecoDeReabrir, ErroReabrirNaBarra, FormaDaReabertura, ReabrirNaBarra,
+    ler_endereco_de_reabrir, ler_reabrir_da_barra,
 };
 pub(crate) use relacionar::{ErroRelacionarNaBarra, ler_relacionar_da_barra};
 pub(crate) use situacao::{AbertoEm, MotivoAbertoEm};
@@ -323,7 +323,7 @@ pub(crate) fn ler_arvore_com_modo(
             if let Some(&posicao) = de_pasta.get(&i)
                 && documentos[posicao].barra == Barra::NaoLida
             {
-                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             }
             continue;
         }
@@ -331,7 +331,7 @@ pub(crate) fn ler_arvore_com_modo(
             && let Some(&posicao) = de_pasta.get(&i)
         {
             let Some((_, barra)) = ler_barra(linha)? else {
-                return Err(ErroHtml::valor("barra_de_no_fora_da_forma_observada").into());
+                return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
             };
             documentos[posicao].barra = pastas::identidade_da_barra(&barra)?
                 .map_or(Barra::SemIdentidade, Barra::Identidade);
@@ -341,7 +341,7 @@ pub(crate) fn ler_arvore_com_modo(
             continue;
         };
         if indice != proximo {
-            return Err(ErroHtml::valor("indice_de_no_fora_da_sequencia").into());
+            return Err(ErroArvore::IndiceDeNoForaDaSequencia);
         }
         proximo += 1;
         let tipo = argumentos
@@ -350,7 +350,7 @@ pub(crate) fn ler_arvore_com_modo(
         match texto(tipo)? {
             "PROCESSO" => {
                 if processo.is_some() {
-                    return Err(ErroHtml::repetido("nos_do_processo_repetidos_na_arvore").into());
+                    return Err(ErroArvore::NosDoProcessoRepetidosNaArvore);
                 }
                 processo = Some(ler_processo(&com_aridade(argumentos)?)?);
             }
@@ -362,7 +362,7 @@ pub(crate) fn ler_arvore_com_modo(
                     .iter()
                     .any(|d| d.documento.id == lido.documento.id)
                 {
-                    return Err(ErroHtml::repetido("documento_repetido_na_arvore").into());
+                    return Err(ErroArvore::DocumentoRepetidoNaArvore);
                 }
                 if matches!(lido.pai, Pai::Pasta(_)) {
                     de_pasta.insert(indice, documentos.len());

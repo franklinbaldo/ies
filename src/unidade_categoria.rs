@@ -288,7 +288,7 @@ mod tests {
             codigo
                 .unwrap_err()
                 .downcast_ref::<crate::erro_web::ErroCaixa>(),
-            Some(&crate::erro_html::ErroHtml::valor("unidade_inesperada").into())
+            Some(&crate::erro_web::ErroCaixa::UnidadeInesperada)
         );
         assert!(valor.is_none());
         let (codigo, valor) = exportar_lista(Some("PPI"), CategoriaLista::Gerados);

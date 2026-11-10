@@ -5,6 +5,8 @@ use super::recibo::ReciboUpload;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FalhaAnexo {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(crate::html_atributos::ErroAtributoHtml),
     FormaNaoObservada,
     LinhaInvalida,
     ReciboIncompativel,
@@ -209,8 +211,8 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         {
             continue;
         }
-        let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
-            .map_err(|_| FalhaAnexo::FormaNaoObservada)?;
+        let tipo =
+            crate::html_atributos::valor_do_atributo(tag, "type").map_err(FalhaAnexo::Atributo)?;
         if tipo
             .as_deref()
             .is_some_and(|tipo| !tipo.eq_ignore_ascii_case("text/javascript"))

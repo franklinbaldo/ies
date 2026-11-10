@@ -1,7 +1,6 @@
 //! Leitura da tela `procedimento_configurar_detalhe` (GET, somente leitura).
 //! Nada é salvo: `sbmSalvar` não é enviado por este módulo.
 use super::{ColunaDoDetalhe, NivelDeDetalhe, OpcaoDoDetalhe};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{ErroSubmissaoFormulario, decodificar_atributo, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
@@ -25,7 +24,11 @@ pub(crate) enum ErroNivelDeDetalhe {
         coluna: ColunaDoDetalhe,
     },
     AtributoHtml(#[from] ErroAtributoHtml),
-    Html(#[from] ErroHtml),
+    CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
+    FormularioDoNivelDeDetalheAusente,
+    FormulariosDoNivelDeDetalheRepetidos,
+    HtmlDoNivelDeDetalheNaoInterpretado,
+    OpcaoDoNivelDeDetalheNaoPrevista,
 }
 
 type E = ErroNivelDeDetalhe;
@@ -67,15 +70,15 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
 /// Prioridade); caixa `chkSin*` fora do catálogo é recusa.
 pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNivelDeDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_do_nivel_de_detalhe_nao_interpretado"))?;
+        .map_err(|_| ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
     let parser = dom.parser();
     let form =
         localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE).map_err(|erro| match erro {
-            ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela => E::Html(
-                ErroHtml::repetido("formularios_do_nivel_de_detalhe_repetidos"),
-            ),
+            ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela => {
+                E::FormulariosDoNivelDeDetalheRepetidos
+            }
             ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
-            _ => E::Html(ErroHtml::ausente("formulario_do_nivel_de_detalhe_ausente")),
+            _ => E::FormularioDoNivelDeDetalheAusente,
         })?;
     conferir_acao(form)?;
     let mut marcadas: HashMap<ColunaDoDetalhe, bool> = HashMap::new();
@@ -99,7 +102,7 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
             continue;
         };
         let coluna = ColunaDoDetalhe::pelo_campo(&nome)
-            .ok_or(ErroHtml::valor("opcao_do_nivel_de_detalhe_nao_prevista"))?;
+            .ok_or(ErroNivelDeDetalhe::OpcaoDoNivelDeDetalheNaoPrevista)?;
         let marcada = atributo_presente(tag, "checked").map_err(E::AtributoHtml)?;
         if marcadas.insert(coluna, marcada).is_some() {
             return Err(E::OpcaoDoDetalheRepetida { coluna });

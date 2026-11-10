@@ -1,7 +1,6 @@
 //! RED/GREEN da operação de pesquisa de protocolo: HTML sintético com os
 //! nomes e a estrutura observados (rádio `D` marcado, órgão `multiple`).
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
 
 const OPCOES_DE_ORGAO: &str = "<option value='1' selected>A</option>\
@@ -103,9 +102,7 @@ fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() 
     let sem = observado().replace("id='optProcessos'", "id='outro'");
     assert_eq!(
         regra(&sem),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_processos_ausente_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosAusenteNaTela
     );
     let repetida = observado().replace(
         "<input type='checkbox' id='chkSinConsiderarDocumentos'",
@@ -114,16 +111,12 @@ fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() 
     );
     assert_eq!(
         regra(&repetida),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
-            "opcoes_de_processos_repetidas_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::OpcoesDeProcessosRepetidasNaTela
     );
     let sem_valor = observado().replace("name='rdoPesquisarEm' value='P'", "name='rdoPesquisarEm'");
     assert_eq!(
         regra(&sem_valor),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_processos_sem_valor_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosSemValorNaTela
     );
     let outro_nome = observado().replace(
         "id='optProcessos' name='rdoPesquisarEm'",
@@ -152,9 +145,7 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     // O `select` fora do `<form>` em `pagina` não conta.
     assert_eq!(
         regra(&pagina(&interior(""))),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "seletor_de_orgao_de_pesquisa_ausente_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaAusenteNaTela
     );
     let dois = format!(
         "{}{}",
@@ -163,9 +154,7 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     );
     assert_eq!(
         regra(&pagina(&interior(&dois))),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
-            "seletores_de_orgao_de_pesquisa_repetidos_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::SeletoresDeOrgaoDePesquisaRepetidosNaTela
     );
     let simples = observado().replace(" multiple='multiple'", "");
     assert_eq!(
@@ -184,16 +173,12 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let sem_valor = select_de_orgao("<option selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&sem_valor))),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
-            "opcao_de_orgao_selecionada_sem_valor_na_tela"
-        ))
+        ErroRegraDoFormularioDePesquisa::OpcaoDeOrgaoSelecionadaSemValorNaTela
     );
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&entidade))),
-        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::html(
-            "entidade_html_desconhecida_na_regra"
-        ))
+        ErroRegraDoFormularioDePesquisa::EntidadeHtmlDesconhecidaNaRegra
     );
 }
 
@@ -291,9 +276,7 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     let sem_form = html.replace("frmPesquisaProtocolo", "frmOutro");
     assert_eq!(
         derivar(&sem_form).unwrap_err(),
-        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Html(ErroHtml::ausente(
-            "formulario_ausente_na_tela"
-        )))
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::FormularioAusenteNaTela)
     );
 }
 

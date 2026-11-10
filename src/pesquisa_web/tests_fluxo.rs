@@ -1,7 +1,6 @@
 //! RED/GREEN do fluxo de `ies processo buscar`: sequência exata de
 //! requisições por transporte injetável, com telas sintéticas.
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::pesquisa_web::resposta::FaixaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{
@@ -387,9 +386,7 @@ fn controle_sem_o_link_da_pesquisa_para_no_primeiro_get() {
     assert_eq!(
         r.unwrap_err(),
         ErroBuscaDeProcesso::Link(
-            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::Html(ErroHtml::ausente(
-                "link_da_pesquisa_ausente_no_controle"
-            ))
+            crate::pesquisa_web::link_da_pesquisa::ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle
         )
     );
     assert_eq!(pedidos, vec![get(url_controle())]);

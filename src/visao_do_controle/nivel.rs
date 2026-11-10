@@ -1,9 +1,8 @@
 //! `ies unidade colunas`: GET da tela do Nível de detalhe pelo link que a D
 //! publica (`ancNivelDetalhe`). A R não o publica: troca para D e fica nela.
-use super::Visao;
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
-use crate::erro_html::ErroHtml;
+use super::{ErroVisaoDoControle, Visao};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -35,7 +34,7 @@ pub(crate) fn ler_colunas<V: EnvioDoControle>(
         return Ok((unidade.clone(), nivel));
     }
     if !encontrado.eh_resumida() {
-        return Err(ErroHtml::valor("visao_do_controle_nao_reconhecida").into());
+        return Err(ErroVisaoDoControle::VisaoDoControleNaoReconhecida);
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     let nivel = ler_pelo_link(&mut sessao, &detalhada)?;
@@ -74,23 +73,21 @@ pub(super) fn link_do_nivel_de_detalhe(
     instalacao: &Instalacao,
     tela: &TelaAtual,
 ) -> Result<String, super::ErroVisaoDoControle> {
-    let invalido = super::ErroVisaoDoControle::Html(ErroHtml::valor(
-        "link_do_nivel_de_detalhe_nao_reconhecido",
-    ));
+    let invalido = super::ErroVisaoDoControle::LinkDoNivelDeDetalheNaoReconhecido;
     let dom = tl::parse(&tela.html, tl::ParserOptions::default()).map_err(|_| invalido.clone())?;
     let parser = dom.parser();
     let nos = nos_com_id(&dom, "ancNivelDetalhe").map_err(|_| invalido.clone())?;
     let no = match nos.as_slice() {
-        [] => return Err(ErroHtml::ausente("link_do_nivel_de_detalhe_ausente").into()),
+        [] => return Err(ErroVisaoDoControle::LinkDoNivelDeDetalheAusente),
         [no] => *no,
-        _ => return Err(ErroHtml::repetido("links_do_nivel_de_detalhe_repetidos").into()),
+        _ => return Err(ErroVisaoDoControle::LinksDoNivelDeDetalheRepetidos),
     };
     let tag = no
         .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or_else(|| invalido.clone())?;
     let onclick = valor_do_atributo(tag, "onclick")
-        .map_err(|_| invalido.clone())?
+        .map_err(super::ErroVisaoDoControle::Atributo)?
         .and_then(|v| decodificar_atributo(&v))
         .ok_or_else(|| invalido.clone())?;
     let resto = onclick

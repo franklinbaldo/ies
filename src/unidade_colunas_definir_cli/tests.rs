@@ -1,15 +1,15 @@
 //! RED/GREEN da saída JSON de `--definir` com resultados sintéticos.
 use super::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
+use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 use crate::visao_do_controle::{EstadoDasColunas, FalhaDoSalvar};
 
 fn plano() -> PlanoDasColunas {
     PlanoDasColunas {
-        antes: vec![C::Atribuicao, C::TipoProcesso],
-        alvo: vec![C::Atribuicao, C::Anotacao],
-        indisponiveis: vec![C::Prioridade],
+        antes: vec![ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::TipoProcesso],
+        alvo: vec![ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::Anotacao],
+        indisponiveis: vec![ColunaDoDetalhe::Prioridade],
     }
 }
 
@@ -40,7 +40,7 @@ fn conferidas() -> ColunasDefinidas {
                 "chkSinAnotacao".to_owned(),
                 "hdnInfraTipoPagina".to_owned(),
             ],
-            depois: vec![C::Atribuicao, C::Anotacao],
+            depois: vec![ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::Anotacao],
             reconciliado_por: Some(erro_500()),
         },
     }

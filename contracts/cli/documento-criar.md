@@ -51,7 +51,7 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 
 ## Recusas tipadas
 
-| Erro ou `onde` (stderr) | Critério |
+| Erro (stderr) | Critério |
 | --- | --- |
 | `ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade` | A situação conferida não inclui a unidade ativa |
 | `ErroCriar::TipoAusente` | Não há opção exata na lista completa |
@@ -59,9 +59,9 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 | `ErroCriar::ListaForaDaForma` | `tblSeries` ou links não interpretáveis |
 | `ErroCriar::CadastroForaDaForma` | Cadastro ou tipo aberto inconsistente |
 | `ErroCriar::NaoAplicado` | Verificação concluiu que não surgiu documento |
-| `ErroPreviaCriacao::NaoConfirmadoNoEnvio / NaoConfirmadoNaReleitura` | Resposta ou árvore não permite conferir unicidade e identidade |
-| `ErroLinkIncluirDocumento::BarraForaDaForma` | A barra da raiz não tem estrutura interpretável |
-| `ErroLinkIncluirDocumento::BarraRepetida` | A barra da raiz aparece duas vezes |
+| `ErroPreviaCriacao::NaoConfirmadoNoEnvio`, `ErroPreviaCriacao::NaoConfirmadoNaReleitura` | Resposta ou árvore não permite conferir unicidade e identidade |
+| `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | A barra da raiz não tem estrutura interpretável |
+| `ErroLinkIncluirDocumento::Barra(ErroBarraDoProcesso::BarrasDoProcessoRepetidasNaArvore)` | A barra da raiz aparece duas vezes |
 | `ErroLinkIncluirDocumento::LinkRepetido` | A barra publica mais de uma ação de incluir |
 | `ErroLinkIncluirDocumento::EnderecoNaoReconhecido` | O link de inclusão não é a URL relativa assinada esperada |
 | `ErroLinkIncluirDocumento::EnderecoDeOutroProcesso` | O link de inclusão aponta para outra identidade |

@@ -1,6 +1,5 @@
 //! Erros tipados do fluxo de criação; o envio e a releitura preservam as causas.
 use super::reconciliacao;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_criar_cadastro::ErroCadastro;
 use crate::processo_criar_hipotese::ErroHipotese;
@@ -52,6 +51,8 @@ pub(crate) struct DiagnosticoPosEscrita {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha de transporte antes da escrita, com a causa original.
     Transporte(FalhaTransporte),
     /// O envio do formulário falhou antes de qualquer POST tentado.
@@ -59,7 +60,7 @@ pub(crate) enum ErroCriar {
     /// Origem ou cookie da sessão local ilegíveis, antes da rede.
     SessaoLocalIlegivel,
     UnidadeDiferente,
-    Menu(ErroHtml),
+    Menu(crate::processo_criar_menu::ErroMenu),
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),
     Formulario,

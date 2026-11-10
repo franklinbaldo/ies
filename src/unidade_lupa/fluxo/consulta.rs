@@ -48,8 +48,8 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
         if elemento != "input" && elemento != "button" {
             continue;
         }
-        let tipo = crate::html_atributos::valor_do_atributo(tag, "type")
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let tipo =
+            crate::html_atributos::valor_do_atributo(tag, "type").map_err(FalhaDaLupa::Atributo)?;
         let padrao = if elemento == "button" {
             "submit"
         } else {
@@ -67,10 +67,10 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
         {
             continue;
         }
-        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
-        let id = crate::html_atributos::valor_do_atributo(tag, "id")
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let nome =
+            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
+        let id =
+            crate::html_atributos::valor_do_atributo(tag, "id").map_err(FalhaDaLupa::Atributo)?;
         if nome.as_deref() == Some("btnPesquisar") {
             nomeados += 1;
         } else if nome.is_none() && id.as_deref() == Some("btnPesquisar") {
@@ -124,8 +124,8 @@ pub(super) fn consulta(
             .get(dom.parser())
             .and_then(tl::Node::as_tag)
             .ok_or(FalhaDaLupa::FormularioInesperado)?;
-        let nome = crate::html_atributos::valor_do_atributo(tag, "name")
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        let nome =
+            crate::html_atributos::valor_do_atributo(tag, "name").map_err(FalhaDaLupa::Atributo)?;
         match nome.as_deref() {
             Some("selInfraPaginacaoSuperior") => superior += 1,
             Some("selInfraPaginacaoInferior") => inferior += 1,

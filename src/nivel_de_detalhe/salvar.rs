@@ -9,7 +9,6 @@
 //! observado: o efeito é conferido por um GET da mesma tela.
 use super::tela::{ACAO_DO_NIVEL_DE_DETALHE, ErroNivelDeDetalhe, FORMULARIO_DO_NIVEL_DE_DETALHE};
 use super::{ColunaDoDetalhe, PlanoDasColunas};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, OperacaoDeFormulario,
     PreferenciaDoUsuario, ResultadoDoEnvio, localizar_formulario,
@@ -69,10 +68,10 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
 pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("html_do_nivel_de_detalhe_nao_interpretado"))?;
+        .map_err(|_| ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
-        .map_err(|_| ErroHtml::ausente("formulario_do_nivel_de_detalhe_ausente"))?;
+        .map_err(|_| ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;
     for tag in form
         .children()
         .all(parser)
@@ -106,9 +105,7 @@ pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNiv
             _ => false,
         };
         if !previsto {
-            return Err(
-                ErroHtml::valor("campo_nao_previsto_no_formulario_do_nivel_de_detalhe").into(),
-            );
+            return Err(ErroNivelDeDetalhe::CampoNaoPrevistoNoFormularioDoNivelDeDetalhe);
         }
     }
     Ok(())

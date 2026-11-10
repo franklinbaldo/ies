@@ -1,5 +1,4 @@
 use super::*;
-use crate::erro_html::ErroHtml;
 
 fn pagina(total: usize, inicio: usize, ids: &[(u32, &str)]) -> String {
     let fim = inicio + ids.len() - 1;
@@ -103,9 +102,7 @@ fn troca_de_unidade_e_duplicidade_sao_erros_tipados() {
         .replace("id_procedimento=3", "id_procedimento=1");
     assert_eq!(
         ler_paginas(&[primeira, repetida], Some("PPI")),
-        Err(ErroDetalhada::Html(ErroHtml::repetido(
-            "identificador_detalhado_repetido"
-        )))
+        Err(ErroDetalhada::IdentificadorDetalhadoRepetido)
     );
 }
 
@@ -115,9 +112,7 @@ fn nao_cria_processo_de_celula_sem_link_reconhecido() {
     let sem_link = original.replace("acao=procedimento_trabalhar", "acao=outra_acao");
     assert_eq!(
         ler_paginas(&[sem_link], Some("PPI")),
-        Err(ErroDetalhada::Html(ErroHtml::ausente(
-            "link_do_processo_detalhado_ausente"
-        )))
+        Err(ErroDetalhada::LinkDoProcessoDetalhadoAusente)
     );
 }
 

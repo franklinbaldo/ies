@@ -2,7 +2,6 @@
 //! POST nada mudou (saída 1); depois dele, todo desvio é efeito incerto
 //! (saída 3), com a etapa e o fato.
 use super::tela::UnidadeOferecida;
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
@@ -59,5 +58,11 @@ pub(crate) enum ErroTroca {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,
     },
-    Html(#[from] ErroHtml),
+    LinhaDeUnidadeForaDaFormaObservada,
+    AtributoDaLinhaDeUnidadeIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    LinkDeTrocaDeUnidadeAusente,
+    LinkDeTrocaDeUnidadeForaDaFormaObservada,
+    AtributoDoLinkDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    TelaDeTrocaDeUnidadeNaoReconhecida,
+    AtributoDaTelaDeTrocaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }

@@ -1,7 +1,6 @@
 //! Recusas tipadas de `ies login`, uma por fato verificável. Nenhum erro
 //! carrega credencial, cookie, URL assinada ou HTML.
 use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
@@ -17,6 +16,8 @@ pub(crate) enum CampoDasCredenciais {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLogin {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Configuracao(#[from] ErroConfiguracao),
     /// Origem da instalação ilegível ou fora do formato `Instalacao`.
     Origem(#[from] super::fluxo::OrigemIlegivel),
@@ -55,7 +56,14 @@ pub(crate) enum ErroLogin {
     GravacaoDaSessaoFalhou(ArquivoPrivado),
     UnidadeExibidaDiferenteDaSolicitada,
     Transporte(#[from] FalhaTransporte),
-    Html(#[from] ErroHtml),
+    BotaoDeEnvioDoLoginNaoReconhecido,
+    LinkDoControleDeProcessosNaoReconhecido,
+    OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
+    OrgaoNaoEncontradoNaTelaDeLogin,
+    SelecaoDeOrgaoAusenteNaTelaDeLogin,
+    SelecaoDeOrgaoRepetidaNaTelaDeLogin,
+    TelaAposOLoginNaoReconhecida,
+    TelaDeLoginNaoReconhecida,
 }
 
 impl ErroLogin {
@@ -94,7 +102,15 @@ impl ErroLogin {
             | Self::DiretorioDaSessaoGravavelPorOutros(_)
             | Self::GravacaoDaSessaoFalhou(_)
             | Self::UnidadeExibidaDiferenteDaSolicitada
-            | Self::Html(_) => false,
+            | Self::BotaoDeEnvioDoLoginNaoReconhecido
+            | Self::LinkDoControleDeProcessosNaoReconhecido
+            | Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin
+            | Self::OrgaoNaoEncontradoNaTelaDeLogin
+            | Self::SelecaoDeOrgaoAusenteNaTelaDeLogin
+            | Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin
+            | Self::TelaAposOLoginNaoReconhecida
+            | Self::Atributo(_)
+            | Self::TelaDeLoginNaoReconhecida => false,
         }
     }
 }

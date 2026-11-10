@@ -91,15 +91,15 @@ lista, senão `campo_nao_previsto_na_tela_de_assinatura`: ocultos
 Botões `type=button` (`btnAssinar`, `btnCopiarCodigo`) não viajam: o
 `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`.
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
-| HTML não interpretado | `tela_de_assinatura_nao_interpretada` |
-| Sem o formulário | `formulario_de_assinatura_ausente` |
-| Controle fora da lista | `campo_nao_previsto_na_tela_de_assinatura` |
+| HTML não interpretado | `ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada` |
+| Sem o formulário | `ErroTelaDeAssinatura::FormularioDeAssinaturaAusente` |
+| Controle fora da lista | `ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura` |
 | `hdnIdDocumentos` diferente do id aberto | `TelaDeAssinaturaDeOutroDocumento` |
 | `hdnIdUsuario` ou `txtUsuario` vazio | `AssinanteNaoPublicadoNaTela` |
 | `selOrgao` sem uma opção `selected` | `OrgaoDoAssinanteNaoSelecionado` |
-| Sem `pwdSenha` de senha | `campo_de_senha_ausente_na_tela` |
+| Sem `pwdSenha` de senha | `ErroTelaDeAssinatura::CampoDeSenhaAusenteNaTela` |
 
 O POST leva, na ordem do documento, os ocultos como servidos (exceto
 `hdnFormaAutenticacao=S`), `selOrgao` com a opção `selected`, `txtUsuario`

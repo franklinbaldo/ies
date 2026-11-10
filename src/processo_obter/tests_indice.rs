@@ -3,7 +3,6 @@
 use super::tests_apoio::*;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
-use crate::erro_html::ErroHtml;
 use crate::transporte::StatusHttpRecusado;
 
 fn com_link_da_arvore(amb: &Ambiente) {
@@ -267,7 +266,7 @@ fn falhas_fora_de_palpite() {
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP), ("11", NUP)]))]);
     assert_eq!(
         r.unwrap_err(),
-        super::ErroProcessoObter::Html(ErroHtml::repetido("processo_repetido_no_controle"))
+        super::ErroProcessoObter::ProcessoRepetidoNoControle
     );
     assert_eq!(pedidos.len(), 1);
     // `--unidade` diferente: para no Controle.

@@ -5,7 +5,6 @@ use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::VersaoDocumento;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
@@ -83,14 +82,14 @@ fn ler_par(
     let ler = |v, ausente| {
         ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
-            ErroCopia::Html(ErroHtml::ausente(ausente)),
+            ausente,
         )
         .map_err(ErroSalvarNoSei::Local)
         .and_then(|bytes| String::from_utf8(bytes).map_err(|_| ErroSalvarNoSei::BaseAlterada))
     };
     Ok((
-        ler(n, "base_versao_ausente")?,
-        ler(seguinte, "versao_editada_ausente")?,
+        ler(n, ErroCopia::BaseVersaoAusente)?,
+        ler(seguinte, ErroCopia::VersaoEditadaAusente)?,
     ))
 }
 

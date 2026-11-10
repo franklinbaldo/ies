@@ -5,6 +5,8 @@ use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FalhaCadastroExterno {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(crate::html_atributos::ErroAtributoHtml),
     FormaNaoObservada,
     TipoNaoOferecido,
     TipoAmbiguo,
@@ -42,13 +44,19 @@ fn valor_input(
         || end > fim
         || !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
         || atributo_presente(tag, "disabled").map_err(|_| erro)?
-        || valor_do_atributo(tag, "name").map_err(|_| erro)?.as_deref() != Some(id)
-        || valor_do_atributo(tag, "type").map_err(|_| erro)?.as_deref() != Some("hidden")
+        || valor_do_atributo(tag, "name")
+            .map_err(FalhaCadastroExterno::Atributo)?
+            .as_deref()
+            != Some(id)
+        || valor_do_atributo(tag, "type")
+            .map_err(FalhaCadastroExterno::Atributo)?
+            .as_deref()
+            != Some("hidden")
     {
         return Err(erro);
     }
     Ok(valor_do_atributo(tag, "value")
-        .map_err(|_| erro)?
+        .map_err(FalhaCadastroExterno::Atributo)?
         .unwrap_or_default())
 }
 
@@ -142,7 +150,9 @@ fn campos_oferecidos(
             {
                 continue;
             }
-            let Some(nome) = valor_do_atributo(tag, "name").map_err(|_| erro)? else {
+            let Some(nome) =
+                valor_do_atributo(tag, "name").map_err(FalhaCadastroExterno::Atributo)?
+            else {
                 continue;
             };
             if nome.is_empty() {
@@ -150,7 +160,9 @@ fn campos_oferecidos(
             }
             if elemento == "input"
                 && matches!(
-                    valor_do_atributo(tag, "type").map_err(|_| erro)?.as_deref(),
+                    valor_do_atributo(tag, "type")
+                        .map_err(FalhaCadastroExterno::Atributo)?
+                        .as_deref(),
                     Some("hidden" | "file" | "submit" | "button" | "reset" | "image")
                 )
             {
@@ -188,7 +200,7 @@ pub(crate) fn observar_cadastro(
         .ok_or(erro)?;
     if !form.name().as_utf8_str().eq_ignore_ascii_case("form")
         || valor_do_atributo(form, "method")
-            .map_err(|_| erro)?
+            .map_err(FalhaCadastroExterno::Atributo)?
             .as_deref()
             != Some("post")
     {
@@ -209,7 +221,7 @@ pub(crate) fn observar_cadastro(
         || end > fim
         || atributo_presente(select, "disabled").map_err(|_| erro)?
         || valor_do_atributo(select, "name")
-            .map_err(|_| erro)?
+            .map_err(FalhaCadastroExterno::Atributo)?
             .as_deref()
             != Some("selSerie")
     {
@@ -235,7 +247,7 @@ pub(crate) fn observar_cadastro(
             continue;
         }
         let id = valor_do_atributo(tag, "value")
-            .map_err(|_| erro)?
+            .map_err(FalhaCadastroExterno::Atributo)?
             .ok_or(erro)?;
         let selecionado = atributo_presente(tag, "selected").map_err(|_| erro)?;
         candidatos.push((id, selecionado));

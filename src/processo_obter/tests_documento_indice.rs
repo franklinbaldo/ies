@@ -491,9 +491,7 @@ fn bdd_60_05_numero_ambiguo_recusa_sem_contaminar_indice() {
     let (resultado, pedidos) = rodar_doc(&amb, DOC, Some(NUP), vec![ok(dois_ids_para_doc)]);
     assert_eq!(
         resultado.unwrap_err(),
-        ErroDocumentoObter::Html(crate::erro_html::ErroHtml::repetido(
-            "numero_sei_repetido_na_arvore"
-        ))
+        ErroDocumentoObter::NumeroSeiRepetidoNaArvore
     );
     assert_eq!(pedidos, [get(&url_arvore(ID))], "nenhum GET de conteúdo");
     assert!(

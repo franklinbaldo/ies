@@ -15,7 +15,6 @@ use super::{
     ARGUMENTOS, ArvoreLida, DestinoDoMovido, DocumentoLido, DocumentoMovido, EnderecoDaArvore,
     ErroArvore, ProcessoNaArvore,
 };
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
@@ -30,7 +29,7 @@ pub(super) struct MovidoLido {
 }
 
 pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada"));
+    let fora = ErroArvore::DocumentoMovidoForaDaFormaObservada;
     let id = super::texto(&a[1])?;
     if documento_do_composto(id).is_none() {
         return Err(fora);
@@ -97,7 +96,7 @@ pub(super) fn conferir_movidos(
     for lido in &lidos {
         let documento = documento_do_composto(&lido.movido.id).unwrap_or_default();
         if !vistos.insert(documento) {
-            return Err(ErroHtml::repetido("documento_movido_repetido_na_arvore").into());
+            return Err(ErroArvore::DocumentoMovidoRepetidoNaArvore);
         }
     }
     Ok(lidos
@@ -120,7 +119,7 @@ pub(crate) fn ler_destinos_dos_movidos(
     html: &str,
     arvore: &mut ArvoreLida,
 ) -> Result<(), ErroArvore> {
-    let repetidos = ErroArvore::Html(ErroHtml::repetido("destinos_do_documento_movido_repetidos"));
+    let repetidos = ErroArvore::DestinosDoDocumentoMovidoRepetidos;
     // Índice do nó → id composto, só dos movidos.
     let mut nos: HashMap<usize, String> = HashMap::new();
     let mut lidos: HashMap<String, Option<DestinoDoMovido>> = HashMap::new();
@@ -135,7 +134,7 @@ pub(crate) fn ler_destinos_dos_movidos(
             continue;
         };
         let Some((_, texto)) = ler_html(linha)
-            .map_err(|_| ErroHtml::valor("destino_do_documento_movido_fora_da_forma_observada"))?
+            .map_err(|_| ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada)?
         else {
             continue;
         };
@@ -156,9 +155,7 @@ fn destino_do_html(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<Option<DestinoDoMovido>, ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor(
-        "destino_do_documento_movido_fora_da_forma_observada",
-    ));
+    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
     let dom = tl::parse(texto, tl::ParserOptions::default()).map_err(|_| fora)?;
     let parser = dom.parser();
     let mut achado = None;
@@ -166,12 +163,12 @@ fn destino_do_html(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let lidos = atributos(tag).map_err(|_| fora)?;
-        let Some(href) = lidos.valor("href").map_err(|_| fora)? else {
+        let lidos = atributos(tag).map_err(ErroArvore::Atributo)?;
+        let Some(href) = lidos.valor("href").map_err(ErroArvore::Atributo)? else {
             continue;
         };
         if achado.is_some() {
-            return Err(ErroHtml::repetido("destinos_do_documento_movido_repetidos").into());
+            return Err(ErroArvore::DestinosDoDocumentoMovidoRepetidos);
         }
         achado = Some(conferir(
             instalacao,
@@ -191,9 +188,7 @@ fn conferir(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<DestinoDoMovido, ErroArvore> {
-    let fora = ErroArvore::Html(ErroHtml::valor(
-        "destino_do_documento_movido_fora_da_forma_observada",
-    ));
+    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)

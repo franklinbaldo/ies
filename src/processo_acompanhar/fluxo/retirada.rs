@@ -24,7 +24,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
         return Err(ErroPrevia::Formulario(
             resposta
                 .err()
-                .ok_or(ErroHtml::valor("tela_de_acompanhamento_inesperada"))?,
+                .ok_or(ErroPrevia::TelaDeAcompanhamentoInesperada)?,
         ));
     }
     let aceite = match &resposta {

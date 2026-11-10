@@ -7,7 +7,6 @@ use super::formulario_pesquisa::CAMPOS_OCULTOS_DA_PESQUISA;
 #[cfg(test)]
 use super::resposta::ListaDaPesquisa;
 use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     decodificar_atributo, localizar_formulario,
@@ -33,7 +32,12 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
-    PaginaForaDoIntervalo { solicitada: u32, paginas: u64 },
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    PaginaForaDoIntervalo {
+        solicitada: u32,
+        paginas: u64,
+    },
     RegraDeNavegacaoDaPesquisaNaoObservada,
     PaginadorDaPesquisaNaoPublicado,
     ProtocoloDaTelaDeResultadoDiferenteDoPesquisado,
@@ -41,7 +45,8 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     PaginaDaPesquisaSemResultadoAposPaginar,
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
-    Html(#[from] ErroHtml),
+    HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado,
+    LinkDePaginacaoDaPesquisaForaDaRegra,
 }
 
 /// O que a paginação precisa da resposta da página 1, em processos ou em
@@ -155,9 +160,7 @@ fn conferir_links_de_navegar(
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = ErroPaginacaoDaPesquisa::Html(ErroHtml::html(
-        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
-    ));
+    let ilegivel = ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut publicados = 0;
@@ -165,7 +168,9 @@ fn conferir_links_de_navegar(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| ilegivel)? else {
+        let Some(bruto) =
+            valor_do_atributo(tag, "href").map_err(ErroPaginacaoDaPesquisa::Atributo)?
+        else {
             continue;
         };
         let href = decodificar_atributo(&bruto).ok_or(ilegivel)?;
@@ -179,7 +184,7 @@ fn conferir_links_de_navegar(
             .and_then(|k| k.parse::<u64>().ok())
             .is_some_and(|k| k % tamanho == 0 && k < total);
         if !na_regra {
-            return Err(ErroHtml::valor("link_de_paginacao_da_pesquisa_fora_da_regra").into());
+            return Err(ErroPaginacaoDaPesquisa::LinkDePaginacaoDaPesquisaForaDaRegra);
         }
         publicados += 1;
     }
@@ -195,9 +200,7 @@ pub(crate) fn conferir_protocolo_servido(
     html: &str,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = ErroPaginacaoDaPesquisa::Html(ErroHtml::html(
-        "html_da_tela_de_resultado_da_pesquisa_nao_interpretado",
-    ));
+    let ilegivel = ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
@@ -211,11 +214,12 @@ pub(crate) fn conferir_protocolo_servido(
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
     {
         if valor_do_atributo(tag, "name")
-            .map_err(|_| ilegivel)?
+            .map_err(ErroPaginacaoDaPesquisa::Atributo)?
             .as_deref()
             == Some("txtProtocoloPesquisa")
         {
-            let bruto = valor_do_atributo(tag, "value").map_err(|_| ilegivel)?;
+            let bruto =
+                valor_do_atributo(tag, "value").map_err(ErroPaginacaoDaPesquisa::Atributo)?;
             servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ilegivel)?);
         }
     }

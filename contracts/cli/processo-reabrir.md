@@ -65,12 +65,12 @@ observada em [reabertura do processo](../../docs/como-o-sei-funciona/reabertura-
    barato que o índice permitir, em geral o link da árvore: 1 GET):
    sucesso só se a situação lida lista a unidade da sessão.
 
-| Fato na tela do nó | Erro ou `onde` (stderr) |
+| Fato na tela do nó | Erro (stderr) |
 | --- | --- |
-| Nenhuma das duas formas | `endereco_de_reabrir_ausente_na_tela_do_no` |
-| Função ou variável fora da forma exata | `endereco_de_reabrir_fora_da_forma_observada` |
-| Duas funções, duas variáveis, ou as duas formas | `enderecos_de_reabrir_repetidos_na_tela_do_no` |
-| URL sem `procedimento_reabrir` assinado | `endereco_da_reabertura_nao_reconhecido` |
+| Nenhuma das duas formas | `ErroEnderecoDeReabrir::EnderecoDeReabrirAusenteNaTelaDoNo` |
+| Função ou variável fora da forma exata | `ErroEnderecoDeReabrir::EnderecoDeReabrirForaDaFormaObservada` |
+| Duas funções, duas variáveis, ou as duas formas | `ErroEnderecoDeReabrir::EnderecosDeReabrirRepetidosNaTelaDoNo` |
+| URL sem `procedimento_reabrir` assinado | `ErroEnderecoDeReabrir::EnderecoDaReaberturaNaoReconhecido` |
 | URL de outro `id_procedimento` | `EnderecoDaReaberturaDeOutroProcesso` |
 
 ## Resposta e escrita não confirmada
