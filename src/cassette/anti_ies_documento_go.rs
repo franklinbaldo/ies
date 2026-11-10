@@ -90,7 +90,7 @@ fn confrontar_corpo_observado_http(
     id: &str,
     processo: &str,
     numero: &NumeroDocumento,
-    conteudo: &Option<(u32, String, String)>,
+    conteudo: Option<&(u32, String, String)>,
 ) {
     if let Some((versao, tipo_original, texto_original)) = conteudo {
         let alvo = format!(
@@ -207,7 +207,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
-    confrontar_corpo_observado_http(endereco, id, &processo, &numero, &conteudo);
+    confrontar_corpo_observado_http(endereco, id, &processo, &numero, conteudo.as_ref());
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
