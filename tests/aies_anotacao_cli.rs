@@ -126,7 +126,7 @@ fn estado() -> (Connection, Instalacao) {
     clippy::too_many_lines,
     reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn executar_caso(confirmar: bool) {
+fn executar_caso(confirmar: bool, resposta_recusada: bool) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -174,8 +174,15 @@ fn executar_caso(confirmar: bool) {
             destino.shutdown(Shutdown::Write).unwrap();
             let mut resposta = Vec::new();
             destino.read_to_end(&mut resposta).unwrap();
+            let recusado = resposta_recusada && evento == "POST anotacao_registrar";
             pedidos.lock().unwrap().push(evento);
-            canal.write_all(&resposta).unwrap();
+            if recusado {
+                canal
+                    .write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    .unwrap();
+            } else {
+                canal.write_all(&resposta).unwrap();
+            }
             canal.flush().unwrap();
         }
     });
@@ -213,17 +220,24 @@ fn executar_caso(confirmar: bool) {
     let pedidos = trilha.lock().unwrap().clone();
     assert_eq!(
         saida.status.code(),
-        Some(0),
+        Some(if resposta_recusada { 3 } else { 0 }),
         "stdout={} stderr={} HTTP={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["nup"], NUP);
-    assert_eq!(json["texto"], "Revisar minuta");
-    assert_eq!(json["anotacao_antes"], "");
-    assert_eq!(json["confirmado"], confirmar);
-    assert_eq!(json["alterado"], confirmar);
+    if resposta_recusada {
+        // O servidor aplicou, mas o túnel devolveu 403: estado final não prova autoria.
+        assert_eq!(json["codigo"], "efeito_incerto");
+        assert_eq!(json["retentavel"], false);
+    } else {
+        assert_eq!(json["nup"], NUP);
+        assert_eq!(json["texto"], "Revisar minuta");
+        assert_eq!(json["anotacao_antes"], "");
+        assert_eq!(json["confirmado"], confirmar);
+        assert_eq!(json["alterado"], confirmar);
+        assert_eq!(json["requisicoes"], pedidos.len());
+    }
     assert_eq!(
         persistido.as_deref(),
         Some(if confirmar { "Revisar minuta" } else { "" })
@@ -242,15 +256,19 @@ fn executar_caso(confirmar: bool) {
             .count(),
         usize::from(confirmar)
     );
-    assert_eq!(json["requisicoes"], pedidos.len());
 }
 
 #[test]
 fn bdd_anot_01_previa_publica_texto_sem_escrever() {
-    executar_caso(false);
+    executar_caso(false, false);
 }
 
 #[test]
 fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
-    executar_caso(true);
+    executar_caso(true, false);
+}
+
+#[test]
+fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
+    executar_caso(true, true);
 }
