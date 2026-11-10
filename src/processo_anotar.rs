@@ -8,7 +8,7 @@ use crate::formulario_web::{
 };
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::processo_enviar::anotacoes::REGISTRAR_ANOTACAO;
+use crate::processo_enviar::REGISTRAR_ANOTACAO;
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{
@@ -18,6 +18,7 @@ use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
 use crate::transporte::FalhaTransporte;
+use crate::visao_do_controle::EnvioDoControle as _;
 
 pub(crate) struct Previa {
     pub(crate) nup: String,
@@ -95,7 +96,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         if !anotacao_antes.trim().is_empty() {
             return Err(Erro::AnotacaoJaPresente);
         }
-        if !crate::processo_enviar::anotacoes::salvar_oferecido(&html) {
+        if !crate::processo_enviar::salvar_oferecido(&html) {
             return Err(Erro::SalvarNaoOferecido);
         }
         let instalacao = Instalacao::interpretar(sessao.origem)
@@ -125,7 +126,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             }
             Ok(RespostaDoEnvio::Html(_)) | Err(_) if enviada => false,
             Err(erro) => return Err(Erro::Formulario(erro)),
-            Ok(RespostaDoEnvio::Html(_)) => false,
+            Ok(_) => false,
         };
         // A resposta recusada não prova autoria, mesmo se um GET posterior
         // encontrar o texto desejado. Não repetir o POST em nenhum caso.
