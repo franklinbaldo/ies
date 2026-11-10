@@ -35,6 +35,7 @@ enum Cena {
     ValidacaoExigida,
     ValidacaoComCredenciais,
     ValidacaoRedirecionada,
+    ValidacaoViaIndice,
     ValidacaoRecusada,
 }
 
@@ -173,6 +174,7 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         Cena::ValidacaoExigida
             | Cena::ValidacaoComCredenciais
             | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoViaIndice
             | Cena::ValidacaoRecusada
     ) {
         iesei::validacao_acesso::guardar(
@@ -250,13 +252,16 @@ fn identidade_no_estado(
         Cena::ValidacaoExigida
             | Cena::ValidacaoComCredenciais
             | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoViaIndice
             | Cena::ValidacaoRecusada
     ) {
         assert_eq!(
             iesei::validacao_acesso::ler(banco, instalacao, CENARIO, "10").unwrap(),
             Some(match cena {
                 Cena::ValidacaoExigida => iesei::validacao_acesso::Validacao::Exigida,
-                Cena::ValidacaoComCredenciais | Cena::ValidacaoRedirecionada => {
+                Cena::ValidacaoComCredenciais
+                | Cena::ValidacaoRedirecionada
+                | Cena::ValidacaoViaIndice => {
                     iesei::validacao_acesso::Validacao::Realizada
                 }
                 Cena::ValidacaoRecusada => iesei::validacao_acesso::Validacao::Recusada,
@@ -326,7 +331,10 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     });
     let credenciais = matches!(
         cena,
-        Cena::ValidacaoComCredenciais | Cena::ValidacaoRedirecionada | Cena::ValidacaoRecusada
+        Cena::ValidacaoComCredenciais
+            | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoViaIndice
+            | Cena::ValidacaoRecusada
     )
     .then(|| {
         pasta.privado(
@@ -357,6 +365,17 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         .env_remove("no_proxy")
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE");
+    if matches!(cena, Cena::ValidacaoViaIndice) {
+        // Primeira execução: o Controle colhe o link, a modal exige senha
+        // e a CLI recusa sem POST. A segunda reutiliza o mesmo HOME/índice.
+        let primeira = comando.output().unwrap();
+        assert_eq!(
+            primeira.status.code(),
+            Some(1),
+            "primeira execução sem credenciais: {}",
+            String::from_utf8_lossy(&primeira.stdout)
+        );
+    }
     if let Some(caminho) = credenciais {
         comando.env("IES_CREDENCIAIS_FILE", caminho);
     }
