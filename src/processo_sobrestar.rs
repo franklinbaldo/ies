@@ -205,6 +205,8 @@ pub(super) fn preparar_com_acao<V: EnvioDoProcesso>(
     ))
 }
 
+#[cfg(test)]
+mod acervo;
 mod tela;
 #[cfg(test)]
 mod tests;
