@@ -33,6 +33,7 @@ enum Cena {
     PastaPendente,
     DocumentosVisiveisComPastaPendente,
     ValidacaoExigida,
+    ValidacaoComCredenciais,
 }
 
 fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
@@ -165,7 +166,7 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
-    if matches!(cena, Cena::ValidacaoExigida) {
+    if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais) {
         iesei::validacao_acesso::guardar(
             &banco,
             &instalacao,
@@ -253,7 +254,7 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         let processo = processos::ler(&banco, &instalacao, CENARIO, "10")
             .unwrap()
             .unwrap();
-        if matches!(cena, Cena::ValidacaoExigida) {
+        if matches!(cena, Cena::ValidacaoExigida | Cena::ValidacaoComCredenciais) {
             assert_eq!(
                 iesei::validacao_acesso::ler(&banco, &instalacao, CENARIO, "10").unwrap(),
                 Some(iesei::validacao_acesso::Validacao::Exigida),
@@ -283,7 +284,10 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             canal.flush().unwrap();
         }
     });
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
+    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais)
+        .then(|| pasta.privado("credenciais", "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n"));
+    let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+    comando
         .args([
             "--json",
             "processo",
@@ -304,9 +308,11 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
         .env_remove("NO_PROXY")
         .env_remove("no_proxy")
         .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .unwrap();
+        .env_remove("IES_CREDENCIAIS_FILE");
+    if let Some(caminho) = credenciais {
+        comando.env("IES_CREDENCIAIS_FILE", caminho);
+    }
+    let saida = comando.output().unwrap();
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let identidade_final = servidor.join().unwrap();
