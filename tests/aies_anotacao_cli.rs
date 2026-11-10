@@ -29,8 +29,12 @@ fn aceitar(escuta: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
         match escuta.accept() {
             Ok((cliente, endereco)) => {
                 assert!(endereco.ip().is_loopback());
-                cliente.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                cliente.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                cliente
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                cliente
+                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
                 return Some(cliente);
             }
             Err(erro) if erro.kind() == std::io::ErrorKind::WouldBlock => {
@@ -64,7 +68,9 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
         .lines()
         .find_map(|linha| {
             let (chave, valor) = linha.split_once(':')?;
-            chave.eq_ignore_ascii_case("content-length").then(|| valor.trim().parse::<usize>().unwrap())
+            chave
+                .eq_ignore_ascii_case("content-length")
+                .then(|| valor.trim().parse::<usize>().unwrap())
         })
         .unwrap_or(0);
     assert!(tamanho < 64_000);
@@ -156,7 +162,8 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
         while let Some(mut tcp) = aceitar(&proxy, &sinal) {
             let (connect, _) = pedido_http(&mut tcp);
             assert!(connect.starts_with(b"CONNECT"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").unwrap();
+            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (req, evento) = pedido_http(&mut canal);
             let mut destino = TcpStream::connect(endereco).unwrap();
@@ -170,7 +177,14 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "anotar", NUP, "--texto", "Revisar minuta"])
+        .args([
+            "--json",
+            "processo",
+            "anotar",
+            NUP,
+            "--texto",
+            "Revisar minuta",
+        ])
         .env("IES_URL_CONTROLE_FILE", &controle)
         .env("IES_COOKIE_FILE", &cookie)
         .env("IES_ORIGEM_FILE", &origem)
@@ -190,10 +204,13 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
-    assert_eq!(saida.status.code(), Some(0),
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
         "stdout={} stderr={} HTTP={pedidos:?}",
         String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr));
+        String::from_utf8_lossy(&saida.stderr)
+    );
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["nup"], NUP);
     assert_eq!(json["texto"], "Revisar minuta");
@@ -201,7 +218,13 @@ fn bdd_anot_01_previa_publica_texto_sem_escrever() {
     assert_eq!(json["confirmado"], false);
     assert_eq!(json["alterado"], false);
     assert_eq!(persistido.as_deref(), Some(""));
-    assert_eq!(pedidos.iter().filter(|e| *e == "GET anotacao_registrar").count(), 1);
+    assert_eq!(
+        pedidos
+            .iter()
+            .filter(|e| *e == "GET anotacao_registrar")
+            .count(),
+        1
+    );
     assert_eq!(pedidos.iter().filter(|e| e.starts_with("POST ")).count(), 0);
     assert_eq!(json["requisicoes"], pedidos.len());
 }
