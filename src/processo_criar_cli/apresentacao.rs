@@ -2,7 +2,6 @@
 //! Os erros tipados e as recusas permanecem na fronteira da CLI.
 use crate::processo_criar_fluxo::Criacao;
 use serde_json::json;
-use std::process::ExitCode;
 
 fn informar_causa_post(causa: Option<&str>) {
     if let Some(causa) = causa {
@@ -10,7 +9,7 @@ fn informar_causa_post(causa: Option<&str>) {
     }
 }
 
-pub(super) fn informar_sucesso(json_mode: bool, feito: Criacao, especificacao: &str) -> ExitCode {
+pub(super) fn informar_sucesso(json_mode: bool, feito: Criacao, especificacao: &str) {
     if json_mode {
         println!(
             "{}",
@@ -57,5 +56,4 @@ pub(super) fn informar_sucesso(json_mode: bool, feito: Criacao, especificacao: &
             println!("Para criar, repita com --confirmar.");
         }
     }
-    ExitCode::SUCCESS
 }

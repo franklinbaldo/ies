@@ -19,6 +19,10 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "aies-unidade-cli";
 
@@ -275,20 +279,13 @@ fn aies_01_cli_real_ler_unidade_observada() {
 #[test]
 fn aies_03_cli_real_recusa_controle_ausente() {
     let saida = executar(false, None);
-    assert_ne!(saida.status.code(), Some(0));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["status_http"], 503);
-    assert!(valor.get("unidade_exibida").is_none());
+    falha(&saida, "Status");
 }
 
 #[test]
 fn aies_04_cli_real_recusa_unidade_divergente() {
     let saida = executar(true, Some("OUTRA"));
-    assert_ne!(saida.status.code(), Some(0));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert!(valor.get("unidade_exibida").is_none());
+    falha(&saida, "UnidadeExibidaDiferenteDaSolicitada");
 }
 
 // AIES-02: a sessão já lembrava uma página posterior da visão D.

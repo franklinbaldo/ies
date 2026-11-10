@@ -81,33 +81,3 @@ pub(crate) enum ErroDefinirColunas {
         verificacao: Box<VerificacaoDasColunas>,
     },
 }
-
-impl ErroDefinirColunas {
-    /// Categoria pública: o próximo passo de quem chama.
-    pub(crate) fn codigo(&self) -> &'static str {
-        match self {
-            Self::Leitura(_) | Self::ColunaIndisponivelNestaInstalacao { .. } => "fonte_invalida",
-            Self::ConfiguracaoDeColunasNaoAplicada { .. } => "escrita_nao_aplicada",
-            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => "escrita_diferente_da_solicitada",
-            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => "nao_confirmado",
-        }
-    }
-
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Leitura(erro) => erro.mensagem(),
-            Self::ColunaIndisponivelNestaInstalacao { .. } => {
-                "a coluna pedida não é publicada pelo Nível de detalhe desta instalação; nada foi salvo"
-            }
-            Self::ConfiguracaoDeColunasNaoAplicada { .. } => {
-                "a configuração lida depois de salvar é a de antes: as colunas não foram alteradas"
-            }
-            Self::MarcasDiferentesDoAlvoAposSalvar { .. } => {
-                "a configuração lida depois de salvar não é a pedida nem a de antes"
-            }
-            Self::NaoConfirmadoNaConfiguracaoDeColunas { .. } => {
-                "não se sabe se as colunas foram alteradas; confira com `ies unidade colunas` antes de repetir"
-            }
-        }
-    }
-}

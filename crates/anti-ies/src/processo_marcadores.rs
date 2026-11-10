@@ -157,9 +157,12 @@ fn submeter_atribuicao(
         Ok(()) => Resposta::redirecionar(format!(
             "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
         )),
-        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(iesei::marcadores::ErroMarcadores::DadoInvalido) => {
+            Resposta::nova(Estado::RequisicaoInvalida)
+        }
         Err(
-            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
+            iesei::marcadores::ErroMarcadores::Sqlite(_)
+            | iesei::marcadores::ErroMarcadores::ProcessoNaoObservado,
         ) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }
@@ -202,9 +205,12 @@ fn submeter_retirada(
         Ok(()) => Resposta::redirecionar(format!(
             "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
         )),
-        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(iesei::marcadores::ErroMarcadores::DadoInvalido) => {
+            Resposta::nova(Estado::RequisicaoInvalida)
+        }
         Err(
-            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
+            iesei::marcadores::ErroMarcadores::Sqlite(_)
+            | iesei::marcadores::ErroMarcadores::ProcessoNaoObservado,
         ) => Resposta::nova(Estado::DadosInsuficientes),
     }
 }

@@ -1,10 +1,9 @@
 //! Saída do documento externo em `ies documento DOC` (Refs #60, fatia 3;
 //! contracts/cli/documento-obter-externo.md): o objeto `anexo` do JSON,
-//! a linha humana do anexo e a recusa do limite inválido. Bytes do
+//! e a linha humana do anexo. Bytes do
 //! arquivo nunca vão para a saída padrão.
-use crate::anexo_documento::{AnexoLido, VARIAVEL_DO_LIMITE};
+use crate::anexo_documento::AnexoLido;
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
 /// `mime`, `tamanho`, `sha256`, `nome_original` e `disposicao`.
 pub(super) fn json_do_anexo(a: &AnexoLido) -> Value {
@@ -32,24 +31,6 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
         "Anexo {}: {} bytes, sha256 {}{nome}.{dica}",
         a.mime, a.tamanho, a.sha256
     )
-}
-
-/// `IES_LIMITE_ANEXO_BYTES` inválido: entrada inválida, saída 2.
-pub(super) fn limite_invalido(json_mode: bool) -> ExitCode {
-    let mensagem = format!("{VARIAVEL_DO_LIMITE} tem de ser um inteiro de 1 a 2147483648");
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": mensagem,
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
 }
 
 #[cfg(test)]

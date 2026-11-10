@@ -8,16 +8,13 @@ use crate::configuracao::{self, ArquivosDeAcesso};
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
-use crate::saida_erro;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
 use crate::transporte::sessao::{CookieDaSessao, ReferenciasDaSessao};
 use crate::unidade_trocar::{
     ACAO_DE_TROCAR, ControleLido, EnvioDaTroca, EnvioHttpsDaTroca, ErroTroca, PedidoDeTroca,
-    SessaoDaTroca, Troca, UnidadeOferecida, trocar_unidade,
+    SessaoDaTroca, Troca, trocar_unidade,
 };
-use serde_json::{Map, Value, json};
-use std::process::ExitCode;
 
 const AVISO_DE_ESCOPO: &str =
     "a unidade vale para toda a sessão da conta: todo agente que usa esta sessão passa a vê-la";
@@ -48,46 +45,62 @@ impl<V: EnvioDaTroca> EnvioDaTroca for Contador<V> {
     }
 }
 
+/// A sigla da tela de troca (parser do clap: vazia é saída 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct SiglaDaUnidadeVazia;
+
+pub(crate) fn sigla_da_troca(sigla: &str) -> Result<String, SiglaDaUnidadeVazia> {
+    let sigla = sigla.trim();
+    if sigla.is_empty() {
+        return Err(SiglaDaUnidadeVazia);
+    }
+    Ok(sigla.to_owned())
+}
+
+/// A troca falhou; os pedidos feitos (inclusive o POST, se houve) vão junto.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TrocaNaoFeita {
+    #[source]
+    pub(crate) erro: ErroTroca,
+    pub(crate) requisicoes: u32,
+}
+
+/// A troca foi enviada e conferida, mas a sessão local não foi regravada:
+/// a conta já está em `depois`; rodar `ies login --forcar`.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct TrocaFeitaSemRegravarSessao {
+    #[source]
+    pub(crate) causa: FalhaAplicarTroca,
+    pub(crate) depois: String,
+    pub(crate) requisicoes: u32,
+}
+
+/// `sigla`: já conferida pelo clap ([`sigla_da_troca`]).
 pub(crate) fn trocar(
     sigla: &str,
     confirmar: bool,
     unidade: Option<&str>,
     json_mode: bool,
-) -> ExitCode {
-    let sigla = sigla.trim();
-    if sigla.is_empty() {
-        return uso_invalido(json_mode);
-    }
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     // Nenhum `ies login` troca a sessão no meio da troca: com `--confirmar`,
     // o retrato da sessão é lido já sob o lock (#222).
     let _trava = if confirmar {
-        match crate::sessao_login::TravaDoLogin::obter(
+        Some(crate::sessao_login::TravaDoLogin::obter(
             &arquivos.url_controle,
             crate::sessao_login_cli::ESPERA_DO_LOCK,
-        ) {
-            Ok(trava) => Some(trava),
-            Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
-        }
+        )?)
     } else {
         None
     };
     let referencias =
-        match ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .and_then(|r| r.conferir_controle().map(|()| r))
-        {
-            Ok(r) => r,
-            Err(f) => {
-                return saida_erro::erro_fonte_http(json_mode, f.mensagem(), f.status_http());
-            }
-        };
-    let Some(instalacao) = Instalacao::interpretar(referencias.origem()) else {
-        let f = FalhaTransporte::OrigemNaoAutorizada;
-        return crate::erro_fonte(json_mode, f.mensagem());
-    };
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    referencias.conferir_controle()?;
+    let instalacao = Instalacao::interpretar(referencias.origem())
+        .ok_or(FalhaTransporte::OrigemNaoAutorizada)?;
     let sessao = SessaoDaTroca {
         url_do_controle: referencias.url_do_controle(),
         instalacao: &instalacao,
@@ -106,43 +119,32 @@ pub(crate) fn trocar(
     let indice = IndiceLocal::da_configuracao(&arquivos);
     // A saída histórica é u32; a contagem real satura em vez de transbordar.
     let pedidos = u32::try_from(envio.pedidos.total()).unwrap_or(u32::MAX);
-    match resultado {
-        Ok(troca) => concluir(
-            json_mode,
-            &arquivos,
-            &indice,
-            (&instalacao, &referencias),
-            &troca,
-            pedidos,
-        ),
-        Err(erro) => {
-            if matches!(erro, ErroTroca::NaoConfirmado { .. }) {
-                // A unidade pode ter mudado: nada da anterior é reaproveitado.
-                indice.esquecer_links_da_instalacao(&instalacao);
-            }
-            publicar_falha(json_mode, &erro, pedidos)
+    let troca = resultado.map_err(|erro| {
+        if matches!(erro, ErroTroca::NaoConfirmado { .. }) {
+            // A unidade pode ter mudado: nada da anterior é reaproveitado.
+            indice.esquecer_links_da_instalacao(&instalacao);
         }
-    }
+        TrocaNaoFeita {
+            erro,
+            requisicoes: pedidos,
+        }
+    })?;
+    concluir(
+        json_mode,
+        &arquivos,
+        &indice,
+        (&instalacao, &referencias),
+        &troca,
+        pedidos,
+    )
 }
 
-fn uso_invalido(json_mode: bool) -> ExitCode {
-    let mensagem = "a sigla da unidade está vazia";
-    if json_mode {
-        println!(
-            "{}",
-            json!({"codigo": "entrada_invalida", "erro": mensagem, "retentavel": false})
-        );
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(2)
-}
-
-/// Causas diferentes permanecem tipadas até a apresentação na CLI.
-#[derive(Debug, PartialEq, Eq)]
+/// Causas diferentes permanecem tipadas.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaAplicarTroca {
-    Cookie(FalhaTransporte),
-    Gravacao(crate::sessao_login::ErroLogin),
+    Cookie(#[source] FalhaTransporte),
+    Gravacao(#[source] crate::sessao_login::ErroLogin),
 }
 
 /// Depois da troca verificada: grava a URL do Controle novo (e o
@@ -173,34 +175,16 @@ fn concluir(
     (instalacao, sessao): (&Instalacao, &ReferenciasDaSessao),
     troca: &Troca,
     pedidos: u32,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let mut descartados = None;
     if let Some(novo) = &troca.controle_novo {
-        match aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo) {
-            Ok(n) => descartados = n,
-            Err(causa) => {
-                // A saída mantém o subcódigo legado, mas a apresentação
-                // distingue o fato observado usando a variante tipada.
-                let mensagem = match causa {
-                    FalhaAplicarTroca::Cookie(_) => {
-                        "a unidade foi trocada e conferida, mas o cookie da sessão não pôde ser lido; rode ies login --forcar"
-                    }
-                    FalhaAplicarTroca::Gravacao(_) => {
-                        "a unidade foi trocada e conferida, mas a URL da sessão não foi gravada; rode ies login --forcar"
-                    }
-                };
-                if json_mode {
-                    println!(
-                        "{}",
-                        json!({"codigo": "fonte_invalida", "erro": mensagem,
-                               "retentavel": false, "depois": troca.pedida, "requisicoes": pedidos})
-                    );
-                } else {
-                    eprintln!("IES: {mensagem}");
-                }
-                return ExitCode::from(1);
-            }
-        }
+        descartados = aplicar_troca(arquivos, indice, instalacao, sessao.cookie(), novo).map_err(
+            |causa| TrocaFeitaSemRegravarSessao {
+                causa,
+                depois: troca.pedida.clone(),
+                requisicoes: pedidos,
+            },
+        )?;
     } else {
         let inicial = &troca.controle_inicial;
         crate::colheita_do_controle::Colheita::das_referencias(indice, sessao)
@@ -215,15 +199,7 @@ fn concluir(
     } else {
         println!("{}", humano(troca, pedidos));
     }
-    ExitCode::SUCCESS
-}
-
-fn json_da_unidade(u: &UnidadeOferecida) -> Value {
-    json!({"sigla": u.sigla, "descricao": u.descricao, "id_unidade": u.id_unidade})
-}
-
-fn json_das_unidades(lista: &[UnidadeOferecida]) -> Value {
-    Value::Array(lista.iter().map(json_da_unidade).collect())
+    Ok(())
 }
 
 /// A representação externa expõe somente os campos observados da unidade.
@@ -291,6 +267,21 @@ fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> R
     }
 }
 
+#[cfg(test)]
+use crate::unidade_trocar::UnidadeOferecida;
+#[cfg(test)]
+use serde_json::{Value, json};
+
+#[cfg(test)]
+fn json_da_unidade(u: &UnidadeOferecida) -> Value {
+    json!({"sigla": u.sigla, "descricao": u.descricao, "id_unidade": u.id_unidade})
+}
+
+#[cfg(test)]
+fn json_das_unidades(lista: &[UnidadeOferecida]) -> Value {
+    Value::Array(lista.iter().map(json_da_unidade).collect())
+}
+
 /// Contrato legado usado somente como oráculo dos testes de paridade.
 #[cfg(test)]
 pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> Value {
@@ -341,72 +332,6 @@ fn humano(troca: &Troca, pedidos: u32) -> String {
     }
     linhas.push(format!("IES: {AVISO_DE_ESCOPO}; {pedidos} requisições."));
     linhas.join("\n")
-}
-
-fn json_de_falha(erro: &ErroTroca, pedidos: u32) -> Value {
-    let mut valor = saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http());
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    objeto.insert("codigo".to_owned(), json!(erro.codigo()));
-    objeto.insert("requisicoes".to_owned(), json!(pedidos));
-    inserir_detalhes(objeto, erro);
-    valor
-}
-
-fn inserir_detalhes(objeto: &mut Map<String, Value>, erro: &ErroTroca) {
-    match erro {
-        ErroTroca::UnidadeNaoOferecida { oferecidas } => {
-            objeto.insert("oferecidas".to_owned(), json_das_unidades(oferecidas));
-        }
-        ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
-            objeto.insert("candidatas".to_owned(), json_das_unidades(candidatas));
-        }
-        ErroTroca::NaoConfirmado { etapa, .. } => {
-            objeto.insert("etapa".to_owned(), json!(etapa.nome()));
-            objeto.insert("escopo".to_owned(), json!("sessao_da_conta"));
-        }
-        _ => {}
-    }
-}
-
-/// A saída humana parte exclusivamente da falha tipada, sem montar JSON.
-fn linhas_da_falha(erro: &ErroTroca, pedidos: u32) -> Vec<String> {
-    let mut linhas = vec![saida_erro::linha_humana(
-        erro.mensagem(),
-        erro.status_http(),
-    )];
-    match erro {
-        ErroTroca::UnidadeNaoOferecida { oferecidas } => {
-            let siglas: Vec<_> = oferecidas.iter().map(|u| u.sigla.as_str()).collect();
-            linhas.push(format!("IES: oferecidas: {}", siglas.join(", ")));
-        }
-        ErroTroca::SiglaDeUnidadeAmbigua { candidatas } => {
-            let siglas: Vec<_> = candidatas.iter().map(|u| u.sigla.as_str()).collect();
-            linhas.push(format!("IES: candidatas: {}", siglas.join(", ")));
-        }
-        ErroTroca::NaoConfirmado { etapa, falha } => {
-            linhas.push(format!(
-                "IES: etapa {}: {:?}; {AVISO_DE_ESCOPO}",
-                etapa.nome(),
-                falha
-            ));
-        }
-        _ => {}
-    }
-    linhas.push(format!("IES: {pedidos} requisições."));
-    linhas
-}
-
-fn publicar_falha(json_mode: bool, erro: &ErroTroca, pedidos: u32) -> ExitCode {
-    if json_mode {
-        println!("{}", json_de_falha(erro, pedidos));
-    } else {
-        for linha in linhas_da_falha(erro, pedidos) {
-            eprintln!("{linha}");
-        }
-    }
-    ExitCode::from(1)
 }
 
 #[cfg(test)]

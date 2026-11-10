@@ -1,6 +1,7 @@
 //! BDD-255-01: atribuição ausente exige catálogo publicado no formulário da unidade.
 //! Prévia não modifica processo e confirmação só será permitida após aceite causal.
-use super::{Decisao, ErroMarcar, Operacao, Rotulo, decidir};
+use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
+use crate::Cli;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -19,9 +20,7 @@ use crate::processo_obter::{
 };
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
-use crate::{Cli, saida_erro};
 use serde_json::json;
-use std::process::ExitCode;
 
 const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: "andamento_marcador_cadastrar",
@@ -37,10 +36,6 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
         o_que: EstadoDoProcesso::MarcadoresNoProcesso,
     },
 };
-
-fn falha(cli: &Cli, erro: ErroMarcar, reqs: u8) -> ExitCode {
-    crate::processo_marcar_cli::falha(cli, erro, reqs)
-}
 
 /// Extrai link do botão efetivamente servido, sem executar JavaScript.
 /// O link retornado só é usado depois da validação de ação, processo e assinatura.
@@ -175,7 +170,7 @@ fn saida_previa(
     texto: Option<&str>,
     nada_a_fazer: bool,
     requisicoes: u8,
-) -> ExitCode {
+) {
     let (id, unidade) = destino;
     if cli.json {
         println!(
@@ -207,7 +202,6 @@ fn saida_previa(
             requisicoes
         );
     }
-    ExitCode::SUCCESS
 }
 
 /// Atribuição ausente só produz prévia se a opção exata estiver na tela
@@ -219,7 +213,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     nup: &NumeroProcesso,
     (rotulo, texto, confirmar): (&Rotulo, Option<&str>, bool),
     envio: &mut V,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let mut rede = Contador::novo(envio);
     let pedido = PedidoDoProcesso {
         nup,
@@ -230,26 +224,24 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         unidade_exigida: true,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };
-    let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
-        Ok(resposta) => resposta,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
+    let (aberto, acoes) = abrir_para_escrever(sessao, &pedido, indice, &mut rede)?;
     let Some(unidade) = aberto.unidade.as_deref() else {
-        return falha(cli, ErroMarcar::UnidadeDaSessaoNaoPublicada, rede.feitas());
+        return Err(recusa(
+            ErroMarcar::UnidadeDaSessaoNaoPublicada,
+            rede.feitas(),
+        ));
     };
     let Marcadores::Lidos(ref lidos) = aberto.marcadores else {
-        return falha(cli, ErroMarcar::MarcadoresNaoLidos, rede.feitas());
+        return Err(recusa(ErroMarcar::MarcadoresNaoLidos, rede.feitas()));
     };
     let nada = match decidir(lidos, rotulo, Operacao::Atribuir) {
         Ok(Decisao::NadaAFazer) => true,
         Err(ErroMarcar::CatalogoDaUnidadeNaoObservado) => false,
         Ok(Decisao::PreviaDeRetirada) => unreachable!(),
-        Err(e) => return falha(cli, e, rede.feitas()),
+        Err(e) => return Err(recusa(e, rede.feitas())),
     };
     if nada {
-        return saida_previa(
+        saida_previa(
             cli,
             nup,
             (&aberto.arvore.processo.id, unidade),
@@ -258,13 +250,11 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
             true,
             rede.feitas(),
         );
+        return Ok(());
     }
+    let sem_catalogo = |n| recusa(ErroMarcar::CatalogoDaUnidadeNaoObservado, n);
     let Some(link) = acoes.marcadores.ok().flatten() else {
-        return falha(
-            cli,
-            ErroMarcar::CatalogoDaUnidadeNaoObservado,
-            rede.feitas(),
-        );
+        return Err(sem_catalogo(rede.feitas()));
     };
     let Some(submissao) = submissao_cadastro(
         sessao,
@@ -275,14 +265,10 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         rotulo,
         texto,
     ) else {
-        return falha(
-            cli,
-            ErroMarcar::CatalogoDaUnidadeNaoObservado,
-            rede.feitas(),
-        );
+        return Err(sem_catalogo(rede.feitas()));
     };
     if !confirmar {
-        return saida_previa(
+        saida_previa(
             cli,
             nup,
             (&aberto.arvore.processo.id, unidade),
@@ -291,6 +277,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
             false,
             rede.feitas(),
         );
+        return Ok(());
     }
     finalizar_atribuicao(
         cli,
@@ -312,7 +299,7 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     marcador: (&Rotulo, Option<&str>),
     rede: &mut Contador<'_, V>,
     submissao: crate::formulario_web::SubmissaoDerivada,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let (sessao, indice, pedido) = contexto;
     let (id, unidade) = destino;
     let (rotulo, texto) = marcador;
@@ -322,11 +309,10 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return falha(
-            cli,
+        return Err(recusa(
             ErroMarcar::CatalogoDaUnidadeNaoObservado,
             rede.feitas(),
-        );
+        ));
     }
     let aceito = matches!(
         resposta,
@@ -336,9 +322,14 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente = releitura_comprova(sessao, indice, pedido, rede, (id, unidade), (rotulo, texto));
     if !aceito || presente != Some(true) {
-        return nao_confirmado(cli, rede.feitas(), presente);
+        return Err(FalhaDaMarcacao::AtribuicaoNaoConfirmada {
+            requisicoes: rede.feitas(),
+            presente_relido: presente,
+        }
+        .into());
     }
-    saida_confirmada(cli, nup, id, unidade, rotulo, texto, rede.feitas())
+    saida_confirmada(cli, nup, id, unidade, rotulo, texto, rede.feitas());
+    Ok(())
 }
 
 fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
@@ -368,25 +359,6 @@ fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
         && procedimento == Some(id)
 }
 
-fn nao_confirmado(cli: &Cli, requisicoes: u8, presente_relido: Option<bool>) -> ExitCode {
-    let mensagem = "o efeito desta tentativa não foi comprovado; não repita a confirmação; consulte o processo";
-    if cli.json {
-        println!(
-            "{}",
-            json!({
-                "codigo": "nao_confirmado",
-                "erro": mensagem,
-                "retentavel": false,
-                "requisicoes": requisicoes,
-                "presente_relido": presente_relido,
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem}. Requisições: {requisicoes}.");
-    }
-    ExitCode::from(1)
-}
-
 fn saida_confirmada(
     cli: &Cli,
     nup: &NumeroProcesso,
@@ -395,7 +367,7 @@ fn saida_confirmada(
     rotulo: &Rotulo,
     texto: Option<&str>,
     requisicoes: u8,
-) -> ExitCode {
+) {
     if cli.json {
         println!(
             "{}",
@@ -417,7 +389,6 @@ fn saida_confirmada(
             requisicoes
         );
     }
-    ExitCode::SUCCESS
 }
 
 fn releitura_comprova<V: EnvioDoProcesso>(

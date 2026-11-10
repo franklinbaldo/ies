@@ -69,12 +69,13 @@ fn pagina_das_listas_exige_inteiro_positivo_e_nao_aceita_paginas_privadas() {
     }
 }
 
-fn erro_sem_sessao(args: &[&str]) -> String {
+/// Falha fechada antes da rede: saída 1, stdout vazio, erro tipado no stderr.
+fn falha_sem_sessao(args: &[&str]) {
     let saida = sem_sessao(args);
     assert_eq!(saida.status.code(), Some(1), "{args:?}");
-    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(valor["codigo"], "fonte_invalida", "{args:?}");
-    valor["erro"].as_str().unwrap().to_owned()
+    assert_eq!(saida.stdout, b"", "{args:?}");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with("Error: "), "{args:?}: {erro}");
 }
 
 #[test]
@@ -105,7 +106,7 @@ fn listas_sem_sessao_falham_antes_de_qualquer_requisicao() {
             "--json",
         ][..],
     ] {
-        assert!(!erro_sem_sessao(args).is_empty(), "{args:?}");
+        falha_sem_sessao(args);
     }
 }
 
@@ -156,9 +157,7 @@ fn definir_com_lista_invalida_e_uso_invalido_sem_requisicao() {
             }
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(2), "{args:?}");
-            let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-            assert_eq!(valor["codigo"], "entrada_invalida", "{args:?}");
-            assert_eq!(valor["retentavel"], false, "{args:?}");
+            assert_eq!(saida.stdout, b"", "{args:?}");
         }
         let humano = sem_sessao(&["unidade", "colunas", "--definir", lista]);
         assert_eq!(humano.status.code(), Some(2), "{lista}");

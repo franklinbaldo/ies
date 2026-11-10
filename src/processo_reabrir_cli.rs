@@ -56,7 +56,7 @@ struct ResultadoReabertura<'a> {
     confirmado: bool,
     depois: Option<&'a [String]>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<crate::saida::FalhaPublica>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,

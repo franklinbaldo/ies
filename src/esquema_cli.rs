@@ -2,7 +2,6 @@
 use crate::Cli;
 use clap::CommandFactory;
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn show_noun_help(noun: &str) {
     let mut root = Cli::command();
@@ -12,7 +11,7 @@ pub(crate) fn show_noun_help(noun: &str) {
     }
 }
 
-pub(crate) fn mostrar_esquema(json_mode: bool) -> ExitCode {
+pub(crate) fn mostrar_esquema(json_mode: bool) {
     let mut comandos: Vec<_> = Cli::command()
         .get_subcommands()
         .map(|c| c.get_name().to_owned())
@@ -26,5 +25,4 @@ pub(crate) fn mostrar_esquema(json_mode: bool) -> ExitCode {
     } else {
         println!("Comandos do IES: {}", comandos.join(", "));
     }
-    ExitCode::SUCCESS
 }

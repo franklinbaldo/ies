@@ -1,7 +1,7 @@
 //! #332 — inspeção do arquivo local antes de abrir sessão/rede.
 //! Não apresentar este resultado como prévia do formulário do SEI.
 use crate::documento_externo_incluir::{
-    FalhaPdf, contem_controle_de_apresentacao, fluxo::executar_previa, inspecionar_pdf,
+    contem_controle_de_apresentacao, fluxo::executar_previa, inspecionar_pdf,
 };
 #[path = "documento_externo_incluir_cli/confirmar.rs"]
 mod confirmar_remoto;
@@ -10,47 +10,26 @@ use crate::processo_concluir::escrita::Contador;
 use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
-use serde::Serialize;
 use serde_json::json;
 use std::path::Path;
-use std::process::ExitCode;
 
-#[derive(Debug, Serialize)]
-enum FalhaTipoExterno {
+/// Tipo externo vazio ou com caractere de controle: erro de uso (saída 2),
+/// antes de qualquer arquivo ou requisição.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum FalhaTipoExterno {
     Vazio,
     Controle,
 }
 
-#[derive(Debug, Serialize)]
-enum FalhaInclusaoExterna {
-    Tipo(FalhaTipoExterno),
-    Pdf(FalhaPdf),
-}
-
-fn validar_tipo(tipo: &str) -> Result<(), FalhaTipoExterno> {
+pub(crate) fn tipo_externo(tipo: &str) -> Result<String, FalhaTipoExterno> {
     if contem_controle_de_apresentacao(tipo) {
         return Err(FalhaTipoExterno::Controle);
     }
     if tipo.trim().is_empty() {
         return Err(FalhaTipoExterno::Vazio);
     }
-    Ok(())
-}
-
-fn recusa(json_mode: bool, causa: &FalhaInclusaoExterna, mensagem: &str, status: u8) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "retentavel": false,
-                "requisicoes": 0,
-                "escrita_remota": false
-            })
-        );
-    } else {
-        eprintln!("IES: {mensagem} ({causa:?}). Nenhuma requisição foi enviada.");
-    }
-    ExitCode::from(status)
+    Ok(tipo.to_owned())
 }
 
 #[allow(clippy::too_many_lines)] // Entrada sequencial: inspeção, prévia e recusa de escrita preservadas.
@@ -70,24 +49,10 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
         return None;
     };
     let processo = processo.clone();
-    if let Err(falha) = validar_tipo(tipo) {
-        return Some(crate::legado(recusa(
-            cli.json,
-            &FalhaInclusaoExterna::Tipo(falha),
-            "tipo externo vazio ou com caractere de controle",
-            2,
-        )));
-    }
+    // Inspeção local antes de qualquer sessão: nenhuma requisição na recusa.
     let pdf = match inspecionar_pdf(Path::new(arquivo), None) {
         Ok(pdf) => pdf,
-        Err(falha) => {
-            return Some(crate::legado(recusa(
-                cli.json,
-                &FalhaInclusaoExterna::Pdf(falha),
-                "arquivo PDF local não passou na inspeção",
-                2,
-            )));
-        }
+        Err(falha) => return Some(Err(falha.into())),
     };
     if *confirmar {
         return Some(confirmar_remoto::executar(
@@ -187,5 +152,5 @@ pub(crate) fn tentar_incluir(cli: &Cli) -> Option<anyhow::Result<()>> {
             tipo
         );
     }
-    Some(crate::legado(ExitCode::SUCCESS))
+    Some(Ok(()))
 }

@@ -5,16 +5,11 @@
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::{
-    ErroConcluir, FalhaDoEnvio, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
+    FalhaDoEnvio, PedidoDaConclusao, ProcessoConcluido, concluir_processo,
 };
 use crate::processo_obter::SessaoDoProcesso;
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, saida_erro, transporte};
-#[path = "processo_concluir_cli/falha.rs"]
-pub(crate) mod falha;
-use falha::FalhaDaSituacao;
-use serde_json::json;
-use std::process::ExitCode;
+use crate::{Cli, Domain, Processo, ProcessoAcao, configuracao, transporte};
 
 /// `Some` só para `ies processo concluir`.
 pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
@@ -27,22 +22,6 @@ pub(crate) fn tentar_concluir(cli: &Cli) -> Option<anyhow::Result<()>> {
     };
     let nup = numero.clone();
     Some(concluir(cli, &nup, *confirmar))
-}
-
-pub(crate) fn erro_de_uso(json_mode: bool) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": "número de processo inválido",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: número de processo inválido");
-    }
-    ExitCode::from(2)
 }
 
 /// Lê os arquivos da sessão e chama `executar` com ela e o índice; a falha
@@ -67,7 +46,7 @@ pub(crate) fn com_sessao(
 
 fn concluir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
-        crate::legado(concluir_na_sessao(cli, sessao, indice, nup, confirmar))
+        concluir_na_sessao(cli, sessao, indice, nup, confirmar)
     })
 }
 
@@ -77,36 +56,28 @@ fn concluir_na_sessao(
     indice: &IndiceLocal,
     nup: &NumeroProcesso,
     confirmar: bool,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let pedido = PedidoDaConclusao {
         nup,
         unidade: cli.unidade.as_deref(),
         confirmar,
     };
-    match concluir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
-        Ok(feito) => {
-            if cli.json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&resultado_conclusao(&feito))
-                        .expect("JSON serializável")
-                );
-            } else {
-                println!("{}", humano(&feito));
-            }
-            ExitCode::SUCCESS
-        }
-        Err(ErroConcluir::Abertura(erro)) => {
-            saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-        }
-        Err(erro) => publicar_falha(cli.json, &erro),
+    let feito = concluir_processo(sessao, &pedido, indice, &mut EnvioHttps)?;
+    if cli.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&resultado_conclusao(&feito))?
+        );
+    } else {
+        println!("{}", humano(&feito));
     }
+    Ok(())
 }
 
 /// O tipo original de `FalhaDoEnvio` permanece intacto: só projetamos
 /// seus dados observáveis na fronteira JSON.
-pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
-    crate::saida_erro::FalhaPublica::nova(falha.status_http())
+pub(crate) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida::FalhaPublica {
+    crate::saida::FalhaPublica::nova(falha.status_http())
 }
 
 /// Projeção do sucesso: a função de domínio nunca constrói um JSON.
@@ -118,7 +89,7 @@ struct ResultadoConclusao<'a> {
     depois: Option<&'a [String]>,
     depois_esperado: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_envio: Option<crate::saida::FalhaPublica>,
     forma: Option<&'static str>,
     id_procedimento: &'a str,
     nup: &'a str,
@@ -154,52 +125,6 @@ fn resultado_conclusao(feito: &ProcessoConcluido) -> ResultadoConclusao<'_> {
 pub(crate) fn json_de_sucesso(feito: &ProcessoConcluido) -> serde_json::Value {
     serde_json::to_value(resultado_conclusao(feito))
         .expect("a projeção tipada de sucesso só possui valores JSON")
-}
-
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroConcluir) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http());
-    match erro {
-        ErroConcluir::SituacaoDoProcessoNaoLidaAntesDeConcluir { motivo } => {
-            valor.motivo = Some(motivo.como_texto());
-        }
-        ErroConcluir::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
-        | ErroConcluir::ConclusaoNaoPublicadaNaBarra { aberto_em } => {
-            valor.aberto_em = Some(aberto_em);
-        }
-        ErroConcluir::ConclusaoNaoAplicada {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.depois = Some(depois);
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        ErroConcluir::NaoConfirmadoNaConclusao {
-            aberto_em,
-            falha_do_envio,
-            ..
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        _ => {}
-    }
-    valor
-}
-
-fn publicar_falha(json_mode: bool, erro: &ErroConcluir) -> ExitCode {
-    if json_mode {
-        if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(erro)) {
-            eprintln!("IES: falha ao emitir JSON: {falha}");
-        }
-    } else {
-        for linha in linhas_da_falha(erro) {
-            eprintln!("{linha}");
-        }
-    }
-    ExitCode::from(1)
 }
 
 pub(crate) fn lista_humana(siglas: &[&str]) -> String {
@@ -239,40 +164,6 @@ pub(crate) fn humano(feito: &ProcessoConcluido) -> String {
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
-}
-
-/// Mensagens humanas projetadas diretamente do erro de conclusão, sem
-/// montar nem interpretar a representação JSON destinada aos agentes.
-fn linhas_da_falha(erro: &ErroConcluir) -> Vec<String> {
-    use ErroConcluir as E;
-
-    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
-    let aberto_em = match erro {
-        E::UnidadeDaSessaoAusenteDaSituacao { aberto_em }
-        | E::ConclusaoNaoPublicadaNaBarra { aberto_em }
-        | E::ConclusaoNaoAplicada { aberto_em, .. }
-        | E::NaoConfirmadoNaConclusao { aberto_em, .. } => Some(aberto_em.as_slice()),
-        _ => None,
-    };
-    let depois = match erro {
-        E::ConclusaoNaoAplicada { depois, .. } => Some(depois.as_slice()),
-        _ => None,
-    };
-    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
-        if let Some(unidades) = unidades {
-            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
-            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
-        }
-    }
-    let falha_do_envio = match erro {
-        E::ConclusaoNaoAplicada { falha_do_envio, .. }
-        | E::NaoConfirmadoNaConclusao { falha_do_envio, .. } => falha_do_envio.as_ref(),
-        _ => None,
-    };
-    if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    linhas
 }
 
 #[cfg(test)]

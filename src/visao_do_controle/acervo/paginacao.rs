@@ -148,11 +148,9 @@ pub(super) fn detalhada(
     let leitura = match ler_detalhada(html, unidade) {
         Ok(leitura) => leitura,
         Err(erro) => {
-            lista.resultado = fora.map_or(
-                Resultado::Recusado(erro.mensagem()),
-                Resultado::NaoAplicavel,
-            );
-            lista.formas.push(format!("recusa_{}", erro.mensagem()));
+            lista.resultado =
+                fora.map_or(Resultado::Recusado(erro.rotulo()), Resultado::NaoAplicavel);
+            lista.formas.push(format!("recusa_{}", erro.rotulo()));
             saida.registros.push(lista);
             return;
         }
@@ -218,7 +216,7 @@ fn posicao_da_d(
     let pos = match posicao(html, leitura) {
         Ok(pos) => pos,
         Err(erro) => {
-            reg.resultado = Resultado::Recusado(erro.mensagem());
+            reg.resultado = Resultado::Recusado(erro.rotulo());
             return reg;
         }
     };
@@ -235,7 +233,7 @@ fn posicao_da_d(
     match planejar(&pos, pos.indice + 1) {
         Ok(None) => {}
         Ok(Some(_)) => reg.resultado = Resultado::Recusado("pagina_exibida_nao_reconhecida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.mensagem()),
+        Err(erro) => reg.resultado = Resultado::Recusado(erro.rotulo()),
     }
     if pos.paginas <= pos.indice + 1 || reg.resultado != Resultado::Lido {
         return reg;
@@ -251,7 +249,7 @@ fn posicao_da_d(
             ]);
         }
         Ok(None) => reg.resultado = Resultado::Recusado("pagina_seguinte_dada_como_exibida"),
-        Err(erro) => reg.resultado = Resultado::Recusado(erro.mensagem()),
+        Err(erro) => reg.resultado = Resultado::Recusado(erro.rotulo()),
     }
     reg
 }

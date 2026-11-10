@@ -3,40 +3,33 @@
 //! `--confirmar`, um POST de salvar, conferido por leitura. Erro de uso sai
 //! com 2 antes de ler a configuração (sem requisição); efeito incerto, com 3.
 //! Vinda da R, a sessão fica na D.
-use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe, ErroDaListaDeColunas};
+use crate::configuracao;
+use crate::nivel_de_detalhe::{AlvoDasColunas, ColunaDoDetalhe};
 use crate::transporte::envio_post::ler_tela_do_controle;
 use crate::transporte::sessao::ReferenciasDaSessao;
-use crate::visao_do_controle::{
-    self, ColunasDefinidas, ErroDefinirColunas, ErroVisaoDoControle, FalhaDoSalvar, TelaAtual,
-    VerificacaoDasColunas,
-};
-use crate::{configuracao, erro_fonte, saida_erro};
+#[cfg(test)]
+use crate::visao_do_controle::FalhaDoSalvar;
+use crate::visao_do_controle::{self, ColunasDefinidas, TelaAtual};
+#[cfg(test)]
 use serde_json::{Map, Value, json};
-use std::process::ExitCode;
 
+#[cfg(test)]
+fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
+    json!(colunas.iter().map(|c| c.chave()).collect::<Vec<_>>())
+}
+
+/// `alvo`: `--definir` já interpretado pelo clap (uso inválido: saída 2).
 pub(crate) fn definir_colunas(
     unidade: Option<&str>,
     json_mode: bool,
-    definir: &str,
+    alvo: &AlvoDasColunas,
     confirmar: bool,
-) -> ExitCode {
-    let alvo = match AlvoDasColunas::interpretar(definir) {
-        Ok(alvo) => alvo,
-        Err(erro) => return erro_de_uso(json_mode, &erro),
-    };
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
-    let lido = ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-        .and_then(|sessao| ler_tela_do_controle(&sessao).map(|tela| (sessao, tela)));
-    let (sessao, tela) = match lido {
-        Ok(lido) => lido,
-        Err(falha) => {
-            return saida_erro::erro_fonte_http(json_mode, falha.mensagem(), falha.status_http());
-        }
-    };
+    let sessao =
+        ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
+    let tela = ler_tela_do_controle(&sessao)?;
     let colheita = crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao);
     colheita.colher(&tela.html, Some(&tela.mime));
     let atual = TelaAtual {
@@ -44,61 +37,26 @@ pub(crate) fn definir_colunas(
         html: tela.html,
         mime: tela.mime,
     };
-    match visao_do_controle::definir_colunas(
+    let feito = visao_do_controle::definir_colunas(
         &tela.instalacao,
         &atual,
         unidade,
-        &alvo,
+        alvo,
         confirmar,
         sessao.cookie(),
         &mut visao_do_controle::EnvioContado::novo(crate::colheita_do_controle::EnvioColhendo {
             colheita: &colheita,
         }),
-    ) {
-        Ok(feito) => {
-            if json_mode {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&resultado_colunas(&feito))
-                        .expect("JSON serializável")
-                );
-            } else {
-                println!("{}", humano(&feito));
-            }
-            ExitCode::SUCCESS
-        }
-        // Nada foi salvo: a mesma falha de `ies unidade colunas`.
-        Err(ErroDefinirColunas::Leitura(erro)) => {
-            crate::unidade_lista_cli::erro_da_visao(json_mode, &erro)
-        }
-        Err(erro) => publicar_falha(json_mode, &erro),
-    }
-}
-
-fn erro_de_uso(json_mode: bool, erro: &ErroDaListaDeColunas) -> ExitCode {
-    let mut valor = json!({
-        "codigo": "entrada_invalida",
-        "erro": erro.mensagem(),
-        "retentavel": false,
-    });
-    let coluna = match erro {
-        ErroDaListaDeColunas::ColunaDesconhecida { chave } => Some(chave.as_str()),
-        ErroDaListaDeColunas::ColunaRepetidaNaLista { coluna } => Some(coluna.chave()),
-        _ => None,
-    };
-    if let (Some(coluna), Some(objeto)) = (coluna, valor.as_object_mut()) {
-        objeto.insert("coluna".to_owned(), json!(coluna));
-    }
+    )?;
     if json_mode {
-        println!("{valor}");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&resultado_colunas(&feito)).expect("JSON serializável")
+        );
     } else {
-        eprintln!("IES: {} ({})", erro.mensagem(), erro.mensagem());
+        println!("{}", humano(&feito));
     }
-    ExitCode::from(2)
-}
-
-fn chaves(colunas: &[ColunaDoDetalhe]) -> Value {
-    json!(colunas.iter().map(|c| c.chave()).collect::<Vec<_>>())
+    Ok(())
 }
 
 #[cfg(test)]
@@ -106,6 +64,7 @@ fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
     colunas.map_or(Value::Null, chaves)
 }
 
+#[cfg(test)]
 fn json_da_falha_do_salvar(falha: &FalhaDoSalvar) -> Value {
     let mut valor = Map::new();
     if let Some(http) = falha.status_http() {
@@ -138,7 +97,7 @@ struct ResultadoColunas<'a> {
     desmarcar: Vec<&'static str>,
     envio: Option<EnvioColunasPublico<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_salvar: Option<crate::saida_erro::FalhaPublica>,
+    falha_do_salvar: Option<crate::saida::FalhaPublica>,
     indisponiveis: Vec<&'static str>,
     marcar: Vec<&'static str>,
     origem: &'static str,
@@ -170,7 +129,7 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
         falha_do_salvar: feito
             .reconciliado_por
             .as_ref()
-            .map(|falha| crate::saida_erro::FalhaPublica::nova(falha.status_http())),
+            .map(|falha| crate::saida::FalhaPublica::nova(falha.status_http())),
         indisponiveis: chaves_tipadas(&plano.indisponiveis),
         marcar: chaves_tipadas(&plano.marcar()),
         origem: "web",
@@ -211,125 +170,6 @@ fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
         objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
     }
     valor
-}
-
-fn json_da_visao(erro: &ErroVisaoDoControle) -> Value {
-    saida_erro::json_de_erro_fonte(erro.mensagem(), erro.status_http())
-}
-
-/// JSON da falha.
-pub(crate) fn json_de_falha(erro: &ErroDefinirColunas) -> Value {
-    let mut valor = match erro {
-        ErroDefinirColunas::Leitura(leitura) => json_da_visao(leitura),
-        _ => json!({
-            "codigo": erro.codigo(),
-            "erro": erro.mensagem(),
-            "retentavel": false,
-        }),
-    };
-    let Some(objeto) = valor.as_object_mut() else {
-        return valor;
-    };
-    match erro {
-        ErroDefinirColunas::Leitura(_) => {}
-        ErroDefinirColunas::ColunaIndisponivelNestaInstalacao { coluna } => {
-            objeto.insert("coluna".to_owned(), json!(coluna.chave()));
-        }
-        ErroDefinirColunas::ConfiguracaoDeColunasNaoAplicada {
-            plano,
-            falha_do_salvar,
-        } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            inserir_falha(objeto, falha_do_salvar.as_ref());
-        }
-        ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar { plano, observadas } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            objeto.insert("observadas".to_owned(), chaves(observadas));
-        }
-        ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
-            plano,
-            falha_do_salvar,
-            verificacao,
-        } => {
-            objeto.insert("antes".to_owned(), chaves(&plano.antes));
-            objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
-            inserir_falha(objeto, falha_do_salvar.as_ref());
-            if let VerificacaoDasColunas::Marcadas(marcadas) = &**verificacao {
-                objeto.insert("observadas".to_owned(), chaves(marcadas));
-            }
-        }
-    }
-    valor
-}
-
-/// A falha do salvar e, no topo, o status e a mensagem do SEI.
-fn inserir_falha(objeto: &mut Map<String, Value>, falha: Option<&FalhaDoSalvar>) {
-    let Some(falha) = falha else {
-        return;
-    };
-    if let Some(http) = falha.status_http() {
-        objeto.insert("status_http".to_owned(), json!(http.status));
-        if let Some(texto) = http.mensagem_do_servidor {
-            objeto.insert("mensagem_do_servidor".to_owned(), json!(texto));
-        }
-    }
-    objeto.insert("falha_do_salvar".to_owned(), json_da_falha_do_salvar(falha));
-}
-
-/// A apresentação humana não depende da projeção JSON.
-fn linhas_da_falha(erro: &ErroDefinirColunas) -> Vec<String> {
-    use ErroDefinirColunas as E;
-    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
-
-    let plano = match erro {
-        E::ConfiguracaoDeColunasNaoAplicada { plano, .. }
-        | E::MarcasDiferentesDoAlvoAposSalvar { plano, .. }
-        | E::NaoConfirmadoNaConfiguracaoDeColunas { plano, .. } => Some(plano.as_ref()),
-        _ => None,
-    };
-    if let Some(plano) = plano {
-        linhas.push(format!("IES: {}", linha("antes", &plano.antes)));
-        linhas.push(format!("IES: {}", linha("alvo", &plano.alvo)));
-    }
-
-    match erro {
-        E::MarcasDiferentesDoAlvoAposSalvar { observadas, .. } => {
-            linhas.push(format!("IES: {}", linha("observadas", observadas)));
-        }
-        E::NaoConfirmadoNaConfiguracaoDeColunas { verificacao, .. } => {
-            if let VerificacaoDasColunas::Marcadas(observadas) = verificacao.as_ref() {
-                linhas.push(format!("IES: {}", linha("observadas", observadas)));
-            }
-        }
-        _ => {}
-    }
-
-    let falha = match erro {
-        E::ConfiguracaoDeColunasNaoAplicada {
-            falha_do_salvar, ..
-        }
-        | E::NaoConfirmadoNaConfiguracaoDeColunas {
-            falha_do_salvar, ..
-        } => falha_do_salvar.as_ref(),
-        _ => None,
-    };
-    if let Some(falha) = falha {
-        linhas.push(format!("IES: resposta do salvar: {falha:?}"));
-    }
-    linhas
-}
-
-fn publicar_falha(json_mode: bool, erro: &ErroDefinirColunas) -> ExitCode {
-    if json_mode {
-        println!("{}", json_de_falha(erro));
-    } else {
-        for linha in linhas_da_falha(erro) {
-            eprintln!("{linha}");
-        }
-    }
-    ExitCode::from(1)
 }
 
 fn lista_humana(nomes: &[&str]) -> String {

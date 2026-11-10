@@ -9,7 +9,7 @@ pub(crate) enum DocumentoAcao {
         processo: crate::processo::NumeroProcesso,
         #[arg(long, required = true, value_name = "ARQUIVO.pdf")]
         arquivo: std::path::PathBuf,
-        #[arg(long, required = true, value_name = "TIPO")]
+        #[arg(long, required = true, value_name = "TIPO", value_parser = crate::documento_externo_incluir_cli::tipo_externo)]
         tipo: String,
         /// Consulta a lista e o cadastro externo no SEI (sem upload nem escrita).
         #[arg(long)]
@@ -29,7 +29,7 @@ pub(crate) enum DocumentoAcao {
     Criar {
         #[arg(long, required = true, value_parser = crate::processo::NumeroProcesso::novo)]
         processo: crate::processo::NumeroProcesso,
-        #[arg(long, required = true)]
+        #[arg(long, required = true, value_parser = crate::documento_criar_cli::tipo_de_documento)]
         tipo: String,
         #[arg(long)]
         descricao: Option<String>,
@@ -42,7 +42,7 @@ pub(crate) enum DocumentoAcao {
     Salvar {
         #[arg(value_parser = crate::documento::NumeroDocumento::novo)]
         numero: crate::documento::NumeroDocumento,
-        #[arg(long)]
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
         versao: Option<u32>,
         #[arg(long)]
         confirmar: bool,
@@ -53,6 +53,7 @@ pub(crate) enum DocumentoAcao {
     /// Pesquisa documento na Web (GET, GET e POST); com --pagina N, mais um POST
     Buscar {
         /// Número SEI exato ou parcial, como digitado no campo Protocolo
+        #[arg(value_parser = crate::documento_buscar_cli::termo_de_documento)]
         termo: String,
         /// Pede a página N do resultado (um POST que altera a página lembrada)
         #[arg(
@@ -68,10 +69,10 @@ pub(crate) enum DocumentoAcao {
         #[arg(long, value_name = "TEXTO")]
         assunto: Option<String>,
         /// Data inicial no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
+        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::documento_buscar_cli::data_do_calendario)]
         de: Option<String>,
         /// Data final no formato DD/MM/AAAA
-        #[arg(long, value_name = "DD/MM/AAAA")]
+        #[arg(long, value_name = "DD/MM/AAAA", value_parser = crate::documento_buscar_cli::data_do_calendario)]
         ate: Option<String>,
     },
     /// Cancela um documento com motivo, prévia e confirmação irreversível

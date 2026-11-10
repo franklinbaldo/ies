@@ -134,7 +134,15 @@ fn troca_para_r_recusada_pelo_servidor_publica_o_status() {
     );
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(503));
+    assert!(matches!(
+        erro,
+        ErroVisaoDoControle::Submissao(crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+            crate::transporte::FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                status: 503,
+                ..
+            })
+        ))
+    ));
 }
 
 #[test]
@@ -148,11 +156,17 @@ fn pagina_fora_do_intervalo_vista_na_r_fica_na_r() {
     assert_eq!(registro, ["POST visao=R pagina=0"]);
     let erro = resultado.unwrap_err();
     // Ao vivo (PEN1, 04/11/2026) a recusa saía como "visão não obtida",
-    // embora a troca para R tivesse passado: a mensagem é a da página da R.
-    assert_eq!(
-        erro.mensagem(),
-        "a página pedida do Controle não foi obtida"
-    );
+    // embora a troca para R tivesse passado: a recusa é a da página da R.
+    assert!(matches!(
+        erro,
+        ErroVisaoDoControle::Pagina(
+            crate::pagina_do_controle::ErroPaginaDoControle::PaginaForaDoIntervalo {
+                solicitada: 2,
+                paginas: 1,
+                ..
+            }
+        )
+    ));
 }
 
 fn colunas(

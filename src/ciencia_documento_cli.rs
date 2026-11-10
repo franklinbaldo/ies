@@ -1,12 +1,10 @@
 //! Entrada de `ies documento ciente DOC [--confirmar]`.
 //! A prova é a atividade na Lista de Ciências do documento relida.
 use crate::ciencia::{CienciaDoDocumento, PedidoDaCienciaDocumento, ciencia_no_documento};
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
+use crate::processo_concluir_cli::com_sessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, Documento, DocumentoAcao, Domain};
 use serde_json::json;
-use std::process::ExitCode;
 
 pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
@@ -17,25 +15,20 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
     else {
         return None;
     };
-    let numero = numero.clone();
-    let processo = match processo.as_deref().map(NumeroProcesso::novo) {
-        None => None,
-        Some(Ok(p)) => Some(p),
-        Some(Err(_)) => return Some(crate::legado(erro_de_uso(cli.json))),
-    };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaCienciaDocumento {
-            numero: &numero,
+            numero,
             processo: processo.as_ref(),
             unidade: cli.unidade.as_deref(),
             confirmar: *confirmar,
         };
         let feito = ciencia_no_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
-        crate::legado(sucesso(cli.json, &feito))
+        sucesso(cli.json, &feito);
+        Ok(())
     }))
 }
 
-fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
+fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) {
     if json_mode {
         println!(
             "{}",
@@ -63,7 +56,6 @@ fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) -> ExitCode {
     } else {
         println!("{}", texto_da_previa(feito));
     }
-    ExitCode::SUCCESS
 }
 
 /// Formata a prévia humana usando somente dados já observados na abertura.

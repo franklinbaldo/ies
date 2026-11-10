@@ -9,18 +9,41 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::EnvioDoProcesso;
 use crate::processo_obter::{ProcessoAberto, SessaoDoProcesso, abrir_para_escrever};
 use crate::processo_prazo::{
     EstadoDoPrazo, PedidoDePrazo, TelaDoPrazo, campos_do_pedido, interpretar_pedido, ler_tela,
 };
 use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
-use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli};
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
 mod exclusao;
+
+/// Recusas e efeito incerto do controle de prazo; nenhuma mensagem paralela.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum FalhaDoPrazo {
+    Pedido(#[from] crate::processo_prazo::ErroPrazo),
+    /// A barra do processo não oferece controle de prazo.
+    ControleNaoOferecidoNaBarra,
+    /// Pedido, charset ou origem não permitem derivar a submissão.
+    ConfirmacaoSemFormularioSeguro,
+    /// A submissão foi recusada antes de o POST sair.
+    SubmissaoRecusada(ErroSubmissaoFormulario),
+    /// O POST saiu e a releitura não confirmou: não repetir.
+    NaoConfirmado(Option<ErroSubmissaoFormulario>),
+    /// O processo não oferece a leitura independente do prazo.
+    LeituraIndependenteNaoOferecida,
+    /// O Controle da unidade não publicou a lista de prazos.
+    ListaDePrazosNaoPublicada,
+    ProcessoForaDaListaDePrazos,
+    /// A lista de prazos não identifica um único controle do processo.
+    ControleNaoUnicoNaLista,
+    /// A lista não publicou a ação de exclusão.
+    AcaoDeExclusaoNaoPublicada,
+}
 
 pub(crate) fn tentar_prazo(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
@@ -38,71 +61,27 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<anyhow::Result<()>> {
         return None;
     };
     let nup = numero.clone();
-    let Ok(pedido) = interpretar_pedido(ate.as_deref(), *dias, *excluir) else {
-        return Some(crate::legado(uso(cli.json)));
+    // O clap já conferiu formatos, exclusividade e que --confirmar tem o que gravar.
+    let pedido = match interpretar_pedido(ate.as_deref(), *dias, *excluir) {
+        Ok(pedido) => pedido,
+        Err(erro) => return Some(Err(FalhaDoPrazo::from(erro).into())),
     };
-    // Sem --ate, --dias ou --excluir não há o que gravar: uso, antes da rede.
-    if *confirmar && pedido == PedidoDePrazo::Ler {
-        return Some(crate::legado(uso(cli.json)));
-    }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        crate::legado({
-            // Aprovada em treinamento (10/11/2026): grava também em produção.
-            if *confirmar
-                && let Err(causa) = crate::origem_de_treinamento::exigir(
-                    crate::origem_de_treinamento::Escrita::ProcessoPrazo,
-                    sessao.origem,
-                )
-            {
-                return Err(causa.into());
-            }
-            if pedido == PedidoDePrazo::Excluir {
-                exclusao::executar(cli, &nup, *confirmar, sessao, indice)
-            } else {
-                previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
-            }
-        })
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoPrazo,
+                sessao.origem,
+            )
+        {
+            return Err(causa.into());
+        }
+        if pedido == PedidoDePrazo::Excluir {
+            exclusao::executar(cli, &nup, *confirmar, sessao, indice)
+        } else {
+            previsualizar(cli, &nup, &pedido, *confirmar, sessao, indice)
+        }
     }))
-}
-
-fn uso(json_mode: bool) -> ExitCode {
-    if json_mode {
-        println!(
-            "{}",
-            json!({
-                "codigo": "entrada_invalida",
-                "erro": "parâmetros de prazo inválidos",
-                "retentavel": false
-            })
-        );
-    } else {
-        eprintln!("IES: parâmetros de prazo inválidos");
-    }
-    ExitCode::from(2)
-}
-
-fn recusar(json_mode: bool, mensagem: &str) -> ExitCode {
-    saida_erro::erro_fonte_http(json_mode, mensagem, None)
-}
-
-/// Preserva as causas do GET de formulário sem duplicar tratamento na CLI.
-fn consultar_formulario<V: EnvioDoProcesso>(
-    rede: &mut Contador<'_, V>,
-    cookie: &str,
-    link: &str,
-    json_mode: bool,
-) -> Result<(String, String), ExitCode> {
-    obter_tela(rede, cookie, link).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(erro) => {
-            saida_erro::erro_fonte_http(json_mode, erro.mensagem(), erro.status_http())
-        }
-        FalhaDaTela::Redirecionada => {
-            recusar(json_mode, "a tela de prazo redirecionou inesperadamente")
-        }
-        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            recusar(json_mode, "a tela de prazo devolveu o login")
-        }
-    })
 }
 
 fn previsualizar(
@@ -112,46 +91,19 @@ fn previsualizar(
     confirmar: bool,
     sessao: &SessaoDoProcesso<'_>,
     indice: &IndiceLocal,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     let mut envio = EnvioHttps;
     let mut rede = Contador::novo(&mut envio);
     let abertura = leitura(nup, cli.unidade.as_deref(), true);
-    let (aberto, acoes) = match abrir_para_escrever(sessao, &abertura, indice, &mut rede) {
-        Ok(aberto) => aberto,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
-    let link = match acoes.prazo {
-        Ok(Some(link)) => link,
-        Ok(None) => {
-            return recusar(
-                cli.json,
-                "a barra do processo não oferece controle de prazo",
-            );
-        }
-        Err(_) => {
-            return recusar(
-                cli.json,
-                "o link de controle de prazo não corresponde ao processo ou à forma observada",
-            );
-        }
-    };
-    let cookie = match ler_cookie(sessao) {
-        Ok(cookie) => cookie,
-        Err(erro) => {
-            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
-        }
-    };
-    let (html, mime) = match consultar_formulario(&mut rede, &cookie, &link, cli.json) {
-        Ok(tela) => tela,
-        Err(erro) => return erro,
-    };
-    let Ok(tela) = ler_tela(&html, &aberto.arvore.processo.id) else {
-        return recusar(cli.json, "tela de prazo fora da forma observada");
-    };
+    let (aberto, acoes) = abrir_para_escrever(sessao, &abertura, indice, &mut rede)?;
+    let link = acoes
+        .prazo?
+        .ok_or(FalhaDoPrazo::ControleNaoOferecidoNaBarra)?;
+    let cookie = ler_cookie(sessao)?;
+    let (html, mime) = obter_tela(&mut rede, &cookie, &link)?;
+    let tela = ler_tela(&html, &aberto.arvore.processo.id).map_err(FalhaDoPrazo::from)?;
     let tela = if confirmar {
-        match confirmar_prazo(
+        confirmar_prazo(
             sessao,
             &cookie,
             &link,
@@ -160,25 +112,12 @@ fn previsualizar(
             pedido,
             &aberto.arvore.processo.id,
             &mut rede,
-        ) {
-            Ok(verificada) => verificada,
-            Err(FalhaConfirmacao::Preparo) => {
-                return recusar(
-                    cli.json,
-                    "formulário de prazo não permite confirmação segura",
-                );
-            }
-            Err(FalhaConfirmacao::Formulario) => {
-                return recusar(cli.json, "submissão de prazo recusada");
-            }
-            Err(FalhaConfirmacao::NaoConfirmado(causa)) => {
-                return nao_confirmado(cli.json, causa.as_ref());
-            }
-        }
+        )?
     } else {
         tela
     };
-    publicar_previa(cli, nup, pedido, &aberto, &tela, rede.feitas(), confirmar)
+    publicar_previa(cli, nup, pedido, &aberto, &tela, rede.feitas(), confirmar);
+    Ok(())
 }
 
 /// Publica a prévia lida, sem escrever: estado atual, pedido e campos.
@@ -190,7 +129,7 @@ fn publicar_previa(
     tela: &TelaDoPrazo,
     requisicoes: u8,
     confirmado: bool,
-) -> ExitCode {
+) {
     let atual = match &tela.estado {
         EstadoDoPrazo::SemPrazo => json!({"tipo": "sem_prazo"}),
         EstadoDoPrazo::Data(data) => json!({"tipo": "data", "data": data}),
@@ -229,7 +168,6 @@ fn publicar_previa(
         }
         println!("Requisições: {requisicoes}");
     }
-    ExitCode::SUCCESS
 }
 
 const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -249,12 +187,6 @@ const DEFINIR_PRAZO: OperacaoDeFormulario = OperacaoDeFormulario {
         o_que: EstadoDoProcesso::ControleDePrazo,
     },
 };
-
-enum FalhaConfirmacao {
-    Preparo,
-    Formulario,
-    NaoConfirmado(Option<ErroSubmissaoFormulario>),
-}
 
 /// O 302 deve nomear uma única ação, o resultado e o mesmo processo.
 fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
@@ -291,12 +223,14 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     pedido: &PedidoDePrazo,
     id: &str,
     rede: &mut Contador<'_, V>,
-) -> Result<TelaDoPrazo, FalhaConfirmacao> {
+) -> Result<TelaDoPrazo, FalhaDoPrazo> {
+    use FalhaDoPrazo as F;
     if matches!(pedido, PedidoDePrazo::Ler | PedidoDePrazo::Excluir) {
-        return Err(FalhaConfirmacao::Preparo);
+        return Err(F::ConfirmacaoSemFormularioSeguro);
     }
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(FalhaConfirmacao::Preparo)?;
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaConfirmacao::Preparo)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
+    let codificacao = codificacao_da_tela(mime).ok_or(F::ConfirmacaoSemFormularioSeguro)?;
     let servida = TelaServida {
         url: link,
         html,
@@ -308,7 +242,7 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         .map(|(nome, valor)| (*nome, valor.as_str()))
         .collect();
     let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, &servida, "", &valores)
-        .map_err(|_| FalhaConfirmacao::Formulario)?;
+        .map_err(F::SubmissaoRecusada)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -316,9 +250,9 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     })
     .map_err(|erro| {
         if enviou {
-            FalhaConfirmacao::NaoConfirmado(Some(erro))
+            F::NaoConfirmado(Some(erro))
         } else {
-            FalhaConfirmacao::Formulario
+            F::SubmissaoRecusada(erro)
         }
     })?;
     match resultado {
@@ -330,39 +264,16 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         // processo-prazo-unb, interações 12 e 19; live de 10/11/2026): a
         // prova fica com a releitura independente abaixo.
         RespostaDoEnvio::Html(_) => {}
-        RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaConfirmacao::NaoConfirmado(None)),
+        RespostaDoEnvio::Redirecionamento(_) => return Err(F::NaoConfirmado(None)),
     }
-    let (nova, _) =
-        obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
-    let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::NaoConfirmado(None))?;
+    let (nova, _) = obter_tela(rede, cookie, link).map_err(|_| F::NaoConfirmado(None))?;
+    let verificada = ler_tela(&nova, id).map_err(|_| F::NaoConfirmado(None))?;
     let hoje = (time::OffsetDateTime::now_utc().date() - time::OffsetDateTime::UNIX_EPOCH.date())
         .whole_days();
     if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {
-        return Err(FalhaConfirmacao::NaoConfirmado(None));
+        return Err(F::NaoConfirmado(None));
     }
     Ok(verificada)
-}
-
-fn nao_confirmado(json_mode: bool, causa: Option<&ErroSubmissaoFormulario>) -> ExitCode {
-    let mensagem =
-        "O POST pode ter produzido efeito, mas a releitura não confirmou; não repita a operação";
-    if json_mode {
-        let mut resposta = json!({
-            "codigo": "nao_confirmado",
-            "erro": mensagem,
-            "retentavel": false
-        });
-        if let Some(status) = causa.and_then(|c| c.status_http()) {
-            resposta["status_http"] = json!(status.status);
-            if let Some(texto) = &status.mensagem_do_servidor {
-                resposta["mensagem_servidor"] = json!(texto);
-            }
-        }
-        println!("{resposta}");
-    } else {
-        eprintln!("IES: {mensagem}");
-    }
-    ExitCode::from(1)
 }
 
 #[cfg(test)]

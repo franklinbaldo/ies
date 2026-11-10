@@ -3,7 +3,16 @@
 //! listar-processos` falha tipado sem abrir cookies nem enviar HTTP.
 //! (Vieram de `tests/replay_unidade.rs`, que reunia também o antigo replay.)
 use std::fs;
-use std::process::Command;
+use std::process::{Command, Output};
+
+/// Falha fechada: saída 1, stdout vazio e o erro tipado no stderr.
+#[track_caller]
+fn falha_tipada(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert_eq!(saida.stdout, b"");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with("Error: "), "{erro}");
+}
 
 #[test]
 fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
@@ -14,8 +23,7 @@ fn comando_sem_configuracao_informa_arquivo_de_controle_ausente() {
         .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let _result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_tipada(&output);
 }
 
 #[test]
@@ -27,8 +35,7 @@ fn origem_http_e_obrigatoria_antes_de_qualquer_acesso() {
         .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
-    assert_eq!(resposta.status.code(), Some(1));
-    let _dados: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
+    falha_tipada(&resposta);
 }
 
 #[test]
@@ -66,9 +73,7 @@ fn url_adulterada_falha_antes_de_abrir_cookies_ou_enviar_http() {
         .env("IES_COOKIE_FILE", dir.join("cookie-inexistente"))
         .output()
         .unwrap();
-    assert_eq!(resposta.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&resposta.stdout).unwrap();
-    assert_eq!(json["codigo"], "fonte_invalida");
-    assert!(!String::from_utf8_lossy(&resposta.stdout).contains("infra_hash"));
+    falha_tipada(&resposta);
+    assert!(!String::from_utf8_lossy(&resposta.stderr).contains("infra_hash"));
     fs::remove_dir_all(dir).unwrap();
 }

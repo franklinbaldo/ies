@@ -4,6 +4,10 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn arquivo_html_privado(destino: &Path) {
     let html = "<html><head><title>SEI/UnB - 0007 - Ofício</title></head>\
                 <body><svg><title>Ícone do SEI</title></svg>\
@@ -73,13 +77,13 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     }
 
     let repetido = executar("0007", &fonte, &pasta);
-    assert_eq!(repetido.status.code(), Some(1));
-    let _erro: serde_json::Value = serde_json::from_slice(&repetido.stdout).unwrap();
+    falha(&repetido, "Exportacao");
+    assert!(!String::from_utf8_lossy(&repetido.stderr).contains("Texto privado"));
     assert_eq!(fs::read_to_string(pasta.join("0007.txt")).unwrap(), texto);
 
     let outro = executar("7", &fonte, &pasta);
-    assert_eq!(outro.status.code(), Some(1));
-    let _erro: serde_json::Value = serde_json::from_slice(&outro.stdout).unwrap();
+    falha(&outro, "NumeroDiferenteDoSolicitado");
+    assert!(!String::from_utf8_lossy(&outro.stderr).contains("Texto privado"));
     assert!(!pasta.join("7.txt").exists());
     fs::remove_dir_all(raiz).unwrap();
 }

@@ -372,6 +372,9 @@ fn executar(caso: Caso) {
     conferir_controles(&controles, !gerenciador_servido);
     conferir(&saida, &releitura, &persistido, &pedidos, caso);
 }
+#[path = "support/falha.rs"]
+mod support;
+use support::falha;
 #[path = "aies_marcadores_cli/atribuicao_assercoes.rs"]
 mod atribuicao_assercoes;
 use atribuicao_assercoes::{conferir_atribuicao, conferir_controles};
@@ -390,10 +393,14 @@ fn conferir(
         caso,
         Caso::RetirarNaoConfirmado | Caso::AtribuirNaoConfirmado
     );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    // Falha (#695): stdout vazio; só o sucesso publica JSON.
+    let json: serde_json::Value = if saida.status.success() {
+        serde_json::from_slice(&saida.stdout).unwrap()
+    } else {
+        serde_json::Value::Null
+    };
     if matches!(caso, Caso::AtribuirSemCatalogo) {
-        assert_eq!(saida.status.code(), Some(1));
-        assert_eq!(json["codigo"], "fonte_invalida");
+        falha(saida, "Recusada");
         assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
         assert_eq!(persistido.total_declarado, 0);
         assert_eq!(releitura.status.code(), Some(0));
@@ -425,17 +432,14 @@ fn conferir(
         String::from_utf8_lossy(&saida.stderr)
     );
     if nao_confirmado {
-        assert_eq!(json["codigo"], "nao_confirmado");
-        assert_eq!(json["retentavel"], false);
-        assert_eq!(json["ausente_relido"], true);
-        assert!(json["erro"].as_str().unwrap().contains("não repita"));
+        falha(saida, "RetiradaNaoConfirmada");
     } else {
         assert_eq!(json["nada_a_fazer"], !retirada_presente && !confirmado);
         assert_eq!(json["retirada_possivel"], confirmado);
         assert_eq!(json["confirmado"], confirmado);
         assert_eq!(json["alterado"], confirmado);
+        assert!(json["requisicoes"].as_u64().is_some());
     }
-    assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
         releitura.status.code(),
         Some(0),

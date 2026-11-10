@@ -34,10 +34,6 @@ fn assert_falha(saida: &Output, variante: &str) {
     assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
-}
-
 #[test]
 fn numero_invalido_e_erro_de_uso_antes_da_configuracao() {
     for extra in [&[][..], &["--cargo", "Assessor(a)", "--confirmar"][..]] {
@@ -83,7 +79,7 @@ fn processo_invalido_e_erro_de_uso() {
         None,
     );
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["codigo"], "entrada_invalida");
+    assert_eq!(saida.stdout, b"");
 }
 
 #[cfg(unix)]
@@ -124,7 +120,7 @@ fn confirmar_sem_credenciais_e_recusa_antes_da_rede() {
         .output()
         .expect("IES deve iniciar");
     let _ = std::fs::remove_dir_all(&pasta);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert!(valor.get("requisicoes").is_none());
+    // A recusa vem antes da rede: com o proxy morto, qualquer pedido
+    // teria virado falha de transporte, não de credenciais.
+    assert_falha(&saida, "Credenciais");
 }

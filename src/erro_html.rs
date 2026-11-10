@@ -99,13 +99,11 @@ impl std::error::Error for ErroHtml {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::erro_publico::Causa;
 
     #[test]
     fn folha_e_onde_e_caminho_e_o_problema() {
         let erro = ErroHtml::ausente("link_do_processo_ausente");
         assert_eq!(erro.mensagem, "a tela não tem o elemento observado");
-        assert_eq!(erro.status_http(), None);
     }
 
     #[test]

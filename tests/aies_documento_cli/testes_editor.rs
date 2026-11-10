@@ -96,8 +96,7 @@ fn bdd_89_03_cli_recusa_foto_local_divergente_sem_escrever() {
         6, // conferência da leitura, sem chegar ao editor ou ao POST.
     );
     assert_eq!(resposta.status.code(), Some(1));
-    let erro = json(&resposta);
-    assert!(erro["erro"].as_str().unwrap().contains("base local"));
+    falha_cli::falha(&resposta, "BaseAlterada");
     assert_eq!(
         fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
         divergente,
@@ -199,13 +198,7 @@ fn bdd_89_03_cli_nao_ignora_edicao_na_moldura_do_documento() {
         ],
         6, // Leitura remota; nem consulta ao editor nem POST.
     );
-    assert_eq!(resposta.status.code(), Some(1));
-    assert!(
-        json(&resposta)["erro"]
-            .as_str()
-            .unwrap()
-            .contains("região não editável")
-    );
+    falha_cli::falha(&resposta, "RegiaoNaoEditavelAlterada");
     assert_eq!(
         fs::read_to_string(pasta.0.join("0011519.v3.html")).unwrap(),
         base

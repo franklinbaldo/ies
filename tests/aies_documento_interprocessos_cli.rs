@@ -3,6 +3,8 @@
 #![cfg(unix)]
 #[path = "support/documento_interprocessos.rs"]
 mod apoio;
+#[path = "support/falha.rs"]
+mod falha_cli;
 use apoio::{
     DOC_A, DOC_B, NUP_A, NUP_B, executar, executar_cancelado, executar_numero_repetido,
     executar_revogado_ao_visualizar, executar_sem_src, json,
@@ -59,13 +61,7 @@ fn bdd_60_06_lote_nao_aceita_documento_sem_identidade_comprovada() {
         Some(0),
         "não pode usar o conteúdo de A como B"
     );
-    let valor = json(&saida);
-    assert_eq!(valor["documento"], DOC_B, "{valor}");
-    assert_eq!(valor["documentos_lidos_antes"], 1, "{valor}");
-    assert!(
-        valor.get("documentos").is_none(),
-        "não publicar lote parcial: {valor}"
-    );
+    falha_cli::falha_por(&saida, "Documento", "Processo");
     assert!(
         trilha
             .iter()
@@ -93,13 +89,7 @@ fn bdd_60_05_cli_recusa_documento_de_outro_processo() {
         "recusa de identidade, não falha genérica de sessão: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida", "{valor}");
-    // ErroHtml::ausente da localização tipada pelo contexto --processo;
-    // preservar a causa já publicada, sem criar novo subcódigo.
-    assert_eq!(valor["documento"], DOC_B, "{valor}");
-    assert_eq!(valor["documentos_lidos_antes"], 0, "{valor}");
-    assert!(valor.get("documentos").is_none(), "{valor}");
+    falha_cli::falha_por(&saida, "Documento", "Html");
     assert!(
         trilha
             .iter()
@@ -206,9 +196,7 @@ fn bdd_60_05_documento_sem_src_recusa_e_oculta_somente_quando_solicitado() {
         "deve recusar o conteúdo não publicado: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    let recusado = json(&saida);
-    assert_eq!(recusado["documento"], SEM_SRC, "{recusado}");
-    assert!(recusado.get("documentos").is_none(), "{recusado}");
+    falha_cli::falha_por(&saida, "Documento", "ConteudoNaoPublicadoNaArvore");
     assert!(
         trilha
             .iter()
@@ -272,9 +260,7 @@ fn bdd_60_05_cli_cancelado_nao_reaproveita_corpo_nem_e_ocultado() {
             "cancelamento não é documento legível nem omissão: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "DocumentoCancelado");
         assert!(
             !trilha
                 .iter()
@@ -390,10 +376,7 @@ fn bdd_60_05_cli_numero_repetido_na_arvore_recusa_sem_fallback() {
             "ambiguidade não pode escolher corpo: stderr={} trilha={trilha:?}",
             String::from_utf8_lossy(&saida.stderr)
         );
-        let erro = json(&saida);
-        assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
-        assert!(erro.get("documentos").is_none(), "{erro}");
+        falha_cli::falha_por(&saida, "Documento", "Html");
         assert!(
             !trilha.iter().any(|p| p == "GET documento_visualizar"),
             "a recusa deve ocorrer antes de baixar qualquer corpo: {trilha:?}"
@@ -427,10 +410,7 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
         "a URL revogada não deve produzir documento: stderr={} trilha={trilha:?}",
         String::from_utf8_lossy(&saida.stderr)
     );
-    let erro = json(&saida);
-    assert_eq!(erro["status_http"], 403, "{erro}");
-    assert_eq!(erro["documento"], DOC_A, "{erro}");
-    assert!(erro.get("documentos").is_none(), "{erro}");
+    falha_cli::falha_por(&saida, "Documento", "Status");
     assert_eq!(
         trilha
             .iter()

@@ -98,18 +98,6 @@ pub(crate) enum ErroMarcadores {
 }
 
 impl ErroMarcadores {
-    /// Recusas do link na barra (o resto é da tela).
-    pub(crate) fn do_link(self) -> bool {
-        matches!(
-            self,
-            Self::BarraDoProcessoForaDaFormaObservada
-                | Self::BarrasDoProcessoRepetidasNaArvore
-                | Self::LinksDosMarcadoresRepetidosNaBarra
-                | Self::EnderecoDosMarcadoresNaoReconhecido
-                | Self::EnderecoDosMarcadoresDeOutroProcesso
-        )
-    }
-
     /// A página não é a tela deste processo: um link guardado errou.
     pub(crate) fn link_envelhecido(self) -> bool {
         matches!(

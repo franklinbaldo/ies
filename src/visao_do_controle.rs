@@ -28,12 +28,12 @@ use crate::formulario_web::{
 };
 use crate::nivel_de_detalhe::ErroNivelDeDetalhe;
 use crate::pagina_do_controle::{ErroControleDoFormulario, ErroPaginaDoControle};
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 pub(crate) use definir::definir_colunas;
-pub(crate) use definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
-};
+pub(crate) use definir_erro::ColunasDefinidas;
+#[cfg(test)]
+pub(crate) use definir_erro::{ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas};
 pub(crate) use envio::{EnvioContado, EnvioDoControle, EnvioHttps, TelaAtual};
 pub(crate) use fluxo::listar_na_visao_detalhada;
 pub(crate) use nivel::ler_colunas;
@@ -131,23 +131,31 @@ pub(crate) enum ErroVisaoDoControle {
 }
 
 impl ErroVisaoDoControle {
-    pub(crate) fn mensagem(&self) -> &'static str {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
-            Self::Html(e) => e.mensagem,
-            Self::PaginaForaDoIntervalo { .. } => "a página pedida não existe na lista",
-            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
-            Self::Transporte(erro) => erro.mensagem(),
-            _ => "a visão do Controle de Processos não foi obtida como esperado",
-        }
-    }
-
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            Self::Pagina(erro) => erro.status_http(),
-            Self::Transporte(erro) => erro.status_http(),
-            _ => None,
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::Pagina(erro) => erro.sessao_encerrada(),
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::CharsetDaTelaNaoSuportado
+            | Self::UnidadeDiferenteDaSolicitada
+            | Self::RedirecionamentoAoTrocarVisao
+            | Self::VisaoNaoTrocadaAposEnvio { .. }
+            | Self::UnidadeAlteradaAoTrocarVisao
+            | Self::PaginaAtualDaVisaoDetalhadaIlegivel
+            | Self::PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaVisaoDetalhadaNaoPublicado
+            | Self::CriteriosDaVisaoDetalhadaAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada
+            | Self::RedirecionamentoAposPaginar
+            | Self::Caixa(_)
+            | Self::Detalhada(_)
+            | Self::NivelDeDetalhe(_)
+            | Self::Formulario(_)
+            | Self::Html(_) => false,
         }
     }
 }

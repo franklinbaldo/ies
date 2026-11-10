@@ -1,15 +1,11 @@
 //! Descoberta local do caminho do índice SQLite, sem rede nem sessão Web.
-use crate::{configuracao, erro_fonte, indice_local};
+use crate::{configuracao, indice_local};
 use serde_json::json;
-use std::process::ExitCode;
 
 /// Não abre o SQLite nem os arquivos de sessão; apenas resolve os caminhos
 /// fornecidos pela configuração, inclusive o opt-out `IES_SEM_INDICE`.
-pub(super) fn mostrar(json_mode: bool) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
-    };
+pub(super) fn mostrar(json_mode: bool) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let sem_indice = std::env::var_os("IES_SEM_INDICE");
     let arquivo = std::env::var_os("IES_INDICE_FILE");
     let caminho = indice_local::caminho_do_indice(
@@ -32,7 +28,7 @@ pub(super) fn mostrar(json_mode: bool) -> ExitCode {
     } else {
         println!("Índice local desligado (IES_SEM_INDICE).");
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 #[cfg(test)]

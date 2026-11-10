@@ -19,8 +19,10 @@ testes e pelas instalações reais.
   `Error: <Variante> { campos }` (o `Debug` do erro, com a cadeia de causas);
   stdout fica vazio, também com `--json`. Não há `codigo`, `retentavel` nem
   mensagem paralela: a variante é a mensagem. Credenciais nunca aparecem no
-  `Debug` (os tipos que as carregam o redigem). Comandos ainda não
-  convertidos mantêm a falha antiga até a sua fatia.
+  `Debug` (os tipos que as carregam o redigem). Combinação inválida de
+  argumentos que o clap não declara sai pelo próprio clap (`UsoInvalido`),
+  com saída 2. As seções `codigo`/`retentavel` dos contratos por comando
+  descrevem a forma anterior ao #695.
 - Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
 - Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.

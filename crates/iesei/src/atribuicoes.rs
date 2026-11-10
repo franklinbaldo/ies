@@ -17,17 +17,12 @@ pub struct Observacao {
     pub usuarios: Vec<Usuario>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroAtribuicoes {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(value: rusqlite::Error) -> Self {
-        Self::Sqlite(value)
-    }
 }
 
 fn id_valido(id: &str) -> bool {
@@ -46,7 +41,7 @@ pub fn registrar(
     id: &str,
     unidade: &str,
     observacao: &Observacao,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAtribuicoes> {
     if !id_valido(id)
         || cenario.is_empty()
         || unidade.is_empty()
@@ -57,11 +52,11 @@ pub fn registrar(
                 || u.nome.trim().is_empty()
         })
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAtribuicoes::DadoInvalido);
     }
     for (i, usuario) in observacao.usuarios.iter().enumerate() {
         if observacao.usuarios[..i].iter().any(|x| x.id == usuario.id) {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroAtribuicoes::DadoInvalido);
         }
     }
     let tx = banco.transaction()?;
@@ -71,7 +66,7 @@ pub fn registrar(
         |r| r.get(0),
     )?;
     if !existe {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAtribuicoes::ProcessoNaoObservado);
     }
     tx.execute(
         "INSERT INTO processo_atribuicao_observada (origem,cenario,id_procedimento,unidade,login_atual)
@@ -106,7 +101,7 @@ pub fn ler(
     cenario: &str,
     id: &str,
     unidade: &str,
-) -> Result<Option<Observacao>, Falha> {
+) -> Result<Option<Observacao>, ErroAtribuicoes> {
     let login_atual: Option<String> = banco
         .query_row(
             "SELECT login_atual FROM processo_atribuicao_observada
@@ -155,9 +150,10 @@ pub fn aplicar(
     id: &str,
     unidade: &str,
     selecao: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAtribuicoes> {
     let tx = banco.unchecked_transaction()?;
-    let observado = ler(&tx, origem, cenario, id, unidade)?.ok_or(Falha::ProcessoNaoObservado)?;
+    let observado =
+        ler(&tx, origem, cenario, id, unidade)?.ok_or(ErroAtribuicoes::ProcessoNaoObservado)?;
     let aberto: bool = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_abertura
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
@@ -165,13 +161,13 @@ pub fn aplicar(
         |linha| linha.get(0),
     )?;
     if !aberto {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAtribuicoes::ProcessoNaoObservado);
     }
     let novo = if selecao == "null" {
         ""
     } else {
         let mut encontrados = observado.usuarios.iter().filter(|u| u.id == selecao);
-        let escolhido = encontrados.next().ok_or(Falha::DadoInvalido)?;
+        let escolhido = encontrados.next().ok_or(ErroAtribuicoes::DadoInvalido)?;
         if encontrados.next().is_some()
             || observado
                 .usuarios
@@ -180,12 +176,12 @@ pub fn aplicar(
                 .count()
                 != 1
         {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroAtribuicoes::DadoInvalido);
         }
         escolhido.login.as_str()
     };
     if novo == observado.login_atual {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAtribuicoes::DadoInvalido);
     }
     let alteradas = tx.execute(
         "UPDATE processo_atribuicao_observada SET login_atual=?5
@@ -201,7 +197,7 @@ pub fn aplicar(
         ],
     )?;
     if alteradas != 1 {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAtribuicoes::ProcessoNaoObservado);
     }
     tx.commit()?;
     Ok(())

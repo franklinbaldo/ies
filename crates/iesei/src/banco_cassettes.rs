@@ -95,17 +95,12 @@ pub struct ControleResumido {
     pub gerados: TabelaObservada<Linha>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroBancoCassettes {
+    Sqlite(#[from] rusqlite::Error),
     ObservacaoInsuficiente,
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Total e faixa publicados para uma categoria no esquema SQL.
@@ -134,13 +129,13 @@ pub fn iniciar(banco: &Connection) -> rusqlite::Result<()> {
     banco.execute_batch(ESQUEMA)
 }
 
-fn numero_sql(numero: usize) -> Result<i64, Falha> {
-    i64::try_from(numero).map_err(|_| Falha::DadoInvalido)
+fn numero_sql(numero: usize) -> Result<i64, ErroBancoCassettes> {
+    i64::try_from(numero).map_err(|_| ErroBancoCassettes::DadoInvalido)
 }
 
-fn metadados(tabela: &TabelaObservada<Linha>) -> Result<TabelaSql, Falha> {
+fn metadados(tabela: &TabelaObservada<Linha>) -> Result<TabelaSql, ErroBancoCassettes> {
     if !tabela.pagina_verificavel() {
-        return Err(Falha::ObservacaoInsuficiente);
+        return Err(ErroBancoCassettes::ObservacaoInsuficiente);
     }
     let total = tabela.total_declarado.map(numero_sql).transpose()?;
     let inicio = tabela
@@ -162,9 +157,9 @@ pub fn guardar(
     banco: &mut Connection,
     cenario: &str,
     controle: &ControleResumido,
-) -> Result<(), Falha> {
+) -> Result<(), ErroBancoCassettes> {
     if cenario.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroBancoCassettes::DadoInvalido);
     }
     let rec = metadados(&controle.recebidos)?;
     let ger = metadados(&controle.gerados)?;
@@ -178,7 +173,7 @@ pub fn guardar(
             || !linha.id.bytes().all(|b| b.is_ascii_digit())
             || linha.numero.is_empty()
         {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroBancoCassettes::DadoInvalido);
         }
     }
     let origem = controle.instalacao.url_base();
@@ -247,9 +242,9 @@ pub fn guardar(
     Ok(())
 }
 
-fn positivo(numero: Option<i64>) -> Result<Option<usize>, Falha> {
+fn positivo(numero: Option<i64>) -> Result<Option<usize>, ErroBancoCassettes> {
     numero
-        .map(|n| usize::try_from(n).map_err(|_| Falha::DadoInvalido))
+        .map(|n| usize::try_from(n).map_err(|_| ErroBancoCassettes::DadoInvalido))
         .transpose()
 }
 
@@ -258,16 +253,18 @@ fn tabela(
     inicio: Option<i64>,
     fim: Option<i64>,
     linhas: Vec<Linha>,
-) -> Result<TabelaObservada<Linha>, Falha> {
+) -> Result<TabelaObservada<Linha>, ErroBancoCassettes> {
     let faixa = match (positivo(inicio)?, positivo(fim)?) {
         (None, None) => None,
-        (Some(i), Some(f)) => Some(FaixaObservada::nova(i, f).ok_or(Falha::DadoInvalido)?),
-        _ => return Err(Falha::DadoInvalido),
+        (Some(i), Some(f)) => {
+            Some(FaixaObservada::nova(i, f).ok_or(ErroBancoCassettes::DadoInvalido)?)
+        }
+        _ => return Err(ErroBancoCassettes::DadoInvalido),
     };
-    let tabela =
-        TabelaObservada::nova(positivo(total)?, faixa, linhas).map_err(|_| Falha::DadoInvalido)?;
+    let tabela = TabelaObservada::nova(positivo(total)?, faixa, linhas)
+        .map_err(|_| ErroBancoCassettes::DadoInvalido)?;
     if !tabela.pagina_verificavel() {
-        return Err(Falha::ObservacaoInsuficiente);
+        return Err(ErroBancoCassettes::ObservacaoInsuficiente);
     }
     Ok(tabela)
 }
@@ -281,7 +278,7 @@ pub fn ler(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<Option<ControleResumido>, Falha> {
+) -> Result<Option<ControleResumido>, ErroBancoCassettes> {
     let origem = instalacao.url_base();
     let dados: Option<Metadados> = banco
         .query_row(
@@ -305,7 +302,7 @@ pub fn ler(
     let Some(dados) = dados else {
         return Ok(None);
     };
-    let unidade = UnidadeExibida::nova(&dados.unidade).ok_or(Falha::DadoInvalido)?;
+    let unidade = UnidadeExibida::nova(&dados.unidade).ok_or(ErroBancoCassettes::DadoInvalido)?;
     let mut recebidos = Vec::new();
     let mut gerados = Vec::new();
     let mut consulta = banco.prepare(
@@ -329,7 +326,7 @@ pub fn ler(
         match categoria.as_str() {
             "recebidos" => recebidos.push(linha),
             "gerados" => gerados.push(linha),
-            _ => return Err(Falha::DadoInvalido),
+            _ => return Err(ErroBancoCassettes::DadoInvalido),
         }
     }
     Ok(Some(ControleResumido {

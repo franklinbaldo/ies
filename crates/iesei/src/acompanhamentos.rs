@@ -15,17 +15,12 @@ pub struct Observacao {
     pub itens: Vec<Acompanhamento>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroAcompanhamentos {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn id_valido(id: &str) -> bool {
@@ -53,9 +48,9 @@ pub fn registrar(
     id: &str,
     unidade: &str,
     observacao: &Observacao,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAcompanhamentos> {
     if cenario.is_empty() || !id_valido(id) || unidade.is_empty() || !valida(observacao) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAcompanhamentos::DadoInvalido);
     }
     let tx = banco.transaction()?;
     let aberto: bool = tx.query_row(
@@ -65,7 +60,7 @@ pub fn registrar(
         |linha| linha.get(0),
     )?;
     if !aberto {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAcompanhamentos::ProcessoNaoObservado);
     }
     tx.execute(
         "INSERT INTO processo_acompanhamentos_observados
@@ -79,7 +74,7 @@ pub fn registrar(
         params![origem.url_base(), cenario, id, unidade],
     )?;
     for (posicao, item) in observacao.itens.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroAcompanhamentos::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_acompanhamento_linha
              (origem, cenario, id_procedimento, unidade, posicao,
@@ -111,7 +106,7 @@ pub fn ler(
     cenario: &str,
     id: &str,
     unidade: &str,
-) -> Result<Option<Observacao>, Falha> {
+) -> Result<Option<Observacao>, ErroAcompanhamentos> {
     let existe: bool = banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_acompanhamentos_observados
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4)",
@@ -138,7 +133,7 @@ pub fn ler(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let observacao = Observacao { itens };
     if !valida(&observacao) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAcompanhamentos::DadoInvalido);
     }
     Ok(Some(observacao))
 }
@@ -155,12 +150,12 @@ pub fn retirar(
     id: &str,
     unidade: &str,
     id_alvo: &str,
-) -> Result<bool, Falha> {
+) -> Result<bool, ErroAcompanhamentos> {
     if cenario.is_empty() || unidade.is_empty() || !id_valido(id) || !id_valido(id_alvo) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAcompanhamentos::DadoInvalido);
     }
     if ler(banco, origem, cenario, id, unidade)?.is_none() {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAcompanhamentos::ProcessoNaoObservado);
     }
     let removidos = banco.execute(
         "DELETE FROM processo_acompanhamento_linha

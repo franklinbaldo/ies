@@ -47,5 +47,3 @@ pub(crate) enum ErroReabrir {
         verificacao: Box<VerificacaoPorLeitura>,
     },
 }
-
-impl ErroReabrir {}

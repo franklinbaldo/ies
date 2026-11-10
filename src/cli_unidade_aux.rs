@@ -1,15 +1,15 @@
 //! Adaptadores da CLI para listas de unidades.
 //! Extraídos de main.rs para manter o limite de 20 KB após integrações
 //! concorrentes; a capacidade mantém seu próprio fluxo de domínio.
+use crate::nivel_de_detalhe::AlvoDasColunas;
 use crate::{Cli, ListaDaUnidade, UnidadeAcao};
-use std::process::ExitCode;
 
 /// `ies unidade recebidos|gerados`: uma lista por categoria.
 pub(crate) fn listar(
     cli: &Cli,
     lista: &ListaDaUnidade,
     categoria: crate::unidade_categoria::CategoriaLista,
-) -> ExitCode {
+) -> anyhow::Result<()> {
     crate::unidade_categoria::listar_categoria(
         cli.unidade.as_deref(),
         cli.json,
@@ -20,7 +20,11 @@ pub(crate) fn listar(
 }
 
 /// Exibe colunas ou encaminha sua definição, preservando o fluxo original.
-pub(crate) fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> ExitCode {
+pub(crate) fn colunas(
+    cli: &Cli,
+    definir: Option<&AlvoDasColunas>,
+    confirmar: bool,
+) -> anyhow::Result<()> {
     match definir {
         None => crate::unidade_colunas_cli::mostrar_colunas(cli.unidade.as_deref(), cli.json),
         Some(definir) => crate::unidade_colunas_definir_cli::definir_colunas(
@@ -33,7 +37,7 @@ pub(crate) fn colunas(cli: &Cli, definir: Option<&str>, confirmar: bool) -> Exit
 }
 
 /// `ies unidade <ação>`: encaminha cada ação ao seu fluxo.
-pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> ExitCode {
+pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> anyhow::Result<()> {
     let unidade = cli.unidade.as_deref();
     match acao {
         UnidadeAcao::Listar { atualizar } => {
@@ -54,7 +58,7 @@ pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> ExitCode {
             crate::unidade_categoria::CategoriaLista::Gerados,
         ),
         UnidadeAcao::Retornos { mes } => {
-            crate::unidade_retornos_cli::listar(unidade, cli.json, mes.as_deref())
+            crate::unidade_retornos_cli::listar(unidade, cli.json, *mes)
         }
         UnidadeAcao::ListarProcessos { saida, pagina } => {
             crate::unidade_lista_cli::listar_processos_da_unidade(
@@ -64,7 +68,7 @@ pub(crate) fn executar(cli: &Cli, acao: &UnidadeAcao) -> ExitCode {
                 pagina.map(|n| n as usize),
             )
         }
-        UnidadeAcao::Colunas { definir, confirmar } => colunas(cli, definir.as_deref(), *confirmar),
+        UnidadeAcao::Colunas { definir, confirmar } => colunas(cli, definir.as_ref(), *confirmar),
         UnidadeAcao::Trocar { sigla, confirmar } => {
             crate::unidade_trocar_cli::trocar(sigla, *confirmar, unidade, cli.json)
         }

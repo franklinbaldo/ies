@@ -9,18 +9,13 @@ pub struct Anexado {
     pub numero: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroAnexacoes {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
     JaAnexado,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(e: rusqlite::Error) -> Self {
-        Self::Sqlite(e)
-    }
 }
 
 fn valido(id: &str) -> bool {
@@ -48,9 +43,9 @@ pub fn listar(
     origem: &Instalacao,
     cenario: &str,
     principal: &str,
-) -> Result<Option<Vec<Anexado>>, Falha> {
+) -> Result<Option<Vec<Anexado>>, ErroAnexacoes> {
     if !valido(principal) || cenario.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAnexacoes::DadoInvalido);
     }
     if !existe(banco, origem, cenario, principal)? {
         return Ok(None);
@@ -83,12 +78,12 @@ pub fn anexar(
     cenario: &str,
     principal: &str,
     anexado: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroAnexacoes> {
     if cenario.is_empty() || !valido(principal) || !valido(anexado) || principal == anexado {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroAnexacoes::DadoInvalido);
     }
     if !existe(banco, origem, cenario, principal)? || !existe(banco, origem, cenario, anexado)? {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroAnexacoes::ProcessoNaoObservado);
     }
     let envolvidos: i64 = banco.query_row(
         "SELECT COUNT(*) FROM sim_anexacao WHERE origem=?1 AND cenario=?2
@@ -97,7 +92,7 @@ pub fn anexar(
         |r| r.get(0),
     )?;
     if envolvidos != 0 {
-        return Err(Falha::JaAnexado);
+        return Err(ErroAnexacoes::JaAnexado);
     }
     match banco.execute(
         "INSERT INTO sim_anexacao (origem, cenario, id_principal, id_anexado)
@@ -105,10 +100,10 @@ pub fn anexar(
         params![origem.url_base(), cenario, principal, anexado],
     ) {
         Ok(1) => Ok(()),
-        Ok(_) => Err(Falha::DadoInvalido),
+        Ok(_) => Err(ErroAnexacoes::DadoInvalido),
         // A origem do erro SQL deve sobreviver: UNIQUE, FOREIGN KEY e I/O
         // não são sinônimos de "já anexado". A duplicidade observada acima
         // conserva sua própria variante tipada.
-        Err(e) => Err(Falha::Sqlite(e)),
+        Err(e) => Err(ErroAnexacoes::Sqlite(e)),
     }
 }

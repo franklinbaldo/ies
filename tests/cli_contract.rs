@@ -7,6 +7,27 @@ fn ies(args: &[&str]) -> std::process::Output {
         .expect("IES deve iniciar")
 }
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
+/// Erro de uso do clap: saída 2, nada no stdout.
+#[track_caller]
+fn uso(output: &std::process::Output) {
+    assert_eq!(output.status.code(), Some(2));
+    assert_eq!(output.stdout, b"");
+}
+
+/// Falha fechada cuja variante depende da configuração do ambiente: saída
+/// 1, erro tipado no stderr e nada no stdout.
+#[track_caller]
+fn falha_fechada(output: &std::process::Output) {
+    let erro = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{erro}");
+    assert_eq!(output.stdout, b"");
+    assert!(erro.starts_with("Error: "), "{erro}");
+}
+
 /// Sem nenhum arquivo de sessão: a leitura Web falha tipada antes da rede.
 fn ies_sem_sessao(args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -38,8 +59,7 @@ fn documento_com_propriedades_sem_sessao_falha_sem_rede() {
     // Dado um documento e a flag agora Web, sem sessão.
     // Quando solicito propriedades, então a falha é da sessão, não do stub.
     let output = ies_sem_sessao(&["documento", "77782513", "--com-propriedades", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let _result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_fechada(&output);
 }
 
 /// `ies documento DOC` lê a sessão Web (Refs #60): sem os arquivos de
@@ -47,16 +67,14 @@ fn documento_com_propriedades_sem_sessao_falha_sem_rede() {
 #[test]
 fn leitura_web_de_documento_le_a_sessao_antes_da_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_fechada(&output);
 }
 
 /// `--processo` com NUP inválido é entrada inválida, sem rede (Refs #60).
 #[test]
 fn processo_invalido_do_documento_e_recusado_sem_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "--processo", "sei://1", "--json"]);
-    assert_eq!(output.status.code(), Some(2));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    uso(&output);
 }
 
 /// O mesmo número duas vezes é entrada inválida (zeros à esquerda contam:
@@ -64,10 +82,11 @@ fn processo_invalido_do_documento_e_recusado_sem_rede() {
 #[test]
 fn numero_de_documento_repetido_e_recusado_sem_rede() {
     let output = ies_sem_sessao(&["documento", "0011354", "0011354", "--json"]);
-    assert_eq!(output.status.code(), Some(2));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    uso(&output);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("NumeroSeiRepetido"));
+    // Zeros à esquerda são parte do número: não é repetição.
     let output = ies_sem_sessao(&["documento", "011354", "0011354", "--json"]);
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_fechada(&output);
 }
 
 #[test]
@@ -108,8 +127,7 @@ fn leitura_de_processo_aceita_projecoes_sem_executar_sei() {
         "--sem-propriedades",
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "UrlDoControleSemCaminho");
 }
 
 #[test]
@@ -120,8 +138,7 @@ fn leitura_pela_arvore_aceita_andamentos_completos_e_le_a_sessao() {
         "--andamentos-completos",
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "UrlDoControleSemCaminho");
 }
 
 #[test]
@@ -134,7 +151,7 @@ fn sem_andamentos_e_andamentos_completos_sao_incompativeis() {
         "--json",
     ]);
     assert_eq!(output.status.code(), Some(2));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output.stdout, b"");
 }
 
 /// Aposentadas por decisão do proprietário (04/11/2026): `--resumo` e as
@@ -191,8 +208,7 @@ fn leitura_de_lote_de_documentos_aceita_opcoes_globais() {
         "PPI",
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_fechada(&output);
 }
 
 #[test]
@@ -212,9 +228,7 @@ fn unidade_listar_processos_nao_exporta_sem_sessao_autorizada() {
         arquivo.to_str().unwrap(),
         "--json",
     ]);
-    assert_eq!(output.status.code(), Some(1));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "fonte_invalida");
+    falha_fechada(&output);
     assert!(
         !arquivo.exists(),
         "não se cria arquivo sem leitura autorizada"
@@ -255,15 +269,14 @@ fn processo_nao_aceita_parametros_de_replay() {
 fn processo_rejeita_numero_vazio_com_erro_tipado() {
     let output = ies(&["processo", "   ", "--json"]);
     assert_eq!(output.status.code(), Some(2));
-    let erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(erro["codigo"], "entrada_invalida");
+    assert_eq!(output.stdout, b"");
 }
 
 #[test]
 fn processo_rejeita_numero_com_controle_sem_vazar_entrada() {
     let output = ies(&["processo", "123\nSEGREDO", "--json"]);
     assert_eq!(output.status.code(), Some(2));
-    let _erro: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output.stdout, b"");
     assert!(!String::from_utf8_lossy(&output.stdout).contains("SEGREDO"));
 }
 
@@ -272,7 +285,7 @@ fn processo_rejeita_controle_removivel_no_inicio_ou_fim_sem_rede() {
     for numero in ["\n000123/2026", "000123/2026\n"] {
         let output = ies(&["processo", numero, "--json"]);
         assert_eq!(output.status.code(), Some(2));
-        let _valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.stdout, b"");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("000123/2026"));
     }
 }
@@ -280,8 +293,7 @@ fn processo_rejeita_controle_removivel_no_inicio_ou_fim_sem_rede() {
 #[test]
 fn processo_preserva_zeros_e_nao_inventa_leitura() {
     let output = ies_sem_sessao(&["processo", "000123/2026-01", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let _resposta: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "UrlDoControleSemCaminho");
 }
 
 #[test]
@@ -293,8 +305,7 @@ fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
         "12345678901234567890123456789012345678901234567890123456789012345678901234567890123",
     ] {
         let output = ies_sem_sessao(&["processo", numero, "--json"]);
-        assert_eq!(output.status.code(), Some(1), "{numero}");
-        let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        falha(&output, "UrlDoControleSemCaminho");
     }
 }
 
@@ -302,7 +313,7 @@ fn processo_aceita_protocolos_opacos_de_instalacoes_diferentes() {
 fn processo_recusa_referencia_legada_por_tipo() {
     let output = ies(&["processo", "SEI://processo/abc", "--json"]);
     assert_eq!(output.status.code(), Some(2));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output.stdout, b"");
 }
 
 #[test]
@@ -320,27 +331,21 @@ fn esquema_expoe_comandos_reais_sem_conectar_ao_sei() {
 #[test]
 fn documento_rejeita_texto_sem_abrir_sessao() {
     let output = ies(&["documento", "abc", "--json"]);
-    assert_eq!(output.status.code(), Some(2));
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(value["codigo"], "entrada_invalida");
+    uso(&output);
 }
 
 #[test]
 fn documento_recusa_controle_nas_extremidades_sem_expor_numero() {
     for numero in ["\n0011519", "0011519\r\n"] {
         let output = ies(&["documento", numero, "--json"]);
-        assert_eq!(output.status.code(), Some(2));
-        let valor: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(valor["codigo"], "entrada_invalida");
-        assert!(!String::from_utf8_lossy(&output.stdout).contains("0011519"));
+        uso(&output);
     }
 }
 
 #[test]
 fn documento_valida_todos_os_itens_do_lote() {
     let output = ies(&["documento", "00123", "documento-ruim", "--json"]);
-    assert_eq!(output.status.code(), Some(2));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    uso(&output);
 }
 
 #[test]
@@ -385,8 +390,7 @@ fn unidade_atual_sem_sessao_falha_sem_rede() {
         .env_remove("IES_ORIGEM_FILE")
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "UrlDoControleSemCaminho");
 }
 
 #[test]
@@ -399,15 +403,13 @@ fn configuracao_explicita_ilegivel_nao_usa_caminhos_de_fallback() {
         .env("IES_ORIGEM_FILE", "origem-fallback")
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha(&output, "ArquivoDeConfiguracaoNaoPodeSerLido");
 }
 
 #[test]
 fn documento_versao_zero_rejeitada_sem_rede() {
     let output = ies(&["documento", "0011519", "--versao", "0", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    uso(&output);
 }
 
 #[test]
@@ -415,8 +417,7 @@ fn documento_versao_segue_a_leitura_web_e_sem_copia_saiu() {
     // Refs #88: `--versao N` saiu do stub; sem arquivos de sessão a
     // leitura Web falha tipada antes da rede. #207: `--sem-copia` saiu.
     let output = ies_sem_sessao(&["documento", "0011519", "--versao", "2", "--json"]);
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_fechada(&output);
     let output = ies_sem_sessao(&["documento", "0011519", "--sem-copia", "--json"]);
     assert_eq!(output.status.code(), Some(2));
 }
@@ -438,8 +439,7 @@ fn salvar_local_sem_base_nao_envia_escrita_remota() {
         ])
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let _value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    falha_cli::falha(&output, "Html");
     std::fs::remove_dir_all(pasta).unwrap();
 }
 

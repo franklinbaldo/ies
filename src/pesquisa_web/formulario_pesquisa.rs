@@ -85,6 +85,20 @@ pub(crate) enum ErroPesquisaProtocolo {
 }
 
 impl ErroPesquisaProtocolo {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::Filtro(_)
+            | Self::RegraDoFormulario(_)
+            | Self::Redirecionamento(_)
+            | Self::Resposta(_) => false,
+        }
+    }
+}
+
+impl ErroPesquisaProtocolo {
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         match self {
             Self::Submissao(erro) => erro.status_http(),

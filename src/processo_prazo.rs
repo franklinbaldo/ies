@@ -10,7 +10,8 @@ pub(crate) enum PedidoDePrazo {
     Excluir,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPrazo {
     OpcoesIncompativeis,
     DataInvalida,
@@ -31,6 +32,23 @@ pub(crate) enum EstadoDoPrazo {
 pub(crate) struct TelaDoPrazo {
     pub(crate) estado: EstadoDoPrazo,
     pub(crate) valor_dos_uteis: String,
+}
+
+/// `--ate`: o clap recusa a data inexistente (saída 2) antes da sessão.
+pub(crate) fn data_do_prazo(valor: &str) -> Result<String, ErroPrazo> {
+    if data_valida(valor) {
+        Ok(valor.to_owned())
+    } else {
+        Err(ErroPrazo::DataInvalida)
+    }
+}
+
+/// `--dias`: de 1 a 999; o clap recusa o resto (saída 2).
+pub(crate) fn dias_do_prazo(valor: &str) -> Result<u32, ErroPrazo> {
+    match valor.parse::<u32>() {
+        Ok(dias @ 1..=999) => Ok(dias),
+        _ => Err(ErroPrazo::DiasInvalidos),
+    }
 }
 
 pub(crate) fn interpretar_pedido(

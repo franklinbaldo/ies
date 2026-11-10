@@ -113,9 +113,7 @@ fn redirecionamento_e_tela_de_login_sao_recusas_do_transporte() {
     ]);
     assert_eq!(
         resultado(&replay, Leitor::TelaDeLogin),
-        [&Resultado::Recusado(
-            "o SEI devolveu formulário de login em vez da caixa"
-        )]
+        [&Resultado::Recusado("PaginaDeLoginRecebidaNoControle")]
     );
     assert!(
         de(&replay, Leitor::Transporte)[0]

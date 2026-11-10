@@ -1,6 +1,10 @@
 //! Regressão do contrato de CLI #246, sem sessão nem requisições SEI.
 use std::process::Command;
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 fn executar(args: &[&str]) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
@@ -40,8 +44,8 @@ fn criar_confirmar_sem_sessao_falha_fechado_sem_acesso_a_rede() {
         "Despacho",
         "--confirmar",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let _valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    // Sem --nivel, a recusa da operação vem antes de ler os arquivos.
+    falha(&saida, "NivelNaoInformado");
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("/nao/existe"));
 }
 
@@ -85,9 +89,7 @@ fn dado_confirmacao_sem_nivel_quando_nao_ha_sessao_entao_recusa_antes_de_ler_arq
         "Despacho",
         "--confirmar",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["retentavel"], false);
+    falha(&saida, "NivelNaoInformado");
 }
 
 #[test]
@@ -106,7 +108,5 @@ fn dado_nivel_restrito_quando_confirmo_entao_recusa_antes_da_sessao() {
         "restrito",
         "--confirmar",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(json["retentavel"], false);
+    falha(&saida, "NivelRestritoSemHipotese");
 }

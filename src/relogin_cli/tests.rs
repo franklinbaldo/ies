@@ -1,5 +1,6 @@
 //! Campos `relogin` e `requisicoes` da saída e a ligação só nas leituras.
 use super::*;
+use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 const RELOGOU: NotaDoRelogin = NotaDoRelogin {
     relogin: true,
@@ -53,14 +54,6 @@ fn lista_detalhada_anota_cada_objeto_do_array() {
     assert_eq!(valor[0]["requisicoes"], 9);
 }
 
-#[test]
-fn falha_depois_do_relogin_diz_relogin_true() {
-    let base = saida_erro::json_de_erro_fonte("m", None);
-    assert_eq!(json_da_falha("m", None, None), base);
-    let anotada = json_da_falha("m", None, Some(&RELOGOU));
-    assert_eq!(anotada["relogin"], true);
-}
-
 /// Leituras ligadas ao relogin; escritas e prévias, nunca.
 #[test]
 fn so_os_comandos_de_leitura_chamam_o_relogin() {
@@ -106,10 +99,7 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
 
 #[test]
 fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
-    use crate::erro_publico::Causa;
-    assert!(Causa::sessao_encerrada(
-        &FalhaTransporte::PaginaDeLoginRecebidaNoControle
-    ));
+    assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
     for falha in [
         FalhaTransporte::CookieInvalido,
         FalhaTransporte::OrigemNaoAutorizada,
@@ -119,22 +109,39 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         // sessão vencida; nenhum relogin implícito.
         FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
-        assert!(!Causa::sessao_encerrada(&falha), "{falha:?}");
+        assert!(!falha.sessao_encerrada(), "{falha:?}");
     }
-    let invalidos = [
-        (FalhaTransporte::CookieInvalido, "cookie_invalido"),
-        (
-            FalhaTransporte::OrigemNaoAutorizada,
-            "origem_nao_autorizada",
-        ),
-        (
-            FalhaTransporte::SessaoTrocadaDuranteALeitura,
-            "sessao_trocada_durante_a_leitura",
-        ),
-    ];
-    for (falha, _esperado) in invalidos {
-        let valor = json_da_falha(falha.mensagem(), None, None);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert!(valor.get("relogin").is_none());
-    }
+}
+
+#[test]
+fn falha_que_sobe_preserva_o_erro_e_a_nota_do_relogin() {
+    let direta = subir(FalhaDaLeitura::Leitura {
+        erro: FalhaTransporte::Rede,
+        nota: None,
+    });
+    assert_eq!(
+        direta.downcast_ref::<FalhaTransporte>(),
+        Some(&FalhaTransporte::Rede)
+    );
+    let refeita = subir(FalhaDaLeitura::Leitura {
+        erro: FalhaTransporte::Rede,
+        nota: Some(RELOGOU),
+    });
+    assert_eq!(
+        refeita
+            .downcast_ref::<LeituraRefeitaAposRelogin>()
+            .map(|contexto| contexto.0),
+        Some(RELOGOU)
+    );
+    assert_eq!(
+        refeita.root_cause().downcast_ref::<FalhaTransporte>(),
+        Some(&FalhaTransporte::Rede)
+    );
+    let login = subir::<FalhaTransporte>(FalhaDaLeitura::Relogin(
+        crate::sessao_login::ErroLogin::CaptchaExigido,
+    ));
+    assert_eq!(
+        login.downcast_ref::<crate::sessao_login::ErroLogin>(),
+        Some(&crate::sessao_login::ErroLogin::CaptchaExigido)
+    );
 }
