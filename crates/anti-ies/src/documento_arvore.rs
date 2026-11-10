@@ -140,6 +140,11 @@ pub(crate) fn identidade_documental(
     let Some((_, consulta)) = alvo.split_once('?') else {
         return Ok(None);
     };
+    // A chave sem '=' e malformada, nao ausente. Ignora-la permitiria
+    // selecionar id_protocolo como fallback e devolver o DOC alheio.
+    if consulta.split('&').any(|campo| campo == "id_documento") {
+        return Err(Estado::RequisicaoInvalida);
+    }
     let mut valores = consulta
         .split('&')
         .filter_map(|campo| campo.split_once('='))
