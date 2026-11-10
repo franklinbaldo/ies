@@ -173,3 +173,35 @@ fn cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http() {
         "cassettes/ufrj/documento-numero-e-busca-ufrj--d0b23f01b824.md",
     );
 }
+
+#[test]
+#[ignore = "ZIP original PEN1 SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_pen1_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/pen1/documento-numero-e-busca-pen1--f274a10a3ee0.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN2 SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_pen2_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/pen2/documento-numero-e-busca-pen2--fac3b99dd330.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN3 SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_pen3_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/pen3/documento-numero-e-busca-pen3--2964627c9d6b.md",
+    );
+}
+
+#[test]
+#[ignore = "ZIP original PEN4 SHA-verificado no IES_ACERVO_CACHE; confronto offline"]
+fn cassette_pen4_tela_do_documento_preserva_selecao_ate_arvore_http() {
+    confrontar_tela_de_pesquisa_com_cassette(
+        "cassettes/pen4/documento-numero-e-busca-pen4--831054375369.md",
+    );
+}
