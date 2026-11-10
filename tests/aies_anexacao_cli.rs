@@ -164,12 +164,13 @@ enum Modo {
     RespostaIncerta,
     Previa,
     PreviaPendencia,
+    PreviaSemObservacao,
     JaAnexado,
 }
 
 /// Estado inicial sintético para uma das hipóteses de anexação.
 fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
-    if matches!(modo, Modo::PreviaPendencia) {
+    if matches!(modo, Modo::PreviaPendencia | Modo::PreviaSemObservacao) {
         documento_versoes::guardar(
             banco,
             CENARIO,
@@ -190,7 +191,8 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
             },
         )
         .unwrap();
-        editor_documento::registrar_oferta(
+        if matches!(modo, Modo::PreviaPendencia) {
+            editor_documento::registrar_oferta(
             banco,
             instalacao,
             CENARIO,
@@ -200,7 +202,8 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
                 assinaturas: 0,
             },
         )
-        .unwrap();
+            .unwrap();
+        }
     }
     if matches!(modo, Modo::JaAnexado) {
         anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
@@ -300,7 +303,7 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-        Modo::Previa | Modo::PreviaPendencia | Modo::JaAnexado => {
+        Modo::Previa | Modo::PreviaPendencia | Modo::PreviaSemObservacao | Modo::JaAnexado => {
             &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
         }
     };
@@ -337,7 +340,7 @@ fn conferir_resultados(
     let esperado = match modo {
         Modo::Aceite | Modo::Previa | Modo::PreviaPendencia => 0,
         Modo::RespostaIncerta => 3,
-        Modo::JaAnexado => 1,
+        Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
     };
     assert_eq!(
         saida.status.code(),
@@ -373,6 +376,10 @@ fn conferir_resultados(
             assert_eq!(saida_json["documentos_assinados"], false);
             assert_eq!(saida_json["confirmado"], false);
             assert_eq!(saida_json["alterado"], false);
+        }
+        Modo::PreviaSemObservacao => {
+            assert!(saida_json.get("documentos_assinados").is_none());
+            assert!(!saida.status.success(), "assinatura não observada não é assinatura comprovada");
         }
         Modo::JaAnexado => {
             assert_eq!(saida_json["codigo"], "operacao_recusada");
@@ -424,6 +431,11 @@ fn bdd_270_01_previa_nao_anexa_e_preserva_o_principal() {
 #[test]
 fn bdd_270_01_previa_avisa_documento_sem_assinatura_e_nao_anexa() {
     executar(Modo::PreviaPendencia);
+}
+
+#[test]
+fn consulta_sem_observacao_de_assinatura_nao_inventa_assinada() {
+    executar(Modo::PreviaSemObservacao);
 }
 
 #[test]
