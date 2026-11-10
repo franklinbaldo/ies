@@ -177,6 +177,14 @@ fn executar_cli(pasta: &Pasta, porta: u16, cert: &std::path::Path, args: &[&str]
 }
 
 fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) {
+    let (saida, eventos, estado, _) = executar_com(estado, false);
+    (saida, eventos, estado)
+}
+
+fn executar_com(
+    estado: EstadoInicial,
+    confirmar: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
     let pasta = Pasta::nova();
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
     let _origem = pasta.privado("origem", ORIGEM);
@@ -226,24 +234,21 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
             canal.flush().unwrap();
         }
     });
-    let saida = executar_cli(
-        &pasta,
-        porta,
-        &certificado,
-        &[
-            "--json",
-            "processo",
-            "acompanhar",
-            NUP,
-            "--deixar",
-            "--grupo",
-            "G",
-        ],
-    );
+    let mut args = vec![
+        "--json", "processo", "acompanhar", NUP, "--deixar", "--grupo", "G",
+    ];
+    if confirmar {
+        args.push("--confirmar");
+    }
+    let saida = executar_cli(&pasta, porta, &certificado, &args);
+    // Outra invocação da CLI, após a escrita, deve comprovar o novo estado.
+    let verificacao = confirmar.then(|| {
+        executar_cli(&pasta, porta, &certificado, &args[..args.len() - 1])
+    });
     parar.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     let resultado = servidor.join().unwrap();
-    (saida, eventos.lock().unwrap().clone(), resultado)
+    (saida, eventos.lock().unwrap().clone(), resultado, verificacao)
 }
 
 #[test]
@@ -341,4 +346,45 @@ fn observacao_explicitamente_vazia_permite_no_op_sem_escrita() {
             .all(|p| p.starts_with("GET ") || p == "POST protocolo_pesquisa_rapida"),
         "{eventos:?}"
     );
+}
+
+#[test]
+fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
+    let (saida, eventos, depois, segunda_cli) = executar_com(EstadoInicial::GrupoG, true);
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={} eventos={eventos:?}",
+        String::from_utf8_lossy(&saida.stderr)
+    );
+    let valor: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert_eq!(valor["operacao"], "deixar");
+    assert_eq!(valor["grupo"], "G");
+    assert_eq!(valor["id_acompanhamento"], "831");
+    assert_eq!(valor["confirmado"], true);
+    assert_eq!(valor["alterado"], true);
+    assert_eq!(
+        eventos
+            .iter()
+            .filter(|evento| evento.as_str() == "POST acompanhamento_excluir")
+            .count(),
+        1,
+        "a retirada nunca pode repetir o POST: {eventos:?}"
+    );
+    let restante = depois.unwrap().itens;
+    assert_eq!(restante.len(), 1);
+    assert_eq!(restante[0].id, "832");
+    assert_eq!(restante[0].grupo, "H");
+    assert_eq!(restante[0].observacao, "Preservar");
+    let segunda = segunda_cli.unwrap();
+    assert_eq!(
+        segunda.status.code(),
+        Some(0),
+        "stderr segunda CLI={}",
+        String::from_utf8_lossy(&segunda.stderr)
+    );
+    let relida: serde_json::Value = serde_json::from_slice(&segunda.stdout).unwrap();
+    assert_eq!(relida["ja_estava"], true);
+    assert_eq!(relida["alterado"], false);
+    assert!(relida["id_acompanhamento"].is_null());
 }
