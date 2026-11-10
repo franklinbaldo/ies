@@ -112,8 +112,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     else {
         return Err(Erro::Cadastro);
     };
-    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-        .ok_or(Erro::Charset)?;
+    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime).ok_or(Erro::Charset)?;
     let tela = TelaServida {
         url: &url,
         html: &cadastro,
