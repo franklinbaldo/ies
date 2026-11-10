@@ -20,6 +20,13 @@ use crate::processo_obter::{
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
+/// Intenção sem combinações inválidas entre consulta, registro e retirada.
+pub(crate) enum Intencao<'a> {
+    Consulta,
+    Registro { texto: &'a str, confirmar: bool },
+    Retirada { confirmar: bool },
+}
+
 pub(crate) struct Previa {
     pub(crate) nup: String,
     pub(crate) id_procedimento: String,
@@ -63,13 +70,16 @@ pub(crate) enum Erro {
 pub(crate) fn executar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
-    texto: &str,
-    confirmar: bool,
-    remover: bool,
+    intencao: Intencao<'_>,
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, Erro> {
+    let (texto, confirmar, remover) = match intencao {
+        Intencao::Consulta => ("", false, false),
+        Intencao::Registro { texto, confirmar } => (texto, confirmar, false),
+        Intencao::Retirada { confirmar } => ("", confirmar, true),
+    };
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)?;
