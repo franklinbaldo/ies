@@ -1,10 +1,9 @@
 //! Lista de comentários simulada a partir da fotografia SQLite explícita.
 //! A forma HTML é hipótese local; nunca prova paridade com a cassette original.
-use crate::{Estado, Resposta, escapar, eh_controlador_sei, parametro_unico};
+use crate::{Estado, Resposta, eh_controlador_sei, escapar, parametro_unico};
 use iesei::comentarios::{Comentario, Observacao};
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
-use std::fmt::Write as _;
 
 fn linha(item: &Comentario, com_texto_na_coluna: bool) -> String {
     let id = escapar(&item.id);
@@ -49,17 +48,23 @@ fn tabela(observacao: &Observacao) -> String {
 }
 
 pub(crate) fn responder(
-    metodo: &str, alvo: &str, banco: &Connection,
-    origem: &Instalacao, cenario: &str,
+    metodo: &str,
+    alvo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
 ) -> Resposta {
-    if !eh_controlador_sei(alvo)
-        || parametro_unico(alvo, "acao") != Some("comentario_listar") {
+    if !eh_controlador_sei(alvo) || parametro_unico(alvo, "acao") != Some("comentario_listar") {
         return Resposta::nova(Estado::NaoEncontrado);
     }
-    if metodo != "GET" { return Resposta::nova(Estado::MetodoNaoPermitido); }
+    if metodo != "GET" {
+        return Resposta::nova(Estado::MetodoNaoPermitido);
+    }
     let Some(id) = parametro_unico(alvo, "id_procedimento")
         .filter(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()))
-    else { return Resposta::nova(Estado::RequisicaoInvalida); };
+    else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    };
     match iesei::comentarios::ler(banco, origem, cenario, id) {
         Ok(Some(foto)) if foto.itens.is_empty() => {
             // Sem comentários o SEI pode redirecionar ao cadastro; a CLI

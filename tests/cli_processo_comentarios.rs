@@ -12,5 +12,8 @@ fn bdd_257_01_expoe_leitura_comentarios_mas_nao_a_escrita() {
     assert!(saida.status.success());
     let ajuda = String::from_utf8(saida.stdout).expect("ajuda UTF-8");
     assert!(!ajuda.contains("comentar"));
-    assert!(ajuda.contains("comentarios"), "leitura de comentários deve ser pública");
+    assert!(
+        ajuda.contains("comentarios"),
+        "leitura de comentários deve ser pública"
+    );
 }

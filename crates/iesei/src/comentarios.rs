@@ -1,17 +1,27 @@
 //! Comentários observados no SQLite efêmero, sem confundir ausência e vazio.
 //! Suporta fotografias incompletas: quem consome decide se pode afirmar completude.
 use crate::instalacao::Instalacao;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Visao { Processo, Todos }
+pub enum Visao {
+    Processo,
+    Todos,
+}
 
 impl Visao {
     fn codigo(self) -> &'static str {
-        match self { Self::Processo => "P", Self::Todos => "T" }
+        match self {
+            Self::Processo => "P",
+            Self::Todos => "T",
+        }
     }
     fn decodificar(valor: &str) -> Option<Self> {
-        match valor { "P" => Some(Self::Processo), "T" => Some(Self::Todos), _ => None }
+        match valor {
+            "P" => Some(Self::Processo),
+            "T" => Some(Self::Todos),
+            _ => None,
+        }
     }
 }
 
@@ -34,19 +44,30 @@ pub struct Observacao {
 }
 
 #[derive(Debug)]
-pub enum Falha { Sqlite(rusqlite::Error), DadoInvalido, ProcessoNaoObservado }
+pub enum Falha {
+    Sqlite(rusqlite::Error),
+    DadoInvalido,
+    ProcessoNaoObservado,
+}
 impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self { Self::Sqlite(erro) }
+    fn from(erro: rusqlite::Error) -> Self {
+        Self::Sqlite(erro)
+    }
 }
 
 fn valida(foto: &Observacao) -> bool {
-    if foto.itens.len() > foto.total_declarado { return false; }
+    if foto.itens.len() > foto.total_declarado {
+        return false;
+    }
     for (i, item) in foto.itens.iter().enumerate() {
-        if item.id.is_empty() || !item.id.bytes().all(|b| b.is_ascii_digit())
-            || item.data_hora.is_empty() || item.unidade.is_empty()
+        if item.id.is_empty()
+            || !item.id.bytes().all(|b| b.is_ascii_digit())
+            || item.data_hora.is_empty()
+            || item.unidade.is_empty()
             || item.usuario.is_empty()
             || item.protocolo.is_some() != item.tipo.is_some()
-            || foto.itens[..i].iter().any(|outro| outro.id == item.id) {
+            || foto.itens[..i].iter().any(|outro| outro.id == item.id)
+        {
             return false;
         }
     }
@@ -58,11 +79,17 @@ fn valida(foto: &Observacao) -> bool {
 /// # Errors
 /// Rejeita processo não observado, ids ambíguos e falhas SQLite.
 pub fn guardar(
-    banco: &mut Connection, origem: &Instalacao, cenario: &str, id: &str,
+    banco: &mut Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
     foto: &Observacao,
 ) -> Result<(), Falha> {
-    if cenario.is_empty() || id.is_empty() ||
-        !id.bytes().all(|b| b.is_ascii_digit()) || !valida(foto) {
+    if cenario.is_empty()
+        || id.is_empty()
+        || !id.bytes().all(|b| b.is_ascii_digit())
+        || !valida(foto)
+    {
         return Err(Falha::DadoInvalido);
     }
     let total = i64::try_from(foto.total_declarado).map_err(|_| Falha::DadoInvalido)?;
@@ -70,9 +97,12 @@ pub fn guardar(
     let conhecido: i64 = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM sim_processo
           WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3)",
-        params![origem.url_base(), cenario, id], |r| r.get(0),
+        params![origem.url_base(), cenario, id],
+        |r| r.get(0),
     )?;
-    if conhecido == 0 { return Err(Falha::ProcessoNaoObservado); }
+    if conhecido == 0 {
+        return Err(Falha::ProcessoNaoObservado);
+    }
     tx.execute(
         "INSERT INTO processo_comentarios_observados
          (origem, cenario, id_procedimento, visao, total_declarado)
@@ -93,9 +123,19 @@ pub fn guardar(
              (origem, cenario, id_procedimento, posicao, id_comentario,
               data_hora, unidade, usuario, texto, protocolo, tipo)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![origem.url_base(), cenario, id, posicao,
-                item.id, item.data_hora, item.unidade, item.usuario,
-                item.texto, item.protocolo, item.tipo],
+            params![
+                origem.url_base(),
+                cenario,
+                id,
+                posicao,
+                item.id,
+                item.data_hora,
+                item.unidade,
+                item.usuario,
+                item.texto,
+                item.protocolo,
+                item.tipo
+            ],
         )?;
     }
     tx.commit()?;
@@ -107,28 +147,50 @@ pub fn guardar(
 /// # Errors
 /// Propaga erros SQLite e recusa esquema/conteúdo inconsistente.
 pub fn ler(
-    banco: &Connection, origem: &Instalacao, cenario: &str, id: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
 ) -> Result<Option<Observacao>, Falha> {
-    let cabecalho: Option<(String, i64)> = banco.query_row(
-        "SELECT visao, total_declarado FROM processo_comentarios_observados
+    let cabecalho: Option<(String, i64)> = banco
+        .query_row(
+            "SELECT visao, total_declarado FROM processo_comentarios_observados
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
-        params![origem.url_base(), cenario, id], |r| Ok((r.get(0)?, r.get(1)?)),
-    ).optional()?;
-    let Some((codigo, total)) = cabecalho else { return Ok(None); };
+            params![origem.url_base(), cenario, id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()?;
+    let Some((codigo, total)) = cabecalho else {
+        return Ok(None);
+    };
     let visao = Visao::decodificar(&codigo).ok_or(Falha::DadoInvalido)?;
     let total_declarado = usize::try_from(total).map_err(|_| Falha::DadoInvalido)?;
     let mut stmt = banco.prepare(
         "SELECT id_comentario, data_hora, unidade, usuario, texto, protocolo, tipo
          FROM processo_comentario_linha
-         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY posicao"
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 ORDER BY posicao",
     )?;
-    let itens = stmt.query_map(params![origem.url_base(), cenario, id], |r| {
-        Ok(Comentario { id: r.get(0)?, data_hora: r.get(1)?,
-            unidade: r.get(2)?, usuario: r.get(3)?, texto: r.get(4)?,
-            protocolo: r.get(5)?, tipo: r.get(6)? })
-    })?.collect::<rusqlite::Result<Vec<_>>>()?;
-    let foto = Observacao { visao, total_declarado, itens };
-    if !valida(&foto) { return Err(Falha::DadoInvalido); }
+    let itens = stmt
+        .query_map(params![origem.url_base(), cenario, id], |r| {
+            Ok(Comentario {
+                id: r.get(0)?,
+                data_hora: r.get(1)?,
+                unidade: r.get(2)?,
+                usuario: r.get(3)?,
+                texto: r.get(4)?,
+                protocolo: r.get(5)?,
+                tipo: r.get(6)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let foto = Observacao {
+        visao,
+        total_declarado,
+        itens,
+    };
+    if !valida(&foto) {
+        return Err(Falha::DadoInvalido);
+    }
     Ok(Some(foto))
 }
 
@@ -144,20 +206,41 @@ mod tests {
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let cenario = "comentarios";
-        processos::guardar(&mut banco, &origem, cenario, &ProcessoSimulado {
-            id: "10".into(), numero: "00001.000001/2026-01".into(),
-            unidade_origem: "TESTE".into(), aberto_em: vec!["TESTE".into()],
-            anotacao_origem: None, destinos: vec![],
-        }).unwrap();
+        processos::guardar(
+            &mut banco,
+            &origem,
+            cenario,
+            &ProcessoSimulado {
+                id: "10".into(),
+                numero: "00001.000001/2026-01".into(),
+                unidade_origem: "TESTE".into(),
+                aberto_em: vec!["TESTE".into()],
+                anotacao_origem: None,
+                destinos: vec![],
+            },
+        )
+        .unwrap();
         assert_eq!(ler(&banco, &origem, cenario, "10").unwrap(), None);
-        let mut foto = Observacao { visao: Visao::Processo,
-            total_declarado: 0, itens: vec![] };
+        let mut foto = Observacao {
+            visao: Visao::Processo,
+            total_declarado: 0,
+            itens: vec![],
+        };
         guardar(&mut banco, &origem, cenario, "10", &foto).unwrap();
-        assert_eq!(ler(&banco, &origem, cenario, "10").unwrap(), Some(foto.clone()));
+        assert_eq!(
+            ler(&banco, &origem, cenario, "10").unwrap(),
+            Some(foto.clone())
+        );
         foto.total_declarado = 2;
-        foto.itens.push(Comentario { id: "42".into(), data_hora: "10/11/2026".into(),
-            unidade: "TESTE".into(), usuario: "u".into(), texto: "texto".into(),
-            protocolo: None, tipo: None });
+        foto.itens.push(Comentario {
+            id: "42".into(),
+            data_hora: "10/11/2026".into(),
+            unidade: "TESTE".into(),
+            usuario: "u".into(),
+            texto: "texto".into(),
+            protocolo: None,
+            tipo: None,
+        });
         guardar(&mut banco, &origem, cenario, "10", &foto).unwrap();
         assert_eq!(ler(&banco, &origem, cenario, "10").unwrap(), Some(foto));
     }
