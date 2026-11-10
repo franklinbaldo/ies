@@ -9,7 +9,6 @@ use super::tests_movidos::{
     ID_DESTINO, NUP_DESTINO, ORIGEM, href_do_destino, html_do_movido, no_movido,
 };
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 /// O `DOCUMENTO` `id` com o rótulo do movido sintético.
@@ -84,9 +83,7 @@ fn primeira_parte_repetida_entre_movidos_continua_recusa() {
         ]);
         assert_eq!(
             ler_arvore(&html, NUP, "10"),
-            Err(super::ErroArvore::Html(ErroHtml::repetido(
-                "documento_movido_repetido_na_arvore"
-            ))),
+            Err(super::ErroArvore::DocumentoMovidoRepetidoNaArvore),
             "{segundo}"
         );
     }

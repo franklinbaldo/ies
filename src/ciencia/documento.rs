@@ -3,11 +3,10 @@
 //! A lista CD<id> do documento é a única prova, nunca a C do processo.
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
 use crate::arvore_processo::{
-    ErroBarraDoDocumento, ciencia_do_documento_na_barra, lista_do_documento, tela_do_documento,
-    url_da_ciencia_do_documento,
+    ErroBarraDoDocumento, ErroCienciaNaArvore, ciencia_do_documento_na_barra, lista_do_documento,
+    tela_do_documento, url_da_ciencia_do_documento,
 };
 use crate::documento::NumeroDocumento;
-use crate::erro_html::ErroHtml;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
@@ -54,7 +53,7 @@ pub(crate) enum VerificacaoDaCienciaDoDocumento {
     Abertura(#[from] ErroDocumentoObter),
     IdentidadeDoDocumentoAlteradaNaReleitura,
     AceiteSemAtividadeDoDocumento,
-    Html(#[from] ErroHtml),
+    Ciencia(#[from] ErroCienciaNaArvore),
     ListaDeCienciasDoDocumentoAusente,
     Transporte(#[from] FalhaTransporte),
     Lista(#[from] super::ErroCiencia),
@@ -66,7 +65,7 @@ pub(crate) enum VerificacaoDaCienciaDoDocumento {
 pub(crate) enum ErroCienciaDocumento {
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBarraDoDocumento),
-    Html(#[from] ErroHtml),
+    Ciencia(#[from] ErroCienciaNaArvore),
     CienciaNaoOferecida,
     TelaNaoPublicada,
     OrigemNaoAutorizada,
@@ -143,8 +142,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
         &html,
         &feito.id_documento,
         &feito.id_procedimento,
-    )
-    .map_err(ErroCienciaDocumento::Html)?;
+    )?;
     // Este GET pode gravar a ciência. Após qualquer resposta ou timeout,
     // apenas releitura, nunca segundo GET mutador.
     let aceite = ler_aceite(

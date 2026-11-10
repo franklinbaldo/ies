@@ -313,9 +313,9 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         .iter()
         .find(|d| d.id == id_documento)
     else {
-        return Err(ErroDocumentoObter::Conteudo(ErroConteudoNaArvore::Html(
-            ErroHtml::ausente("documento_ausente_da_arvore"),
-        )));
+        return Err(ErroDocumentoObter::Conteudo(
+            ErroConteudoNaArvore::DocumentoAusenteDaArvore,
+        ));
     };
     if no.numero_sei.as_deref() != Some(numero) {
         return Err(ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido);

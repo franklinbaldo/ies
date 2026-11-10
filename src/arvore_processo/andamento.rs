@@ -4,7 +4,6 @@
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
@@ -13,7 +12,10 @@ pub(crate) const ACAO: &str = "procedimento_atualizar_andamento";
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentoNaBarra {
     OutroProcesso,
-    Html(#[from] ErroHtml),
+    BarraDoAndamentoForaDaForma,
+    BarrasDoProcessoRepetidasNaArvore,
+    EnderecoDeAtualizarAndamentoNaoReconhecido,
+    LinksDeAtualizarAndamentoRepetidos,
 }
 
 /// Só links publicados na barra conferida; nenhuma URL montada no IES.
@@ -23,12 +25,8 @@ pub(crate) fn ler_andamento_da_barra(
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAndamentoNaBarra> {
     let ancoras = ancoras_da_barra(html).map_err(|f| match f {
-        FalhaDaBarra::Fora => {
-            ErroAndamentoNaBarra::Html(ErroHtml::valor("barra_do_andamento_fora_da_forma"))
-        }
-        FalhaDaBarra::Repetidas => {
-            ErroAndamentoNaBarra::Html(ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"))
-        }
+        FalhaDaBarra::Fora => ErroAndamentoNaBarra::BarraDoAndamentoForaDaForma,
+        FalhaDaBarra::Repetidas => ErroAndamentoNaBarra::BarrasDoProcessoRepetidasNaArvore,
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -40,11 +38,11 @@ pub(crate) fn ler_andamento_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|e| match e {
-                EnderecoRecusado::NaoReconhecido => ErroAndamentoNaBarra::Html(ErroHtml::valor(
-                    "endereco_de_atualizar_andamento_nao_reconhecido",
-                )),
+                EnderecoRecusado::NaoReconhecido => {
+                    ErroAndamentoNaBarra::EnderecoDeAtualizarAndamentoNaoReconhecido
+                }
                 EnderecoRecusado::DeOutroProcesso => ErroAndamentoNaBarra::OutroProcesso,
             }),
-        _ => Err(ErroHtml::repetido("links_de_atualizar_andamento_repetidos").into()),
+        _ => Err(ErroAndamentoNaBarra::LinksDeAtualizarAndamentoRepetidos),
     }
 }

@@ -207,9 +207,7 @@ fn comentario_em_outro_processo_ou_repetido_e_recusa() {
             link_comentarios("10"),
             link_comentarios("10"),
         ])),
-        Err(ErroLinkDosComentarios::Html(ErroHtml::repetido(
-            "links_dos_comentarios_repetidos_na_barra"
-        )))
+        Err(ErroLinkDosComentarios::LinksDosComentariosRepetidosNaBarra)
     );
 }
 

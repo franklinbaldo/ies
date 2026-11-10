@@ -328,7 +328,7 @@ fn template_inerte_nao_autoriza_get_mutador() {
     respostas.push(ok(tela));
     let (resultado, pedidos) = rodar(true, respostas);
     assert!(
-        matches!(resultado, Err(ErroCienciaDocumento::Html(_))),
+        matches!(resultado, Err(ErroCienciaDocumento::Ciencia(_))),
         "{resultado:?}"
     );
     assert_eq!(pedidos.len(), 4);
@@ -346,7 +346,7 @@ fn rejeitar_tela_sem_get_mutador(tela: String) {
     respostas.push(ok(tela));
     let (resultado, pedidos) = rodar(true, respostas);
     assert!(
-        matches!(resultado, Err(ErroCienciaDocumento::Html(_))),
+        matches!(resultado, Err(ErroCienciaDocumento::Ciencia(_))),
         "{resultado:?}"
     );
     assert_eq!(pedidos.len(), 4, "a prévia e a tela são somente leitura");

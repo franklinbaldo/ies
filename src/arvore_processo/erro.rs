@@ -2,8 +2,6 @@
 //! (contracts/cli/processo-obter-arvore.md). Nenhum valor
 //! servido é guardado.
 
-use crate::erro_html::ErroHtml;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroArvore {
@@ -34,7 +32,33 @@ pub(crate) enum ErroArvore {
     ProcessoAnexadoIgualAoProcesso,
     NoComPaiNoProcessoAnexado,
     DocumentoMovidoComPaiDiferenteDoProcesso,
-    Html(#[from] ErroHtml),
+    AcaoDeAbrirPastasForaDaFormaObservada,
+    AcoesDeAbrirPastasRepetidas,
+    AguardeForaDaFormaObservada,
+    BarraDeNoForaDaFormaObservada,
+    DeclaracaoDeNoForaDaFormaObservada,
+    DestinoDoDocumentoMovidoForaDaFormaObservada,
+    DestinosDoDocumentoMovidoRepetidos,
+    DocumentoMovidoForaDaFormaObservada,
+    DocumentoMovidoRepetidoNaArvore,
+    DocumentoRepetidoNaArvore,
+    EnderecoDeAbrirPastasNaoReconhecido,
+    EscapeDeNoNaoReconhecido,
+    HtmlDoNoDoProcessoForaDaFormaObservada,
+    IndiceDeNoForaDaSequencia,
+    NosDoProcessoRepetidosNaArvore,
+    PastaForaDaFormaObservada,
+    PastaRepetidaNaArvore,
+    ProcessoAnexadoForaDaFormaObservada,
+    ProcessoAnexadoRepetidoNaArvore,
+    ProtocoloDeclaradoAusenteDaPasta,
+    ProtocoloRepetidoNaPasta,
+    ProtocolosDaPastaDeclaradosMaisDeUmaVez,
+    ProtocolosDaPastaForaDaFormaObservada,
+    ProtocolosDeclaradosParaPastaAusente,
+    SrcDeNoForaDaFormaObservada,
+    VinculoDeAnexacaoForaDaFormaObservada,
+    VinculosDeAnexacaoRepetidos,
 }
 
 impl ErroArvore {
@@ -55,9 +79,7 @@ impl ErroArvore {
                 | Self::PastasNaoCarregadasSemAcaoDeAbrir
                 | Self::PastasNaoCarregadasAposAbrirPastas
                 | Self::ContagemDaPastaDiferenteDaDeclarada
-        ) || matches!(
-            self,
-            Self::Html(erro) if erro == ErroHtml::ausente("protocolo_declarado_ausente_da_pasta")
+                | Self::ProtocoloDeclaradoAusenteDaPasta
         )
     }
 }

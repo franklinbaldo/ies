@@ -3,7 +3,6 @@
 use super::barra_do_processo::{FalhaDaBarra, acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 
 pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
@@ -12,7 +11,10 @@ pub(crate) const ACAO: &str = "acompanhamento_gerenciar";
 #[error("{self:?}")]
 pub(crate) enum ErroAcompanharNaBarra {
     LinkDeOutroProcesso,
-    Html(#[from] ErroHtml),
+    BarraDeAcompanhamentoForaDaForma,
+    BarraDeAcompanhamentoRepetida,
+    LinkDeAcompanhamentoNaoReconhecido,
+    LinksDeAcompanhamentoRepetidos,
 }
 
 pub(crate) fn ler_acompanhar_da_barra(
@@ -21,12 +23,8 @@ pub(crate) fn ler_acompanhar_da_barra(
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAcompanharNaBarra> {
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => {
-            ErroAcompanharNaBarra::Html(ErroHtml::valor("barra_de_acompanhamento_fora_da_forma"))
-        }
-        FalhaDaBarra::Repetidas => {
-            ErroAcompanharNaBarra::Html(ErroHtml::repetido("barra_de_acompanhamento_repetida"))
-        }
+        FalhaDaBarra::Fora => ErroAcompanharNaBarra::BarraDeAcompanhamentoForaDaForma,
+        FalhaDaBarra::Repetidas => ErroAcompanharNaBarra::BarraDeAcompanhamentoRepetida,
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -38,11 +36,11 @@ pub(crate) fn ler_acompanhar_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => ErroAcompanharNaBarra::Html(ErroHtml::valor(
-                    "link_de_acompanhamento_nao_reconhecido",
-                )),
+                EnderecoRecusado::NaoReconhecido => {
+                    ErroAcompanharNaBarra::LinkDeAcompanhamentoNaoReconhecido
+                }
                 EnderecoRecusado::DeOutroProcesso => ErroAcompanharNaBarra::LinkDeOutroProcesso,
             }),
-        _ => Err(ErroHtml::repetido("links_de_acompanhamento_repetidos").into()),
+        _ => Err(ErroAcompanharNaBarra::LinksDeAcompanhamentoRepetidos),
     }
 }

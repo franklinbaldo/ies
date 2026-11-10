@@ -47,7 +47,8 @@ pub(crate) fn ler_anexo_publicado(
         if !lista.starts_with(&format!("{id_anexo}±")) {
             return Err(ErroHtml::valor("anexo_do_cadastro_divergente"));
         }
-        let link = EnderecoDoConteudo::do_cadastro(instalacao, href, id_anexo)?;
+        let link = EnderecoDoConteudo::do_cadastro(instalacao, href, id_anexo)
+            .map_err(|_| ErroHtml::valor("link_anexo_cadastro_invalido"))?;
         if encontrado.replace(link).is_some() {
             return Err(ErroHtml::repetido("links_anexo_cadastro_repetidos"));
         }

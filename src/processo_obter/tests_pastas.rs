@@ -9,7 +9,6 @@ use crate::arvore_processo::tests_pastas::{
     No, PASTA1, PASTA2, acoes_das_pastas, arvore_aberta, arvore_aberta_com, arvore_em_pastas,
     arvore_fechada, declaracoes, url_abrir,
 };
-use crate::erro_html::ErroHtml;
 
 const OBJETO_ABRIR: &str = "10:abrir_pastas";
 
@@ -188,9 +187,7 @@ fn arvore_aberta_que_nao_confere_nao_publica_lista_parcial() {
     );
     assert_eq!(
         r.unwrap_err(),
-        super::ErroProcessoObter::Arvore(ErroArvore::Html(ErroHtml::ausente(
-            "protocolo_declarado_ausente_da_pasta"
-        )))
+        super::ErroProcessoObter::Arvore(ErroArvore::ProtocoloDeclaradoAusenteDaPasta)
     );
     assert_eq!(link(&amb, OBJETO_ABRIR), None);
 }

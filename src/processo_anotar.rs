@@ -59,6 +59,7 @@ pub(crate) enum ErroAnotar {
     Abertura(#[from] ErroProcessoObter),
     /// Barra ou tela das anotações fora da forma observada (`onde` diz qual).
     Html(#[from] ErroHtml),
+    LinkDasAnotacoes(#[from] crate::arvore_processo::ErroLinkDasAnotacoes),
     Transporte(#[from] FalhaTransporte),
     Cookie(#[from] CookieIlegivel),
     TelaRedirecionada,

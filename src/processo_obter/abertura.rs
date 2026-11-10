@@ -13,7 +13,6 @@ use crate::arvore_processo::{
     ler_link_dos_comentarios, ler_link_dos_marcadores, ler_reabrir_da_barra,
     ler_relacionar_da_barra, ler_retomar_da_barra, ler_sobrestar_da_barra, ler_vinculo_de_anexacao,
 };
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, SubmissaoDerivada,
@@ -171,12 +170,12 @@ pub(super) struct ArvoreAberta {
     /// A ação de concluir na barra (só pesa em `processo concluir`).
     pub(super) concluir: Result<Option<ConcluirNaBarra>, ErroConcluirNaBarra>,
     /// A ação de reabrir na barra (só pesa em `processo reabrir`).
-    pub(super) reabrir: Result<Option<ReabrirNaBarra>, ErroHtml>,
+    pub(super) reabrir: Result<Option<ReabrirNaBarra>, crate::arvore_processo::ErroReabrirNaBarra>,
     pub(super) sobrestar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     pub(super) retomar: Result<Option<EnderecoDeEscrita>, ErroAcaoSobrestar>,
     /// O link da tela de envio na barra (só pesa em `processo enviar`).
     pub(super) enviar: Result<Option<EnderecoDeEscrita>, ErroEnviarNaBarra>,
-    pub(super) anotacoes: Result<Option<String>, ErroHtml>,
+    pub(super) anotacoes: Result<Option<String>, crate::arvore_processo::ErroLinkDasAnotacoes>,
     /// Link da lista de comentários publicado na barra, nunca montado.
     pub(super) comentarios: Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios>,
     /// Ciência: botão de ação e URL da lista, cada um só pesa quando solicitado.
