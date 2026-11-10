@@ -339,9 +339,8 @@ pub fn navegacao(
         Err(estado) => return Some(Resposta::nova(estado)),
     };
     if acao == "procedimento_trabalhar" {
-        let validacao = match iesei::validacao_acesso::ler(banco, instalacao, cenario, id) {
-            Ok(estado) => estado,
-            Err(_) => return Some(Resposta::nova(Estado::DadosInsuficientes)),
+        let Ok(validacao) = iesei::validacao_acesso::ler(banco, instalacao, cenario, id) else {
+            return Some(Resposta::nova(Estado::DadosInsuficientes));
         };
         return Some(resposta_html(trabalho_do_processo(
             &processo,
