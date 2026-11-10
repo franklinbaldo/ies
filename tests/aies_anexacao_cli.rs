@@ -350,8 +350,12 @@ fn executar(modo: Modo) {
             arquivos,
             porta,
             &[
-                "--json", "processo", PRINCIPAL, "--sem-andamentos",
-                "--sem-propriedades", "--sem-marcadores",
+                "--json",
+                "processo",
+                PRINCIPAL,
+                "--sem-andamentos",
+                "--sem-propriedades",
+                "--sem-marcadores",
             ],
         )
     });
@@ -415,13 +419,32 @@ fn conferir_pdf_apos_anexacao(
     antes: &Output,
     depois: &Output,
 ) {
-    assert_eq!(antes.status.code(), Some(0), "antes: {}", String::from_utf8_lossy(&antes.stderr));
-    assert_eq!(depois.status.code(), Some(0), "depois: {}", String::from_utf8_lossy(&depois.stderr));
+    assert_eq!(
+        antes.status.code(),
+        Some(0),
+        "antes: {}",
+        String::from_utf8_lossy(&antes.stderr)
+    );
+    assert_eq!(
+        depois.status.code(),
+        Some(0),
+        "depois: {}",
+        String::from_utf8_lossy(&depois.stderr)
+    );
     let inicial: serde_json::Value = serde_json::from_slice(&antes.stdout).unwrap();
     let final_: serde_json::Value = serde_json::from_slice(&depois.stdout).unwrap();
-    assert!(inicial["documentos"].to_string().contains("050000001"), "{inicial}");
-    assert!(final_["documentos"].to_string().contains("050000001"), "{final_}");
-    assert!(inicial["anexados"].as_array().is_none_or(Vec::is_empty), "{inicial}");
+    assert!(
+        inicial["documentos"].to_string().contains("050000001"),
+        "{inicial}"
+    );
+    assert!(
+        final_["documentos"].to_string().contains("050000001"),
+        "{final_}"
+    );
+    assert!(
+        inicial["anexados"].as_array().is_none_or(Vec::is_empty),
+        "{inicial}"
+    );
     assert_eq!(final_["anexados"][0]["numero"], ANEXADO);
 
     let destino = pasta.0.join("pdf_depois");
@@ -431,8 +454,14 @@ fn conferir_pdf_apos_anexacao(
         arquivos,
         porta,
         &[
-            "--json", "documento", "050000001", "--processo", PRINCIPAL,
-            "--saida", destino.to_str().unwrap(), "--sem-cache",
+            "--json",
+            "documento",
+            "050000001",
+            "--processo",
+            PRINCIPAL,
+            "--saida",
+            destino.to_str().unwrap(),
+            "--sem-cache",
         ],
     );
     assert_eq!(
@@ -442,7 +471,10 @@ fn conferir_pdf_apos_anexacao(
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    assert_eq!(fs::read(destino.join("050000001.pdf")).unwrap(), PDF_SINTETICO);
+    assert_eq!(
+        fs::read(destino.join("050000001.pdf")).unwrap(),
+        PDF_SINTETICO
+    );
 }
 
 fn conferir_resultados(
@@ -456,7 +488,11 @@ fn conferir_resultados(
         Modo::RespostaIncerta => Some("NaoConfirmado"),
         Modo::JaAnexado => Some("Estrutura"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
-        Modo::Aceite | Modo::PdfAposAnexacao | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => None,
+        Modo::Aceite
+        | Modo::PdfAposAnexacao
+        | Modo::Previa
+        | Modo::PreviaPendencia
+        | Modo::PreviaAssinada => None,
     };
     if let Some(erro) = erro_esperado {
         falha(saida, erro);
@@ -501,7 +537,10 @@ fn conferir_resultados(
     );
     let leitura: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
     assert_eq!(leitura["numero"], PRINCIPAL);
-    let tem_anexado = matches!(modo, Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta | Modo::JaAnexado);
+    let tem_anexado = matches!(
+        modo,
+        Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta | Modo::JaAnexado
+    );
     if tem_anexado {
         assert_eq!(leitura["anexados"][0]["numero"], ANEXADO);
         assert_eq!(leitura["anexados"][0]["id_procedimento"], "22");
@@ -514,7 +553,10 @@ fn conferir_resultados(
             .iter()
             .filter(|e| *e == "POST procedimento_anexar")
             .count(),
-        usize::from(matches!(modo, Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta)),
+        usize::from(matches!(
+            modo,
+            Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta
+        )),
         "prévia e duplicidade não enviam POST mutador; {pedidos:?}"
     );
 }
