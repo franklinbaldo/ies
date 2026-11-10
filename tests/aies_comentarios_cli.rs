@@ -204,7 +204,14 @@ fn executar(modo: Modo) {
     });
     let saida: Output = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(if matches!(modo, Modo::Previa) {
-            vec!["--json", "processo", "comentar", NUP, "--texto", "Comentário novo"]
+            vec![
+                "--json",
+                "processo",
+                "comentar",
+                NUP,
+                "--texto",
+                "Comentário novo",
+            ]
         } else {
             vec!["--json", "processo", "comentarios", NUP]
         })
