@@ -251,7 +251,7 @@ fn executar(sobrestado: bool, confirmar: bool) {
         confirmar,
         &saida,
         releitura.as_ref(),
-        persistido,
+        persistido.as_ref(),
         &pedidos,
     );
 }
@@ -261,7 +261,7 @@ fn verificar(
     confirmar: bool,
     saida: &Output,
     releitura: Option<&Output>,
-    persistido: Option<Sobrestamento>,
+    persistido: Option<&Sobrestamento>,
     pedidos: &[String],
 ) {
     let esperado = if confirmar { !sobrestado } else { sobrestado };
@@ -311,7 +311,7 @@ fn verificar(
     assert!(pedidos.iter().filter(|p| p.starts_with("POST ")).count() <= 1);
     if confirmar {
         assert_eq!(
-            persistido,
+            persistido.cloned(),
             (!sobrestado).then_some(Sobrestamento {
                 unidade: "TESTE".into(),
                 motivo: "Aguardando".into()
