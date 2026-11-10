@@ -3,10 +3,9 @@ use crate::{
     Resposta, arvore_compartilhada, controlar, documento_arvore, documento_cancelar,
     documento_ciencia, documento_versoes, documentos, editor_documento, eh_controlador_sei,
     nivel_de_detalhe, parametro_unico, pdf_externo, pesquisa_documento, prazo_processo,
-    processo_andamento,
-    processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao, processo_envio,
-    processo_marcadores, processo_relacionar, processo_sobrestamento, retorno_programado,
-    validacao_acesso,
+    processo_andamento, processo_anexacao, processo_atribuicao, processo_ciencia, processo_criacao,
+    processo_envio, processo_marcadores, processo_relacionar, processo_sobrestamento,
+    retorno_programado, validacao_acesso,
 };
 use iesei::acesso_sessao::{self, AcessoSessao};
 use iesei::instalacao::Instalacao;
