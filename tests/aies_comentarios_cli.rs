@@ -261,26 +261,28 @@ fn executar(modo: Modo) {
 }
 
 fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
-    let Some(posterior) = posterior else { return; };
-        assert_eq!(posterior.status.code(), Some(0));
-        let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
-        assert_eq!(foto["lista_completa"], true);
-        let total = if matches!(modo, Modo::Confirmar) {
-            2
-        } else {
-            1
-        };
-        assert_eq!(foto["total"], total);
-        assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
-        if matches!(modo, Modo::Confirmar) {
-            assert_eq!(foto["comentarios"][1]["texto"], " Comentário novo ");
-            assert_ne!(foto["comentarios"][1]["id"], "42");
-        }
-        assert_eq!(foto["comentarios"][0]["id"], "42");
-        assert_eq!(
-            foto["comentarios"][0]["texto"],
-            "Comentário sintético & conferido"
-        );
+    let Some(posterior) = posterior else {
+        return;
+    };
+    assert_eq!(posterior.status.code(), Some(0));
+    let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
+    assert_eq!(foto["lista_completa"], true);
+    let total = if matches!(modo, Modo::Confirmar) {
+        2
+    } else {
+        1
+    };
+    assert_eq!(foto["total"], total);
+    assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
+    if matches!(modo, Modo::Confirmar) {
+        assert_eq!(foto["comentarios"][1]["texto"], " Comentário novo ");
+        assert_ne!(foto["comentarios"][1]["id"], "42");
+    }
+    assert_eq!(foto["comentarios"][0]["id"], "42");
+    assert_eq!(
+        foto["comentarios"][0]["texto"],
+        "Comentário sintético & conferido"
+    );
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
