@@ -26,16 +26,11 @@ pub struct DocumentoSimulado {
     pub revisoes: Vec<Revisao>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroDocumentoVersoes {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Reconstrói as versões do documento de forma atômica e idempotente.
@@ -47,7 +42,7 @@ pub fn guardar(
     banco: &mut Connection,
     cenario: &str,
     documento: &DocumentoSimulado,
-) -> Result<(), Falha> {
+) -> Result<(), ErroDocumentoVersoes> {
     let valido = |texto: &str| !texto.trim().is_empty();
     if !valido(cenario)
         || !valido(&documento.id_procedimento)
@@ -63,7 +58,7 @@ pub fn guardar(
         || !valido(&documento.tipo)
         || documento.revisoes.is_empty()
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroDocumentoVersoes::DadoInvalido);
     }
     let mut vistas = HashSet::new();
     for revisao in &documento.revisoes {
@@ -74,7 +69,7 @@ pub fn guardar(
             || !valido(&revisao.html_corpo)
             || revisao.html_corpo.contains("infra_hash")
         {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroDocumentoVersoes::DadoInvalido);
         }
     }
     let origem = documento.instalacao.url_base();
@@ -132,7 +127,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id_documento: &str,
-) -> Result<Option<DocumentoSimulado>, Falha> {
+) -> Result<Option<DocumentoSimulado>, ErroDocumentoVersoes> {
     let origem = instalacao.url_base();
     let cabecalho: Option<(String, String, String, String)> = banco
         .query_row(
@@ -162,8 +157,9 @@ pub fn ler(
     let mut revisoes = Vec::new();
     for linha in linhas {
         let (versao, usuario, unidade, modificacao, html_corpo) = linha?;
-        let numero_versao = u32::try_from(versao).map_err(|_| Falha::DadoInvalido)?;
-        let versao = NonZeroU32::new(numero_versao).ok_or(Falha::DadoInvalido)?;
+        let numero_versao =
+            u32::try_from(versao).map_err(|_| ErroDocumentoVersoes::DadoInvalido)?;
+        let versao = NonZeroU32::new(numero_versao).ok_or(ErroDocumentoVersoes::DadoInvalido)?;
         revisoes.push(Revisao {
             versao,
             usuario,
@@ -173,7 +169,7 @@ pub fn ler(
         });
     }
     if revisoes.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroDocumentoVersoes::DadoInvalido);
     }
     Ok(Some(DocumentoSimulado {
         instalacao: instalacao.clone(),
@@ -196,7 +192,7 @@ pub fn ids_por_numero(
     instalacao: &Instalacao,
     cenario: &str,
     numero: &str,
-) -> Result<Vec<String>, Falha> {
+) -> Result<Vec<String>, ErroDocumentoVersoes> {
     let mut consulta = banco.prepare(
         "SELECT id_documento FROM documento_simulado
          WHERE origem=?1 AND cenario=?2 AND numero=?3
@@ -224,7 +220,7 @@ pub fn ids_da_pesquisa_por_numero(
     instalacao: &Instalacao,
     cenario: &str,
     numero: &str,
-) -> Result<Vec<String>, Falha> {
+) -> Result<Vec<String>, ErroDocumentoVersoes> {
     let exatos = ids_por_numero(banco, instalacao, cenario, numero)?;
     if !exatos.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
         return Ok(exatos);

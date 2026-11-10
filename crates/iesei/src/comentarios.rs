@@ -43,16 +43,12 @@ pub struct Observacao {
     pub itens: Vec<Comentario>,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroComentarios {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn valida(foto: &Observacao) -> bool {
@@ -84,15 +80,15 @@ pub fn guardar(
     cenario: &str,
     id: &str,
     foto: &Observacao,
-) -> Result<(), Falha> {
+) -> Result<(), ErroComentarios> {
     if cenario.is_empty()
         || id.is_empty()
         || !id.bytes().all(|b| b.is_ascii_digit())
         || !valida(foto)
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     }
-    let total = i64::try_from(foto.total_declarado).map_err(|_| Falha::DadoInvalido)?;
+    let total = i64::try_from(foto.total_declarado).map_err(|_| ErroComentarios::DadoInvalido)?;
     let tx = banco.transaction()?;
     let conhecido: i64 = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM sim_processo
@@ -101,7 +97,7 @@ pub fn guardar(
         |r| r.get(0),
     )?;
     if conhecido == 0 {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroComentarios::ProcessoNaoObservado);
     }
     tx.execute(
         "INSERT INTO processo_comentarios_observados
@@ -117,7 +113,7 @@ pub fn guardar(
         params![origem.url_base(), cenario, id],
     )?;
     for (posicao, item) in foto.itens.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroComentarios::DadoInvalido)?;
         tx.execute(
             "INSERT INTO processo_comentario_linha
              (origem, cenario, id_procedimento, posicao, id_comentario,
@@ -151,7 +147,7 @@ pub fn ler(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<Observacao>, Falha> {
+) -> Result<Option<Observacao>, ErroComentarios> {
     let cabecalho: Option<(String, i64)> = banco
         .query_row(
             "SELECT visao, total_declarado FROM processo_comentarios_observados
@@ -163,8 +159,8 @@ pub fn ler(
     let Some((codigo, total)) = cabecalho else {
         return Ok(None);
     };
-    let visao = Visao::decodificar(&codigo).ok_or(Falha::DadoInvalido)?;
-    let total_declarado = usize::try_from(total).map_err(|_| Falha::DadoInvalido)?;
+    let visao = Visao::decodificar(&codigo).ok_or(ErroComentarios::DadoInvalido)?;
+    let total_declarado = usize::try_from(total).map_err(|_| ErroComentarios::DadoInvalido)?;
     let mut stmt = banco.prepare(
         "SELECT id_comentario, data_hora, unidade, usuario, texto, protocolo, tipo
          FROM processo_comentario_linha
@@ -189,7 +185,7 @@ pub fn ler(
         itens,
     };
     if !valida(&foto) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     }
     Ok(Some(foto))
 }
@@ -206,7 +202,7 @@ pub fn acrescentar(
     cenario: &str,
     id: &str,
     mut novo: Comentario,
-) -> Result<String, Falha> {
+) -> Result<String, ErroComentarios> {
     if cenario.is_empty()
         || !novo.id.is_empty()
         || novo.texto.trim().is_empty()
@@ -216,39 +212,43 @@ pub fn acrescentar(
         || novo.protocolo.is_some()
         || novo.tipo.is_some()
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     }
     let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
     let Some(foto) = ler(&tx, origem, cenario, id)? else {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     };
     if foto.total_declarado != foto.itens.len() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     }
     let proximo = foto
         .itens
         .iter()
-        .map(|item| item.id.parse::<u64>().map_err(|_| Falha::DadoInvalido))
+        .map(|item| {
+            item.id
+                .parse::<u64>()
+                .map_err(|_| ErroComentarios::DadoInvalido)
+        })
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .max()
         .unwrap_or(0)
         .checked_add(1)
-        .ok_or(Falha::DadoInvalido)?;
+        .ok_or(ErroComentarios::DadoInvalido)?;
     novo.id = proximo.to_string();
     let total = foto
         .total_declarado
         .checked_add(1)
         .and_then(|valor| i64::try_from(valor).ok())
-        .ok_or(Falha::DadoInvalido)?;
-    let posicao = i64::try_from(foto.itens.len()).map_err(|_| Falha::DadoInvalido)?;
+        .ok_or(ErroComentarios::DadoInvalido)?;
+    let posicao = i64::try_from(foto.itens.len()).map_err(|_| ErroComentarios::DadoInvalido)?;
     let atualizadas = tx.execute(
         "UPDATE processo_comentarios_observados SET total_declarado=?4
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
         params![origem.url_base(), cenario, id, total],
     )?;
     if atualizadas != 1 {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroComentarios::DadoInvalido);
     }
     tx.execute(
         "INSERT INTO processo_comentario_linha

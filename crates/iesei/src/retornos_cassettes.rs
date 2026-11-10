@@ -71,7 +71,7 @@ pub fn periodos(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
-) -> Result<Vec<PeriodoMensal>, Falha> {
+) -> Result<Vec<PeriodoMensal>, ErroRetornosCassettes> {
     let mut consulta = banco.prepare(
         "SELECT data_inicial, data_final FROM retorno_mes
          WHERE origem=?1 AND cenario=?2",
@@ -83,10 +83,10 @@ pub fn periodos(
     for linha in linhas {
         let (inicio, fim) = linha?;
         let Some((1, mes, ano)) = data_mensal(&inicio) else {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroRetornosCassettes::DadoInvalido);
         };
         if data_mensal(&fim) != Some((ultimo_dia(ano, mes), mes, ano)) {
-            return Err(Falha::DadoInvalido);
+            return Err(ErroRetornosCassettes::DadoInvalido);
         }
         saida.push(PeriodoMensal {
             ano,
@@ -100,21 +100,16 @@ pub fn periodos(
         .windows(2)
         .any(|par| (par[0].ano, par[0].mes) == (par[1].ano, par[1].mes))
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRetornosCassettes::DadoInvalido);
     }
     Ok(saida)
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroRetornosCassettes {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 /// Persiste uma listagem mensal já conferida pelo leitor de produção do IES.
@@ -122,7 +117,11 @@ impl From<rusqlite::Error> for Falha {
 ///
 /// # Errors
 /// Preserva erro SQLite e rejeita campos obrigatórios ausentes.
-pub fn guardar(banco: &mut Connection, cenario: &str, mes: &Mes) -> Result<(), Falha> {
+pub fn guardar(
+    banco: &mut Connection,
+    cenario: &str,
+    mes: &Mes,
+) -> Result<(), ErroRetornosCassettes> {
     if cenario.is_empty()
         || mes.data_inicial.is_empty()
         || mes.data_final.is_empty()
@@ -131,7 +130,7 @@ pub fn guardar(banco: &mut Connection, cenario: &str, mes: &Mes) -> Result<(), F
             .iter()
             .any(|r| r.numero.is_empty() || r.unidade.is_empty() || r.data_programada.is_empty())
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRetornosCassettes::DadoInvalido);
     }
     let origem = mes.instalacao.url_base();
     let tx = banco.transaction()?;
@@ -147,7 +146,7 @@ pub fn guardar(banco: &mut Connection, cenario: &str, mes: &Mes) -> Result<(), F
         params![origem, cenario, mes.data_inicial, mes.data_final],
     )?;
     for (posicao, item) in mes.itens.iter().enumerate() {
-        let posicao = i64::try_from(posicao).map_err(|_| Falha::DadoInvalido)?;
+        let posicao = i64::try_from(posicao).map_err(|_| ErroRetornosCassettes::DadoInvalido)?;
         tx.execute(
             "INSERT INTO retorno_linha
              (origem, cenario, data_inicial, data_final, posicao,
@@ -183,7 +182,7 @@ pub fn ler(
     cenario: &str,
     data_inicial: &str,
     data_final: &str,
-) -> Result<Option<Mes>, Falha> {
+) -> Result<Option<Mes>, ErroRetornosCassettes> {
     let origem = instalacao.url_base();
     let conhecido: Option<i64> = banco
         .query_row(
@@ -218,7 +217,7 @@ pub fn ler(
         let situacao = match situacao.as_str() {
             "aguardando" => Situacao::Aguardando,
             "devolver" => Situacao::Devolver,
-            _ => return Err(Falha::DadoInvalido),
+            _ => return Err(ErroRetornosCassettes::DadoInvalido),
         };
         itens.push(Retorno {
             situacao,

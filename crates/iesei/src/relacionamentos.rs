@@ -9,17 +9,13 @@ pub struct Relacionamento {
     pub numero: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroRelacionamentos {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
     ProcessoNaoObservado,
     DestinoAmbiguo,
-}
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 fn id_valido(id: &str) -> bool {
     !id.is_empty() && id.bytes().all(|c| c.is_ascii_digit())
@@ -45,12 +41,12 @@ pub fn observar(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroRelacionamentos> {
     if cenario.is_empty() || !id_valido(id) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRelacionamentos::DadoInvalido);
     }
     if !existe(banco, origem, cenario, id)? {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroRelacionamentos::ProcessoNaoObservado);
     }
     banco.execute(
         "INSERT OR IGNORE INTO processo_relacionamentos_observados (origem, cenario, id_procedimento) VALUES (?1, ?2, ?3)",
@@ -67,7 +63,7 @@ pub fn observado(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<bool, Falha> {
+) -> Result<bool, ErroRelacionamentos> {
     Ok(banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_relacionamentos_observados WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3)",
         params![origem.url_base(), cenario, id], |r| r.get(0),
@@ -83,16 +79,16 @@ pub fn registrar(
     cenario: &str,
     id: &str,
     destino: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroRelacionamentos> {
     if id == destino
         || !id_valido(id)
         || !id_valido(destino)
         || !observado(banco, origem, cenario, id)?
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRelacionamentos::DadoInvalido);
     }
     if !existe(banco, origem, cenario, destino)? {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroRelacionamentos::ProcessoNaoObservado);
     }
     // Uma relação é bilateral: não persistir a aresta inversa como novo vínculo.
     banco.execute(
@@ -119,16 +115,16 @@ pub fn remover(
     cenario: &str,
     id: &str,
     destino: &str,
-) -> Result<(), Falha> {
+) -> Result<(), ErroRelacionamentos> {
     if id == destino
         || !id_valido(id)
         || !id_valido(destino)
         || !observado(banco, origem, cenario, id)?
     {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRelacionamentos::DadoInvalido);
     }
     if !existe(banco, origem, cenario, destino)? {
-        return Err(Falha::ProcessoNaoObservado);
+        return Err(ErroRelacionamentos::ProcessoNaoObservado);
     }
     // Uma aresta antiga pode ter sido gravada na orientação inversa.
     let removidas = banco.execute(
@@ -139,7 +135,7 @@ pub fn remover(
         params![origem.url_base(), cenario, id, destino],
     )?;
     if removidas == 0 {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRelacionamentos::DadoInvalido);
     }
     Ok(())
 }
@@ -153,7 +149,7 @@ pub fn listar(
     origem: &Instalacao,
     cenario: &str,
     id: &str,
-) -> Result<Option<Vec<Relacionamento>>, Falha> {
+) -> Result<Option<Vec<Relacionamento>>, ErroRelacionamentos> {
     if !observado(banco, origem, cenario, id)? {
         return Ok(None);
     }
@@ -194,10 +190,10 @@ pub fn identificar(
     origem: &Instalacao,
     cenario: &str,
     numero: &str,
-) -> Result<Option<Relacionamento>, Falha> {
+) -> Result<Option<Relacionamento>, ErroRelacionamentos> {
     let pedido = forma(numero);
     if pedido.is_empty() {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroRelacionamentos::DadoInvalido);
     }
     let mut consulta = banco
         .prepare("SELECT id_procedimento, nup FROM sim_processo WHERE origem=?1 AND cenario=?2")?;
@@ -216,14 +212,14 @@ pub fn identificar(
         .filter(|d| d.numero.trim().to_lowercase() == literal);
     if let Some(primeiro) = exatos.next() {
         if exatos.next().is_some() {
-            return Err(Falha::DestinoAmbiguo);
+            return Err(ErroRelacionamentos::DestinoAmbiguo);
         }
         return Ok(Some(primeiro.clone()));
     }
     let mut equivalentes = linhas.into_iter().filter(|d| forma(&d.numero) == pedido);
     let primeiro = equivalentes.next();
     if equivalentes.next().is_some() {
-        return Err(Falha::DestinoAmbiguo);
+        return Err(ErroRelacionamentos::DestinoAmbiguo);
     }
     Ok(primeiro)
 }
@@ -235,7 +231,7 @@ pub fn existe_contexto(
     banco: &Connection,
     origem: &Instalacao,
     cenario: &str,
-) -> Result<bool, Falha> {
+) -> Result<bool, ErroRelacionamentos> {
     Ok(banco.query_row(
         "SELECT EXISTS(SELECT 1 FROM processo_relacionamentos_observados WHERE origem=?1 AND cenario=?2)",
         params![origem.url_base(), cenario], |r| r.get(0),
@@ -332,7 +328,7 @@ mod tests {
         );
         assert!(matches!(
             identificar(&db, &origem, "caso", "ABC"),
-            Err(Falha::DestinoAmbiguo)
+            Err(ErroRelacionamentos::DestinoAmbiguo)
         ));
     }
 }

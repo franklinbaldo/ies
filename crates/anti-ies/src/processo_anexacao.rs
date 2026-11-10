@@ -207,7 +207,7 @@ pub(crate) fn responder(
         Ok(()) => Resposta::redirecionar(format!(
             "controlador.php?acao=procedimento_anexar&resultado=1&id_procedimento={id}"
         )),
-        Err(anexacoes::Falha::DadoInvalido | anexacoes::Falha::JaAnexado) => {
+        Err(anexacoes::ErroAnexacoes::DadoInvalido | anexacoes::ErroAnexacoes::JaAnexado) => {
             Resposta::nova(Estado::RequisicaoInvalida)
         }
         Err(_) => Resposta::nova(Estado::DadosInsuficientes),

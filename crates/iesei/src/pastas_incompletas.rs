@@ -10,16 +10,11 @@ pub struct PastaPendente {
     pub protocolo_declarado: String,
 }
 
-#[derive(Debug)]
-pub enum Falha {
-    Sqlite(rusqlite::Error),
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub enum ErroPastasIncompletas {
+    Sqlite(#[from] rusqlite::Error),
     DadoInvalido,
-}
-
-impl From<rusqlite::Error> for Falha {
-    fn from(erro: rusqlite::Error) -> Self {
-        Self::Sqlite(erro)
-    }
 }
 
 fn id_numerico(valor: &str) -> bool {
@@ -44,9 +39,9 @@ pub fn guardar(
     cenario: &str,
     id_procedimento: &str,
     pasta: &PastaPendente,
-) -> Result<(), Falha> {
+) -> Result<(), ErroPastasIncompletas> {
     if !valida(pasta, id_procedimento, cenario) {
-        return Err(Falha::DadoInvalido);
+        return Err(ErroPastasIncompletas::DadoInvalido);
     }
     banco.execute(
         "INSERT INTO sim_pasta_pendente
@@ -74,7 +69,7 @@ pub fn ler(
     instalacao: &Instalacao,
     cenario: &str,
     id_procedimento: &str,
-) -> Result<Option<PastaPendente>, Falha> {
+) -> Result<Option<PastaPendente>, ErroPastasIncompletas> {
     let linha: Option<(i64, String)> = banco
         .query_row(
             "SELECT indice, protocolo_declarado
@@ -87,11 +82,11 @@ pub fn ler(
     linha
         .map(|(indice, protocolo_declarado)| {
             let pasta = PastaPendente {
-                indice: u32::try_from(indice).map_err(|_| Falha::DadoInvalido)?,
+                indice: u32::try_from(indice).map_err(|_| ErroPastasIncompletas::DadoInvalido)?,
                 protocolo_declarado,
             };
             if !valida(&pasta, id_procedimento, cenario) {
-                return Err(Falha::DadoInvalido);
+                return Err(ErroPastasIncompletas::DadoInvalido);
             }
             Ok(pasta)
         })
