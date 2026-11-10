@@ -311,25 +311,11 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
             if aceite_da_atribuicao(redir, &aberto.arvore.processo.id)
     );
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
-    let releitura = obter_processo(sessao, &pedido, indice, &mut rede);
-    let presente = match releitura {
-        Ok(ref novo)
-            if novo.arvore.processo.id == aberto.arvore.processo.id
-                && novo.unidade.as_deref() == Some(unidade) =>
-        {
-            match &novo.marcadores {
-                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
-                    Some(lidos.itens.iter().any(|m| {
-                        m.id == rotulo.id
-                            && m.nome == rotulo.nome
-                            && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
-                    }))
-                }
-                _ => None,
-            }
-        }
-        _ => None,
-    };
+    let presente = releitura_comprova(
+        sessao, indice, &pedido, &mut rede,
+        (&aberto.arvore.processo.id, unidade),
+        (rotulo, texto),
+    );
     if !aceito || presente != Some(true) {
         return efeito_incerto(cli, rede.feitas(), presente);
     }
@@ -422,3 +408,35 @@ fn saida_confirmada(
     }
     ExitCode::SUCCESS
 }
+
+fn releitura_comprova<V: EnvioDoProcesso>(
+    sessao: &SessaoDoProcesso<'_>,
+    indice: &IndiceLocal,
+    pedido: &PedidoDoProcesso<'_>,
+    rede: &mut Contador<'_, V>,
+    processo: (&str, &str),
+    marcador: (&Rotulo, Option<&str>),
+) -> Option<bool> {
+    let (id, unidade) = processo;
+    let (rotulo, texto) = marcador;
+    let releitura = obter_processo(sessao, pedido, indice, rede);
+    match releitura {
+        Ok(ref novo)
+            if novo.arvore.processo.id == id
+                && novo.unidade.as_deref() == Some(unidade) =>
+        {
+            match &novo.marcadores {
+                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
+                    Some(lidos.itens.iter().any(|m| {
+                        m.id == rotulo.id
+                            && m.nome == rotulo.nome
+                            && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
+                    }))
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
