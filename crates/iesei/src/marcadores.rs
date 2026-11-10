@@ -1,5 +1,5 @@
 //! Marcadores observados na unidade, como dados tipados do SQLite efêmero.
- //! Hipótese para BDD-255-03. Não representa uma submissão Web nem seu aceite.
+//! Hipótese para BDD-255-03. Não representa uma submissão Web nem seu aceite.
 use crate::instalacao::Instalacao;
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -41,9 +41,14 @@ fn valido(observacao: &Observacao) -> bool {
             || !marcador.id.bytes().all(|b| b.is_ascii_digit())
             || marcador.nome.is_empty()
             || marcador.cor.is_empty()
-            || !marcador.cor.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+            || !marcador
+                .cor
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b == b'_')
             || marcador.data_hora.is_empty()
-            || observacao.itens[..i].iter().any(|outro| outro.id == marcador.id)
+            || observacao.itens[..i]
+                .iter()
+                .any(|outro| outro.id == marcador.id)
         {
             return false;
         }
@@ -64,9 +69,11 @@ pub fn registrar(
     unidade: &str,
     observacao: &Observacao,
 ) -> Result<(), Falha> {
-    if cenario.is_empty() || id.is_empty()
+    if cenario.is_empty()
+        || id.is_empty()
         || !id.bytes().all(|b| b.is_ascii_digit())
-        || unidade.is_empty() || !valido(observacao)
+        || unidade.is_empty()
+        || !valido(observacao)
     {
         return Err(Falha::DadoInvalido);
     }
@@ -102,9 +109,17 @@ pub fn registrar(
               id_marcador, nome, cor, texto, usuario, data_hora)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
-                origem.url_base(), cenario, id, unidade, posicao,
-                marcador.id, marcador.nome, marcador.cor,
-                marcador.texto, marcador.usuario, marcador.data_hora
+                origem.url_base(),
+                cenario,
+                id,
+                unidade,
+                posicao,
+                marcador.id,
+                marcador.nome,
+                marcador.cor,
+                marcador.texto,
+                marcador.usuario,
+                marcador.data_hora
             ],
         )?;
     }
@@ -124,12 +139,14 @@ pub fn ler(
     id: &str,
     unidade: &str,
 ) -> Result<Option<Observacao>, Falha> {
-    let total: Option<i64> = banco.query_row(
-        "SELECT total_declarado FROM processo_marcadores_observados
+    let total: Option<i64> = banco
+        .query_row(
+            "SELECT total_declarado FROM processo_marcadores_observados
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4",
-        params![origem.url_base(), cenario, id, unidade],
-        |linha| linha.get(0),
-    ).optional()?;
+            params![origem.url_base(), cenario, id, unidade],
+            |linha| linha.get(0),
+        )
+        .optional()?;
     let Some(total) = total else { return Ok(None) };
     let total_declarado = usize::try_from(total).map_err(|_| Falha::DadoInvalido)?;
     let mut consulta = banco.prepare(
@@ -138,14 +155,22 @@ pub fn ler(
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3 AND unidade=?4
          ORDER BY posicao",
     )?;
-    let itens = consulta.query_map(
-        params![origem.url_base(), cenario, id, unidade],
-        |r| Ok(Marcador {
-            id:r.get(0)?, nome:r.get(1)?, cor:r.get(2)?,
-            texto:r.get(3)?, usuario:r.get(4)?, data_hora:r.get(5)?,
-        }),
-    )?.collect::<rusqlite::Result<Vec<_>>>()?;
-    let observacao = Observacao { total_declarado, itens };
+    let itens = consulta
+        .query_map(params![origem.url_base(), cenario, id, unidade], |r| {
+            Ok(Marcador {
+                id: r.get(0)?,
+                nome: r.get(1)?,
+                cor: r.get(2)?,
+                texto: r.get(3)?,
+                usuario: r.get(4)?,
+                data_hora: r.get(5)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let observacao = Observacao {
+        total_declarado,
+        itens,
+    };
     if !valido(&observacao) {
         return Err(Falha::DadoInvalido);
     }
