@@ -3,10 +3,9 @@
 #![cfg(unix)]
 use anti_ies::atender_http;
 use iesei::anexacoes;
+use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::documento_versoes::{self, DocumentoSimulado, Revisao};
 use iesei::editor_documento::{self, Oferta};
-use std::num::NonZeroU32;
-use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
@@ -14,6 +13,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::num::NonZeroU32;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -217,7 +217,10 @@ fn executar(modo: Modo) {
                 &instalacao,
                 CENARIO,
                 "77",
-                Oferta { editavel: true, assinaturas: 0 },
+                Oferta {
+                    editavel: true,
+                    assinaturas: 0,
+                },
             )
             .unwrap();
         }
