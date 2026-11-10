@@ -124,7 +124,15 @@ fn ler_via<V: EnvioDoControle>(
         requisicoes += 1;
         let resposta = envio.get(&url, cookie)?;
         let html = transporte::decodificar_resposta(resposta)?;
-        let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo)
+        let estado = lista
+            .lista
+            .itens
+            .iter()
+            .find(|b| b.numero == numero)
+            .expect("href_do_bloco validou a linha")
+            .estado
+            .as_str();
+        let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)
             .map_err(crate::bloco_cli::FalhaLeitura::Detalhe)?;
         return Ok(
             json!({"unidade":unidade,"origem":"web","requisicoes":requisicoes,"bloco":detalhe}),

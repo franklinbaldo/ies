@@ -17,6 +17,8 @@ pub(crate) struct ItemDoBloco {
 pub(crate) struct BlocoDetalhado {
     pub(crate) numero: String,
     pub(crate) tipo: TipoBloco,
+    /// O estado foi observado na lista que ofereceu o link do detalhe.
+    pub(crate) estado: String,
     pub(crate) total_declarado: usize,
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) itens: Vec<ItemDoBloco>,
@@ -134,6 +136,7 @@ pub(crate) fn ler_detalhe(
     html: &str,
     numero: &str,
     tipo: TipoBloco,
+    estado: &str,
 ) -> Result<BlocoDetalhado, ErroHtml> {
     use ErroHtml as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -200,6 +203,7 @@ pub(crate) fn ler_detalhe(
     Ok(BlocoDetalhado {
         numero: numero.to_owned(),
         tipo,
+        estado: estado.to_owned(),
         total_declarado,
         faixa_observada,
         itens,
@@ -213,7 +217,7 @@ mod tests {
     fn documentos_do_bloco_sao_lidos_pelas_colunas_nao_pela_posicao() {
         // Caso de Todos tests/paginas_reais/bloco_com_documentos.html @323eb01.
         let html = "<table id='tblProtocolosBlocos'><caption>Lista de Processos/Documentos (1 registros):</caption><tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr><tr><td><input type='checkbox'/></td><td>0001234</td><td>0000.00/2026-01</td><td>Observação</td><td>Despacho</td></tr></table>";
-        let d = ler_detalhe(html, "91", TipoBloco::Assinatura).unwrap();
+        let d = ler_detalhe(html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
         assert_eq!(d.total_declarado, 1);
         assert_eq!(d.itens[0].documento.as_deref(), Some("0001234"));
         assert_eq!(d.itens[0].anotacoes, "Observação");
@@ -222,7 +226,7 @@ mod tests {
     fn interno_nao_inventa_documento_ou_tipo() {
         // Caso de Todos tests/test_bloco_de_processos_010.py @323eb01.
         let html = "<table id='tblProtocolosBlocos'><caption>Lista (1 registros):</caption><tr><th></th><th>Processo</th><th>Anotações</th></tr><tr><td><input type='checkbox'/></td><td>NUP 001</td><td></td></tr></table>";
-        let d = ler_detalhe(html, "91", TipoBloco::Interno).unwrap();
+        let d = ler_detalhe(html, "91", TipoBloco::Interno, "Gerado").unwrap();
         assert!(d.itens[0].documento.is_none());
         assert!(d.itens[0].tipo.is_none());
     }
@@ -230,7 +234,7 @@ mod tests {
     fn detalhe_truncado_recusado() {
         let html = "<table id='tblProtocolosBlocos'><caption>Lista (9 registros):</caption><tr><th>Processo</th><th>Anotações</th></tr><tr><td>NUP</td><td></td></tr></table>";
         assert_eq!(
-            ler_detalhe(html, "91", TipoBloco::Reuniao).err(),
+            ler_detalhe(html, "91", TipoBloco::Reuniao, "Gerado").err(),
             Some(ErroHtml::valor("faixa_do_bloco_invalida"))
         );
     }

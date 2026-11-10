@@ -4,6 +4,7 @@ pub mod acesso_versao;
 pub mod andamentos;
 pub mod atribuicoes;
 pub mod banco_cassettes;
+pub mod bloco_detalhe;
 pub mod blocos;
 pub mod cancelamento_documento;
 pub mod ciencia_documental;
