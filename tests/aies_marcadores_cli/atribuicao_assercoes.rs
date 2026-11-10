@@ -58,4 +58,3 @@ pub(super) fn conferir_controles(controles: &[(bool, bool, bool)], sem_tela_gere
         );
     }
 }
-
