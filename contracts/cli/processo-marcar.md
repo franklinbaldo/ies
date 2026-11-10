@@ -83,7 +83,7 @@ Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
-A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
+A tabela abaixo descreve as variantes; a saída pública traz só a mensagem.
 Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
 a confirmação depende da resposta causal e da releitura independente.
 

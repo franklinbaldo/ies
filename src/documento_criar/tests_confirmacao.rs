@@ -444,7 +444,6 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
         },
     );
     let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
-    assert_eq!(erro.subcodigo(), "efeito_incerto_no_envio");
     let http = erro.status_http().expect("preservar status HTTP do POST");
     assert_eq!(http.status, 403);
     assert_eq!(
@@ -569,7 +568,6 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
         erro.causa_envio(),
         Some(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
     ));
-    assert_eq!(erro.subcodigo(), "efeito_incerto_no_envio");
     let status = erro.status_http().expect("causa de validacao preservada");
     assert_eq!(status.status, 200);
     assert_eq!(

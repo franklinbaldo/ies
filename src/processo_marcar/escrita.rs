@@ -46,18 +46,12 @@ fn falha(cli: &Cli, erro: ErroMarcar, reqs: u8) -> ExitCode {
 }
 
 fn falha_transporte(cli: &Cli, erro: &crate::transporte::FalhaTransporte) -> ExitCode {
-    saida_erro::erro_fonte_http(
-        cli.json,
-        erro.subcodigo(),
-        erro.mensagem(),
-        erro.status_http(),
-    )
+    saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
 }
 
 fn falha_formulario(cli: &Cli, erro: &crate::formulario_web::ErroSubmissaoFormulario) -> ExitCode {
     saida_erro::erro_fonte_http(
         cli.json,
-        erro.subcodigo(),
         "o formulário não corresponde à transição observada",
         erro.status_http(),
     )
@@ -208,12 +202,7 @@ fn preparar_submissao<V: EnvioDoProcesso>(
     rotulo: &Rotulo,
 ) -> Result<crate::formulario_web::SubmissaoDerivada, ExitCode> {
     let cookie = ler_cookie(sessao).map_err(|erro| {
-        saida_erro::erro_fonte_http(
-            cli.json,
-            crate::erro_publico::folha(&erro),
-            erro.mensagem(),
-            erro.status_http(),
-        )
+        saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
     })?;
     let (html, mime) = match obter_tela(rede, &cookie, link) {
         Ok(tela) => tela,
@@ -286,12 +275,7 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
         Ok(aberto) => aberto,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let Some(unidade) = aberto.unidade.as_deref() else {

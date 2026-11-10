@@ -22,9 +22,6 @@ pub(crate) enum FalhaCache {
 }
 
 impl FalhaCache {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
     pub(crate) fn mensagem(self) -> &'static str {
         match self {
             Self::Diretorio => "diretório do cache local indisponível ou inseguro",

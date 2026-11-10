@@ -20,9 +20,8 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let nup = match NumeroProcesso::novo(numero) {
-        Ok(numero) => numero,
-        Err(erro) => return Some(erro_de_uso(cli.json, erro.subcodigo())),
+    let Ok(nup) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
     let texto = texto.as_deref();
     if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
@@ -93,12 +92,9 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 }
                 ExitCode::SUCCESS
             }
-            Err(Erro::Abertura(erro)) => saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            ),
+            Err(Erro::Abertura(erro)) => {
+                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
+            }
             Err(erro) => falha_da_previa(cli, &erro),
         }
     }))
@@ -137,7 +133,6 @@ fn exibir_consulta(preview: &processo_anotar::Previa, modo_json: bool) {
 /// Emite a causa tipada sem catálogo de subcódigos por operação.
 fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     use crate::erro_publico::Causa;
-    let causa = crate::erro_publico::caminho_de(erro);
     let motivo_situacao = match &erro {
         Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
         _ => None,
@@ -151,7 +146,6 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     if cli.json {
         let mut saida = json!({
             "codigo": if incerto { "efeito_incerto" } else { "fonte_invalida" },
-            "causa": causa,
             "erro": mensagem,
             "retentavel": false
         });
@@ -168,9 +162,9 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
         }
         println!("{saida}");
     } else if let Some(motivo) = motivo_situacao {
-        eprintln!("IES: {mensagem} [{}; {motivo}]", causa.join("/"));
+        eprintln!("IES: {mensagem} ({motivo})");
     } else {
-        eprintln!("IES: {mensagem} [{}]", causa.join("/"));
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(if incerto { 3 } else { 1 })
 }

@@ -45,11 +45,11 @@ pub enum FalhaTransporte {
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
     /// Status HTTP 401 ou 403.
-    #[causa(http, acao = "relogar")]
+    #[causa(http)]
     AcessoNegado(StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
     /// sessão não venceu; não há relogin nem nova tentativa.
-    #[causa(http, acao = "trocar_instalacao")]
+    #[causa(http)]
     BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
     /// Status HTTP 3xx; o corpo não é lido.
     #[causa(http)]
@@ -57,7 +57,7 @@ pub enum FalhaTransporte {
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
     /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
-    #[causa(http, acao = "relogar", sessao_encerrada)]
+    #[causa(http, sessao_encerrada)]
     ControleRedirecionadoParaOLogin(StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
     #[causa(http)]
@@ -70,7 +70,7 @@ pub enum FalhaTransporte {
     StatusHttpDiferenteDe200(StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
     CorpoNaoDecodificavelNoCharsetDeclarado,
-    #[causa(acao = "relogar", sessao_encerrada)]
+    #[causa(sessao_encerrada)]
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
@@ -80,9 +80,6 @@ pub enum FalhaTransporte {
 }
 
 impl FalhaTransporte {
-    pub fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub fn mensagem(&self) -> &'static str {
         match self {
             Self::ChaveDeConsultaNaoCanonica => {

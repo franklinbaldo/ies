@@ -80,8 +80,6 @@ pub(crate) enum ErroEnderecoDeReabrir {
     Html(ErroHtml),
 }
 
-impl ErroEnderecoDeReabrir {}
-
 /// A URL de reabrir na tela do nó do processo `id`, conferida, e a forma
 /// em que estava.
 pub(crate) fn ler_endereco_de_reabrir(

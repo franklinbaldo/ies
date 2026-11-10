@@ -20,20 +20,12 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroProcesso::novo(numero) {
-        Ok(n) => n,
-        Err(e) => {
-            return Some(erro_de_uso(
-                cli.json,
-                e.subcodigo(),
-                "Número de processo inválido",
-            ));
-        }
+    let Ok(numero) = NumeroProcesso::novo(numero) else {
+        return Some(erro_de_uso(cli.json, "Número de processo inválido"));
     };
     if !texto_valido(texto) {
         return Some(erro_de_uso(
             cli.json,
-            "texto_do_andamento_vazio_ou_maior_que_500_caracteres",
             "Texto do andamento deve conter entre 1 e 500 caracteres",
         ));
     }
@@ -86,7 +78,7 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                 ExitCode::SUCCESS
             }
             Err(Erro::Abertura(e)) => {
-                saida_erro::erro_fonte_http(cli.json, e.subcodigo(), e.mensagem(), e.status_http())
+                saida_erro::erro_fonte_http(cli.json, e.mensagem(), e.status_http())
             }
             Err(e) => publicar_valor_da_falha(
                 cli.json,
@@ -96,7 +88,6 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
                     } else {
                         "fonte_invalida"
                     },
-                    e.subcodigo(),
                     e.mensagem(),
                     None,
                 ),
@@ -106,17 +97,16 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     }))
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
-                "codigo": "entrada_invalida", "subcodigo": subcodigo,
-                "erro": mensagem, "retentavel": false
+                "codigo": "entrada_invalida", "erro": mensagem, "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }

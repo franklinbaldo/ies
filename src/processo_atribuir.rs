@@ -57,11 +57,6 @@ pub(crate) enum ErroAtribuir {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroAtribuir {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-}
 
 type E = ErroAtribuir;
 fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {

@@ -277,6 +277,5 @@ fn caneta_com_outro_cargo_e_efeito_incerto() {
     );
     let (r, _) = rodar_assinar(Some(CARGO), true, respostas);
     let erro = r.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_assinatura");
     assert_eq!(erro.saida(), 3);
 }

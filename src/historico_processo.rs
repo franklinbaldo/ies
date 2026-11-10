@@ -61,8 +61,6 @@ pub(crate) enum ErroLinkDoHistorico {
     Html(ErroHtml),
 }
 
-impl ErroLinkDoHistorico {}
-
 /// Falhas da página do histórico e da troca de visão.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAndamentos {

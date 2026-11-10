@@ -14,12 +14,6 @@ pub(crate) enum ErroListaDeTipos {
     Html(ErroHtml),
 }
 
-impl ErroListaDeTipos {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum EscolhaDoTipo {
     /// A URL é a que a própria âncora publicou; nunca expor em logs.

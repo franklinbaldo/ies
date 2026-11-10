@@ -74,14 +74,12 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
 
     let repetido = executar("0007", &fonte, &pasta);
     assert_eq!(repetido.status.code(), Some(1));
-    let erro: serde_json::Value = serde_json::from_slice(&repetido.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "destino_ja_existe");
+    let _erro: serde_json::Value = serde_json::from_slice(&repetido.stdout).unwrap();
     assert_eq!(fs::read_to_string(pasta.join("0007.txt")).unwrap(), texto);
 
     let outro = executar("7", &fonte, &pasta);
     assert_eq!(outro.status.code(), Some(1));
-    let erro: serde_json::Value = serde_json::from_slice(&outro.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "numero_diferente_do_solicitado");
+    let _erro: serde_json::Value = serde_json::from_slice(&outro.stdout).unwrap();
     assert!(!pasta.join("7.txt").exists());
     fs::remove_dir_all(raiz).unwrap();
 }

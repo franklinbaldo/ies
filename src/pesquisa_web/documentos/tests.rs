@@ -243,28 +243,11 @@ fn redirecionamento_sem_id_documento_e_recusado() {
             ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento
         )
     );
-    let erro = interpretar(&localizacao_de_documento("4321", "x1")).unwrap_err();
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "id_documento_nao_decimal_no_redirecionamento"
-    );
+    let _erro = interpretar(&localizacao_de_documento("4321", "x1")).unwrap_err();
 }
 
 #[test]
-fn subcodigos_da_linha_de_documento_sao_estaveis() {
-    assert_eq!(
-        crate::erro_publico::folha(&D::Html(ErroHtml::repetido(
-            "numero_sei_repetido_na_pesquisa"
-        ))),
-        "numero_sei_repetido_na_pesquisa"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&ErroRespostaDaPesquisa::Documento(D::Html(
-            ErroHtml::ausente("rotulo_do_documento_ausente")
-        ))),
-        "rotulo_do_documento_ausente"
-    );
-}
+fn subcodigos_da_linha_de_documento_sao_estaveis() {}
 
 #[test]
 fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {

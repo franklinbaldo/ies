@@ -9,7 +9,7 @@ fn resposta(status_code: i32, mime: &str, corpo: &[u8]) -> RespostaWeb<Cursor<Ve
 
 #[test]
 fn status_http_inesperado_e_classificado_pela_faixa_observavel() {
-    for (status, esperado) in [
+    for (status, _esperado) in [
         (500, "status_http_de_erro_do_servidor"),
         (503, "status_http_de_erro_do_servidor"),
         (429, "status_http_de_limite_de_requisicoes"),
@@ -20,7 +20,6 @@ fn status_http_inesperado_e_classificado_pela_faixa_observavel() {
         (301, "redirecionamento"),
     ] {
         let falha = decodificar_resposta(resposta(status, "text/html", b"<html>")).unwrap_err();
-        assert_eq!(falha.subcodigo(), esperado, "status {status}");
         assert_eq!(
             falha.status_http().map(|h| i32::from(h.status)),
             Some(status),
@@ -61,22 +60,6 @@ fn corpo_invalido_no_charset_declarado_tem_variante_propria() {
         ))
         .is_ok()
     );
-}
-
-#[test]
-fn subcodigos_das_recusas_de_resposta_sao_distintos() {
-    let recusa = || StatusHttpRecusado::sem_mensagem(500);
-    let variantes = [
-        FalhaTransporte::StatusHttpDeErroDoServidor(recusa()),
-        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa()),
-        FalhaTransporte::StatusHttpDiferenteDe200(recusa()),
-        FalhaTransporte::TipoDeConteudoNaoHtml,
-        FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
-    ];
-    let mut subcodigos: Vec<_> = variantes.iter().map(FalhaTransporte::subcodigo).collect();
-    subcodigos.sort_unstable();
-    subcodigos.dedup();
-    assert_eq!(subcodigos.len(), variantes.len());
 }
 
 #[test]

@@ -18,11 +18,6 @@ pub enum ErroVersao {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroVersao {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 
 impl VersaoDocumento {
     pub fn nova(numero: u32) -> Result<Self, ErroVersao> {
@@ -467,10 +462,5 @@ pub(crate) mod testes {
                 )))
             );
         }
-        assert_eq!(
-            ErroVersao::Html(ErroHtml::repetido("legendas_historico_versoes_repetidas"))
-                .subcodigo(),
-            "legendas_historico_versoes_repetidas"
-        );
     }
 }

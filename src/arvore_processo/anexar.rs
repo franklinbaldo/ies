@@ -14,11 +14,6 @@ pub(crate) enum ErroAnexarNaBarra {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroAnexarNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 pub(crate) fn ler_anexar_da_barra(
     instalacao: &Instalacao,
     html: &str,

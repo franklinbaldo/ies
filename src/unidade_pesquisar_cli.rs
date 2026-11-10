@@ -17,10 +17,10 @@ type ErroLocal = (&'static str, &'static str);
 fn escopo_da_sessao(arquivos: &ArquivosDeAcesso) -> Result<(String, String), ErroLocal> {
     let referencias =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-            .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+            .map_err(|e| (e.mensagem(), e.mensagem()))?;
     referencias
         .conferir_controle()
-        .map_err(|e| (e.subcodigo(), e.mensagem()))?;
+        .map_err(|e| (e.mensagem(), e.mensagem()))?;
     let instalacao = Instalacao::interpretar(referencias.origem()).ok_or((
         "origem_nao_autorizada",
         "a origem da sessão não identifica uma instalação HTTPS válida",
@@ -143,7 +143,6 @@ fn atualizar_por_web(
 /// de tentativas e subcodigo/status saneados aparecem na saida.
 fn json_da_falha_web(falha: &crate::unidade_lupa::FalhaDaLupa, requisicoes: usize) -> Value {
     let mut valor = crate::saida_erro::json_de_erro_fonte(
-        falha.subcodigo(),
         "a lupa não devolveu uma lista integral verificável",
         falha.status_http(),
     );
@@ -162,7 +161,6 @@ fn publicar_falha_web(
         eprintln!(
             "{} ({} requisições)",
             crate::saida_erro::linha_humana(
-                falha.subcodigo(),
                 "a lupa não devolveu uma lista integral verificável",
                 falha.status_http(),
             ),
@@ -178,16 +176,16 @@ fn executar(
     termo: Option<&str>,
     atualizar: bool,
 ) -> ExitCode {
-    if let Err((subcodigo, mensagem)) = conferir_unidade_pedida(unidade_esperada) {
-        return erro_fonte(json_mode, subcodigo, mensagem);
+    if let Err((_, mensagem)) = conferir_unidade_pedida(unidade_esperada) {
+        return erro_fonte(json_mode, mensagem);
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     let (instalacao, unidade) = match escopo_da_sessao(&arquivos) {
         Ok(escopo) => escopo,
-        Err((subcodigo, mensagem)) => return erro_fonte(json_mode, subcodigo, mensagem),
+        Err((_, mensagem)) => return erro_fonte(json_mode, mensagem),
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
     let guardada = if atualizar {
@@ -241,11 +239,7 @@ pub(super) fn listar(json_mode: bool, unidade_esperada: Option<&str>, atualizar:
 
 pub(super) fn pesquisar(json_mode: bool, unidade_esperada: Option<&str>, termo: &str) -> ExitCode {
     if termo.is_empty() {
-        return erro_fonte(
-            json_mode,
-            "termo_de_unidade_vazio",
-            "termo de pesquisa vazio",
-        );
+        return erro_fonte(json_mode, "termo de pesquisa vazio");
     }
     executar(json_mode, unidade_esperada, Some(termo), false)
 }
@@ -281,7 +275,6 @@ mod tests {
         let falha = crate::unidade_lupa::FalhaDaLupa::FormularioInesperado;
         let valor = json_da_falha_web(&falha, 5);
         assert_eq!(valor["requisicoes"], 5);
-        assert_eq!(valor["subcodigo"], "formulario_da_lupa_inesperado");
         assert!(valor.get("cookie").is_none());
         assert!(valor.get("url").is_none());
         assert!(valor.get("infra_hash").is_none());
@@ -289,7 +282,6 @@ mod tests {
         let outra = crate::unidade_lupa::FalhaDaLupa::LinkAmbiguo;
         let valor = json_da_falha_web(&outra, 1);
         assert_eq!(valor["requisicoes"], 1);
-        assert_eq!(valor["subcodigo"], "link_da_lupa_ambiguo");
     }
 
     #[test]

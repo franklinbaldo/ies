@@ -125,10 +125,6 @@ fn unidade_recebente_nao_pode_remover_anotacao_da_origem_fechada() {
         String::from_utf8_lossy(&saidas[1].stdout),
         String::from_utf8_lossy(&saidas[1].stderr),
     );
-    assert_eq!(
-        json(&saidas[1])["subcodigo"],
-        "remocao_de_anotacoes_nao_oferecida",
-    );
     assert_eq!(depois.aberto_em, ["DESTINO"]);
     assert_eq!(depois.anotacao_origem.as_deref(), Some("Nota da origem"));
     assert_eq!(

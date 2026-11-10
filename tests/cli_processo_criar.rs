@@ -105,8 +105,7 @@ fn hipotese_legal_explicitamente_invalida_eh_recusada_antes_da_sessao() {
             "--json",
         ]);
         assert_eq!(saida.status.code(), Some(2));
-        let valor: serde_json::Value =
+        let _valor: serde_json::Value =
             serde_json::from_slice(&saida.stdout).expect("erro JSON tipado");
-        assert_eq!(valor["subcodigo"], "hipotese");
     }
 }

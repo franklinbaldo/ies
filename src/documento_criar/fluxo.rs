@@ -100,7 +100,7 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) estado: EstadoCriacao,
 }
 
-#[derive(crate::erro_publico::Causa)]
+#[derive(Debug, crate::erro_publico::Causa)]
 pub(crate) enum ErroPreviaCriacao {
     /// O cookie privado da sessão não pôde ser lido.
     #[causa(interna)]
@@ -128,22 +128,15 @@ pub(crate) enum ErroPreviaCriacao {
     SubmissaoNaoComprovada,
     ArvoreIncompleta,
     FotoInicialInconsistente,
-    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
-    #[causa(acao = "conferir_escrita")]
     EfeitoIncertoNoEnvio(ErroSubmissaoFormulario),
     /// O GET de reconciliação falhou após o POST; preservar a causa
     /// observada, sem inferir que o documento deixou de ser criado.
-    #[causa(acao = "conferir_escrita")]
     EfeitoIncertoNaReleitura(ErroProcessoObter),
 }
 impl ErroPreviaCriacao {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn causa_envio(&self) -> Option<&ErroSubmissaoFormulario> {
         match self {
             Self::EfeitoIncertoNoEnvio(causa) => Some(causa),

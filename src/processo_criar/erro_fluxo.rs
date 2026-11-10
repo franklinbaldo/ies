@@ -32,8 +32,8 @@ pub(crate) enum EvidenciaDeCoincidencia {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
     pub(crate) evidencia: Option<EvidenciaDeCoincidencia>,
-    pub(crate) causa_post: &'static str,
-    pub(crate) causa_releitura: Option<&'static str>,
+    pub(crate) causa_post: String,
+    pub(crate) causa_releitura: Option<String>,
     /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
     pub(crate) http_releitura: Option<StatusHttpRecusado>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
@@ -95,56 +95,6 @@ pub(crate) enum ErroCriar {
 }
 
 impl ErroCriar {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::Transporte(falha) => crate::erro_publico::folha(falha),
-            Self::SessaoLocalIlegivel => "falha_de_transporte_na_criacao",
-            Self::UnidadeDiferente => "unidade_da_criacao_divergente",
-            Self::Menu(erro) => erro.onde,
-            Self::Lista(erro) => erro.subcodigo(),
-            Self::Cadastro(erro) => erro.subcodigo(),
-            Self::Formulario => "formulario_de_criacao_nao_reconhecido",
-            Self::TipoSemIdentificador => "tipo_de_processo_sem_identificador",
-            Self::EscolhaInesperada => "cadastro_nao_devolvido_apos_escolha",
-            Self::Interessado(erro) => erro.subcodigo(),
-            Self::Hipotese(erro) => erro.subcodigo(),
-            Self::Fotografia(erro) => crate::erro_publico::folha(erro),
-            Self::Conferencia(erro) => crate::erro_publico::folha(erro),
-            Self::Tela(erro) => crate::erro_publico::folha(erro),
-            Self::Arvore(erro) => crate::erro_publico::folha(erro),
-            Self::Propriedades(erro) => crate::erro_publico::folha(erro),
-            Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
-            Self::ProvaDaCriacao(erro) => crate::erro_publico::folha(erro),
-            Self::VerificacaoAposPost(erro) => erro.subcodigo(),
-            Self::Submissao(erro) | Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => {
-                erro.subcodigo()
-            }
-            Self::PosEscrita {
-                correspondentes: Some(nups),
-                posterior: Ok(_),
-                ..
-            }
-            | Self::PosRespostaInesperada {
-                correspondentes: Some(nups),
-                posterior: Ok(_),
-                ..
-            } if nups.len() == 1 => "candidato_unico_sem_prova_causal",
-            Self::PosEscrita {
-                correspondentes: Some(_),
-                posterior: Ok(_),
-                ..
-            }
-            | Self::PosRespostaInesperada {
-                correspondentes: Some(_),
-                posterior: Ok(_),
-                ..
-            } => "candidatos_ambiguos_na_criacao",
-            Self::PosEscrita { .. } | Self::PosRespostaInesperada { .. } | Self::EfeitoIncerto => {
-                "efeito_incerto_na_criacao"
-            }
-        }
-    }
-
     /// Somente valores numéricos do atributo maxlength observado na tela;
     /// não publica a descrição nem pressupõe limite global.
     pub(crate) fn limite_da_especificacao(&self) -> Option<(usize, usize)> {
@@ -221,7 +171,7 @@ impl ErroCriar {
                 correspondentes,
                 observados_antes_da_falha,
             } => (
-                causa_post.subcodigo(),
+                format!("{causa_post:?}"),
                 posterior,
                 correspondentes,
                 observados_antes_da_falha,
@@ -232,7 +182,7 @@ impl ErroCriar {
                 correspondentes,
                 observados_antes_da_falha,
             } => (
-                crate::erro_publico::folha(causa),
+                format!("{causa:?}"),
                 posterior,
                 correspondentes,
                 observados_antes_da_falha,
@@ -251,7 +201,7 @@ impl ErroCriar {
         Some(DiagnosticoPosEscrita {
             evidencia,
             causa_post,
-            causa_releitura: posterior.as_ref().err().map(|erro| erro.subcodigo()),
+            causa_releitura: posterior.as_ref().err().map(|erro| format!("{erro:?}")),
             http_releitura: posterior
                 .as_ref()
                 .err()

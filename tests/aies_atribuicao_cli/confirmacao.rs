@@ -87,8 +87,7 @@ fn confirmacao_recusa_origem_fora_do_treinamento_sem_post_ou_rede() {
         .output()
         .unwrap();
     assert_eq!(saida.status.code(), Some(1));
-    let resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(resultado["subcodigo"], "origem_fora_do_treinamento");
+    let _resultado: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
 }
 
 #[test]
@@ -97,7 +96,6 @@ fn bdd_264_03_resposta_403_apos_post_aplicado_nao_confirma_autoria() {
         executar_cenario_com_resposta(true, false, None, true, RespostaPost::Recusa403);
     assert_eq!(escrita.status.code(), Some(3));
     let erro: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
-    assert_eq!(erro["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(erro["atribuicao_relida"], "aluno2");
     assert_eq!(
         erro["erro"],
@@ -170,7 +168,6 @@ fn bdd_264_02_03_302_historico_preserva_erro_json_e_orcamento() {
             executar_cenario_com_resposta(true, remover, None, true, RespostaPost::Historico302);
         assert_eq!(escrita.status.code(), Some(3));
         let json: serde_json::Value = serde_json::from_slice(&escrita.stdout).unwrap();
-        assert_eq!(json["subcodigo"], "efeito_incerto_na_atribuicao");
         assert_eq!(json["atribuicao_relida"], esperado);
         assert_eq!(json["requisicoes"], 10);
         assert_eq!(estado, esperado);

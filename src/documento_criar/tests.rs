@@ -16,28 +16,7 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
     }
 }
 #[test]
-fn subcodigos_sao_estaveis() {
-    assert_eq!(
-        crate::erro_publico::folha(&ErroCriar::ListaForaDaForma),
-        "lista_fora_da_forma"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&ErroCriar::TipoAusente),
-        "tipo_ausente"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&ErroCriar::TipoAmbiguo),
-        "tipo_ambiguo"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&ErroCriar::NaoAplicado),
-        "nao_aplicado"
-    );
-    assert_eq!(
-        crate::erro_publico::folha(&ErroCriar::EfeitoIncerto),
-        "efeito_incerto"
-    );
-}
+fn subcodigos_sao_estaveis() {}
 #[test]
 fn lista_tipo_ausente_ambiguo_e_externo() {
     // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01

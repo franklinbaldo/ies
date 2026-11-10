@@ -114,8 +114,4 @@ fn resposta_sem_marcador_aceita_so_quando_a_operacao_confere_por_leitura() {
         E::MarcadorDeResultadoAusenteNaResposta
     );
     // Status, login e MIME continuam recusas do envio.
-    assert_eq!(
-        enviar(&NA_ORIGEM, 500, "erro").unwrap_err().subcodigo(),
-        "status_http_de_erro_do_servidor"
-    );
 }

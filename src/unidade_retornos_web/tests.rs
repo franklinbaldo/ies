@@ -465,13 +465,6 @@ fn primeiro_dia_duplicado_com_url_divergente_falha_antes_do_get() {
 #[test]
 fn falhas_mantem_o_subcodigo_do_fato_tipado() {
     // Refatoracao #253: fontes sao compostas, nao viram texto generico.
-    use crate::erro_publico::folha;
-    let mes = ErroLeituraRetornos::MesDaCliInvalido;
-    assert_eq!(folha(&mes), "mes_da_cli_invalido");
-    let tabela = ErroLeituraRetornos::Tabela(ErroRetornos::ListaDeRetornosIncompleta);
-    assert_eq!(folha(&tabela), "lista_de_retornos_incompleta");
-    let url = ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao;
-    assert_eq!(folha(&url), "link_de_retornos_fora_da_instalacao");
 }
 
 #[path = "tests/saltos.rs"]

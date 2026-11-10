@@ -288,10 +288,6 @@ fn aies_04_cli_real_recusa_unidade_divergente() {
     assert_ne!(saida.status.code(), Some(0));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(
-        valor["subcodigo"],
-        "unidade_exibida_diferente_da_solicitada"
-    );
     assert!(valor.get("unidade_exibida").is_none());
 }
 

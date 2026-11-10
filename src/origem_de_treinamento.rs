@@ -24,8 +24,7 @@ const ORIGENS: [&str; 8] = [
 
 /// A origem da sessão não é instalação de treinamento: a escrita é
 /// recusada antes de qualquer requisição.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CausaDaOrigem {
     OrigemForaDoTreinamento,
 }
@@ -33,9 +32,13 @@ pub(crate) enum CausaDaOrigem {
 const MENSAGEM: &str =
     "a origem da sessão não é instalação pública de treinamento; nenhuma requisição foi enviada";
 
-/// Saída pública da recusa tipada, antes de qualquer requisição.
+/// Saída pública da recusa, antes de qualquer requisição.
 pub(crate) fn recusa(json_mode: bool, causa: CausaDaOrigem) -> std::process::ExitCode {
-    crate::saida_erro::erro_fonte_tipado(json_mode, &causa, MENSAGEM)
+    match causa {
+        CausaDaOrigem::OrigemForaDoTreinamento => {
+            crate::saida_erro::erro_fonte(json_mode, MENSAGEM)
+        }
+    }
 }
 
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
@@ -90,15 +93,6 @@ pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), CausaDaOrigem
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn causa_de_origem_serde_direto_preserva_identidade_legada() {
-        let erro = exigir(Escrita::ProcessoAtribuir, "https://sei.exemplo.gov.br/sei").unwrap_err();
-        assert_eq!(
-            serde_json::to_value(erro).unwrap(),
-            serde_json::json!("origem_fora_do_treinamento")
-        );
-    }
 
     #[test]
     fn comentarios_sao_restritos_a_treinamento() {

@@ -1,6 +1,7 @@
 //! Saída JSON e humana de `processo enviar`: campos do contrato, nada de
 //! URL, e as falhas com as listas que o SEI publicou.
 use super::{humano, json_de_sucesso, sigla_de_destino};
+use crate::erro_publico::Rotulo as _;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_enviar::{Destino, ErroEnviar, ProcessoEnviado};
 use crate::transporte::FalhaTransporte;
@@ -67,10 +68,6 @@ fn enviado_e_reconciliado() {
     let valor = json_de_sucesso(&feito);
     assert_eq!(valor["depois_esperado"], json!(["TESTE", "TESTE_1_1"]));
     assert_eq!(valor["reconciliado_por_leitura"], true);
-    assert_eq!(
-        valor["falha_do_envio"]["subcodigo"],
-        "resposta_do_envio_sem_redirecionamento"
-    );
     assert!(humano(&feito).contains("Enviado. Aberto em, relido: TESTE, TESTE_1_1"));
 }
 
@@ -79,7 +76,6 @@ fn falhas_levam_as_listas() {
     let oferecidos = json_de_falha(&ErroEnviar::DestinoNaoOferecidoPeloSei {
         oferecidos: vec!["OUTRA - Outra".into()],
     });
-    assert_eq!(oferecidos["subcodigo"], "destino_nao_oferecido_pelo_sei");
     assert_eq!(oferecidos["oferecidos"], json!(["OUTRA - Outra"]));
     let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
         aberto_em: vec!["TESTE".into()],
@@ -92,10 +88,6 @@ fn falhas_levam_as_listas() {
     let valor = json_de_falha(&incerto);
     assert_eq!(valor["codigo"], "efeito_incerto");
     assert_eq!(valor["status_http"], 302);
-    assert_eq!(
-        valor["falha_do_envio"]["subcodigo"],
-        "redirecionamento_nao_reconhecido_apos_enviar"
-    );
     assert!(valor["verificacao"].is_string());
     assert_eq!(incerto.saida(), 3);
 }
@@ -186,7 +178,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                 "OUTRA - Destino publicado pelo SEI",
             )])),
         ]);
-        let ((valor, mensagem, subcodigo, saida), pedidos) =
+        let ((valor, mensagem, _subcodigo, saida), pedidos) =
             rodar_com(&ambiente, respostas, |sessao, nup, indice, roteiro| {
                 let pedido = PedidoDoEnvio {
                     nup,
@@ -208,7 +200,7 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
                     super::texto_das_sugestoes(&super::sugestoes_guardadas(
                         &erro, sessao, indice, DESTINO,
                     )),
-                    erro.subcodigo().to_owned(),
+                    erro.rotulo().to_owned(),
                     erro.saida(),
                 )
             });
@@ -219,12 +211,11 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
             vec!["GET", "GET", "GET", "GET", "POST"],
         );
         assert_eq!(pedidos.len(), 5);
-        assert_eq!(subcodigo, "destino_nao_oferecido_pelo_sei");
         assert_eq!(saida, 1);
         let esperado = if unidade_da_lista == Some(ativa.as_str()) {
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei","sugestoes_guardadas":["TESTE_1_1 - Unidade guardada"]}"#
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"sugestoes_guardadas":["TESTE_1_1 - Unidade guardada"]}"#
         } else {
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":["OUTRA - Destino publicado pelo SEI"],"retentavel":false}"#
         };
         assert_eq!(valor.to_string(), esperado);
         assert_eq!(
@@ -280,13 +271,8 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
     };
     let linhas = super::linhas_da_falha(&nao_aplicado);
-    assert!(linhas[0].contains(nao_aplicado.subcodigo()));
     assert_eq!(linhas[1], "IES: aberto_em: TESTE");
     assert_eq!(linhas[2], "IES: depois: OUTRA");
-    assert_eq!(
-        linhas[3],
-        "IES: resposta da escrita: redirecionamento_nao_reconhecido_apos_enviar"
-    );
     let incerto = ErroEnviar::EfeitoIncertoNoEnvio {
         aberto_em: vec![],
         anotacao_depois: None,
@@ -306,13 +292,13 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
     let casos = [
         (
             ErroEnviar::DestinoNaoOferecidoPeloSei { oferecidos: vec![] },
-            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":[],"retentavel":false,"subcodigo":"destino_nao_oferecido_pelo_sei"}"#,
+            r#"{"codigo":"fonte_invalida","erro":"o SEI não oferece unidade de destino com essa sigla; nada foi enviado","oferecidos":[],"retentavel":false}"#,
         ),
         (
             ErroEnviar::VariosDestinosComASigla {
                 candidatos: vec!["TESTE - A".into(), "TESTE - B".into()],
             },
-            r#"{"candidatos":["TESTE - A","TESTE - B"],"codigo":"fonte_invalida","erro":"o SEI oferece mais de uma unidade com essa sigla; nada foi enviado","retentavel":false,"subcodigo":"varios_destinos_com_a_sigla"}"#,
+            r#"{"candidatos":["TESTE - A","TESTE - B"],"codigo":"fonte_invalida","erro":"o SEI oferece mais de uma unidade com essa sigla; nada foi enviado","retentavel":false}"#,
         ),
         (
             ErroEnviar::EnvioNaoAplicado {
@@ -320,7 +306,7 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
                 depois: vec![],
                 falha_do_envio: None,
             },
-            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false,"subcodigo":"envio_nao_aplicado"}"#,
+            r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false}"#,
         ),
         (
             ErroEnviar::EfeitoIncertoNoEnvio {
@@ -329,7 +315,7 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
                 falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
                 verificacao: Box::new(VerificacaoPorLeitura::Lida(vec![])),
             },
-            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302,"subcodigo":"redirecionamento_nao_reconhecido_apos_enviar"},"retentavel":false,"status_http":302,"subcodigo":"efeito_incerto_no_envio","verificacao":null}"#,
+            r#"{"aberto_em":[],"codigo":"efeito_incerto","erro":"não se sabe se o processo foi enviado; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"status_http":302},"retentavel":false,"status_http":302,"verificacao":null}"#,
         ),
     ];
     for (erro, esperado) in casos {

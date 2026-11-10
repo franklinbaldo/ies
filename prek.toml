@@ -85,15 +85,6 @@ always_run = true
 stages = ["pre-push"]
 
 [[repos.hooks]]
-id = "subcodigos"
-name = "Subcódigos Rust documentados nos contratos"
-entry = "python3 -I scripts/subcodigos.py"
-language = "system"
-pass_filenames = false
-always_run = true
-stages = ["pre-push"]
-
-[[repos.hooks]]
 id = "semver-bump"
 name = "Versao 0.x SemVer: Cargo, wheel, lock e regressao"
 entry = "python3 -I scripts/check_bump_ci.py"

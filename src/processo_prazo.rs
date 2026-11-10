@@ -19,18 +19,6 @@ pub(crate) enum ErroPrazo {
     OutroProcesso,
 }
 
-impl ErroPrazo {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        match self {
-            Self::OpcoesIncompativeis => "opcoes_de_prazo_incompativeis",
-            Self::DataInvalida => "data_do_prazo_invalida",
-            Self::DiasInvalidos => "dias_do_prazo_invalidos",
-            Self::TelaNaoObservada => "tela_de_prazo_nao_observada",
-            Self::OutroProcesso => "tela_de_prazo_de_outro_processo",
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum EstadoDoPrazo {
     SemPrazo,

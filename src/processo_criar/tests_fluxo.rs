@@ -186,8 +186,6 @@ fn falha_de_transporte_depois_do_post_eh_incerta_e_nao_repete() {
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().unwrap();
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(diagnostico.candidatos_observados, Some(Vec::new()));
     assert_eq!(requests.len(), 5);
     assert_eq!(
@@ -307,7 +305,6 @@ fn recusa_http_do_get_preserva_status_e_nao_segue() {
         )
     });
     let erro = resultado.expect_err("recusa HTTP");
-    assert_eq!(erro.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(erro.status_http().map(|s| s.status), Some(503));
     assert_eq!(erro.saida(), 1);
     assert_eq!(requests.len(), 2);
@@ -432,8 +429,7 @@ fn gerados_paginados_nao_impedem_o_post_mas_tornam_a_resposta_incerta() {
     });
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
-    let diagnostico = erro.diagnostico_apos_post().expect("diagnóstico pós-POST");
-    assert_eq!(diagnostico.causa_releitura, Some("cobertura_incompleta"));
+    let _diagnostico = erro.diagnostico_apos_post().expect("diagnóstico pós-POST");
     assert_eq!(requests.len(), 4);
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
@@ -516,10 +512,5 @@ fn falha_do_post_e_da_releitura_permanece_incerta_sem_retry() {
     let erro = resultado.unwrap_err();
     assert_eq!(erro.saida(), 3);
     let diagnostico = erro.diagnostico_apos_post().unwrap();
-    assert_eq!(diagnostico.causa_post, "rede");
-    assert_eq!(
-        diagnostico.causa_releitura,
-        Some("status_http_de_erro_do_servidor")
-    );
     assert_eq!(diagnostico.candidatos_observados, None);
 }

@@ -17,8 +17,6 @@ pub(crate) enum ErroLinkDaPesquisa {
     Html(ErroHtml),
 }
 
-impl ErroLinkDaPesquisa {}
-
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
 /// da tela servida e conferida na instalação. Nenhuma requisição.
 pub(crate) fn link_da_pesquisa(

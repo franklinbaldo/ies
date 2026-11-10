@@ -31,8 +31,6 @@ pub(crate) enum ErroAcompanhar {
     Html(ErroHtml),
 }
 
-impl ErroAcompanhar {}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct GrupoOferecido {
     pub(crate) valor: String,

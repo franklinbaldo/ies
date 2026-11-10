@@ -11,13 +11,6 @@ pub enum FalhaDaConferencia {
     TextoDiferenteDoPedido,
 }
 
-impl FalhaDaConferencia {
-    #[must_use]
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 /// Só uma lista relida com uma ocorrência de `id_aceite` e texto idêntico prova
 /// o efeito. Sem id ou sem leitura, a CLI futura deverá sair com código 3;
 /// não é permitido reenviar para descobrir se o POST anterior funcionou.

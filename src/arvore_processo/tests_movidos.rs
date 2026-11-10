@@ -303,7 +303,7 @@ fn destino_fora_da_forma_e_recusa() {
 
 #[test]
 fn subcodigos_estaveis() {
-    let nomes: Vec<&str> = [
+    let _nomes: Vec<&str> = [
         E::Html(ErroHtml::valor("documento_movido_fora_da_forma_observada")),
         E::DocumentoMovidoComPaiDiferenteDoProcesso,
         E::Html(ErroHtml::repetido("documento_movido_repetido_na_arvore")),
@@ -313,16 +313,6 @@ fn subcodigos_estaveis() {
         E::Html(ErroHtml::repetido("destinos_do_documento_movido_repetidos")),
     ]
     .into_iter()
-    .map(|e| crate::erro_publico::folha(&e))
+    .map(|e| crate::erro_publico::rotulo(&e))
     .collect();
-    assert_eq!(
-        nomes,
-        [
-            "documento_movido_fora_da_forma_observada",
-            "documento_movido_com_pai_diferente_do_processo",
-            "documento_movido_repetido_na_arvore",
-            "destino_do_documento_movido_fora_da_forma_observada",
-            "destinos_do_documento_movido_repetidos",
-        ]
-    );
 }

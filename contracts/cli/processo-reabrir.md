@@ -110,7 +110,7 @@ continuam como estavam. Desfaz-se com `ies processo concluir`.
 `forma` é `funcao`, `variavel` ou `null` (antes de pedir a tela do nó: na
 prévia e quando não há o que fazer). `depois` são as siglas lidas na
 verificação. Nunca URL, `infra_hash` ou cookie. Falhas: `{"codigo",
-"subcodigo", "erro", "retentavel": false}` mais `aberto_em`, `depois`,
+"erro", "retentavel": false}` mais `aberto_em`, `depois`,
 `motivo`, `falha_do_envio`, `verificacao` e `status_http` quando houver. A
 saída humana termina com "Para reabrir, repita com --confirmar" na prévia.
 

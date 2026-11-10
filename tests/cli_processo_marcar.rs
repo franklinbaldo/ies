@@ -17,14 +17,13 @@ fn json(saida: &Output) -> serde_json::Value {
 }
 #[test]
 fn marcador_invalido_sai_2_antes_de_ler_sessao() {
-    for (rotulo, subcodigo) in [
+    for (rotulo, _subcodigo) in [
         ("sem-separador", "rotulo_sem_separador"),
         ("x#Nome", "id_do_marcador_nao_decimal"),
         ("501# ", "nome_do_marcador_vazio"),
     ] {
         let saida = sem_sessao(&["processo", "marcar", "NUP", "--marcador", rotulo, "--json"]);
         assert_eq!(saida.status.code(), Some(2), "{rotulo}");
-        assert_eq!(json(&saida)["subcodigo"], subcodigo);
     }
 }
 #[test]
@@ -45,7 +44,6 @@ fn marcador_valido_tenta_sessao_sem_enviar_escrita() {
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
         let valor = json(&saida);
         assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["subcodigo"], "nao_implementado");
     }
 }
 #[test]
@@ -90,7 +88,6 @@ fn texto_acima_do_limite_observado_sai_2_sem_abrir_sessao() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "texto_do_marcador_longo");
 }
 #[test]
 fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
@@ -112,10 +109,6 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
             assert_eq!(json(&saida)["codigo"], "fonte_invalida");
-            assert_eq!(
-                json(&saida)["subcodigo"],
-                "arquivo_privado_ausente_ou_inacessivel"
-            );
         }
     }
 }
@@ -132,10 +125,6 @@ fn atribuicao_confirmada_exige_sessao_privada_antes_de_qualquer_rede() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_ausente_ou_inacessivel"
-    );
 }
 
 #[test]
@@ -150,8 +139,4 @@ fn retirada_confirmada_exige_sessao_privada_antes_de_qualquer_rede() {
         "--json",
     ]);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "arquivo_privado_ausente_ou_inacessivel"
-    );
 }

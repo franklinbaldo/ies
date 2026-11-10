@@ -51,10 +51,6 @@ pub(crate) enum FalhaDepoisDoEnvio {
 }
 
 impl FalhaDepoisDoEnvio {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Envio(erro) => erro.status_http(),
@@ -106,10 +102,6 @@ impl ErroTroca {
             Self::EfeitoIncerto { .. } => 3,
             _ => 1,
         }
-    }
-
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
     }
 
     pub(crate) fn mensagem(&self) -> &'static str {

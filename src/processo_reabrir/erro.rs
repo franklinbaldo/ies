@@ -54,10 +54,6 @@ pub(crate) enum ErroReabrir {
 }
 
 impl ErroReabrir {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Categoria pública: o próximo passo de quem chama.
     pub(crate) fn codigo(&self) -> &'static str {
         match self {

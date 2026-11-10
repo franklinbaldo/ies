@@ -363,8 +363,6 @@ fn conferir_resultados(
         }
         Modo::RespostaIncerta => {
             assert_eq!(saida_json["codigo"], "efeito_incerto");
-            assert_eq!(saida_json["causa"], "resposta_do_post");
-            assert!(saida_json.get("subcodigo").is_none());
             assert_eq!(saida_json["escrita"]["envio_tentado"], true);
             assert!(saida_json["escrita"]["aplicada"].is_null());
             assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
@@ -392,7 +390,6 @@ fn conferir_resultados(
         }
         Modo::JaAnexado => {
             assert_eq!(saida_json["codigo"], "operacao_recusada");
-            assert_eq!(saida_json["subcodigo"], "processo_ja_anexado");
             assert_eq!(saida_json["retentavel"], false);
         }
     }

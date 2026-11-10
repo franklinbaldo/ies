@@ -25,16 +25,6 @@ pub(crate) enum ErroLinkCancelar {
     EnderecoNaoReconhecido,
     EnderecoDeOutroDocumento,
 }
-impl ErroLinkCancelar {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraForaDaForma => "barra_do_cancelamento_fora_da_forma",
-            Self::LinksRepetidos => "links_de_cancelamento_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_cancelamento_nao_reconhecido",
-            Self::EnderecoDeOutroDocumento => "endereco_de_cancelamento_de_outro_documento",
-        }
-    }
-}
 
 /// Um link assinado validado; Debug nunca revela a URL.
 #[derive(Clone, PartialEq, Eq)]

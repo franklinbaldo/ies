@@ -278,7 +278,6 @@ fn coluna_indisponivel_recusa_sem_salvar_e_fica_na_d() {
             coluna: C::Prioridade
         }
     );
-    assert_eq!(falha.subcodigo(), "coluna_indisponivel_nesta_instalacao");
     assert_eq!(falha.saida(), 1);
 }
 
@@ -341,7 +340,6 @@ fn verificacao_com_as_marcas_de_antes_e_nao_aplicada() {
             ..
         }
     ));
-    assert_eq!(falha.subcodigo(), "configuracao_de_colunas_nao_aplicada");
     assert_eq!((falha.codigo(), falha.saida()), ("escrita_nao_aplicada", 1));
 }
 
@@ -392,7 +390,6 @@ fn erro_5xx_no_salvar_reconcilia_por_leitura_sem_repetir_o_post() {
     let feito = ok(&rodada);
     assert!(feito.alterado);
     let por = feito.reconciliado_por.as_ref().unwrap();
-    assert_eq!(por.subcodigo(), "status_http_de_erro_do_servidor");
     assert_eq!(por.status_http().map(|h| h.status), Some(500));
 }
 
@@ -427,14 +424,6 @@ fn tempo_esgotado_e_outras_marcas_e_efeito_incerto() {
             ..
         } if **verificacao == VerificacaoDasColunas::Marcadas(vec![C::Atribuicao])
     ));
-    assert_eq!(
-        (falha.subcodigo(), falha.codigo(), falha.saida()),
-        (
-            "efeito_incerto_na_configuracao_de_colunas",
-            "efeito_incerto",
-            3
-        )
-    );
 }
 
 #[test]
@@ -468,14 +457,13 @@ fn redirecionamento_ou_login_no_salvar_e_reconciliado_por_leitura() {
     let login =
         "<html><form id='frmLogin' action='login.php'><input name='txtUsuario'></form></html>"
             .to_owned();
-    for (passo, subcodigo) in [
+    for (passo, _subcodigo) in [
         (Passo::Html(302, String::new()), "redirecionamento_302"),
         (Passo::Html(200, login), "tela_de_login_recebida_apos_envio"),
     ] {
         let rodada = salvar_incerto(passo, nivel(&C::TODAS, &C::TODAS));
         assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
-        let por = ok(&rodada).reconciliado_por.as_ref().unwrap();
-        assert_eq!(por.subcodigo(), subcodigo);
+        let _por = ok(&rodada).reconciliado_por.as_ref().unwrap();
     }
 }
 
@@ -511,10 +499,6 @@ fn tela_devolvida_sem_sinal_e_leitura_de_antes_e_nao_aplicada_com_a_falha() {
     ));
     assert_eq!(falha.saida(), 1);
     assert_eq!(
-        FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.subcodigo(),
-        "nivel_devolvido_sem_sinal_de_gravacao"
-    );
-    assert_eq!(
         FalhaDoSalvar::NivelDevolvidoSemSinalDeGravacao.status_http(),
         None
     );
@@ -528,7 +512,6 @@ fn resposta_200_nao_reconhecida_e_leitura_do_alvo_e_reconciliada() {
     assert_eq!(rodada.registro, [GET_NIVEL, "POST salvar", GET_NIVEL]);
     let por = ok(&rodada).reconciliado_por.as_ref().unwrap();
     assert_eq!(por, &FalhaDoSalvar::RespostaDoSalvarNaoReconhecida);
-    assert_eq!(por.subcodigo(), "resposta_do_salvar_nao_reconhecida");
 }
 
 #[test]

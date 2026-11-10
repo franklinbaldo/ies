@@ -104,7 +104,7 @@ Os três arquivos devem existir e, no Unix, ter permissões privadas; o setup
 confere metadados, não testa a conexão. Grava a configuração local
 com criação exclusiva (não sobrescreve) e permissão 0600 no Unix. Sucesso (0) em JSON:
 `{"configuracao":"gravada","conexao":"nao_verificada"}`.
-Falha operacional usa `fonte_invalida`, `subcodigo`, mensagem saneada
+Falha operacional usa `fonte_invalida`, mensagem saneada
 e saída 1; opção obrigatória ausente é erro do clap (2).
 
 ## Contratos iniciais de leitura

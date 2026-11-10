@@ -238,7 +238,7 @@ processo sai da unidade; voltar exige uma sessão na unidade de destino
 ```
 
 Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "subcodigo", "erro", "retentavel": false}` mais `aberto_em`,
+`{"codigo", "erro", "retentavel": false}` mais `aberto_em`,
 `oferecidos`, `candidatos`, `depois`, `falha_do_envio`, `verificacao` e
 `status_http` quando houver. A saída humana da prévia termina com "Para
 enviar, repita com --confirmar".

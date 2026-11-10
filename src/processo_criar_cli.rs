@@ -22,12 +22,6 @@ enum ErroEntradaCriacao {
     Hipotese,
 }
 
-impl ErroEntradaCriacao {
-    fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 fn texto_valido(valor: &str) -> bool {
     !valor.trim().is_empty() && !valor.chars().any(char::is_control)
 }
@@ -74,13 +68,12 @@ fn uso_invalido(json_mode: bool, erro: ErroEntradaCriacao) -> ExitCode {
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": erro.subcodigo(),
                 "erro": "argumento de criação de processo vazio ou com caractere de controle",
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: argumento de criação inválido [{}]", erro.subcodigo());
+        eprintln!("IES: argumento de criação inválido ({erro:?})");
     }
     ExitCode::from(2)
 }
@@ -105,7 +98,7 @@ fn json_da_recusa_criadora(
     mensagem: &str,
     requisicoes: u32,
 ) -> serde_json::Value {
-    let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+    let mut valor = json_de_erro_fonte(mensagem, erro.status_http());
     valor["requisicoes"] = json!(requisicoes);
     if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
         valor["limite_da_especificacao"] = json!(limite);
@@ -144,15 +137,12 @@ fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) ->
     let mensagem = "a tela do SEI não permitiu concluir o fluxo de criação com segurança";
     if let Some(opcoes) = erro.opcoes_para_escolha() {
         if json_mode {
-            let mut valor = json_de_erro_fonte(erro.subcodigo(), mensagem, erro.status_http());
+            let mut valor = json_de_erro_fonte(mensagem, erro.status_http());
             valor["hipoteses_legais_oferecidas"] = json_de_opcoes(opcoes);
             valor["requisicoes"] = json!(requisicoes);
             println!("{valor}");
         } else {
-            eprintln!(
-                "{}",
-                linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-            );
+            eprintln!("{}", linha_humana(mensagem, erro.status_http()));
             eprintln!("IES: hipóteses legais ofertadas no AJAX:");
             for (id, nome) in opcoes {
                 eprintln!("  {id}#{nome}");
@@ -167,26 +157,20 @@ fn erro_antes_da_escrita(json_mode: bool, erro: &ErroCriar, requisicoes: u32) ->
         return ExitCode::from(1);
     }
     if let Some((limite, tamanho)) = erro.limite_da_especificacao() {
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         eprintln!(
             "IES: especificação com {tamanho} unidades UTF-16; máximo publicado pelo cadastro: {limite}. Nenhuma escrita foi tentada."
         );
         return ExitCode::from(1);
     }
     if erro.nao_aplicada_comprovada() {
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         eprintln!(
             "IES: o SEI recusou expressamente o cadastro; criação não aplicada. Para tentar de novo, faça nova prévia e nova confirmação explícita (sem retry automático)."
         );
         return ExitCode::from(1);
     }
-    erro_fonte_http(false, erro.subcodigo(), mensagem, erro.status_http())
+    erro_fonte_http(false, mensagem, erro.status_http())
 }
 
 fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCode {
@@ -201,7 +185,6 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
     if json_mode {
         let mut valor = json!({
             "codigo": "efeito_incerto",
-            "subcodigo": erro.subcodigo(),
             "erro": "ainda não foi possível confirmar o efeito da criação; não repita o POST",
             "retentavel": false,
             "requisicoes": requisicoes
@@ -228,10 +211,7 @@ fn erro_do_fluxo(json_mode: bool, erro: &ErroCriar, requisicoes: u32) -> ExitCod
     } else {
         // A linha humana preserva o HTTP saneado também na saída 3.
         let mensagem = "criação não confirmada; não repita o POST";
-        eprintln!(
-            "{}",
-            linha_humana(erro.subcodigo(), mensagem, erro.status_http())
-        );
+        eprintln!("{}", linha_humana(mensagem, erro.status_http()));
         if let Some(diagnostico) = erro.diagnostico_apos_post() {
             let causa_post = diagnostico.causa_post;
             let falha_leitura = diagnostico.causa_releitura;
@@ -286,7 +266,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     }
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+        Err(erro) => return Some(erro_fonte(cli.json, erro.mensagem())),
     };
     let referencias = match transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
@@ -294,7 +274,7 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         &arquivos.cookie,
     ) {
         Ok(referencias) => referencias,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), erro.mensagem())),
+        Err(erro) => return Some(erro_fonte(cli.json, erro.mensagem())),
     };
     let pedido = PedidoCriar {
         tipo,

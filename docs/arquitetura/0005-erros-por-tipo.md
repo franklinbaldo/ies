@@ -148,7 +148,9 @@ módulo de leitura de tela (`MODULOS_DE_TELA`).
 
 - Erro novo: tipo perto da detecção, uma origem em regra, propagação
   direta e serialização na fronteira. Não introduzir subcódigos.
-- Tabelas `subcodigos-*.md` deixam de ser a fonte; caem quando os
-  contratos migrarem.
+- Tabelas `subcodigos-*.md`, o gate `subcodigos` e o trait `Causa`
+  com caminho/folha/ação foram removidos (10/11/2026). A saída pública
+  é `codigo` + `erro` (mensagem) + HTTP; o derive só gera `From`,
+  `status_http()` e `sessao_encerrada()`.
 - `?` em vez de `map_err` para compor causas; um `From` manual só onde
   a origem não é um erro do projeto (`io`, `rusqlite`).

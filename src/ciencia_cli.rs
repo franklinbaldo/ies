@@ -31,7 +31,7 @@ pub(crate) fn tentar_ciente(cli: &Cli) -> Option<ExitCode> {
                 Err(erro) => publicar_erro(cli.json, &erro),
             }
         }),
-        Err(erro) => erro_de_uso(cli.json, erro.subcodigo()),
+        Err(_) => erro_de_uso(cli.json),
     })
 }
 
@@ -75,11 +75,7 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(
-                crate::erro_publico::folha(erro),
-                erro.mensagem(),
-                erro.status_http()
-            )
+            crate::saida_erro::linha_humana(&erro.mensagem(), erro.status_http())
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
@@ -103,25 +99,11 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     };
     let mut objeto = json!({
         "codigo": codigo,
-        "subcodigo": crate::erro_publico::folha(erro),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaProcesso::EfeitoIncerto {
-        motivo,
-        requisicoes,
-        falha_do_aceite,
-    } = erro
-    {
-        objeto["verificacao"] = json!(crate::erro_publico::folha(motivo));
+    if let ErroCienciaProcesso::EfeitoIncerto { requisicoes, .. } = erro {
         objeto["requisicoes"] = json!(requisicoes);
-        if let Some(falha) = falha_do_aceite {
-            objeto["falha_do_aceite"] = json!({
-                "subcodigo": crate::erro_publico::folha(falha),
-                "causa": crate::erro_publico::caminho_de(falha),
-                "detalhe": falha.detalhe()
-            });
-        }
     }
     if let Some(http) = erro.status_http() {
         objeto["status_http"] = json!(http.status);

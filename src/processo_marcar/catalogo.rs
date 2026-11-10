@@ -233,12 +233,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     let (aberto, acoes) = match abrir_para_escrever(sessao, &pedido, indice, &mut rede) {
         Ok(resposta) => resposta,
         Err(erro) => {
-            return saida_erro::erro_fonte_http(
-                cli.json,
-                erro.subcodigo(),
-                erro.mensagem(),
-                erro.status_http(),
-            );
+            return saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http());
         }
     };
     let Some(unidade) = aberto.unidade.as_deref() else {

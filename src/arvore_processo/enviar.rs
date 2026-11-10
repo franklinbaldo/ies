@@ -21,8 +21,6 @@ pub(crate) enum ErroEnviarNaBarra {
     Html(ErroHtml),
 }
 
-impl ErroEnviarNaBarra {}
-
 /// O link da tela de envio na barra do processo `id`; `Ok(None)` se a
 /// barra não o publica.
 pub(crate) fn ler_enviar_da_barra(

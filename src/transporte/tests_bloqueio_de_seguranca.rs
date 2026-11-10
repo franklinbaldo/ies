@@ -51,7 +51,6 @@ fn outro_titulo_frase_ausente_ou_frase_fora_do_texto_visivel_nao_e_bloqueio() {
 fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=utf-8", BLOQUEIO)).unwrap_err();
-    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
     let http = falha.status_http().unwrap();
     assert_eq!(http.status, 403);
     let mensagem = http.mensagem_do_servidor.as_deref().unwrap();
@@ -65,17 +64,14 @@ fn bloqueio_403_tem_subcodigo_proprio_status_e_mensagem_com_o_codigo() {
 
 #[test]
 fn status_403_generico_e_401_com_a_pagina_continuam_acesso_negado() {
-    let generico = decodificar_resposta(resposta(
+    let _generico = decodificar_resposta(resposta(
         403,
         "text/html",
         "<html><head><title>Forbidden</title></head><body>Forbidden</body></html>",
     ))
     .unwrap_err();
-    assert_eq!(generico.subcodigo(), "acesso_negado");
-    let nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
-    assert_eq!(nao_autorizado.subcodigo(), "acesso_negado");
-    let texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
-    assert_eq!(texto.subcodigo(), "acesso_negado");
+    let _nao_autorizado = decodificar_resposta(resposta(401, "text/html", BLOQUEIO)).unwrap_err();
+    let _texto = decodificar_resposta(resposta(403, "text/plain", BLOQUEIO)).unwrap_err();
 }
 
 /// Bloqueio do Cloudflare da PEN2 (Tramita, 04/11/2026), no segundo GET de
@@ -95,7 +91,6 @@ fn bloqueio_do_cloudflare_observado_na_pen2_e_bloqueio_de_seguranca() {
     assert!(e_bloqueio_de_seguranca(CLOUDFLARE));
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=UTF-8", CLOUDFLARE)).unwrap_err();
-    assert_eq!(falha.subcodigo(), "bloqueio_de_seguranca_da_instalacao");
     assert_eq!(falha.status_http().unwrap().status, 403);
 }
 

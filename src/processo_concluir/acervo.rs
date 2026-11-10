@@ -16,6 +16,7 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
 use std::collections::BTreeMap;
@@ -64,13 +65,13 @@ fn barra(inst: &Instalacao, html: &str, id: &str) -> String {
         Ok(Some(ConcluirNaBarra::PelaTela(_))) => "`tela`".into(),
         Ok(Some(ConcluirNaBarra::PelaFuncao { .. })) => "`funcao`".into(),
         Ok(None) => "não oferece".into(),
-        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+        Err(erro) => format!("`{}`", erro.rotulo()),
     }
 }
 
 fn tela_de_conclusao(inst: &Instalacao, html: &str, item: &serde_json::Value, id: &str) -> String {
     if let Err(erro) = conferir_tela_de_conclusao(html, id) {
-        return format!("`{}`", crate::erro_publico::folha(&erro));
+        return format!("`{}`", erro.rotulo());
     }
     let url = item["response"]["url"].as_str().unwrap_or("");
     let tela = TelaServida {
@@ -82,7 +83,7 @@ fn tela_de_conclusao(inst: &Instalacao, html: &str, item: &serde_json::Value, id
     match derivar_submissao(&CONCLUIR_PROCESSO, inst, &tela, "", &CAMPOS_DO_ENVIO) {
         Ok(s) if s.nomes_dos_campos().len() == 7 => "conferida e derivada (7 campos)".into(),
         Ok(s) => format!("derivada com {} campos", s.nomes_dos_campos().len()),
-        Err(erro) => format!("`{}`", erro.subcodigo()),
+        Err(erro) => format!("`{}`", erro.rotulo()),
     }
 }
 
@@ -145,7 +146,7 @@ fn replay_de_processo_concluir_no_acervo() {
                     let Some(h) = html() else { continue };
                     let classe = match ler_funcao_de_concluir(&inst, &h, &id) {
                         Ok(_) => "URL lida e conferida".to_owned(),
-                        Err(erro) => format!("`{}`", crate::erro_publico::folha(&erro)),
+                        Err(erro) => format!("`{}`", erro.rotulo()),
                     };
                     somar(&mut contagem, "função na tela do nó", classe, nome);
                 }

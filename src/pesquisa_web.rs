@@ -35,8 +35,6 @@ pub enum ErroResultadoPesquisa {
     Html(ErroHtml),
 }
 
-impl ErroResultadoPesquisa {}
-
 // O controlador PHP decodifica nomes de query e normaliza pontos/espacos
 // para '_'. %5F, '.' ou '+' podem sobrescrever acao/id_procedimento.
 // Os nomes devem ser literais ASCII, inclusive os parametros auxiliares.

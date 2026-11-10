@@ -133,7 +133,7 @@ Antes do POST (saída 1, nada mudou): as do GET do Controle (como
 formulário e as do lock (`login_em_andamento_em_outro_processo`).
 
 Depois do POST enviado, qualquer desvio do observado sai com **3**,
-`codigo: efeito_incerto`, `subcodigo: efeito_incerto_na_troca_de_unidade`
+`codigo: efeito_incerto`
 e `etapa` (`envio`, `primeiro_redirecionamento`, `segundo_redirecionamento`
 ou `controle_da_unidade_nova`) com `falha` (o subcódigo do fato). A URL da
 sessão não é regravada e nenhum outro pedido sai: a unidade pode ter

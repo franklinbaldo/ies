@@ -28,19 +28,18 @@ fn opcoes_de_leitura_presentes(comando: &Processo) -> bool {
         || comando.andamentos_completos
 }
 
-fn erro_de_uso(json_mode: bool, subcodigo: &str, mensagem: &str) -> ExitCode {
+fn erro_de_uso(json_mode: bool, mensagem: &str) -> ExitCode {
     if json_mode {
         println!(
             "{}",
             json!({
                 "codigo": "entrada_invalida",
-                "subcodigo": subcodigo,
                 "erro": mensagem,
                 "retentavel": false
             })
         );
     } else {
-        eprintln!("IES: {mensagem} [{subcodigo}]");
+        eprintln!("IES: {mensagem}");
     }
     ExitCode::from(2)
 }
@@ -126,7 +125,6 @@ fn buscar(
     if filtros.de.is_some_and(|v| !data_valida(v)) || filtros.ate.is_some_and(|v| !data_valida(v)) {
         return erro_de_uso(
             cli.json,
-            "data_da_pesquisa_invalida",
             "data deve estar em DD/MM/AAAA e existir no calendário",
         );
     }
@@ -134,27 +132,21 @@ fn buscar(
         let inicio = format!("{}{}{}", &de[6..10], &de[3..5], &de[0..2]);
         let fim = format!("{}{}{}", &ate[6..10], &ate[3..5], &ate[0..2]);
         if inicio > fim {
-            return erro_de_uso(
-                cli.json,
-                "periodo_da_pesquisa_invertido",
-                "data inicial posterior à final",
-            );
+            return erro_de_uso(cli.json, "data inicial posterior à final");
         }
     }
     if opcoes_de_leitura_presentes(comando) {
         return erro_de_uso(
             cli.json,
-            "opcoes_incompativeis_com_busca",
             "opções de leitura do processo não combinam com buscar",
         );
     }
-    let termo = match NumeroProcesso::novo(termo) {
-        Ok(termo) => termo,
-        Err(erro) => return erro_de_uso(cli.json, erro.subcodigo(), "termo de pesquisa inválido"),
+    let Ok(termo) = NumeroProcesso::novo(termo) else {
+        return erro_de_uso(cli.json, "termo de pesquisa inválido");
     };
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(cli.json, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(cli.json, erro.mensagem()),
     };
     let pedido = PedidoDeBusca {
         termo: termo.as_str(),

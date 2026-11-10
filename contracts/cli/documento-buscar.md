@@ -94,7 +94,7 @@ próximo título trazem `td.pesquisaMetatag` "Unidade:", "Usuário:" e
 "Inclusão:" (só unidade e inclusão são publicadas). Qualquer outra forma
 falha fechado (subcódigos em [erros tipados](../../docs/erros-tipados.md)).
 
-## Erros tipados (saída 1, `fonte_invalida` com `subcodigo`)
+## Erros tipados (saída 1, `fonte_invalida`)
 
 Os de `processo buscar` (link, tela, termo e `maxlength`, envio,
 validação, 302, barra, paginação, transporte e

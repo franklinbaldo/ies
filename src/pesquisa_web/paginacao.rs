@@ -47,8 +47,6 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     Html(ErroHtml),
 }
 
-impl ErroPaginacaoDaPesquisa {}
-
 /// O que a paginação precisa da resposta da página 1, em processos ou em
 /// documentos: a forma e, na lista, a faixa e o total da barra.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

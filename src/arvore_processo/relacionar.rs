@@ -13,11 +13,6 @@ pub(crate) enum ErroRelacionarNaBarra {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-impl ErroRelacionarNaBarra {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
 pub(crate) fn ler_relacionar_da_barra(
     instalacao: &Instalacao,
     html: &str,

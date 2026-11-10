@@ -1,11 +1,8 @@
 //! `#[derive(Causa)]`: a identidade pública de um erro sai da própria
 //! variante, declarada uma vez, ao lado de onde o erro é levantado.
 //!
-//! - O nome é o `snake_case` da variante (`LinkAusente` → `link_ausente`),
-//!   sem exceção em texto: para mudar o nome, renomeie a variante.
 //! - `#[causa(interna)]`, numa variante de tupla com um campo, compõe: o
 //!   caminho continua no erro interno e a ação e o status vêm dele.
-//! - `#[causa(acao = "relogar")]` fixa a ação de recuperação.
 //! - `#[causa(fonte)]`, numa variante de tupla com um campo, guarda a
 //!   causa que a levantou: o caminho continua nela, a ação e o status vêm
 //!   dela, mas a variante segue sendo o fato (a `folha`). Várias variantes
@@ -24,7 +21,6 @@ use std::fmt::Write as _;
 
 #[derive(Default)]
 struct Atributos {
-    acao: Option<String>,
     sessao_encerrada: bool,
     ligacoes: Vec<Ligacao>,
 }
@@ -184,8 +180,7 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
     let Some(TokenTree::Group(argumentos)) = tokens.next() else {
         return Err("Causa: use #[causa(...)]".into());
     };
-    let mut args = argumentos.stream().into_iter().peekable();
-    while let Some(token) = args.next() {
+    for token in argumentos.stream() {
         let TokenTree::Ident(chave) = token else {
             continue;
         };
@@ -195,24 +190,6 @@ fn ler_atributo(atributo: TokenStream, destino: &mut Atributos) -> Result<(), St
             "fonte" => destino.ligacoes.push(Ligacao::Fonte),
             "http" => destino.ligacoes.push(Ligacao::Http),
             "sessao_encerrada" => destino.sessao_encerrada = true,
-            "acao" => {
-                let igual = args.next();
-                let valor = args.next();
-                let (Some(TokenTree::Punct(p)), Some(TokenTree::Literal(literal))) = (igual, valor)
-                else {
-                    return Err("Causa: use acao = \"...\"".to_owned());
-                };
-                if p.as_char() != '=' {
-                    return Err("Causa: use acao = \"...\"".to_owned());
-                }
-                let texto = literal.to_string();
-                let texto = texto
-                    .strip_prefix('"')
-                    .and_then(|t| t.strip_suffix('"'))
-                    .ok_or_else(|| "Causa: acao precisa de string".to_owned())?
-                    .to_owned();
-                destino.acao = Some(texto);
-            }
             outra => return Err(format!("Causa: argumento desconhecido `{outra}`")),
         }
     }
@@ -237,40 +214,6 @@ fn validar(v: &Variante) -> Result<(), String> {
     Ok(())
 }
 
-/// `StatusHttpDiferenteDe200` → `status_http_diferente_de_200`;
-/// `DuranteALeitura` → `durante_a_leitura`.
-fn snake(ident: &str) -> String {
-    let c: Vec<char> = ident.chars().collect();
-    let mut saida = String::new();
-    for (i, &atual) in c.iter().enumerate() {
-        if i > 0 {
-            let antes = c[i - 1];
-            let depois = c.get(i + 1).copied();
-            let maiuscula = atual.is_ascii_uppercase()
-                && (!antes.is_ascii_uppercase() || depois.is_some_and(|d| d.is_ascii_lowercase()));
-            let numero = atual.is_ascii_digit() && !antes.is_ascii_digit();
-            if maiuscula || numero {
-                saida.push('_');
-            }
-        }
-        saida.push(atual.to_ascii_lowercase());
-    }
-    saida
-}
-
-/// `corrigir_argumentos` → `CorrigirArgumentos`.
-fn camel(texto: &str) -> String {
-    texto
-        .split('_')
-        .map(|parte| {
-            let mut c = parte.chars();
-            c.next()
-                .map(|p| p.to_ascii_uppercase().to_string() + c.as_str())
-                .unwrap_or_default()
-        })
-        .collect()
-}
-
 fn padrao(v: &Variante, ligar: bool) -> String {
     match v.forma {
         Forma::Unidade => format!("Self::{}", v.ident),
@@ -282,42 +225,12 @@ fn padrao(v: &Variante, ligar: bool) -> String {
 
 fn escrever(nome: &str, variantes: &[Variante]) -> String {
     const T: &str = "crate::erro_publico";
-    let mut caminho = String::new();
-    let mut acao = String::new();
     let mut http = String::new();
-    let mut folha = String::new();
     let mut encerrada = String::new();
     for v in variantes {
-        let rotulo = snake(&v.ident);
         let compoe = v.atributos.interna() || v.atributos.tem(Ligacao::Fonte);
         let ligado = compoe || v.atributos.tem(Ligacao::Http);
         let p = padrao(v, ligado);
-        if v.atributos.interna() {
-            let _ = writeln!(folha, "{p} => {T}::Causa::folha(interna),");
-        } else {
-            let _ = writeln!(folha, "{} => {rotulo:?},", padrao(v, false));
-        }
-        if v.atributos.tem(Ligacao::Transparente) {
-            let _ = writeln!(caminho, "{p} => {T}::Causa::caminho(interna, c),");
-        } else if compoe {
-            let _ = writeln!(
-                caminho,
-                "{p} => {{ c.push({rotulo:?}); {T}::Causa::caminho(interna, c) }}"
-            );
-        } else {
-            let _ = writeln!(caminho, "{p} => c.push({rotulo:?}),");
-        }
-        let fixa = v
-            .atributos
-            .acao
-            .as_ref()
-            .map(|a| format!("{T}::Acao::{}", camel(a)));
-        let a = match (fixa, compoe) {
-            (Some(fixa), _) => fixa,
-            (None, true) => format!("{T}::Causa::acao(interna)"),
-            (None, false) => format!("{T}::Acao::Reportar"),
-        };
-        let _ = writeln!(acao, "{} => {a},", padrao(v, compoe));
         if v.atributos.sessao_encerrada {
             let _ = writeln!(encerrada, "{} => true,", padrao(v, false));
         } else if compoe {
@@ -352,17 +265,6 @@ fn escrever(nome: &str, variantes: &[Variante]) -> String {
         "{conversoes}
 #[automatically_derived]
 impl {T}::Causa for {nome} {{
-    fn caminho(&self, c: &mut Vec<&'static str>) {{
-        match self {{ {caminho} }}
-    }}
-    #[allow(unused_variables)]
-    fn folha(&self) -> &'static str {{
-        match self {{ {folha} }}
-    }}
-    #[allow(unused_variables)]
-    fn acao(&self) -> {T}::Acao {{
-        match self {{ {acao} }}
-    }}
     #[allow(unreachable_patterns, unused_variables)]
     fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {{
         match self {{ {http} _ => None }}
@@ -373,30 +275,4 @@ impl {T}::Causa for {nome} {{
     }}
 }}"
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{camel, snake};
-
-    #[test]
-    fn snake_separa_maiusculas_e_numeros() {
-        assert_eq!(snake("LinkAusente"), "link_ausente");
-        assert_eq!(
-            snake("StatusHttpDiferenteDe200"),
-            "status_http_diferente_de_200"
-        );
-        assert_eq!(snake("Rede"), "rede");
-        assert_eq!(
-            snake("SessaoTrocadaDuranteALeitura"),
-            "sessao_trocada_durante_a_leitura"
-        );
-        assert_eq!(snake("ParaOLogin"), "para_o_login");
-    }
-
-    #[test]
-    fn camel_monta_a_variante_da_acao() {
-        assert_eq!(camel("corrigir_argumentos"), "CorrigirArgumentos");
-        assert_eq!(camel("relogar"), "Relogar");
-    }
 }

@@ -46,8 +46,6 @@ pub(crate) enum ErroFiltro {
     AtributoDoFiltroIlegivel,
 }
 
-impl ErroFiltro {}
-
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroFiltro> {
     valor_do_atributo(tag, nome)
         .map_err(|_| ErroFiltro::AtributoDoFiltroIlegivel)?

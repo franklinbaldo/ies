@@ -95,11 +95,7 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
 
 /// Converte o motivo tipado em aviso legível somente na fronteira da CLI.
 fn texto_do_aviso(causa: ErroArvore) -> String {
-    use crate::erro_publico::Causa as _;
-    format!(
-        "leitura parcial do processo: lista de documentos incompleta ({})",
-        causa.folha()
-    )
+    format!("leitura parcial do processo: lista de documentos incompleta ({causa:?})")
 }
 
 /// `documentos` e `documentos_movidos`, na ordem dos nós.

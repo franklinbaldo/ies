@@ -9,12 +9,6 @@ pub enum NumeroDocumentoInvalido {
     NaoNumerico,
 }
 
-impl NumeroDocumentoInvalido {
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 impl NumeroDocumento {
     pub fn as_str(&self) -> &str {
         &self.0

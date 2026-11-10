@@ -180,8 +180,6 @@ pub(crate) enum ErroLinkDeAssinar {
     Html(ErroHtml),
 }
 
-impl ErroLinkDeAssinar {}
-
 const VARIAVEL: &str = "var linkAssinarDocumento = '";
 const FUNCAO: &str = "function assinarDocumento(){";
 const JANELA: &str = "parent.infraAbrirJanelaModal('";

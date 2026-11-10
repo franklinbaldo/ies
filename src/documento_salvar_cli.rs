@@ -12,11 +12,7 @@ use std::process::ExitCode;
 
 fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bool) -> ExitCode {
     let Ok(pasta) = std::env::current_dir() else {
-        return erro_fonte(
-            json_mode,
-            "leitura_diretorio_copias_falhou",
-            "diretório de trabalho não pode ser lido",
-        );
+        return erro_fonte(json_mode, "diretório de trabalho não pode ser lido");
     };
     match copia_listagem::listar(&pasta, documento) {
         Ok(copias) => {
@@ -44,11 +40,7 @@ fn mostrar_listagem_copias(documento: &documento::NumeroDocumento, json_mode: bo
             }
             ExitCode::SUCCESS
         }
-        Err(erro) => erro_fonte(
-            json_mode,
-            erro.subcodigo(),
-            "listagem local de cópias não foi verificada",
-        ),
+        Err(_) => erro_fonte(json_mode, "listagem local de cópias não foi verificada"),
     }
 }
 
@@ -66,25 +58,17 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let documento = match documento::NumeroDocumento::novo(numero) {
-        Ok(documento) => documento,
-        Err(erro) => {
-            return Some(erro_fonte(
-                cli.json,
-                erro.subcodigo(),
-                "número SEI inválido",
-            ));
-        }
+    let Ok(documento) = documento::NumeroDocumento::novo(numero) else {
+        return Some(erro_fonte(cli.json, "número SEI inválido"));
     };
     if *listar_copias {
         return Some(mostrar_listagem_copias(&documento, cli.json));
     }
-    let versao = match versao
+    let Ok(versao) = versao
         .map(documento_versoes::VersaoDocumento::nova)
         .transpose()
-    {
-        Ok(versao) => versao,
-        Err(erro) => return Some(erro_fonte(cli.json, erro.subcodigo(), "versão inválida")),
+    else {
+        return Some(erro_fonte(cli.json, "versão inválida"));
     };
     let previa = copia_documento::previa_local(&std::env::current_dir().ok()?, &documento, versao);
     match previa {
@@ -119,11 +103,7 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<ExitCode> {
             Some(ExitCode::SUCCESS)
         }
         Ok(dados) => Some(remoto::confirmar(cli, &documento, &dados)),
-        Err(erro) => Some(erro_fonte(
-            cli.json,
-            erro.subcodigo(),
-            "cópia local não pode ser conferida",
-        )),
+        Err(_) => Some(erro_fonte(cli.json, "cópia local não pode ser conferida")),
     }
 }
 
@@ -135,16 +115,12 @@ pub(super) fn validar_documentos(numeros: &[String], json_mode: bool) -> Option<
                     "{}",
                     json!({
                         "codigo": "entrada_invalida",
-                        "subcodigo": erro.subcodigo(),
                         "erro": "número SEI de documento inválido",
                         "retentavel": false
                     })
                 );
             } else {
-                eprintln!(
-                    "IES: número SEI de documento inválido [{}]",
-                    erro.subcodigo()
-                );
+                eprintln!("IES: número SEI de documento inválido ({erro:?})");
             }
             return Some(ExitCode::from(2));
         }
@@ -158,13 +134,9 @@ pub(super) fn tentar_validar_versao(cli: &Cli) -> Option<ExitCode> {
         versao: Some(versao),
         ..
     }) = &cli.command
-        && let Err(erro) = documento_versoes::VersaoDocumento::nova(*versao)
+        && let Err(_) = documento_versoes::VersaoDocumento::nova(*versao)
     {
-        return Some(erro_fonte(
-            cli.json,
-            erro.subcodigo(),
-            "versão do documento inválida",
-        ));
+        return Some(erro_fonte(cli.json, "versão do documento inválida"));
     }
     None
 }

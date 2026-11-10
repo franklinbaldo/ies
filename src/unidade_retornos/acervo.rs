@@ -105,7 +105,7 @@ fn conferir_calendario_real(
             panic!(
                 "{nome}: calendario passo {} recusado: {}",
                 resposta.passo,
-                crate::erro_publico::folha(&erro)
+                erro.mensagem()
             )
         })
 }
@@ -191,7 +191,7 @@ fn replay_retornos_no_acervo() {
                     println!(
                         "{instalacao}: passo {} recusado ({})",
                         resposta.passo,
-                        crate::erro_publico::folha(&erro)
+                        erro.mensagem()
                     );
                 }
             }

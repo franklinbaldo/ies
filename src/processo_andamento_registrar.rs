@@ -175,13 +175,9 @@ pub(crate) enum Erro {
     CharsetNaoSuportado,
     #[causa(interna)]
     Formulario(ErroSubmissaoFormulario),
-    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
 }
 impl Erro {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::EfeitoIncerto => {

@@ -33,7 +33,7 @@ Abertura do documento, pelo `--processo` a frio: 3 GET. Prévia: +1 GET da tela 
 
 ## Saída
 
-Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: `codigo`, `subcodigo`, `erro`, `retentavel:false`, `status_http` e mensagem saneada quando observados; em erro depois do POST, `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
+Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: `codigo`, `erro`, `retentavel:false`, `status_http` e mensagem saneada quando observados; em erro depois do POST, `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
 
 ## Subcódigos específicos
 

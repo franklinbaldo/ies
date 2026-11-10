@@ -20,14 +20,13 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let numero = match NumeroDocumento::novo(numero) {
-        Ok(v) => v,
-        Err(e) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+    let Ok(numero) = NumeroDocumento::novo(numero) else {
+        return Some(erro_de_uso(cli.json));
     };
     let processo = match processo.as_deref().map(NumeroProcesso::novo) {
         None => None,
         Some(Ok(p)) => Some(p),
-        Some(Err(e)) => return Some(erro_de_uso(cli.json, e.subcodigo())),
+        Some(Err(_)) => return Some(erro_de_uso(cli.json)),
     };
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaCienciaDocumento {
@@ -96,11 +95,7 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(
-                crate::erro_publico::folha(erro),
-                erro.mensagem(),
-                erro.status_http()
-            )
+            crate::saida_erro::linha_humana(&erro.mensagem(), erro.status_http())
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
@@ -123,25 +118,11 @@ fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
 pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
         "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
-        "subcodigo": crate::erro_publico::folha(erro),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
-    if let ErroCienciaDocumento::EfeitoIncerto {
-        motivo,
-        requisicoes,
-        falha_do_aceite,
-    } = erro
-    {
-        saida["verificacao"] = json!(crate::erro_publico::folha(motivo));
+    if let ErroCienciaDocumento::EfeitoIncerto { requisicoes, .. } = erro {
         saida["requisicoes"] = json!(requisicoes);
-        if let Some(falha) = falha_do_aceite {
-            saida["falha_do_aceite"] = json!({
-                "subcodigo": crate::erro_publico::folha(falha),
-                "causa": crate::erro_publico::caminho_de(falha),
-                "detalhe": falha.detalhe()
-            });
-        }
     }
     if let Some(http) = erro.status_http() {
         saida["status_http"] = json!(http.status);

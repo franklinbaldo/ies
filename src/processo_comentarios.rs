@@ -49,13 +49,6 @@ pub enum ErroComentarios {
     Html(ErroHtml),
 }
 
-impl ErroComentarios {
-    #[must_use]
-    pub fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, tag: &str) -> Vec<Tag<'p>> {
     raiz.query_selector(parser, tag)
         .into_iter()

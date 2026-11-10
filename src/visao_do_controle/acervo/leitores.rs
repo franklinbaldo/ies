@@ -8,6 +8,7 @@ use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
 use crate::erro_html::ErroHtml;
+use crate::erro_publico::Rotulo as _;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -96,7 +97,7 @@ pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte>
 fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     let resultado = match transporte(resp) {
         Ok(_) => Resultado::Lido,
-        Err(falha) => Resultado::Recusado(falha.subcodigo()),
+        Err(falha) => Resultado::Recusado(falha.mensagem()),
     };
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
@@ -105,9 +106,9 @@ fn subcodigo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'st
     // No POST, a tela de login vira a recusa do envio do formulário.
     if resp.metodo == "POST" && *falha == FalhaTransporte::PaginaDeLoginRecebidaNoControle {
         return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
-            .subcodigo();
+            .rotulo();
     }
-    falha.subcodigo()
+    falha.mensagem()
 }
 
 fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, saida: &mut Replay) {
@@ -134,7 +135,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let ctx = match contexto(&html) {
         Ok(ctx) => ctx,
         Err(erro) => {
-            v.resultado = Resultado::Recusado(erro.subcodigo());
+            v.resultado = Resultado::Recusado(erro.mensagem());
             saida.registros.push(v);
             return;
         }
@@ -148,7 +149,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
             crate::visao_do_controle::ErroVisaoDoControle::Html(ErroHtml::valor(
                 "visao_do_controle_nao_reconhecida",
             ))
-            .subcodigo(),
+            .rotulo(),
         );
         "ausente"
     };
@@ -162,7 +163,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let unidade = match unidade_da_tela(&ctx, None) {
         Ok(unidade) => unidade,
         Err(erro) => {
-            u.resultado = Resultado::Recusado(erro.subcodigo());
+            u.resultado = Resultado::Recusado(erro.mensagem());
             saida.registros.push(u);
             return;
         }
@@ -214,7 +215,7 @@ fn solicitada(
         .into(),
     );
     if let Err(erro) = unidade_da_tela(ctx, Some(prev)) {
-        s.resultado = Resultado::Recusado(erro.subcodigo());
+        s.resultado = Resultado::Recusado(erro.mensagem());
     }
     // A lista R aplica a mesma conferência (`unidade_inesperada`), quando lida.
     let pagina = [html.to_owned()];
@@ -245,11 +246,8 @@ fn resumida(
     let leitura = match crate::paginas::juntar(&[html.to_owned()], None) {
         Ok(leitura) => leitura,
         Err(erro) => {
-            j.resultado = fora.map_or(
-                Resultado::Recusado(erro.subcodigo()),
-                Resultado::NaoAplicavel,
-            );
-            j.formas.push(format!("recusa_{}", erro.subcodigo()));
+            j.resultado = fora.map_or(Resultado::Recusado(erro.rotulo()), Resultado::NaoAplicavel);
+            j.formas.push(format!("recusa_{}", erro.rotulo()));
             saida.registros.push(j);
             for leitor in [Leitor::Recebidos, Leitor::Gerados, Leitor::LinhasComLink] {
                 let motivo = Resultado::NaoAplicavel("lista_r_nao_lida");
@@ -306,7 +304,7 @@ fn resumida(
                 p.criterio = paginacao::criterio(html, lista.categoria());
                 saida.paginas.push(p);
             }
-            Err(erro) => l.resultado = Resultado::Recusado(erro.subcodigo()),
+            Err(erro) => l.resultado = Resultado::Recusado(erro.mensagem()),
         }
         saida.registros.push(l);
         saida
@@ -319,7 +317,7 @@ fn resumida(
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             k.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => k.resultado = Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => k.resultado = Resultado::Recusado(erro.rotulo()),
     }
     saida.registros.push(k);
 }

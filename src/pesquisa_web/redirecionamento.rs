@@ -52,8 +52,6 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     IdDocumentoNaoDecimalNoRedirecionamento,
 }
 
-impl ErroRedirecionamentoDaPesquisa {}
-
 /// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
 /// uma `acao`, chaves canônicas, `infra_hash` de 64 hex). É assinada:
 /// nunca vai para `Debug`, saída ou log; só `ies processo NUP` a usa num GET.

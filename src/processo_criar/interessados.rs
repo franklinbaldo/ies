@@ -34,10 +34,6 @@ pub(crate) enum ErroInteressado {
 }
 
 impl ErroInteressado {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
         crate::erro_publico::Causa::status_http(self)
     }

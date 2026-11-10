@@ -22,7 +22,7 @@ pub(super) fn assinaturas_publicas(lista: &[Assinante]) -> Vec<AssinantePublico<
 }
 
 pub(super) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida_erro::FalhaPublica {
-    crate::saida_erro::FalhaPublica::nova(falha.subcodigo(), falha.status_http())
+    crate::saida_erro::FalhaPublica::nova(falha.status_http())
 }
 
 /// Os campos próprios precedem `codigo` na ordem histórica do contrato.
@@ -43,12 +43,7 @@ pub(super) fn json_de_falha(erro: &ErroAssinar) -> FalhaAssinatura<'_> {
         assinaturas: None,
         assinaturas_depois: None,
         cargos: None,
-        dados: FalhaDaSituacao::nova(
-            erro.codigo(),
-            erro.subcodigo(),
-            erro.mensagem(),
-            erro.status_http(),
-        ),
+        dados: FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http()),
     };
     match erro {
         ErroAssinar::CargoNaoOferecidoPelaTela { cargos } => valor.cargos = Some(cargos),
@@ -81,7 +76,7 @@ pub(super) fn json_de_falha(erro: &ErroAssinar) -> FalhaAssinatura<'_> {
 
 /// A saída humana parte do erro original, sem ler sua apresentação JSON.
 pub(super) fn linhas_da_falha(erro: &ErroAssinar) -> Vec<String> {
-    let mut linhas = vec![format!("IES: {} [{}]", erro.mensagem(), erro.subcodigo())];
+    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
     if let ErroAssinar::CargoNaoOferecidoPelaTela { cargos } = erro {
         linhas.push(format!("IES: cargos da tela: {}", cargos.join("; ")));
     }
@@ -91,7 +86,7 @@ pub(super) fn linhas_da_falha(erro: &ErroAssinar) -> Vec<String> {
         _ => None,
     };
     if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {}", falha.subcodigo()));
+        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
     }
     if let ErroAssinar::EfeitoIncertoNaAssinatura { verificacao, .. } = erro
         && let Some(motivo) = verificacao.motivo()

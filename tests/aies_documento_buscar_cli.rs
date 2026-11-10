@@ -383,7 +383,7 @@ fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
     // Sem servidor/proxy de teste: qualquer tentativa de rede/configuração
     // no caminho de validação deixa de produzir a recusa contratada.
     let pasta = Pasta::nova();
-    for (termo, causa) in [
+    for (termo, _causa) in [
         ("   ", "vazio"),
         ("123\n", "controle"),
         ("123\t", "controle"),
@@ -407,7 +407,6 @@ fn bdd_61_03_cli_recusa_termo_invalido_antes_de_ler_sessao() {
         );
         let erro: Value = serde_json::from_slice(&saida.stdout).unwrap();
         assert_eq!(erro["codigo"], "entrada_invalida");
-        assert_eq!(erro["subcodigo"], causa);
         assert_eq!(erro["retentavel"], false);
     }
 }

@@ -498,7 +498,6 @@ fn bdd_256_03_bloco_ausente_da_pagina_recusa_sem_terceiro_get() {
     assert_eq!(pedidos.len(), 2);
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_eq!(valor["subcodigo"], "bloco_nao_encontrado_na_pagina");
     assert!(valor["erro"].as_str().unwrap().contains("página"));
     assert!(!valor.to_string().contains("infra_hash"));
 }

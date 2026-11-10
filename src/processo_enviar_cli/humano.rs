@@ -46,8 +46,7 @@ pub(crate) fn humano(feito: &ProcessoEnviado) -> String {
             linhas.push(format!("Enviado. Aberto em, relido: {}", refs(depois)));
             if let Some(falha) = &feito.reconciliado_por {
                 linhas.push(format!(
-                    "A resposta não foi a esperada ({}); a leitura confirmou.",
-                    falha.subcodigo()
+                    "A resposta não foi a esperada ({falha:?}); a leitura confirmou."
                 ));
             }
         }

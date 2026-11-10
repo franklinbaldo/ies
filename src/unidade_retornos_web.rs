@@ -45,9 +45,6 @@ impl ErroLeituraRetornos {
     }
 }
 impl crate::relogin_cli::FalhaPublicavel for ErroLeituraRetornos {
-    fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     fn mensagem(&self) -> &'static str {
         self.mensagem()
     }

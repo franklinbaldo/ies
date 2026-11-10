@@ -57,22 +57,21 @@ pub(crate) enum FalhaAnexar {
     ConsultaResposta(FalhaTransporte),
 }
 impl FalhaAnexar {
-    // Apenas as recusas legadas possuem subcódigo durante a migração.
-    // A falha nova é publicada pela variante tipada, não por tabela textual.
-    pub(crate) fn subcodigo_legado(&self) -> Option<&'static str> {
+    /// O que aconteceu, a partir do erro interno quando há um.
+    pub(crate) fn mensagem(&self) -> String {
         match self {
-            Self::Cookie(e) => Some(crate::erro_publico::folha(e)),
-            Self::EfeitoIncerto(_) => None,
-            Self::Abertura(erro) => Some(erro.subcodigo()),
-            Self::Barra(erro) => Some(erro.subcodigo()),
-            Self::LinkNaoPublicado => Some("anexacao_nao_publicada_na_barra"),
-            Self::Tela(erro) | Self::ConsultaTransporte(erro) | Self::ConsultaResposta(erro) => {
-                Some(erro.subcodigo())
+            Self::Cookie(e) => e.mensagem().to_owned(),
+            Self::Abertura(e) => e.mensagem().to_owned(),
+            Self::Tela(f) | Self::ConsultaTransporte(f) | Self::ConsultaResposta(f) => {
+                f.mensagem().to_owned()
             }
-            Self::TelaRedirecionada => Some("tela_de_anexacao_redirecionada"),
-            Self::SessaoEncerrada => Some("sessao_encerrada_rode_ies_login"),
-            Self::Estrutura(codigo) => Some(codigo),
-            Self::ConsultaDerivacao(erro) => Some(erro.subcodigo()),
+            Self::Barra(e) => format!("a barra não oferece a ação na forma observada ({e:?})"),
+            Self::ConsultaDerivacao(e) => format!("a consulta não pôde ser montada ({e:?})"),
+            Self::Estrutura(onde) => format!("a tela não está na forma observada ({onde})"),
+            Self::LinkNaoPublicado => "a barra não publica a ação".to_owned(),
+            Self::TelaRedirecionada => "a tela da ação foi redirecionada".to_owned(),
+            Self::SessaoEncerrada => "a sessão encerrou; rode ies login".to_owned(),
+            Self::EfeitoIncerto(etapa) => format!("a anexação não foi confirmada ({etapa:?})"),
         }
     }
 }

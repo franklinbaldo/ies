@@ -27,10 +27,6 @@ pub(crate) enum ErroDaListaDeColunas {
 }
 
 impl ErroDaListaDeColunas {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::ListaDeColunasVazia => "--definir exige `todas` ou uma lista de colunas",

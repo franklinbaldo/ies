@@ -19,12 +19,6 @@ pub(crate) enum ErroCadastro {
     Html(ErroHtml),
 }
 
-impl ErroCadastro {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        crate::erro_publico::folha(&self)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CadastroObservado {
     pub(crate) id_tipo: String,

@@ -13,8 +13,6 @@ pub enum ErroHistorico {
     Html(ErroHtml),
 }
 
-impl ErroHistorico {}
-
 fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
     let valor = no.inner_text(parser);
     valor
@@ -221,10 +219,6 @@ mod tests {
         assert_eq!(
             erro,
             ErroHistorico::Html(ErroHtml::repetido("tabelas_do_historico_repetidas"))
-        );
-        assert_eq!(
-            crate::erro_publico::folha(&erro),
-            "tabelas_do_historico_repetidas"
         );
     }
 

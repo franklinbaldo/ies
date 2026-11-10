@@ -2,6 +2,7 @@
 //! do POST fornece a unidade e o sistema, como no fluxo de processo NUP.
 use super::{Leitor, Registro, Resultado};
 use crate::cassette::acervo::gravacao;
+use crate::erro_publico::Rotulo as _;
 use crate::pesquisa_web::redirecionamento::{OrigemDoTrabalho, conferir_trabalho};
 
 pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> Vec<Registro> {
@@ -19,7 +20,7 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
                     OrigemDoTrabalho::PesquisaRapida,
                 ) {
                     Ok(_) => Resultado::Lido,
-                    Err(erro) => Resultado::Recusado(crate::erro_publico::folha(&erro)),
+                    Err(erro) => Resultado::Recusado(erro.rotulo()),
                 },
                 (None, _) => Resultado::NaoAplicavel("instalacao_da_cassette_nao_identificada"),
                 (_, None) => Resultado::NaoAplicavel("url_do_post_nao_gravada"),

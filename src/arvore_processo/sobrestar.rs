@@ -16,8 +16,6 @@ pub(crate) enum ErroAcaoSobrestar {
     Html(ErroHtml),
 }
 
-impl ErroAcaoSobrestar {}
-
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
     ErroAcaoSobrestar::Html(ErroHtml::valor("barra_do_sobrestamento_nao_interpretada"))
 }

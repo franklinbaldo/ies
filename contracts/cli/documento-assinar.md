@@ -147,7 +147,7 @@ conteúdo depois invalida a assinatura). Não há comando que desfaça.
 
 `assinaturas`: `{"nome", "cargo", "unidade"}` da árvore. `edicao`:
 `nao_assinado`, `assinado`, `nao_publicada` ou `fora_da_forma`. Nunca URL,
-`infra_hash`, cookie ou senha. Falhas: `{"codigo", "subcodigo", "erro",
+`infra_hash`, cookie ou senha. Falhas: `{"codigo", "erro",
 "retentavel": false}` mais `cargos`, `assinaturas_depois`,
 `falha_do_envio`, `verificacao` e `status_http` quando houver. A prévia
 humana termina com "Para assinar, repita com --cargo e --confirmar".

@@ -56,10 +56,6 @@ pub(crate) enum ErroSubmissaoFormulario {
 }
 
 impl ErroSubmissaoFormulario {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
-
     /// Status e mensagem do SEI quando a recusa veio do status HTTP.
     /// Na validação da Infra, status 200 e a mensagem do SEI.
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {

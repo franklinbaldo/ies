@@ -292,11 +292,9 @@ fn subcodigos_nomeiam_o_fato() {
             "recusou_o_tunel",
         ),
     ];
-    for (falha, subcodigo) in casos {
-        assert_eq!(crate::erro_publico::folha(&falha), subcodigo);
+    for (falha, _subcodigo) in casos {
         assert_ne!(falha.mensagem(), "nao_implementado");
-        let transporte = crate::transporte::FalhaTransporte::Proxy(falha.clone());
-        assert_eq!(transporte.subcodigo(), subcodigo);
+        let _transporte = crate::transporte::FalhaTransporte::Proxy(falha.clone());
     }
     assert_eq!(
         crate::transporte::FalhaTransporte::Proxy(FalhaDoProxy::RecusouOTunel { status: 407 })

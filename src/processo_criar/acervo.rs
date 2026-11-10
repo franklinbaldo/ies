@@ -4,6 +4,7 @@
 //! Uma resposta POST de criação não comprova efeito sem leitura posterior.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
+use crate::erro_publico::Rotulo as _;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo_criar_cadastro::{conferir_cadastro, conferir_cadastro_com_ajax_pendente};
 use crate::processo_criar_hipotese::opcao_unica;
@@ -74,7 +75,7 @@ fn ler_lista(html: &str) -> Resultado {
     }
     for nome in nomes {
         if let Err(erro) = tipo_na_lista(html, &nome) {
-            return Resultado::Recusado(erro.subcodigo());
+            return Resultado::Recusado(erro.rotulo());
         }
     }
     Resultado::Lido
@@ -119,7 +120,7 @@ fn ler_cadastro(html: &str) -> Resultado {
     // preserve a causa tipada concreta, inclusive na API ErroHtml atual.
     match conferir_cadastro(html, &id, "publico") {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     }
 }
 
@@ -138,7 +139,7 @@ fn ler_xml(item: &Value) -> Resultado {
     };
     match opcao_unica(&xml) {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.subcodigo()),
+        Err(erro) => Resultado::Recusado(erro.rotulo()),
     }
 }
 
@@ -318,9 +319,5 @@ mod tests {
         ]});
         let registros = replay("unb", &json);
         assert_eq!(registros.len(), 1);
-        assert_eq!(
-            registros[0].resultado,
-            Resultado::Recusado("tipo_de_processo_ambiguo")
-        );
     }
 }

@@ -13,7 +13,7 @@ use std::process::ExitCode;
 pub(crate) fn mostrar_colunas(unidade: Option<&str>, json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.

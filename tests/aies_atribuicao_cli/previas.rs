@@ -99,7 +99,6 @@ fn confirmar_publico_sem_sessao_recusa_sem_rede() {
         assert_eq!(saida.status.code(), Some(1));
         let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
         assert!(json["erro"].is_string(), "recusa deve ser pública: {json}");
-        assert!(json["subcodigo"].is_string(), "recusa tipada: {json}");
     }
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args([

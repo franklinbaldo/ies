@@ -15,7 +15,6 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|h| h.status), Some(403));
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
@@ -34,7 +33,6 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|h| h.status), Some(200));
     assert_eq!(
@@ -58,7 +56,6 @@ fn redirecionamento_para_acao_estranha_nao_comprova_atribuicao() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
@@ -76,7 +73,6 @@ fn redirecionamento_para_processo_divergente_nao_comprova_atribuicao() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6);
@@ -93,7 +89,6 @@ fn arvore_sem_id_e_atribuicao_concorrente_nao_comprovam_nosso_post() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + POST único + GET independente
@@ -109,7 +104,6 @@ fn arvore_sem_id_e_remocao_concorrente_nao_comprovam_nosso_post() {
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
@@ -128,7 +122,6 @@ fn arvore_com_id_mas_sem_origem_nao_comprova_atribuicao_concorrente() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET de prévia + POST + GET de prova
@@ -144,7 +137,6 @@ fn arvore_com_id_mas_sem_origem_nao_comprova_remocao_concorrente() {
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
@@ -161,7 +153,6 @@ fn principal_sem_id_nao_comprova_atribuicao_concorrente() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET independente
@@ -197,7 +188,6 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|h| h.status), Some(503));
     assert_eq!(
@@ -207,7 +197,6 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
     );
     let publico = crate::processo_concluir_cli::json_base_da_falha(
         "atribuicao_recusada",
-        erro.subcodigo(),
         erro.mensagem(),
         erro.status_http().cloned(),
     );
@@ -232,7 +221,6 @@ fn post_sem_resposta_e_releitura_503_permanecem_efeito_incerto() {
     )));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(erro.status_http().map(|h| h.status), Some(503));
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
@@ -254,7 +242,6 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
     let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(publico["status_http"], 403);
     assert_eq!(publico["requisicoes"], 6);
     assert_eq!(erro.saida(), 3);
@@ -273,7 +260,6 @@ fn html_200_generico_e_atribuicao_concorrente_nao_comprovam_post() {
     respostas.push(ok(arvore_atual("aluno2")));
     let (resultado, pedidos) = rodar_confirmacao(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
     assert_eq!(pedidos.len(), 6); // 4 GET + 1 POST + 1 GET de prova
@@ -289,7 +275,6 @@ fn html_200_generico_e_remocao_concorrente_nao_comprovam_post() {
     respostas.push(ok(arvore_atual("")));
     let (resultado, pedidos) = rodar_confirmacao(None, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.subcodigo(), "efeito_incerto_na_atribuicao");
     assert_eq!(erro.saida(), 3);
     assert_eq!(pedidos, pedidos_confirmacao("null"));
     assert_eq!(pedidos.len(), 6);
@@ -306,7 +291,6 @@ fn sem_resposta_e_atribuicao_concorrente_exigem_efeito_incerto() {
     let erro = resultado.unwrap_err();
     let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
     assert_eq!(erro.saida(), 3);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(publico["atribuicao_relida"], "aluno2");
     assert_eq!(publico["requisicoes"], 6);
     assert_eq!(pedidos, pedidos_confirmacao("100000035"));
@@ -325,7 +309,6 @@ fn sem_resposta_e_remocao_concorrente_exigem_efeito_incerto() {
     let erro = resultado.unwrap_err();
     let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
     assert_eq!(erro.saida(), 3);
-    assert_eq!(publico["subcodigo"], "efeito_incerto_na_atribuicao");
     assert_eq!(publico["atribuicao_relida"], "");
     assert_eq!(publico["requisicoes"], 6);
     assert_eq!(pedidos, pedidos_confirmacao("null"));

@@ -184,10 +184,6 @@ fn erro_503_do_post_com_pagina_valida_e_recusa_com_status_e_mensagem() {
     );
     let erro = obter(2, 503, &corpo, &chamadas).unwrap_err();
     assert_eq!(chamadas.get(), 1, "sem nova tentativa");
-    assert_eq!(
-        crate::erro_publico::folha(&erro),
-        "status_http_de_erro_do_servidor"
-    );
     let http = erro.status_http().expect("status do POST");
     assert_eq!(http.status, 503);
     assert_eq!(http.mensagem_do_servidor.as_deref(), Some("Sobrecarga."));

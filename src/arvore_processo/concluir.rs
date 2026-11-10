@@ -59,8 +59,6 @@ pub(crate) enum ErroConcluirNaBarra {
     Html(ErroHtml),
 }
 
-impl ErroConcluirNaBarra {}
-
 /// A ação de concluir da barra do processo `id`; `Ok(None)` se a barra
 /// não oferece concluir (nem link nem função).
 pub(crate) fn ler_concluir_da_barra(
@@ -143,8 +141,6 @@ pub(crate) enum ErroFuncaoDeConcluir {
     #[causa(transparente)]
     Html(ErroHtml),
 }
-
-impl ErroFuncaoDeConcluir {}
 
 const CONFIRM: &str = "if (confirm(";
 const LOCATION: &str = "location.href = '";

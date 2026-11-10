@@ -16,7 +16,7 @@ fn dados_publicos_unidade(unidade: &str) -> serde_json::Value {
 pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: bool) -> ExitCode {
     let arquivos = match configuracao::arquivos_de_acesso() {
         Ok(arquivos) => arquivos,
-        Err(erro) => return erro_fonte(json_mode, erro.subcodigo(), erro.mensagem()),
+        Err(erro) => return erro_fonte(json_mode, erro.mensagem()),
     };
     // Cada tentativa relê a sessão num retrato coerente (#222).
     let lido = relogin_cli::ler(&arquivos, unidade_esperada, || {
@@ -37,20 +37,15 @@ pub(super) fn mostrar_unidade_atual(unidade_esperada: Option<&str>, json_mode: b
         }
         Err(falha) => return relogin_cli::publicar_falha(json_mode, &falha),
     };
-    let unidade = match unidade_validada(&html) {
-        Ok(unidade) => unidade,
-        Err(erro) => {
-            return erro_fonte(
-                json_mode,
-                erro.subcodigo(),
-                "resposta não contém Controle de Processos verificável",
-            );
-        }
+    let Ok(unidade) = unidade_validada(&html) else {
+        return erro_fonte(
+            json_mode,
+            "resposta não contém Controle de Processos verificável",
+        );
     };
     if unidade_esperada.is_some_and(|esperada| esperada != unidade) {
         return erro_fonte(
             json_mode,
-            "unidade_exibida_diferente_da_solicitada",
             "a unidade mostrada pelo SEI não corresponde à solicitada",
         );
     }

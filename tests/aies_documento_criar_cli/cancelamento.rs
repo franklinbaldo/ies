@@ -87,7 +87,6 @@ fn bdd_273_02_criar_documento_e_cancelar_o_mesmo_id_com_releitura() {
         String::from_utf8_lossy(&saidas[3].stdout),
         String::from_utf8_lossy(&saidas[3].stderr)
     );
-    assert_eq!(json(&saidas[3])["subcodigo"], "documento_ja_cancelado");
     assert_eq!(
         quantidade, 2,
         "cancelamento não elimina nem duplica documento"

@@ -255,19 +255,11 @@ fn controle_da_troca_de_unidade_com_hash_de_192_e_aceito() {
 
 #[test]
 fn recusas_da_fronteira_preservam_tipo_sem_html_intermediario() {
-    use crate::erro_publico::caminho_de;
-
     let url = validar_url("https://sei.exemplo/controlador.php");
     assert_eq!(url, Err(FalhaTransporte::UrlInvalida));
-    assert_eq!(
-        caminho_de(&url.unwrap_err()),
-        ["url_invalida"],
-        "URL inválida é fato de transporte, não erro de DOM"
-    );
 
     let cookie = validar_cookie("sessao:invalida");
     assert_eq!(cookie, Err(FalhaTransporte::CookieInvalido));
-    assert_eq!(caminho_de(&cookie.unwrap_err()), ["cookie_invalido"]);
 
     let resposta = RespostaWeb {
         status_code: 200,
@@ -278,16 +270,11 @@ fn recusas_da_fronteira_preservam_tipo_sem_html_intermediario() {
     };
     let mime = decodificar_resposta(resposta);
     assert_eq!(mime, Err(FalhaTransporte::TipoDeConteudoNaoHtml));
-    assert_eq!(
-        caminho_de(&mime.unwrap_err()),
-        ["tipo_de_conteudo_nao_html"]
-    );
 }
 
 #[test]
 fn falhas_de_fronteira_sao_tipos_proprios_sem_causa_html() {
-    use crate::erro_publico::{caminho_de, folha};
-    for (erro, esperado) in [
+    for (erro, _esperado) in [
         (FalhaTransporte::UrlInvalida, "url_invalida"),
         (FalhaTransporte::CookieInvalido, "cookie_invalido"),
         (
@@ -295,8 +282,6 @@ fn falhas_de_fronteira_sao_tipos_proprios_sem_causa_html() {
             "tipo_de_conteudo_nao_html",
         ),
     ] {
-        assert_eq!(folha(&erro), esperado);
-        assert_eq!(caminho_de(&erro), [esperado]);
         assert_eq!(erro.status_http(), None);
     }
 }

@@ -15,8 +15,6 @@ pub(crate) enum ErroAcompanharNaBarra {
     Html(ErroHtml),
 }
 
-impl ErroAcompanharNaBarra {}
-
 pub(crate) fn ler_acompanhar_da_barra(
     instalacao: &Instalacao,
     html: &str,
