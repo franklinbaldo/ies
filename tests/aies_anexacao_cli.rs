@@ -251,6 +251,16 @@ fn executar(modo: Modo) {
     tunel.join().unwrap();
     let total = servidor.join().unwrap();
     let pedidos = eventos.lock().unwrap().clone();
+    conferir_resultados(modo, &saida, &posterior, total, &pedidos);
+}
+
+fn conferir_resultados(
+    modo: Modo,
+    saida: &Output,
+    posterior: &Output,
+    total: i64,
+    pedidos: &[String],
+) {
     let esperado = if matches!(modo, Modo::Aceite) { 0 } else { 3 };
     assert_eq!(
         saida.status.code(),
@@ -286,7 +296,6 @@ fn executar(modo: Modo) {
         1,
         "uma única escrita, sem retry; {pedidos:?}"
     );
-}
 
 #[test]
 fn bdd_270_02_confirmacao_e_releitura_independente() {
