@@ -281,18 +281,21 @@ fn executar_caso(
         assert_eq!(json["retentavel"], false);
     } else {
         assert_eq!(json["nup"], NUP);
-        assert_eq!(json["texto"], if remover { "" } else { "Revisar minuta" });
-        assert_eq!(json["anotacao_antes"], if remover { "Rascunho" } else { "" });
+        let texto_esperado = if remover { "" } else { "Revisar minuta" };
+        let anotacao_esperada = if remover { "Rascunho" } else { "" };
+        assert_eq!(json["texto"], texto_esperado);
+        assert_eq!(json["anotacao_antes"], anotacao_esperada);
         assert_eq!(json["confirmado"], confirmar);
         assert_eq!(json["alterado"], confirmar);
         assert_eq!(json["requisicoes"], pedidos.len());
     }
-    assert_eq!(
-        persistido.as_deref(),
-        Some(if remover {
-            if confirmar { "" } else { "Rascunho" }
-        } else if confirmar { "Revisar minuta" } else { "" })
-    );
+    let anotacao_esperada = match (remover, confirmar) {
+        (true, true) => "",
+        (true, false) => "Rascunho",
+        (false, true) => "Revisar minuta",
+        (false, false) => "",
+    };
+    assert_eq!(persistido.as_deref(), Some(anotacao_esperada));
     assert_eq!(
         pedidos
             .iter()
