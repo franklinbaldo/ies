@@ -44,6 +44,7 @@ pub(crate) fn recusa(json_mode: bool, causa: CausaDaOrigem) -> std::process::Exi
 /// As escritas da CLI, cada uma com o seu estado de aprovação.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Escrita {
+    BlocoIncluirDocumento,
     DocumentoIncluirExterno,
     ProcessoPrazo,
     ProcessoRelacionar,
