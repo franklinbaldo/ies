@@ -4,8 +4,8 @@
 //! `bloco-incluir-anotar-retirar-unb`. Hipótese sintética; o POST de
 //! inclusão é a próxima fatia (BDD-381-02) e aqui é recusado.
 use crate::{Estado, Resposta, escapar, parametro_unico};
-use iesei::blocos::{self, Tipo};
 use iesei::bloco_detalhe::{self, Item};
+use iesei::blocos::{self, Tipo};
 use iesei::documento_versoes;
 use iesei::instalacao::Instalacao;
 use rusqlite::Connection;
@@ -41,8 +41,10 @@ pub(crate) fn responder(
     if metodo == "POST" {
         let campo = |nome| crate::documentos::campo_formulario_unico(corpo, nome);
         let (Some(numero), Some(checkbox), Some(selecionados), Some(botao)) = (
-            campo("selBloco"), campo("chkDocumentosItem0"),
-            campo("hdnDocumentosItensSelecionados"), campo("sbmIncluir"),
+            campo("selBloco"),
+            campo("chkDocumentosItem0"),
+            campo("hdnDocumentosItensSelecionados"),
+            campo("sbmIncluir"),
         ) else {
             return Resposta::nova(Estado::RequisicaoInvalida);
         };
@@ -60,9 +62,7 @@ pub(crate) fn responder(
             tipo: Some(documento.tipo),
             anotacoes: String::new(),
         };
-        return match bloco_detalhe::incluir_documento(
-            banco, instalacao, cenario, &numero, &item,
-        ) {
+        return match bloco_detalhe::incluir_documento(banco, instalacao, cenario, &numero, &item) {
             Ok(true) => Resposta::redirecionar(format!(
                 "controlador.php?acao=bloco_escolher&acao_origem=bloco_escolher&arvore=1&id_procedimento={id_procedimento}&id_documento={id_documento}&infra_hash={HASH}"
             )),
