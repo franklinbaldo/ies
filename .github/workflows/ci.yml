@@ -153,6 +153,25 @@ jobs:
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_retornos::cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_retornos_mensais_fecha_ciclo_http_e_leitor -- --ignored --nocapture --test-threads=1
 
+      - name: Obter cassettes de pesquisa GO/UFRJ com SHA-1 verificado
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$IES_ACERVO_CACHE"
+          for par in \
+            "go:42a08cd3714bb863d136ed98e517221510a31982" \
+            "ufrj:3b29ba3c4e18fa0b336fbec9490c4f59a15d4aa0"; do
+            instalacao="${par%%:*}"
+            sha1="${par#*:}"
+            arquivo="$IES_ACERVO_CACHE/todos-sei-cassettes-$instalacao.zip"
+            if ! printf '%s  %s\n' "$sha1" "$arquivo" | sha1sum --check --status; then
+              curl --fail --silent --show-error --location --retry 0 --max-time 300 \
+                --output "$arquivo" \
+                "https://archive.org/download/todos-sei-cassettes-2026/todos-sei-cassettes-$instalacao.zip"
+            fi
+            printf '%s  %s\n' "$sha1" "$arquivo" | sha1sum --check
+          done
+
       - name: Cassette UnB documento -> SQLite -> HTTP -> leitor real
         shell: bash
         run: |
