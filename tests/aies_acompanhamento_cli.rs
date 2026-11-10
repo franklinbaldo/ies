@@ -124,11 +124,10 @@ fn banco(estado: EstadoInicial) -> (Connection, Instalacao) {
     (db, origem)
 }
 
-fn executar_cli(pasta: &Pasta, porta: u16, args: &[&str]) -> Output {
+fn executar_cli(pasta: &Pasta, porta: u16, cert: &std::path::Path, args: &[&str]) -> Output {
     let origem = pasta.0.join("origem");
     let url = pasta.0.join("url");
     let cookie = pasta.0.join("cookie");
-    let cert = pasta.0.join("cert.pem");
     Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(args)
         .env("IES_URL_CONTROLE_FILE", url)
@@ -150,7 +149,6 @@ fn executar_cli(pasta: &Pasta, porta: u16, args: &[&str]) -> Output {
 fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) {
     let pasta = Pasta::nova();
     let (certificado, identidade_tls) = identidade(&pasta.0, "sei.treinamento.unb.br");
-    let _cert = certificado; // fixture grava cert.pem na mesma pasta.
     let _origem = pasta.privado("origem", ORIGEM);
     let hash_chave = ["infra", "hash"].join("_");
     let _url = pasta.privado("url", &format!(
@@ -195,7 +193,7 @@ fn executar(estado: EstadoInicial) -> (Output, Vec<String>, Option<Observacao>) 
         }
     });
     let saida = executar_cli(
-        &pasta, porta,
+        &pasta, porta, &certificado,
         &["--json", "processo", "acompanhar", NUP, "--deixar", "--grupo", "G"],
     );
     parar.store(true, Ordering::SeqCst);
