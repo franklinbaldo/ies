@@ -9,7 +9,10 @@ pub(super) fn trabalho_do_processo(
     let id = &processo.id;
     let exige_senha = matches!(
         validacao,
-        Some(iesei::validacao_acesso::Validacao::Exigida | iesei::validacao_acesso::Validacao::Recusada)
+        Some(
+            iesei::validacao_acesso::Validacao::Exigida
+                | iesei::validacao_acesso::Validacao::Recusada
+        )
     );
     // Hipotese estrutural BDD-633-02: a modal foi observada no GO, mas
     // a pagina original da modal e o formulario nao foram capturados.
