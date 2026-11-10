@@ -214,6 +214,13 @@ fn selecionar_previa(
     })
 }
 
+/// Fotografia e submissão opcional, sempre derivada da mesma tela.
+struct LeituraDoGerenciador {
+    antes: Vec<Acompanhamento>,
+    url_cadastro: Option<String>,
+    exclusao: Option<SubmissaoDerivada>,
+}
+
 /// Lê uma única fotografia e prepara exclusão só da linha solicitada.
 fn ler_estado_gerenciador<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
@@ -223,14 +230,7 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
     id: &str,
     unidade: &str,
     pedido: &Pedido<'_>,
-) -> Result<
-    (
-        Vec<Acompanhamento>,
-        Option<String>,
-        Option<SubmissaoDerivada>,
-    ),
-    ErroPrevia,
-> {
+) -> Result<LeituraDoGerenciador, ErroPrevia> {
     let res = rede.get_sem_seguir(link, cookie)?;
     let mut exclusao = None;
     let (antes, url_cadastro) = if res.resposta.status_code == 302 {
@@ -266,7 +266,11 @@ fn ler_estado_gerenciador<V: EnvioDoProcesso>(
         };
         (antes, url)
     };
-    Ok((antes, url_cadastro, exclusao))
+    Ok(LeituraDoGerenciador {
+        antes,
+        url_cadastro,
+        exclusao,
+    })
 }
 
 /// Prévia completa sem escrita, no máximo um GET da lista, mais um do cadastro.
@@ -292,7 +296,11 @@ pub(crate) fn previa<V: EnvioDoProcesso>(
     let id = aberto.arvore.processo.id;
     let link = acoes.acompanhar?.ok_or(ErroPrevia::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
-    let (antes, url_cadastro, exclusao) = ler_estado_gerenciador(
+    let LeituraDoGerenciador {
+        antes,
+        url_cadastro,
+        exclusao,
+    } = ler_estado_gerenciador(
         &mut rede,
         &instalacao,
         link.as_str(),
