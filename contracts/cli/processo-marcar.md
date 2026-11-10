@@ -35,7 +35,11 @@ publica URL assinada, cookie ou `infra_hash`.
   `catalogo_da_unidade_nao_observado`, pois não basta o marcador não
   existir **no processo** para provar que ele existe **na unidade**.
 
-A prévia não reivindica a escrita como implementada. O código não executa
+A prévia não reivindica a escrita como implementada. Se `--confirmar` for
+pedido, a CLI explica **antes de abrir sessão ou rede** que a confirmação
+não está disponível e orienta a executar sem `--confirmar` para consultar
+uma prévia. A instrução é idêntica nas saídas humana e JSON; não promete
+que a prévia tenha removido ou atribuído o marcador. O código não executa
 JavaScript e não interpreta mensagem do SEI para classificação.
 
 ## Orçamento e sequência da fatia
@@ -51,8 +55,12 @@ na prévia quanto na confirmação recusada. O transporte roteirizado
 confere a lista exata de pedidos, sem rede real. A contagem de outros
 caminhos de abertura e do índice quente precisa de novos casos.
 Testes sintéticos também conferem idempotência, lista parcial,
-identidade divergente e texto Latin-1 válido. Entrada inválida não
-lê configuração.
+identidade divergente e texto Latin-1 válido. O E2E da prévia de retirada
+presente usa a CLI Rust real, HTTPS local, anti-IES e SQLite efêmero,
+compara saída humana/JSON e consulta novamente os marcadores para
+comprovar **estado inalterado e zero POST**. Isto é apenas a primeira
+metade do BDD-255-02: remoção com `--confirmar` continua pendente.
+Entrada inválida não lê configuração.
 
 ## Inventário normativo de subcódigos
 
