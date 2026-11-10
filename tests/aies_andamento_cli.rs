@@ -122,7 +122,7 @@ fn estado() -> (Connection, Instalacao) {
     )
     .unwrap();
     andamentos::guardar(
-        &mut banco,
+        &banco,
         &instalacao,
         CENARIO,
         "10",
