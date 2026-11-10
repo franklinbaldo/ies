@@ -194,6 +194,12 @@ pub(super) fn executar_sessao_revogada_ao_visualizar(args: &[&str]) -> (Output, 
     executar_com_estado(true, EstadoExtra::SessaoRevogadaAoVisualizar, args)
 }
 
+/// A árvore já ofereceu o histórico, mas a sessão expira antes do GET da lista.
+/// Esta corrida é sintética; não foi capturada na cassette UnB.
+pub(super) fn executar_sessao_revogada_antes_da_lista(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::SessaoRevogadaAntesDaLista, args)
+}
+
 /// O processo existe e o documento continua legível, mas a unidade
 /// ativa não está no conjunto de unidades em que o processo está aberto.
 pub(super) fn executar_sem_lista_na_unidade(args: &[&str]) -> (Output, Vec<String>) {
