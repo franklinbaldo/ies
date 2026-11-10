@@ -194,6 +194,85 @@ pub fn ler(
     Ok(Some(foto))
 }
 
+/// Acrescenta um comentário **somente** à observação completa, em transação
+/// IMMEDIATE para não perder escritas concorrentes. Identidade é sintética.
+/// Não altera o índice operacional `ies.sqlite3`.
+///
+/// # Errors
+/// Ausência, fotografia parcial, novo item inválido ou falha SQLite.
+pub fn acrescentar(
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    mut novo: Comentario,
+) -> Result<String, Falha> {
+    if cenario.is_empty()
+        || !novo.id.is_empty()
+        || novo.texto.trim().is_empty()
+        || novo.data_hora.is_empty()
+        || novo.unidade.is_empty()
+        || novo.usuario.is_empty()
+        || novo.protocolo.is_some()
+        || novo.tipo.is_some()
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
+    let Some(foto) = ler(&tx, origem, cenario, id)? else {
+        return Err(Falha::DadoInvalido);
+    };
+    if foto.total_declarado != foto.itens.len() {
+        return Err(Falha::DadoInvalido);
+    }
+    let proximo = foto
+        .itens
+        .iter()
+        .map(|item| item.id.parse::<u64>().map_err(|_| Falha::DadoInvalido))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .max()
+        .unwrap_or(0)
+        .checked_add(1)
+        .ok_or(Falha::DadoInvalido)?;
+    novo.id = proximo.to_string();
+    let total = foto
+        .total_declarado
+        .checked_add(1)
+        .and_then(|valor| i64::try_from(valor).ok())
+        .ok_or(Falha::DadoInvalido)?;
+    let posicao = i64::try_from(foto.itens.len()).map_err(|_| Falha::DadoInvalido)?;
+    let atualizadas = tx.execute(
+        "UPDATE processo_comentarios_observados SET total_declarado=?4
+         WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
+        params![origem.url_base(), cenario, id, total],
+    )?;
+    if atualizadas != 1 {
+        return Err(Falha::DadoInvalido);
+    }
+    tx.execute(
+        "INSERT INTO processo_comentario_linha
+         (origem, cenario, id_procedimento, posicao, id_comentario,
+          data_hora, unidade, usuario, texto, protocolo, tipo)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            origem.url_base(),
+            cenario,
+            id,
+            posicao,
+            novo.id,
+            novo.data_hora,
+            novo.unidade,
+            novo.usuario,
+            novo.texto,
+            novo.protocolo,
+            novo.tipo,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(proximo.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

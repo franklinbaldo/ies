@@ -15,8 +15,8 @@ tabela e o total foram integralmente conferidos. A ausência de link não vira
 lista vazia. `ies processo comentar NUP --texto T` tem **prévia de leitura**
 para lista já publicada com comentários: abre o link `Novo` servido pela lista,
 confere o formulário `frmComentarioCadastro` e os controles de descrição e
-cadastro sem realizar POST. `--confirmar` é recusado antes da sessão/rede:
-**nenhuma escrita de comentário está habilitada**.
+cadastro sem realizar POST. `--confirmar` envia um único POST em instalações públicas de treinamento,
+e exige uma releitura completa com o id aceito e o texto exato.
 
 ## Observação
 
@@ -57,16 +57,15 @@ A prévia implementada exige lista reconhecida, link único assinado de
 `comentario_cadastrar` com a mesma identidade do processo e formulário de
 cadastro publicado. O redirecionamento 302 para o cadastro quando a lista
 está vazia ainda não é aceito pela prévia e não é interpretado como ausência
-comprovada de comentários. O fluxo de confirmação permanece bloqueado.
-Quando implementado, `--confirmar` só poderá fazer um único POST observado,
-sem retry. A resposta aceita é 302 para `comentario_listar` com
+comprovada de comentários. O fluxo de confirmação é habilitado somente em treinamento, após a conferência da tela.
+O modo `--confirmar` faz no máximo um POST observado, sem retry. A resposta aceita é 302 para `comentario_listar` com
 `id_comentario`; isso sozinho **não comprova efeito**.
 A reconciliação exige nova leitura completa com uma única ocorrência
 do id aceito **e texto igual byte a byte ao pedido**.
 Resposta 5xx, falha de transporte após POST, ausência de id ou impossibilidade
 de releitura resultam em **efeito incerto (saída 3)**, sem repetir escrita.
-**O POST continua indisponível**, mesmo em treinamento; o contrato acima
-estabelece a prova exigida antes de liberá-lo.
+**O POST está disponível exclusivamente em treinamento**; o CI exercita a
+hipótese sintética em HTTPS local, mas não a validação live.
 
 ## Subcódigos desta fatia
 
@@ -96,7 +95,7 @@ estabelece a prova exigida antes de liberá-lo.
 
 ## Estado e gates
 
-**Fatia parcial com leitura Web (BDD-257-01) e prévia sem escrita (BDD-257-02, parcial)**. O leitor offline
+**Leitura Web (BDD-257-01) e prévia/confirmação local (BDD-257-02 sintético)**. O leitor offline
 `src/processo_comentarios.rs` foi conectado em
 `src/processo_comentarios_web.rs` / `src/processo_comentarios_cli.rs`,
 com SQLite evolutivo v33 e projeção do anti-IES. Os testes de integração
@@ -105,5 +104,7 @@ anti-IES ↔ SQLite, incluindo recusa de foto desconhecida e página parcial.
 São hipóteses **sintéticas** e não demonstram paridade independente com
 respostas de cassette. A inspeção estrutural das cassettes UnB/GO soma 76
 interações, SHA-1/SHA-256 conferidos; confronto semântico independente e
-SEI live: **NOT_RUN**. A confirmação do BDD-257-02, o caso de lista vazia/redirecionamento e o
-BDD-257-03 permanecem pendentes. Não foi realizado teste live.
+SEI live: **NOT_RUN**. O caso de lista vazia/redirecionamento permanece pendente. O BDD-257-03
+possui regressão sintética de 503 durante a releitura após o POST,
+com saída 3 e nenhuma repetição, e depende de gate verde no head final.
+Não foi realizado teste live.
