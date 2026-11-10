@@ -240,7 +240,10 @@ fn bdd_381_03_recusa_bloco_de_tipo_inadequado_sem_inclusao() {
     assert!(!saida.stderr.is_empty());
     let consulta = executar(&pasta, &["--json", "bloco", BLOCO], 3);
     assert_eq!(consulta.status.code(), Some(0));
-    let itens = json(&consulta)["bloco"]["itens"].as_array().unwrap().clone();
+    let itens = json(&consulta)["bloco"]["itens"]
+        .as_array()
+        .unwrap()
+        .clone();
     assert!(itens.iter().all(|item| item["documento"] != DOC));
 }
 
