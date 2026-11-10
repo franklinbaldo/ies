@@ -12,6 +12,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::os::unix::fs::PermissionsExt as _;
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -126,6 +127,30 @@ fn guardar_controle_parcial(banco: &mut Connection, instalacao: &Instalacao) {
     .unwrap();
 }
 
+fn guardar_validacao_da_cena(cena: Cena, banco: &Connection, instalacao: &Instalacao) {
+    if matches!(
+        cena,
+        Cena::ValidacaoExigida
+            | Cena::ValidacaoComCredenciais
+            | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoViaIndice
+            | Cena::ValidacaoRecusada
+    ) {
+        iesei::validacao_acesso::guardar(
+            banco,
+            instalacao,
+            CENARIO,
+            "10",
+            if matches!(cena, Cena::ValidacaoRecusada) {
+                iesei::validacao_acesso::Validacao::Recusada
+            } else {
+                iesei::validacao_acesso::Validacao::Exigida
+            },
+        )
+        .unwrap();
+    }
+}
+
 fn estado(cena: Cena) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -169,27 +194,7 @@ fn estado(cena: Cena) -> (Connection, Instalacao) {
         )
         .unwrap();
     }
-    if matches!(
-        cena,
-        Cena::ValidacaoExigida
-            | Cena::ValidacaoComCredenciais
-            | Cena::ValidacaoRedirecionada
-            | Cena::ValidacaoViaIndice
-            | Cena::ValidacaoRecusada
-    ) {
-        iesei::validacao_acesso::guardar(
-            &banco,
-            &instalacao,
-            CENARIO,
-            "10",
-            if matches!(cena, Cena::ValidacaoRecusada) {
-                iesei::validacao_acesso::Validacao::Recusada
-            } else {
-                iesei::validacao_acesso::Validacao::Exigida
-            },
-        )
-        .unwrap();
-    }
+    guardar_validacao_da_cena(cena, &banco, &instalacao);
     if matches!(cena, Cena::DocumentosVisiveisComPastaPendente) {
         // O corpus registra documentos visíveis e pastas fechadas, mas não
         // a falha em que a pasta nunca carrega. Só essa falha é hipotética.
@@ -272,8 +277,61 @@ fn identidade_no_estado(
     (controle.recebidos.linhas[0].numero.clone(), processo.numero)
 }
 
+fn credenciais_da_cena(cena: Cena, pasta: &Pasta) -> Option<std::path::PathBuf> {
+    matches!(
+        cena,
+        Cena::ValidacaoComCredenciais
+            | Cena::ValidacaoRedirecionada
+            | Cena::ValidacaoViaIndice
+            | Cena::ValidacaoRecusada
+    )
+    .then(|| {
+        pasta.privado(
+            "credenciais",
+            "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n",
+        )
+    })
+}
+
+fn comando_cli(
+    pasta: &Pasta,
+    cert: &std::path::Path,
+    controle: &std::path::Path,
+    cookie: &std::path::Path,
+    origem: &std::path::Path,
+    porta: u16,
+) -> Command {
+    let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
+    comando
+        .args([
+            "--json",
+            "processo",
+            PEDIDO,
+            "--sem-andamentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
+        ])
+        .env("IES_URL_CONTROLE_FILE", controle)
+        .env("IES_COOKIE_FILE", cookie)
+        .env("IES_ORIGEM_FILE", origem)
+        .env("SSL_CERT_FILE", cert)
+        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+        .env("HOME", &pasta.0)
+        .env_remove("HTTPS_PROXY")
+        .env_remove("all_proxy")
+        .env_remove("ALL_PROXY")
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy")
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_CREDENCIAIS_FILE");
+    comando
+}
+
 fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
     let pasta = Pasta::nova();
+    // O índice operacional exige que toda a pasta privada tenha modo 0700.
+    // A fixture TLS genérica cria só os arquivos 0600; este ensaio usa índice.
+    std::fs::set_permissions(&pasta.0, std::fs::Permissions::from_mode(0o700)).unwrap();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
     let chave = ["infra", "hash"].join("_");
@@ -329,42 +387,8 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             canal.flush().unwrap();
         }
     });
-    let credenciais = matches!(
-        cena,
-        Cena::ValidacaoComCredenciais
-            | Cena::ValidacaoRedirecionada
-            | Cena::ValidacaoViaIndice
-            | Cena::ValidacaoRecusada
-    )
-    .then(|| {
-        pasta.privado(
-            "credenciais",
-            "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n",
-        )
-    });
-    let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
-    comando
-        .args([
-            "--json",
-            "processo",
-            PEDIDO,
-            "--sem-andamentos",
-            "--sem-propriedades",
-            "--sem-marcadores",
-        ])
-        .env("IES_URL_CONTROLE_FILE", controle)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE");
+    let credenciais = credenciais_da_cena(cena, &pasta);
+    let mut comando = comando_cli(&pasta, &cert, &controle, &cookie, &origem, porta);
     if matches!(cena, Cena::ValidacaoViaIndice) {
         // Primeira execução: o Controle colhe o link, a modal exige senha
         // e a CLI recusa sem POST. A segunda reutiliza o mesmo HOME/índice.
@@ -375,6 +399,18 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             "primeira execução sem credenciais: {}",
             String::from_utf8_lossy(&primeira.stdout)
         );
+        // Com diretório 0700, a colheita do primeiro Controle persiste NUP→id.
+        // A segunda invocação precisa usar o link assinado do índice, sem
+        // reler Controle, e nunca pular a modal da sessão.
+        let indice = Connection::open(pasta.0.join("ies.sqlite3")).unwrap();
+        let guardado: String = indice
+            .query_row(
+                "SELECT id_procedimento FROM processo WHERE nup = ?1",
+                [PEDIDO],
+                |linha| linha.get(0),
+            )
+            .unwrap();
+        assert_eq!(guardado, "10");
     }
     if let Some(caminho) = credenciais {
         comando.env("IES_CREDENCIAIS_FILE", caminho);
