@@ -136,7 +136,7 @@ fn executar(
         &contexto,
         &mut Compartilhado(roteiro),
         &|| roteiro.borrow().pedidos.len(),
-        crate::erro_publico::Causa::sessao_encerrada,
+        E::sessao_encerrada,
         || {
             let lido = ler_controle(roteiro, &ambiente.arquivos);
             tentativas.set(tentativas.get() + 1);
@@ -154,7 +154,6 @@ fn sem_lock(ambiente: &Ambiente) -> bool {
 
 #[test]
 fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
-    use crate::erro_publico::Causa;
     use crate::processo_obter::ErroProcessoObter;
     let status = || StatusHttpRecusado::sem_mensagem(302);
     assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());

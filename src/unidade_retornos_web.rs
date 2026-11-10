@@ -23,6 +23,25 @@ pub(crate) enum ErroLeituraRetornos {
     UnidadeDiferenteDaSolicitada,
 }
 
+impl ErroLeituraRetornos {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Transporte(erro) => erro.sessao_encerrada(),
+            Self::Controle(_)
+            | Self::Tabela(_)
+            | Self::LinkDeRetornosAusente
+            | Self::LinkDeRetornosAmbiguo
+            | Self::LinkDeRetornosForaDaInstalacao
+            | Self::CalendarioDosRetornosDesconhecido
+            | Self::MesDosRetornosInacessivel
+            | Self::MesDaCliInvalido
+            | Self::UnidadeDiferenteDaSolicitada => false,
+        }
+    }
+}
+
 /// `--mes AAAA-MM` (parser do clap: saída 2): somente numeros e limites do
 /// mes, sem depender do fuso da maquina.
 pub(crate) fn mes_da_cli(s: &str) -> Result<(u16, u8), ErroLeituraRetornos> {

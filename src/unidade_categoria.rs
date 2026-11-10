@@ -120,9 +120,12 @@ pub(crate) fn listar_categoria(
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão e colhe na geração gravada agora.
-    let (html, nota) = relogin_cli::ler(&arquivos, unidade, || {
-        pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina)
-    })
+    let (html, nota) = relogin_cli::ler(
+        &arquivos,
+        unidade,
+        pagina_web::ErroPaginaWeb::sessao_encerrada,
+        || pagina_web::obter(&arquivos, unidade, categoria.categoria(), pagina),
+    )
     .map_err(relogin_cli::subir)?;
     publicar_lista(&html, unidade, categoria, json_mode, destino, nota.as_ref())
 }

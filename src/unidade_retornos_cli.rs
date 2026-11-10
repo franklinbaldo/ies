@@ -13,38 +13,48 @@ pub(super) fn listar(
     alvo: Option<(u16, u8)>,
 ) -> anyhow::Result<()> {
     let arquivos = configuracao::arquivos_de_acesso()?;
-    let ((atual, resultado), nota) = relogin_cli::ler(&arquivos, unidade, || {
-        let sessao =
-            ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-                .map_err(ErroLeituraRetornos::Transporte)?;
-        let controle = transporte::envio_post::ler_tela_do_controle(&sessao)
+    let ((atual, resultado), nota) = relogin_cli::ler(
+        &arquivos,
+        unidade,
+        ErroLeituraRetornos::sessao_encerrada,
+        || {
+            let sessao = ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
             .map_err(ErroLeituraRetornos::Transporte)?;
-        let unidade_atual = controle_reconhecido::unidade_do_controle(&controle.html)
-            .map_err(ErroLeituraRetornos::Controle)?;
-        if unidade.is_some_and(|esperada| esperada != unidade_atual) {
-            return Err(ErroLeituraRetornos::UnidadeDiferenteDaSolicitada);
-        }
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        Colheita::das_referencias(&indice, &sessao).colher(&controle.html, Some(&controle.mime));
-        let resultado = unidade_retornos_web::ler_com(
-            &controle.url,
-            &controle.html,
-            &controle.instalacao,
-            alvo,
-            |url| {
-                // A URL ja passou por conferir_link: controlador, mesma
-                // instalacao, acao, hash e parametros sem duplicidade.
-                let cookie = sessao
-                    .cookie()
-                    .valor()
-                    .map_err(ErroLeituraRetornos::Transporte)?;
-                let resposta =
-                    transporte::get_https(url, cookie).map_err(ErroLeituraRetornos::Transporte)?;
-                transporte::decodificar_resposta(resposta).map_err(ErroLeituraRetornos::Transporte)
-            },
-        )?;
-        Ok((unidade_atual, resultado))
-    })
+            let controle = transporte::envio_post::ler_tela_do_controle(&sessao)
+                .map_err(ErroLeituraRetornos::Transporte)?;
+            let unidade_atual = controle_reconhecido::unidade_do_controle(&controle.html)
+                .map_err(ErroLeituraRetornos::Controle)?;
+            if unidade.is_some_and(|esperada| esperada != unidade_atual) {
+                return Err(ErroLeituraRetornos::UnidadeDiferenteDaSolicitada);
+            }
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            Colheita::das_referencias(&indice, &sessao)
+                .colher(&controle.html, Some(&controle.mime));
+            let resultado = unidade_retornos_web::ler_com(
+                &controle.url,
+                &controle.html,
+                &controle.instalacao,
+                alvo,
+                |url| {
+                    // A URL ja passou por conferir_link: controlador, mesma
+                    // instalacao, acao, hash e parametros sem duplicidade.
+                    let cookie = sessao
+                        .cookie()
+                        .valor()
+                        .map_err(ErroLeituraRetornos::Transporte)?;
+                    let resposta = transporte::get_https(url, cookie)
+                        .map_err(ErroLeituraRetornos::Transporte)?;
+                    transporte::decodificar_resposta(resposta)
+                        .map_err(ErroLeituraRetornos::Transporte)
+                },
+            )?;
+            Ok((unidade_atual, resultado))
+        },
+    )
     .map_err(relogin_cli::subir)?;
     let quantidade = resultado.itens.len();
     let faixa = if quantidade == 0 {

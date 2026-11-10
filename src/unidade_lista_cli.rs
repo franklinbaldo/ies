@@ -21,30 +21,38 @@ pub(super) fn listar_processos_da_unidade(
     let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão num retrato coerente (#222) e colhe na
     // geração dele.
-    let (leitura, nota) = relogin_cli::ler(&arquivos, unidade, || {
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        let sessao =
-            ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)
-                .map_err(ErroVisaoDoControle::Transporte)?;
-        let colheita = Colheita::das_referencias(&indice, &sessao);
-        let tela = ler_tela_do_controle(&sessao).map_err(ErroVisaoDoControle::Transporte)?;
-        colheita.colher(&tela.html, Some(&tela.mime));
-        let atual = TelaAtual {
-            url: tela.url,
-            html: tela.html,
-            mime: tela.mime,
-        };
-        visao_do_controle::listar_na_visao_detalhada(
-            &tela.instalacao,
-            &atual,
-            unidade,
-            pagina,
-            sessao.cookie(),
-            &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
-                colheita: &colheita,
-            }),
-        )
-    })
+    let (leitura, nota) = relogin_cli::ler(
+        &arquivos,
+        unidade,
+        ErroVisaoDoControle::sessao_encerrada,
+        || {
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            let sessao = ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
+            .map_err(ErroVisaoDoControle::Transporte)?;
+            let colheita = Colheita::das_referencias(&indice, &sessao);
+            let tela = ler_tela_do_controle(&sessao).map_err(ErroVisaoDoControle::Transporte)?;
+            colheita.colher(&tela.html, Some(&tela.mime));
+            let atual = TelaAtual {
+                url: tela.url,
+                html: tela.html,
+                mime: tela.mime,
+            };
+            visao_do_controle::listar_na_visao_detalhada(
+                &tela.instalacao,
+                &atual,
+                unidade,
+                pagina,
+                sessao.cookie(),
+                &mut visao_do_controle::EnvioContado::novo(EnvioColhendo {
+                    colheita: &colheita,
+                }),
+            )
+        },
+    )
     .map_err(relogin_cli::subir)?;
     mostrar_caixa_detalhada(&leitura, "web", json_mode, destino, nota.as_ref())?;
     Ok(())

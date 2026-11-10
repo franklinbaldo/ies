@@ -404,26 +404,31 @@ fn obter(cli: &Cli, comando: &Processo, nup: &NumeroProcesso) -> anyhow::Result<
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Informativa,
     };
     // Cada tentativa relê a sessão e o índice: depois do relogin, a nova.
-    let (mut aberto, nota) = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )
-        .map_err(ErroProcessoObter::Transporte)?;
-        let sessao = SessaoDoProcesso {
-            url_do_controle: referencias.url_do_controle(),
-            origem: referencias.origem(),
-            cookie: referencias.cookie(),
-        };
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        crate::processo_obter::consulta_parcial::obter_processo_informativo(
-            &sessao,
-            &pedido,
-            &indice,
-            &mut EnvioHttps,
-        )
-    })
+    let (mut aberto, nota) = relogin_cli::ler(
+        &arquivos,
+        cli.unidade.as_deref(),
+        ErroProcessoObter::sessao_encerrada,
+        || {
+            let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
+            )
+            .map_err(ErroProcessoObter::Transporte)?;
+            let sessao = SessaoDoProcesso {
+                url_do_controle: referencias.url_do_controle(),
+                origem: referencias.origem(),
+                cookie: referencias.cookie(),
+            };
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            crate::processo_obter::consulta_parcial::obter_processo_informativo(
+                &sessao,
+                &pedido,
+                &indice,
+                &mut EnvioHttps,
+            )
+        },
+    )
     .map_err(validacao_sem_credenciais)?;
     aberto.requisicoes = relogin_cli::somar(aberto.requisicoes, nota.as_ref());
     if cli.json {

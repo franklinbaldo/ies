@@ -99,10 +99,7 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
 
 #[test]
 fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
-    use crate::erro_publico::Causa;
-    assert!(Causa::sessao_encerrada(
-        &FalhaTransporte::PaginaDeLoginRecebidaNoControle
-    ));
+    assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
     for falha in [
         FalhaTransporte::CookieInvalido,
         FalhaTransporte::OrigemNaoAutorizada,
@@ -112,7 +109,7 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         // sessão vencida; nenhum relogin implícito.
         FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
-        assert!(!Causa::sessao_encerrada(&falha), "{falha:?}");
+        assert!(!falha.sessao_encerrada(), "{falha:?}");
     }
 }
 

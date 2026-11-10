@@ -140,47 +140,52 @@ fn obter(
     }
     let arquivos = configuracao::arquivos_de_acesso()?;
     // Cada tentativa relê a sessão e o índice e recomeça do primeiro DOC.
-    let lido = relogin_cli::ler(&arquivos, cli.unidade.as_deref(), || {
-        let referencias = transporte::sessao::ReferenciasDaSessao::ler(
-            &arquivos.url_controle,
-            &arquivos.origem,
-            &arquivos.cookie,
-        )
-        .map_err(FalhaDoDocumento::Sessao)?;
-        let sessao = SessaoDoProcesso {
-            url_do_controle: referencias.url_do_controle(),
-            origem: referencias.origem(),
-            cookie: referencias.cookie(),
-        };
-        let host = crate::instalacao::Instalacao::interpretar(referencias.origem())
-            .ok_or(FalhaDoDocumento::Sessao(
-                transporte::FalhaTransporte::OrigemNaoAutorizada,
-            ))?
-            .host()
-            .to_owned();
-        let indice = IndiceLocal::da_configuracao(&arquivos);
-        let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
-            let pedido = PedidoDoDocumento {
-                numero,
-                unidade: cli.unidade.as_deref(),
-                processo,
-                anexo: PedidoDoAnexo {
-                    limite,
-                    saida,
-                    cache_host: versoes.cache.then_some(host.as_str()),
-                },
-            };
-            obter_documento_com_propriedades(
-                &sessao,
-                &pedido,
-                versoes,
-                &indice,
-                &mut EnvioHttps,
-                com_propriedades,
+    let lido = relogin_cli::ler(
+        &arquivos,
+        cli.unidade.as_deref(),
+        FalhaDoDocumento::sessao_encerrada,
+        || {
+            let referencias = transporte::sessao::ReferenciasDaSessao::ler(
+                &arquivos.url_controle,
+                &arquivos.origem,
+                &arquivos.cookie,
             )
-        })?;
-        Ok::<_, FalhaDoDocumento>((lidos, host))
-    });
+            .map_err(FalhaDoDocumento::Sessao)?;
+            let sessao = SessaoDoProcesso {
+                url_do_controle: referencias.url_do_controle(),
+                origem: referencias.origem(),
+                cookie: referencias.cookie(),
+            };
+            let host = crate::instalacao::Instalacao::interpretar(referencias.origem())
+                .ok_or(FalhaDoDocumento::Sessao(
+                    transporte::FalhaTransporte::OrigemNaoAutorizada,
+                ))?
+                .host()
+                .to_owned();
+            let indice = IndiceLocal::da_configuracao(&arquivos);
+            let lidos = lote::ler_lote(numeros, ocultar_inacessiveis, |numero| {
+                let pedido = PedidoDoDocumento {
+                    numero,
+                    unidade: cli.unidade.as_deref(),
+                    processo,
+                    anexo: PedidoDoAnexo {
+                        limite,
+                        saida,
+                        cache_host: versoes.cache.then_some(host.as_str()),
+                    },
+                };
+                obter_documento_com_propriedades(
+                    &sessao,
+                    &pedido,
+                    versoes,
+                    &indice,
+                    &mut EnvioHttps,
+                    com_propriedades,
+                )
+            })?;
+            Ok::<_, FalhaDoDocumento>((lidos, host))
+        },
+    );
     match lido {
         Ok(((lidos, host), nota)) => {
             publicar(cli.json, lidos, saida, nota.as_ref(), &host, versoes.cache)
@@ -225,6 +230,17 @@ enum FalhaDoDocumento {
         #[source]
         erro: ErroDocumentoObter,
     },
+}
+
+impl FalhaDoDocumento {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Sessao(erro) => erro.sessao_encerrada(),
+            Self::Documento { erro, .. } => erro.sessao_encerrada(),
+        }
+    }
 }
 
 /// O arquivo de cada documento em `DIR`: nome, bytes, SHA-256 e se foi

@@ -91,6 +91,32 @@ pub(crate) enum ErroPaginaDoControle {
     Caixa(#[from] ErroCaixa),
 }
 
+impl ErroPaginaDoControle {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::Submissao(erro) => erro.sessao_encerrada(),
+            Self::PaginaExigeVisaoResumida
+            | Self::CharsetDaTelaNaoSuportado
+            | Self::PaginaAtualDaTabelaIlegivel { .. }
+            | Self::CamposDePaginaAtualDaTabelaRepetidos { .. }
+            | Self::PaginaAtualDaTabelaIncompativelComAFaixa { .. }
+            | Self::PaginaForaDoIntervalo { .. }
+            | Self::PaginadorDaTabelaNaoPublicado { .. }
+            | Self::UnidadeAlteradaAposPaginar
+            | Self::VisualizacaoAlteradaAposPaginar
+            | Self::CriteriosRecebidosAlteradosAposPaginar
+            | Self::CriteriosGeradosAlteradosAposPaginar
+            | Self::TotalDeclaradoAlteradoAposPaginar { .. }
+            | Self::FaixaDaRespostaDiferenteDaPaginaSolicitada { .. }
+            | Self::RedirecionamentoAposPaginar
+            | Self::Formulario(_)
+            | Self::Caixa(_) => false,
+        }
+    }
+}
+
 /// O que a tela de origem exige para mostrar a página N.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PlanoDaPagina {

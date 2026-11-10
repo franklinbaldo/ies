@@ -63,11 +63,66 @@ pub enum FalhaTransporte {
     Proxy,
 }
 
-impl FalhaTransporte {}
+impl FalhaTransporte {
+    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// percorrer a cadeia `source()`.
+    pub(crate) fn sessao_encerrada(&self) -> bool {
+        match self {
+            Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
+                true
+            }
+            Self::ChaveDeConsultaNaoCanonica
+            | Self::SeparadorDeConsultaAmbiguo
+            | Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoComPermissoesInseguras
+            | Self::CaminhoDeArquivoNaoEhArquivo
+            | Self::ArquivoPrivadoLinkSimbolico
+            | Self::ArquivoPrivadoVazio
+            | Self::ArquivoPrivadoAcimaDoLimite
+            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::Status(_)
+            | Self::BloqueioDeSegurancaDaInstalacao(_)
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => false,
+        }
+    }
+}
 
 impl FalhaTransporte {
     /// Status e mensagem do SEI, só nas recusas por status HTTP.
     pub fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        crate::erro_publico::Causa::status_http(self)
+        match self {
+            Self::Status(recusa)
+            | Self::BloqueioDeSegurancaDaInstalacao(recusa)
+            | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
+            Self::ChaveDeConsultaNaoCanonica
+            | Self::SeparadorDeConsultaAmbiguo
+            | Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoComPermissoesInseguras
+            | Self::CaminhoDeArquivoNaoEhArquivo
+            | Self::ArquivoPrivadoLinkSimbolico
+            | Self::ArquivoPrivadoVazio
+            | Self::ArquivoPrivadoAcimaDoLimite
+            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::PaginaDeLoginRecebidaNoControle
+            | Self::RespostaExcessiva
+            | Self::Rede
+            | Self::Proxy => None,
+        }
     }
 }
