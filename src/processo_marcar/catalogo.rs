@@ -273,7 +273,11 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         );
     }
     let Some(link) = acoes.marcadores.ok().flatten() else {
-        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::CatalogoDaUnidadeNaoObservado,
+            rede.feitas(),
+        );
     };
     let Some(submissao) = submissao_cadastro(
         sessao,
@@ -284,7 +288,11 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         rotulo,
         texto,
     ) else {
-        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::CatalogoDaUnidadeNaoObservado,
+            rede.feitas(),
+        );
     };
     if !confirmar {
         return saida_previa(
@@ -303,7 +311,11 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return falha(cli, ErroMarcar::CatalogoDaUnidadeNaoObservado, rede.feitas());
+        return falha(
+            cli,
+            ErroMarcar::CatalogoDaUnidadeNaoObservado,
+            rede.feitas(),
+        );
     }
     let aceito = matches!(
         resposta,
@@ -312,7 +324,10 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     );
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente = releitura_comprova(
-        sessao, indice, &pedido, &mut rede,
+        sessao,
+        indice,
+        &pedido,
+        &mut rede,
         (&aberto.arvore.processo.id, unidade),
         (rotulo, texto),
     );
@@ -422,8 +437,7 @@ fn releitura_comprova<V: EnvioDoProcesso>(
     let releitura = obter_processo(sessao, pedido, indice, rede);
     match releitura {
         Ok(ref novo)
-            if novo.arvore.processo.id == id
-                && novo.unidade.as_deref() == Some(unidade) =>
+            if novo.arvore.processo.id == id && novo.unidade.as_deref() == Some(unidade) =>
         {
             match &novo.marcadores {
                 Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
@@ -439,4 +453,3 @@ fn releitura_comprova<V: EnvioDoProcesso>(
         _ => None,
     }
 }
-
