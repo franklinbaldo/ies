@@ -203,6 +203,16 @@ pub(crate) fn responder(
         }
         Some("procedimento_trabalhar")
             if eh_controlador_sei(alvo)
+                // Duplicacao ou vazio de protocolo/processo nao equivalem a ausencia.
+                // Validar antes de qualquer ramo que possa escolher outra rota.
+                && ["id_protocolo", "id_procedimento"]
+                    .iter()
+                    .any(|nome| documento_versoes::parametro(alvo, nome).is_err()) =>
+        {
+            Resposta::nova(crate::Estado::RequisicaoInvalida)
+        }
+        Some("procedimento_trabalhar")
+            if eh_controlador_sei(alvo)
                 // Identidade documental inválida também deve chegar ao
                 // validador, nunca cair silenciosamente na rota de processo.
                 && !matches!(
