@@ -153,20 +153,60 @@ fn submeter_atribuicao(
     if corpo.split('&').count() != 5 || tipo != "2" || protocolo != id || salvar != "Salvar" {
         return Resposta::nova(Estado::RequisicaoInvalida);
     }
-    return match iesei::marcadores::atribuir(
-        banco, origem, cenario, id, &unidade, &marcador, &texto,
-    ) {
+    match iesei::marcadores::atribuir(banco, origem, cenario, id, unidade, &marcador, &texto) {
         Ok(()) => Resposta::redirecionar(format!(
             "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_cadastrar&id_procedimento={id}"
         )),
-        Err(iesei::marcadores::Falha::DadoInvalido) => {
-            Resposta::nova(Estado::RequisicaoInvalida)
-        }
+        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
         Err(
-            iesei::marcadores::Falha::Sqlite(_)
-            | iesei::marcadores::Falha::ProcessoNaoObservado,
+            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
         ) => Resposta::nova(Estado::DadosInsuficientes),
+    }
+}
+
+/// Retirada única validada contra a observação íntegra, apenas no SQLite local.
+fn submeter_retirada(
+    corpo: &str,
+    banco: &Connection,
+    origem: &Instalacao,
+    cenario: &str,
+    id: &str,
+    unidade: &str,
+    observacao: &Observacao,
+) -> Resposta {
+    let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
+        campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
+        campo_formulario_unico(corpo, "hdnInfraNroItens"),
+        campo_formulario_unico(corpo, "hdnInfraItemId"),
+        campo_formulario_unico(corpo, "hdnInfraItens"),
+        campo_formulario_unico(corpo, "hdnInfraItensHash"),
+    ) else {
+        return Resposta::nova(Estado::RequisicaoInvalida);
     };
+    let ids = observacao
+        .itens
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    if corpo.split('&').count() != 5
+        || tipo != "2"
+        || nro != observacao.total_declarado.to_string()
+        || itens != ids
+        || hash != crate::protocolo_sintetico::INFRA_HASH
+        || !observacao.itens.iter().any(|m| m.id == item)
+    {
+        return Resposta::nova(Estado::RequisicaoInvalida);
+    }
+    match iesei::marcadores::retirar(banco, origem, cenario, id, unidade, &item) {
+        Ok(()) => Resposta::redirecionar(format!(
+            "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
+        )),
+        Err(iesei::marcadores::Falha::DadoInvalido) => Resposta::nova(Estado::RequisicaoInvalida),
+        Err(
+            iesei::marcadores::Falha::Sqlite(_) | iesei::marcadores::Falha::ProcessoNaoObservado,
+        ) => Resposta::nova(Estado::DadosInsuficientes),
+    }
 }
 
 /// Responde à tela de leitura cuja ação foi publicada na barra da árvore.
@@ -214,49 +254,14 @@ pub(crate) fn responder(
     let Ok(Some(observacao)) = iesei::marcadores::ler(banco, origem, cenario, id, &unidade) else {
         return Resposta::nova(Estado::DadosInsuficientes);
     };
-    if acao == Some("andamento_marcador_cadastrar") {
+    if metodo == "GET" && acao == Some("andamento_marcador_cadastrar") {
         return formulario_adicionar(banco, origem, cenario, id, &unidade);
     }
     if metodo == "POST" && acao == Some("andamento_marcador_cadastrar") {
         return submeter_atribuicao(corpo, banco, origem, cenario, id, &unidade);
     }
     if metodo == "POST" {
-        let (Some(tipo), Some(nro), Some(item), Some(itens), Some(hash)) = (
-            campo_formulario_unico(corpo, "hdnInfraTipoPagina"),
-            campo_formulario_unico(corpo, "hdnInfraNroItens"),
-            campo_formulario_unico(corpo, "hdnInfraItemId"),
-            campo_formulario_unico(corpo, "hdnInfraItens"),
-            campo_formulario_unico(corpo, "hdnInfraItensHash"),
-        ) else {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        };
-        let ids = observacao
-            .itens
-            .iter()
-            .map(|m| m.id.as_str())
-            .collect::<Vec<_>>()
-            .join(",");
-        if corpo.split('&').count() != 5
-            || tipo != "2"
-            || nro != observacao.total_declarado.to_string()
-            || itens != ids
-            || hash != crate::protocolo_sintetico::INFRA_HASH
-            || !observacao.itens.iter().any(|m| m.id == item)
-        {
-            return Resposta::nova(Estado::RequisicaoInvalida);
-        }
-        return match iesei::marcadores::retirar(banco, origem, cenario, id, &unidade, &item) {
-            Ok(()) => Resposta::redirecionar(format!(
-                "controlador.php?acao=andamento_marcador_gerenciar&acao_origem=andamento_marcador_remover&id_procedimento={id}"
-            )),
-            Err(iesei::marcadores::Falha::DadoInvalido) => {
-                Resposta::nova(Estado::RequisicaoInvalida)
-            }
-            Err(
-                iesei::marcadores::Falha::Sqlite(_)
-                | iesei::marcadores::Falha::ProcessoNaoObservado,
-            ) => Resposta::nova(Estado::DadosInsuficientes),
-        };
+        return submeter_retirada(corpo, banco, origem, cenario, id, &unidade, &observacao);
     }
     // UnB 4.0.9: sem marcador, GET redireciona ao formulário de adicionar.
     // Não inventar "0 registros" na tela de gerenciamento.

@@ -15,7 +15,7 @@ use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
-    abrir_para_escrever,
+    abrir_para_escrever, obter_processo,
 };
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -204,7 +204,7 @@ fn saida_previa(
         );
     } else {
         println!(
-            "Prévia: atribuir marcador {}#{} ao processo {} (unidade {}, texto: {:?}). Requisições: {}. Esta prévia não alterou o processo. A confirmação ainda não está habilitada.",
+            "Prévia: atribuir marcador {}#{} ao processo {} (unidade {}, texto: {:?}). Requisições: {}. Esta prévia não alterou o processo. Para tentar a atribuição, use --confirmar em treinamento; o catálogo e o formulário precisam estar conferidos.",
             rotulo.id,
             rotulo.nome,
             nup.as_str(),

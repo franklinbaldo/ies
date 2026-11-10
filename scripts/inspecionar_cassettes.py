@@ -2,8 +2,6 @@
 """Inspecao somente leitura de cassettes publicas, com hashes e logs saneados."""
 
 import collections
-import base64
-from html.parser import HTMLParser
 import hashlib
 import json
 import os
@@ -115,40 +113,6 @@ def verificar(caminho, arquivos):
     formatos_redirect_atribuicao = collections.Counter()
     for interacao in interacoes:
         metodo, acao, estrutura = detalhes_requisicao(interacao.get("request"))
-        if acao == "andamento_marcador_cadastrar":
-            resposta = interacao.get("response") or {}
-            if metodo == "GET" and resposta.get("status_code") == 200:
-                corpo = resposta.get("body_base64")
-                if isinstance(corpo, str):
-                    class Forma(HTMLParser):
-                        def __init__(self):
-                            super().__init__()
-                            self.form = None
-                            self.controles = collections.Counter()
-                            self.opcoes = 0
-                        def handle_starttag(self, tag, attrs):
-                            dados = dict(attrs)
-                            if tag == "form" and dados.get("id") == "frmAndamentoMarcadorCadastro":
-                                self.form = "frmAndamentoMarcadorCadastro"
-                            if self.form and tag in ("input", "select", "textarea", "button"):
-                                nome = dados.get("name") or ""
-                                if re.fullmatch(r"[A-Za-z0-9_]{1,60}", nome):
-                                    self.controles[(tag, nome)] += 1
-                            if self.form and tag == "option":
-                                self.opcoes += 1
-                        def handle_endtag(self, tag):
-                            if tag == "form":
-                                self.form = None
-                    parser = Forma()
-                    parser.feed(base64.b64decode(corpo).decode("latin-1", "replace"))
-                    print("MARCADOR_CADASTRO_FORM_SHAPE", sorted((a, b, n) for (a, b), n in parser.controles.items()), "option_count", parser.opcoes)
-            if metodo == "POST":
-                headers = resposta.get("headers") or {}
-                local = next((v for k, v in headers.items() if k.lower() == "location" and isinstance(v, str)), "")
-                q = parse_qs(urlsplit(local).query)
-                print("MARCADOR_CADASTRO_POST_SHAPE", "status", resposta.get("status_code"),
-                      "redirect_action", q.get("acao", []), "origin_action", q.get("acao_origem", []),
-                      "has_single_id", len(q.get("id_procedimento", [])) == 1)
         metodos[metodo] += 1
         estruturas[estrutura] += 1
         if acao:
