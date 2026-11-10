@@ -268,6 +268,15 @@ fn executar(retirar_ausente: bool, sem_marcadores: bool) {
     tunel.join().unwrap();
     let persistido = servidor.join().unwrap();
     let pedidos = trilha.lock().unwrap().clone();
+    conferir(&saida, &releitura, &persistido, &pedidos, sem_marcadores);
+}
+fn conferir(
+    saida: &Output,
+    releitura: &Output,
+    persistido: &Observacao,
+    pedidos: &[String],
+    sem_marcadores: bool,
+) {
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -278,7 +287,7 @@ fn executar(retirar_ausente: bool, sem_marcadores: bool) {
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["nada_a_fazer"], true);
     assert_eq!(json["alterado"], false);
-    assert_eq!(json["requisicoes"].as_u64().is_some(), true);
+    assert!(json["requisicoes"].as_u64().is_some());
     assert_eq!(
         releitura.status.code(),
         Some(0),
