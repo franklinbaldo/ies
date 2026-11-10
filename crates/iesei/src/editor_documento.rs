@@ -112,45 +112,59 @@ pub fn consultar_oferta(
         .transpose()
 }
 
-/// Indica se há um documento ativo com zero assinaturas explicitamente
-/// registradas no estado do simulador. Documento sem observação de assinatura
-/// não é tratado como prova de assinatura positiva.
+/// Síntese tipada do estado documental para a prévia de anexação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SituacaoAssinaturas {
+    SemPendencias,
+    Pendentes,
+    NaoObservadas,
+}
+
+/// Documento ativo sem linha de assinaturas impede uma resposta S/N conclusiva.
+/// Zero observado é pendência, não ausência de observação.
+/// Documentos cancelados não participam da consulta.
 ///
 /// # Errors
 /// Preserva falha SQLite e recusa identidade de processo inválida.
-pub fn ha_documento_sem_assinatura(
+pub fn situacao_assinaturas_anexacao(
     banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     id_procedimento: &str,
-) -> Result<bool, Falha> {
+) -> Result<SituacaoAssinaturas, Falha> {
     if cenario.is_empty()
         || id_procedimento.is_empty()
         || !id_procedimento.bytes().all(|b| b.is_ascii_digit())
     {
         return Err(Falha::DadoInvalido);
     }
-    banco
-        .query_row(
-            "SELECT EXISTS(
-               SELECT 1 FROM documento_simulado documento
-               JOIN documento_editor editor
-                 ON editor.origem=documento.origem
-                AND editor.cenario=documento.cenario
-                AND editor.id_documento=documento.id_documento
-               WHERE documento.origem=?1 AND documento.cenario=?2
-                 AND documento.id_procedimento=?3 AND editor.assinaturas=0
-                 AND NOT EXISTS(
-                     SELECT 1 FROM documento_cancelamento cancelamento
-                     WHERE cancelamento.origem=documento.origem
-                       AND cancelamento.cenario=documento.cenario
-                       AND cancelamento.id_documento=documento.id_documento
-                 )
-             )",
-            params![instalacao.url_base(), cenario, id_procedimento],
-            |linha| linha.get(0),
-        )
-        .map_err(Falha::from)
+    let (desconhecidas, pendentes): (i64, i64) = banco.query_row(
+        "SELECT
+           COALESCE(MAX(CASE WHEN editor.id_documento IS NULL THEN 1 ELSE 0 END), 0),
+           COALESCE(MAX(CASE WHEN editor.assinaturas = 0 THEN 1 ELSE 0 END), 0)
+         FROM documento_simulado documento
+         LEFT JOIN documento_editor editor
+           ON editor.origem=documento.origem
+          AND editor.cenario=documento.cenario
+          AND editor.id_documento=documento.id_documento
+         WHERE documento.origem=?1 AND documento.cenario=?2
+           AND documento.id_procedimento=?3
+           AND NOT EXISTS(
+               SELECT 1 FROM documento_cancelamento cancelamento
+               WHERE cancelamento.origem=documento.origem
+                 AND cancelamento.cenario=documento.cenario
+                 AND cancelamento.id_documento=documento.id_documento
+           )",
+        params![instalacao.url_base(), cenario, id_procedimento],
+        |linha| Ok((linha.get(0)?, linha.get(1)?)),
+    )?;
+    Ok(if pendentes != 0 {
+        SituacaoAssinaturas::Pendentes
+    } else if desconhecidas != 0 {
+        SituacaoAssinaturas::NaoObservadas
+    } else {
+        SituacaoAssinaturas::SemPendencias
+    })
 }
 
 /// Uma transação insere N+1 preservando N, compara base com a versão atual
