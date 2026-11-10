@@ -9,7 +9,7 @@ use crate::processo_obter::{EnvioDoProcesso, ResolvidoPor};
 /// Passo 1, link guardado nesta geração e unidade: o de "Abrir todas as
 /// Pastas", se houver, e senão o da árvore; um GET. A árvore não publica a
 /// unidade; com `--unidade` o passo é pulado.
-pub(super) fn link_da_arvore<V: EnvioDoProcesso>(
+pub(in crate::processo_obter) fn link_da_arvore<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
@@ -54,7 +54,7 @@ pub(super) fn link_da_arvore<V: EnvioDoProcesso>(
 /// Passo 1b, link `procedimento_trabalhar` guardado nesta geração e
 /// unidade (colhido de uma linha do Controle ou de uma abertura anterior):
 /// GET da tela do processo e GET da árvore.
-pub(super) fn link_de_trabalho<V: EnvioDoProcesso>(
+pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
 ) -> Passo {
