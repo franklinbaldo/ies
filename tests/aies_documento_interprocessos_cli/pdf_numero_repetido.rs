@@ -1,5 +1,5 @@
 //! BDD-60-05: documento interno e PDF externo com o mesmo número SEI.
-//! A colisão é sintética; os cards UnB não a registram. O binário é real,
+//! A colisão é sintética; os cards `UnB` não a registram. O binário é real,
 //! passando por TLS local, HTTP anti-IES e um único estado SQLite.
 use super::*;
 
