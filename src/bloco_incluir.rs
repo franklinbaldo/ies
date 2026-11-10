@@ -142,7 +142,8 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
         let Some(indice) = nome.strip_prefix("chkDocumentosItem") else {
             continue;
         };
-        if indice.is_empty() || !indice.bytes().all(|b| b.is_ascii_digit())
+        if indice.is_empty()
+            || !indice.bytes().all(|b| b.is_ascii_digit())
             || atributo(caixa, "id")?.as_deref() != Some(nome.as_str())
             || atributo(caixa, "type")?.as_deref() != Some("checkbox")
         {
@@ -153,7 +154,10 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || numero.is_empty() {
             return Err(fora());
         }
-        if documentos.iter().any(|d| d.nome == nome || d.id == id || d.numero == numero) {
+        if documentos
+            .iter()
+            .any(|d| d.nome == nome || d.id == id || d.numero == numero)
+        {
             return Err(ErroHtml::repetido("caixas_de_documentos_ambiguas"));
         }
         documentos.push(DocumentoOferecido { nome, id, numero });
