@@ -431,3 +431,6 @@ mod parametros_repetidos;
 
 #[path = "aies_navegacao_identidade_http/trabalhar_ambiguidade.rs"]
 mod trabalhar_ambiguidade;
+
+#[path = "aies_navegacao_identidade_http/trabalhar_protocolo_repetido.rs"]
+mod trabalhar_protocolo_repetido;
