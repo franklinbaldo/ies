@@ -227,7 +227,7 @@ struct Documento {
 #[derive(Debug, Args)]
 struct Bloco {
     /// Número de bloco de assinatura a detalhar; sem número, usar listar
-    numero: Option<String>,
+    numero: Option<u64>,
     #[command(subcommand)]
     acao: Option<BlocoAcao>,
 }
@@ -246,10 +246,10 @@ enum BlocoAcao {
     #[command(group(clap::ArgGroup::new("alvo").required(true).args(["documento", "processo"])))]
     Incluir {
         /// Número do bloco publicado pela lista da unidade
-        bloco: String,
+        bloco: u64,
         /// Número SEI do documento (bloco de assinatura)
-        #[arg(long)]
-        documento: Option<String>,
+        #[arg(long, value_parser = crate::documento::NumeroDocumento::novo)]
+        documento: Option<crate::documento::NumeroDocumento>,
         /// NUP do processo (bloco interno ou de reunião)
         #[arg(long)]
         processo: Option<String>,
@@ -413,62 +413,94 @@ fn tentar_operacao_documento_ou_processo(cli: &Cli) -> Option<ExitCode> {
 }
 
 /// `ies unidade colunas`: leitura; com `--definir`, prévia ou escrita.
-fn run(cli: &Cli) -> ExitCode {
+fn run(cli: &Cli) -> Saida {
     if let Some(status) = unidade_indice_cli::tentar_consulta_local(cli) {
-        return status;
+        return Ok(status);
     }
     if let Some(status) = tentar_operacao_documento_ou_processo(cli) {
-        return status;
+        return Ok(status);
     }
     match &cli.command {
         Domain::Bloco(bloco) => return bloco_cli::executar(cli, bloco),
-        Domain::Esquema => return esquema_cli::mostrar_esquema(cli.json),
-        Domain::Setup(setup) => return setup_cli::executar_setup(setup, cli.json),
+        Domain::Esquema => return Ok(esquema_cli::mostrar_esquema(cli.json)),
+        Domain::Setup(setup) => return Ok(setup_cli::executar_setup(setup, cli.json)),
         Domain::Login(LoginArgs { forcar }) => {
-            return sessao_login_cli::executar_login(cli.json, *forcar, cli.unidade.as_deref());
+            return Ok(sessao_login_cli::executar_login(
+                cli.json,
+                *forcar,
+                cli.unidade.as_deref(),
+            ));
         }
         Domain::Status(args) => {
-            return status_cli::mostrar_status(cli.json, args, cli.unidade.as_deref());
+            return Ok(status_cli::mostrar_status(
+                cli.json,
+                args,
+                cli.unidade.as_deref(),
+            ));
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Atual),
-        }) => return unidade_atual_cli::mostrar_unidade_atual(cli.unidade.as_deref(), cli.json),
+        }) => {
+            return Ok(unidade_atual_cli::mostrar_unidade_atual(
+                cli.unidade.as_deref(),
+                cli.json,
+            ));
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Recebidos(lista)),
         }) => {
-            return cli_unidade_aux::listar(
+            return Ok(cli_unidade_aux::listar(
                 cli,
                 lista,
                 unidade_categoria::CategoriaLista::Recebidos,
-            );
+            ));
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Gerados(lista)),
         }) => {
-            return cli_unidade_aux::listar(cli, lista, unidade_categoria::CategoriaLista::Gerados);
+            return Ok(cli_unidade_aux::listar(
+                cli,
+                lista,
+                unidade_categoria::CategoriaLista::Gerados,
+            ));
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Retornos { mes }),
         }) => {
-            return unidade_retornos_cli::listar(cli.unidade.as_deref(), cli.json, mes.as_deref());
+            return Ok(unidade_retornos_cli::listar(
+                cli.unidade.as_deref(),
+                cli.json,
+                mes.as_deref(),
+            ));
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::ListarProcessos { saida, pagina }),
         }) => {
-            return unidade_lista_cli::listar_processos_da_unidade(
+            return Ok(unidade_lista_cli::listar_processos_da_unidade(
                 cli.unidade.as_deref(),
                 cli.json,
                 saida.as_deref(),
                 pagina.map(|n| n as usize),
-            );
+            ));
         }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Colunas { definir, confirmar }),
-        }) => return cli_unidade_aux::colunas(cli, definir.as_deref(), *confirmar),
+        }) => {
+            return Ok(cli_unidade_aux::colunas(
+                cli,
+                definir.as_deref(),
+                *confirmar,
+            ));
+        }
         Domain::Unidade(Unidade {
             acao: Some(UnidadeAcao::Trocar { sigla, confirmar }),
         }) => {
-            return unidade_trocar_cli::trocar(sigla, *confirmar, cli.unidade.as_deref(), cli.json);
+            return Ok(unidade_trocar_cli::trocar(
+                sigla,
+                *confirmar,
+                cli.unidade.as_deref(),
+                cli.json,
+            ));
         }
         _ => {}
     }
@@ -479,10 +511,10 @@ fn run(cli: &Cli) -> ExitCode {
     }) = &cli.command
         && let Some(status) = documento_salvar_cli::validar_documentos(numeros, cli.json)
     {
-        return status;
+        return Ok(status);
     }
     if let Some(status) = processo_obter_cli::validar_numero(cli) {
-        return status;
+        return Ok(status);
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -491,7 +523,7 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) => {
             esquema_cli::show_noun_help("processo");
-            return ExitCode::SUCCESS;
+            return Ok(ExitCode::SUCCESS);
         }
         Domain::Documento(Documento {
             numeros,
@@ -499,19 +531,19 @@ fn run(cli: &Cli) -> ExitCode {
             ..
         }) if numeros.is_empty() => {
             esquema_cli::show_noun_help("documento");
-            return ExitCode::SUCCESS;
+            return Ok(ExitCode::SUCCESS);
         }
         Domain::Indice(Indice { acao: None }) => {
             println!("ies indice caminho");
-            return ExitCode::SUCCESS;
+            return Ok(ExitCode::SUCCESS);
         }
         Domain::Unidade(Unidade { acao: None }) => {
             esquema_cli::show_noun_help("unidade");
-            return ExitCode::SUCCESS;
+            return Ok(ExitCode::SUCCESS);
         }
         _ => {}
     }
-    comando_nao_implementado(cli)
+    Ok(comando_nao_implementado(cli))
 }
 
 fn comando_nao_implementado(cli: &Cli) -> ExitCode {
@@ -533,9 +565,48 @@ fn comando_nao_implementado(cli: &Cli) -> ExitCode {
     ExitCode::from(1)
 }
 
+/// O que um comando devolve: o código de saída, ou o erro que sobe até o
+/// `main`, o único lugar que o mostra (#695).
+pub(crate) type Saida = Result<ExitCode, Box<dyn std::error::Error>>;
+
+/// Mostra o erro que subiu: o próprio tipo (`Debug`), sem texto à parte, e
+/// o status e a mensagem do SEI se uma recusa HTTP estiver na cadeia.
+fn mostrar(json_mode: bool, erro: &(dyn std::error::Error + 'static)) -> ExitCode {
+    let http = std::iter::successors(Some(erro), |e| e.source())
+        .find_map(|e| e.downcast_ref::<transporte::StatusHttpRecusado>());
+    if json_mode {
+        let mut valor = json!({"erro": format!("{erro:?}")});
+        if let Some(http) = http {
+            if http.status != 200 {
+                valor["status_http"] = json!(http.status);
+            }
+            if let Some(texto) = &http.mensagem_do_servidor {
+                valor["mensagem_do_servidor"] = json!(texto);
+            }
+        }
+        println!("{valor}");
+    } else {
+        match http {
+            Some(h) => eprintln!(
+                "IES: {erro:?} (HTTP {}{})",
+                h.status,
+                h.mensagem_do_servidor
+                    .as_deref()
+                    .map(|t| format!(": {t}"))
+                    .unwrap_or_default()
+            ),
+            None => eprintln!("IES: {erro:?}"),
+        }
+    }
+    ExitCode::from(1)
+}
+
 fn main() -> ExitCode {
     match Cli::try_parse() {
-        Ok(cli) => run(&cli),
+        Ok(cli) => match run(&cli) {
+            Ok(codigo) => codigo,
+            Err(erro) => mostrar(cli.json, erro.as_ref()),
+        },
         Err(err) => {
             let status = if matches!(
                 err.kind(),
