@@ -47,7 +47,20 @@ fn valido(id: &str, historico: &Historico) -> bool {
 /// # Errors
 /// Preserva a causa SQLite ou recusa observação inconsistente.
 pub fn guardar(
-    banco: &mut Connection,
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    historico: &Historico,
+) -> Result<(), Falha> {
+    let tx = banco.unchecked_transaction()?;
+    guardar_no_banco(&tx, instalacao, cenario, id, historico)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn guardar_no_banco(
+    banco: &Connection,
     instalacao: &Instalacao,
     cenario: &str,
     id: &str,
@@ -58,21 +71,20 @@ pub fn guardar(
     }
     let origem = instalacao.url_base();
     let total = i64::try_from(historico.total_declarado).map_err(|_| Falha::DadoInvalido)?;
-    let tx = banco.transaction()?;
-    tx.execute(
+    banco.execute(
         "INSERT INTO andamento_historico (origem, cenario, id_procedimento, total_declarado)
          VALUES (?1, ?2, ?3, ?4)
          ON CONFLICT (origem, cenario, id_procedimento) DO UPDATE SET
          total_declarado=excluded.total_declarado",
         params![origem, cenario, id, total],
     )?;
-    tx.execute(
+    banco.execute(
         "DELETE FROM andamento_linha
          WHERE origem=?1 AND cenario=?2 AND id_procedimento=?3",
         params![origem, cenario, id],
     )?;
     for (posicao, linha) in historico.linhas.iter().enumerate() {
-        tx.execute(
+        banco.execute(
             "INSERT INTO andamento_linha
              (origem, cenario, id_procedimento, posicao, ocorrido_em, unidade, usuario, descricao)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -88,6 +100,32 @@ pub fn guardar(
             ],
         )?;
     }
+    Ok(())
+}
+
+/// Acrescenta uma linha ao histórico observado, preservando todas as anteriores.
+/// O simulador é sequencial e a linha nova explicita metadados sintéticos.
+///
+/// # Errors
+/// Propaga causas SQLite ou recusa observação incoerente.
+pub fn acrescentar(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id: &str,
+    linha: Linha,
+) -> Result<(), Falha> {
+    // Serializa escritores antes da leitura, evitando atualizações perdidas.
+    let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
+    let Some(mut historico) = ler(&tx, instalacao, cenario, id)? else {
+        return Err(Falha::DadoInvalido);
+    };
+    historico.total_declarado = historico
+        .total_declarado
+        .checked_add(1)
+        .ok_or(Falha::DadoInvalido)?;
+    historico.linhas.insert(0, linha);
+    guardar_no_banco(&tx, instalacao, cenario, id, &historico)?;
     tx.commit()?;
     Ok(())
 }
@@ -147,7 +185,7 @@ mod tests {
 
     #[test]
     fn nao_confunde_ausencia_com_historico_observado_e_regrava_idempotente() {
-        let mut banco = Connection::open_in_memory().unwrap();
+        let banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         assert!(ler(&banco, &origem, "cena", "10").unwrap().is_none());
@@ -160,8 +198,8 @@ mod tests {
                 descricao: "Anterior".into(),
             }],
         };
-        guardar(&mut banco, &origem, "cena", "10", &historico).unwrap();
-        guardar(&mut banco, &origem, "cena", "10", &historico).unwrap();
+        guardar(&banco, &origem, "cena", "10", &historico).unwrap();
+        guardar(&banco, &origem, "cena", "10", &historico).unwrap();
         assert_eq!(ler(&banco, &origem, "cena", "10").unwrap(), Some(historico));
         assert!(ler(&banco, &origem, "outra", "10").unwrap().is_none());
         assert!(ler(&banco, &origem, "cena", "11").unwrap().is_none());
@@ -169,7 +207,7 @@ mod tests {
 
     #[test]
     fn dados_parciais_ou_inconsistentes_nao_viram_historico_completo() {
-        let mut banco = Connection::open_in_memory().unwrap();
+        let banco = Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://sei.test/sei").unwrap();
         let incompleto = Historico {
@@ -177,7 +215,7 @@ mod tests {
             linhas: vec![],
         };
         assert!(matches!(
-            guardar(&mut banco, &origem, "cena", "10", &incompleto),
+            guardar(&banco, &origem, "cena", "10", &incompleto),
             Err(Falha::DadoInvalido)
         ));
         assert!(ler(&banco, &origem, "cena", "10").unwrap().is_none());

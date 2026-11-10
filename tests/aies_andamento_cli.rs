@@ -11,7 +11,7 @@ use native_tls::TlsAcceptor;
 use rusqlite::Connection;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -122,7 +122,7 @@ fn estado() -> (Connection, Instalacao) {
     )
     .unwrap();
     andamentos::guardar(
-        &mut banco,
+        &banco,
         &instalacao,
         CENARIO,
         "10",
@@ -140,8 +140,7 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
-#[test]
-fn bdd_259_01_previa_nao_escreve_no_historico() {
+fn executar(confirmar: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -194,7 +193,55 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         }
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(["--json", "processo", "andamento", NUP, "--texto", TEXTO])
+        .args({
+            let mut argumentos = vec!["--json", "processo", "andamento", NUP, "--texto", TEXTO];
+            if confirmar {
+                argumentos.push("--confirmar");
+            }
+            argumentos
+        })
+        .env("IES_URL_CONTROLE_FILE", &controle)
+        .env("IES_COOKIE_FILE", &cookie)
+        .env("IES_ORIGEM_FILE", &origem)
+        .env("SSL_CERT_FILE", &cert)
+        .env("https_proxy", format!("http://127.0.0.1:{porta_proxy}"))
+        .env("HOME", &pasta.0)
+        .env_remove("HTTPS_PROXY")
+        .env_remove("all_proxy")
+        .env_remove("ALL_PROXY")
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy")
+        .env_remove("IES_CONFIG_FILE")
+        .env_remove("IES_CREDENCIAIS_FILE")
+        .output()
+        .unwrap();
+    let segunda =
+        confirmar.then(|| segunda_leitura(&pasta, &controle, &cookie, &origem, &cert, porta_proxy));
+    parar.store(true, Ordering::SeqCst);
+    tunel.join().unwrap();
+    let persistido = servidor.join().unwrap();
+    let pedidos = trilha.lock().unwrap();
+    verificar(confirmar, &saida, segunda.as_ref(), &persistido, &pedidos);
+}
+
+fn segunda_leitura(
+    pasta: &Pasta,
+    controle: &std::path::Path,
+    cookie: &std::path::Path,
+    origem: &std::path::Path,
+    cert: &std::path::Path,
+    porta_proxy: u16,
+) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ies"))
+        .args([
+            "--json",
+            "processo",
+            NUP,
+            "--andamentos-completos",
+            "--sem-documentos",
+            "--sem-propriedades",
+            "--sem-marcadores",
+        ])
         .env("IES_URL_CONTROLE_FILE", controle)
         .env("IES_COOKIE_FILE", cookie)
         .env("IES_ORIGEM_FILE", origem)
@@ -209,14 +256,30 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
         .env_remove("IES_CONFIG_FILE")
         .env_remove("IES_CREDENCIAIS_FILE")
         .output()
-        .unwrap();
-    parar.store(true, Ordering::SeqCst);
-    tunel.join().unwrap();
-    let persistido = servidor.join().unwrap();
-    assert_eq!(persistido.total_declarado, 1);
-    assert_eq!(persistido.linhas.len(), 1);
-    assert_eq!(persistido.linhas[0].descricao, "Andamento anterior");
-    let pedidos = trilha.lock().unwrap();
+        .unwrap()
+}
+
+fn verificar(
+    confirmar: bool,
+    saida: &std::process::Output,
+    segunda: Option<&Output>,
+    persistido: &Historico,
+    pedidos: &[String],
+) {
+    assert_eq!(persistido.total_declarado, if confirmar { 2 } else { 1 });
+    assert_eq!(persistido.linhas.len(), if confirmar { 2 } else { 1 });
+    assert_eq!(
+        persistido.linhas[0].descricao,
+        if confirmar {
+            TEXTO
+        } else {
+            "Andamento anterior"
+        }
+    );
+    assert_eq!(
+        persistido.linhas.last().unwrap().descricao,
+        "Andamento anterior"
+    );
     assert_eq!(
         saida.status.code(),
         Some(0),
@@ -227,10 +290,17 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     assert_eq!(json["numero"], NUP);
     assert_eq!(json["texto"], TEXTO);
-    assert_eq!(json["confirmado"], false);
-    assert_eq!(json["alterado"], false);
+    assert_eq!(json["confirmado"], confirmar);
+    assert_eq!(json["alterado"], confirmar);
     assert_eq!(json["total_antes"], 1);
-    assert_eq!(json["total_depois"], serde_json::Value::Null);
+    assert_eq!(
+        json["total_depois"],
+        if confirmar {
+            serde_json::json!(2)
+        } else {
+            serde_json::Value::Null
+        }
+    );
     assert!(
         pedidos
             .iter()
@@ -241,5 +311,52 @@ fn bdd_259_01_previa_nao_escreve_no_historico() {
             .iter()
             .any(|p| p == "GET procedimento_atualizar_andamento")
     );
-    assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    if confirmar {
+        assert_eq!(
+            pedidos
+                .iter()
+                .filter(|p| p.as_str() == "POST procedimento_atualizar_andamento")
+                .count(),
+            1,
+            "{pedidos:?}"
+        );
+        assert_eq!(
+            pedidos.last().map(String::as_str),
+            Some("POST procedimento_consultar_historico")
+        );
+        let segunda = segunda.expect("segunda CLI do BDD-259-02");
+        assert_eq!(
+            segunda.status.code(),
+            Some(0),
+            "segunda CLI: stdout={} stderr={}",
+            String::from_utf8_lossy(&segunda.stdout),
+            String::from_utf8_lossy(&segunda.stderr)
+        );
+        let resultado: serde_json::Value = serde_json::from_slice(&segunda.stdout).unwrap();
+        assert_eq!(resultado["andamentos"]["tipo"], "completo");
+        assert_eq!(resultado["andamentos"]["total_declarado"], 2);
+        let itens = resultado["andamentos"]["itens"].as_array().unwrap();
+        assert_eq!(itens.len(), 2);
+        assert_eq!(
+            itens[0]["descricao"]
+                .as_str()
+                .unwrap()
+                .split_whitespace()
+                .collect::<Vec<_>>(),
+            TEXTO.split_whitespace().collect::<Vec<_>>(),
+        );
+        assert_eq!(itens[1]["descricao"], "Andamento anterior");
+    } else {
+        assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    }
+}
+
+#[test]
+fn bdd_259_01_previa_nao_escreve_no_historico() {
+    executar(false);
+}
+
+#[test]
+fn bdd_259_02_confirmacao_unica_com_releitura_da_cli() {
+    executar(true);
 }

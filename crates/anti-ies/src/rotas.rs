@@ -117,7 +117,7 @@ pub(crate) fn responder(
         Some("procedimento_consultar_historico" | "procedimento_atualizar_andamento")
             if eh_controlador_sei(alvo) =>
         {
-            processo_andamento::responder(metodo, alvo, banco, instalacao, cenario)
+            processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
             processo_atribuicao::responder(metodo, alvo, corpo, banco, instalacao, cenario)

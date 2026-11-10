@@ -4,7 +4,7 @@ title: Andamento do processo com POST único e prova por histórico
 operation: processo.andamento
 implementation: partial
 status: adopted-for-scope
-scope: ies processo andamento NUP --texto T somente em prévia Web (abertura, histórico e GET do formulário, sem POST); --confirmar recusa antes da sessão nesta fatia
+scope: prévia Web e confirmação exclusivamente em instalações autorizadas de treinamento ou simulador local, com um POST e releitura
 selected_strategy: web-formulario-servido-com-releitura
 alternatives: web-formulario-servido-com-releitura,web-sem-conferencia,rest-wssei
 evidence_level: todos-unb-e-cassettes-de-treinamento
@@ -35,9 +35,9 @@ Descartados: restaurar a página, seguir 302, retry, REST ou SOAP, e considerar 
 - [Contrato](../../contracts/cli/processo-andamento.md)
 - [Evidências da matriz](../../contracts/evidencias/processo-andamento.md)
 - [Teste da trava de escrita](../../tests/cli_processo_andamento.rs)
-- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs`. Os dois testes da confirmação estão `wip #259`.
+- Testes sintéticos em `src/processo_andamento_registrar/tests_fluxo.rs` e E2E CLI real → HTTPS loopback → anti-IES → SQLite em `tests/aies_andamento_cli.rs` para BDD-259-01/02.
 
 ## Limitações e revisão
 
 Desde 09/11/2026, `--confirmar` grava nas instalações de treinamento sem trava de ensaio (decisão do proprietário); outra origem recebe `origem_fora_do_treinamento` antes da rede. 
-A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
+A prova BDD-259-02 é sintética: duas CLIs consultam o mesmo SQLite após um POST único; integridade UnB/GO verificada, mas confronto semântico independente e live permanecem NOT_RUN. A lista resumida pode truncar o fim. Por isso se compara o prefixo observado. Mudanças concorrentes na mesma conta podem tornar a prova impossível; efeito incerto tem saída 3. Falta teste integrado do transporte, replay e validação real na UnB. Nenhum POST remoto executado nesta sessão.
