@@ -20,6 +20,7 @@ mod processo_ciencia;
 mod processo_criacao;
 pub mod processo_envio;
 mod processo_relacionar;
+mod processo_sobrestamento;
 mod protocolo_sintetico;
 mod rotas;
 use iesei::banco_cassettes::ler;

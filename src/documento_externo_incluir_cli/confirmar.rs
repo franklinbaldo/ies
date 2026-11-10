@@ -24,13 +24,11 @@ pub(super) fn executar(
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
         // Aprovada em treinamento (09/11/2026): grava também em produção.
-        if crate::origem_de_treinamento::exigir(
+        if let Err(causa) = crate::origem_de_treinamento::exigir(
             crate::origem_de_treinamento::Escrita::DocumentoIncluirExterno,
             sessao.origem,
-        )
-        .is_err()
-        {
-            return crate::origem_de_treinamento::recusa(cli.json);
+        ) {
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);

@@ -296,3 +296,5 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
     assert!(pedir(endereco, "POST", &alvo).starts_with("HTTP/1.1 405"));
     tarefa.join().unwrap();
 }
+
+include!("anti_ies_documento_go.rs");

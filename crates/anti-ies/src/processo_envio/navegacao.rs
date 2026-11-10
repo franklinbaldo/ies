@@ -38,6 +38,7 @@ fn situacao_da_raiz(
     processo: &ProcessoSimulado,
     unidade_atual: &str,
     atribuicao: Option<&iesei::atribuicoes::Observacao>,
+    sobrestamento: Option<&iesei::sobrestamentos::Sobrestamento>,
 ) -> String {
     let ancora = |sigla: &str| -> String {
         let sigla = html(sigla);
@@ -55,6 +56,12 @@ fn situacao_da_raiz(
         }
         texto
     };
+    if let Some(estado) = sobrestamento {
+        return format!(
+            "Processo sobrestado na unidade {}.<br />",
+            ancora(&estado.unidade)
+        );
+    }
     match processo.aberto_em.as_slice() {
         [] => "Processo não possui andamentos abertos.<br />".to_owned(),
         [unidade] => format!(
@@ -102,10 +109,13 @@ fn arvore_do_processo(
     let numero = literal_js(&processo.numero);
     let atribuicao = iesei::atribuicoes::ler(banco, instalacao, cenario, id, unidade_atual)
         .map_err(|_| Estado::DadosInsuficientes)?;
+    let sobrestamento = iesei::sobrestamentos::consultar(banco, instalacao, cenario, id)
+        .map_err(|_| Estado::DadosInsuficientes)?;
     let situacao = literal_js(&situacao_da_raiz(
         processo,
         unidade_atual,
         atribuicao.as_ref(),
+        sobrestamento.as_ref(),
     ));
     let relacionados = iesei::relacionamentos::observado(banco, instalacao, cenario, id)
         .map_err(|_| Estado::DadosInsuficientes)?;
@@ -133,6 +143,7 @@ fn arvore_do_processo(
         atribuicao.is_some(),
         prazo_observado,
         &ciencia,
+        sobrestamento.as_ref(),
     );
     let hash = crate::protocolo_sintetico::INFRA_HASH;
     let pode_atualizar = historico_observado
