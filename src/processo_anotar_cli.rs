@@ -108,7 +108,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
 /// explicitamente uma textarea vazia. Formulário ausente falha antes daqui.
 fn exibir_consulta(preview: &processo_anotar::Previa, modo_json: bool) {
     let anotacao =
-        (!preview.anotacao_antes.trim().is_empty()).then_some(preview.anotacao_antes.as_str());
+        (!preview.anotacao_antes.is_empty()).then_some(preview.anotacao_antes.as_str());
     if modo_json {
         println!(
             "{}",
