@@ -1,5 +1,5 @@
 //! Cenários sintéticos da #212; não há dados de sessão ou acesso à rede.
-use super::{FalhaConfiguracaoLocal as F, ler_configuracao_local};
+use super::{FalhaConfiguracaoLocal, ler_configuracao_local};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -49,20 +49,23 @@ fn configuracao_valida_devolve_so_os_caminhos() {
 }
 
 #[test]
-fn ausente_tem_causa_distinta_e_subcodigo_publico_legado() {
+fn ausente_tem_causa_distinta() {
     let pasta = Pasta::nova();
     let causa = ler_configuracao_local(&pasta.arquivo()).err().unwrap();
-    assert_eq!(causa, F::Ausente);
+    assert_eq!(causa, FalhaConfiguracaoLocal::Ausente);
 }
 
 #[test]
 fn diretorio_e_excesso_sao_diagnosticos_internos_distintos() {
     let pasta = Pasta::nova();
-    assert_eq!(ler_configuracao_local(&pasta.0).err(), Some(F::NaoRegular));
+    assert_eq!(
+        ler_configuracao_local(&pasta.0).err(),
+        Some(FalhaConfiguracaoLocal::NaoRegular)
+    );
     gravar(&pasta.arquivo(), &"x".repeat(8_193));
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::AcimaDoLimite)
+        Some(FalhaConfiguracaoLocal::AcimaDoLimite)
     );
 }
 
@@ -72,12 +75,12 @@ fn json_invalido_nao_e_campo_invalido() {
     gravar(&pasta.arquivo(), "{");
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::JsonInvalido)
+        Some(FalhaConfiguracaoLocal::JsonInvalido)
     );
     gravar(&pasta.arquivo(), r#"{"url_controle":7}"#);
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::CampoInvalido)
+        Some(FalhaConfiguracaoLocal::CampoInvalido)
     );
 }
 
@@ -92,7 +95,7 @@ fn caminhos_relativos_ou_vazios_nao_sao_aceitos() {
         gravar(&pasta.arquivo(), bruto);
         assert_eq!(
             ler_configuracao_local(&pasta.arquivo()).err(),
-            Some(F::CampoInvalido)
+            Some(FalhaConfiguracaoLocal::CampoInvalido)
         );
     }
 }
@@ -106,7 +109,7 @@ fn permissao_aberta_eh_recusada_antes_da_leitura() {
     fs::set_permissions(pasta.arquivo(), fs::Permissions::from_mode(0o644)).unwrap();
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::PermissoesAbertas)
+        Some(FalhaConfiguracaoLocal::PermissoesAbertas)
     );
 }
 
@@ -120,7 +123,7 @@ fn link_simbolico_nao_e_seguido() {
     symlink(&alvo, pasta.arquivo()).unwrap();
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(F::LinkSimbolico)
+        Some(FalhaConfiguracaoLocal::LinkSimbolico)
     );
 }
 
@@ -182,7 +185,7 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
 #[test]
 fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     use super::{
-        ArquivoPrivado as A, ArquivosDeAcesso, ErroArquivoPrivado as E, verificar_arquivos_privados,
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoPrivado, verificar_arquivos_privados,
     };
     let pasta = Pasta::nova();
     let privado = |nome: &str| {
@@ -207,7 +210,7 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     };
     assert_eq!(
         verificar_arquivos_privados(&sem_cookie),
-        Err(E::Ausente(A::Cookie))
+        Err(ErroArquivoPrivado::Ausente(ArquivoPrivado::Cookie))
     );
     let relativa = ArquivosDeAcesso {
         url_controle: PathBuf::from("url"),
@@ -215,11 +218,13 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
     };
     assert_eq!(
         verificar_arquivos_privados(&relativa),
-        Err(E::CaminhoNaoAbsoluto(A::UrlControle))
+        Err(ErroArquivoPrivado::CaminhoNaoAbsoluto(
+            ArquivoPrivado::UrlControle
+        ))
     );
     fs::write(&completos.origem, "").unwrap();
     assert_eq!(
         verificar_arquivos_privados(&completos),
-        Err(E::Vazio(A::Origem))
+        Err(ErroArquivoPrivado::Vazio(ArquivoPrivado::Origem))
     );
 }

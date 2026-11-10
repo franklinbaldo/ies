@@ -71,7 +71,6 @@ pub(crate) fn ler_tela_do_documento(
     id_documento: &str,
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
-    use ErroTelaDoProcesso as E;
     let (publicada, src) = unidade_e_src(html, unidade)?;
     let valores = |chave: &str| -> Vec<String> {
         src.split_once('?')
@@ -83,7 +82,7 @@ pub(crate) fn ler_tela_do_documento(
             .collect()
     };
     if valores("id_documento") != [id_documento] {
-        return Err(E::EnderecoDaArvoreDeOutroDocumento);
+        return Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento);
     }
     let [id_procedimento] = valores("id_procedimento")
         .try_into()
@@ -104,7 +103,6 @@ fn unidade_e_src(
     html: &str,
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
-    use ErroTelaDoProcesso as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("html_da_tela_do_processo_nao_interpretado"))?;
     let publicada = crate::controle_contexto::unidade_html(&dom)
@@ -115,7 +113,7 @@ fn unidade_e_src(
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada
     {
-        return Err(E::UnidadeDaTelaDiferenteDaSolicitada);
+        return Err(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada);
     }
     let iframes = nos_com_id(&dom, "ifrArvore")
         .map_err(|e| ErroHtml::atributo("html_da_tela_do_processo_nao_interpretado", e))?;
@@ -137,7 +135,7 @@ fn unidade_e_src(
     let src = crate::formulario_web::decodificar_atributo(&src)
         .ok_or(ErroHtml::valor("endereco_da_arvore_nao_reconhecido"))?;
     if src.is_empty() && html.contains("controlador.php?acao=usuario_validar_acesso&") {
-        return Err(E::ProcessoExigeValidacaoDeAcesso);
+        return Err(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso);
     }
     Ok((publicada, src))
 }

@@ -52,8 +52,10 @@ pub(super) fn replay(card: &str, instalacao_nome: &str, json: &serde_json::Value
     };
     let mut nups: HashMap<String, Option<String>> = HashMap::new();
     for r in respostas.iter().filter(|r| e_arvore(r)) {
-        let (Some(id), Ok(html)) = (gravacao::id_procedimento(r.item), html_da_resposta(r.item))
-        else {
+        let (Some(id), Ok(html)) = (
+            gravacao::id_procedimento(r.interacao),
+            html_da_resposta(r.interacao),
+        ) else {
             continue;
         };
         if let Some(nup) = nup_declarado_na_arvore(&html) {
@@ -89,9 +91,9 @@ fn ler(c: &Cassette<'_>, r: &Resposta<'_>) -> Vec<Registro> {
         ("andamento_marcador_gerenciar", "GET", 200 | 302) => Leitor::Marcadores,
         _ => return Vec::new(),
     };
-    let id = gravacao::id_procedimento(r.item).or_else(|| {
+    let id = gravacao::id_procedimento(r.interacao).or_else(|| {
         (leitor == Leitor::Tela)
-            .then(|| gravacao::id_da_pesquisa_rapida(r.item))
+            .then(|| gravacao::id_da_pesquisa_rapida(r.interacao))
             .flatten()
     });
     let Some(id) = id else {
@@ -101,10 +103,10 @@ fn ler(c: &Cassette<'_>, r: &Resposta<'_>) -> Vec<Registro> {
     if r.status == 302 {
         return vec![marcadores_302(c, r, &id)];
     }
-    let html = match html_da_resposta(r.item) {
+    let html = match html_da_resposta(r.interacao) {
         Ok(html) => html,
         // O transporte da CLI recusa o mesmo corpo (`MAX_HTML_BYTES`).
-        Err(_) if corpo_acima_do_limite(r.item) => {
+        Err(_) if corpo_acima_do_limite(r.interacao) => {
             let recusa = Resultado::Recusado("html_acima_do_limite_do_transporte");
             return vec![c.registro(leitor, r.passo, recusa)];
         }
@@ -132,9 +134,9 @@ fn ler(c: &Cassette<'_>, r: &Resposta<'_>) -> Vec<Registro> {
     }
 }
 
-fn corpo_acima_do_limite(item: &serde_json::Value) -> bool {
+fn corpo_acima_do_limite(interacao: &serde_json::Value) -> bool {
     use base64::Engine as _;
-    item["response"]["body_base64"]
+    interacao["response"]["body_base64"]
         .as_str()
         .and_then(|b| base64::engine::general_purpose::STANDARD.decode(b).ok())
         .is_some_and(|b| b.len() > crate::MAX_HTML_BYTES)
@@ -252,7 +254,7 @@ fn marcadores(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &st
 /// a mesma regra do fluxo.
 fn marcadores_302(c: &Cassette<'_>, r: &Resposta<'_>, id: &str) -> Registro {
     let base = format!("{}/", c.instalacao.url_base());
-    let resultado = match gravacao::localizacao(r.item) {
+    let resultado = match gravacao::localizacao(r.interacao) {
         Some(local) => {
             let relativo = local.strip_prefix(base.as_str()).unwrap_or(local);
             match conferir_endereco_relativo(

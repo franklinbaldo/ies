@@ -53,9 +53,9 @@ pub(crate) enum ErroTela {
 
 /// Um formulário, dois ocultos de identidade e um botão submit.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    use ErroTela as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::HtmlInvalido)?;
-    let form = localizar_formulario(&dom, FORM).map_err(|_| E::FormularioAusenteOuDuplicado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroTela::HtmlInvalido)?;
+    let form =
+        localizar_formulario(&dom, FORM).map_err(|_| ErroTela::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
     let mut descricao = 0;
@@ -73,7 +73,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         ) {
             continue;
         }
-        let attr = |nome| valor_do_atributo(tag, nome).map_err(|_| E::HtmlInvalido);
+        let attr = |nome| valor_do_atributo(tag, nome).map_err(|_| ErroTela::HtmlInvalido);
         let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
             continue;
         };
@@ -98,14 +98,14 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             ("textarea", _, TEXTO) => descricao += 1,
             ("input" | "button", "submit", BOTAO) => salvar += 1,
             ("input", "hidden", _) | ("input" | "button", "button" | "reset", _) => {}
-            _ => return Err(E::CampoInesperado),
+            _ => return Err(ErroTela::CampoInesperado),
         }
     }
     if protocolo.len() != 1 || atividade != 1 || descricao != 1 || salvar != 1 {
-        return Err(E::ControleAusenteOuDuplicado);
+        return Err(ErroTela::ControleAusenteOuDuplicado);
     }
     if protocolo[0] != id {
-        return Err(E::ProtocoloDiferente);
+        return Err(ErroTela::ProtocoloDiferente);
     }
     Ok(())
 }

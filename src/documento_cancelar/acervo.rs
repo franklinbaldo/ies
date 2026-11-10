@@ -49,8 +49,8 @@ fn forma(html: &str) -> Option<Forma> {
     })
 }
 
-fn id_unico(item: &serde_json::Value, nome: &str) -> Option<String> {
-    let valores = gravacao::parametro(item, nome);
+fn id_unico(interacao: &serde_json::Value, nome: &str) -> Option<String> {
+    let valores = gravacao::parametro(interacao, nome);
     let [valor] = valores.as_slice() else {
         return None;
     };
@@ -143,10 +143,10 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
             }
             forms_reais += 1;
             let (Some(id_proc), Some(id_doc), Some(url), Ok(html)) = (
-                gravacao::id_procedimento(resposta.item),
-                id_unico(resposta.item, "id_documento"),
-                resposta.item["response"]["url"].as_str(),
-                html_da_resposta(resposta.item),
+                gravacao::id_procedimento(resposta.interacao),
+                id_unico(resposta.interacao, "id_documento"),
+                resposta.interacao["response"]["url"].as_str(),
+                html_da_resposta(resposta.interacao),
             ) else {
                 sem_identidade += 1;
                 continue;
@@ -155,7 +155,7 @@ fn replay_independente_formulario_documento_cancelar_go_ufrj() {
                 sem_identidade += 1;
                 continue;
             };
-            let Some(codificacao) = codificacao_da_tela(&gravacao::mime(resposta.item)) else {
+            let Some(codificacao) = codificacao_da_tela(&gravacao::mime(resposta.interacao)) else {
                 sem_identidade += 1;
                 continue;
             };
@@ -235,19 +235,21 @@ fn replay_independente_redirecionamento_cancelamento_go_ufrj() {
         let posts: Vec<_> = respostas
             .iter()
             .enumerate()
-            .filter(|(_, item)| item.operacao == "documento_cancelar" && item.metodo == "POST")
+            .filter(|(_, interacao)| {
+                interacao.operacao == "documento_cancelar" && interacao.metodo == "POST"
+            })
             .collect();
         let [(indice, original)] = posts.as_slice() else {
             panic!("esperado um POST de cancelamento no card {nome}");
         };
         assert_eq!(original.status, 302, "resposta original de {nome}");
-        let id_proc = gravacao::id_procedimento(original.item).expect("processo original");
-        let id_doc = id_unico(original.item, "id_documento").expect("documento original");
-        let enviado = original.item["response"]["url"]
+        let id_proc = gravacao::id_procedimento(original.interacao).expect("processo original");
+        let id_doc = id_unico(original.interacao, "id_documento").expect("documento original");
+        let enviado = original.interacao["response"]["url"]
             .as_str()
             .expect("URL do POST gravado");
         let (base, _) = enviado.split_once("/controlador.php").expect("controlador");
-        let loc_original = gravacao::localizacao(original.item).expect("Location gravado");
+        let loc_original = gravacao::localizacao(original.interacao).expect("Location gravado");
         assert!(
             super::fluxo::localizacao_aceita(loc_original, enviado, &id_proc, &id_doc),
             "leitor IES deve reconhecer o 302 original de {}",

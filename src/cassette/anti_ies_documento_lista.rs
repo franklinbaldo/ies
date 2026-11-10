@@ -42,10 +42,10 @@ fn barras_observadas(
         {
             continue;
         }
-        let Some(processo) = gravacao::id_procedimento(resposta.item) else {
+        let Some(processo) = gravacao::id_procedimento(resposta.interacao) else {
             continue;
         };
-        let Ok(html) = html_da_resposta(resposta.item) else {
+        let Ok(html) = html_da_resposta(resposta.interacao) else {
             continue;
         };
         let Some(nup) = nup_declarado_na_arvore(&html) else {
@@ -214,7 +214,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .iter()
         .find(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
         .expect("histórico original UnB");
-    let ids = gravacao::parametro(historico.item, "id_documento");
+    let ids = gravacao::parametro(historico.interacao, "id_documento");
     let id = ids.first().expect("id_documento do histórico").to_string();
     assert!(ids.iter().all(|valor| *valor == id.as_str()));
     let original = respostas
@@ -223,10 +223,10 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             r.operacao == "documento_visualizar"
                 && r.metodo == "GET"
                 && r.status == 200
-                && gravacao::parametro(r.item, "id_documento").contains(&id.as_str())
+                && gravacao::parametro(r.interacao, "id_documento").contains(&id.as_str())
         })
         .expect("conteúdo da mesma identidade");
-    let html_original = html_da_resposta(original.item).unwrap();
+    let html_original = html_da_resposta(original.interacao).unwrap();
     let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
     let texto = crate::documento_web::texto_do_corpo(&html_original).unwrap();
     let conclusao = respostas
@@ -235,7 +235,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
         .expect("conclusão registrada")
         .passo;
 
-    let html_historico = html_da_resposta(historico.item).unwrap();
+    let html_historico = html_da_resposta(historico.interacao).unwrap();
     let barras = barras_observadas(respostas, &instalacao, &id, &identidade.numero);
     let antes = barras
         .iter()

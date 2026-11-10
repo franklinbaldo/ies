@@ -191,7 +191,7 @@ link no caminho, como `/home` → `/var/home`, é aceito),
 `Rede`, `TipoDeConteudoNaoHtml`, `RespostaExcessiva`) e
 os do proxy (acima).
 Nenhuma recusa repete o POST: captcha, 2FA ou credencial recusada
-terminam o comando. A falha sai com 1 e `Error: <variante de ErroLogin>`
+terminam o comando. A falha sai com 1 e `Error: <ErroLogin::…>`
 em stderr: `Transporte(Status(StatusHttpRecusado { status, mensagem_do_servidor }))`
 nas recusas HTTP, `CredencialRecusada { mensagem_do_servidor }` e, nas
 falhas do arquivo de credenciais, o campo (a chave, nunca o valor), como

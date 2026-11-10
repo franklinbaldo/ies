@@ -1,7 +1,7 @@
 //! Aceite da ciência na `UnB` 4.0.9 ao vivo (10/11/2026), sem `infra_hash`:
 //! script em `<!--//--><![CDATA[//><!--` e, em `inicializar()`, uma chamada
 //! simples antes da recarga; a segunda recarga, depois do `return`, não roda.
-use super::{AlvoDaCiencia as Alvo, ErroCiencia as E, atividade_do_aceite};
+use super::{AlvoDaCiencia as Alvo, ErroCiencia, atividade_do_aceite};
 
 fn aceite(antes: &str) -> String {
     format!(
@@ -42,7 +42,7 @@ fn desvio_de_fluxo_antes_da_recarga_nao_prova() {
     for antes in ["if (x) return;", "return;", "throw 1;", "while (x) {}"] {
         assert_eq!(
             atividade_do_aceite(&aceite(antes), processo()),
-            Err(E::AceiteSemAtividade),
+            Err(ErroCiencia::AceiteSemAtividade),
             "{antes}"
         );
     }

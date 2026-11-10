@@ -30,7 +30,7 @@ hashes, URLs nem detalhes de outros usuários, somente
 `controle_web: observado`, `unidade_exibida`,
 `conexao: get_realizado` e
 `autenticacao_remota: nao_auditada`. Falhas (saída 1, stderr): o erro
-tipado da configuração ou do transporte e as variantes de
+tipado da configuração ou do transporte e os erros de
 `FalhaControleWeb` (`ControleNaoReconhecido`,
 `IdentidadeUnidadeNaoObservada`, `UnidadeExibidaDiferenteDaSolicitada`),
 sem classificar mensagens por regex.

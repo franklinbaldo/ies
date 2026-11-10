@@ -1,6 +1,6 @@
 //! Um único POST de anexação mais releitura independente da lista observada.
 //! O aceite 302 sozinho nunca demonstra que houve anexação.
-use super::{Destino, EtapaNaoComprovada, FalhaAnexar as E, ler_tela};
+use super::{Destino, EtapaNaoComprovada, FalhaAnexar, ler_tela};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -64,9 +64,10 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     assinado: bool,
     anteriores: &[String],
     rede: &mut Contador<'_, V>,
-) -> Result<(), E> {
-    let codificacao = codificacao_da_tela(mime)
-        .ok_or(E::Estrutura("charset_da_tela_de_anexacao_nao_suportado"))?;
+) -> Result<(), FalhaAnexar> {
+    let codificacao = codificacao_da_tela(mime).ok_or(FalhaAnexar::Estrutura(
+        "charset_da_tela_de_anexacao_nao_suportado",
+    ))?;
     let tela = TelaServida {
         url: link,
         html,
@@ -84,7 +85,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
             ("hdnAnexacao", if assinado { "S" } else { "N" }),
         ],
     )
-    .map_err(E::ConsultaDerivacao)?;
+    .map_err(FalhaAnexar::ConsultaDerivacao)?;
     let mut enviou = false;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
         enviou = true;
@@ -92,24 +93,30 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     })
     .map_err(|e| {
         if enviou {
-            E::NaoConfirmado(EtapaNaoComprovada::RespostaDoPost)
+            FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::RespostaDoPost)
         } else {
-            E::ConsultaDerivacao(e)
+            FalhaAnexar::ConsultaDerivacao(e)
         }
     })?;
     match resposta {
         RespostaDoEnvio::Redirecionamento(r)
             if r.localizacao()
                 .is_some_and(|loc| aceite(loc, r.url_do_envio(), id_principal)) => {}
-        _ => return Err(E::NaoConfirmado(EtapaNaoComprovada::RespostaDoPost)),
+        _ => {
+            return Err(FalhaAnexar::NaoConfirmado(
+                EtapaNaoComprovada::RespostaDoPost,
+            ));
+        }
     }
     let (depois, _) = obter_tela(rede, cookie, link)
-        .map_err(|_| E::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?;
+        .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?;
     let lista = ler_tela(&depois)
-        .map_err(|_| E::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?
+        .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?
         .anexados;
     if !lista.contains(&destino.id) || !anteriores.iter().all(|id| lista.contains(id)) {
-        return Err(E::NaoConfirmado(EtapaNaoComprovada::ListaAposPost));
+        return Err(FalhaAnexar::NaoConfirmado(
+            EtapaNaoComprovada::ListaAposPost,
+        ));
     }
     Ok(())
 }

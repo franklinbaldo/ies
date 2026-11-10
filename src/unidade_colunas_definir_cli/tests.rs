@@ -1,15 +1,15 @@
 //! RED/GREEN da saída JSON de `--definir` com resultados sintéticos.
 use super::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::nivel_de_detalhe::{ColunaDoDetalhe as C, PlanoDasColunas};
+use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 use crate::visao_do_controle::FalhaDoSalvar;
 
 fn plano() -> PlanoDasColunas {
     PlanoDasColunas {
-        antes: vec![C::Atribuicao, C::TipoProcesso],
-        alvo: vec![C::Atribuicao, C::Anotacao],
-        indisponiveis: vec![C::Prioridade],
+        antes: vec![ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::TipoProcesso],
+        alvo: vec![ColunaDoDetalhe::Atribuicao, ColunaDoDetalhe::Anotacao],
+        indisponiveis: vec![ColunaDoDetalhe::Prioridade],
     }
 }
 

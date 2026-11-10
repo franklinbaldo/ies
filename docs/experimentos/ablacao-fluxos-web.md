@@ -22,7 +22,7 @@ com uma execução de ablação ao vivo.
 Fixar instalação de treinamento, versão observada, identidade, unidade,
 mesmo conjunto de processos e autorização. Guardar apenas evidências
 sanitizadas, hashes e contagens, jamais cookies ou URLs assinadas.
-Para cada operação, comparar referência e variantes com **uma etapa
+Para cada operação, comparar referência e versões alteradas com **uma etapa
 removida por vez**; não remover duas simultaneamente antes de
 identificar o efeito de cada uma.
 
@@ -53,7 +53,7 @@ específicos. GET de abertura de processo também pode receber processo.
 4. Somente com autorização e ambiente adequado, executar a comparação
    pareada live, com identidade/unidade fixas e sem escritas em
    produção. Não disparar POST automaticamente.
-5. Registrar os resultados de cada variante separadamente, inclusive
+5. Registrar os resultados de cada versão separadamente, inclusive
    os negativos e inconclusivos, e rever uma eventual otimização
    quando outra versão/instalação contradisser a hipótese.
 

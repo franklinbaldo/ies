@@ -97,7 +97,7 @@ fn conferir_calendario_real(
     origem: &crate::instalacao::Instalacao,
     nome: &str,
 ) -> (bool, bool) {
-    let url_servida = resposta.item["response"]["url"]
+    let url_servida = resposta.interacao["response"]["url"]
         .as_str()
         .expect("URL original da resposta gravada");
     crate::unidade_retornos_web::conferir_calendario_gravado(html, url_servida, origem)
@@ -118,11 +118,11 @@ fn verificar_resposta_de_calendario(
     if resposta.operacao != "retorno_programado_listar"
         || resposta.metodo != "GET"
         || resposta.status != 200
-        || !gravacao::parametro(resposta.item, "data_inicial").is_empty()
+        || !gravacao::parametro(resposta.interacao, "data_inicial").is_empty()
     {
         return None;
     }
-    let html = html_da_resposta(resposta.item).expect("HTML do calendario gravado");
+    let html = html_da_resposta(resposta.interacao).expect("HTML do calendario gravado");
     diagnosticar_calendario(&html, nome, resposta.passo);
     Some(conferir_calendario_real(&html, resposta, origem, nome))
 }
@@ -167,12 +167,12 @@ fn replay_retornos_no_acervo() {
             if resposta.operacao != "retorno_programado_listar"
                 || resposta.metodo != "GET"
                 || resposta.status != 200
-                || gravacao::parametro(resposta.item, "data_inicial").is_empty()
+                || gravacao::parametro(resposta.interacao, "data_inicial").is_empty()
             {
                 continue;
             }
             meses += 1;
-            let Ok(html) = html_da_resposta(resposta.item) else {
+            let Ok(html) = html_da_resposta(resposta.interacao) else {
                 recusados += 1;
                 println!("{instalacao}: passo {} sem HTML legivel", resposta.passo);
                 continue;

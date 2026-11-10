@@ -1,6 +1,5 @@
 //! RED/GREEN dos palpites do índice que falham (esquecer e seguir), da
 //! recusa da entrada por id e das falhas tipadas fora de palpite.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use crate::arvore_processo::ErroArvore;
 use crate::arvore_processo::tests::NUP;
@@ -104,7 +103,10 @@ fn recusa_da_entrada_por_id_e_registrada_e_para_sem_outra_requisicao() {
     let inst = instalacao();
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN_RECUSA)]);
-    assert_eq!(r.unwrap_err(), E::EntradaPorIdRecusada);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::EntradaPorIdRecusada
+    );
     assert_eq!(pedidos, [get(&url_entrada(ID))]);
     assert_eq!(amb.indice.entrada_por_id(&inst), Some(false));
 }
@@ -136,7 +138,7 @@ fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN)]);
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
     assert_eq!(pedidos.len(), 1);
     assert_eq!(amb.indice.entrada_por_id(&inst), None);
@@ -192,7 +194,10 @@ fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
     let pagina =
         "<html><title>SEI - Pesquisa</title><form id=\"frmPesquisaProtocolo\"></form></html>";
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[])), ok(pagina.to_owned())]);
-    assert_eq!(r.unwrap_err(), E::PesquisaRapidaSemUrlDeTrabalho);
+    assert_eq!(
+        r.unwrap_err(),
+        super::ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho
+    );
     assert_eq!(pedidos.len(), 2);
     let validacao =
         "<html><textarea id=\"txaInfraValidacao\">Protocolo nao encontrado.</textarea></html>";
@@ -204,7 +209,7 @@ fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Formulario(
+        super::ErroProcessoObter::Formulario(
             crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
                 "Protocolo nao encontrado.".into()
             )
@@ -218,7 +223,7 @@ fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
     );
     assert!(matches!(
         r.unwrap_err(),
-        E::Transporte(crate::transporte::FalhaTransporte::Status(
+        super::ErroProcessoObter::Transporte(crate::transporte::FalhaTransporte::Status(
             StatusHttpRecusado { status: 500, .. }
         ))
     ));
@@ -231,7 +236,7 @@ fn falhas_fora_de_palpite() {
     let (r, _) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP)])), r302(LOGIN)]);
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
     // Controle com a tela de login.
     let login = "<form action='/sip/login.php'><input id='txtUsuario'></form>";
@@ -239,7 +244,7 @@ fn falhas_fora_de_palpite() {
     let (r, _) = rodar(&amb, None, vec![ok(login.to_owned())]);
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
     // Árvore de outro processo num caminho que não é palpite.
     let amb = ambiente();
@@ -254,7 +259,7 @@ fn falhas_fora_de_palpite() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
+        super::ErroProcessoObter::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
     assert_eq!(amb.indice.id_por_nup(&instalacao(), NUP), None);
     // NUP repetido no Controle.
@@ -262,7 +267,7 @@ fn falhas_fora_de_palpite() {
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP), ("11", NUP)]))]);
     assert_eq!(
         r.unwrap_err(),
-        E::Html(ErroHtml::repetido("processo_repetido_no_controle"))
+        super::ErroProcessoObter::Html(ErroHtml::repetido("processo_repetido_no_controle"))
     );
     assert_eq!(pedidos.len(), 1);
     // `--unidade` diferente: para no Controle.

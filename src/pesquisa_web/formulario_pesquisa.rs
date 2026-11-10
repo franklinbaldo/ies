@@ -85,7 +85,7 @@ pub(crate) enum ErroPesquisaProtocolo {
 }
 
 impl ErroPesquisaProtocolo {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
@@ -222,9 +222,8 @@ fn derivar_com(
     (unidade_solicitada, protocolo, inicio): (&str, &str, Option<&str>),
     filtros: FiltrosDaPesquisa<'_>,
 ) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
-    use ErroPesquisaProtocolo as E;
     let excessiva = || {
-        E::Submissao(ErroSubmissaoFormulario::Transporte(
+        ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Transporte(
             FalhaTransporte::RespostaExcessiva,
         ))
     };
@@ -241,7 +240,7 @@ fn derivar_com(
     if let Some(maxlength) = regras.maxlength_do_termo
         && protocolo.encode_utf16().count() > maxlength as usize
     {
-        return Err(E::RegraDoFormulario(
+        return Err(ErroPesquisaProtocolo::RegraDoFormulario(
             ErroRegraDoFormularioDePesquisa::TermoAcimaDoMaxlengthDaTela { maxlength },
         ));
     }
@@ -264,7 +263,8 @@ fn derivar_com(
     if let Some(inicio) = inicio {
         campos.push(("hdnInicio", inicio));
     }
-    derivar_submissao(operacao, instalacao, tela, unidade_solicitada, &campos).map_err(E::Submissao)
+    derivar_submissao(operacao, instalacao, tela, unidade_solicitada, &campos)
+        .map_err(ErroPesquisaProtocolo::Submissao)
 }
 
 /// Resposta classificada, o HTML 200 (para a paginação) e, no 302, a URL

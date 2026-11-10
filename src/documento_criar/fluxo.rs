@@ -163,14 +163,14 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     envio: &mut V,
     confirmar: bool,
 ) -> Result<ResultadoCriacao, ErroPreviaCriacao> {
-    use ErroPreviaCriacao as E;
     // A operação já sabe que não pode criar sem nível explícito ou sem
     // hipótese legal resolvida. Não abrir sequer o processo: GET pode ter
     // efeito de recebimento e não serve a uma escrita que será recusada.
     if confirmar {
         validar_nivel_de_confirmacao(pedido.nivel)?;
     }
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroPreviaCriacao::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -178,12 +178,15 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )?;
-    let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
-    let abertas = siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| E::SituacaoNaoLida)?;
+    let unidade = aberto
+        .unidade
+        .ok_or(ErroPreviaCriacao::UnidadeNaoPublicada)?;
+    let abertas =
+        siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| ErroPreviaCriacao::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
-        return Err(E::ProcessoNaoAbertoNaUnidade);
+        return Err(ErroPreviaCriacao::ProcessoNaoAbertoNaUnidade);
     }
-    let link = acoes.incluir?.ok_or(E::LinkNaoPublicado)?;
+    let link = acoes.incluir?.ok_or(ErroPreviaCriacao::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let (mut html_lista, mime_lista) =
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(erro_da_tela)?;
@@ -192,7 +195,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     // o nome já aparece, a lista completa precisa confirmar sua unicidade:
     // outra série com o mesmo nome pode estar oculta pelo filtro.
     if filtro_de_todos(&html_lista)? {
-        let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
+        let codificacao =
+            codificacao_da_tela(&mime_lista).ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
         let servida = TelaServida {
             url: link.as_str(),
             html: &html_lista,
@@ -211,7 +215,7 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         // A evidência conhecida é o HTML da lista completa. Nunca seguir
         // 302 desconhecido nem repetir o POST da mudança de filtro.
         let RespostaDoEnvio::Html(completa) = resposta else {
-            return Err(E::SubmissaoNaoComprovada);
+            return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
         };
         html_lista = completa;
         tipos = tipos_oferecidos(&html_lista)?;
@@ -226,7 +230,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let url_do_cadastro = match escolha {
         EscolhaDoDocumento::Link(url) => url,
         EscolhaDoDocumento::Formulario(id_serie) => {
-            let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::SubmissaoNaoComprovada)?;
+            let codificacao = codificacao_da_tela(&mime_lista)
+                .ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
             let servida = TelaServida {
                 url: link.as_str(),
                 html: &html_lista,
@@ -245,11 +250,13 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
                 rede.post(post, cookie)
             })?;
             let RespostaDoEnvio::Redirecionamento(redirect) = resposta else {
-                return Err(E::SubmissaoNaoComprovada);
+                return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
             };
             cadastro_redirecionado(
                 &instalacao,
-                redirect.localizacao().ok_or(E::SubmissaoNaoComprovada)?,
+                redirect
+                    .localizacao()
+                    .ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?,
                 &aberto.arvore.processo.id,
             )?
         }
@@ -278,13 +285,14 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
         Some("publico"),
     )?;
     if !cadastro_oferece_salvar(&html_cadastro) {
-        return Err(E::SubmissaoNaoComprovada);
+        return Err(ErroPreviaCriacao::SubmissaoNaoComprovada);
     }
     // Pasta fechada oculta documentos: impossível provar uma criação única.
     if aberto.arvore.pastas_nao_carregadas {
-        return Err(E::ArvoreIncompleta);
+        return Err(ErroPreviaCriacao::ArvoreIncompleta);
     }
-    let codificacao = codificacao_da_tela(&mime_cadastro).ok_or(E::SubmissaoNaoComprovada)?;
+    let codificacao =
+        codificacao_da_tela(&mime_cadastro).ok_or(ErroPreviaCriacao::SubmissaoNaoComprovada)?;
     let servida = TelaServida {
         url: &url_do_cadastro,
         html: &html_cadastro,

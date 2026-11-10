@@ -2,21 +2,21 @@
 //! histórico (`crate::historico`, também usado pelo replay do acervo), a legenda `Lista de Andamentos (N registro):` ou
 //! `(N registros):` da `table#tblHistorico` e a visão servida em
 //! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
-use super::{AndamentosLidos, ErroAndamentos as E, TipoDoHistorico};
+use super::{AndamentosLidos, ErroAndamentos, TipoDoHistorico};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::historico::ler_historico;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 /// Lê a página e confere o NUP do título com o pedido.
-pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E> {
+pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, ErroAndamentos> {
     let detalhe = ler_historico(html, nup)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::ausente("legenda_dos_andamentos_ausente"))?;
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if detalhe.andamentos.len() as u64 > total_declarado {
-        return Err(E::AndamentosAlemDoTotalDeclarado);
+        return Err(ErroAndamentos::AndamentosAlemDoTotalDeclarado);
     }
     Ok(AndamentosLidos {
         tipo,
@@ -26,7 +26,7 @@ pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, E
 }
 
 /// A única `caption` da tabela (já conferida única pelo leitor das linhas).
-fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
+fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
     let parser = dom.parser();
     let tabela = nos_com_id(dom, "tblHistorico")
         .ok()
@@ -53,7 +53,7 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
         [texto] => texto,
         _ => return Err(ErroHtml::valor("legenda_dos_andamentos_fora_da_forma_observada").into()),
     };
-    let fora = E::Html(ErroHtml::valor(
+    let fora = ErroAndamentos::Html(ErroHtml::valor(
         "legenda_dos_andamentos_fora_da_forma_observada",
     ));
     let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
@@ -68,8 +68,8 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, E> {
 }
 
 /// O único `hdnTipoHistorico` do formulário: `R` ou `P`.
-fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, E> {
-    let ausente = E::TipoDoHistoricoNaoPublicado;
+fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
+    let ausente = ErroAndamentos::TipoDoHistoricoNaoPublicado;
     let parser = dom.parser();
     let form =
         localizar_formulario(dom, super::VER_HISTORICO_COMPLETO.formulario).map_err(|_| ausente)?;

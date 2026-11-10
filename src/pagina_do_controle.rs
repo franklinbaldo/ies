@@ -52,7 +52,7 @@ pub(crate) const OBTER_PAGINA_DO_CONTROLE: OperacaoDeFormulario = OperacaoDeForm
     },
 };
 
-/// Uma variante por fato verificável; nenhum valor servido é guardado.
+/// um erro por fato verificável; nenhum valor servido é guardado.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginaDoControle {
@@ -92,7 +92,7 @@ pub(crate) enum ErroPaginaDoControle {
 }
 
 impl ErroPaginaDoControle {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

@@ -16,7 +16,7 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Erro>`.
 fn sem_arquivos_de_sessao(saida: &Output) {
     assert_eq!(saida.status.code(), Some(1));
     assert!(saida.stdout.is_empty(), "falha não publica stdout");
@@ -31,25 +31,13 @@ const NUP: &str = "00001.000001/2026-01";
 
 #[test]
 fn uso_invalido_sai_com_2_antes_da_configuracao() {
-    for (args, _subcodigo) in [
-        (
-            vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
-            "vazio",
-        ),
-        (
-            vec!["processo", "enviar", NUP, "--para", " ", "--json"],
-            "sigla_de_destino_invalida",
-        ),
-        (
-            vec!["processo", "enviar", NUP, "--para", "A\tB", "--json"],
-            "sigla_de_destino_invalida",
-        ),
-        (
-            vec![
-                "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
-            ],
-            "mais_de_um_destino_nao_suportado",
-        ),
+    for args in [
+        vec!["processo", "enviar", " ", "--para", "TESTE", "--json"],
+        vec!["processo", "enviar", NUP, "--para", " ", "--json"],
+        vec!["processo", "enviar", NUP, "--para", "A\tB", "--json"],
+        vec![
+            "processo", "enviar", NUP, "--para", "A", "--para", "B", "--json",
+        ],
     ] {
         for confirmar in [false, true] {
             let mut args = args.clone();

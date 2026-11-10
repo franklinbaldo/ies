@@ -4,7 +4,6 @@
 use super::ler_link_dos_marcadores;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use crate::instalacao::Instalacao;
-use crate::marcadores_processo::ErroMarcadores as E;
 use crate::marcadores_processo::tests_apoio::{HASH_MARCADORES, link_dos_marcadores};
 use crate::propriedades_processo::tests_apoio::{acao_da_barra, barra, com_barra};
 
@@ -21,7 +20,7 @@ fn com_acoes(acoes: &[String]) -> String {
     com_barra(&base(), 0, &barra(acoes))
 }
 
-fn ler(html: &str) -> Result<Option<String>, E> {
+fn ler(html: &str) -> Result<Option<String>, crate::marcadores_processo::ErroMarcadores> {
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     ler_link_dos_marcadores(&instalacao, html, "10")
         .map(|achado| achado.map(|e| e.as_str().to_owned()))
@@ -55,38 +54,44 @@ fn barra_sem_o_link_nao_publica_e_nao_e_recusa() {
 fn link_repetido_de_outro_processo_ou_fora_da_regra_e_recusa() {
     assert_eq!(
         ler(&com_acoes(&[gerenciar("10"), gerenciar("10")])),
-        Err(E::LinksDosMarcadoresRepetidosNaBarra)
+        Err(crate::marcadores_processo::ErroMarcadores::LinksDosMarcadoresRepetidosNaBarra)
     );
     assert_eq!(
         ler(&com_acoes(&[gerenciar("11")])),
-        Err(E::EnderecoDosMarcadoresDeOutroProcesso)
+        Err(crate::marcadores_processo::ErroMarcadores::EnderecoDosMarcadoresDeOutroProcesso)
     );
     let curto = link_dos_marcadores("10").replace(HASH_MARCADORES, "66");
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&curto)])),
-        Err(E::EnderecoDosMarcadoresNaoReconhecido)
+        Err(crate::marcadores_processo::ErroMarcadores::EnderecoDosMarcadoresNaoReconhecido)
     );
     let absoluto = format!("{ORIGEM}/{}", link_dos_marcadores("10"));
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&absoluto)])),
-        Err(E::EnderecoDosMarcadoresNaoReconhecido)
+        Err(crate::marcadores_processo::ErroMarcadores::EnderecoDosMarcadoresNaoReconhecido)
     );
     let duas_acoes =
         link_dos_marcadores("10").replace("&arvore=1", "&acao=andamento_marcador_gerenciar");
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&duas_acoes)])),
-        Err(E::EnderecoDosMarcadoresNaoReconhecido)
+        Err(crate::marcadores_processo::ErroMarcadores::EnderecoDosMarcadoresNaoReconhecido)
     );
 }
 
 #[test]
 fn barra_fora_da_forma_ou_repetida_e_recusa() {
     let fora = base().replace("Nos[0].acoes = '';", "Nos[0].acoes = montar();");
-    assert_eq!(ler(&fora), Err(E::BarraDoProcessoForaDaFormaObservada));
+    assert_eq!(
+        ler(&fora),
+        Err(crate::marcadores_processo::ErroMarcadores::BarraDoProcessoForaDaFormaObservada)
+    );
     let repetida = com_acoes(&[gerenciar("10")]).replacen(
         "Nos[0].src = '';",
         "Nos[0].acoes = '';\nNos[0].src = '';",
         1,
     );
-    assert_eq!(ler(&repetida), Err(E::BarrasDoProcessoRepetidasNaArvore));
+    assert_eq!(
+        ler(&repetida),
+        Err(crate::marcadores_processo::ErroMarcadores::BarrasDoProcessoRepetidasNaArvore)
+    );
 }

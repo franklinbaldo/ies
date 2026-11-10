@@ -1,5 +1,5 @@
 //! Recusas de `ies processo reabrir` (contracts/cli/processo-reabrir.md).
-//! Uma variante por fato; a resposta não esperada da escrita é a
+//! Um erro por fato; a resposta não esperada da escrita é a
 //! `FalhaDoEnvio` de `processo concluir`, e a verificação, a mesma leitura.
 use crate::arvore_processo::{ErroEnderecoDeReabrir, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;

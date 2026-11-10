@@ -33,11 +33,11 @@ Abertura do documento, pelo `--processo` a frio: 3 GET. Prévia: +1 GET da tela 
 
 ## Saída
 
-Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <variante de ErroCancelar>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST as variantes carregam `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
+Prévia e sucesso: `numero`, `id_documento`, `processo` (`nup`, `id`), `unidade`, `motivo`, `origem:"web"`, `confirmado`, `alterado`, `requisicoes`, `reconciliado_por_leitura`. Em falha: saída 1, stdout vazio e `Error: <ErroCancelar::…>` em stderr; o status HTTP e a mensagem saneada vêm em `Transporte(Status(..))` quando observados, e depois do POST os erros carregam `falha_do_envio` e `verificacao`. Nenhum cookie, URL assinada ou `infra_hash` aparece.
 
 ## Subcódigos específicos
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `ErroLinkCancelar::BarraForaDaForma` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |
 | `ErroLinkCancelar::LinksRepetidos` | Recusa tipada na leitura, validação, envio ou verificação conforme o estágio |

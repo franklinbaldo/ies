@@ -68,7 +68,6 @@ fn conferir_cadastro_interno(
     nivel: &str,
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
-    use ErroCadastro as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("cadastro_de_processo_html_invalido"))?;
     let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
@@ -132,7 +131,7 @@ fn conferir_cadastro_interno(
         }
     }
     if ids.as_slice() != [Some(id_tipo.to_owned())] {
-        return Err(E::TipoDeCadastroDivergente);
+        return Err(ErroCadastro::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
         return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
@@ -140,7 +139,7 @@ fn conferir_cadastro_interno(
     let valor_nivel = match nivel {
         "publico" => "0",
         "restrito" => "1",
-        _ => return Err(E::NivelNaoOferecido),
+        _ => return Err(ErroCadastro::NivelNaoOferecido),
     };
     let correspondentes: Vec<_> = radios
         .iter()
@@ -148,8 +147,8 @@ fn conferir_cadastro_interno(
         .collect();
     match correspondentes.as_slice() {
         [(_, false)] => {}
-        [(_, true)] => return Err(E::NivelDesabilitado),
-        _ => return Err(E::NivelNaoOferecido),
+        [(_, true)] => return Err(ErroCadastro::NivelDesabilitado),
+        _ => return Err(ErroCadastro::NivelNaoOferecido),
     }
 
     let (id_assunto, assunto, hipotese_legal) =
@@ -172,7 +171,6 @@ fn conferir_listas(
     nivel: &str,
     permite_ajax_pendente: bool,
 ) -> Result<(String, String, Option<String>), ErroCadastro> {
-    use ErroCadastro as E;
     let mut assuntos = Vec::new();
     let mut hipotese = Vec::new();
     let mut selects_assunto = 0;
@@ -190,7 +188,7 @@ fn conferir_listas(
                 if atributo_presente(select, "disabled")
                     .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
                 {
-                    return Err(E::AssuntoDesabilitado);
+                    return Err(ErroCadastro::AssuntoDesabilitado);
                 }
                 &mut assuntos
             }
@@ -202,7 +200,7 @@ fn conferir_listas(
                     && atributo_presente(select, "disabled")
                         .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
                 {
-                    return Err(E::HipoteseLegalDesabilitada);
+                    return Err(ErroCadastro::HipoteseLegalDesabilitada);
                 }
                 &mut hipotese
             }
@@ -238,12 +236,12 @@ fn conferir_listas(
     }
     let hipotese_legal = if nivel == "restrito" {
         if selects_hipotese != 1 {
-            return Err(E::HipoteseLegalNaoIdentificada);
+            return Err(ErroCadastro::HipoteseLegalNaoIdentificada);
         }
         match hipotese.as_slice() {
             [(id, titulo)] if !titulo.is_empty() => Some(id.clone()),
             [] if permite_ajax_pendente => None,
-            _ => return Err(E::HipoteseLegalNaoIdentificada),
+            _ => return Err(ErroCadastro::HipoteseLegalNaoIdentificada),
         }
     } else {
         None

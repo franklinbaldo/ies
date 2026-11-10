@@ -52,7 +52,7 @@ pub(crate) fn texto_da_anotacao(texto: &str) -> Result<String, TextoDaAnotacaoVa
     }
 }
 
-/// Uma variante por causa; o diagnóstico é derivado do tipo Rust.
+/// Um erro por causa; o diagnóstico é derivado do tipo Rust.
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAnotar {

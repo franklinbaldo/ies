@@ -1,5 +1,5 @@
 //! Falhas de `ies documento DOC` pela Web (Refs #60): as de abertura do
-//! processo (reaproveitadas de `processo NUP`) e uma variante por fato
+//! processo (reaproveitadas de `processo NUP`) e um erro por fato
 //! verificável do documento (contracts/cli/documento-obter-web.md).
 use super::super::ErroProcessoObter;
 use crate::anexo_documento::ErroAnexo;
@@ -48,7 +48,7 @@ pub(crate) enum ErroDocumentoObter {
 }
 
 impl ErroDocumentoObter {
-    /// A sessão do SEI acabou (decide o relogin único): por variante, sem
+    /// A sessão do SEI acabou (decide o relogin único): por `match` no tipo, sem
     /// percorrer a cadeia `source()`.
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {

@@ -41,12 +41,12 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         }
         let saida = sem_sessao(&args);
         // Com --confirmar, o lock fica ao lado da URL: diretório ausente.
-        let variante = if confirmar {
+        let erro = if confirmar {
             "ArquivoDeLockDoLoginInacessivel"
         } else {
             "ArquivoPrivadoAusenteOuInacessivel"
         };
-        falha(&saida, variante);
+        falha(&saida, erro);
     }
 }
 

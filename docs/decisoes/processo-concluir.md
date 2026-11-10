@@ -62,7 +62,7 @@ da árvore seguinte perdeu exatamente a unidade da sessão.
   a `const` da operação. Forma `funcao`: só a forma de três linhas
   observada; o GET da URL é a escrita. Uma escrita, nunca repetida; a
   reconciliação segue a tabela do [contrato](../../contracts/cli/processo-concluir.md).
-- `EfeitoAvaliado::AlteraEstadoDoProcesso` é variante nova do primitivo:
+- `EfeitoAvaliado::AlteraEstadoDoProcesso` é caso novo do primitivo:
   não é preferência do usuário nem estado de sessão.
 - Reabrir fica fora: observado nas sete instalações como
   `reabrirProcesso()`, mas é outro comando da CLI pública e precisa de

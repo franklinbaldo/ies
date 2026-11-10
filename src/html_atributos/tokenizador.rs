@@ -2,7 +2,7 @@
 //! nome, depois do nome, antes do valor, valor entre aspas duplas, entre
 //! aspas simples ou sem aspas, e depois do valor entre aspas. Opera sobre
 //! bytes ASCII; os cortes caem sempre em fronteiras de caractere UTF-8.
-use super::{AtributosDaTag, ErroAtributoHtml as E};
+use super::{AtributosDaTag, ErroAtributoHtml};
 
 #[derive(Clone, Copy)]
 enum Estado {
@@ -20,10 +20,12 @@ fn espaco(b: u8) -> bool {
 }
 
 /// Tokeniza `<nome atributos...>`; ignora o que vem depois do `>`.
-pub(crate) fn tokenizar_tag_de_abertura(fonte: &str) -> Result<AtributosDaTag<'_>, E> {
+pub(crate) fn tokenizar_tag_de_abertura(
+    fonte: &str,
+) -> Result<AtributosDaTag<'_>, ErroAtributoHtml> {
     let bytes = fonte.as_bytes();
     if bytes.first() != Some(&b'<') || !bytes.get(1).is_some_and(u8::is_ascii_alphabetic) {
-        return Err(E::InicioDaTagDeAberturaAusente);
+        return Err(ErroAtributoHtml::InicioDaTagDeAberturaAusente);
     }
     // Estado "nome da tag": até espaço, `/` ou `>`.
     let mut i = 1;
@@ -100,8 +102,8 @@ pub(crate) fn tokenizar_tag_de_abertura(fonte: &str) -> Result<AtributosDaTag<'_
         i += 1;
     }
     Err(match estado {
-        Estado::ValorEntreAspas { .. } => E::ValorEntreAspasSemFechamento,
-        _ => E::FimDaTagDeAberturaAusente,
+        Estado::ValorEntreAspas { .. } => ErroAtributoHtml::ValorEntreAspasSemFechamento,
+        _ => ErroAtributoHtml::FimDaTagDeAberturaAusente,
     })
 }
 

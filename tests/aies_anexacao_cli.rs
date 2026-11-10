@@ -346,14 +346,14 @@ fn conferir_resultados(
     total: i64,
     pedidos: &[String],
 ) {
-    let variante_da_falha = match modo {
+    let erro_esperado = match modo {
         Modo::RespostaIncerta => Some("NaoConfirmado"),
         Modo::JaAnexado => Some("Estrutura"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
         Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => None,
     };
-    if let Some(variante) = variante_da_falha {
-        falha(saida, variante);
+    if let Some(erro) = erro_esperado {
+        falha(saida, erro);
     } else {
         assert_eq!(
             saida.status.code(),

@@ -46,7 +46,6 @@ impl AlvoDaPesquisa for EmDocumentos {
         enviada: RespostaDoEnvio,
         instalacao: &Instalacao,
     ) -> Result<EnvioInterpretado<RespostaDeDocumentos>, ErroPesquisaProtocolo> {
-        use ErroPesquisaProtocolo as E;
         match enviada {
             RespostaDoEnvio::Html(html) => ler_resposta_de_documentos(&html, None)
                 .map(|resposta| EnvioInterpretado {
@@ -54,7 +53,7 @@ impl AlvoDaPesquisa for EmDocumentos {
                     html: Some(html),
                     trabalho: None,
                 })
-                .map_err(E::Resposta),
+                .map_err(ErroPesquisaProtocolo::Resposta),
             RespostaDoEnvio::Redirecionamento(redirecionamento) => {
                 let p = interpretar_redirecionamento(redirecionamento, instalacao)?;
                 let documento = documento_do_trabalho(&p.trabalho)?;

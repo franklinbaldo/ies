@@ -2,10 +2,9 @@
 //! detalhe pelo link da D, planeja, e só com `--confirmar` salva uma vez e
 //! confere por um GET da mesma tela. Vinda da R, a sessão fica na D.
 //! Orçamentos em contracts/cli/unidade-definir-colunas.md.
-use super::ErroVisaoDoControle as E;
 use super::Visao;
 use super::definir_erro::{
-    ColunasDefinidas, ErroDefinirColunas as D, FalhaDoSalvar, VerificacaoDasColunas,
+    ColunasDefinidas, ErroDefinirColunas, FalhaDoSalvar, VerificacaoDasColunas,
 };
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::nivel::{link_do_nivel_de_detalhe, obter_tela_do_nivel};
@@ -33,7 +32,7 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
     confirmar: bool,
     cookie: &CookieDaSessao,
     envio: &mut V,
-) -> Result<ColunasDefinidas, D> {
+) -> Result<ColunasDefinidas, ErroDefinirColunas> {
     let encontrado = contexto(&tela.html)?;
     let unidade = unidade_da_tela(&encontrado, unidade_solicitada)?;
     let mut sessao = Sessao {
@@ -47,9 +46,9 @@ pub(crate) fn definir_colunas<V: EnvioDoControle>(
         return na_detalhada(&mut sessao, tela, &pedido);
     }
     if !encontrado.eh_resumida() {
-        return Err(D::Leitura(E::Html(ErroHtml::valor(
-            "visao_do_controle_nao_reconhecida",
-        ))));
+        return Err(ErroDefinirColunas::Leitura(
+            super::ErroVisaoDoControle::Html(ErroHtml::valor("visao_do_controle_nao_reconhecida")),
+        ));
     }
     let detalhada = trocar(&mut sessao, tela, Visao::Detalhada)?;
     na_detalhada(&mut sessao, &detalhada, &pedido)
@@ -66,16 +65,18 @@ fn na_detalhada<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     detalhada: &TelaAtual,
     pedido: &Pedido<'_>,
-) -> Result<ColunasDefinidas, D> {
+) -> Result<ColunasDefinidas, ErroDefinirColunas> {
     let url = link_do_nivel_de_detalhe(sessao.instalacao, detalhada)?;
     let servida = obter_tela_do_nivel(sessao, &url)?;
-    let nivel =
-        ler_nivel_de_detalhe(&servida.html).map_err(|erro| D::Leitura(E::NivelDeDetalhe(erro)))?;
-    conferir_controles_do_formulario(&servida.html)
-        .map_err(|erro| D::Leitura(E::NivelDeDetalhe(erro)))?;
+    let nivel = ler_nivel_de_detalhe(&servida.html).map_err(|erro| {
+        ErroDefinirColunas::Leitura(super::ErroVisaoDoControle::NivelDeDetalhe(erro))
+    })?;
+    conferir_controles_do_formulario(&servida.html).map_err(|erro| {
+        ErroDefinirColunas::Leitura(super::ErroVisaoDoControle::NivelDeDetalhe(erro))
+    })?;
     let plano =
         planejar(&nivel, pedido.alvo).map_err(|ColunaIndisponivelNestaInstalacao { coluna }| {
-            D::ColunaIndisponivelNestaInstalacao { coluna }
+            ErroDefinirColunas::ColunaIndisponivelNestaInstalacao { coluna }
         })?;
     let mut feito = ColunasDefinidas {
         unidade: sessao.unidade.to_owned(),
@@ -95,9 +96,9 @@ fn na_detalhada<V: EnvioDoControle>(
         return Ok(feito);
     }
     let falha = salvar(sessao, submissao)?;
-    let verificacao = match obter_tela_do_nivel(sessao, &url)
-        .and_then(|lida| ler_nivel_de_detalhe(&lida.html).map_err(E::NivelDeDetalhe))
-    {
+    let verificacao = match obter_tela_do_nivel(sessao, &url).and_then(|lida| {
+        ler_nivel_de_detalhe(&lida.html).map_err(super::ErroVisaoDoControle::NivelDeDetalhe)
+    }) {
         Ok(lido) => VerificacaoDasColunas::Marcadas(lido.marcadas()),
         Err(erro) => VerificacaoDasColunas::LeituraFalhou(erro),
     };
@@ -108,8 +109,9 @@ fn derivar_salvar<V: EnvioDoControle>(
     sessao: &Sessao<'_, V>,
     servida: &TelaAtual,
     plano: &PlanoDasColunas,
-) -> Result<SubmissaoDerivada, E> {
-    let codificacao = codificacao_da_tela(&servida.mime).ok_or(E::CharsetDaTelaNaoSuportado)?;
+) -> Result<SubmissaoDerivada, super::ErroVisaoDoControle> {
+    let codificacao = codificacao_da_tela(&servida.mime)
+        .ok_or(super::ErroVisaoDoControle::CharsetDaTelaNaoSuportado)?;
     let tela = TelaServida {
         url: &servida.url,
         html: &servida.html,
@@ -122,7 +124,7 @@ fn derivar_salvar<V: EnvioDoControle>(
         sessao.unidade,
         &campos_do_envio(plano),
     )
-    .map_err(E::Submissao)
+    .map_err(super::ErroVisaoDoControle::Submissao)
 }
 
 /// Um único POST. `Ok(None)`: resposta esperada (HTML com o sinal de
@@ -131,7 +133,7 @@ fn derivar_salvar<V: EnvioDoControle>(
 fn salvar<V: EnvioDoControle>(
     sessao: &mut Sessao<'_, V>,
     submissao: SubmissaoDerivada,
-) -> Result<Option<FalhaDoSalvar>, D> {
+) -> Result<Option<FalhaDoSalvar>, ErroDefinirColunas> {
     let mut enviado = false;
     let envio = &mut *sessao.envio;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |s, c| {
@@ -148,7 +150,9 @@ fn salvar<V: EnvioDoControle>(
         }),
         Ok(RespostaDoEnvio::Redirecionamento(_)) => Ok(Some(FalhaDoSalvar::Redirecionamento302)),
         Err(erro) if enviado => Ok(Some(FalhaDoSalvar::Envio(erro))),
-        Err(erro) => Err(D::Leitura(E::Submissao(erro))),
+        Err(erro) => Err(ErroDefinirColunas::Leitura(
+            super::ErroVisaoDoControle::Submissao(erro),
+        )),
     }
 }
 
@@ -157,12 +161,12 @@ fn conciliar(
     mut feito: ColunasDefinidas,
     falha: Option<FalhaDoSalvar>,
     verificacao: VerificacaoDasColunas,
-) -> Result<ColunasDefinidas, D> {
+) -> Result<ColunasDefinidas, ErroDefinirColunas> {
     let plano = Box::new(feito.plano.clone());
     let observadas: Vec<ColunaDoDetalhe> = match verificacao {
         VerificacaoDasColunas::Marcadas(ref marcadas) => marcadas.clone(),
         VerificacaoDasColunas::LeituraFalhou(_) => {
-            return Err(D::NaoConfirmadoNaConfiguracaoDeColunas {
+            return Err(ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
                 plano,
                 falha_do_salvar: falha,
                 verificacao: Box::new(verificacao),
@@ -176,14 +180,14 @@ fn conciliar(
         return Ok(feito);
     }
     if observadas == plano.antes {
-        return Err(D::ConfiguracaoDeColunasNaoAplicada {
+        return Err(ErroDefinirColunas::ConfiguracaoDeColunasNaoAplicada {
             plano,
             falha_do_salvar: falha,
         });
     }
     match falha {
-        None => Err(D::MarcasDiferentesDoAlvoAposSalvar { plano, observadas }),
-        Some(falha) => Err(D::NaoConfirmadoNaConfiguracaoDeColunas {
+        None => Err(ErroDefinirColunas::MarcasDiferentesDoAlvoAposSalvar { plano, observadas }),
+        Some(falha) => Err(ErroDefinirColunas::NaoConfirmadoNaConfiguracaoDeColunas {
             plano,
             falha_do_salvar: Some(falha),
             verificacao: Box::new(verificacao),

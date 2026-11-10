@@ -74,13 +74,12 @@ pub(super) fn conferir_anexados(
     documentos: &[DocumentoLido],
     nos_de_pasta: &[NoDePasta],
 ) -> Result<Vec<ProcessoNaArvore>, ErroArvore> {
-    use ErroArvore as E;
     let mut ids: HashSet<&str> = HashSet::new();
     let mut nups: HashSet<&str> = HashSet::new();
     for lido in &lidos {
         let a = &lido.anexado;
         if a.id == processo.id || a.nup == processo.nup {
-            return Err(E::ProcessoAnexadoIgualAoProcesso);
+            return Err(ErroArvore::ProcessoAnexadoIgualAoProcesso);
         }
         if !ids.insert(&a.id) || !nups.insert(&a.nup) {
             return Err(ErroHtml::repetido("processo_anexado_repetido_na_arvore").into());
@@ -94,10 +93,10 @@ pub(super) fn conferir_anexados(
             .iter()
             .any(|n| matches!(n, NoDePasta::Pasta { pai, .. } if ids.contains(pai.as_str())));
     if filho_de_anexado {
-        return Err(E::NoComPaiNoProcessoAnexado);
+        return Err(ErroArvore::NoComPaiNoProcessoAnexado);
     }
     if lidos.iter().any(|l| l.pai != processo.id) {
-        return Err(E::ProcessoAnexadoComPaiDiferenteDoProcesso);
+        return Err(ErroArvore::ProcessoAnexadoComPaiDiferenteDoProcesso);
     }
     Ok(lidos.into_iter().map(|l| l.anexado).collect())
 }

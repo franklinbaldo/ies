@@ -33,9 +33,9 @@ de backend: só a Web, e a mesma sessão.
 - `--confirmar` (exige `--definir`): salva. Sem ele, só prévia.
 
 Erros de uso, com **zero requisições** (antes de ler a configuração local):
-erro do clap, saída 2, com a variante de `ErroDaListaDeColunas` na mensagem:
+erro do clap, saída 2, com o erro de `ErroDaListaDeColunas` na mensagem:
 
-| Fato | Variante ou `onde` (stderr) |
+| Fato | Erro ou `onde` (stderr) |
 | --- | --- |
 | `--definir` vazio ou só espaços | `ListaDeColunasVazia` |
 | Item vazio entre vírgulas | `ItemVazioNaListaDeColunas` |
@@ -138,7 +138,7 @@ Listas na ordem do catálogo. `envio` é `null` sem POST (alvo igual ao
 atual) e só nomes de campos, nunca valores, URL ou `infra_hash`. Com
 `--confirmar` e sucesso: `confirmado: true`, `alterado: true`, `depois` com
 as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas: saída 1,
-stdout vazio e `Error: <variante de ErroDefinirColunas>` em stderr. A saída humana mostra uma
+stdout vazio e `Error: <ErroDefinirColunas::…>` em stderr. A saída humana mostra uma
 linha por lista e termina com "Para aplicar, repita com --confirmar" na
 prévia.
 

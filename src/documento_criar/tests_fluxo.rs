@@ -201,11 +201,7 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
     // Uma confirmação que ainda não pode escrever não deve sequer abrir
     // o processo: GET também pode registrar recebimento no SEI.
     use crate::processo_concluir::tests_apoio as apoio;
-    for (nivel, _subcodigo) in [
-        (None, "nivel_nao_informado"),
-        (Some("restrito"), "nivel_restrito_sem_hipotese"),
-        (Some("sigiloso"), "nivel_restrito_sem_hipotese"),
-    ] {
+    for nivel in [None, Some("restrito"), Some("sigiloso")] {
         let ambiente = apoio::ambiente();
         let (_resultado, pedidos) =
             apoio::rodar_com(&ambiente, vec![], |sessao, nup, indice, transporte| {
@@ -223,12 +219,6 @@ fn confirmar_nivel_ausente_ou_sem_hipotese_recusa_antes_de_toda_rede() {
             "não deve haver GET/POST ao SEI quando a escrita já está proibida"
         );
     }
-}
-
-#[test]
-fn causas_do_fluxo_preservam_subcodigos_e_encadeiam_fatos() {
-    // O código público continua sendo a folha, mas a causa deve incluir
-    // cada etapa tipada do fluxo, sem depender de textos para classificar.
 }
 
 #[test]

@@ -101,23 +101,24 @@ fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
 }
 
 pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
-    use ErroPrazo as E;
     if html.len() > crate::MAX_HTML_BYTES {
-        return Err(E::TelaNaoObservada);
+        return Err(ErroPrazo::TelaNaoObservada);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::TelaNaoObservada)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroPrazo::TelaNaoObservada)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
-        .map_err(|_| E::TelaNaoObservada)?;
+        .map_err(|_| ErroPrazo::TelaNaoObservada)?;
     if atributo(form, "method")?.as_deref() != Some("post")
         || atributo(form, "enctype")?.is_some_and(|v| v != "application/x-www-form-urlencoded")
     {
-        return Err(E::TelaNaoObservada);
+        return Err(ErroPrazo::TelaNaoObservada);
     }
-    let action = atributo(form, "action")?.ok_or(E::TelaNaoObservada)?;
-    let action = crate::formulario_web::decodificar_atributo(&action).ok_or(E::TelaNaoObservada)?;
-    let (caminho, consulta) = action.split_once('?').ok_or(E::TelaNaoObservada)?;
+    let action = atributo(form, "action")?.ok_or(ErroPrazo::TelaNaoObservada)?;
+    let action =
+        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroPrazo::TelaNaoObservada)?;
+    let (caminho, consulta) = action.split_once('?').ok_or(ErroPrazo::TelaNaoObservada)?;
     if !caminho.ends_with("controlador.php") {
-        return Err(E::TelaNaoObservada);
+        return Err(ErroPrazo::TelaNaoObservada);
     }
     let valores = |chave: &str| {
         consulta
@@ -128,12 +129,12 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
             .collect::<Vec<_>>()
     };
     if valores("acao") != ["controle_prazo_definir"] {
-        return Err(E::TelaNaoObservada);
+        return Err(ErroPrazo::TelaNaoObservada);
     }
     match valores("id_procedimento").as_slice() {
         [id] if *id == id_procedimento => {}
-        [_] => return Err(E::OutroProcesso),
-        _ => return Err(E::TelaNaoObservada),
+        [_] => return Err(ErroPrazo::OutroProcesso),
+        _ => return Err(ErroPrazo::TelaNaoObservada),
     }
 
     ler_controles_da_tela(form, &dom, id_procedimento)
@@ -183,7 +184,6 @@ fn ler_controles_da_tela(
     dom: &tl::VDom<'_>,
     id_procedimento: &str,
 ) -> Result<TelaDoPrazo, ErroPrazo> {
-    use ErroPrazo as E;
     let mut vistos = std::collections::HashSet::new();
     let mut radios = std::collections::HashSet::new();
     let mut marcada: Option<String> = None;
@@ -206,7 +206,7 @@ fn ler_controles_da_tela(
             continue;
         };
         if presente(tag, "disabled")? {
-            return Err(E::TelaNaoObservada);
+            return Err(ErroPrazo::TelaNaoObservada);
         }
         let tipo = atributo(tag, "type")?.unwrap_or_else(|| {
             if elemento == "button" {
@@ -220,54 +220,54 @@ fn ler_controles_da_tela(
         let valor = atributo(tag, "value")?;
         if nome == "rdoPrazo" {
             if elemento != "input" || tipo != "radio" {
-                return Err(E::TelaNaoObservada);
+                return Err(ErroPrazo::TelaNaoObservada);
             }
-            let v = valor.ok_or(E::TelaNaoObservada)?;
+            let v = valor.ok_or(ErroPrazo::TelaNaoObservada)?;
             if !matches!(v.as_str(), "1" | "2" | "3") || !radios.insert(v.clone()) {
-                return Err(E::TelaNaoObservada);
+                return Err(ErroPrazo::TelaNaoObservada);
             }
             if presente(tag, "checked")? && marcada.replace(v).is_some() {
-                return Err(E::TelaNaoObservada);
+                return Err(ErroPrazo::TelaNaoObservada);
             }
             continue;
         }
         if !vistos.insert(nome.clone()) {
-            return Err(E::TelaNaoObservada);
+            return Err(ErroPrazo::TelaNaoObservada);
         }
         match (nome.as_str(), elemento.as_str(), tipo.as_str()) {
             ("hdnInfraTipoPagina" | "hdnIdControlePrazo", "input", "hidden") => {}
             ("hdnIdProcedimentos", "input", "hidden") => {
                 id_conferido = true;
                 if valor.as_deref() != Some(id_procedimento) {
-                    return Err(E::OutroProcesso);
+                    return Err(ErroPrazo::OutroProcesso);
                 }
             }
             ("txtPrazo", "input", "text") => {
                 if presente(tag, "readonly")? {
-                    return Err(E::TelaNaoObservada);
+                    return Err(ErroPrazo::TelaNaoObservada);
                 }
                 data = valor.unwrap_or_default();
             }
             ("txtDias", "input", "text") => {
                 if presente(tag, "readonly")? {
-                    return Err(E::TelaNaoObservada);
+                    return Err(ErroPrazo::TelaNaoObservada);
                 }
                 dias = valor.unwrap_or_default();
             }
             ("chkSinDiasUteis", "input", "checkbox") => {
                 if presente(tag, "readonly")? {
-                    return Err(E::TelaNaoObservada);
+                    return Err(ErroPrazo::TelaNaoObservada);
                 }
                 valor_dos_uteis = valor.unwrap_or_else(|| "on".to_owned());
             }
             ("sbmDefinirControlePrazo", "input" | "button", "submit") => {
                 botoes += 1;
             }
-            _ => return Err(E::TelaNaoObservada),
+            _ => return Err(ErroPrazo::TelaNaoObservada),
         }
     }
     if !id_conferido || botoes != 1 || !controles_completos(&radios, &vistos) {
-        return Err(E::TelaNaoObservada);
+        return Err(ErroPrazo::TelaNaoObservada);
     }
     let estado = estado_dos_controles(marcada.as_deref(), data, &dias)?;
     Ok(TelaDoPrazo {

@@ -1,7 +1,6 @@
 //! RED/GREEN das pastas no fluxo: sequência exata de requisições (frio com
 //! e sem pastas fechadas, quente pelo link de "Abrir todas as Pastas"),
 //! aprendizado no índice e recusas tipadas. Árvores sintéticas.
-use super::ErroProcessoObter as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::ErroArvore;
@@ -154,7 +153,7 @@ fn pasta_fechada_sem_a_acao_de_abrir_e_recusa_sem_requisicao_a_mais() {
     let (r, pedidos) = rodar(&amb, None, pelo_controle(vec![ok(sem_acao)]));
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir)
+        super::ErroProcessoObter::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir)
     );
     assert_eq!(pedidos.len(), 3);
 }
@@ -169,7 +168,7 @@ fn arvore_ainda_fechada_depois_de_abrir_e_recusa() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::PastasNaoCarregadasAposAbrirPastas)
+        super::ErroProcessoObter::Arvore(ErroArvore::PastasNaoCarregadasAposAbrirPastas)
     );
     assert_eq!(link(&amb, OBJETO_ABRIR), None);
 }
@@ -189,7 +188,7 @@ fn arvore_aberta_que_nao_confere_nao_publica_lista_parcial() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::Html(ErroHtml::ausente(
+        super::ErroProcessoObter::Arvore(ErroArvore::Html(ErroHtml::ausente(
             "protocolo_declarado_ausente_da_pasta"
         )))
     );
@@ -206,7 +205,7 @@ fn abrir_pastas_que_responde_login_ou_outro_processo_e_erro() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        super::ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
     );
     let amb = ambiente();
     let outra = arvore_aberta().replace(NUP, "00002.000002/2026-02");
@@ -217,7 +216,7 @@ fn abrir_pastas_que_responde_login_ou_outro_processo_e_erro() {
     );
     assert_eq!(
         r.unwrap_err(),
-        E::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
+        super::ErroProcessoObter::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
 }
 

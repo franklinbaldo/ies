@@ -5,7 +5,6 @@
 //! para o login é sessão encerrada, como no resto do fluxo.
 use super::super::abertura::{Rede, fora_de_palpite};
 use super::super::{EnvioDoProcesso, ErroProcessoObter};
-use super::erro::ErroDocumentoObter as E;
 use crate::anexo_documento::{AnexoLido, DestinoDoAnexo, ErroAnexo, LimiteDoAnexo, ler_anexo};
 use crate::arvore_processo::EnderecoDoConteudo;
 use std::path::Path;
@@ -25,8 +24,9 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     endereco: &EnderecoDoConteudo,
     numero: &str,
     pedido: PedidoDoAnexo<'_>,
-) -> Result<(String, String, Option<AnexoLido>), E> {
-    let transporte = |falha| E::Processo(ErroProcessoObter::Transporte(falha));
+) -> Result<(String, String, Option<AnexoLido>), super::erro::ErroDocumentoObter> {
+    let transporte =
+        |falha| super::erro::ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(falha));
     rede.requisicoes.registrar();
     let resposta = rede
         .envio
@@ -41,10 +41,15 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             .valores("location")
             .first()
             .map(|v| (*v).to_owned());
-        return Err(E::Processo(fora_de_palpite(local.as_deref())));
+        return Err(super::erro::ErroDocumentoObter::Processo(fora_de_palpite(
+            local.as_deref(),
+        )));
     }
     let raiz = if pedido.cache_host.is_some() {
-        Some(crate::cache_documento::raiz().map_err(|_| E::Anexo(ErroAnexo::EscritaFalhou))?)
+        Some(
+            crate::cache_documento::raiz()
+                .map_err(|_| super::erro::ErroDocumentoObter::Anexo(ErroAnexo::EscritaFalhou))?,
+        )
     } else {
         None
     };
@@ -58,11 +63,13 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         _ => DestinoDoAnexo::SoMetadados,
     };
     let lido = ler_anexo(resposta, numero, pedido.limite, destino).map_err(|erro| match erro {
-        ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => E::Processo(
-            ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
-        ),
+        ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => {
+            super::erro::ErroDocumentoObter::Processo(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ))
+        }
         ErroAnexo::Transporte(falha) => transporte(falha),
-        outro => E::Anexo(outro),
+        outro => super::erro::ErroDocumentoObter::Anexo(outro),
     })?;
     Ok((
         String::new(),

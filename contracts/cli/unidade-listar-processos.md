@@ -56,7 +56,7 @@ os três arquivos privados: regularidade/permissões, URL assinada de
 `procedimento_controlar`, origem HTTPS autorizada incluindo caminho-base
 e sintaxe do cabeçalho Cookie. A validação de origem antecede a leitura
 do cookie, usando as mesmas regras da leitura de caixa para evitar divergência
-entre prévia e transporte. Falhas são variantes de `FalhaTransporte` e
+entre prévia e transporte. Falhas são erros de `FalhaTransporte` e
 subcódigos estáveis; nenhuma entrada secreta é exibida.
 
 Sucesso declara somente `sessao_local: formato_e_origem_verificados`,
@@ -162,7 +162,7 @@ parâmetros separados por `;`, seja exatamente `text/html`
 A presença de `text/html` dentro de um parâmetro de outro tipo,
 como `application/json; profile=text/html`, não certifica HTML.
 Tipo ausente, `text/plain`, `application/xhtml+xml` ou outros
-subtipos são recusados com a variante de transporte
+subtipos são recusados com o erro de transporte
 `FalhaTransporte::TipoDeConteudoNaoHtml`. Não há retry nem GET adicional:
 o limite, o status e a verificação de login permanecem iguais. A
 regra é ensaiada offline; nenhum teste de produção é autorizado.
@@ -212,7 +212,7 @@ pode sobrescrever `acao` ou `infra_hash` ao ser decodificada pelo
 servidor. Recusar separador literal `;` em qualquer valor: servidores
 podem tratá-lo como delimitador de query além de `&`.
 
-As variantes Rust tipadas são `ChaveDeConsultaNaoCanonica`
+Os erros tipados são `ChaveDeConsultaNaoCanonica`
 (`chave_de_consulta_do_controle_nao_canonica`) e
 `SeparadorDeConsultaAmbiguo`
 (`separador_de_consulta_do_controle_ambiguo`).

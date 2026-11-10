@@ -64,11 +64,11 @@ ser enviado, independentemente da observação.
   real varia com o índice local; nunca há retry.
 - **Fonte:** observação histórica do Todos na UnB em 15/10/2026
   (`tests/test_processo_acompanhar_010.py` @323eb01), cassettes
-  `processo-acompanhar-*` e suas demais variantes.
+  `processo-acompanhar-*` e as demais gravações dessa operação.
 - Testes sintéticos de derivação e transporte integrados; evidência ao vivo e replay ainda pendentes: ver
   [relatório](../../docs/validacao-live/2026-11-05-processo-acompanhar.md).
 
-Os erros, por variante (a saída pública traz só a mensagem):
+Os erros (o stderr traz o nome do erro):
 `ErroPrevia::LinkNaoPublicado`,
 `ErroAcompanhar::CadastroDeOutroProcesso`,
 `ErroAcompanhar::GruposNaoPublicados`,
@@ -84,9 +84,9 @@ fixture contém credencial real. Nenhuma operação é dirigida à produção.
 
 ## Inventário de erros tipados
 
-A coluna é o que aparece no stderr: a variante tipada (com o enum que a declara) ou, para HTML fora da forma, o `onde` do `ErroHtml`.
+A coluna é o que aparece no stderr: o erro tipado (com o tipo que o declara) ou, para HTML fora da forma, o `onde` do `ErroHtml`.
 
-| Variante ou `onde` (stderr) | Condição |
+| Erro ou `onde` (stderr) | Condição |
 | --- | --- |
 | `ErroAcompanhar::AcompanhamentoNaoConfirmado` | A releitura não demonstrou a alteração exata; incerto |
 | `ErroPrevia::LinkNaoPublicado` | A barra do processo não oferece Acompanhamento Especial |

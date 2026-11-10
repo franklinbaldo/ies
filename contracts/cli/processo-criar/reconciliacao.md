@@ -39,7 +39,7 @@ NUPs. As causas do POST e do GET posterior são preservadas; a presença
 de candidatos não prova autoria. A validação live em uma segunda
 instalação de treinamento continua pendente.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `ErroFotografia::CoberturaIncompleta` | Total ou faixa insuficiente para atestar todos os Gerados |
 | `ErroFotografia::NupRepetido` | Dois IDs diferentes da mesma fotografia apontam para o mesmo NUP: a cobertura posicional não comprova identidades independentes |
@@ -79,7 +79,7 @@ duas ou mais: `CandidatosAmbiguos`; zero: `SemCorrespondenciaObservada`
 (**não** prova de não aplicação). A recusa expressa da Infra é o único caso
 observado de não aplicação comprovada; falta a validação live.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `ErroConferencia::LeituraAusente` | Novo candidato sem leitura de processo NUP |
 | `ErroConferencia::LeituraRepetida` | Mesma identidade conferida duas vezes |
@@ -116,7 +116,7 @@ nenhuma ou leitura interrompida continua inconclusiva. Somente um
 independentes pode produzir sucesso. A recusa literal da Infra é
 a prova distinta de não aplicação. Live: NOT_RUN nesta fatia.
 
-| Variante ou `onde` (stderr) | Fato |
+| Erro ou `onde` (stderr) | Fato |
 | --- | --- |
 | `LinkDoCandidatoNaoComprovado` | Link da linha Gerados ausente, fora da origem ou com identidade divergente |
 | `LinksDoCandidatoRepetidos` | Dois links para o mesmo par de Gerados |

@@ -25,7 +25,7 @@ Em 07/11/2026 foram acrescentados três cenários: nomes contendo `&#` (incompat
 A fatia anterior acrescentara nomes textuais de subcódigos, embora novas
 fatias devam publicar o erro tipado por Serde. Correção na mesma PR #352:
 `FalhaPdf::subcodigo()` removida; CLI publica `causa` diretamente,
-sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
+sem tabela paralela. Os testes de identidade voltaram a comparar o erro.
 
 - **RED:** [CI 42335719860](https://github.com/franklinbaldo/ies/actions/runs/42335719860),
   head `c5c78fc`: 5 falhas novas no teste de CLI, 1 teste de CLI
@@ -47,7 +47,7 @@ sem tabela paralela. Os testes de identidade voltaram a comparar variantes.
 ## Teste adicional — mutação concorrente do PDF (07/11/2026)
 
 - **RED real:** [CI 42343893669](https://github.com/franklinbaldo/ies/actions/runs/42343893669), head `10180c4`, suíte Rust com **1.811 PASS, 1 FAIL novo, 23 ignored**. O teste altera bytes preservando o mesmo tamanho entre a primeira metadata e a leitura: a implementação anterior retornou `Ok(PdfLocal)` com hash do arquivo modificado, quando o teste exigia `AlteradoDuranteLeitura`. Rustfmt/Clippy/OKF não foram usados como substitutos do RED.
-- **GREEN proposto:** comparar metadados do **mesmo descritor** depois de ler até EOF (tamanho, modificação e ctime no Unix) e recusar mudança detectada por variante Rust tipada. Mesmo conteúdo estável após a inspeção não é garantido para futuro upload; trocar um ancestral por symlink ainda requer proteção específica. CI e wheel precisam ser verificados no SHA de GREEN.
+- **GREEN proposto:** comparar metadados do **mesmo descritor** depois de ler até EOF (tamanho, modificação e ctime no Unix) e recusar mudança detectada com um erro tipado. Mesmo conteúdo estável após a inspeção não é garantido para futuro upload; trocar um ancestral por symlink ainda requer proteção específica. CI e wheel precisam ser verificados no SHA de GREEN.
 - **Execução remota:** NOT_RUN; **0 GET, 0 POST, 0 upload, 0 resíduos**; teste apenas sintético e local.
 
 ## PR #380 — núcleo de recibo temporário sem rede (07/11/2026)

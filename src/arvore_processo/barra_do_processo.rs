@@ -14,7 +14,7 @@ use crate::instalacao::Instalacao;
 use crate::marcadores_processo::{self, EnderecoDosMarcadores, ErroMarcadores};
 use crate::processo_comentarios::{EnderecoDosComentarios, ErroLinkDosComentarios};
 use crate::propriedades_processo::{
-    EnderecoDasPropriedades, ErroPropriedades as E, FonteDasPropriedades,
+    EnderecoDasPropriedades, ErroPropriedades, FonteDasPropriedades,
 };
 
 /// O link da tela de propriedades publicado na barra do processo `id`;
@@ -24,10 +24,10 @@ pub(crate) fn ler_link_das_propriedades(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<Option<EnderecoDasPropriedades>, E> {
+) -> Result<Option<EnderecoDasPropriedades>, ErroPropriedades> {
     let falha = |f: FalhaDaBarra| match f {
-        FalhaDaBarra::Fora => E::BarraDoProcessoForaDaFormaObservada,
-        FalhaDaBarra::Repetidas => E::BarrasDoProcessoRepetidasNaArvore,
+        FalhaDaBarra::Fora => ErroPropriedades::BarraDoProcessoForaDaFormaObservada,
+        FalhaDaBarra::Repetidas => ErroPropriedades::BarrasDoProcessoRepetidasNaArvore,
     };
     let (mut alterar, mut consultar) = (Vec::new(), Vec::new());
     for href in hrefs_da_barra(html).map_err(falha)? {
@@ -45,13 +45,17 @@ pub(crate) fn ler_link_das_propriedades(
     let href = match achados.as_slice() {
         [] => return Ok(None),
         [href] => href,
-        _ => return Err(E::LinksDasPropriedadesRepetidosNaBarra),
+        _ => return Err(ErroPropriedades::LinksDasPropriedadesRepetidosNaBarra),
     };
     conferir_endereco_relativo(instalacao, href, fonte.acao(), id)
         .map(|url| Some(EnderecoDasPropriedades::novo(fonte, url)))
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoDasPropriedadesNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDasPropriedadesDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => {
+                ErroPropriedades::EnderecoDasPropriedadesNaoReconhecido
+            }
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso
+            }
         })
 }
 
@@ -93,8 +97,7 @@ pub(crate) fn ler_link_do_prazo(
     html: &str,
     id: &str,
 ) -> Result<Option<String>, ErroLinkPrazo> {
-    use ErroLinkPrazo as E;
-    let hrefs = hrefs_da_barra(html).map_err(|_| E::BarraNaoInterpretada)?;
+    let hrefs = hrefs_da_barra(html).map_err(|_| ErroLinkPrazo::BarraNaoInterpretada)?;
     let candidatos: Vec<_> = hrefs
         .iter()
         .filter(|href| acao_do_href(href) == Some("controle_prazo_definir"))
@@ -102,13 +105,13 @@ pub(crate) fn ler_link_do_prazo(
     let href = match candidatos.as_slice() {
         [] => return Ok(None),
         [unico] => *unico,
-        _ => return Err(E::LinksRepetidos),
+        _ => return Err(ErroLinkPrazo::LinksRepetidos),
     };
     conferir_endereco_relativo(instalacao, href, "controle_prazo_definir", id)
         .map(Some)
         .map_err(|falha| match falha {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => ErroLinkPrazo::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => ErroLinkPrazo::EnderecoDeOutroProcesso,
         })
 }
 
@@ -150,12 +153,11 @@ pub(crate) fn ler_link_dos_comentarios(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDosComentarios>, ErroLinkDosComentarios> {
-    use ErroLinkDosComentarios as E;
     let hrefs = hrefs_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor(
+        FalhaDaBarra::Fora => ErroLinkDosComentarios::Html(ErroHtml::valor(
             "barra_dos_comentarios_fora_da_forma_observada",
         )),
-        FalhaDaBarra::Repetidas => E::Html(ErroHtml::repetido(
+        FalhaDaBarra::Repetidas => ErroLinkDosComentarios::Html(ErroHtml::repetido(
             "barras_dos_comentarios_repetidas_na_arvore",
         )),
     })?;
@@ -171,10 +173,10 @@ pub(crate) fn ler_link_dos_comentarios(
     conferir_endereco_relativo(instalacao, href, "comentario_listar", id)
         .map(|url| Some(EnderecoDosComentarios::novo(url)))
         .map_err(|falha| match falha {
-            EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_dos_comentarios_nao_reconhecido"))
-            }
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => ErroLinkDosComentarios::Html(ErroHtml::valor(
+                "endereco_dos_comentarios_nao_reconhecido",
+            )),
+            EnderecoRecusado::DeOutroProcesso => ErroLinkDosComentarios::EnderecoDeOutroProcesso,
         })
 }
 
@@ -297,10 +299,9 @@ pub(crate) fn ler_link_de_incluir_documento(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento> {
-    use ErroLinkIncluirDocumento as E;
     let hrefs = hrefs_da_barra(html).map_err(|erro| match erro {
-        FalhaDaBarra::Fora => E::BarraForaDaForma,
-        FalhaDaBarra::Repetidas => E::BarraRepetida,
+        FalhaDaBarra::Fora => ErroLinkIncluirDocumento::BarraForaDaForma,
+        FalhaDaBarra::Repetidas => ErroLinkIncluirDocumento::BarraRepetida,
     })?;
     let mut links = hrefs
         .iter()
@@ -309,12 +310,12 @@ pub(crate) fn ler_link_de_incluir_documento(
         return Ok(None);
     };
     if links.next().is_some() {
-        return Err(E::LinkRepetido);
+        return Err(ErroLinkIncluirDocumento::LinkRepetido);
     }
     conferir_endereco_relativo(instalacao, href, "documento_escolher_tipo", id)
         .map(|url| Some(EnderecoDoIncluirDocumento(url)))
         .map_err(|erro| match erro {
-            EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+            EnderecoRecusado::NaoReconhecido => ErroLinkIncluirDocumento::EnderecoNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => ErroLinkIncluirDocumento::EnderecoDeOutroProcesso,
         })
 }
