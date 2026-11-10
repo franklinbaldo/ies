@@ -55,10 +55,10 @@ fn bdd_60_05_cli_recusa_versao_revogada_entre_lista_e_corpo() {
     }
 }
 
-/// Uma recusa após o histórico não pode produzir nem sobrescrever foto
-/// local, inclusive quando a opção de ocultar inacessíveis está ativa.
+/// Uma recusa após o histórico não pode criar foto nem alterar outros
+/// arquivos locais, inclusive com a opção de ocultar inacessíveis.
 #[test]
-fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
+fn bdd_60_05_cli_versao_revogada_nao_cria_foto() {
     struct PastaTemporaria(std::path::PathBuf);
     impl Drop for PastaTemporaria {
         fn drop(&mut self) {
@@ -76,9 +76,11 @@ fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
             std::process::id()
         )));
         std::fs::create_dir(&pasta.0).unwrap();
-        let foto = pasta.0.join(format!("{DOC_A}.v1.html"));
-        let conteudo_local = b"<html><body>edicao local nao substituivel</body></html>";
-        std::fs::write(&foto, conteudo_local).unwrap();
+        // Uma foto v1 já existente seria recusada na prévia, ANTES da rede.
+        // Um rascunho de nome independente permite exercitar a revogação.
+        let rascunho = pasta.0.join("rascunho.html");
+        let conteudo_local = b"<html><body>rascunho privado</body></html>";
+        std::fs::write(&rascunho, conteudo_local).unwrap();
         let dir = pasta.0.to_str().unwrap();
         let mut argumentos = vec![
             "--json",
@@ -107,7 +109,8 @@ fn bdd_60_05_cli_versao_revogada_preserva_foto_local() {
         assert_eq!(erro["status_http"], 403, "{erro}");
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
-        assert_eq!(std::fs::read(&foto).unwrap(), conteudo_local);
+        assert_eq!(std::fs::read(&rascunho).unwrap(), conteudo_local);
+        assert!(!pasta.0.join(format!("{DOC_A}.v1.html")).exists());
         assert!(!pasta.0.join(format!("{DOC_A}.v2.html")).exists());
         assert_eq!(
             trilha
