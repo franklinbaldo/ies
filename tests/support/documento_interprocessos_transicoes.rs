@@ -209,6 +209,22 @@ pub(super) fn conferir_estado_apos_cli(
             "a revogação da versão 1 não afeta a revisão 2"
         );
     }
+    if matches!(modo, EstadoExtra::NumeroIgualEmOutroProcesso) {
+        for (id, nup, conteudo) in [
+            ("42", NUP_A, "primeiro processo"),
+            ("43", NUP_B, "segundo processo"),
+        ] {
+            let doc = documento_versoes::ler(db, instalacao, CENARIO, id)
+                .unwrap()
+                .expect("documento preservado no SQLite");
+            assert_eq!(doc.numero, DOC_A);
+            assert_eq!(doc.numero_processo, nup);
+            assert!(
+                doc.revisoes[0].html_corpo.contains(conteudo),
+                "o corpo do documento não pode ser trocado por outro processo"
+            );
+        }
+    }
     if matches!(modo, EstadoExtra::PdfNumeroDuplicado) {
         let pdfs = iesei::pdf_externo::documentos(db, instalacao, CENARIO, "7").unwrap();
         assert_eq!(pdfs.len(), 1, "o PDF continua cadastrado no SQLite");
