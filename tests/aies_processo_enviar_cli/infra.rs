@@ -167,4 +167,3 @@ pub(super) fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao)
     .unwrap();
     (banco, origem)
 }
-
