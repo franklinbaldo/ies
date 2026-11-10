@@ -51,6 +51,77 @@ fn documento_na_arvore(
     primeiro
 }
 
+/// Só observa o corpo quando o GET da mesma identidade existe na captura.
+fn corpo_da_cassette(
+    captura: &serde_json::Value,
+    id: &str,
+    numero_observado: &str,
+    exigir_corpo: bool,
+) -> Option<(u32, String, String)> {
+    let originais: Vec<_> = gravacao::respostas(&captura.json)
+        .into_iter()
+        .filter(|r| {
+            r.operacao == "documento_visualizar"
+                && r.metodo == "GET"
+                && r.status == 200
+                && gravacao::parametro(r.item, "id_documento").contains(&id)
+        })
+        .collect();
+    assert!(originais.len() <= 1, "um único GET de corpo por identidade");
+    let conteudo = originais.first().map(|r| {
+        let html = html_da_resposta(r.item).unwrap();
+        let identidade = crate::documento_web::identidade_do_titulo(&html).unwrap();
+        assert_eq!(identidade.numero, numero_observado);
+        let versao = crate::rodape_do_documento::versao_do_rodape(&html)
+            .expect("versão no rodapé original");
+        let texto = crate::documento_web::texto_do_corpo(&html).unwrap();
+        (versao.numero(), identidade.tipo, texto)
+    });
+    assert!(
+        !exigir_corpo || conteudo.is_some(),
+        "PEN1 precisa associar seu GET original de corpo ao id do histórico"
+    );
+    conteudo
+}
+
+/// Compara o único corpo original observado com a projeção HTTP do SQLite.
+fn confrontar_corpo_observado_http(
+    endereco: SocketAddr,
+    id: &str,
+    processo: &str,
+    numero: &NumeroDocumento,
+    conteudo: &Option<(u32, String, String)>,
+) {
+    if let Some((versao, tipo_original, texto_original)) = &conteudo {
+        let alvo = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
+        );
+        let resposta = pedir(endereco, "GET", &alvo);
+        let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
+        assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
+        let identidade = crate::documento_web::identidade_do_titulo(html).unwrap();
+        assert_eq!(identidade.numero.as_str(), numero.as_str());
+        assert_eq!(&identidade.tipo, tipo_original);
+        assert_eq!(
+            crate::rodape_do_documento::versao_do_rodape(html)
+                .map(crate::documento_versoes::VersaoDocumento::numero),
+            Some(*versao)
+        );
+        let corpo = html
+            .split_once("<main id='corpoEditavel'>")
+            .expect("editor projetado")
+            .1
+            .split_once("</main>")
+            .unwrap()
+            .0;
+        let texto = crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+        assert_eq!(
+            &texto, texto_original,
+            "corpo capturado deve sobreviver ao transporte"
+        );
+    }
+}
+
 fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool) {
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(caminho_card);
@@ -79,31 +150,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     let html_original = html_da_resposta(respostas[0].item).unwrap();
     let historico_original = interpretar_historico(&html_original, &numero, id, None)
         .expect("leitor real do IES na lista original");
-    // O GET de corpo existe no PEN1, mas não em GO/UFRJ. Ele somente pode
-    // preencher a versão apontada por seu próprio rodapé, nunca as demais.
-    let originais: Vec<_> = gravacao::respostas(&captura.json)
-        .into_iter()
-        .filter(|r| {
-            r.operacao == "documento_visualizar"
-                && r.metodo == "GET"
-                && r.status == 200
-                && gravacao::parametro(r.item, "id_documento").contains(&id)
-        })
-        .collect();
-    assert!(originais.len() <= 1, "um único GET de corpo por identidade");
-    let conteudo = originais.first().map(|r| {
-        let html = html_da_resposta(r.item).unwrap();
-        let identidade = crate::documento_web::identidade_do_titulo(&html).unwrap();
-        assert_eq!(identidade.numero, numero_observado);
-        let versao = crate::rodape_do_documento::versao_do_rodape(&html)
-            .expect("versão no rodapé original");
-        let texto = crate::documento_web::texto_do_corpo(&html).unwrap();
-        (versao.numero(), identidade.tipo, texto)
-    });
-    assert!(
-        !exigir_corpo || conteudo.is_some(),
-        "PEN1 precisa associar seu GET original de corpo ao id do histórico"
-    );
+    let conteudo = corpo_da_cassette(&captura.json, id, &numero_observado, exigir_corpo);
     let mut revisoes = revisoes_observadas(&historico_original, "");
     if let Some((versao, _, texto)) = &conteudo {
         let revisao = revisoes
@@ -160,34 +207,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
-    if let Some((versao, tipo_original, texto_original)) = &conteudo {
-        let alvo = format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
-        );
-        let resposta = pedir(endereco, "GET", &alvo);
-        let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
-        assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-        let identidade = crate::documento_web::identidade_do_titulo(html).unwrap();
-        assert_eq!(identidade.numero.as_str(), numero.as_str());
-        assert_eq!(&identidade.tipo, tipo_original);
-        assert_eq!(
-            crate::rodape_do_documento::versao_do_rodape(html)
-                .map(crate::documento_versoes::VersaoDocumento::numero),
-            Some(*versao)
-        );
-        let corpo = html
-            .split_once("<main id='corpoEditavel'>")
-            .expect("editor projetado")
-            .1
-            .split_once("</main>")
-            .unwrap()
-            .0;
-        let texto = crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
-        assert_eq!(
-            &texto, texto_original,
-            "corpo capturado deve sobreviver ao transporte"
-        );
-    }
+    confrontar_corpo_observado_http(endereco, id, &processo, &numero, &conteudo);
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
