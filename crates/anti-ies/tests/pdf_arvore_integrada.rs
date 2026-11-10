@@ -41,7 +41,11 @@ fn pedir_metodo(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     fluxo
         .set_write_timeout(Some(Duration::from_secs(5)))
         .unwrap();
-    write!(fluxo, "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+    write!(
+        fluxo,
+        "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"
+    )
+    .unwrap();
     fluxo.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
     fluxo.read_to_string(&mut resposta).unwrap();
