@@ -2,8 +2,8 @@
 //! Nao confunde forma observada com comprovacao de efeito do POST.
 //! O ZIP original e verificado por hash antes de interpretar qualquer HTML.
 use super::tela;
-use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::cassette::acervo::gravacao;
+use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::valor_do_atributo;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
@@ -127,8 +127,9 @@ fn replay_do_formulario_de_sobrestamento_unb_go_contra_anti_ies() {
         "cassettes/go/processo-sobrestar-retomar-go--4fb6c8fe18df.md",
     ] {
         let card = Path::new(env!("CARGO_MANIFEST_DIR")).join(caminho);
-        let zip = ZipDoAcervo::ler(&cache().join(crate::cassette::archive_filename(&card).unwrap()))
-            .unwrap();
+        let zip =
+            ZipDoAcervo::ler(&cache().join(crate::cassette::archive_filename(&card).unwrap()))
+                .unwrap();
         let captura = conferir_cassette_ate(&card, &zip, 120_000_000).unwrap();
         let telas: Vec<_> = gravacao::respostas(&captura.json)
             .into_iter()
