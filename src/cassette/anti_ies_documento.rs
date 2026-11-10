@@ -328,8 +328,7 @@ fn bdd60_http_identidade_documental_sem_igual_recusa_sem_fallback() {
     // nao possui o guard generico da rota. Precisamos testar esse caminho.
     for alvo in [
         format!("{visualizar}&id_documento"),
-        "/sei/controlador.php?acao=procedimento_visualizar&id_protocolo=42&id_documento"
-            .to_owned(),
+        "/sei/controlador.php?acao=procedimento_visualizar&id_protocolo=42&id_documento".to_owned(),
     ] {
         let resposta = pedir(endereco, "GET", &alvo);
         assert!(
