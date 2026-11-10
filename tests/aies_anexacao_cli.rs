@@ -207,7 +207,12 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
     }
 }
 
-fn conferir_aviso_pendencia(modo: Modo, pasta: &Pasta, arquivos: [&std::path::Path; 4], porta: u16) {
+fn conferir_aviso_pendencia(
+    modo: Modo,
+    pasta: &Pasta,
+    arquivos: [&std::path::Path; 4],
+    porta: u16,
+) {
     if !matches!(modo, Modo::PreviaPendencia) {
         return;
     }
