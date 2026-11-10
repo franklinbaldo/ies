@@ -193,6 +193,37 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         anexo: PedidoDoAnexo::default(),
     };
     let aberto = abrir_documento_na_arvore(sessao, &pedido, indice, &mut rede)?;
+    // A leitura independente do detalhe precede a exigência de uma ação
+    // oferecida. Um documento já comprovado no bloco não requer formulário,
+    // nem GET da tela de inclusão, nem POST de escrita.
+    let lido = ler_tipado_via(
+        referencias,
+        unidade,
+        TipoBloco::Assinatura,
+        Some(bloco),
+        None,
+        &mut rede,
+    )?;
+    let Leitura::Detalhe(detalhe) = lido.leitura else {
+        unreachable!("com número, a leitura é o detalhe do bloco");
+    };
+    let presente = detalhe
+        .itens
+        .iter()
+        .any(|item| item.documento.as_deref() == Some(aberto.numero.as_str()));
+    let completo = detalhe.itens.len() == detalhe.total_declarado;
+    let presente_antes = (presente || completo).then_some(presente);
+    if presente_antes == Some(true) {
+        return Ok(PreviaDocumental {
+            bloco: bloco.to_owned(),
+            documento: aberto.numero,
+            presente_antes,
+            requisicoes: usize::from(rede.feitas()),
+            confirmado: confirmar,
+            alterado: false,
+            presente_depois: None,
+        });
+    }
     let link = ler_bloco_escolher_da_barra(
         &instalacao,
         &aberto.html,
@@ -214,23 +245,6 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     if caixa.id != aberto.id_documento {
         return Err(ErroIncluir::DocumentoForaDaTela);
     }
-    let lido = ler_tipado_via(
-        referencias,
-        unidade,
-        TipoBloco::Assinatura,
-        Some(bloco),
-        None,
-        &mut rede,
-    )?;
-    let Leitura::Detalhe(detalhe) = lido.leitura else {
-        unreachable!("com número, a leitura é o detalhe do bloco");
-    };
-    let presente = detalhe
-        .itens
-        .iter()
-        .any(|item| item.documento.as_deref() == Some(aberto.numero.as_str()));
-    let completo = detalhe.itens.len() == detalhe.total_declarado;
-    let presente_antes = (presente || completo).then_some(presente);
     let mut alterado = false;
     let mut presente_depois = None;
     if confirmar && presente_antes == Some(false) {
