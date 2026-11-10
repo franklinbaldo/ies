@@ -92,6 +92,9 @@ impl ErroProcessoObter {
             Self::Tela(ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
                 "a unidade da tela do processo difere da solicitada"
             }
+            Self::Tela(ErroTelaDoProcesso::ProcessoExigeValidacaoDeAcesso) => {
+                "o SEI exige validar o acesso com a senha antes de abrir este processo; o IES ainda não faz essa validação"
+            }
             Self::Tela(_) => "a tela do processo não foi reconhecida",
             Self::Arvore(ErroArvore::IdentidadeDoProcessoDiferenteDaPedida) => {
                 "o processo aberto não tem o número pedido"
