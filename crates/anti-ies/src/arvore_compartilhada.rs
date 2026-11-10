@@ -149,9 +149,7 @@ pub(crate) fn responder(
     // JavaScript recém-renderizado. Pastas e processos anexados também
     // ocupam índices; o gerador da navegação já conhece todos eles.
     let (mut novos, inicio) = if tem_nos {
-        match crate::processo_envio::nos_e_proximo_indice(
-            banco, origem, cenario, id_processo,
-        ) {
+        match crate::processo_envio::nos_e_proximo_indice(banco, origem, cenario, id_processo) {
             Ok((_, proximo)) => (String::new(), proximo),
             Err(estado) => return Resposta::nova(estado),
         }
