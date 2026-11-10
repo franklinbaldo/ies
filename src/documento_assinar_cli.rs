@@ -272,7 +272,8 @@ pub(crate) fn humano(feito: &DocumentoAssinado) -> String {
             if let Some(cargo) = &feito.cargo {
                 linhas.push(format!("Cargo pedido: {cargo} (conferido)"));
             }
-            linhas.push("Para assinar (não se desfaz), repita com --cargo e --confirmar".to_owned());
+            linhas
+                .push("Para assinar (não se desfaz), repita com --cargo e --confirmar".to_owned());
         }
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
