@@ -66,8 +66,44 @@ fn saida_tipificada_serializa_direto_sem_value_intermediario() {
     );
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&feito));
-    assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
+    assert_eq!(
+        recebido["falha_do_envio"],
+        format!("{:?}", feito.reconciliado_por.as_ref().unwrap())
+    );
     let texto = String::from_utf8(bytes).unwrap();
     assert!(!texto.contains("infra_hash") && !texto.contains("PHPSESSID"));
     assert!(!texto.contains('\u{1b}'));
+}
+
+/// Contraprova (#695): o `falha_do_envio` do sucesso é o `Debug` do erro, e o
+/// texto do SEI que entra nele já passou pelo saneamento. Uma validação da
+/// Infra com URL assinada, `infra_hash` e cookie não vaza nenhum deles.
+#[test]
+fn falha_do_envio_no_sucesso_nao_vaza_segredo_do_texto_do_sei() {
+    let hash = "ab".repeat(32);
+    let html = format!(
+        "<html><textarea id='txaInfraValidacao'>Recusado em \
+         https://sei.exemplo.gov.br/sei/controlador.php?acao=x&amp;infra_hash={hash} \
+         com PHPSESSID=segredo1</textarea></html>"
+    );
+    let mensagem = crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(&html)
+        .expect("a validação da Infra rende texto");
+    let feito = ProcessoConcluido {
+        confirmado: true,
+        alterado: true,
+        reconciliado_por: Some(FalhaDoEnvio::Envio(
+            crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem),
+        )),
+        ..previa()
+    };
+    let texto = serde_json::to_string(&super::resultado_conclusao(&feito)).unwrap();
+    assert!(texto.contains("ValidacaoRecusadaPeloSei"), "{texto}");
+    for segredo in [
+        hash.as_str(),
+        "segredo1",
+        "sei.exemplo.gov.br",
+        "controlador.php",
+    ] {
+        assert!(!texto.contains(segredo), "{segredo} vazou: {texto}");
+    }
 }

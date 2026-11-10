@@ -82,11 +82,7 @@ fn salvo_e_reconciliado_publica_depois_e_a_falha_do_salvar() {
     assert_eq!(valor["alterado"], true);
     assert_eq!(valor["depois"], json!(["atribuicao", "anotacao"]));
     assert_eq!(valor["reconciliado_por_leitura"], true);
-    assert_eq!(valor["falha_do_salvar"]["status_http"], 503);
-    assert_eq!(
-        valor["falha_do_salvar"]["mensagem_do_servidor"],
-        "Serviço indisponível."
-    );
+    assert_eq!(valor["falha_do_salvar"], format!("{:?}", erro_500()));
 }
 
 #[test]
@@ -122,7 +118,7 @@ fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
         let valor: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(valor["envio"]["metodo"], "POST");
         if reconciliar {
-            assert_eq!(valor["falha_do_salvar"]["status_http"], 503);
+            assert_eq!(valor["falha_do_salvar"], format!("{:?}", erro_500()));
         } else {
             assert!(valor.get("falha_do_salvar").is_none());
             assert!(valor["depois"].is_null());

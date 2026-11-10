@@ -6,7 +6,7 @@ use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
 use crate::sessao_login::ErroLogin;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Assinatura de Documento", antes do POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -28,16 +28,6 @@ pub(crate) enum FalhaDoEnvio {
     Redirecionamento,
     /// HTML 200 sem `finalizar()` no `inicializar()`.
     RespostaSemFinalizacao,
-}
-
-impl FalhaDoEnvio {
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Envio(erro) => erro.status_http().cloned(),
-            Self::Redirecionamento => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::RespostaSemFinalizacao => None,
-        }
-    }
 }
 
 /// O que a leitura de verificação, feita uma vez, mostrou.

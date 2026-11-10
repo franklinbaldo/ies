@@ -3,7 +3,6 @@
 use super::ErroVisaoDoControle;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::nivel_de_detalhe::{ColunaDoDetalhe, PlanoDasColunas};
-use crate::transporte::StatusHttpRecusado;
 
 /// Por que a resposta do POST de salvar não é a esperada (HTML 200 sem
 /// tela de login, com o sinal de gravação). O pedido saiu: o efeito é
@@ -19,17 +18,6 @@ pub(crate) enum FalhaDoSalvar {
     NivelDevolvidoSemSinalDeGravacao,
     /// HTML 200 sem o `inicializar()` observado da tela do Nível.
     RespostaDoSalvarNaoReconhecida,
-}
-
-impl FalhaDoSalvar {
-    /// Status e mensagem do SEI, quando a resposta foi uma recusa HTTP.
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Envio(erro) => erro.status_http().cloned(),
-            Self::Redirecionamento302 => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::NivelDevolvidoSemSinalDeGravacao | Self::RespostaDoSalvarNaoReconhecida => None,
-        }
-    }
 }
 
 /// O que a leitura de verificação, feita uma vez, mostrou.

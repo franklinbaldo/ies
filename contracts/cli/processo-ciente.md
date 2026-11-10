@@ -222,7 +222,7 @@ Identidade do alvo, GET mutador único e releitura não mudam.
 
 Em resposta `txaInfraValidacao`, o SEI pode recusar uma segunda ciência
 com HTTP **200**. A falha sai com 1 e
-`ErroCienciaProcesso::NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(StatusHttpRecusado { status: 200, mensagem_do_servidor })), .. }`,
+`ErroCienciaProcesso::NaoConfirmado { requisicoes, falha_do_aceite: Some(ValidacaoDaInfra(mensagem)), .. }`,
 com as `requisicoes` reais observadas pelo fluxo. HTTP 200 não significa sucesso nem autoriza retry:
 a ciência continua sem prova de escrita e exige conferência no SEI.
 Testes públicos de apresentação preservam a contagem sintética de
