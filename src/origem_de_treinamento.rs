@@ -49,6 +49,7 @@ pub(crate) enum Escrita {
     ProcessoMarcar,
     ProcessoAnexar,
     ProcessoAnotar,
+    ProcessoComentar,
     ProcessoEnviarRemovendoAnotacoes,
 }
 
@@ -97,6 +98,15 @@ mod tests {
             serde_json::to_value(erro).unwrap(),
             serde_json::json!("origem_fora_do_treinamento")
         );
+    }
+
+    #[test]
+    fn comentarios_sao_restritos_a_treinamento() {
+        assert!(exigir(Escrita::ProcessoComentar, "https://sei.test/sei").is_ok());
+        assert!(matches!(
+            exigir(Escrita::ProcessoComentar, "https://sei.exemplo.gov.br/sei"),
+            Err(CausaDaOrigem::OrigemForaDoTreinamento)
+        ));
     }
 
     #[test]

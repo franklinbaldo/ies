@@ -1,9 +1,9 @@
-//! #257: a CLI publica a prévia de comentário mas não habilita a escrita.
-//! O --confirmar deve ser recusado antes de ler credenciais ou fazer rede.
+//! #257: a CLI publica a prévia e recusa texto inválido antes da sessão.
+//! A confirmação com texto válido é coberta pela CLI ↔ anti-IES local.
 use std::process::Command;
 
 #[test]
-fn bdd_257_02_expoe_previa_mas_recusa_confirmar_sem_sessao() {
+fn bdd_257_02_expoe_previa_e_recusa_texto_invalido_sem_sessao() {
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args(["processo", "--help"])
         .output()
@@ -27,7 +27,7 @@ fn bdd_257_02_expoe_previa_mas_recusa_confirmar_sem_sessao() {
             "comentar",
             "00001.000001/2026-01",
             "--texto",
-            "Comentário seguro",
+            "   ",
             "--confirmar",
         ])
         .env_remove("IES_ORIGEM_FILE")
@@ -42,6 +42,6 @@ fn bdd_257_02_expoe_previa_mas_recusa_confirmar_sem_sessao() {
         resposta["erro"]
             .as_str()
             .unwrap()
-            .contains("Nenhuma requisição")
+            .contains("Informe o texto")
     );
 }
