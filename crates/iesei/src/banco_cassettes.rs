@@ -68,7 +68,9 @@ pub const ESQUEMA: &str = concat!(
     "\n",
     include_str!("../migrations/0032_anexacao_processo.sql"),
     "\n",
-    include_str!("../migrations/0033_catalogo_marcadores.sql")
+    include_str!("../migrations/0033_comentarios.sql"),
+    "\n",
+    include_str!("../migrations/0034_catalogo_marcadores.sql")
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]
