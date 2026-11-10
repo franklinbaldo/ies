@@ -42,8 +42,12 @@ publica URL assinada, cookie ou `infra_hash`.
   `catalogo_da_unidade_nao_observado`. Um marcador aplicado em outro
   processo **não** substitui o catálogo da unidade.
 
-A prévia não reivindica uma escrita. A confirmação de **atribuição** ainda
-é recusada antes de sessão ou rede, com orientação para consultar a prévia.
+A prévia não reivindica uma escrita. A confirmação de **atribuição** exige
+origem de treinamento, catálogo e formulário da unidade conferidos, **um POST**
+e aceite causal por 302 do mesmo processo. Só declara sucesso após nova leitura
+independente confirmar o mesmo `id#nome` e o texto solicitado. Uma resposta
+incerta, inclusive 403 depois de POST efetivamente aplicado, resulta em
+**saída 3**, sem repetir o envio.
 A confirmação de **retirada** exige origem de treinamento autorizada,
 formulário específico observado e um único POST. Só declara sucesso se o
 redirecionamento 302 identifica a operação de retirada no mesmo processo
@@ -80,8 +84,8 @@ Entrada inválida não lê configuração.
 ## Inventário normativo de subcódigos
 
 A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
-Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto a atribuição ainda não tiver formulário/catálogo validado,
-`--marcador --confirmar` recusa `escrita_ainda_fechada` antes da sessão.
+Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
+a confirmação depende da resposta causal e da releitura independente.
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
@@ -93,7 +97,6 @@ Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto a at
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
 | `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade comprovado |
 | `remocao_sem_formulario_observado` | Remoção sem ação/controles observados no formulário servido |
-| `escrita_ainda_fechada` | `--marcador --confirmar`: atribuição ainda fechada, saída 1 e 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
 | `texto_do_marcador_longo` | Texto excede 250 caracteres |
@@ -122,13 +125,13 @@ camada de leitura existente. A saída de prévia JSON traz
 
 ## Ainda faltam (sem promessa de escrita)
 
-Restam a confirmação de atribuição, o POST único e a prova causal, confronto semântico
-independente com as cassettes de **remoção**, prévia e escrita live em UnB
+Restam o confronto semântico bilateral com as cassettes de **atribuição e remoção**,
+prévia e escrita live em UnB
 e nas demais instalações autorizadas, incluindo resíduo e orçamento. O
 POST único de retirada e sua releitura estão implementados **somente com
 prova sintética** pela CLI real ↔ anti-IES ↔ SQLite; a equivalência com
-uma instalação SEI ainda não foi comprovada. A prévia de atribuição usa formulário do catálogo e estado SQLite independente no anti-IES, mas ainda não constitui escrita. A atribuição com `--confirmar`
-permanece fechada.
+uma instalação SEI ainda não foi comprovada. A prévia de atribuição usa formulário do catálogo independente no anti-IES;
+a confirmação única e a releitura foram exercitadas sinteticamente, não no SEI externo.
 Escritas são autorizadas apenas em **treinamento**, com prévia, um único
 envio e verificação por leitura, nunca retry.
 
