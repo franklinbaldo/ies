@@ -39,7 +39,7 @@ pub(crate) fn tentar_comentar(cli: &Cli) -> Option<ExitCode> {
         |sessao, indice| match processo_comentar_web::prever(
             sessao,
             &numero,
-            texto.trim(),
+            texto,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
