@@ -39,8 +39,11 @@ incerto (3), sem repetir.
 
 ## Resultado e resíduo
 
-**PASS.** Pela decisão do proprietário de 10/11/2026, a escrita fica
-aprovada para produção (`src/origem_de_treinamento.rs`).
+**PASS na UnB** da tramitação com `--manter-aberto` e do envio do checkbox
+de remoção. **Não comprovado:** a remoção de uma anotação preexistente.
+Pela regra das sete instalações (10/11/2026), a escrita **ainda não** está
+aprovada para produção: grava só nas instalações de treinamento até o
+ensaio nas outras seis.
 Resíduo: o processo `23106.001860/2026-25` ficou aberto também na
 `Unidade2`. Não foi desfeito, porque concluir lá exigiria trocar a unidade
 da sessão compartilhada.

@@ -6,8 +6,10 @@
 //! **Aprovação exige ensaio em todas as instalações de treinamento**
 //! ([`ORIGENS`]); uma instalação que bloqueie por motivo alheio ao IES
 //! (WAF, Cloudflare, conta recusada) fica `NOT_RUN` no relatório e não
-//! impede a aprovação. As escritas aprovadas antes desta regra, só na `UnB`,
-//! continuam liberadas enquanto a cobertura das demais é feita.
+//! impede a aprovação. Exceção expressa do proprietário: as quatro escritas
+//! aprovadas antes desta regra só na `UnB` (incluir externo, prazo,
+//! relacionar, andamento) continuam liberadas enquanto a cobertura das
+//! demais é feita. Nenhuma outra escrita entra sem as sete instalações.
 
 /// Instalações de `docs/interfaces/credenciais-de-treinamento.md` e a
 /// bancada reservada `sei.test` do anti-IES. Comparação exata da URL base:
@@ -60,9 +62,11 @@ impl Escrita {
     /// - prazo, nas sete instalações:
     ///   `docs/validacao-live/2026-11-10-processo-prazo-7-instalacoes.md`;
     /// - relacionar e andamento:
-    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`;
-    /// - enviar removendo anotações:
-    ///   `docs/validacao-live/2026-11-10-processo-enviar-remover-anotacoes-unb.md`.
+    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`.
+    ///
+    /// Enviar removendo anotações passou só na `UnB`
+    /// (`docs/validacao-live/2026-11-10-processo-enviar-remover-anotacoes-unb.md`)
+    /// e aguarda as outras seis instalações.
     fn aprovada_em_treinamento(self) -> bool {
         matches!(
             self,
@@ -70,7 +74,6 @@ impl Escrita {
                 | Self::ProcessoPrazo
                 | Self::ProcessoRelacionar
                 | Self::ProcessoAndamento
-                | Self::ProcessoEnviarRemovendoAnotacoes
         )
     }
 }
@@ -126,7 +129,7 @@ mod tests {
                     Escrita::ProcessoEnviarRemovendoAnotacoes,
                     producao_ou_parecida
                 )
-                .is_ok()
+                .is_err()
             );
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
