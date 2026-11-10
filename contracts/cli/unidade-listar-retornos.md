@@ -40,12 +40,12 @@ Prazo Restante. A contagem de cada tabela deve conferir sua legenda. Quando so
 `devolver`: esta forma so e aceita com uma unica
 `divAguardandoAreaTabela` envolvendo a tabela reconhecida.
 Essa moldura foi observada nas sete cassettes originais; uma tabela
-solta, sem essa prova, e `lista_de_retornos_incompleta`.
+solta, sem essa prova, e `ListaDeRetornosIncompleta`.
 A ausencia tambem pode ser demonstrada por uma area que publique
 literalmente `Nenhum registro encontrado.`; nunca se inventam linhas.
 Mes sem retornos so devolve zero se a area da tabela publicar
 `Nenhum registro encontrado.` Uma tabela paginada nao suportada
-e recusada com `paginacao_dos_retornos_nao_observada`, nunca
+e recusada com `PaginacaoDosRetornosNaoObservada`, nunca
 publicada como lista completa. Nada e inferido sobre dados nao
 presentes.
 
@@ -67,15 +67,15 @@ Recusas de link ou calendario deixam de pedir a proxima tela. O relogin opcional
 requisicoes observadas no total; nao e segunda tentativa do GET de
 retornos contra uma mesma resposta de erro.
 
-Erros tipados: `mes_dos_retornos_invalido`,
-`link_de_retornos_ausente`, `link_de_retornos_ambiguo`,
-`link_de_retornos_fora_da_instalacao`,
-`calendario_dos_retornos_desconhecido`,
-`mes_dos_retornos_inacessivel`,
-`tela_de_retornos_desconhecida`,
-`lista_de_retornos_incompleta`,
-`paginacao_dos_retornos_nao_observada`,
-`unidade_diferente_da_solicitada`. Falhas de transporte preservam
+Erros tipados: `ErroLeituraRetornos::MesDaCliInvalido`,
+`LinkDeRetornosAusente`, `LinkDeRetornosAmbiguo`,
+`LinkDeRetornosForaDaInstalacao`,
+`CalendarioDosRetornosDesconhecido`,
+`MesDosRetornosInacessivel`,
+`TelaDeRetornosDesconhecida`,
+`ListaDeRetornosIncompleta`,
+`PaginacaoDosRetornosNaoObservada`,
+`UnidadeDiferenteDaSolicitada`. Falhas de transporte preservam
 a mensagem e o status HTTP, sem exibir cookie nem URL assinada.
 
 ## Evidencia e limites
@@ -92,15 +92,15 @@ isso nao equivale a validacao live de GO/PEN3.
 
 ## Falhas tipadas
 
-| Subcódigo | Fato verificável |
+| Variante ou `onde` (stderr) | Fato verificável |
 | --- | --- |
-| `mes_dos_retornos_invalido` | Argumento AAAA-MM ausente de formato válido |
-| `link_de_retornos_ausente` | Nenhum link da operação no Controle |
-| `link_de_retornos_ambiguo` | Mais de um link da operação no mesmo Controle |
-| `link_de_retornos_fora_da_instalacao` | Link de retorno não passa nas regras de origem e assinatura |
-| `calendario_dos_retornos_desconhecido` | Calendário não publicou mês ou marcador inequívoco |
-| `mes_dos_retornos_inacessivel` | Mês não alcançável em até 24 passos publicados |
-| `tela_de_retornos_desconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
-| `lista_de_retornos_incompleta` | Total declarado em legenda não corresponde às linhas |
-| `paginacao_dos_retornos_nao_observada` | Paginador independente sem derivação segura |
-| `unidade_diferente_da_solicitada` | Controle comprovou unidade diferente de --unidade |
+| `ErroLeituraRetornos::MesDaCliInvalido` | Argumento AAAA-MM ausente de formato válido |
+| `LinkDeRetornosAusente` | Nenhum link da operação no Controle |
+| `LinkDeRetornosAmbiguo` | Mais de um link da operação no mesmo Controle |
+| `LinkDeRetornosForaDaInstalacao` | Link de retorno não passa nas regras de origem e assinatura |
+| `CalendarioDosRetornosDesconhecido` | Calendário não publicou mês ou marcador inequívoco |
+| `MesDosRetornosInacessivel` | Mês não alcançável em até 24 passos publicados |
+| `TelaDeRetornosDesconhecida` | Tabelas, cabeçalhos ou mês vazio sem forma reconhecida |
+| `ListaDeRetornosIncompleta` | Total declarado em legenda não corresponde às linhas |
+| `PaginacaoDosRetornosNaoObservada` | Paginador independente sem derivação segura |
+| `UnidadeDiferenteDaSolicitada` | Controle comprovou unidade diferente de --unidade |

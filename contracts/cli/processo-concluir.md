@@ -24,7 +24,7 @@ sessão; nenhuma URL montada (só as publicadas pela barra e pela tela do nó).
 ## Entrada
 
 - `NUP`: o mesmo de `ies processo NUP`; inválido sai com 2
-  (`entrada_invalida`) antes de qualquer arquivo ou requisição.
+  (erro do clap) antes de qualquer arquivo ou requisição.
 - `--unidade SIGLA` (global): conferida na tela do processo, como na leitura.
 - `--confirmar`: conclui. Sem ele, só prévia.
 
@@ -42,10 +42,10 @@ sessão; nenhuma URL montada (só as publicadas pela barra e pela tela do nó).
 
 | Situação lida | Barra | Resultado |
 | --- | --- | --- |
-| não lida (sobrestado, anexado, fora da forma) | qualquer | saída 1, `situacao_do_processo_nao_lida_antes_de_concluir` (`motivo`) |
+| não lida (sobrestado, anexado, fora da forma) | qualquer | saída 1, `SituacaoDoProcessoNaoLidaAntesDeConcluir` (`motivo`) |
 | sem a unidade da sessão | sem concluir | saída 0, `alterado: false` (já não está aberto nela), sem escrita |
-| sem a unidade da sessão | com concluir | saída 1, `unidade_da_sessao_ausente_da_situacao` |
-| com a unidade da sessão | sem concluir | saída 1, `conclusao_nao_publicada_na_barra` |
+| sem a unidade da sessão | com concluir | saída 1, `UnidadeDaSessaoAusenteDaSituacao` |
+| com a unidade da sessão | sem concluir | saída 1, `ConclusaoNaoPublicadaNaBarra` |
 | com a unidade da sessão | barra ou endereço recusado | saída 1, subcódigo da barra |
 | com a unidade da sessão | `tela` ou `funcao` | prévia (saída 0) ou escrita |
 
@@ -77,12 +77,12 @@ rádios `rdoConcluir` e `rdoPrazoReaberturaProgramada`; textos
 `chkSinDiasUteisReaberturaProgramada`. Botões `button`/`reset` e
 desabilitados não contam. Além disso:
 
-| Fato | Subcódigo |
+| Fato | Variante ou `onde` (stderr) |
 | --- | --- |
 | Sem o formulário | `formulario_de_conclusao_ausente` |
-| `hdnIdProtocolos` diferente do id aberto | `tela_de_conclusao_de_outro_processo` |
-| Rádio `rdoConcluir` `S` ausente ou não `checked` | `opcao_somente_concluir_nao_marcada` |
-| Opção do processo `selected`, rádio de prazo ou caixa marcados, texto não vazio | `tela_de_conclusao_com_reabertura_preenchida` |
+| `hdnIdProtocolos` diferente do id aberto | `TelaDeConclusaoDeOutroProcesso` |
+| Rádio `rdoConcluir` `S` ausente ou não `checked` | `OpcaoSomenteConcluirNaoMarcada` |
+| Opção do processo `selected`, rádio de prazo ou caixa marcados, texto não vazio | `TelaDeConclusaoComReaberturaPreenchida` |
 
 O POST leva, na ordem do documento: `hdnInfraTipoPagina` e `sbmSalvar`
 como servidos, `rdoConcluir=S`, `txtPrazoReaberturaProgramada=`,
@@ -109,8 +109,8 @@ leitura de verificação reconcilia, uma vez.
 | --- | --- | --- | --- |
 | Esperada | sem a unidade da sessão | 0 | `alterado: true` |
 | Não esperada | sem a unidade da sessão | 0 | `alterado: true`, `reconciliado_por_leitura: true`, `falha_do_envio` |
-| Qualquer | com a unidade da sessão | 1 | `escrita_nao_aplicada` / `conclusao_nao_aplicada` (com `falha_do_envio`, se houver) |
-| Qualquer | leitura falhou ou situação não lida | 3 | `nao_confirmado` / `nao_confirmado_na_conclusao` (`verificacao`: subcódigo ou motivo) |
+| Qualquer | com a unidade da sessão | 1 | `ConclusaoNaoAplicada` (com `falha_do_envio`, se houver) |
+| Qualquer | leitura falhou ou situação não lida | 1 | `NaoConfirmadoNaConclusao` (campo `verificacao`: `VerificacaoPorLeitura`) |
 
 Um SEI que processe a escrita depois da leitura não é detectável: antes de
 repetir à mão, conferir com `ies processo NUP`. Falha **antes** da escrita
@@ -134,8 +134,9 @@ continuam como estavam (observado). Desfaz-se com
 
 `forma` é `tela`, `funcao` ou `null` (nada a fazer). `depois` são as
 siglas lidas na verificação. Nunca URL, `infra_hash` ou cookie. Falhas:
-`{"codigo", "erro", "retentavel": false}` mais `aberto_em`,
-`depois`, `falha_do_envio`, `verificacao` e `status_http` quando houver.
+saída 1, stdout vazio e `Error: <variante de ErroConcluir>` em stderr;
+`aberto_em`, `depois`, `falha_do_envio` e `verificacao` são campos das
+variantes que os observaram.
 A saída humana termina com "Para concluir, repita com --confirmar" na
 prévia.
 

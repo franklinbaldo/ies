@@ -39,7 +39,7 @@ são erros tipados, nunca listas parciais declaradas completas.
 **Parcial:** o `--tipo interno --pagina 2` usa um único POST a partir da
 primeira página e exige a faixa correspondente, com estado compartilhado no
 anti-IES. Páginas acima de 2 e a página 2 dos outros tipos permanecem
-bloqueadas antes da rede (`pagina_de_blocos_nao_implementada`).
+bloqueadas antes da rede (`PaginaDeBlocosNaoImplementada`).
 `--pagina 1` confere a primeira faixa. Sem `--pagina`, a CLI publica
 somente a faixa observada, nunca presume a lista inteira. A cassette Goiás
 `bloco-interno-ciclo-go` registrou GET da faixa 1–50, seguido de POST

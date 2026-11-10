@@ -32,18 +32,18 @@ A recusa é `tela_da_atribuicao_fora_da_forma`, sem novo subcódigo.
 Falta ou duplicação de login ou ID, tela fora da forma, ação de outro processo,
 situação não observada e atribuição já aplicada são recusas tipadas.
 Quando a árvore já publica o mesmo login solicitado, ou atribuição vazia na
-remoção, a recusa `atribuicao_ja_aplicada` ocorre antes do GET do formulário:
+remoção, a recusa `AtribuicaoJaAplicada` ocorre antes do GET do formulário:
 3 GET e 0 POST a frio, também na confirmação injetável. A recusa não presume
 situação ausente a partir de uma unidade não observada.
 Quando a situação não está observada na unidade da **tela autenticada**,
-a recusa conserva `situacao_da_atribuicao_nao_observada` e publica
+a recusa conserva `SituacaoDaAtribuicaoNaoObservada` e publica
 `unidade` (tela), `aberto_em` (siglas da árvore, `null` se não lidas),
 `motivo` da leitura (`null` quando as unidades foram lidas) e
 `requisicoes` efetivamente tentadas até a recusa. A presença de PR-P
 na árvore não autoriza escolher PR-P se a tela publicou outra unidade.
 Este diagnóstico é só leitura, não relaxa a validação nem habilita escrita.
 Nenhum URL assinado, cookie ou senha é publicado. O subcódigo
-`charset_da_tela_nao_suportado` indica MIME sem codificação suportada.
+`CharsetDaTelaNaoSuportado` indica MIME sem codificação suportada.
 
 ## Estados desta fatia
 
@@ -56,12 +56,12 @@ para dois logins diferentes é recusado: não há identidade unívoca.
 O fluxo interno injetável faz **um único POST** e lê novamente a árvore para
 conferir a atribuição do processo, inclusive se a resposta do POST falhar.
 Se a atribuição relida for diferente, faltar a unidade ou a leitura falhar,
-o desfecho é `nao_confirmado_na_atribuicao` com saída 1 e sem retry.
+o desfecho é `NaoConfirmadoNaAtribuicao` com saída 1 e sem retry.
 Uma recusa HTTP 5xx na releitura **interrompe** a resolução pelo índice,
 sem buscar outra rota por tratá-la como link envelhecido. A falha tipada
 preserva o status HTTP e a mensagem saneada da releitura quando a resposta
-do POST não os forneceu, inclusive após erro de rede no POST. O JSON de
-`nao_confirmado_na_atribuicao` publica também `requisicoes` com a contagem
+do POST não os forneceu, inclusive após erro de rede no POST.
+`NaoConfirmadoNaAtribuicao` carrega também `requisicoes` com a contagem
 real tentada, incluindo o POST único e o GET independente de prova;
 a contagem não implica que a escrita foi aplicada.
 **Releitura coincidente não converte recusa do POST em sucesso.** HTTP 403,
@@ -76,16 +76,15 @@ permite confirmar o efeito depois da leitura. Um POST sem resposta é
 **sempre escrita não confirmada (saída 1)**, mesmo que a árvore passe a mostrar
 o usuário pedido ou a remoção: outro agente pode ter realizado a
 mudança no intervalo. A leitura nova ainda registra
-`atribuicao_relida` no JSON (`null` = não observada, texto vazio =
+`atribuicao_relida` na variante (`None` = não observada, texto vazio =
 remoção observada), como **possível resíduo e não prova de autoria**.
 O erro original do envio fica preservado no erro tipado, sem retry.
-A mensagem humana e o campo `erro` do JSON orientam **não repetir a
-confirmação de escrita não confirmada**, mesmo quando a releitura mostra o estado
-pedido. Consulte o processo para verificar o possível resíduo, não para
+**Não repita a confirmação de escrita não confirmada**, mesmo quando a
+releitura mostra o estado pedido. Consulte o processo para verificar o possível resíduo, não para
 transformar a tentativa inconclusiva em autorização de retry. O 302
 reconhecido aponta para `arvore_visualizar` ou `principal` no mesmo
 controlador, sempre com **`id_procedimento` explícito e igual ao processo
-solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 3 após a leitura única. As duas ações são
+solicitado**, e com **`acao_origem=procedimento_atribuicao_cadastrar` explícita e única**. Um 302 sem essa origem não prova que a mudança relida veio deste POST; mesmo com processo e destino corretos, a saída é 1 após a leitura única. As duas ações são
 genéricas sem identidade: a releitura coincidente pode ser efeito de
 outro agente, inclusive na remoção. Sem ID, o resultado é escrita não confirmada
 (saída 1), sem novo POST. A forma de `arvore_visualizar` com ID foi
@@ -95,7 +94,7 @@ observada no caso `ACEITE` do Todos @323eb01.
 (antes de 09/11/2026, só na UnB, cuja resposta 302 com identidade está
 documentada no oráculo Todos). A sessão privada
 é lida antes dessa decisão; uma origem diferente, inclusive produção,
-recebe `origem_fora_do_treinamento` **antes de qualquer
+recebe `OrigemForaDoTreinamento` **antes de qualquer
 requisição de rede**. A origem precisa ser idêntica, não apenas um host
 parecido. A CLI chama o mesmo fluxo tipado de POST único e verificação por
 nova leitura. O ensaio de 09/11/2026 em treinamento resultou em

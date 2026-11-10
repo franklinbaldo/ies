@@ -42,7 +42,7 @@ Não presumir essa oferta em instalações que não a apresentam.
 
 ## Falhas e evidências
 
-O shim de entrada interpreta `DOC` como número SEI composto apenas por\ndígitos ASCII, preserva zeros à esquerda e não consulta a instalação.\nEntrada inválida retorna `entrada_invalida` com subcódigo tipado e saída 2.
+O shim de entrada interpreta `DOC` como número SEI composto apenas por\ndígitos ASCII, preserva zeros à esquerda e não consulta a instalação.\nEntrada inválida é erro do clap, saída 2, antes de qualquer arquivo ou rede.
 
 Espaços externos comuns podem ser aparados. Caracteres de controle
 (CR, LF, tab ou outros), **inclusive nas extremidades da entrada

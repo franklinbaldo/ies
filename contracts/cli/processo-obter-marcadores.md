@@ -150,21 +150,21 @@ a restaurar.
 
 Link: `barra_do_processo_fora_da_forma_observada`,
 `barras_do_processo_repetidas_na_arvore`,
-`links_dos_marcadores_repetidos_na_barra`,
-`endereco_dos_marcadores_nao_reconhecido`,
-`endereco_dos_marcadores_de_outro_processo`.
+`LinksDosMarcadoresRepetidosNaBarra`,
+`EnderecoDosMarcadoresNaoReconhecido`,
+`EnderecoDosMarcadoresDeOutroProcesso`.
 
 Tela: `html_dos_marcadores_nao_interpretado`,
-`tela_dos_marcadores_ausente`,
-`numero_dos_marcadores_diferente_do_solicitado`,
-`id_dos_marcadores_diferente_do_aberto`,
+`TelaDosMarcadoresAusente`,
+`NumeroDosMarcadoresDiferenteDoSolicitado`,
+`IdDosMarcadoresDiferenteDoAberto`,
 `tabelas_dos_marcadores_repetidas`,
 `legenda_dos_marcadores_fora_da_forma_observada`,
 `cabecalho_dos_marcadores_nao_reconhecido`,
 `linha_do_marcador_fora_da_forma_observada`,
-`marcador_repetido_na_tela`, `marcadores_alem_do_total_declarado`.
+`marcador_repetido_na_tela`, `MarcadoresAlemDoTotalDeclarado`.
 
-Login fora de palpite: `sessao_encerrada_rode_ies_login`; 302 de outra
+Login fora de palpite: `SessaoEncerrada`; 302 de outra
 forma: `redirecionamento_nao_reconhecido`; status HTTP de falha, o erro
 de transporte com `status_http`, sem retry.
 

@@ -119,14 +119,14 @@ na forma observada colhe os links como antes.
 
 Recusas da tabela D, além das do contrato da operação:
 
-| Fato observado | Subcódigo |
+| Fato observado | Variante ou `onde` (stderr) |
 | --- | --- |
 | Cabeçalho com rótulo fora de Processo e das 12 colunas | `cabecalho_da_visao_detalhada_nao_reconhecido` |
 | Mesma coluna duas vezes no cabeçalho | `coluna_da_visao_detalhada_repetida` |
-| `data-label` da célula diferente do cabeçalho da coluna | `rotulo_da_celula_detalhada_diferente_do_cabecalho` |
-| Interessados com texto fora de `divRotuloItemCelula` | `itens_da_celula_detalhada_nao_separados` |
+| `data-label` da célula diferente do cabeçalho da coluna | `ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho` |
+| Interessados com texto fora de `divRotuloItemCelula` | `ErroDetalhada::ItensDaCelulaNaoSeparados` |
 | Itens `divItemCelula` em coluna de texto único | `itens_nao_previstos_na_celula_detalhada` |
-| Marcadores com texto ou tag fora de `a.ancMarcador` | `texto_fora_dos_marcadores_na_celula_detalhada` |
+| Marcadores com texto ou tag fora de `a.ancMarcador` | `ErroDetalhada::TextoForaDosMarcadoresNaCelula` |
 | `a` da célula Marcadores fora da forma observada | `marcador_da_celula_detalhada_fora_da_forma_observada` |
 
 Rótulo do cabeçalho: texto de `div.infraDivRotuloOrdenacao` (ou do `th`);
@@ -187,16 +187,16 @@ da D) depois de ler, com até 1 GET + 4 POST e as recusas
 
 ## Demais recusas da troca
 
-| Fato | Subcódigo |
+| Fato | Variante ou `onde` (stderr) |
 | --- | --- |
-| 302 ao trocar de visão | `redirecionamento_ao_trocar_visao_do_controle` |
-| Resposta da troca em outra visão | `visao_do_controle_nao_trocada_apos_envio` |
-| Unidade diferente na resposta da troca | `unidade_alterada_ao_trocar_visao_do_controle` |
-| `hdnDetalhadoPaginaAtual` ilegível ou repetido | `pagina_atual_da_visao_detalhada_ilegivel` |
-| Índice incompatível com a faixa | `pagina_atual_da_visao_detalhada_incompativel_com_a_faixa` |
-| Mais de uma página sem `lnkDetalhado*`/`selDetalhadoPaginacao*` | `paginador_da_visao_detalhada_nao_publicado` |
-| Critério da D diferente após paginar | `criterios_da_visao_detalhada_alterados_apos_paginar` |
-| Total ou faixa diferentes após paginar | `total_declarado_alterado_apos_paginar`, `faixa_da_resposta_diferente_da_pagina_solicitada` |
+| 302 ao trocar de visão | `ErroVisaoDoControle::RedirecionamentoAoTrocarVisao` |
+| Resposta da troca em outra visão | `ErroVisaoDoControle::VisaoNaoTrocadaAposEnvio` |
+| Unidade diferente na resposta da troca | `ErroVisaoDoControle::UnidadeAlteradaAoTrocarVisao` |
+| `hdnDetalhadoPaginaAtual` ilegível ou repetido | `PaginaAtualDaVisaoDetalhadaIlegivel` |
+| Índice incompatível com a faixa | `PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa` |
+| Mais de uma página sem `lnkDetalhado*`/`selDetalhadoPaginacao*` | `PaginadorDaVisaoDetalhadaNaoPublicado` |
+| Critério da D diferente após paginar | `CriteriosDaVisaoDetalhadaAlteradosAposPaginar` |
+| Total ou faixa diferentes após paginar | `TotalDeclaradoAlteradoAposPaginar`, `faixa_da_resposta_diferente_da_pagina_solicitada` |
 
 Derivação, envio, login, MIME, charset e status seguem a
 [submissão derivada](../../docs/arquitetura/0002-submeter-formulario-observado.md)
