@@ -42,26 +42,18 @@ antigos que o runner do gate) e publica o artifact
 Serve aos agentes sem Rust no sandbox: eles observam o RED no log do
 gate e testam esse binário no sandbox ou num workflow temporário.
 
-## Auditoria de dependências (OSV)
+## Auditoria de dependências (cargo-deny)
 
-O hook `auditoria-osv` roda `scripts/osv_audit.py` (só biblioteca padrão).
-Ele lê o `Cargo.lock`, pega todo pacote cuja `source` é o registro
-crates.io e faz **uma** consulta em lote a `https://api.osv.dev/v1/querybatch`
-(páginas extras só para pacote com mais de 1.000 avisos). Falha listando
-pacote, versão e ids dos avisos (RUSTSEC e GHSA, como o OSV os relata).
+O hook `auditoria-dependencias` roda `cargo deny check advisories`
+(`cargo-deny` 0.20.2, instalado no CI com `cargo install --locked`). Ele
+confere o `Cargo.lock` contra a base RustSec e falha listando o aviso.
 
-Avisos aceitos ficam em `scripts/osv_allowlist.json`: cada entrada exige
-`id`, `package` e `justification` escrita (por que não se aplica ao IES e
-quando revisar); entrada sem justificativa derruba o hook. A lista começa
-vazia. Entrada que o OSV deixou de relatar gera aviso, não falha.
+Avisos aceitos ficam em `deny.toml`, `[advisories].ignore`, cada um com
+`id` e `reason` (por que não se aplica ao IES e quando revisar).
 
-Sem rede (ou resposta irreconhecível), o comportamento depende de `CI`:
-com a variável definida e não vazia (o GitHub Actions define `CI=true`),
-o hook **falha**; sem ela, imprime `NOT_RUN` e passa. O trade-off é
-deliberado: o pré-push local não fica refém da rede, ao custo de um push
-offline não ser auditado; o CI remoto, que roda o mesmo comando, é a
-barreira que não pode ser pulada em silêncio. O resultado depende da base
-do OSV no momento: um aviso novo pode derrubar um commit que ontem passava.
+Sem `cargo-deny` instalado, o hook falha no CI (`CI` definido) e imprime
+`NOT_RUN` localmente, para o pré-push não depender da ferramenta; o CI é
+a barreira que não pode ser pulada.
 
 ## GitHub Actions: rápido por commit, completo antes do merge
 

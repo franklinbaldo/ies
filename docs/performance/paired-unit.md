@@ -6,6 +6,9 @@ description: Contrato do ensaio offline sobre resposta verificada e projeção c
 
 # Escopo
 
+O runner `scripts/perf_pair.py` saiu na #677 (fica no histórico do git);
+benchmarks de inicialização usam `hyperfine` no workflow `perf-audit.yml`.
+
 Continuação de #95: resposta única da caixa resumida, sessão já disponível.
 IES usa `read_box_via`, parser, validação da unidade e JSON nativos.
 Todos usa `SEITransport` com `httpx.MockTransport`, `ler_caixa` e JSON nativos.
