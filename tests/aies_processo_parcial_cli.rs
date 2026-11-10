@@ -284,8 +284,12 @@ fn executar(cena: Cena) -> (Output, Vec<String>, (String, String)) {
             canal.flush().unwrap();
         }
     });
-    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais)
-        .then(|| pasta.privado("credenciais", "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n"));
+    let credenciais = matches!(cena, Cena::ValidacaoComCredenciais).then(|| {
+        pasta.privado(
+            "credenciais",
+            "usuario=teste\nsenha=SENHA_APENAS_SINTETICA\norgao=TESTE\n",
+        )
+    });
     let mut comando = Command::new(env!("CARGO_BIN_EXE_ies"));
     comando
         .args([
