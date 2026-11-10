@@ -234,17 +234,24 @@ fn executar(modo: Modo) {
     } else {
         &["--json", "processo", "comentarios", NUP]
     };
-    let comando_confirmado = ["--json", "processo", "comentar", NUP,
-        "--texto", " Comentário novo ", "--confirmar"];
+    let comando_confirmado = [
+        "--json",
+        "processo",
+        "comentar",
+        NUP,
+        "--texto",
+        " Comentário novo ",
+        "--confirmar",
+    ];
     let saida: Output = if matches!(modo, Modo::Confirmar) {
         chamar(&comando_confirmado)
     } else {
         chamar(comando)
     };
-    // A segunda invocação usa o mesmo SQLite e verifica a ausência
-    // de publicação do comentário previsto, sem confiar na saída da prévia.
-    let posterior =
-        matches!(modo, Modo::Previa | Modo::Confirmar).then(|| chamar(&["--json", "processo", "comentarios", NUP]));
+    // A segunda invocação confere o estado SQLite após a operação,
+    // sem confiar apenas no resultado declarado pela primeira CLI.
+    let posterior = matches!(modo, Modo::Previa | Modo::Confirmar)
+        .then(|| chamar(&["--json", "processo", "comentarios", NUP]));
     stop.store(true, Ordering::SeqCst);
     tunel.join().unwrap();
     servidor.join().unwrap();
@@ -254,7 +261,11 @@ fn executar(modo: Modo) {
         assert_eq!(posterior.status.code(), Some(0));
         let foto: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
         assert_eq!(foto["lista_completa"], true);
-        let total = if matches!(modo, Modo::Confirmar) { 2 } else { 1 };
+        let total = if matches!(modo, Modo::Confirmar) {
+            2
+        } else {
+            1
+        };
         assert_eq!(foto["total"], total);
         assert_eq!(foto["comentarios"].as_array().unwrap().len(), total);
         if matches!(modo, Modo::Confirmar) {
@@ -302,11 +313,21 @@ fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
             "lista incompleta ou desconhecida não pode virar vazia ou completa"
         );
     }
-    let posts = eventos.iter().filter(|e| e.as_str() == "POST comentario_cadastrar").count();
-    assert_eq!(posts, usize::from(matches!(modo, Modo::Confirmar)),
-        "um único POST somente na confirmação: {eventos:?}");
-    assert!(eventos.iter().all(|e| e.starts_with("GET ") ||
-        e == "POST comentario_cadastrar"), "transição inesperada: {eventos:?}");
+    let posts = eventos
+        .iter()
+        .filter(|e| e.as_str() == "POST comentario_cadastrar")
+        .count();
+    assert_eq!(
+        posts,
+        usize::from(matches!(modo, Modo::Confirmar)),
+        "um único POST somente na confirmação: {eventos:?}"
+    );
+    assert!(
+        eventos
+            .iter()
+            .all(|e| e.starts_with("GET ") || e == "POST comentario_cadastrar"),
+        "transição inesperada: {eventos:?}"
+    );
     if matches!(modo, Modo::Previa | Modo::Confirmar) {
         assert!(eventos.iter().any(|e| e == "GET comentario_cadastrar"));
     }

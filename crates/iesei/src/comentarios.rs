@@ -194,7 +194,6 @@ pub fn ler(
     Ok(Some(foto))
 }
 
-
 /// Acrescenta um comentário **somente** à observação completa, em transação
 /// IMMEDIATE para não perder escritas concorrentes. Identidade é sintética.
 /// Não altera o índice operacional `ies.sqlite3`.
@@ -209,7 +208,7 @@ pub fn acrescentar(
     mut novo: Comentario,
 ) -> Result<String, Falha> {
     if cenario.is_empty()
-        || novo.id != ""
+        || !novo.id.is_empty()
         || novo.texto.trim().is_empty()
         || novo.data_hora.is_empty()
         || novo.unidade.is_empty()
@@ -219,10 +218,7 @@ pub fn acrescentar(
     {
         return Err(Falha::DadoInvalido);
     }
-    let tx = rusqlite::Transaction::new_unchecked(
-        banco,
-        rusqlite::TransactionBehavior::Immediate,
-    )?;
+    let tx = rusqlite::Transaction::new_unchecked(banco, rusqlite::TransactionBehavior::Immediate)?;
     let Some(foto) = ler(&tx, origem, cenario, id)? else {
         return Err(Falha::DadoInvalido);
     };
@@ -240,7 +236,7 @@ pub fn acrescentar(
         .checked_add(1)
         .ok_or(Falha::DadoInvalido)?;
     novo.id = proximo.to_string();
-    let total = i64::try_from(foto.total_declarado + 1).map_err(|_| Falha::DadoInvalido)?;
+    let total = foto.total_declarado.checked_add(1).and_then(|valor| i64::try_from(valor).ok()).ok_or(Falha::DadoInvalido)?;
     let posicao = i64::try_from(foto.itens.len()).map_err(|_| Falha::DadoInvalido)?;
     let atualizadas = tx.execute(
         "UPDATE processo_comentarios_observados SET total_declarado=?4
@@ -256,9 +252,17 @@ pub fn acrescentar(
           data_hora, unidade, usuario, texto, protocolo, tipo)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
-            origem.url_base(), cenario, id, posicao, novo.id,
-            novo.data_hora, novo.unidade, novo.usuario, novo.texto,
-            novo.protocolo, novo.tipo,
+            origem.url_base(),
+            cenario,
+            id,
+            posicao,
+            novo.id,
+            novo.data_hora,
+            novo.unidade,
+            novo.usuario,
+            novo.texto,
+            novo.protocolo,
+            novo.tipo,
         ],
     )?;
     tx.commit()?;
