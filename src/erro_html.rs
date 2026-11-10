@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn variante_transparente_gera_from() {
+    fn erro_html_compoe_por_from() {
         let leitor: Leitor = ErroHtml::html("x").into();
         assert!(matches!(leitor, Leitor::Html(_)));
     }

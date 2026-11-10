@@ -3,7 +3,6 @@
 //! do nó nas duas formas, uma escrita e a tabela de reconciliação. Telas
 //! sintéticas (as de `processo concluir` mais a barra e a tela do nó de
 //! reabrir).
-use super::erro::ErroReabrir as R;
 use super::{PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
 use crate::arvore_processo::tests_reabrir::{
     ACAO_REABRIR, link_de_reabrir, tela_do_no_pela_funcao, tela_do_no_pela_variavel,
@@ -11,7 +10,7 @@ use crate::arvore_processo::tests_reabrir::{
 use crate::arvore_processo::{ErroEnderecoDeReabrir, FormaDaReabertura, MotivoAbertoEm};
 use crate::erro_html::ErroHtml;
 use crate::processo_concluir::tests_apoio::*;
-use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura as V};
+use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::transporte::FalhaTransporte;
 
 fn siglas(lista: &[&str]) -> Vec<String> {
@@ -36,7 +35,10 @@ fn reabrir() -> Vec<String> {
 fn rodar_reabrir(
     confirmar: bool,
     respostas: Vec<Resposta>,
-) -> (Result<ProcessoReaberto, R>, Vec<Pedido>) {
+) -> (
+    Result<ProcessoReaberto, super::erro::ErroReabrir>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, roteiro| {
         let pedido = PedidoDaReabertura {
@@ -160,25 +162,27 @@ fn recusas_antes_de_escrever_so_custam_a_abertura() {
     let casos = [
         (
             estranha,
-            R::SituacaoDoProcessoNaoLidaAntesDeReabrir {
+            super::erro::ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir {
                 motivo: MotivoAbertoEm::HtmlDaRaizForaDaFormaObservada,
             },
         ),
         (
             arvore(&[UNIDADE], &reabrir()),
-            R::UnidadeDaSessaoJaNaSituacao {
+            super::erro::ErroReabrir::UnidadeDaSessaoJaNaSituacao {
                 aberto_em: siglas(&[UNIDADE]),
             },
         ),
         (
             arvore(&["OUTRA"], vazio()),
-            R::ReaberturaNaoPublicadaNaBarra {
+            super::erro::ErroReabrir::ReaberturaNaoPublicadaNaBarra {
                 aberto_em: siglas(&["OUTRA"]),
             },
         ),
         (
             repetida,
-            R::Barra(ErroHtml::repetido("funcoes_de_reabrir_repetidas_na_barra")),
+            super::erro::ErroReabrir::Barra(ErroHtml::repetido(
+                "funcoes_de_reabrir_repetidas_na_barra",
+            )),
         ),
     ];
     for (html, erro) in casos {
@@ -196,14 +200,17 @@ fn tela_do_no_recusada_nao_escreve() {
     let casos = [
         (
             ok(sem),
-            R::EnderecoDeReabrir(ErroEnderecoDeReabrir::Html(ErroHtml::ausente(
-                "endereco_de_reabrir_ausente_na_tela_do_no",
-            ))),
+            super::erro::ErroReabrir::EnderecoDeReabrir(ErroEnderecoDeReabrir::Html(
+                ErroHtml::ausente("endereco_de_reabrir_ausente_na_tela_do_no"),
+            )),
         ),
-        (r302(&volta_a_arvore()), R::TelaDoNoRedirecionada),
+        (
+            r302(&volta_a_arvore()),
+            super::erro::ErroReabrir::TelaDoNoRedirecionada,
+        ),
         (
             Err(FalhaTransporte::Rede),
-            R::TelaDoNo(FalhaTransporte::Rede),
+            super::erro::ErroReabrir::TelaDoNo(FalhaTransporte::Rede),
         ),
     ];
     for (resposta, erro) in casos {
@@ -215,7 +222,13 @@ fn tela_do_no_recusada_nao_escreve() {
 }
 
 /// `resposta` ao GET de reabrir e `depois` na verificação.
-fn escrita_com(resposta: Resposta, depois: Resposta) -> (Result<ProcessoReaberto, R>, Vec<Pedido>) {
+fn escrita_com(
+    resposta: Resposta,
+    depois: Resposta,
+) -> (
+    Result<ProcessoReaberto, super::erro::ErroReabrir>,
+    Vec<Pedido>,
+) {
     let respostas = com(
         abertura(arvore(&[], &reabrir())),
         vec![ok(tela_do_no_pela_variavel(ID)), resposta, depois],
@@ -249,7 +262,7 @@ fn unidade_fora_depois_e_nao_aplicada() {
     let (r, feitos) = escrita_com(ok(resposta_da_reabertura()), ok(arvore(&[], &reabrir())));
     assert_eq!(
         r,
-        Err(R::ReaberturaNaoAplicada {
+        Err(super::erro::ErroReabrir::ReaberturaNaoAplicada {
             aberto_em: vec![],
             depois: vec![],
             falha_do_envio: None,
@@ -261,15 +274,15 @@ fn unidade_fora_depois_e_nao_aplicada() {
 #[test]
 fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, feitos) = escrita_com(ok(resposta_da_reabertura()), Err(FalhaTransporte::Rede));
-    let Err(erro @ R::NaoConfirmadoNaReabertura { .. }) = r else {
+    let Err(erro @ super::erro::ErroReabrir::NaoConfirmadoNaReabertura { .. }) = r else {
         panic!("esperava efeito incerto: {r:?}");
     };
     assert_eq!(
         erro,
-        R::NaoConfirmadoNaReabertura {
+        super::erro::ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em: vec![],
             falha_do_envio: None,
-            verificacao: Box::new(V::LeituraFalhou(
+            verificacao: Box::new(VerificacaoPorLeitura::LeituraFalhou(
                 crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede)
             )),
         }
@@ -284,10 +297,10 @@ fn leitura_que_falha_ou_nao_le_a_situacao_e_nao_confirmado() {
     let (r, _) = escrita_com(r302(&volta_a_arvore()), ok(sobrestado));
     assert_eq!(
         r,
-        Err(R::NaoConfirmadoNaReabertura {
+        Err(super::erro::ErroReabrir::NaoConfirmadoNaReabertura {
             aberto_em: vec![],
             falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaReabertura),
-            verificacao: Box::new(V::SituacaoNaoLida(
+            verificacao: Box::new(VerificacaoPorLeitura::SituacaoNaoLida(
                 MotivoAbertoEm::RaizPublicaOSobrestamento
             )),
         })

@@ -172,9 +172,9 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<CadastroPreparado, ErroPreviaExterna> {
-    use ErroPreviaExterna as E;
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
+        ErroPreviaExterna::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+    )?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) = abrir_para_escrever(
         sessao,
@@ -182,24 +182,29 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
         indice,
         &mut rede,
     )
-    .map_err(E::Abertura)?;
-    let unidade = aberto.unidade.ok_or(E::UnidadeNaoPublicada)?;
-    let abertas =
-        siglas_abertas(&aberto.arvore.aberto_em).map_err(|_| E::ProcessoNaoAbertoNaUnidade)?;
+    .map_err(ErroPreviaExterna::Abertura)?;
+    let unidade = aberto
+        .unidade
+        .ok_or(ErroPreviaExterna::UnidadeNaoPublicada)?;
+    let abertas = siglas_abertas(&aberto.arvore.aberto_em)
+        .map_err(|_| ErroPreviaExterna::ProcessoNaoAbertoNaUnidade)?;
     if !abertas.contains(&unidade) {
-        return Err(E::ProcessoNaoAbertoNaUnidade);
+        return Err(ErroPreviaExterna::ProcessoNaoAbertoNaUnidade);
     }
     let link = acoes
         .incluir
-        .map_err(|_| E::LinkNaoConferido)?
-        .ok_or(E::LinkNaoPublicado)?;
+        .map_err(|_| ErroPreviaExterna::LinkNaoConferido)?
+        .ok_or(ErroPreviaExterna::LinkNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
     let (lista, mime_lista) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(da_tela)?;
     let id_procedimento = &aberto.arvore.processo.id;
-    let destino = match escolher_externo(&lista).map_err(|_| E::EscolhaNaoConferida)? {
+    let destino = match escolher_externo(&lista)
+        .map_err(|_| ErroPreviaExterna::EscolhaNaoConferida)?
+    {
         EscolhaExterna::Url(relativo) => conferir_destino(&instalacao, &relativo, id_procedimento)?,
         EscolhaExterna::Formulario => {
-            let codificacao = codificacao_da_tela(&mime_lista).ok_or(E::CodificacaoNaoPublicada)?;
+            let codificacao = codificacao_da_tela(&mime_lista)
+                .ok_or(ErroPreviaExterna::CodificacaoNaoPublicada)?;
             let servida = TelaServida {
                 url: link.as_str(),
                 html: &lista,
@@ -212,24 +217,28 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
                 &unidade,
                 &[("hdnIdSerie", "-1")],
             )
-            .map_err(E::Formulario)?;
+            .map_err(ErroPreviaExterna::Formulario)?;
             let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
                 rede.post(post, cookie)
             })
-            .map_err(E::Formulario)?;
+            .map_err(ErroPreviaExterna::Formulario)?;
             let RespostaDoEnvio::Redirecionamento(redirecionado) = resposta else {
-                return Err(E::EscolhaNaoConferida);
+                return Err(ErroPreviaExterna::EscolhaNaoConferida);
             };
             conferir_destino(
                 &instalacao,
-                redirecionado.localizacao().ok_or(E::LinkNaoConferido)?,
+                redirecionado
+                    .localizacao()
+                    .ok_or(ErroPreviaExterna::LinkNaoConferido)?,
                 id_procedimento,
             )?
         }
     };
     let (cadastro, mime_cadastro) = obter_tela(&mut rede, &cookie, &destino).map_err(da_tela)?;
-    let id_tipo = identificar_tipo(&cadastro, tipo).map_err(|_| E::TipoNaoOferecido)?;
-    let codificacao = codificacao_da_tela(&mime_cadastro).ok_or(E::CodificacaoNaoPublicada)?;
+    let id_tipo =
+        identificar_tipo(&cadastro, tipo).map_err(|_| ErroPreviaExterna::TipoNaoOferecido)?;
+    let codificacao =
+        codificacao_da_tela(&mime_cadastro).ok_or(ErroPreviaExterna::CodificacaoNaoPublicada)?;
     let servida = TelaServida {
         url: &destino,
         html: &cadastro,
@@ -245,18 +254,18 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
             ("hdnIdSerie", id_tipo.as_str()),
         ],
     )
-    .map_err(E::Formulario)?;
+    .map_err(ErroPreviaExterna::Formulario)?;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
         rede.post(post, cookie)
     })
-    .map_err(E::Formulario)?;
+    .map_err(ErroPreviaExterna::Formulario)?;
     let RespostaDoEnvio::Html(recarregado) = resposta else {
-        return Err(E::TipoNaoRecarregado);
+        return Err(ErroPreviaExterna::TipoNaoRecarregado);
     };
     let observado = observar_cadastro(&recarregado, tipo, pdf.tamanho_bytes)
-        .map_err(|_| E::CadastroNaoConferido)?;
+        .map_err(|_| ErroPreviaExterna::CadastroNaoConferido)?;
     if observado.id_tipo != id_tipo {
-        return Err(E::TipoNaoRecarregado);
+        return Err(ErroPreviaExterna::TipoNaoRecarregado);
     }
     let foto_antes = FotoProcesso::da_arvore(&aberto.arvore);
     let previa = PreviaExterna {

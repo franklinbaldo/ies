@@ -1,6 +1,5 @@
 //! RED/GREEN do link do histórico na árvore: as duas formas observadas,
 //! ambas, nenhuma, repetidas e URLs fora da conferência. HTML sintético.
-use super::ErroLinkDoHistorico as E;
 use super::tests_apoio::*;
 use super::*;
 use crate::arvore_processo::tests::{NUP, arvore, no_processo};
@@ -18,7 +17,7 @@ fn base() -> String {
     arvore(&[no_processo(0, ID, NUP)])
 }
 
-fn ler(partes: &[(String, String)]) -> Result<EnderecoDoHistorico, E> {
+fn ler(partes: &[(String, String)]) -> Result<EnderecoDoHistorico, super::ErroLinkDoHistorico> {
     ler_link_do_historico(&instalacao(), &com_link(&base(), partes), ID)
 }
 
@@ -55,7 +54,7 @@ fn debug_nao_mostra_a_url() {
 fn sem_link_e_recusa() {
     assert_eq!(
         ler_link_do_historico(&instalacao(), &base(), ID),
-        Err(E::LinkDoHistoricoAusenteNaArvore)
+        Err(super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore)
     );
 }
 
@@ -66,7 +65,7 @@ fn as_duas_formas_juntas_sao_recusa() {
     let (_, corpo) = forma_go(&url);
     assert_eq!(
         ler(&[(script, corpo)]),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
             "links_do_historico_repetidos_na_arvore"
         )))
     );
@@ -77,13 +76,13 @@ fn link_repetido_e_recusa() {
     let url = link_do_historico(ID);
     assert_eq!(
         ler(&[forma_go(&url), forma_go(&url)]),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
             "links_do_historico_repetidos_na_arvore"
         )))
     );
     assert_eq!(
         ler(&[forma_unb(&url), forma_unb(&url)]),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
             "links_do_historico_repetidos_na_arvore"
         )))
     );
@@ -100,7 +99,7 @@ fn onclick_fora_das_formas_e_recusa() {
     ] {
         assert_eq!(
             ler(&[(String::new(), trocado)]),
-            Err(E::Html(ErroHtml::valor(
+            Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
                 "link_do_historico_fora_da_forma_observada"
             )))
         );
@@ -114,7 +113,7 @@ fn funcao_sem_a_linha_do_src_e_recusa() {
     let trocado = script.replace("parent.document", "window.parent.document");
     assert_eq!(
         ler(&[(trocado, corpo)]),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
             "link_do_historico_fora_da_forma_observada"
         )))
     );
@@ -137,7 +136,7 @@ fn url_fora_da_conferencia_e_recusa() {
     ] {
         assert_eq!(
             ler(&[forma_go(&trocada)]),
-            Err(E::Html(ErroHtml::valor(
+            Err(super::ErroLinkDoHistorico::Html(ErroHtml::valor(
                 "endereco_do_historico_nao_reconhecido"
             ))),
             "{trocada}"
@@ -149,19 +148,23 @@ fn url_fora_da_conferencia_e_recusa() {
 fn link_de_outro_processo_e_recusa() {
     assert_eq!(
         ler(&[forma_unb(&link_do_historico("11"))]),
-        Err(E::EnderecoDoHistoricoDeOutroProcesso)
+        Err(super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso)
     );
 }
 
 #[test]
 fn subcodigos_estaveis() {
     let todos = [
-        E::Html(ErroHtml::html("html_da_arvore_nao_interpretado")),
-        E::LinkDoHistoricoAusenteNaArvore,
-        E::Html(ErroHtml::repetido("links_do_historico_repetidos_na_arvore")),
-        E::Html(ErroHtml::valor("link_do_historico_fora_da_forma_observada")),
-        E::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido")),
-        E::EnderecoDoHistoricoDeOutroProcesso,
+        super::ErroLinkDoHistorico::Html(ErroHtml::html("html_da_arvore_nao_interpretado")),
+        super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore,
+        super::ErroLinkDoHistorico::Html(ErroHtml::repetido(
+            "links_do_historico_repetidos_na_arvore",
+        )),
+        super::ErroLinkDoHistorico::Html(ErroHtml::valor(
+            "link_do_historico_fora_da_forma_observada",
+        )),
+        super::ErroLinkDoHistorico::Html(ErroHtml::valor("endereco_do_historico_nao_reconhecido")),
+        super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso,
     ];
     for erro in todos {
         let _s = crate::erro_publico::rotulo(&erro);

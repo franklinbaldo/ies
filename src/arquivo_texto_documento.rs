@@ -12,18 +12,23 @@ pub enum ErroArquivoTexto {
 }
 /// A falha da gravação privada única nos subcódigos do texto.
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
-    use crate::arquivo_privado::FalhaDaGravacao as F;
     match falha {
-        F::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
-        F::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
-        F::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
+        crate::arquivo_privado::FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
+        crate::arquivo_privado::FalhaDaGravacao::DiretorioAusente => {
+            ErroArquivoTexto::DiretorioAusente
+        }
+        crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => {
+            ErroArquivoTexto::DestinoJaExiste
+        }
         // Diretório do usuário: a peça não confere o modo.
-        F::DiretorioGravavelPorOutros
-        | F::DestinoNaoEhArquivoRegular
-        | F::AcimaDoLimite
-        | F::CriacaoFalhou
-        | F::EscritaFalhou
-        | F::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
+        crate::arquivo_privado::FalhaDaGravacao::DiretorioGravavelPorOutros
+        | crate::arquivo_privado::FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite
+        | crate::arquivo_privado::FalhaDaGravacao::CriacaoFalhou
+        | crate::arquivo_privado::FalhaDaGravacao::EscritaFalhou
+        | crate::arquivo_privado::FalhaDaGravacao::ConfirmacaoFalhou => {
+            ErroArquivoTexto::EscritaFalhou
+        }
     }
 }
 

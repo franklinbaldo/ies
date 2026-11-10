@@ -64,7 +64,6 @@ pub(crate) fn grupos_do_cadastro(
     html: &str,
     id_procedimento: &str,
 ) -> Result<Vec<GrupoOferecido>, ErroAcompanhar> {
-    use ErroAcompanhar as E;
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroHtml::html("html_de_acompanhamento_invalido").into());
     }
@@ -82,17 +81,17 @@ pub(crate) fn grupos_do_cadastro(
         }
     }
     let form = match forms.as_slice() {
-        [] => return Err(E::CadastroNaoPublicado),
+        [] => return Err(ErroAcompanhar::CadastroNaoPublicado),
         [form] => *form,
         _ => return Err(ErroHtml::repetido("formularios_de_acompanhamento_repetidos").into()),
     };
-    let action = campo(form, "action")?.ok_or(E::CadastroNaoPublicado)?;
+    let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
         .ok_or(ErroHtml::html("html_de_acompanhamento_invalido"))?;
     if !parametro_unico(&action, "acao", "acompanhamento_cadastrar")
         || !parametro_unico(&action, "id_procedimento", id_procedimento)
     {
-        return Err(E::CadastroDeOutroProcesso);
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }
     let mut protocolos = Vec::new();
     let mut selects = Vec::new();
@@ -107,11 +106,11 @@ pub(crate) fn grupos_do_cadastro(
         }
     }
     if protocolos != [id_procedimento] {
-        return Err(E::CadastroDeOutroProcesso);
+        return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }
     let select = match selects.as_slice() {
         [select] => *select,
-        _ => return Err(E::GruposNaoPublicados),
+        _ => return Err(ErroAcompanhar::GruposNaoPublicados),
     };
     let mut grupos = Vec::new();
     for no in select.children().all(parser) {
@@ -139,7 +138,7 @@ pub(crate) fn grupos_do_cadastro(
         grupos.push(GrupoOferecido { valor, nome });
     }
     if grupos.is_empty() {
-        return Err(E::GruposNaoPublicados);
+        return Err(ErroAcompanhar::GruposNaoPublicados);
     }
     Ok(grupos)
 }
@@ -173,7 +172,6 @@ pub(crate) fn escolher_grupo<'a>(
 /// Uma lista vazia SÓ é comprovada por tabela com cabeçalho, nunca por HTML
 /// cortado, tela de login ou ausência de tabela.
 pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
-    use ErroAcompanhar as E;
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroHtml::html("html_de_acompanhamento_invalido").into());
     }
@@ -191,7 +189,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
     }
     let tabela = match tabelas.as_slice() {
-        [] => return Err(E::ListaNaoPublicada),
+        [] => return Err(ErroAcompanhar::ListaNaoPublicada),
         [tabela] => *tabela,
         _ => return Err(ErroHtml::repetido("listas_de_acompanhamentos_repetidas").into()),
     };
@@ -295,7 +293,6 @@ pub(crate) fn conferir_inclusao(
     grupo: &str,
     observacao: &str,
 ) -> Result<(), ErroAcompanhar> {
-    use ErroAcompanhar as E;
     if depois.len() != antes.len() + 1
         || !antes.iter().all(|a| depois.contains(a))
         || depois
@@ -305,7 +302,7 @@ pub(crate) fn conferir_inclusao(
             .count()
             != 1
     {
-        return Err(E::AcompanhamentoNaoConfirmado);
+        return Err(ErroAcompanhar::AcompanhamentoNaoConfirmado);
     }
     Ok(())
 }

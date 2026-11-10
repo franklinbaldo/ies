@@ -31,39 +31,40 @@ pub(crate) fn conferir_endereco_relativo_por(
     chave_do_id: &str,
     id: &str,
 ) -> Result<String, EnderecoRecusado> {
-    use EnderecoRecusado as E;
     let consulta = src
         .strip_prefix("controlador.php?")
-        .ok_or(E::NaoReconhecido)?;
+        .ok_or(EnderecoRecusado::NaoReconhecido)?;
     if src.len() > 8_192
         || !src.bytes().all(|b| (33..=126).contains(&b))
         || src.contains(['#', '\\', '\'', '"'])
     {
-        return Err(E::NaoReconhecido);
+        return Err(EnderecoRecusado::NaoReconhecido);
     }
     let (mut acoes, mut hashes, mut ids) = (0, 0, Vec::new());
     for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or(E::NaoReconhecido)?;
+        let (nome, valor) = par
+            .split_once('=')
+            .ok_or(EnderecoRecusado::NaoReconhecido)?;
         if conferir_chave_de_consulta(nome).is_err() || conferir_valor_de_consulta(valor).is_err() {
-            return Err(E::NaoReconhecido);
+            return Err(EnderecoRecusado::NaoReconhecido);
         }
         match nome {
             "acao" if valor == acao => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
-            "acao" | "acao_ajax" | "infra_hash" => return Err(E::NaoReconhecido),
+            "acao" | "acao_ajax" | "infra_hash" => return Err(EnderecoRecusado::NaoReconhecido),
             _ if nome == chave_do_id => ids.push(valor),
             _ => {}
         }
     }
     if acoes != 1 || hashes != 1 {
-        return Err(E::NaoReconhecido);
+        return Err(EnderecoRecusado::NaoReconhecido);
     }
     match ids.as_slice() {
         [unico] if *unico == id => {}
-        [_] => return Err(E::DeOutroProcesso),
-        _ => return Err(E::NaoReconhecido),
+        [_] => return Err(EnderecoRecusado::DeOutroProcesso),
+        _ => return Err(EnderecoRecusado::NaoReconhecido),
     }
     Ok(format!("{}/{src}", instalacao.url_base()))
 }
@@ -80,21 +81,22 @@ pub(crate) fn conferir_endereco_com_identidade_repetida(
     acao: &str,
     id_procedimento: &str,
 ) -> Result<String, EnderecoRecusado> {
-    use EnderecoRecusado as E;
     let consulta = href
         .strip_prefix("controlador.php?")
-        .ok_or(E::NaoReconhecido)?;
+        .ok_or(EnderecoRecusado::NaoReconhecido)?;
     let mut copia = String::from("controlador.php?");
     let mut identidades = 0_u8;
     for parametro in consulta.split('&') {
-        let (nome, valor) = parametro.split_once('=').ok_or(E::NaoReconhecido)?;
+        let (nome, valor) = parametro
+            .split_once('=')
+            .ok_or(EnderecoRecusado::NaoReconhecido)?;
         if nome == "id_procedimento" {
             identidades += 1;
             if identidades > 2 {
-                return Err(E::NaoReconhecido);
+                return Err(EnderecoRecusado::NaoReconhecido);
             }
             if valor != id_procedimento {
-                return Err(E::DeOutroProcesso);
+                return Err(EnderecoRecusado::DeOutroProcesso);
             }
             if identidades == 2 {
                 continue;

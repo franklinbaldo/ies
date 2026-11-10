@@ -6,7 +6,6 @@
 //! (`UnB` 4.0.9 e GO 5.0.3, 03/11/2026). O POST reenvia os ocultos como
 //! servidos, só `hdnTipoHistorico` reescrito, sem botão. O botão
 //! `btnAtualizarAndamento` (escrita) nunca participa: é `type=button`.
-use super::ErroAndamentos as E;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, MarcadorDeResultado,
     OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo,
@@ -43,8 +42,8 @@ const REGRA_DE_VER_HISTORICO: [&str; 3] = [
 ];
 
 /// Confere, literalmente, a função servida e o único link para a visão `P`.
-pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), E> {
-    let fora = E::RegraDeVerHistoricoNaoObservada;
+pub(crate) fn conferir_regra_de_ver_historico(html: &str) -> Result<(), super::ErroAndamentos> {
+    let fora = super::ErroAndamentos::RegraDeVerHistoricoNaoObservada;
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     if !REGRA_DE_VER_HISTORICO
         .iter()

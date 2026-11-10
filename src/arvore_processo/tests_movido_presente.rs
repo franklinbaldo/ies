@@ -4,7 +4,6 @@
 //! para B e de B para A): a árvore de A traz `Nos[1]` o `DOCUMENTO_MOVIDO`
 //! `<n>-<m>` com o destino B no `.html` e `Nos[2]` o `DOCUMENTO` `n`, de
 //! mesmo rótulo e número SEI. Ids, números, hashes e textos inventados.
-use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_movidos::{
     ID_DESTINO, NUP_DESTINO, ORIGEM, href_do_destino, html_do_movido, no_movido,
@@ -34,7 +33,7 @@ pub(crate) fn arvore_de_ida_e_volta() -> String {
     .replace("Nos[1].html = '';", &format!("Nos[1].html = '{link}';"))
 }
 
-fn ler_tudo(html: &str) -> Result<ArvoreLida, E> {
+fn ler_tudo(html: &str) -> Result<ArvoreLida, super::ErroArvore> {
     let mut lida = ler_arvore(html, NUP, "10")?;
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     ler_destinos_dos_movidos(&instalacao, html, &mut lida)?;
@@ -85,7 +84,7 @@ fn primeira_parte_repetida_entre_movidos_continua_recusa() {
         ]);
         assert_eq!(
             ler_arvore(&html, NUP, "10"),
-            Err(E::Html(ErroHtml::repetido(
+            Err(super::ErroArvore::Html(ErroHtml::repetido(
                 "documento_movido_repetido_na_arvore"
             ))),
             "{segundo}"

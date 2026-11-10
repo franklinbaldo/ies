@@ -126,9 +126,8 @@ impl ArquivoParcial {
     /// Liga o parcial a `DOC.ext` sem sobrescrever (`hard_link` falha se
     /// o destino existe) e remove o parcial.
     pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
-        use crate::arquivo_privado::FalhaDaGravacao as F;
         self.parcial.confirmar().map_err(|falha| match falha {
-            F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+            crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
             _ => ErroAnexo::EscritaFalhou,
         })
     }
@@ -399,7 +398,7 @@ fn abrir_parcial(
     numero: &str,
     conferido: &Conferido,
 ) -> Result<ArquivoParcial, ErroAnexo> {
-    use crate::arquivo_privado::{FalhaDaGravacao as F, Parcial, Politica};
+    use crate::arquivo_privado::{FalhaDaGravacao, Parcial, Politica};
     let nome = format!("{numero}.{}", conferido.extensao);
     let politica = Politica::exclusiva()
         .diretorio_do_usuario()
@@ -408,15 +407,17 @@ fn abrir_parcial(
         return Err(ErroAnexo::DiretorioAusente);
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
-        F::SemNomeDeArquivo | F::DiretorioAusente => ErroAnexo::DiretorioAusente,
-        F::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+        FalhaDaGravacao::SemNomeDeArquivo | FalhaDaGravacao::DiretorioAusente => {
+            ErroAnexo::DiretorioAusente
+        }
+        FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        F::DiretorioGravavelPorOutros
-        | F::DestinoNaoEhArquivoRegular
-        | F::AcimaDoLimite
-        | F::CriacaoFalhou
-        | F::EscritaFalhou
-        | F::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+        FalhaDaGravacao::DiretorioGravavelPorOutros
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;
     Ok(ArquivoParcial { parcial, nome })
 }

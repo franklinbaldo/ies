@@ -124,16 +124,16 @@ fn ler_cadastro(html: &str) -> Resultado {
     }
 }
 
-fn ler_xml(item: &Value) -> Resultado {
-    let mime = gravacao::mime(item);
+fn ler_xml(interacao: &Value) -> Resultado {
+    let mime = gravacao::mime(interacao);
     if !matches!(
         mime.split(';').next().unwrap_or_default().trim(),
         "text/xml" | "application/xml"
     ) {
         return Resultado::NaoAplicavel("resposta_ajax_sem_mime_xml");
     }
-    let corpo = gravacao::corpo(item);
-    let codificacao = item["response"]["encoding"].as_str().unwrap_or("");
+    let corpo = gravacao::corpo(interacao);
+    let codificacao = interacao["response"]["encoding"].as_str().unwrap_or("");
     let Ok(xml) = crate::transporte::corpo::legivel(&corpo, codificacao) else {
         return Resultado::Recusado("hipotese_legal_ajax_resposta_nao_reconhecida");
     };
@@ -153,20 +153,20 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
             ),
             ("procedimento_escolher_tipo", _, 200) => (
                 "lista de tipos",
-                match html_da_resposta(r.item) {
+                match html_da_resposta(r.interacao) {
                     Ok(html) => ler_lista(&html),
                     Err(_) => Resultado::NaoAplicavel("html_da_lista_nao_observado"),
                 },
             ),
             ("procedimento_gerar", "GET", 200) => (
                 "cadastro",
-                match html_da_resposta(r.item) {
+                match html_da_resposta(r.interacao) {
                     Ok(html) => ler_cadastro(&html),
                     Err(_) => Resultado::NaoAplicavel("html_do_cadastro_nao_observado"),
                 },
             ),
             ("hipotese_legal_select_nome_base_legal", _, 200) => {
-                ("hipótese legal AJAX", ler_xml(r.item))
+                ("hipótese legal AJAX", ler_xml(r.interacao))
             }
             (
                 "procedimento_escolher_tipo"

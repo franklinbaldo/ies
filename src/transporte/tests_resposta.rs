@@ -29,7 +29,7 @@ fn status_http_inesperado_e_classificado_pela_faixa_observavel() {
 }
 
 #[test]
-fn tipo_de_conteudo_nao_html_tem_variante_propria() {
+fn tipo_de_conteudo_nao_html_tem_erro_proprio() {
     for mime in [
         "application/json",
         "text/plain",
@@ -45,7 +45,7 @@ fn tipo_de_conteudo_nao_html_tem_variante_propria() {
 }
 
 #[test]
-fn corpo_invalido_no_charset_declarado_tem_variante_propria() {
+fn corpo_invalido_no_charset_declarado_tem_erro_proprio() {
     // 0xE7 isolado não é UTF-8 válido; sem charset, o corpo é lido como UTF-8.
     assert_eq!(
         decodificar_resposta(resposta(200, "text/html", b"<html>a\xe7\xe3o</html>")),

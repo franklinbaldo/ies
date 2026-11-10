@@ -1,11 +1,10 @@
 //! RED/GREEN do `--confirmar` de `processo enviar`: um POST, a leitura de
 //! verificação e a tabela de reconciliação do contrato.
 use super::ProcessoEnviado;
-use super::erro::ErroEnviar as R;
 use super::tests_apoio::*;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::tests_apoio::*;
-use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura as V};
+use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::transporte::FalhaTransporte;
 
 /// Abertura, tela, consulta, resposta do POST e a árvore relida.
@@ -148,7 +147,7 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        R::EnvioNaoAplicado {
+        super::erro::ErroEnviar::EnvioNaoAplicado {
             aberto_em: siglas(&[UNIDADE]),
             depois: siglas(&[UNIDADE]),
             anotacao_depois: None,
@@ -174,7 +173,7 @@ fn origem_diferente_do_pedido_e_escrita_diferente() {
         let erro = r.unwrap_err();
         assert_eq!(
             erro,
-            R::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
+            super::erro::ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
                 aberto_em: siglas(&[UNIDADE]),
                 depois: siglas(depois),
                 anotacao_depois: None,
@@ -200,8 +199,8 @@ fn leitura_que_falha_e_nao_confirmado_sem_retry() {
     assert!(
         matches!(
             &erro,
-            R::NaoConfirmadoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
-                if matches!(**verificacao, V::LeituraFalhou(_))
+            super::erro::ErroEnviar::NaoConfirmadoNoEnvio { verificacao, falha_do_envio: Some(_), .. }
+                if matches!(**verificacao, VerificacaoPorLeitura::LeituraFalhou(_))
         ),
         "{erro:?}"
     );

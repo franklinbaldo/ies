@@ -4,7 +4,7 @@
 //! `<id>:abrir_pastas`, tentado primeiro no caminho 1. Nunca
 //! `FECHAR_PASTAS`, nunca restauração.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_da_pagina};
-use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use super::{EnvioDoProcesso, ErroProcessoObter};
 use crate::arvore_processo::{ErroArvore, ler_acao_de_abrir_pastas};
 use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao};
 use crate::instalacao::Instalacao;
@@ -35,7 +35,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     html: &str,
     mut aberta: ArvoreAberta,
-) -> Result<ArvoreAberta, E> {
+) -> Result<ArvoreAberta, ErroProcessoObter> {
     if !aberta.arvore.documentos_incluidos {
         return Ok(aberta);
     }
@@ -60,13 +60,19 @@ pub(super) fn completar<V: EnvioDoProcesso>(
                 Some(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir);
             return Ok(aberta);
         }
-        return Err(E::Arvore(ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir));
+        return Err(ErroProcessoObter::Arvore(
+            ErroArvore::PastasNaoCarregadasSemAcaoDeAbrir,
+        ));
     };
     let html = match rede.get(endereco.as_str())? {
         Lida::Html { html, .. } => html,
         Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     let completa = match aberta_inteira(contexto, &html, &id) {
         Ok(c) => c,
@@ -79,7 +85,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
                 aberta.arvore.aviso_leitura_parcial = Some(erro);
                 return Ok(aberta);
             }
-            return Err(E::Arvore(erro));
+            return Err(ErroProcessoObter::Arvore(erro));
         }
     };
     contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
@@ -122,7 +128,7 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     id: &str,
-) -> Result<Guardado, E> {
+) -> Result<Guardado, ErroProcessoObter> {
     let objeto = objeto(id);
     let instalacao = &contexto.instalacao;
     let Some(link) = contexto
@@ -146,7 +152,7 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
                 return Ok(Guardado::Divergiu);
             }
             Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
-            Err(erro) => return Err(E::Arvore(erro)),
+            Err(erro) => return Err(ErroProcessoObter::Arvore(erro)),
         }
     }
     contexto.esquecer_link(ACAO, &objeto);

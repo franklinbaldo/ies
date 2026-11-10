@@ -152,7 +152,6 @@ pub(super) fn pen1() -> Tela {
 }
 
 use Categoria::{Gerados, Recebidos};
-use ErroPaginaDoControle as E;
 
 #[test]
 fn pagina_ja_exibida_nao_exige_post() {
@@ -192,7 +191,7 @@ fn pagina_alem_do_total_e_recusada_antes_de_qualquer_post() {
     let html = pen1().html();
     assert_eq!(
         planejar(&html, Recebidos, 3),
-        Err(E::PaginaForaDoIntervalo {
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo {
             categoria: Recebidos,
             solicitada: 3,
             paginas: 2
@@ -216,11 +215,11 @@ fn goias_com_paginas_de_dez_calcula_a_ultima_pagina() {
     );
     assert!(matches!(
         planejar(&html, Gerados, 800),
-        Err(E::PaginaForaDoIntervalo { paginas: 799, .. })
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo { paginas: 799, .. })
     ));
     assert!(matches!(
         planejar(&html, Recebidos, 15),
-        Err(E::PaginaForaDoIntervalo { paginas: 14, .. })
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo { paginas: 14, .. })
     ));
 }
 
@@ -247,9 +246,11 @@ fn indice_incompativel_com_a_faixa_e_recusado() {
         let html = Tela::nova(Tab::nova(114, inicio, fim, atual), Tab::nova(0, 1, 0, "0")).html();
         assert_eq!(
             planejar(&html, Recebidos, 1),
-            Err(E::PaginaAtualDaTabelaIncompativelComAFaixa {
-                categoria: Recebidos
-            }),
+            Err(
+                ErroPaginaDoControle::PaginaAtualDaTabelaIncompativelComAFaixa {
+                    categoria: Recebidos
+                }
+            ),
             "{inicio}-{fim}@{atual}"
         );
     }
@@ -261,7 +262,7 @@ fn indice_ilegivel_e_recusado() {
         let html = Tela::nova(Tab::nova(114, 1, 100, atual), Tab::nova(0, 1, 0, "0")).html();
         assert_eq!(
             planejar(&html, Recebidos, 2),
-            Err(E::PaginaAtualDaTabelaIlegivel {
+            Err(ErroPaginaDoControle::PaginaAtualDaTabelaIlegivel {
                 categoria: Recebidos
             }),
             "{atual:?}"
@@ -278,11 +279,11 @@ fn tabela_de_uma_pagina_ou_vazia_so_tem_a_pagina_um() {
     assert_eq!(planejar(&html, Gerados, 1), Ok(PlanoDaPagina::JaExibida));
     assert!(matches!(
         planejar(&html, Recebidos, 2),
-        Err(E::PaginaForaDoIntervalo { paginas: 1, .. })
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo { paginas: 1, .. })
     ));
     assert!(matches!(
         planejar(&html, Gerados, 2),
-        Err(E::PaginaForaDoIntervalo { paginas: 1, .. })
+        Err(ErroPaginaDoControle::PaginaForaDoIntervalo { paginas: 1, .. })
     ));
 }
 
@@ -292,7 +293,7 @@ fn visao_detalhada_nao_tem_pagina_por_tabela() {
     detalhada.modo = "D";
     assert_eq!(
         planejar(&detalhada.html(), Recebidos, 2),
-        Err(E::PaginaExigeVisaoResumida)
+        Err(ErroPaginaDoControle::PaginaExigeVisaoResumida)
     );
 }
 
@@ -302,7 +303,7 @@ fn tabela_paginada_sem_paginador_publicado_e_recusada() {
     tela.rec.paginador = false;
     assert_eq!(
         planejar(&tela.html(), Recebidos, 2),
-        Err(E::PaginadorDaTabelaNaoPublicado {
+        Err(ErroPaginaDoControle::PaginadorDaTabelaNaoPublicado {
             categoria: Recebidos
         })
     );
@@ -356,13 +357,13 @@ fn unidade_diferente_da_solicitada_recusa_a_derivacao() {
     let (url, html) = (url(), pen1().html());
     assert_eq!(
         derivar_pagina(&instalacao(), &tela(&url, &html), "OUTRA", Recebidos, 1).err(),
-        Some(E::Submissao(
+        Some(ErroPaginaDoControle::Submissao(
             ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
         ))
     );
 }
 
-fn derivar_com_extra(extra: &str) -> Result<SubmissaoDerivada, E> {
+fn derivar_com_extra(extra: &str) -> Result<SubmissaoDerivada, ErroPaginaDoControle> {
     let mut tela_extra = pen1();
     tela_extra.extra = extra.to_owned();
     let (url, html) = (url(), tela_extra.html());
@@ -371,35 +372,34 @@ fn derivar_com_extra(extra: &str) -> Result<SubmissaoDerivada, E> {
 
 #[test]
 fn controles_fora_do_inventario_recusam_a_derivacao() {
-    use ErroControleDoFormulario as C;
     let casos = [
         (
             "<input type='text' name='txtOutro' value=''>",
-            C::ControleNaoPrevistoNoFormularioDoControle {
+            ErroControleDoFormulario::ControleNaoPrevistoNoFormularioDoControle {
                 campo: "txtOutro".to_owned(),
             },
         ),
         (
             "<textarea name='txaNota'></textarea>",
-            C::ControleNaoPrevistoNoFormularioDoControle {
+            ErroControleDoFormulario::ControleNaoPrevistoNoFormularioDoControle {
                 campo: "txaNota".to_owned(),
             },
         ),
         (
             "<input type='checkbox' name='chkRecebidosItem99' value='1' checked>",
-            C::CaixaDeSelecaoMarcadaNoFormularioDoControle {
+            ErroControleDoFormulario::CaixaDeSelecaoMarcadaNoFormularioDoControle {
                 campo: "chkRecebidosItem99".to_owned(),
             },
         ),
         (
             "<select name='selRecebidosPaginacaoInferior'><option value='0'>1</option></select>",
-            C::PaginadorSemOpcaoSelecionada {
+            ErroControleDoFormulario::PaginadorSemOpcaoSelecionada {
                 campo: "selRecebidosPaginacaoInferior".to_owned(),
             },
         ),
         (
             "<input type='text' name='txtBloco' value=''>",
-            C::ControleRepetidoNoFormularioDoControle {
+            ErroControleDoFormulario::ControleRepetidoNoFormularioDoControle {
                 campo: "txtBloco".to_owned(),
             },
         ),
@@ -407,7 +407,7 @@ fn controles_fora_do_inventario_recusam_a_derivacao() {
     for (extra, esperado) in casos {
         assert_eq!(
             derivar_com_extra(extra).err(),
-            Some(E::Formulario(esperado)),
+            Some(ErroPaginaDoControle::Formulario(esperado)),
             "{extra}"
         );
     }

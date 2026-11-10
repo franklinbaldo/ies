@@ -163,7 +163,6 @@ fn confirmar<V: EnvioDoProcesso>(
     id_processo: &str,
     texto: &str,
 ) -> Result<(), ErroComentar> {
-    use IncertezaDoComentario as I;
     let mut enviou = false;
     let retorno = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
         enviou = true;
@@ -175,28 +174,37 @@ fn confirmar<V: EnvioDoProcesso>(
     };
     let retorno = match retorno {
         Ok(retorno) => retorno,
-        Err(erro) if enviou => return Err(incerto(rede, I::Envio(erro))),
+        Err(erro) if enviou => return Err(incerto(rede, IncertezaDoComentario::Envio(erro))),
         Err(erro) => return Err(ErroComentar::Formulario(erro)),
     };
     let RespostaDoEnvio::Redirecionamento(redir) = retorno else {
-        return Err(incerto(rede, I::RespostaSemRedirecionamento));
+        return Err(incerto(
+            rede,
+            IncertezaDoComentario::RespostaSemRedirecionamento,
+        ));
     };
     let Some(id_aceito) = redir
         .localizacao()
         .and_then(|local| id_do_aceite(local, redir.url_do_envio(), id_processo))
     else {
-        return Err(incerto(rede, I::AceiteSemIdentidade));
+        return Err(incerto(rede, IncertezaDoComentario::AceiteSemIdentidade));
     };
     let html = match obter_tela(rede, cookie, link_lista) {
         Ok((html, _)) => html,
-        Err(falha) => return Err(incerto(rede, I::Releitura(falha))),
+        Err(falha) => return Err(incerto(rede, IncertezaDoComentario::Releitura(falha))),
     };
     let relidos = match ler_tela(&html) {
         Ok(TelaDosComentarios::Lista(relidos)) => relidos,
-        Ok(_) => return Err(incerto(rede, I::ListaRelidaForaDaForma)),
-        Err(erro) => return Err(incerto(rede, I::ListaRelidaIlegivel(erro))),
+        Ok(_) => return Err(incerto(rede, IncertezaDoComentario::ListaRelidaForaDaForma)),
+        Err(erro) => {
+            return Err(incerto(
+                rede,
+                IncertezaDoComentario::ListaRelidaIlegivel(erro),
+            ));
+        }
     };
-    conferir_efeito(&relidos, id_aceito, texto).map_err(|f| incerto(rede, I::Conferencia(f)))
+    conferir_efeito(&relidos, id_aceito, texto)
+        .map_err(|f| incerto(rede, IncertezaDoComentario::Conferencia(f)))
 }
 
 /// Abre o formulário publicado pela lista do processo; grava só se confirmado.
@@ -212,27 +220,31 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, ErroComentar> {
-    use ErroComentar as E;
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
+    let instalacao =
+        Instalacao::interpretar(sessao.origem).ok_or(ErroComentar::OrigemNaoAutorizada)?;
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, false), indice, &mut rede)?;
-    let link = acoes.comentarios?.ok_or(E::LinkDaListaNaoPublicado)?;
+    let link = acoes
+        .comentarios?
+        .ok_or(ErroComentar::LinkDaListaNaoPublicado)?;
     let cookie = ler_cookie(sessao)?;
-    let (html, _) = obter_tela(&mut rede, &cookie, link.as_str()).map_err(E::TelaDaLista)?;
-    let TelaDosComentarios::Lista(_) = ler_tela(&html).map_err(E::ListaIlegivel)? else {
-        return Err(E::ListaForaDaForma);
+    let (html, _) =
+        obter_tela(&mut rede, &cookie, link.as_str()).map_err(ErroComentar::TelaDaLista)?;
+    let TelaDosComentarios::Lista(_) = ler_tela(&html).map_err(ErroComentar::ListaIlegivel)? else {
+        return Err(ErroComentar::ListaForaDaForma);
     };
     let id = &aberto.arvore.processo.id;
     let url = link_do_cadastro(&instalacao, &html, id)?;
-    let (cadastro, mime) = obter_tela(&mut rede, &cookie, &url).map_err(E::TelaDoCadastro)?;
+    let (cadastro, mime) =
+        obter_tela(&mut rede, &cookie, &url).map_err(ErroComentar::TelaDoCadastro)?;
     let TelaDosComentarios::CadastroSemComentarios =
-        ler_tela(&cadastro).map_err(E::CadastroIlegivel)?
+        ler_tela(&cadastro).map_err(ErroComentar::CadastroIlegivel)?
     else {
-        return Err(E::CadastroForaDaForma);
+        return Err(ErroComentar::CadastroForaDaForma);
     };
     let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
-        .ok_or(E::CharsetDoCadastroNaoSuportado)?;
+        .ok_or(ErroComentar::CharsetDoCadastroNaoSuportado)?;
     let tela = TelaServida {
         url: &url,
         html: &cadastro,
@@ -247,13 +259,13 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         aberto.unidade.as_deref().unwrap_or(""),
         &[("txaDescricao", texto)],
     )
-    .map_err(E::Formulario)?;
+    .map_err(ErroComentar::Formulario)?;
     let endereco = submissao
         .url()
         .strip_prefix(&format!("{}/", instalacao.url_base()))
-        .ok_or(E::EnderecoDoFormularioRecusado)?;
+        .ok_or(ErroComentar::EnderecoDoFormularioRecusado)?;
     conferir_endereco_relativo(&instalacao, endereco, "comentario_cadastrar", id)
-        .map_err(|_| E::EnderecoDoFormularioRecusado)?;
+        .map_err(|_| ErroComentar::EnderecoDoFormularioRecusado)?;
     if confirmar_escrita {
         confirmar(
             submissao,

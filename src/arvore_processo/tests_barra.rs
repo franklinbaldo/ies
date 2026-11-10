@@ -6,7 +6,7 @@ use crate::instalacao::Instalacao;
 use crate::propriedades_processo::tests_apoio::{
     acao_da_barra, barra, com_barra, link_das_propriedades,
 };
-use crate::propriedades_processo::{ErroPropriedades as E, FonteDasPropriedades};
+use crate::propriedades_processo::{ErroPropriedades, FonteDasPropriedades};
 
 const ORIGEM: &str = "https://sei.exemplo.gov.br/sei";
 
@@ -25,7 +25,7 @@ fn com_acoes(acoes: &[String]) -> String {
     com_barra(&base(), 0, &barra(acoes))
 }
 
-fn ler(html: &str) -> Result<Option<(FonteDasPropriedades, String)>, E> {
+fn ler(html: &str) -> Result<Option<(FonteDasPropriedades, String)>, ErroPropriedades> {
     ler_link_das_propriedades(&instalacao(), html, "10")
         .map(|achado| achado.map(|e| (e.fonte, e.as_str().to_owned())))
 }
@@ -99,11 +99,11 @@ fn so_a_barra_do_processo_e_lida() {
 fn links_repetidos_sao_recusa() {
     assert_eq!(
         ler(&com_acoes(&[alterar("10"), alterar("10")])),
-        Err(E::LinksDasPropriedadesRepetidosNaBarra)
+        Err(ErroPropriedades::LinksDasPropriedadesRepetidosNaBarra)
     );
     assert_eq!(
         ler(&com_acoes(&[consultar("10"), consultar("10")])),
-        Err(E::LinksDasPropriedadesRepetidosNaBarra)
+        Err(ErroPropriedades::LinksDasPropriedadesRepetidosNaBarra)
     );
 }
 
@@ -111,12 +111,12 @@ fn links_repetidos_sao_recusa() {
 fn endereco_de_outro_processo_ou_fora_da_regra_e_recusa() {
     assert_eq!(
         ler(&com_acoes(&[alterar("11")])),
-        Err(E::EnderecoDasPropriedadesDeOutroProcesso)
+        Err(ErroPropriedades::EnderecoDasPropriedadesDeOutroProcesso)
     );
     let curto = link_das_propriedades("procedimento_alterar", "10").replace(&"3".repeat(64), "33");
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&curto)])),
-        Err(E::EnderecoDasPropriedadesNaoReconhecido)
+        Err(ErroPropriedades::EnderecoDasPropriedadesNaoReconhecido)
     );
     let absoluto = format!(
         "{ORIGEM}/{}",
@@ -124,20 +124,26 @@ fn endereco_de_outro_processo_ou_fora_da_regra_e_recusa() {
     );
     assert_eq!(
         ler(&com_acoes(&[acao_da_barra(&absoluto)])),
-        Err(E::EnderecoDasPropriedadesNaoReconhecido)
+        Err(ErroPropriedades::EnderecoDasPropriedadesNaoReconhecido)
     );
 }
 
 #[test]
 fn barra_fora_da_forma_ou_repetida_e_recusa() {
     let fora = base().replace("Nos[0].acoes = '';", "Nos[0].acoes = montar();");
-    assert_eq!(ler(&fora), Err(E::BarraDoProcessoForaDaFormaObservada));
+    assert_eq!(
+        ler(&fora),
+        Err(ErroPropriedades::BarraDoProcessoForaDaFormaObservada)
+    );
     let repetida = com_acoes(&[alterar("10")]).replacen(
         "Nos[0].src = '';",
         "Nos[0].acoes = '';\nNos[0].src = '';",
         1,
     );
-    assert_eq!(ler(&repetida), Err(E::BarrasDoProcessoRepetidasNaArvore));
+    assert_eq!(
+        ler(&repetida),
+        Err(ErroPropriedades::BarrasDoProcessoRepetidasNaArvore)
+    );
 }
 
 #[test]
@@ -172,7 +178,7 @@ fn incluir_documento_so_usa_link_assinado_na_barra_do_processo() {
 
 #[test]
 fn incluir_documento_recusa_links_repetidos_e_outro_processo() {
-    use super::{ErroLinkIncluirDocumento as E, ler_link_de_incluir_documento};
+    use super::{ErroLinkIncluirDocumento as ErroPropriedades, ler_link_de_incluir_documento};
     let href = format!(
         "controlador.php?acao=documento_escolher_tipo&id_procedimento=11&infra_hash={}",
         "e".repeat(64)
@@ -183,12 +189,12 @@ fn incluir_documento_recusa_links_repetidos_e_outro_processo() {
             &com_barra(&base(), 0, &acao_da_barra(&href)),
             "10",
         ),
-        Err(E::EnderecoDeOutroProcesso)
+        Err(ErroPropriedades::EnderecoDeOutroProcesso)
     );
     let certo = href.replace("id_procedimento=11", "id_procedimento=10");
     assert_eq!(
         ler_link_de_incluir_documento(&instalacao(), &com_acoes(&[acao_da_barra(&certo)]), "10",),
-        Err(E::LinkRepetido)
+        Err(ErroPropriedades::LinkRepetido)
     );
     let outro_no = com_barra(&base(), 1, &acao_da_barra(&certo));
     assert_eq!(

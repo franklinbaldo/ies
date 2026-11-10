@@ -1,6 +1,6 @@
 //! Molde sintético da `UnB`, sem URLs assinadas de contas reais.
 //! Caso: `todos tests/test_ciclo_sobrestar_010.py` @323eb01.
-use super::tela::{ErroTela as E, conferir_formulario};
+use super::tela::{ErroTela, conferir_formulario};
 const ID: &str = "10";
 pub(super) fn formulario() -> String {
     format!(
@@ -36,10 +36,13 @@ fn formulario_de_outro_processo_ou_id_repetido_recusado() {
             ),
             ID
         ),
-        Err(E::OutroProcesso)
+        Err(ErroTela::OutroProcesso)
     );
     let outro = origem.replace("<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />", "<input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" /><input type=\"hidden\" name=\"hdnIdProtocolos\" value=\"10\" />");
-    assert_eq!(conferir_formulario(&outro, ID), Err(E::CampoInesperado));
+    assert_eq!(
+        conferir_formulario(&outro, ID),
+        Err(ErroTela::CampoInesperado)
+    );
 }
 #[test]
 fn opcao_de_sobrestar_desconhecida_recusada() {
@@ -48,7 +51,7 @@ fn opcao_de_sobrestar_desconhecida_recusada() {
             &formulario().replace("value=\"S\" />", "value=\"X\" />"),
             ID
         ),
-        Err(E::OpcaoNaoOferecida)
+        Err(ErroTela::OpcaoNaoOferecida)
     );
 }
 #[test]
@@ -61,14 +64,14 @@ fn vinculo_preenchido_ou_campo_extra_falha_fechado() {
             ),
             ID
         ),
-        Err(E::DestinoPreenchido)
+        Err(ErroTela::DestinoPreenchido)
     );
     assert_eq!(
         conferir_formulario(
             &formulario().replace("</form>", "<input name=\"campoNovo\" value=\"1\" /></form>"),
             ID
         ),
-        Err(E::CampoInesperado)
+        Err(ErroTela::CampoInesperado)
     );
 }
 
@@ -98,7 +101,7 @@ fn formulario_com_submissao_diferente_do_navegador_recusa() {
     for formulario_alterado in casos {
         assert_eq!(
             conferir_formulario(&formulario_alterado, ID),
-            Err(E::CampoInesperado),
+            Err(ErroTela::CampoInesperado),
             "envio que o navegador faria de outro modo precisa ser recusado",
         );
     }

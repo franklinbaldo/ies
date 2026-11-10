@@ -1,7 +1,6 @@
 //! RED/GREEN da tela "Conclusão de Processo" (lista fechada de controles,
 //! opção e processo), do corpo derivado pelo primitivo e do 302 esperado.
 //! Telas sintéticas na forma das cinco instalações 4.1/5.0.
-use super::erro::ErroTelaDeConclusao as E;
 use super::tela::{
     CAMPOS_DO_ENVIO, CONCLUIR_PROCESSO, conferir_tela_de_conclusao, redirecionamento_esperado,
 };
@@ -10,7 +9,7 @@ use crate::arvore_processo::tests_tela::instalacao;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 
-fn conferir(html: &str) -> Result<(), E> {
+fn conferir(html: &str) -> Result<(), super::erro::ErroTelaDeConclusao> {
     conferir_tela_de_conclusao(html, ID)
 }
 
@@ -48,7 +47,7 @@ fn controle_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         conferir(&extra),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::valor(
             "campo_nao_previsto_na_tela_de_conclusao"
         )))
     );
@@ -58,7 +57,7 @@ fn controle_fora_da_lista_e_recusado() {
     );
     assert_eq!(
         conferir(&oculto),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::valor(
             "campo_nao_previsto_na_tela_de_conclusao"
         )))
     );
@@ -74,27 +73,33 @@ fn controle_fora_da_lista_e_recusado() {
 fn sem_formulario_de_outro_processo_ou_sem_somente_concluir() {
     assert_eq!(
         conferir("<html><body></body></html>"),
-        Err(E::Html(ErroHtml::ausente(
+        Err(super::erro::ErroTelaDeConclusao::Html(ErroHtml::ausente(
             "formulario_de_conclusao_ausente"
         )))
     );
     assert_eq!(
         conferir_tela_de_conclusao(&tela_de_conclusao("11"), ID),
-        Err(E::TelaDeConclusaoDeOutroProcesso)
+        Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso)
     );
     let html = tela_de_conclusao(ID);
     let desmarcada = html.replace("value=\"S\" checked=\"checked\"", "value=\"S\"");
     assert_eq!(
         conferir(&desmarcada),
-        Err(E::OpcaoSomenteConcluirNaoMarcada)
+        Err(super::erro::ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada)
     );
     let agendar = desmarcada.replace("value=\"V\" ", "value=\"V\" checked=\"checked\" ");
-    assert_eq!(conferir(&agendar), Err(E::OpcaoSomenteConcluirNaoMarcada));
+    assert_eq!(
+        conferir(&agendar),
+        Err(super::erro::ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada)
+    );
     let sem_s = html.replace(
         "value=\"S\" checked=\"checked\"",
         "value=\"X\" checked=\"checked\"",
     );
-    assert_eq!(conferir(&sem_s), Err(E::OpcaoSomenteConcluirNaoMarcada));
+    assert_eq!(
+        conferir(&sem_s),
+        Err(super::erro::ErroTelaDeConclusao::OpcaoSomenteConcluirNaoMarcada)
+    );
 }
 
 #[test]
@@ -120,7 +125,7 @@ fn reabertura_preenchida_ou_processo_selecionado_e_recusa() {
     ] {
         assert_eq!(
             conferir(&preenchida),
-            Err(E::TelaDeConclusaoComReaberturaPreenchida)
+            Err(super::erro::ErroTelaDeConclusao::TelaDeConclusaoComReaberturaPreenchida)
         );
     }
 }

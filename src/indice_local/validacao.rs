@@ -90,16 +90,15 @@ pub(super) fn conferir_geracao(geracao: &str) -> Result<(), RegistroRecusado> {
 }
 
 pub(super) fn conferir_chave(chave: ChaveDoLink<'_>) -> Result<(), RegistroRecusado> {
-    use RegistroRecusado as R;
     conferir_geracao(chave.geracao_sessao)?;
     if !imprimivel(chave.unidade, 64) {
-        return Err(R::UnidadeInvalida);
+        return Err(RegistroRecusado::UnidadeInvalida);
     }
     if chave.acao.len() > 128 || conferir_chave_de_consulta(chave.acao).is_err() {
-        return Err(R::AcaoInvalida);
+        return Err(RegistroRecusado::AcaoInvalida);
     }
-    if !texto_sem_controle(chave.objeto, 128) {
-        return Err(R::ObjetoInvalido);
+    if !texto_sem_controle(chave.alvo, 128) {
+        return Err(RegistroRecusado::ObjetoInvalido);
     }
     Ok(())
 }
@@ -116,42 +115,49 @@ pub(super) fn conferir_url(
     chave: ChaveDoLink<'_>,
     url: &str,
 ) -> Result<(), RegistroRecusado> {
-    use RegistroRecusado as R;
-    let restante = url.strip_prefix("https://").ok_or(R::LinkNaoHttps)?;
+    let restante = url
+        .strip_prefix("https://")
+        .ok_or(RegistroRecusado::LinkNaoHttps)?;
     if url.len() > LIMITE_DA_URL
         || !url.bytes().all(|b| (33..=126).contains(&b))
         || url.contains(['#', '\\'])
     {
-        return Err(R::LinkComCaractereProibido);
+        return Err(RegistroRecusado::LinkComCaractereProibido);
     }
-    let (endereco, consulta) = restante.split_once('?').ok_or(R::LinkForaDaInstalacao)?;
-    let (host, caminho) = endereco.split_once('/').ok_or(R::LinkForaDaInstalacao)?;
+    let (endereco, consulta) = restante
+        .split_once('?')
+        .ok_or(RegistroRecusado::LinkForaDaInstalacao)?;
+    let (host, caminho) = endereco
+        .split_once('/')
+        .ok_or(RegistroRecusado::LinkForaDaInstalacao)?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(R::LinkForaDaInstalacao);
+        return Err(RegistroRecusado::LinkForaDaInstalacao);
     }
     let (mut acoes, mut hashes) = (0, 0);
     for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or(R::LinkComConsultaNaoCanonica)?;
+        let (nome, valor) = par
+            .split_once('=')
+            .ok_or(RegistroRecusado::LinkComConsultaNaoCanonica)?;
         if conferir_chave_de_consulta(nome).is_err() || conferir_valor_de_consulta(valor).is_err() {
-            return Err(R::LinkComConsultaNaoCanonica);
+            return Err(RegistroRecusado::LinkComConsultaNaoCanonica);
         }
         match nome {
             "acao" if valor == chave.acao => acoes += 1,
-            "acao" => return Err(R::LinkSemAcaoUnicaIgual),
+            "acao" => return Err(RegistroRecusado::LinkSemAcaoUnicaIgual),
             "infra_hash" if hash_valido(valor) => hashes += 1,
-            "infra_hash" => return Err(R::LinkSemInfraHashUnico),
-            "acao_ajax" => return Err(R::LinkComAcaoAjax),
+            "infra_hash" => return Err(RegistroRecusado::LinkSemInfraHashUnico),
+            "acao_ajax" => return Err(RegistroRecusado::LinkComAcaoAjax),
             "infra_unidade_atual" if valor != chave.unidade => {
-                return Err(R::LinkDeOutraUnidade);
+                return Err(RegistroRecusado::LinkDeOutraUnidade);
             }
             _ => {}
         }
     }
     if acoes != 1 {
-        return Err(R::LinkSemAcaoUnicaIgual);
+        return Err(RegistroRecusado::LinkSemAcaoUnicaIgual);
     }
     if hashes != 1 {
-        return Err(R::LinkSemInfraHashUnico);
+        return Err(RegistroRecusado::LinkSemInfraHashUnico);
     }
     Ok(())
 }

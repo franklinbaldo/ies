@@ -1,8 +1,6 @@
 //! RED/GREEN: prévia Web com orçamento exato, usando apenas respostas sintéticas.
 //! Caso derivado de `Todos tests/test_ciclo_atribuir_010.py` @323eb01.
-use super::fluxo::{
-    ErroProcessoAtribuir as E, EstadoDaAtribuicao, PedidoDaAtribuicao, executar_previa,
-};
+use super::fluxo::{ErroProcessoAtribuir, EstadoDaAtribuicao, PedidoDaAtribuicao, executar_previa};
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
@@ -67,7 +65,10 @@ fn pedidos_previa() -> Vec<Pedido> {
 fn rodar(
     usuario: Option<&str>,
     respostas: Vec<Resposta>,
-) -> (Result<super::fluxo::ProcessoAtribuido, E>, Vec<Pedido>) {
+) -> (
+    Result<super::fluxo::ProcessoAtribuido, ErroProcessoAtribuir>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
         executar_previa(
@@ -106,7 +107,7 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        E::SituacaoDaAtribuicaoNaoObservada {
+        ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
             unidade,
             aberto_em: Some(siglas),
             motivo: None,
@@ -204,7 +205,10 @@ fn login_vazio_nao_se_torna_atribuicao_ja_aplicada() {
 #[test]
 fn barra_ausente_recusa_com_somente_tres_gets() {
     let (resultado, pedidos) = rodar(Some("aluno2"), abertura(arvore(&[UNIDADE], &[])));
-    assert_eq!(resultado, Err(E::AtribuicaoNaoOferecidaNaBarra));
+    assert_eq!(
+        resultado,
+        Err(ErroProcessoAtribuir::AtribuicaoNaoOferecidaNaBarra)
+    );
     assert_eq!(pedidos, pedidos_da_abertura());
 }
 
@@ -214,7 +218,7 @@ fn tela_recusada_preserva_o_status_http_e_nao_faz_post() {
     respostas.push(Err(FalhaTransporte::Rede));
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro, E::Tela(FalhaTransporte::Rede));
+    assert_eq!(erro, ErroProcessoAtribuir::Tela(FalhaTransporte::Rede));
     assert_eq!(pedidos, pedidos_previa());
 }
 
@@ -230,7 +234,7 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::Tela(FalhaTransporte::Status(
+        ErroProcessoAtribuir::Tela(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Acesso negado.".into())
@@ -251,7 +255,10 @@ fn confirmar_login_inexistente_falha_antes_do_post() {
 fn rodar_confirmacao(
     usuario: Option<&str>,
     respostas: Vec<Resposta>,
-) -> (Result<super::fluxo::ProcessoAtribuido, E>, Vec<Pedido>) {
+) -> (
+    Result<super::fluxo::ProcessoAtribuido, ErroProcessoAtribuir>,
+    Vec<Pedido>,
+) {
     let amb = ambiente();
     rodar_com(&amb, respostas, |sessao, nup, indice, envio| {
         executar_previa(
@@ -340,7 +347,7 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        E::NaoConfirmadoNaAtribuicao {
+        ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(falha),
             leitura: None,
             atribuicao_relida: Some(atual),

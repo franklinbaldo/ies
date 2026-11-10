@@ -105,16 +105,19 @@ pub(super) fn replay(card: &str, instalacao_nome: &str, json: &serde_json::Value
 }
 
 fn url(r: &Resposta<'_>) -> String {
-    r.item["response"]["url"].as_str().unwrap_or("").to_owned()
+    r.interacao["response"]["url"]
+        .as_str()
+        .unwrap_or("")
+        .to_owned()
 }
 
 fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
     RespostaWeb {
         status_code: i32::try_from(r.status).unwrap_or(0),
-        mime: gravacao::mime(r.item),
+        mime: gravacao::mime(r.interacao),
         content_length: None,
         localizacao: None,
-        corpo: std::io::Cursor::new(gravacao::corpo(r.item)),
+        corpo: std::io::Cursor::new(gravacao::corpo(r.interacao)),
     }
 }
 
@@ -164,7 +167,7 @@ fn derivar<T>(
     url: &str,
     f: impl FnOnce(&TelaServida<'_>) -> Result<T, &'static str>,
 ) -> Result<T, &'static str> {
-    let mime = gravacao::mime(r.item);
+    let mime = gravacao::mime(r.interacao);
     let html = decodificar_resposta(web(r)).map_err(|f| f.rotulo())?;
     let codificacao = codificacao_da_tela(&mime)
         .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.rotulo())?;
@@ -194,7 +197,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let url_do_envio = submissao.url().to_owned();
     let gravada = RespostaDoPost {
         resposta: web(r),
-        localizacao: gravacao::localizacao(r.item).map(str::to_owned),
+        localizacao: gravacao::localizacao(r.interacao).map(str::to_owned),
     };
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,

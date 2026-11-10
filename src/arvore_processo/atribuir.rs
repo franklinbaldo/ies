@@ -20,10 +20,13 @@ pub(crate) fn ler_atribuir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroAtribuirNaBarra> {
-    use ErroAtribuirNaBarra as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::Html(ErroHtml::valor("barra_da_atribuicao_fora_da_forma")),
-        FalhaDaBarra::Repetidas => E::Html(ErroHtml::repetido("barras_da_atribuicao_repetidas")),
+        FalhaDaBarra::Fora => {
+            ErroAtribuirNaBarra::Html(ErroHtml::valor("barra_da_atribuicao_fora_da_forma"))
+        }
+        FalhaDaBarra::Repetidas => {
+            ErroAtribuirNaBarra::Html(ErroHtml::repetido("barras_da_atribuicao_repetidas"))
+        }
     })?;
     let links: Vec<&str> = ancoras
         .iter()
@@ -35,10 +38,10 @@ pub(crate) fn ler_atribuir_da_barra(
         [href] => conferir_endereco_relativo(instalacao, href, ACAO, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|erro| match erro {
-                EnderecoRecusado::NaoReconhecido => {
-                    E::Html(ErroHtml::valor("endereco_da_atribuicao_nao_reconhecido"))
-                }
-                EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroProcesso,
+                EnderecoRecusado::NaoReconhecido => ErroAtribuirNaBarra::Html(ErroHtml::valor(
+                    "endereco_da_atribuicao_nao_reconhecido",
+                )),
+                EnderecoRecusado::DeOutroProcesso => ErroAtribuirNaBarra::EnderecoDeOutroProcesso,
             }),
         _ => Err(ErroHtml::repetido("links_de_atribuir_repetidos_na_barra").into()),
     }

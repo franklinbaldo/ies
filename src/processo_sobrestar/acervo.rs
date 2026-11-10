@@ -139,9 +139,9 @@ fn replay_do_formulario_de_sobrestamento_unb_go_contra_anti_ies() {
             .collect();
         assert_eq!(telas.len(), 1, "uma tela observada: {caminho}");
         for resposta in telas {
-            let id = gravacao::id_procedimento(resposta.item)
+            let id = gravacao::id_procedimento(resposta.interacao)
                 .expect("id_procedimento unico na resposta original");
-            let original = html_da_resposta(resposta.item).unwrap();
+            let original = html_da_resposta(resposta.interacao).unwrap();
             tela::conferir_formulario(&original, &id)
                 .unwrap_or_else(|e| panic!("{caminho}: leitor IES recusou forma real: {e:?}"));
             assert_eq!(

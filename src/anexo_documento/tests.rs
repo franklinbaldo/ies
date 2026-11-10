@@ -228,7 +228,6 @@ fn html_de_login_ou_de_excecao_do_sei_nao_e_o_arquivo() {
 
 #[test]
 fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
-    use ErroAnexo as E;
     let sem_ler = |cabecalhos: &[(&str, &str)]| {
         let r = RespostaBinaria {
             status: 200,
@@ -246,8 +245,11 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
         )
         .unwrap_err()
     };
-    assert_eq!(sem_ler(&[]), E::SemTipoDeConteudo);
-    assert_eq!(sem_ler(&[("content-type", " ")]), E::SemTipoDeConteudo);
+    assert_eq!(sem_ler(&[]), ErroAnexo::SemTipoDeConteudo);
+    assert_eq!(
+        sem_ler(&[("content-type", " ")]),
+        ErroAnexo::SemTipoDeConteudo
+    );
     for fora in [
         "application/zip",
         "image/png",
@@ -256,7 +258,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
     ] {
         assert_eq!(
             sem_ler(&[("content-type", fora)]),
-            E::TipoNaoPermitido,
+            ErroAnexo::TipoNaoPermitido,
             "{fora}"
         );
     }
@@ -265,7 +267,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-type", "application/pdf"),
             ("content-type", "application/pdf")
         ]),
-        E::CabecalhoRepetido
+        ErroAnexo::CabecalhoRepetido
     );
     assert_eq!(
         sem_ler(&[
@@ -273,7 +275,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
             ("content-length", "1"),
             ("content-length", "1"),
         ]),
-        E::CabecalhoRepetido
+        ErroAnexo::CabecalhoRepetido
     );
     for ruim in [
         "form-data; filename=\"a.pdf\"",
@@ -288,7 +290,7 @@ fn tipo_ausente_fora_da_lista_ou_repetido_e_recusado_sem_ler_o_corpo() {
                 ("content-type", "application/pdf"),
                 ("content-disposition", ruim)
             ]),
-            E::DisposicaoForaDaFormaObservada,
+            ErroAnexo::DisposicaoForaDaFormaObservada,
             "{ruim:?}"
         );
     }

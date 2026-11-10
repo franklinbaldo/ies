@@ -4,7 +4,6 @@
 //! `procedimento_trabalhar` assinado do pai, com `id_procedimento` do pai e
 //! `id_procedimento_anexado` igual à raiz, e cujo texto é o NUP do pai.
 //! Ids, números e hashes inventados.
-use super::ErroArvore as E;
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::*;
 use crate::erro_html::ErroHtml;
@@ -42,7 +41,7 @@ pub(crate) fn arvore_do_anexado(id: &str, nup: &str, html: &str) -> String {
     .replace("Nos[0].html = '';", &format!("Nos[0].html = '{html}';"))
 }
 
-fn ler(html: &str) -> Result<Option<VinculoDeAnexacao>, E> {
+fn ler(html: &str) -> Result<Option<VinculoDeAnexacao>, super::ErroArvore> {
     ler_vinculo_de_anexacao(&instalacao(), html, "10")
 }
 
@@ -121,7 +120,7 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     for html in casos {
         assert_eq!(
             ler(&html),
-            Err(E::Html(ErroHtml::valor(
+            Err(super::ErroArvore::Html(ErroHtml::valor(
                 "vinculo_de_anexacao_fora_da_forma_observada"
             ))),
             "{html}"
@@ -135,7 +134,7 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     let dois = arvore_do_anexado("10", NUP, &format!("{link}{link}"));
     assert_eq!(
         ler(&dois),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
             "vinculos_de_anexacao_repetidos"
         )))
     );
@@ -145,7 +144,7 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     );
     assert_eq!(
         ler(&duas_linhas),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
             "vinculos_de_anexacao_repetidos"
         )))
     );
@@ -153,7 +152,7 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
     assert_eq!(
         ler(&nao_literal),
-        Err(E::Html(ErroHtml::html(
+        Err(super::ErroArvore::Html(ErroHtml::html(
             "html_do_no_do_processo_fora_da_forma_observada"
         )))
     );
@@ -163,17 +162,17 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
 fn subcodigos_estaveis_do_vinculo() {
     for (erro, _subcodigo) in [
         (
-            E::Html(ErroHtml::valor(
+            super::ErroArvore::Html(ErroHtml::valor(
                 "vinculo_de_anexacao_fora_da_forma_observada",
             )),
             "vinculo_de_anexacao_fora_da_forma_observada",
         ),
         (
-            E::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
+            super::ErroArvore::Html(ErroHtml::repetido("vinculos_de_anexacao_repetidos")),
             "vinculos_de_anexacao_repetidos",
         ),
         (
-            E::Html(ErroHtml::html(
+            super::ErroArvore::Html(ErroHtml::html(
                 "html_do_no_do_processo_fora_da_forma_observada",
             )),
             "html_do_no_do_processo_fora_da_forma_observada",

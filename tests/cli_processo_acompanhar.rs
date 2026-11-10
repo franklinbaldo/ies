@@ -1,6 +1,10 @@
 //! CLI de Acompanhamento Especial (#254) — offline e sem escrever no SEI.
 use std::process::{Command, Output};
 
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
+
 const NUP: &str = "00001.000001/2026-01";
 
 fn sem_sessao(argumentos: &[&str]) -> Output {
@@ -15,19 +19,6 @@ fn sem_sessao(argumentos: &[&str]) -> Output {
         .expect("binário IES executado")
 }
 
-/// Falha de comando convertido (#695): saída 1, stdout vazio e
-/// `Error: <Variante>` no stderr.
-fn assert_falha(saida: &Output, variante: &str) {
-    assert_eq!(saida.status.code(), Some(1));
-    assert!(
-        saida.stdout.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&saida.stdout)
-    );
-    let erro = String::from_utf8_lossy(&saida.stderr);
-    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
-}
-
 #[test]
 fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
     // Caso de todos tests/test_processo_acompanhar_010.py @323eb01:
@@ -36,7 +27,7 @@ fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
         let mut args = vec!["processo", "acompanhar", NUP, "--confirmar", "--json"];
         args.extend(acao);
         let saida = sem_sessao(&args);
-        assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+        falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 
@@ -60,7 +51,7 @@ fn entrada_invalida_e_combinacoes_impossiveis() {
 #[test]
 fn previa_exige_sessao_privada_e_nunca_vira_stub() {
     let saida = sem_sessao(&["processo", "acompanhar", NUP, "--json"]);
-    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]
@@ -75,5 +66,5 @@ fn inclusao_confirmada_nao_e_stub_e_exige_sessao() {
         "--confirmar",
         "--json",
     ]);
-    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
+    falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }

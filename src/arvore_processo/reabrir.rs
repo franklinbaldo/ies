@@ -36,10 +36,9 @@ pub(crate) fn ler_reabrir_da_barra(
     html: &str,
     id: &str,
 ) -> Result<Option<ReabrirNaBarra>, ErroHtml> {
-    use ErroHtml as E;
     let ancoras = ancoras_da_barra(html).map_err(|falha| match falha {
-        FalhaDaBarra::Fora => E::valor("barra_do_processo_fora_da_forma_observada"),
-        FalhaDaBarra::Repetidas => E::repetido("barras_do_processo_repetidas_na_arvore"),
+        FalhaDaBarra::Fora => ErroHtml::valor("barra_do_processo_fora_da_forma_observada"),
+        FalhaDaBarra::Repetidas => ErroHtml::repetido("barras_do_processo_repetidas_na_arvore"),
     })?;
     match ancoras
         .iter()
@@ -49,8 +48,8 @@ pub(crate) fn ler_reabrir_da_barra(
         0 => Ok(None),
         1 => tela_do_no_da_raiz(instalacao, html, id)
             .map(|tela_do_no| Some(ReabrirNaBarra { tela_do_no }))
-            .ok_or(E::valor("endereco_da_tela_do_no_nao_reconhecido")),
-        _ => Err(E::repetido("funcoes_de_reabrir_repetidas_na_barra")),
+            .ok_or(ErroHtml::valor("endereco_da_tela_do_no_nao_reconhecido")),
+        _ => Err(ErroHtml::repetido("funcoes_de_reabrir_repetidas_na_barra")),
     }
 }
 
@@ -87,7 +86,6 @@ pub(crate) fn ler_endereco_de_reabrir(
     html: &str,
     id: &str,
 ) -> Result<(EnderecoDeEscrita, FormaDaReabertura), ErroEnderecoDeReabrir> {
-    use ErroEnderecoDeReabrir as E;
     let funcoes = urls_das_funcoes(html, "reabrirProcesso").map_err(|FuncaoForaDaForma| {
         ErroHtml::valor("endereco_de_reabrir_fora_da_forma_observada")
     })?;
@@ -115,9 +113,11 @@ pub(crate) fn ler_endereco_de_reabrir(
     conferir_endereco_relativo(instalacao, url, ACAO_DE_REABRIR, id)
         .map(|url| (EnderecoDeEscrita::novo(url), forma))
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => {
-                E::Html(ErroHtml::valor("endereco_da_reabertura_nao_reconhecido"))
+            EnderecoRecusado::NaoReconhecido => ErroEnderecoDeReabrir::Html(ErroHtml::valor(
+                "endereco_da_reabertura_nao_reconhecido",
+            )),
+            EnderecoRecusado::DeOutroProcesso => {
+                ErroEnderecoDeReabrir::EnderecoDaReaberturaDeOutroProcesso
             }
-            EnderecoRecusado::DeOutroProcesso => E::EnderecoDaReaberturaDeOutroProcesso,
         })
 }

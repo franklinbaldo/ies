@@ -29,7 +29,6 @@ use crate::transporte::FalhaTransporte;
 #[path = "documento_erro.rs"]
 mod erro;
 pub(crate) use erro::ErroDocumentoObter;
-use erro::ErroDocumentoObter as E;
 
 #[path = "documento_anexo.rs"]
 mod anexo;
@@ -93,7 +92,7 @@ pub(crate) fn obter_documento<V: EnvioDoProcesso>(
     pedido: &PedidoDoDocumento<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<DocumentoObtido, E> {
+) -> Result<DocumentoObtido, ErroDocumentoObter> {
     obter_documento_com_versoes(sessao, pedido, PedidoDeVersoes::default(), indice, envio)
 }
 
@@ -106,7 +105,7 @@ pub(crate) fn obter_documento_com_versoes<V: EnvioDoProcesso>(
     versoes: PedidoDeVersoes,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<DocumentoObtido, E> {
+) -> Result<DocumentoObtido, ErroDocumentoObter> {
     obter_documento_com_propriedades(sessao, pedido, versoes, indice, envio, false)
 }
 
@@ -118,7 +117,7 @@ pub(crate) fn obter_documento_com_propriedades<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
     propriedades: bool,
-) -> Result<DocumentoObtido, E> {
+) -> Result<DocumentoObtido, ErroDocumentoObter> {
     let leitura = LeituraDoNo {
         anexo: pedido.anexo,
         versoes,
@@ -134,7 +133,7 @@ pub(crate) fn abrir_documento_na_arvore<V: EnvioDoProcesso>(
     pedido: &PedidoDoDocumento<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<DocumentoNaArvoreAberto, E> {
+) -> Result<DocumentoNaArvoreAberto, ErroDocumentoObter> {
     abrir(sessao, pedido, SoArvore, indice, envio)
 }
 
@@ -166,25 +165,25 @@ impl std::fmt::Debug for DocumentoNaArvoreAberto {
 
 /// O fim da leitura depois da árvore conferida, comum aos três caminhos.
 pub(super) trait FimDaLeitura: Copy {
-    type Saida;
+    type Lido;
     fn concluir<V: EnvioDoProcesso>(
         self,
         instalacao: &Instalacao,
         rede: &mut Rede<'_, V>,
         lido: NoLido<'_>,
         numero: &str,
-    ) -> Result<Self::Saida, E>;
+    ) -> Result<Self::Lido, ErroDocumentoObter>;
 }
 
 impl FimDaLeitura for LeituraDoNo<'_> {
-    type Saida = DocumentoObtido;
+    type Lido = DocumentoObtido;
     fn concluir<V: EnvioDoProcesso>(
         self,
         instalacao: &Instalacao,
         rede: &mut Rede<'_, V>,
         lido: NoLido<'_>,
         numero: &str,
-    ) -> Result<DocumentoObtido, E> {
+    ) -> Result<DocumentoObtido, ErroDocumentoObter> {
         ler_do_no(instalacao, rede, lido, self, numero)
     }
 }
@@ -194,14 +193,14 @@ impl FimDaLeitura for LeituraDoNo<'_> {
 pub(super) struct SoArvore;
 
 impl FimDaLeitura for SoArvore {
-    type Saida = DocumentoNaArvoreAberto;
+    type Lido = DocumentoNaArvoreAberto;
     fn concluir<V: EnvioDoProcesso>(
         self,
         _: &Instalacao,
         rede: &mut Rede<'_, V>,
         lido: NoLido<'_>,
         numero: &str,
-    ) -> Result<DocumentoNaArvoreAberto, E> {
+    ) -> Result<DocumentoNaArvoreAberto, ErroDocumentoObter> {
         Ok(DocumentoNaArvoreAberto {
             numero: numero.to_owned(),
             id_documento: lido.no.id.clone(),
@@ -223,14 +222,14 @@ fn abrir<V: EnvioDoProcesso, F: FimDaLeitura>(
     leitura: F,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<F::Saida, E> {
-    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::Processo(
+) -> Result<F::Lido, ErroDocumentoObter> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(ErroDocumentoObter::Processo(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
     let cookie = sessao
         .cookie
         .valor()
-        .map_err(|f| E::Processo(ErroProcessoObter::Transporte(f)))?
+        .map_err(|f| ErroDocumentoObter::Processo(ErroProcessoObter::Transporte(f)))?
         .to_owned();
     let numero = pedido.numero.as_str();
     let contexto = Contexto {
@@ -271,8 +270,8 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
     rede: &mut Rede<'_, V>,
     numero: &str,
     leitura: F,
-) -> Result<F::Saida, E> {
-    let processo = |erro| E::Processo(erro);
+) -> Result<F::Lido, ErroDocumentoObter> {
+    let processo = |erro| ErroDocumentoObter::Processo(erro);
     let redirecionado = match pesquisar_pela_guardada(contexto, sessao, rede, numero) {
         Ok(Some(redirecionado)) => redirecionado,
         Ok(None) => {
@@ -285,7 +284,7 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
     let trabalho = redirecionado.trabalho.as_str();
     let (html, mime) = match rede.get(trabalho).map_err(processo)? {
         Lida::Html { html, mime } => (html, mime),
-        outra => return Err(E::Processo(fora_do_html(outra))),
+        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
     };
     let (tela, id_procedimento) = ler_tela_do_documento(
         &contexto.instalacao,
@@ -293,13 +292,13 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         &id_documento,
         contexto.unidade_pedida,
     )
-    .map_err(|e| E::Processo(ErroProcessoObter::Tela(e)))?;
+    .map_err(|e| ErroDocumentoObter::Processo(ErroProcessoObter::Tela(e)))?;
     contexto.aprender_pesquisa_rapida(trabalho, &html, &mime, &tela.unidade);
     let html = match rede.get(tela.arvore.as_str()).map_err(processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(E::Processo(fora_do_html(outra))),
+        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
     };
-    let arvore_erro = |e| E::Processo(ErroProcessoObter::Arvore(e));
+    let arvore_erro = |e| ErroDocumentoObter::Processo(ErroProcessoObter::Arvore(e));
     let nup = nup_declarado_na_arvore(&html)
         .ok_or(arvore_erro(ErroArvore::NoDoProcessoAusenteNaArvore))?;
     let contexto = contexto.com_nup(&nup);
@@ -314,12 +313,12 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
         .iter()
         .find(|d| d.id == id_documento)
     else {
-        return Err(E::Conteudo(ErroConteudoNaArvore::Html(ErroHtml::ausente(
-            "documento_ausente_da_arvore",
-        ))));
+        return Err(ErroDocumentoObter::Conteudo(ErroConteudoNaArvore::Html(
+            ErroHtml::ausente("documento_ausente_da_arvore"),
+        )));
     };
     if no.numero_sei.as_deref() != Some(numero) {
-        return Err(E::NumeroSeiDaArvoreDiferenteDoPedido);
+        return Err(ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido);
     }
     localizar(&aberta.arvore.documentos, numero)?;
     let lido = NoLido {
@@ -336,7 +335,7 @@ fn pela_pesquisa<V: EnvioDoProcesso, F: FimDaLeitura>(
 pub(super) fn localizar<'a>(
     documentos: &'a [DocumentoNaArvore],
     numero: &str,
-) -> Result<Option<&'a DocumentoNaArvore>, E> {
+) -> Result<Option<&'a DocumentoNaArvore>, ErroDocumentoObter> {
     let mut com_numero = documentos
         .iter()
         .filter(|d| d.numero_sei.as_deref() == Some(numero));
@@ -366,7 +365,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
     lido: NoLido<'_>,
     pedido: LeituraDoNo<'_>,
     numero: &str,
-) -> Result<DocumentoObtido, E> {
+) -> Result<DocumentoObtido, ErroDocumentoObter> {
     let no = lido.no;
     let conferido = versao::NoConferido {
         instalacao,
@@ -388,7 +387,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
             (tipo, texto, anexo, versoes)
         }
         ConteudoNaArvore::Vazio if no.natureza.cancelado == Some(true) => {
-            return Err(E::DocumentoCancelado);
+            return Err(ErroDocumentoObter::DocumentoCancelado);
         }
         ConteudoNaArvore::Vazio => {
             let cadastro = cadastro::ler(
@@ -401,7 +400,7 @@ pub(super) fn ler_do_no<V: EnvioDoProcesso>(
                 true,
             )?;
             let Some(link) = cadastro.anexo.as_ref() else {
-                return Err(E::ConteudoNaoPublicadoNaArvore {
+                return Err(ErroDocumentoObter::ConteudoNaoPublicadoNaArvore {
                     requisicoes: rede.requisicoes.total_u8(),
                 });
             };
@@ -456,9 +455,11 @@ fn fora_do_html(lida: Lida) -> ErroProcessoObter {
 
 /// A pesquisa rápida que não abriu tela de trabalho: o número não levou a
 /// um documento (o resultado da pesquisa não é lido).
-fn sem_trabalho(erro: ErroProcessoObter) -> E {
+fn sem_trabalho(erro: ErroProcessoObter) -> ErroDocumentoObter {
     match erro {
-        ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho => E::PesquisaRapidaNaoAbriuODocumento,
-        outro => E::Processo(outro),
+        ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho => {
+            ErroDocumentoObter::PesquisaRapidaNaoAbriuODocumento
+        }
+        outro => ErroDocumentoObter::Processo(outro),
     }
 }

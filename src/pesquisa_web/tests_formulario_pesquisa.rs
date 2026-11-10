@@ -3,7 +3,6 @@
 use super::*;
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
-use ErroRegraDoFormularioDePesquisa as R;
 
 const OPCOES_DE_ORGAO: &str = "<option value='1' selected>A</option>\
     <option value='2'>B</option><option value='3' selected='selected'>C</option>";
@@ -69,7 +68,7 @@ fn derivar(html: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     )
 }
 
-fn regra(html: &str) -> R {
+fn regra(html: &str) -> ErroRegraDoFormularioDePesquisa {
     match derivar(html).unwrap_err() {
         ErroPesquisaProtocolo::RegraDoFormulario(erro) => erro,
         outro => panic!("esperada regra do formulário, veio {outro:?}"),
@@ -104,7 +103,9 @@ fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() 
     let sem = observado().replace("id='optProcessos'", "id='outro'");
     assert_eq!(
         regra(&sem),
-        R::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela"))
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+            "opcao_de_processos_ausente_na_tela"
+        ))
     );
     let repetida = observado().replace(
         "<input type='checkbox' id='chkSinConsiderarDocumentos'",
@@ -113,12 +114,16 @@ fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() 
     );
     assert_eq!(
         regra(&repetida),
-        R::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela"))
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
+            "opcoes_de_processos_repetidas_na_tela"
+        ))
     );
     let sem_valor = observado().replace("name='rdoPesquisarEm' value='P'", "name='rdoPesquisarEm'");
     assert_eq!(
         regra(&sem_valor),
-        R::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela"))
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+            "opcao_de_processos_sem_valor_na_tela"
+        ))
     );
     let outro_nome = observado().replace(
         "id='optProcessos' name='rdoPesquisarEm'",
@@ -126,7 +131,7 @@ fn opcao_de_processos_ausente_repetida_sem_valor_ou_com_outro_nome_e_recusada() 
     );
     assert_eq!(
         regra(&outro_nome),
-        R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm
     );
 }
 
@@ -138,7 +143,7 @@ fn assinante_oculto_preenchido_e_recusado_na_pesquisa_em_processos() {
     );
     assert_eq!(
         regra(&html),
-        R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos
+        ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos
     );
 }
 
@@ -147,7 +152,7 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     // O `select` fora do `<form>` em `pagina` não conta.
     assert_eq!(
         regra(&pagina(&interior(""))),
-        R::Html(ErroHtml::ausente(
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
             "seletor_de_orgao_de_pesquisa_ausente_na_tela"
         ))
     );
@@ -158,14 +163,14 @@ fn seletor_de_orgao_ausente_repetido_ou_sem_multiple_e_recusado() {
     );
     assert_eq!(
         regra(&pagina(&interior(&dois))),
-        R::Html(ErroHtml::repetido(
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
             "seletores_de_orgao_de_pesquisa_repetidos_na_tela"
         ))
     );
     let simples = observado().replace(" multiple='multiple'", "");
     assert_eq!(
         regra(&simples),
-        R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha
+        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha
     );
 }
 
@@ -174,19 +179,21 @@ fn orgao_sem_selecao_servida_ou_opcao_sem_valor_e_recusado_sem_inventar_orgao() 
     let nenhum = select_de_orgao("<option value='1'>A</option><option value='2'>B</option>");
     assert_eq!(
         regra(&pagina(&interior(&nenhum))),
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
+        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
     );
     let sem_valor = select_de_orgao("<option selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&sem_valor))),
-        R::Html(ErroHtml::ausente(
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
             "opcao_de_orgao_selecionada_sem_valor_na_tela"
         ))
     );
     let entidade = select_de_orgao("<option value='1&desconhecida;' selected>A</option>");
     assert_eq!(
         regra(&pagina(&interior(&entidade))),
-        R::Html(ErroHtml::html("entidade_html_desconhecida_na_regra"))
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::html(
+            "entidade_html_desconhecida_na_regra"
+        ))
     );
 }
 
@@ -252,7 +259,10 @@ fn seletor_de_orgao_desabilitado_nao_e_publicado_como_no_navegador() {
 #[test]
 fn inicio_da_paginacao_servido_diferente_de_zero_e_recusado() {
     let html = observado().replace("name='hdnInicio' value='0'", "name='hdnInicio' value='20'");
-    assert_eq!(regra(&html), R::InicioDaPaginacaoDiferenteDeZeroNaTela);
+    assert_eq!(
+        regra(&html),
+        ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela
+    );
 }
 
 #[test]
@@ -290,24 +300,32 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
 #[test]
 fn subcodigos_das_regras_sao_distintos() {
     let todos = [
-        R::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela")),
-        R::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela")),
-        R::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela")),
-        R::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
-        R::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-        R::Html(ErroHtml::ausente(
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+            "opcao_de_processos_ausente_na_tela",
+        )),
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
+            "opcoes_de_processos_repetidas_na_tela",
+        )),
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+            "opcao_de_processos_sem_valor_na_tela",
+        )),
+        ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
+        ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
             "seletor_de_orgao_de_pesquisa_ausente_na_tela",
         )),
-        R::Html(ErroHtml::repetido(
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
             "seletores_de_orgao_de_pesquisa_repetidos_na_tela",
         )),
-        R::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
-        R::Html(ErroHtml::ausente(
+        ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha,
+        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela,
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
             "opcao_de_orgao_selecionada_sem_valor_na_tela",
         )),
-        R::InicioDaPaginacaoDiferenteDeZeroNaTela,
-        R::Html(ErroHtml::html("entidade_html_desconhecida_na_regra")),
+        ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela,
+        ErroRegraDoFormularioDePesquisa::Html(ErroHtml::html(
+            "entidade_html_desconhecida_na_regra",
+        )),
     ];
     let unicos: std::collections::HashSet<_> = todos
         .iter()
@@ -338,7 +356,7 @@ fn opcao_de_orgao_selecionada_mas_desabilitada_nao_e_publicada() {
     let todas = select_de_orgao("<option value='2' selected disabled>B</option>");
     assert_eq!(
         regra(&pagina(&interior(&todas))),
-        R::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
+        ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela
     );
 }
 
@@ -365,7 +383,7 @@ fn derivar_termo(html: &str, termo: &str) -> Result<SubmissaoDerivada, ErroPesqu
     derivar_pesquisa_de_protocolo(&instalacao(), &tela_iso(&url, html), "UNIDADE TESTE", termo)
 }
 
-fn regra_do_termo(html: &str, termo: &str) -> R {
+fn regra_do_termo(html: &str, termo: &str) -> ErroRegraDoFormularioDePesquisa {
     match derivar_termo(html, termo).unwrap_err() {
         ErroPesquisaProtocolo::RegraDoFormulario(erro) => erro,
         outro => panic!("esperada regra do formulário, veio {outro:?}"),
@@ -379,55 +397,6 @@ const CAMPO_COM_50: &str = "<input type='text' id='txtProtocoloPesquisa' \
 fn termo_no_limite_do_maxlength_servido_e_enviado() {
     let html = com_campo_do_termo(CAMPO_COM_50);
     assert!(derivar_termo(&html, &"1".repeat(50)).is_ok());
-}
-
-#[test]
-fn termo_acima_do_maxlength_servido_e_recusado_antes_do_post() {
-    let html = com_campo_do_termo(CAMPO_COM_50);
-    let erro = regra_do_termo(&html, &"1".repeat(51));
-    assert_eq!(erro, R::TermoAcimaDoMaxlengthDaTela { maxlength: 50 });
-}
-
-#[test]
-fn maxlength_e_o_publicado_e_nao_um_valor_universal() {
-    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'10'"));
-    assert!(derivar_termo(&html, &"1".repeat(10)).is_ok());
-    assert_eq!(
-        regra_do_termo(&html, &"1".repeat(11)),
-        R::TermoAcimaDoMaxlengthDaTela { maxlength: 10 }
-    );
-}
-
-#[test]
-fn sem_maxlength_publicado_o_termo_nao_tem_limite_da_tela() {
-    assert!(derivar_termo(&observado(), &"1".repeat(51)).is_ok());
-}
-
-#[test]
-fn maxlength_conta_unidades_utf16_como_o_navegador() {
-    let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", "'2'"));
-    assert!(derivar_termo(&html, "éé").is_ok());
-    assert_eq!(
-        regra_do_termo(&html, "😀a"),
-        R::TermoAcimaDoMaxlengthDaTela { maxlength: 2 }
-    );
-}
-
-#[test]
-fn maxlength_ilegivel_ou_campo_repetido_e_recusado() {
-    for ruim in ["''", "'-1'", "'5a'", "' 5'"] {
-        let html = com_campo_do_termo(&CAMPO_COM_50.replace("'50'", ruim));
-        assert_eq!(
-            regra_do_termo(&html, "1"),
-            R::MaxlengthDoTermoIlegivelNaTela,
-            "maxlength={ruim}"
-        );
-    }
-    let html = com_campo_do_termo(&format!("{CAMPO_COM_50}{CAMPO_COM_50}"));
-    assert_eq!(
-        regra_do_termo(&html, "1"),
-        R::Html(ErroHtml::repetido("campos_do_termo_repetidos_na_tela"))
-    );
 }
 
 #[test]
@@ -487,3 +456,6 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
     )
     .unwrap_err();
 }
+
+#[path = "tests_formulario_pesquisa_maxlength.rs"]
+mod maxlength;

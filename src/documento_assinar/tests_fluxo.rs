@@ -2,7 +2,7 @@
 //! requisições (orçamento do contrato: prévia 5, escrita 7 a frio por
 //! `--processo`), decisão antes de escrever, um POST com a senha e a tabela
 //! de reconciliação. Telas sintéticas.
-use super::erro::{ErroAssinar as A, FalhaDoEnvio, VerificacaoDaAssinatura as V};
+use super::erro::{ErroAssinar, FalhaDoEnvio, VerificacaoDaAssinatura};
 use super::tests_apoio::*;
 use crate::arvore_processo::{Assinante, EdicaoNaBarra};
 use crate::erro_html::ErroHtml;
@@ -100,7 +100,7 @@ fn cargo_fora_das_opcoes_e_recusa_sem_post() {
         );
         assert_eq!(
             r,
-            Err(A::CargoNaoOferecidoPelaTela {
+            Err(ErroAssinar::CargoNaoOferecidoPelaTela {
                 cargos: vec![CARGO.into(), "Presidente".into()]
             })
         );
@@ -112,7 +112,7 @@ fn cargo_fora_das_opcoes_e_recusa_sem_post() {
 fn barra_sem_assinar_para_na_abertura() {
     let arvore = arvore_assinavel(ID, ID_DOC, DOC, "", &[]);
     let (r, feitos) = rodar_assinar(Some(CARGO), true, abertura(arvore));
-    assert_eq!(r, Err(A::AssinaturaNaoPublicadaNaBarra));
+    assert_eq!(r, Err(ErroAssinar::AssinaturaNaoPublicadaNaBarra));
     assert_eq!(feitos, pedidos_da_abertura());
 }
 
@@ -122,7 +122,7 @@ fn caneta_fora_da_forma_para_na_abertura() {
     let (r, feitos) = rodar_assinar(None, false, abertura(arvore_do_documento('S', &[dupla])));
     assert_eq!(
         r,
-        Err(A::Arvore(ErroHtml::valor(
+        Err(ErroAssinar::Arvore(ErroHtml::valor(
             "assinaturas_do_documento_fora_da_forma_observada"
         )))
     );
@@ -157,7 +157,10 @@ fn assinado_por_outro_usuario_e_recusa() {
         true,
         ate_a_tela(arvore_do_documento('S', &[outra])),
     );
-    assert!(matches!(r, Err(A::DocumentoAssinadoPorOutroUsuario { .. })));
+    assert!(matches!(
+        r,
+        Err(ErroAssinar::DocumentoAssinadoPorOutroUsuario { .. })
+    ));
     assert_eq!(feitos, pedidos_ate_a_tela());
 }
 
@@ -260,7 +263,7 @@ fn leitura_sem_caneta_e_assinatura_nao_aplicada() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        A::AssinaturaNaoAplicada {
+        ErroAssinar::AssinaturaNaoAplicada {
             antes: vec![],
             falha_do_envio: Some(FalhaDoEnvio::RespostaSemFinalizacao),
         }
@@ -276,7 +279,7 @@ fn falha_depois_do_envio_e_leitura_falha_sao_nao_confirmado_sem_retry() {
     );
     let (r, feitos) = rodar_assinar(Some(CARGO), true, respostas);
     let erro = r.unwrap_err();
-    let A::NaoConfirmadoNaAssinatura {
+    let ErroAssinar::NaoConfirmadoNaAssinatura {
         falha_do_envio,
         verificacao,
         ..
@@ -290,7 +293,10 @@ fn falha_depois_do_envio_e_leitura_falha_sao_nao_confirmado_sem_retry() {
             FalhaTransporte::Rede
         )))
     );
-    assert!(matches!(verificacao.as_ref(), V::LeituraFalhou(_)));
+    assert!(matches!(
+        verificacao.as_ref(),
+        VerificacaoDaAssinatura::LeituraFalhou(_)
+    ));
     assert_eq!(feitos, pedidos_da_escrita());
     assert!(!format!("{erro:?}").contains(SENHA));
 }

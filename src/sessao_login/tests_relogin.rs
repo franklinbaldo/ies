@@ -7,7 +7,6 @@ use super::{ErroLogin, RespostaHttp, TransporteDeLogin};
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;
 use crate::indice_local::IndiceLocal;
-use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso as E;
 use crate::transporte::envio_post::ler_tela_via;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado};
@@ -44,7 +43,10 @@ impl TransporteDeLogin for Compartilhado<'_> {
 /// A leitura sintética pelo GET do Controle compartilhado (`ler_tela_via`,
 /// o de `unidade *`, `processo buscar` e `documento buscar`): relê URL e
 /// cookie dos arquivos a cada tentativa, com as falhas tipadas reais.
-fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Result<String, E> {
+fn ler_controle(
+    roteiro: &RefCell<Roteiro>,
+    arquivos: &ArquivosDeAcesso,
+) -> Result<String, crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso> {
     let url = Ambiente::ler(&arquivos.url_controle).trim().to_owned();
     let tela = ler_tela_via(
         &url,
@@ -64,7 +66,8 @@ fn ler_controle(roteiro: &RefCell<Roteiro>, arquivos: &ArquivosDeAcesso) -> Resu
             })
         },
     )?;
-    crate::controle_reconhecido::unidade_do_controle(&tela.html).map_err(E::Controle)
+    crate::controle_reconhecido::unidade_do_controle(&tela.html)
+        .map_err(crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Controle)
 }
 
 fn login_unb() -> Vec<Result<RespostaHttp, FalhaTransporte>> {
@@ -113,7 +116,10 @@ fn vencida() -> Ambiente {
     ambiente
 }
 
-type Lido = Result<(String, Option<NotaDoRelogin>), FalhaDaLeitura<E>>;
+type Lido = Result<
+    (String, Option<NotaDoRelogin>),
+    FalhaDaLeitura<crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso>,
+>;
 
 /// Executa com o contexto do ambiente e as credenciais dadas.
 fn executar(
@@ -136,7 +142,7 @@ fn executar(
         &contexto,
         &mut Compartilhado(roteiro),
         &|| roteiro.borrow().pedidos.len(),
-        E::sessao_encerrada,
+        crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::sessao_encerrada,
         || {
             let lido = ler_controle(roteiro, &ambiente.arquivos);
             tentativas.set(tentativas.get() + 1);
@@ -261,7 +267,9 @@ fn segunda_falha_sai_com_o_erro_sem_novo_login() {
     };
     assert_eq!(
         erro,
-        E::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+        crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(
+            FalhaTransporte::PaginaDeLoginRecebidaNoControle
+        )
     );
     assert_eq!(
         nota,
@@ -291,7 +299,9 @@ fn sem_arquivo_de_credenciais_comportamento_atual() {
         };
         assert_eq!(
             erro,
-            E::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+            crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(
+                FalhaTransporte::PaginaDeLoginRecebidaNoControle
+            )
         );
         assert_eq!(nota, None);
         assert_eq!(

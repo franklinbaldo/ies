@@ -65,17 +65,17 @@ fn barra(
     }
 }
 
-fn resposta(item: &serde_json::Value, status: u64) -> String {
-    let corpo = gravacao::corpo(item);
+fn resposta(interacao: &serde_json::Value, status: u64) -> String {
+    let corpo = gravacao::corpo(interacao);
     let resposta = RespostaDoPost {
         resposta: RespostaWeb {
             status_code: i32::try_from(status).unwrap_or(0),
-            mime: gravacao::mime(item),
+            mime: gravacao::mime(interacao),
             content_length: Some(corpo.len()),
             localizacao: None,
             corpo: Cursor::new(corpo),
         },
-        localizacao: gravacao::localizacao(item).map(str::to_owned),
+        localizacao: gravacao::localizacao(interacao).map(str::to_owned),
     };
     match resposta_da_funcao(resposta, FalhaDoEnvio::RedirecionamentoNaReabertura) {
         None => "HTML 200 esperado".into(),
@@ -100,10 +100,10 @@ fn replay_de_processo_reabrir_no_acervo() {
         let mut aberto_em: BTreeMap<String, Option<Vec<String>>> = BTreeMap::new();
         let mut escrita: Option<Escrita> = None;
         for r in gravacao::respostas(json) {
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
                     if let Some(tela) =
@@ -146,7 +146,7 @@ fn replay_de_processo_reabrir_no_acervo() {
                     somar(
                         &mut contagem,
                         "resposta da escrita",
-                        resposta(r.item, status),
+                        resposta(r.interacao, status),
                         nome,
                     );
                     let antes = aberto_em.get(&id).cloned().flatten();

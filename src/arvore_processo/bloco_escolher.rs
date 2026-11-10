@@ -29,7 +29,6 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<Option<EnderecoDeEscrita>, ErroBlocoNaBarra> {
-    use ErroBlocoNaBarra as E;
     let fora = || ErroHtml::valor("barra_do_documento_fora_da_forma_observada");
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(None);
@@ -56,10 +55,10 @@ pub(crate) fn ler_bloco_escolher_da_barra(
         _ => return Err(ErroHtml::repetido("links_de_escolher_bloco_repetidos_na_barra").into()),
     };
     let recusa = |r| match r {
-        EnderecoRecusado::NaoReconhecido => E::Html(ErroHtml::valor(
+        EnderecoRecusado::NaoReconhecido => ErroBlocoNaBarra::Html(ErroHtml::valor(
             "endereco_de_escolher_bloco_nao_reconhecido",
         )),
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroDocumento,
+        EnderecoRecusado::DeOutroProcesso => ErroBlocoNaBarra::EnderecoDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
         instalacao,

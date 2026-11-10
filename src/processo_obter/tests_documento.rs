@@ -158,10 +158,9 @@ fn recusa(arvore: String) -> ErroDocumentoObter {
 
 #[test]
 fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
-    use ErroDocumentoObter as E;
     assert_eq!(
         recusa(arvore_com("")),
-        E::ConteudoNaoPublicadoNaArvore { requisicoes: 4 }
+        ErroDocumentoObter::ConteudoNaoPublicadoNaArvore { requisicoes: 4 }
     );
     let cancelado = arvore_com("")
         .replace("svg/documento_interno.svg", "svg/documento_cancelado.svg")
@@ -169,12 +168,11 @@ fn sem_acesso_e_cancelado_sao_recusas_tipadas_sem_get_do_conteudo() {
             "De: pessoa@exemplo.gov.br\\nPara: outra@exemplo.gov.br",
             "Documento Cancelado: teste",
         );
-    assert_eq!(recusa(cancelado), E::DocumentoCancelado);
+    assert_eq!(recusa(cancelado), ErroDocumentoObter::DocumentoCancelado);
 }
 
 #[test]
 fn duplicidade_e_numero_diferente_na_arvore() {
-    use ErroDocumentoObter as E;
     let duplicada = com_src(
         &arvore(&[
             no_processo(0, ID, NUP),
@@ -186,7 +184,7 @@ fn duplicidade_e_numero_diferente_na_arvore() {
     );
     assert_eq!(
         recusa(duplicada),
-        E::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
+        ErroDocumentoObter::Html(ErroHtml::repetido("numero_sei_repetido_na_arvore"))
     );
     // Zeros à esquerda são parte do número: 101 não é 0000101.
     let outro = com_src(
@@ -194,11 +192,14 @@ fn duplicidade_e_numero_diferente_na_arvore() {
         1,
         &src_visualizar(ID_DOC),
     );
-    assert_eq!(recusa(outro), E::NumeroSeiDaArvoreDiferenteDoPedido);
+    assert_eq!(
+        recusa(outro),
+        ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido
+    );
     let ausente = arvore(&[no_processo(0, ID, NUP), no_documento(1, "22", ID, DOC)]);
     assert_eq!(
         recusa(ausente),
-        E::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
+        ErroDocumentoObter::Conteudo(crate::arvore_processo::ErroConteudoNaArvore::Html(
             ErroHtml::ausente("documento_ausente_da_arvore")
         ))
     );

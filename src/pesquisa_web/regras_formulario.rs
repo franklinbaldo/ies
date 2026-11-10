@@ -5,7 +5,6 @@
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{ErroAtributoHtml, atributo_presente, valor_do_atributo};
-use ErroRegraDoFormularioDePesquisa as E;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -52,18 +51,21 @@ pub(crate) struct RegrasDaTela {
     pub(crate) maxlength_do_termo: Option<u32>,
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+fn atributo(
+    tag: &tl::HTMLTag<'_>,
+    nome: &'static str,
+) -> Result<Option<String>, ErroRegraDoFormularioDePesquisa> {
     valor_do_atributo(tag, nome)?
         .map(|bruto| {
-            decodificar_atributo(&bruto).ok_or(E::Html(ErroHtml::html(
-                "entidade_html_desconhecida_na_regra",
-            )))
+            decodificar_atributo(&bruto).ok_or(ErroRegraDoFormularioDePesquisa::Html(
+                ErroHtml::html("entidade_html_desconhecida_na_regra"),
+            ))
         })
         .transpose()
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, E> {
-    atributo_presente(tag, nome).map_err(E::AtributoHtml)
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroRegraDoFormularioDePesquisa> {
+    atributo_presente(tag, nome).map_err(ErroRegraDoFormularioDePesquisa::AtributoHtml)
 }
 
 fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
@@ -72,21 +74,36 @@ fn eh(tag: &tl::HTMLTag<'_>, elemento: &str) -> bool {
 
 /// `onSubmitForm()` exige rádio marcado; com `P`, a operação usa
 /// `#optProcessos` como servido; com `D`, `#optDocumentos` (e as caixas).
-fn opcao(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<String, E> {
+fn opcao(
+    tags: &[&tl::HTMLTag<'_>],
+    em: PesquisarEm,
+) -> Result<String, ErroRegraDoFormularioDePesquisa> {
     let (id, ausente, repetidas, sem_valor, outro_nome) = match em {
         PesquisarEm::Processos => (
             "optProcessos",
-            E::Html(ErroHtml::ausente("opcao_de_processos_ausente_na_tela")),
-            E::Html(ErroHtml::repetido("opcoes_de_processos_repetidas_na_tela")),
-            E::Html(ErroHtml::ausente("opcao_de_processos_sem_valor_na_tela")),
-            E::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+                "opcao_de_processos_ausente_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
+                "opcoes_de_processos_repetidas_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+                "opcao_de_processos_sem_valor_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::OpcaoDeProcessosComNomeDiferenteDeRdoPesquisarEm,
         ),
         PesquisarEm::Documentos => (
             "optDocumentos",
-            E::Html(ErroHtml::ausente("opcao_de_documentos_ausente_na_tela")),
-            E::Html(ErroHtml::repetido("opcoes_de_documentos_repetidas_na_tela")),
-            E::Html(ErroHtml::ausente("opcao_de_documentos_sem_valor_na_tela")),
-            E::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+                "opcao_de_documentos_ausente_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::repetido(
+                "opcoes_de_documentos_repetidas_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::Html(ErroHtml::ausente(
+                "opcao_de_documentos_sem_valor_na_tela",
+            )),
+            ErroRegraDoFormularioDePesquisa::OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
         ),
     };
     let mut achadas = Vec::new();
@@ -111,7 +128,9 @@ fn opcao(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<String, E> {
 /// navegador enviaria. Nenhuma marcada: `onSubmitForm()` recusaria.
 const CAIXAS_DE_DOCUMENTO: [&str; 2] = ["chkSinDocumentosGerados", "chkSinDocumentosRecebidos"];
 
-fn caixas_de_documento(tags: &[&tl::HTMLTag<'_>]) -> Result<Vec<(&'static str, String)>, E> {
+fn caixas_de_documento(
+    tags: &[&tl::HTMLTag<'_>],
+) -> Result<Vec<(&'static str, String)>, ErroRegraDoFormularioDePesquisa> {
     let mut marcadas = Vec::new();
     for caixa in CAIXAS_DE_DOCUMENTO {
         let mut achadas = Vec::new();
@@ -144,7 +163,7 @@ fn caixas_de_documento(tags: &[&tl::HTMLTag<'_>]) -> Result<Vec<(&'static str, S
         }
     }
     if marcadas.is_empty() {
-        return Err(E::NenhumTipoDeDocumentoMarcadoNaTela);
+        return Err(ErroRegraDoFormularioDePesquisa::NenhumTipoDeDocumentoMarcadoNaTela);
     }
     Ok(marcadas)
 }
@@ -152,18 +171,23 @@ fn caixas_de_documento(tags: &[&tl::HTMLTag<'_>]) -> Result<Vec<(&'static str, S
 /// Com `P`, `tratarCamposDocumento()` esvazia `hdnIdAssinante`; com `D`, o
 /// servido preenchido filtraria em silêncio. `navegar()` só reescreve
 /// `hdnInicio` na paginação. Ocultos saem como servidos.
-fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<(), E> {
+fn conferir_ocultos(
+    tags: &[&tl::HTMLTag<'_>],
+    em: PesquisarEm,
+) -> Result<(), ErroRegraDoFormularioDePesquisa> {
     for tag in tags.iter().filter(|t| eh(t, "input")) {
         let valor = || atributo(tag, "value").map(Option::unwrap_or_default);
         match atributo(tag, "name")?.as_deref() {
             Some("hdnIdAssinante") if !valor()?.is_empty() => {
                 return Err(match em {
-                    PesquisarEm::Processos => E::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
-                    PesquisarEm::Documentos => E::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
+                    PesquisarEm::Processos => ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmProcessos,
+                    PesquisarEm::Documentos => ErroRegraDoFormularioDePesquisa::AssinanteOcultoPreenchidoNaPesquisaEmDocumentos,
                 });
             }
             Some("hdnInicio") if valor()? != "0" => {
-                return Err(E::InicioDaPaginacaoDiferenteDeZeroNaTela);
+                return Err(
+                    ErroRegraDoFormularioDePesquisa::InicioDaPaginacaoDiferenteDeZeroNaTela,
+                );
             }
             _ => {}
         }
@@ -178,7 +202,7 @@ fn conferir_ocultos(tags: &[&tl::HTMLTag<'_>], em: PesquisarEm) -> Result<(), E>
 fn orgaos_selecionados(
     tags: &[&tl::HTMLTag<'_>],
     parser: &tl::Parser<'_>,
-) -> Result<Vec<String>, E> {
+) -> Result<Vec<String>, ErroRegraDoFormularioDePesquisa> {
     let mut achados = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "select")) {
         if atributo(tag, "name")?.as_deref() == Some("selOrgaoPesquisa[]") {
@@ -195,7 +219,7 @@ fn orgaos_selecionados(
         }
     };
     if !presente(select, "multiple")? {
-        return Err(E::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
+        return Err(ErroRegraDoFormularioDePesquisa::SeletorDeOrgaoDePesquisaSemMultiplaEscolha);
     }
     let descendentes: Vec<_> = select
         .children()
@@ -233,7 +257,7 @@ fn orgaos_selecionados(
         }
     }
     if valores.is_empty() {
-        return Err(E::OrgaoDePesquisaSemOpcaoSelecionadaNaTela);
+        return Err(ErroRegraDoFormularioDePesquisa::OrgaoDePesquisaSemOpcaoSelecionadaNaTela);
     }
     Ok(valores)
 }
@@ -241,7 +265,9 @@ fn orgaos_selecionados(
 /// `maxlength` de `txtProtocoloPesquisa` como servido (50 nas quatro
 /// instalações, sem presumir esse valor). Só dígitos ASCII são aceitos,
 /// mais estrito que o navegador, que ignora o atributo inválido.
-fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<Option<u32>, E> {
+fn maxlength_do_termo(
+    tags: &[&tl::HTMLTag<'_>],
+) -> Result<Option<u32>, ErroRegraDoFormularioDePesquisa> {
     let mut campos = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "input")) {
         if atributo(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
@@ -257,12 +283,12 @@ fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<Option<u32>, E> {
         return Ok(None);
     };
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(E::MaxlengthDoTermoIlegivelNaTela);
+        return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoIlegivelNaTela);
     }
     valor
         .parse()
         .map(Some)
-        .map_err(|_| E::MaxlengthDoTermoIlegivelNaTela)
+        .map_err(|_| ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoIlegivelNaTela)
 }
 
 /// Lê, do `<form>` já localizado, os valores que o `onsubmit` exige.

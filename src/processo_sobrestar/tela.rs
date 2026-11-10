@@ -42,17 +42,19 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// Confere os controles antes de derivar um único POST.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    use ErroTela as E;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| E::NaoInterpretada)?;
-    let form = localizar_formulario(&dom, OPERACAO.formulario).map_err(|_| E::FormularioAusente)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroTela::NaoInterpretada)?;
+    let form =
+        localizar_formulario(&dom, OPERACAO.formulario).map_err(|_| ErroTela::FormularioAusente)?;
     let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada)
+        valor_do_atributo(tag, nome).map_err(|_| ErroTela::NaoInterpretada)
     };
     let presente = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada)
+        atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada)
     };
-    let action = atributo(form, "action")?.ok_or(E::OutroProcesso)?;
-    let action = crate::formulario_web::decodificar_atributo(&action).ok_or(E::NaoInterpretada)?;
+    let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
+    let action =
+        crate::formulario_web::decodificar_atributo(&action).ok_or(ErroTela::NaoInterpretada)?;
     let ids: Vec<_> = action
         .split_once('?')
         .map(|(_, consulta)| consulta)
@@ -61,10 +63,10 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         .filter_map(|par| par.strip_prefix("id_procedimento="))
         .collect();
     if ids.as_slice() != [id] {
-        return Err(E::OutroProcesso);
+        return Err(ErroTela::OutroProcesso);
     }
     if !atributo(form, "method")?.is_some_and(|v| v.eq_ignore_ascii_case("post")) {
-        return Err(E::CampoInesperado);
+        return Err(ErroTela::CampoInesperado);
     }
     // An external form-associated field changes the browser POST.
     for elemento in ["input", "button", "select", "textarea"] {
@@ -73,7 +75,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
                 continue;
             };
             if atributo(tag, "form")?.is_some() {
-                return Err(E::CampoInesperado);
+                return Err(ErroTela::CampoInesperado);
             }
         }
     }
@@ -86,11 +88,11 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "fieldset" && presente(tag, "disabled")? {
-            return Err(E::CampoInesperado);
+            return Err(ErroTela::CampoInesperado);
         }
         if elemento == "option" {
             if presente(tag, "selected")? {
-                return Err(E::DestinoPreenchido);
+                return Err(ErroTela::DestinoPreenchido);
             }
             continue;
         }
@@ -101,7 +103,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
             continue;
         }
         if presente(tag, "disabled")? || atributo(tag, "form")?.is_some() {
-            return Err(E::CampoInesperado);
+            return Err(ErroTela::CampoInesperado);
         }
         conferir_campo(&dom, tag, id, &mut vistos)?;
     }
@@ -124,9 +126,9 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
     {
         Ok(())
     } else if vistos.get("rdoSobrestar:S") != Some(&1) || vistos.get("rdoSobrestar:V") != Some(&1) {
-        Err(E::OpcaoNaoOferecida)
+        Err(ErroTela::OpcaoNaoOferecida)
     } else {
-        Err(E::CampoInesperado)
+        Err(ErroTela::CampoInesperado)
     }
 }
 
@@ -137,13 +139,12 @@ fn conferir_campo(
     id: &str,
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
-    use ErroTela as E;
     let atributo =
-        |nome: &'static str| valor_do_atributo(tag, nome).map_err(|_| E::NaoInterpretada);
+        |nome: &'static str| valor_do_atributo(tag, nome).map_err(|_| ErroTela::NaoInterpretada);
     let presente =
-        |nome: &'static str| atributo_presente(tag, nome).map_err(|_| E::NaoInterpretada);
+        |nome: &'static str| atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
-    let nome = atributo("name")?.ok_or(E::CampoInesperado)?;
+    let nome = atributo("name")?.ok_or(ErroTela::CampoInesperado)?;
     let tipo = atributo("type")?.unwrap_or_else(|| {
         if elemento == "button" {
             "submit"
@@ -157,7 +158,7 @@ fn conferir_campo(
     let valido = match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
         ("input", "hidden", "hdnIdProtocolos") => {
             if valor != id {
-                return Err(E::OutroProcesso);
+                return Err(ErroTela::OutroProcesso);
             }
             true
         }
@@ -196,10 +197,10 @@ fn conferir_campo(
             | "txtIdentificacaoProcedimentoDestino"
                 if !valor.is_empty() =>
             {
-                Err(E::DestinoPreenchido)
+                Err(ErroTela::DestinoPreenchido)
             }
-            "rdoSobrestar" => Err(E::OpcaoNaoOferecida),
-            _ => Err(E::CampoInesperado),
+            "rdoSobrestar" => Err(ErroTela::OpcaoNaoOferecida),
+            _ => Err(ErroTela::CampoInesperado),
         }
     }
 }

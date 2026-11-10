@@ -1,7 +1,6 @@
 //! RED/GREEN da integridade das pastas (por identidade, não por contagem)
 //! e da ação "Abrir todas as Pastas". Árvores sintéticas de
 //! [`super::tests_pastas`].
-use super::ErroArvore as E;
 use super::tests::NUP;
 use super::tests_pastas::*;
 use super::*;
@@ -46,14 +45,14 @@ fn identidade_e_nao_contagem() {
     trocado[1] = No::Documento("22", p(1), Some("999"));
     assert_eq!(
         ler(&aberta(declaradas, trocado)),
-        Err(E::DocumentoDaPastaNaoDeclarado)
+        Err(super::ErroArvore::DocumentoDaPastaNaoDeclarado)
     );
     // Um a menos.
     let mut faltando = os_quatro();
     faltando.remove(3);
     assert_eq!(
         ler(&aberta(declaradas, faltando)),
-        Err(E::Html(ErroHtml::ausente(
+        Err(super::ErroArvore::Html(ErroHtml::ausente(
             "protocolo_declarado_ausente_da_pasta"
         )))
     );
@@ -62,14 +61,16 @@ fn identidade_e_nao_contagem() {
     repetido[1] = No::Documento("22", p(1), Some("900"));
     assert_eq!(
         ler(&aberta(declaradas, repetido)),
-        Err(E::Html(ErroHtml::repetido("protocolo_repetido_na_pasta")))
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
+            "protocolo_repetido_na_pasta"
+        )))
     );
     // Protocolo de outra pasta.
     let mut de_outra = os_quatro();
     de_outra[0] = No::Documento("21", p(1), Some("902"));
     assert_eq!(
         ler(&aberta(declaradas, de_outra)),
-        Err(E::DocumentoDaPastaNaoDeclarado)
+        Err(super::ErroArvore::DocumentoDaPastaNaoDeclarado)
     );
     // Nenhuma linha `.acoes` para o nó: nunca observado, continua recusa.
     let sem_linha = aberta(declaradas, os_quatro()).replace(
@@ -78,41 +79,44 @@ fn identidade_e_nao_contagem() {
     );
     assert_eq!(
         ler(&sem_linha),
-        Err(E::DocumentoDaPastaSemIdentidadeNaBarra)
+        Err(super::ErroArvore::DocumentoDaPastaSemIdentidadeNaBarra)
     );
 }
 
 #[test]
 fn declaracoes_das_pastas_conferidas() {
-    let casos: Vec<(Declaradas, E)> = vec![
-        (vec![(1, &PASTA1)], E::PastaSemProtocolosDeclarados),
+    let casos: Vec<(Declaradas, super::ErroArvore)> = vec![
+        (
+            vec![(1, &PASTA1)],
+            super::ErroArvore::PastaSemProtocolosDeclarados,
+        ),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (3, &["904"])],
-            E::Html(ErroHtml::ausente(
+            super::ErroArvore::Html(ErroHtml::ausente(
                 "protocolos_declarados_para_pasta_ausente",
             )),
         ),
         (
             vec![(1, &PASTA1), (2, &PASTA2), (2, &PASTA2)],
-            E::Html(ErroHtml::repetido(
+            super::ErroArvore::Html(ErroHtml::repetido(
                 "protocolos_da_pasta_declarados_mais_de_uma_vez",
             )),
         ),
         (
             vec![(1, &["900", "x"]), (2, &PASTA2)],
-            E::Html(ErroHtml::valor(
+            super::ErroArvore::Html(ErroHtml::valor(
                 "protocolos_da_pasta_fora_da_forma_observada",
             )),
         ),
         (
             vec![(1, &["900", "900"]), (2, &PASTA2)],
-            E::Html(ErroHtml::valor(
+            super::ErroArvore::Html(ErroHtml::valor(
                 "protocolos_da_pasta_fora_da_forma_observada",
             )),
         ),
         (
             vec![(1, &[]), (2, &PASTA2)],
-            E::Html(ErroHtml::valor(
+            super::ErroArvore::Html(ErroHtml::valor(
                 "protocolos_da_pasta_fora_da_forma_observada",
             )),
         ),
@@ -130,7 +134,7 @@ fn declaracoes_das_pastas_conferidas() {
     );
     assert_eq!(
         ler(&mal),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::ErroArvore::Html(ErroHtml::valor(
             "protocolos_da_pasta_fora_da_forma_observada"
         )))
     );
@@ -146,21 +150,21 @@ fn nos_de_pasta_na_forma_observada() {
                 ",true,true,null,null,null);\nNos[1]",
                 ",true,true,null,null,null,null);\nNos[1]",
             ),
-            E::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
+            super::ErroArvore::QuantidadeDeArgumentosDoNoDiferenteDaObservada,
         ),
         // Pai que não é o processo.
         (
             base.replace("\"PASTA1\",\"10\"", "\"PASTA1\",\"11\""),
-            E::PastaComPaiDiferenteDoProcesso,
+            super::ErroArvore::PastaComPaiDiferenteDoProcesso,
         ),
         // Ação diferente de abrirFecharPasta da própria pasta.
         (
             base.replace("abrirFecharPasta('PASTA1')", "abrirFecharPasta('PASTA2')"),
-            E::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
         ),
         (
             base.replace("\"PASTA\",\"PASTA1\"", "\"PASTA\",\"P1\""),
-            E::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
+            super::ErroArvore::Html(ErroHtml::valor("pasta_fora_da_forma_observada")),
         ),
         // A mesma pasta duas vezes.
         (
@@ -168,12 +172,12 @@ fn nos_de_pasta_na_forma_observada() {
                 "\"PASTA2\",\"10\",\"javascript:abrirFecharPasta('PASTA2');\"",
                 "\"PASTA1\",\"10\",\"javascript:abrirFecharPasta('PASTA1');\"",
             ),
-            E::Html(ErroHtml::repetido("pasta_repetida_na_arvore")),
+            super::ErroArvore::Html(ErroHtml::repetido("pasta_repetida_na_arvore")),
         ),
         // Documento numa pasta que não existe.
         (
             base.replace("\"32\",\"PASTA2\"", "\"32\",\"PASTA7\""),
-            E::DocumentoComPaiDiferenteDoProcesso,
+            super::ErroArvore::DocumentoComPaiDiferenteDoProcesso,
         ),
     ];
     for (html, esperado) in casos {
@@ -186,11 +190,13 @@ fn aguarde_na_forma_observada() {
     let base = arvore_fechada();
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE1\",\"PASTA2\"")),
-        Err(E::Html(ErroHtml::valor("aguarde_fora_da_forma_observada")))
+        Err(super::ErroArvore::Html(ErroHtml::valor(
+            "aguarde_fora_da_forma_observada"
+        )))
     );
     assert_eq!(
         ler(&base.replace("\"AGUARDE1\",\"PASTA1\"", "\"AGUARDE7\",\"PASTA7\"")),
-        Err(E::AguardeComPaiDiferenteDePasta)
+        Err(super::ErroArvore::AguardeComPaiDiferenteDePasta)
     );
     // Pasta fechada que também traz documento: nunca observada.
     let metade = arvore_em_pastas(
@@ -206,13 +212,19 @@ fn aguarde_na_forma_observada() {
         ],
         "",
     );
-    assert_eq!(ler(&metade), Err(E::PastaCarregadaPelaMetade));
+    assert_eq!(
+        ler(&metade),
+        Err(super::ErroArvore::PastaCarregadaPelaMetade)
+    );
     // A pasta aberta da árvore fechada também é conferida.
     let errada = base.replace(
         "id_rel_protocolo_protocolo=903",
         "id_rel_protocolo_protocolo=999",
     );
-    assert_eq!(ler(&errada), Err(E::DocumentoDaPastaNaoDeclarado));
+    assert_eq!(
+        ler(&errada),
+        Err(super::ErroArvore::DocumentoDaPastaNaoDeclarado)
+    );
 }
 
 #[test]
@@ -220,7 +232,7 @@ fn barra_de_documento_de_pasta_fora_da_forma_e_recusa() {
     let html = arvore_aberta().replace("Nos[3].acoes = '", "Nos[3].acoes = x + '");
     assert_eq!(
         ler(&html),
-        Err(E::Html(ErroHtml::valor(
+        Err(super::ErroArvore::Html(ErroHtml::valor(
             "barra_de_no_fora_da_forma_observada"
         )))
     );
@@ -235,7 +247,7 @@ fn identidade_do_processo_vem_antes_das_pastas() {
     );
     assert_eq!(
         ler_arvore(&outra, "00002.000002/2026-02", ID),
-        Err(E::IdentidadeDoProcessoDiferenteDaPedida)
+        Err(super::ErroArvore::IdentidadeDoProcessoDiferenteDaPedida)
     );
 }
 
@@ -279,38 +291,38 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let casos = [
         (
             url.replace("abrir_pastas=1", "abrir_pastas=0"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace("&abrir_pastas=1", ""),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("{url}&fechar_pastas=1"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("{url}&abrir_pastas=1"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace("id_procedimento=10", "id_procedimento=11"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace(
                 "acao=procedimento_visualizar&",
                 "acao=procedimento_paginar&",
             ),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             url.replace(&"f".repeat(64), "f"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
         (
             format!("https://outro.exemplo/{url}"),
-            E::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
+            super::ErroArvore::Html(ErroHtml::valor("endereco_de_abrir_pastas_nao_reconhecido")),
         ),
     ];
     for (endereco, esperado) in casos {
@@ -323,7 +335,7 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     let duas = format!("{}{}", acoes_das_pastas(&url), acoes_das_pastas(&url));
     assert_eq!(
         ler_acao_de_abrir_pastas(&inst, &com(duas), ID).map(|_| ()),
-        Err(E::Html(ErroHtml::repetido(
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
             "acoes_de_abrir_pastas_repetidas"
         )))
     );
@@ -335,7 +347,7 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
     ] {
         assert_eq!(
             ler_acao_de_abrir_pastas(&inst, &com(mal), ID).map(|_| ()),
-            Err(E::Html(ErroHtml::valor(
+            Err(super::ErroArvore::Html(ErroHtml::valor(
                 "acao_de_abrir_pastas_fora_da_forma_observada"
             )))
         );
@@ -388,7 +400,7 @@ fn contagem_diferente_da_declarada_e_recusa() {
         nos.extend(vazios(2, &segunda));
         assert_eq!(
             ler(&aberta(declaradas, nos)),
-            Err(E::ContagemDaPastaDiferenteDaDeclarada),
+            Err(super::ErroArvore::ContagemDaPastaDiferenteDaDeclarada),
             "{segunda:?}"
         );
     }
@@ -397,7 +409,9 @@ fn contagem_diferente_da_declarada_e_recusa() {
     nos.extend(vazios(2, &["31", "21"]));
     assert_eq!(
         ler(&aberta(declaradas, nos)),
-        Err(E::Html(ErroHtml::repetido("documento_repetido_na_arvore")))
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
+            "documento_repetido_na_arvore"
+        )))
     );
 }
 
@@ -447,7 +461,7 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             No::Documento("32", p(2), None),
             No::Documento("33", p(2), Some("-")),
         ]),
-        Err(E::ContagemDaPastaDiferenteDaDeclarada)
+        Err(super::ErroArvore::ContagemDaPastaDiferenteDaDeclarada)
     );
     // A identidade que aparece continua conferida.
     assert_eq!(
@@ -455,7 +469,7 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             No::Documento("31", p(2), Some("999")),
             No::Documento("32", p(2), None),
         ]),
-        Err(E::DocumentoDaPastaNaoDeclarado)
+        Err(super::ErroArvore::DocumentoDaPastaNaoDeclarado)
     );
     assert_eq!(
         com_pasta2(vec![
@@ -463,12 +477,14 @@ fn pasta_mista_que_nao_fecha_e_recusa() {
             No::Documento("32", p(2), Some("902")),
             No::Documento("33", p(2), None),
         ]),
-        Err(E::Html(ErroHtml::repetido("protocolo_repetido_na_pasta")))
+        Err(super::ErroArvore::Html(ErroHtml::repetido(
+            "protocolo_repetido_na_pasta"
+        )))
     );
     // Toda por identidade e faltando um: o subcódigo de identidade.
     assert_eq!(
         com_pasta2(vec![No::Documento("31", p(2), Some("902"))]),
-        Err(E::Html(ErroHtml::ausente(
+        Err(super::ErroArvore::Html(ErroHtml::ausente(
             "protocolo_declarado_ausente_da_pasta"
         )))
     );

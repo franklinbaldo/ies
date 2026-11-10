@@ -86,7 +86,6 @@ fn src_vazio_e_download_de_anexo() {
 /// documento; a ligação é o nó da árvore).
 #[test]
 fn link_do_anexo_fora_da_forma_e_recusado() {
-    use ErroConteudoNaArvore as E;
     let com = |src: String| ler(&com_src(&base(), 2, &src), "22");
     for ruim in [
         src_anexo().replace("&id_anexo=901", ""),
@@ -98,7 +97,7 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
     ] {
         assert_eq!(
             com(ruim.clone()),
-            Err(E::Html(ErroHtml::valor(
+            Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
                 "endereco_do_conteudo_nao_reconhecido"
             ))),
             "{ruim}"
@@ -108,11 +107,10 @@ fn link_do_anexo_fora_da_forma_e_recusado() {
 
 #[test]
 fn recusas_do_link_do_conteudo() {
-    use ErroConteudoNaArvore as E;
     let outro = com_src(&base(), 2, &src_visualizar("21"));
     assert_eq!(
         ler(&outro, "22"),
-        Err(E::EnderecoDoConteudoDeOutroDocumento)
+        Err(ErroConteudoNaArvore::EnderecoDoConteudoDeOutroDocumento)
     );
     let sem_hash = com_src(
         &base(),
@@ -121,7 +119,7 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&sem_hash, "22"),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
             "endereco_do_conteudo_nao_reconhecido"
         )))
     );
@@ -132,39 +130,43 @@ fn recusas_do_link_do_conteudo() {
     );
     assert_eq!(
         ler(&outra_acao, "22"),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
             "endereco_do_conteudo_nao_reconhecido"
         )))
     );
     let fora = base().replace("Nos[2].src = '';", "Nos[2].src = 'a' + b;");
     assert_eq!(
         ler(&fora, "22"),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroConteudoNaArvore::Html(ErroHtml::valor(
             "link_do_conteudo_fora_da_forma_observada"
         )))
     );
     let sem = base().replace("Nos[2].src = '';", "");
     assert_eq!(
         ler(&sem, "22"),
-        Err(E::Html(ErroHtml::ausente(
+        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
             "link_do_conteudo_ausente_na_arvore"
         )))
     );
     let dois = base().replace("Nos[2].src = '';", "Nos[2].src = '';\nNos[2].src = '';");
     assert_eq!(
         ler(&dois, "22"),
-        Err(E::Html(ErroHtml::repetido(
+        Err(ErroConteudoNaArvore::Html(ErroHtml::repetido(
             "link_do_conteudo_repetido_na_arvore"
         )))
     );
     assert_eq!(
         ler(&base(), "99"),
-        Err(E::Html(ErroHtml::ausente("documento_ausente_da_arvore")))
+        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
+            "documento_ausente_da_arvore"
+        )))
     );
     // O id do nó PROCESSO não é documento.
     assert_eq!(
         ler(&base(), "10"),
-        Err(E::Html(ErroHtml::ausente("documento_ausente_da_arvore")))
+        Err(ErroConteudoNaArvore::Html(ErroHtml::ausente(
+            "documento_ausente_da_arvore"
+        )))
     );
 }
 
@@ -183,19 +185,18 @@ fn tela_do_documento_devolve_o_processo_da_arvore() {
 
 #[test]
 fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
-    use ErroTelaDoProcesso as E;
     let ler = |src: String| {
         let html = tela_do_processo("U", &[src]);
         ler_tela_do_documento(&instalacao(), &html, "22", None).map(|(_, p)| p)
     };
     assert_eq!(
         ler(src_da_arvore_do_documento("10", "21")),
-        Err(E::EnderecoDaArvoreDeOutroDocumento)
+        Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento)
     );
     // A tela de um processo (id_documento vazio): o número não era documento.
     assert_eq!(
         ler(super::tests_tela::src_da_arvore("10")),
-        Err(E::EnderecoDaArvoreDeOutroDocumento)
+        Err(ErroTelaDoProcesso::EnderecoDaArvoreDeOutroDocumento)
     );
     let dois = src_da_arvore_do_documento("10", "22").replace(
         "id_procedimento=10",
@@ -203,7 +204,7 @@ fn tela_que_nao_seleciona_o_documento_pedido_e_recusada() {
     );
     assert_eq!(
         ler(dois),
-        Err(E::Html(ErroHtml::valor(
+        Err(ErroTelaDoProcesso::Html(ErroHtml::valor(
             "endereco_da_arvore_nao_reconhecido"
         )))
     );

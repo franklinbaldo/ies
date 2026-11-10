@@ -328,16 +328,16 @@ fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
-    let variante_da_falha = match modo {
+    let erro_esperado = match modo {
         Modo::Parcial => Some("Leitura"),
         Modo::Desconhecida => Some("ComentariosNaoOferecidos"),
         Modo::NaoConfirmado => Some("NaoConfirmado"),
         Modo::Completa | Modo::Previa | Modo::Confirmar => None,
     };
-    if let Some(variante) = variante_da_falha {
+    if let Some(erro) = erro_esperado {
         // Lista incompleta ou desconhecida não vira vazia nem completa:
         // a falha não publica nada no stdout.
-        falha(saida, variante);
+        falha(saida, erro);
     } else {
         assert_eq!(
             saida.status.code(),

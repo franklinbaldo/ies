@@ -169,7 +169,7 @@ fn colheita_da_leitura_registra_sob_a_geracao_do_cookie_lido() {
         geracao_sessao: geracao,
         unidade: "110000849",
         acao: "procedimento_trabalhar",
-        objeto: "77",
+        alvo: "77",
     };
     let a = super::geracao_da_sessao(COOKIE_A);
     let b = super::geracao_da_sessao(COOKIE_B);

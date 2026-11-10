@@ -20,7 +20,7 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
         FalhaEsperada::Http403 => {
             assert!(matches!(
                 erro,
-                E::NaoConfirmado {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(
                         FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
                             status: 401 | 403,
@@ -32,7 +32,7 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
             ));
         }
         FalhaEsperada::Infra200 => {
-            let E::NaoConfirmado {
+            let ErroCienciaProcesso::NaoConfirmado {
                 falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
                 ..
             } = &erro
@@ -42,7 +42,7 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
             assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
             assert!(matches!(
                 erro,
-                E::NaoConfirmado {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(_)),
                     ..
                 }
@@ -51,7 +51,7 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
         FalhaEsperada::Rede => {
             assert!(matches!(
                 erro,
-                E::NaoConfirmado {
+                ErroCienciaProcesso::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(FalhaTransporte::Rede)),
                     ..
                 }
@@ -113,7 +113,7 @@ fn json_de_recusa_infra_200_publica_status_http_e_nao_autoriza_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.expect_err("recusa HTTP 200 nao equivale a ciencia");
-    let E::NaoConfirmado {
+    let ErroCienciaProcesso::NaoConfirmado {
         falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
         requisicoes: 6,
         ..

@@ -2,7 +2,7 @@
 //! requisições), a leitura de cada resposta sem seguir 302, a pesquisa
 //! rápida e a abertura `procedimento_trabalhar` → árvore.
 use super::login::{DestinoDoRedirecionamento, destino};
-use super::{EnvioDoProcesso, ErroProcessoObter as E};
+use super::{EnvioDoProcesso, ErroProcessoObter};
 use crate::arvore_processo::{
     AbertoEm, ArvoreLida, ConcluirNaBarra, EnderecoDeEscrita, EnderecoDoIncluirDocumento,
     ErroAcaoSobrestar, ErroAcompanharNaBarra, ErroAndamentoNaBarra, ErroAnexarNaBarra, ErroArvore,
@@ -91,7 +91,7 @@ impl Contexto<'_> {
             geracao_sessao: &self.geracao,
             unidade: self.unidade_id.as_deref()?,
             acao,
-            objeto,
+            alvo: objeto,
         })
     }
 
@@ -293,7 +293,7 @@ pub(super) enum Lida {
 }
 
 impl<V: EnvioDoProcesso> Rede<'_, V> {
-    pub(super) fn get(&mut self, url: &str) -> Result<Lida, E> {
+    pub(super) fn get(&mut self, url: &str) -> Result<Lida, ErroProcessoObter> {
         self.requisicoes.registrar();
         let resposta = self.envio.get_sem_seguir(url, &self.cookie)?;
         if resposta.resposta.status_code == 302 {
@@ -307,7 +307,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
             // envelhecido. Não abrir outro caminho/pedido em seguida:
             // após uma escrita, a releitura de prova deve ser única.
             Err(falha) if falha.status_http().is_some_and(|http| http.status >= 500) => {
-                return Err(E::Transporte(falha));
+                return Err(ErroProcessoObter::Transporte(falha));
             }
             Err(falha) => Lida::Falha(falha),
         })
@@ -319,7 +319,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         submissao: SubmissaoDerivada,
         valor_pesquisado: &str,
-    ) -> Result<Option<ProcessoRedirecionado>, E> {
+    ) -> Result<Option<ProcessoRedirecionado>, ErroProcessoObter> {
         // Só conta a tentativa se a validação do cookie permitir o POST.
         let envio = &mut *self.envio;
         let requisicoes = &mut self.requisicoes;
@@ -342,14 +342,16 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
                         origem,
                     )
                     .map(Some)
-                    .map_err(E::Redirecionamento)
+                    .map_err(ErroProcessoObter::Redirecionamento)
                 }
                 _ => Ok(None),
             },
-            Ok(RespostaDoEnvio::Html(_)) => Err(E::PesquisaRapidaSemUrlDeTrabalho),
+            Ok(RespostaDoEnvio::Html(_)) => Err(ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho),
             Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => Ok(None),
-            Err(ErroSubmissaoFormulario::Transporte(falha)) => Err(E::Transporte(falha)),
-            Err(outro) => Err(E::Formulario(outro)),
+            Err(ErroSubmissaoFormulario::Transporte(falha)) => {
+                Err(ErroProcessoObter::Transporte(falha))
+            }
+            Err(outro) => Err(ErroProcessoObter::Formulario(outro)),
         }
     }
 
@@ -360,12 +362,16 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         contexto: &Contexto<'_>,
         trabalho: &str,
         id: &str,
-    ) -> Result<(ArvoreAberta, String), E> {
+    ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
         let (html, mime) = match self.get(trabalho)? {
             Lida::Html { html, mime } => (html, mime),
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-            Lida::Falha(falha) => return Err(E::Transporte(falha)),
+            Lida::Login => {
+                return Err(ErroProcessoObter::SessaoEncerrada(
+                    crate::erro_publico::SessaoEncerrada,
+                ));
+            }
+            Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
         };
         super::validacao_acesso::abrir_trabalho(self, contexto, trabalho, id, (&html, &mime))
     }
@@ -379,13 +385,17 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         (html, mime): (&str, &str),
         tela: TelaDoProcesso,
         id: &str,
-    ) -> Result<(ArvoreAberta, String), E> {
+    ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {
         contexto.aprender_pesquisa_rapida(trabalho, html, mime, &tela.unidade);
         let html = match self.get(tela.arvore.as_str())? {
             Lida::Html { html, .. } => html,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-            Lida::Falha(falha) => return Err(E::Transporte(falha)),
+            Lida::Login => {
+                return Err(ErroProcessoObter::SessaoEncerrada(
+                    crate::erro_publico::SessaoEncerrada,
+                ));
+            }
+            Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
         };
         let arvore = ler_arvore_aberta(contexto, &html, id)?;
         concluir(
@@ -400,10 +410,10 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
 }
 
 /// 302 fora de palpite: login é sessão encerrada; o resto, não observado.
-pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> E {
+pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> ErroProcessoObter {
     match destino(localizacao) {
-        DestinoDoRedirecionamento::Outro => E::RedirecionamentoNaoReconhecido,
-        _ => E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+        DestinoDoRedirecionamento::Outro => ErroProcessoObter::RedirecionamentoNaoReconhecido,
+        _ => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
     }
 }
 

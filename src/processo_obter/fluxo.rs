@@ -6,7 +6,7 @@ pub(crate) use super::acoes::AcoesDeEstado;
 use super::controle::link_do_processo_no_controle;
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{
-    EnvioDoProcesso, ErroProcessoObter as E, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
+    EnvioDoProcesso, ErroProcessoObter, PedidoDoProcesso, ProcessoAberto, ResolvidoPor,
     SessaoDoProcesso,
 };
 use crate::colheita_do_controle::Colheita;
@@ -28,14 +28,14 @@ mod links_guardados;
 pub(super) use links_guardados::{link_da_arvore, link_de_trabalho};
 
 /// Resultado de um passo: aberto, ou "não se aplica / palpite esquecido".
-type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, E>;
+type Passo = Result<Option<(ArvoreAberta, Option<String>, ResolvidoPor)>, ErroProcessoObter>;
 
 pub(crate) fn obter_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     pedido: &PedidoDoProcesso<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<ProcessoAberto, E> {
+) -> Result<ProcessoAberto, ErroProcessoObter> {
     abrir_para_escrever(sessao, pedido, indice, envio).map(|(aberto, _)| aberto)
 }
 
@@ -46,9 +46,10 @@ pub(crate) fn abrir_para_escrever<V: EnvioDoProcesso>(
     pedido: &PedidoDoProcesso<'_>,
     indice: &IndiceLocal,
     envio: &mut V,
-) -> Result<(ProcessoAberto, AcoesDeEstado), E> {
-    let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(E::Transporte(FalhaTransporte::OrigemNaoAutorizada))?;
+) -> Result<(ProcessoAberto, AcoesDeEstado), ErroProcessoObter> {
+    let instalacao = Instalacao::interpretar(sessao.origem).ok_or(
+        ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
+    )?;
     let cookie = sessao.cookie.valor()?.to_owned();
     let contexto = Contexto {
         instalacao,
@@ -136,7 +137,7 @@ pub(super) fn abrir_processo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     unidade_exigida: bool,
-) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), ErroProcessoObter> {
     let primeiro = if unidade_exigida {
         None
     } else {
@@ -208,18 +209,24 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     };
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
-        Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Html { .. } => return Err(E::RespostaDaEntradaPorIdNaoReconhecida),
-        Lida::Falha(falha) => return Err(E::Transporte(falha)),
+        Lida::Login => {
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
+        }
+        Lida::Html { .. } => return Err(ErroProcessoObter::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(ErroProcessoObter::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {
             // A recusa derrubou a sessão: registrar e parar, sem relogin.
             contexto.indice.registrar_entrada_por_id(instalacao, false);
-            return Err(E::EntradaPorIdRecusada);
+            return Err(ErroProcessoObter::EntradaPorIdRecusada);
         }
         DestinoDoRedirecionamento::Login => {
-            return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada));
+            return Err(ErroProcessoObter::SessaoEncerrada(
+                crate::erro_publico::SessaoEncerrada,
+            ));
         }
         DestinoDoRedirecionamento::Outro => {}
     }
@@ -231,12 +238,12 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
             return Ok(None);
         }
-        Err(erro) => return Err(E::Redirecionamento(erro)),
+        Err(erro) => return Err(ErroProcessoObter::Redirecionamento(erro)),
     };
     contexto.indice.registrar_entrada_por_id(instalacao, true);
     match rede.abrir(contexto, trabalho.as_str(), &id) {
         Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceEntrada))),
-        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
+        Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
             Ok(None)
         }
@@ -268,7 +275,7 @@ pub(super) fn pesquisar_pela_guardada<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
     valor: &str,
-) -> Result<Option<ProcessoRedirecionado>, E> {
+) -> Result<Option<ProcessoRedirecionado>, ErroProcessoObter> {
     let acao = PESQUISA_RAPIDA.acao;
     let Some(link) = contexto
         .chave(acao, "")
@@ -304,18 +311,18 @@ fn pelo_controle<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
-) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), E> {
+) -> Result<(ArvoreAberta, Option<String>, ResolvidoPor), ErroProcessoObter> {
     let controle = ler_controle_colhido(contexto, sessao, rede)?;
     let tela = &controle.tela;
     if let Some((id, href)) = link_do_processo_no_controle(&tela.html, contexto.nup)? {
         let origem = OrigemDoTrabalho::Controle { id: &id };
         let redirecionado = conferir_trabalho(Some(&href), &tela.url, &contexto.instalacao, origem)
-            .map_err(E::LinkDoProcessoNoControleNaoReconhecido)?;
+            .map_err(ErroProcessoObter::LinkDoProcessoNoControleNaoReconhecido)?;
         let (arvore, unidade) = rede
             .abrir(contexto, redirecionado.trabalho.as_str(), &id)
             .inspect_err(|erro| {
                 // A colheita deste GET gravou o par que a árvore desmentiu.
-                if matches!(erro, E::Arvore(arvore) if arvore.diverge_do_pedido()) {
+                if matches!(erro, ErroProcessoObter::Arvore(arvore) if arvore.diverge_do_pedido()) {
                     contexto
                         .indice
                         .esquecer_processo(&contexto.instalacao, contexto.nup);
@@ -338,7 +345,7 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     sessao: &SessaoDoProcesso<'_>,
     rede: &mut Rede<'_, V>,
-) -> Result<ControleLido, E> {
+) -> Result<ControleLido, ErroProcessoObter> {
     let busca = SessaoDaBusca {
         url_do_controle: sessao.url_do_controle,
         origem: sessao.origem,
@@ -348,9 +355,9 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
     let controle = ler_controle(&busca, contexto.unidade_pedida, &mut *rede.envio).map_err(
         |erro| match erro {
             ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
-                E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
-            outro => E::Controle(outro),
+            outro => ErroProcessoObter::Controle(outro),
         },
     )?;
     Colheita::com_geracao(
@@ -369,9 +376,10 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
     controle: &ControleLido,
     rede: &mut Rede<'_, V>,
     valor: &str,
-) -> Result<ProcessoRedirecionado, E> {
+) -> Result<ProcessoRedirecionado, ErroProcessoObter> {
     let tela = &controle.tela;
-    let codificacao = codificacao_da_tela(&tela.mime).ok_or(E::CharsetDoControleNaoSuportado)?;
+    let codificacao =
+        codificacao_da_tela(&tela.mime).ok_or(ErroProcessoObter::CharsetDoControleNaoSuportado)?;
     let servida = TelaServida {
         url: &tela.url,
         html: &tela.html,
@@ -385,5 +393,7 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &[(CAMPO, valor)],
     )?;
     rede.pesquisar(contexto, submissao, valor)?
-        .ok_or(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada))
+        .ok_or(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        ))
 }

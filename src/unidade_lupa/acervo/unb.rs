@@ -147,7 +147,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
         }
         assert_eq!(resposta.status, 200, "passo {}", resposta.passo);
         if resposta.operacao == "unidade_selecionar_envio_processo" {
-            let html = html_da_resposta(resposta.item)
+            let html = html_da_resposta(resposta.interacao)
                 .unwrap_or_else(|_| panic!("lupa UnB ilegível no passo {}", resposta.passo));
             observar_formulario_da_lupa_unb(&html, resposta.passo);
             continue;
@@ -162,7 +162,7 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             None
         };
         let Some(proxima) = proxima else { continue };
-        let html = html_da_resposta(resposta.item)
+        let html = html_da_resposta(resposta.interacao)
             .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
         if resposta.operacao == "grupo_unidade_listar" {
             let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lista UnB analisável");
@@ -247,7 +247,7 @@ fn replay_do_fluxo_completo_unb() {
             assert_eq!(r.status, 200);
             (
                 r.metodo == "POST",
-                html_da_resposta(r.item).expect("HTML público da cassette deve ser legível"),
+                html_da_resposta(r.interacao).expect("HTML público da cassette deve ser legível"),
             )
         })
         .collect();

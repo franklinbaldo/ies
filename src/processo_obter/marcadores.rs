@@ -6,7 +6,7 @@
 //! retry. Um GET; a escrita da tela (adicionar, remover, alterar) nunca é
 //! tocada.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
-use super::{EnvioDoProcesso, ErroProcessoObter as E, Marcadores};
+use super::{EnvioDoProcesso, ErroProcessoObter, Marcadores};
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::marcadores_processo::{ACAO, MarcadoresLidos, TelaDosMarcadores, ler_marcadores};
 
@@ -36,14 +36,14 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     aberta: &ArvoreAberta,
     pedidos: bool,
     guardado_primeiro: bool,
-) -> Result<Marcadores, E> {
+) -> Result<Marcadores, ErroProcessoObter> {
     if !pedidos {
         return Ok(Marcadores::Omitidos);
     }
     let endereco = match &aberta.marcadores {
         Ok(Some(endereco)) => endereco,
         Ok(None) => return Ok(Marcadores::NaoPublicadosNaBarra),
-        Err(erro) => return Err(E::Marcadores(*erro)),
+        Err(erro) => return Err(ErroProcessoObter::Marcadores(*erro)),
     };
     let id = aberta.arvore.processo.id.as_str();
     let guardada = if guardado_primeiro {
@@ -70,7 +70,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     contexto: &Contexto<'_>,
     rede: &mut Rede<'_, V>,
     id: &str,
-) -> Result<Option<(String, TelaDosMarcadores)>, E> {
+) -> Result<Option<(String, TelaDosMarcadores)>, ErroProcessoObter> {
     let Some(link) = contexto
         .chave(ACAO, id)
         .and_then(|chave| contexto.indice.link(&contexto.instalacao, chave))
@@ -85,7 +85,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
                 contexto.esquecer_link(ACAO, id);
                 Ok(None)
             }
-            Err(erro) => Err(E::Marcadores(erro)),
+            Err(erro) => Err(ErroProcessoObter::Marcadores(erro)),
         },
         Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
             Ok(Some((url, vazia())))
@@ -94,7 +94,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
             contexto.esquecer_link(ACAO, id);
             Ok(None)
         }
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }
 
@@ -103,14 +103,18 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
     rede: &mut Rede<'_, V>,
     url: &str,
     id: &str,
-) -> Result<TelaDosMarcadores, E> {
+) -> Result<TelaDosMarcadores, ErroProcessoObter> {
     match rede.get(url)? {
-        Lida::Html { html, .. } => ler_marcadores(&html, contexto.nup, id).map_err(E::Marcadores),
+        Lida::Html { html, .. } => {
+            ler_marcadores(&html, contexto.nup, id).map_err(ErroProcessoObter::Marcadores)
+        }
         Lida::Redirecionamento(local) if sem_marcadores(contexto, local.as_deref(), id) => {
             Ok(vazia())
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Falha(falha) => Err(E::Transporte(falha)),
+        Lida::Login => Err(ErroProcessoObter::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada,
+        )),
+        Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
     }
 }

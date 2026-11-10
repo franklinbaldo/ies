@@ -144,14 +144,14 @@ fn registrar(
     alvo: &Alvo<'_>,
     unidade: &str,
     acao: &str,
-    objeto: &str,
+    id_alvo: &str,
     url: &str,
 ) -> Result<(), RegistroRecusado> {
     let chave = ChaveDoLink {
         geracao_sessao: &alvo.geracao,
         unidade,
         acao,
-        objeto,
+        alvo: id_alvo,
     };
     alvo.indice.registrar_link(&alvo.instalacao, chave, url)
 }

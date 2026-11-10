@@ -100,35 +100,39 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
 
 /// A resposta do infraAjaxMontarSelect é um select XML.
 fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
-    use ErroHipotese as E;
-    let dom =
-        tl::parse(xml, tl::ParserOptions::default()).map_err(|_| E::resposta_nao_reconhecida())?;
+    let dom = tl::parse(xml, tl::ParserOptions::default())
+        .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
     let mut selects = dom.query_selector("select").into_iter().flatten();
-    let select = selects.next().ok_or(E::resposta_nao_reconhecida())?;
+    let select = selects
+        .next()
+        .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
     if selects.next().is_some() {
-        return Err(E::resposta_nao_reconhecida());
+        return Err(ErroHipotese::resposta_nao_reconhecida());
     }
     let parser = dom.parser();
     let tag = select
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(E::resposta_nao_reconhecida())?;
+        .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
     let mut opcoes = Vec::new();
     for handle in tag.query_selector(parser, "option").into_iter().flatten() {
         let opcao = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(E::resposta_nao_reconhecida())?;
-        if atributo_presente(opcao, "disabled").map_err(|_| E::resposta_nao_reconhecida())? {
+            .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
+        if atributo_presente(opcao, "disabled")
+            .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?
+        {
             continue;
         }
-        let valor = valor_do_atributo(opcao, "value").map_err(|_| E::resposta_nao_reconhecida())?;
+        let valor = valor_do_atributo(opcao, "value")
+            .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
         let Some(id) = valor.filter(|v| !v.is_empty() && v != "null") else {
             continue;
         };
         let texto = html_escape::decode_html_entities(&opcao.inner_text(parser)).into_owned();
         if texto.trim().is_empty() {
-            return Err(E::resposta_nao_reconhecida());
+            return Err(ErroHipotese::resposta_nao_reconhecida());
         }
         opcoes.push((id, texto.trim().to_owned()));
     }
@@ -188,13 +192,14 @@ pub(crate) fn opcao_unica(xml: &str) -> Result<String, ErroHipotese> {
 /// Seleção por ID e nome exatamente como observados, nunca pela posição.
 /// O ID é opaco; recusar duplicata mesmo se as descrições forem diferentes.
 pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<String, ErroHipotese> {
-    use ErroHipotese as E;
     let Some(escolha) = escolha else {
         return opcao_unica(xml);
     };
-    let (id, nome) = escolha.split_once('#').ok_or(E::EscolhaNaoOferecida)?;
+    let (id, nome) = escolha
+        .split_once('#')
+        .ok_or(ErroHipotese::EscolhaNaoOferecida)?;
     if id.is_empty() || nome.trim().is_empty() || nome != nome.trim() {
-        return Err(E::EscolhaNaoOferecida);
+        return Err(ErroHipotese::EscolhaNaoOferecida);
     }
     let opcoes = opcoes(xml)?;
     // Uma escolha explícita não torna confiáveis dados arbitrários
@@ -202,19 +207,21 @@ pub(crate) fn opcao_selecionada(xml: &str, escolha: Option<&str>) -> Result<Stri
     if opcoes.iter().any(|(id_lido, nome_lido)| {
         id_lido.contains('#') || !publicavel(id_lido) || !publicavel(nome_lido)
     }) {
-        return Err(E::resposta_nao_reconhecida());
+        return Err(ErroHipotese::resposta_nao_reconhecida());
     }
     for (indice, (id_lido, _)) in opcoes.iter().enumerate() {
         if opcoes[..indice].iter().any(|(outro, _)| outro == id_lido) {
-            return Err(E::OpcaoNaoUnica);
+            return Err(ErroHipotese::OpcaoNaoUnica);
         }
     }
     let mut correspondentes = opcoes
         .iter()
         .filter(|(id_lido, nome_lido)| id_lido == id && nome_lido == nome);
-    let primeiro = correspondentes.next().ok_or(E::EscolhaNaoOferecida)?;
+    let primeiro = correspondentes
+        .next()
+        .ok_or(ErroHipotese::EscolhaNaoOferecida)?;
     if correspondentes.next().is_some() {
-        return Err(E::OpcaoNaoUnica);
+        return Err(ErroHipotese::OpcaoNaoUnica);
     }
     Ok(primeiro.0.clone())
 }
@@ -229,7 +236,6 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     requisicoes: &mut u32,
     escolha: Option<&str>,
 ) -> Result<String, ErroHipotese> {
-    use ErroHipotese as E;
     let url = url_publicada(tela.html)?;
     let consulta = derivar_consulta_ajax(
         &CONSULTA,
@@ -243,14 +249,14 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             ("staNivelAcesso", "1"),
         ],
     )
-    .map_err(|_| E::consulta_nao_derivada())?;
+    .map_err(|_| ErroHipotese::consulta_nao_derivada())?;
     *requisicoes += 1;
     let resposta = envio
         .post(consulta, cookie)
-        .map_err(|f| E::de_transporte(&f))?;
+        .map_err(|f| ErroHipotese::de_transporte(&f))?;
     if resposta.resposta.status_code != 200 {
         let falha = crate::transporte::recusar_status(resposta.resposta);
-        return Err(E::de_transporte(&falha));
+        return Err(ErroHipotese::de_transporte(&falha));
     }
     if !matches!(
         resposta
@@ -262,12 +268,13 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             .trim(),
         "application/xml" | "text/xml"
     ) {
-        return Err(E::resposta_nao_reconhecida());
+        return Err(ErroHipotese::resposta_nao_reconhecida());
     }
     let mime = resposta.resposta.mime.clone();
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
-        .map_err(|f| E::de_transporte(&f))?;
-    let xml = decode_http_body(&bytes, &mime).map_err(|_| E::resposta_nao_reconhecida())?;
+        .map_err(|f| ErroHipotese::de_transporte(&f))?;
+    let xml =
+        decode_http_body(&bytes, &mime).map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
     opcao_selecionada(&xml, escolha)
 }
 

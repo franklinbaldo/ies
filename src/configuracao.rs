@@ -79,42 +79,46 @@ pub fn salvar_arquivos_de_acesso(
     destino: &std::path::Path,
     arquivos: &ArquivosDeAcesso,
 ) -> Result<(), ErroGravacaoDaConfiguracao> {
-    use crate::arquivo_privado::{self, FalhaDaGravacao as F, Politica};
-    use ErroGravacaoDaConfiguracao as E;
+    use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
     let campos = [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem];
     if campos.iter().any(|p| !p.is_absolute() || !p.is_file()) {
-        return Err(E::CaminhoPrivadoAusenteOuNaoAbsoluto);
+        return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
     }
     #[cfg(unix)]
     for path in campos {
         use std::os::unix::fs::PermissionsExt;
         let perms = std::fs::metadata(path)
-            .map_err(|_| E::ArquivoPrivadoNaoLido)?
+            .map_err(|_| ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido)?
             .permissions();
         if perms.mode() & 0o077 != 0 {
-            return Err(E::PermissoesDeArquivoPrivadoInseguras);
+            return Err(ErroGravacaoDaConfiguracao::PermissoesDeArquivoPrivadoInseguras);
         }
     }
     if !destino.is_absolute() {
-        return Err(E::ConfiguracaoDeveTerCaminhoAbsoluto);
+        return Err(ErroGravacaoDaConfiguracao::ConfiguracaoDeveTerCaminhoAbsoluto);
     }
     let config = ConfiguracaoLocal {
         url_controle: arquivos.url_controle.clone(),
         cookie: arquivos.cookie.clone(),
         origem: arquivos.origem.clone(),
     };
-    let data = serde_json::to_vec_pretty(&config).map_err(|_| E::ConfiguracaoNaoSerializada)?;
+    let data = serde_json::to_vec_pretty(&config)
+        .map_err(|_| ErroGravacaoDaConfiguracao::ConfiguracaoNaoSerializada)?;
     // Gravação privada única (#211): arquivo novo 0600, sem link no
     // destino, em diretório fechado a outros, publicado inteiro ou não.
     arquivo_privado::gravar(destino, &data, Politica::exclusiva().diretorio_do_ies()).map_err(
         |falha| match falha {
-            F::EscritaFalhou | F::ConfirmacaoFalhou | F::AcimaDoLimite => E::ConfiguracaoNaoGravada,
-            F::SemNomeDeArquivo
-            | F::DiretorioAusente
-            | F::DiretorioGravavelPorOutros
-            | F::DestinoJaExiste
-            | F::DestinoNaoEhArquivoRegular
-            | F::CriacaoFalhou => E::ConfiguracaoJaExisteOuSemPermissao,
+            FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::ConfirmacaoFalhou
+            | FalhaDaGravacao::AcimaDoLimite => ErroGravacaoDaConfiguracao::ConfiguracaoNaoGravada,
+            FalhaDaGravacao::SemNomeDeArquivo
+            | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioGravavelPorOutros
+            | FalhaDaGravacao::DestinoJaExiste
+            | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+            | FalhaDaGravacao::CriacaoFalhou => {
+                ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao
+            }
         },
     )
 }
@@ -154,42 +158,44 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
 fn ler_configuracao_local(
     path: &std::path::Path,
 ) -> Result<ArquivosDeAcesso, FalhaConfiguracaoLocal> {
-    use FalhaConfiguracaoLocal as F;
     use std::io::Read as _;
 
     let info = std::fs::symlink_metadata(path).map_err(|erro| {
         if erro.kind() == std::io::ErrorKind::NotFound {
-            F::Ausente
+            FalhaConfiguracaoLocal::Ausente
         } else {
-            F::MetadadosNaoLidos
+            FalhaConfiguracaoLocal::MetadadosNaoLidos
         }
     })?;
     if info.file_type().is_symlink() {
-        return Err(F::LinkSimbolico);
+        return Err(FalhaConfiguracaoLocal::LinkSimbolico);
     }
     if !info.is_file() {
-        return Err(F::NaoRegular);
+        return Err(FalhaConfiguracaoLocal::NaoRegular);
     }
     if info.len() > 8_192 {
-        return Err(F::AcimaDoLimite);
+        return Err(FalhaConfiguracaoLocal::AcimaDoLimite);
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
         if info.permissions().mode() & 0o077 != 0 {
-            return Err(F::PermissoesAbertas);
+            return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
         }
     }
     // Validar também o descritor aberto e reler a entrada: não aceitar
     // troca de arquivo/symlink entre a inspeção do caminho e a abertura.
-    let arquivo = std::fs::File::open(path).map_err(|_| F::LeituraFalhou)?;
-    let aberto = arquivo.metadata().map_err(|_| F::LeituraFalhou)?;
-    let no_caminho = std::fs::symlink_metadata(path).map_err(|_| F::LeituraFalhou)?;
+    let arquivo = std::fs::File::open(path).map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
+    let aberto = arquivo
+        .metadata()
+        .map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
+    let no_caminho =
+        std::fs::symlink_metadata(path).map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
     if no_caminho.file_type().is_symlink() {
-        return Err(F::LinkSimbolico);
+        return Err(FalhaConfiguracaoLocal::LinkSimbolico);
     }
     if !aberto.is_file() || !no_caminho.is_file() {
-        return Err(F::NaoRegular);
+        return Err(FalhaConfiguracaoLocal::NaoRegular);
     }
     #[cfg(unix)]
     {
@@ -199,30 +205,33 @@ fn ler_configuracao_local(
             || no_caminho.ino() != aberto.ino()
             || no_caminho.dev() != aberto.dev()
         {
-            return Err(F::LeituraFalhou);
+            return Err(FalhaConfiguracaoLocal::LeituraFalhou);
         }
         if aberto.permissions().mode() & 0o077 != 0 {
-            return Err(F::PermissoesAbertas);
+            return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
         }
     }
     let mut raw = Vec::new();
     arquivo
         .take(8_193)
         .read_to_end(&mut raw)
-        .map_err(|_| F::LeituraFalhou)?;
+        .map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
     if raw.len() > 8_192 {
-        return Err(F::AcimaDoLimite);
+        return Err(FalhaConfiguracaoLocal::AcimaDoLimite);
     }
-    let json: serde_json::Value = serde_json::from_slice(&raw).map_err(|_| F::JsonInvalido)?;
-    let objeto = json.as_object().ok_or(F::CampoInvalido)?;
-    let campo = |nome| -> Result<PathBuf, F> {
+    let json: serde_json::Value =
+        serde_json::from_slice(&raw).map_err(|_| FalhaConfiguracaoLocal::JsonInvalido)?;
+    let objeto = json
+        .as_object()
+        .ok_or(FalhaConfiguracaoLocal::CampoInvalido)?;
+    let campo = |nome| -> Result<PathBuf, FalhaConfiguracaoLocal> {
         let texto = objeto
             .get(nome)
             .and_then(serde_json::Value::as_str)
-            .ok_or(F::CampoInvalido)?;
+            .ok_or(FalhaConfiguracaoLocal::CampoInvalido)?;
         let path = PathBuf::from(texto);
         if !path.is_absolute() {
-            return Err(F::CampoInvalido);
+            return Err(FalhaConfiguracaoLocal::CampoInvalido);
         }
         Ok(path)
     };

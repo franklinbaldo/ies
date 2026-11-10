@@ -16,10 +16,10 @@ fn processo_observado_da_arvore(
         {
             continue;
         }
-        let Some(id) = gravacao::id_procedimento(resposta.item) else {
+        let Some(id) = gravacao::id_procedimento(resposta.interacao) else {
             continue;
         };
-        let Ok(html) = html_da_resposta(resposta.item) else {
+        let Ok(html) = html_da_resposta(resposta.interacao) else {
             continue;
         };
         let Some(nup) = crate::arvore_processo::nup_declarado_na_arvore(&html) else {
@@ -76,13 +76,13 @@ fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (Stri
         .filter(|r| r.operacao == "documento_visualizar" && r.metodo == "GET" && r.status == 200)
         .collect();
     assert_eq!(conteudos.len(), 1, "conteúdo original do mesmo documento");
-    let ids_conteudo = gravacao::parametro(conteudos[0].item, "id_documento");
+    let ids_conteudo = gravacao::parametro(conteudos[0].interacao, "id_documento");
     assert!(
         !ids_conteudo.is_empty() && ids_conteudo.iter().all(|valor| *valor == id),
         "histórico e conteúdo precisam referir o mesmo id_documento"
     );
     let identidade =
-        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].item).unwrap())
+        crate::documento_web::identidade_do_titulo(&html_da_resposta(conteudos[0].interacao).unwrap())
             .unwrap();
     (identidade.numero, identidade.tipo)
 }
@@ -102,13 +102,13 @@ fn revisao_do_conteudo_observado(
         .filter(|r| r.operacao == "documento_versao_listar" && r.metodo == "GET" && r.status == 200)
         .collect();
     assert_eq!(historicos.len(), 1, "histórico da mesma cassette UnB");
-    let ids = gravacao::parametro(historicos[0].item, "id_documento");
+    let ids = gravacao::parametro(historicos[0].interacao, "id_documento");
     assert!(
         !ids.is_empty() && ids.iter().all(|valor| *valor == id),
         "histórico e corpo devem pertencer ao mesmo documento"
     );
     let numero = crate::documento::NumeroDocumento::novo(numero).unwrap();
-    let html_historico = html_da_resposta(historicos[0].item).unwrap();
+    let html_historico = html_da_resposta(historicos[0].interacao).unwrap();
     let lista = crate::documento_versoes::interpretar_historico(
         &html_historico,
         &numero,

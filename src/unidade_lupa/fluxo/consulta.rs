@@ -194,10 +194,10 @@ mod replay_integral_go {
                 post += 1;
                 atual
             };
-            let html = html_da_resposta(resposta.item)
+            let html = html_da_resposta(resposta.interacao)
                 .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo));
-            let url = gravacao::url_sem_consulta(&conferida.json, resposta.item);
-            let mime = gravacao::mime(resposta.item);
+            let url = gravacao::url_sem_consulta(&conferida.json, resposta.interacao);
+            let mime = gravacao::mime(resposta.interacao);
             consulta(&instalacao, &url, &html, &mime, pagina)
                 .unwrap_or_else(|e| panic!("formulario no passo {}: {e:?}", resposta.passo));
         }

@@ -9,7 +9,7 @@ use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
 /// Chave de um link assinado. `geracao_sessao` é opaca (o SHA-256 do cookie);
-/// `unidade` é o id de `infra_unidade_atual`; `objeto` identifica o alvo
+/// `unidade` é o id de `infra_unidade_atual`; `alvo` identifica o alvo
 /// (por exemplo o `id_procedimento`), vazio quando a tela não tem alvo.
 /// Sem `Debug`: a geração deriva do cookie.
 #[derive(Clone, Copy)]
@@ -17,7 +17,7 @@ pub(crate) struct ChaveDoLink<'a> {
     pub(crate) geracao_sessao: &'a str,
     pub(crate) unidade: &'a str,
     pub(crate) acao: &'a str,
-    pub(crate) objeto: &'a str,
+    pub(crate) alvo: &'a str,
 }
 
 /// Unidade da chave dos links: o `infra_unidade_atual` único e decimal da
@@ -52,7 +52,7 @@ impl IndiceLocal {
                         chave.geracao_sessao,
                         chave.unidade,
                         chave.acao,
-                        chave.objeto,
+                        chave.alvo,
                     ],
                     |l| l.get(0),
                 )
@@ -86,7 +86,7 @@ impl IndiceLocal {
                     chave.geracao_sessao,
                     chave.unidade,
                     chave.acao,
-                    chave.objeto,
+                    chave.alvo,
                     url,
                     agora
                 ],
@@ -108,7 +108,7 @@ impl IndiceLocal {
                     chave.geracao_sessao,
                     chave.unidade,
                     chave.acao,
-                    chave.objeto,
+                    chave.alvo,
                 ],
             )?;
             Ok(())

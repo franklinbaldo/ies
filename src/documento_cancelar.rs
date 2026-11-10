@@ -48,22 +48,27 @@ pub(crate) fn ler_link_cancelar(
     documento: &str,
     processo: &str,
 ) -> Result<Option<LinkDeCancelamento>, ErroLinkCancelar> {
-    use ErroLinkCancelar as E;
-    let Some(barra) = barra_do_no(html, documento).map_err(|_| E::BarraForaDaForma)? else {
+    let Some(barra) =
+        barra_do_no(html, documento).map_err(|_| ErroLinkCancelar::BarraForaDaForma)?
+    else {
         return Ok(None);
     };
-    let dom = tl::parse(&barra, tl::ParserOptions::default()).map_err(|_| E::BarraForaDaForma)?;
+    let dom = tl::parse(&barra, tl::ParserOptions::default())
+        .map_err(|_| ErroLinkCancelar::BarraForaDaForma)?;
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let attrs = atributos(tag).map_err(|_| E::BarraForaDaForma)?;
-        let Some(bruto) = attrs.valor("href").map_err(|_| E::BarraForaDaForma)? else {
+        let attrs = atributos(tag).map_err(|_| ErroLinkCancelar::BarraForaDaForma)?;
+        let Some(bruto) = attrs
+            .valor("href")
+            .map_err(|_| ErroLinkCancelar::BarraForaDaForma)?
+        else {
             continue;
         };
-        let href = decodificar_atributo(bruto).ok_or(E::BarraForaDaForma)?;
+        let href = decodificar_atributo(bruto).ok_or(ErroLinkCancelar::BarraForaDaForma)?;
         let acao = href
             .split_once('?')
             .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")));
@@ -74,11 +79,11 @@ pub(crate) fn ler_link_cancelar(
     let href = match links.as_slice() {
         [] => return Ok(None),
         [unico] => unico,
-        _ => return Err(E::LinksRepetidos),
+        _ => return Err(ErroLinkCancelar::LinksRepetidos),
     };
     let mapear = |r| match r {
-        EnderecoRecusado::NaoReconhecido => E::EnderecoNaoReconhecido,
-        EnderecoRecusado::DeOutroProcesso => E::EnderecoDeOutroDocumento,
+        EnderecoRecusado::NaoReconhecido => ErroLinkCancelar::EnderecoNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => ErroLinkCancelar::EnderecoDeOutroDocumento,
     };
     conferir_endereco_relativo_por(
         instalacao,

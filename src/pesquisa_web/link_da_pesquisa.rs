@@ -24,16 +24,15 @@ pub(crate) fn link_da_pesquisa(
     url_do_controle: &str,
     html: &str,
 ) -> Result<String, ErroLinkDaPesquisa> {
-    use ErroLinkDaPesquisa as E;
     let href = href_publicado(html)?;
     let minusculo = href.to_ascii_lowercase();
     if ["https://", "http://", "//"]
         .iter()
         .any(|prefixo| minusculo.starts_with(prefixo))
     {
-        return Err(E::LinkDaPesquisaComEnderecoAbsoluto);
+        return Err(ErroLinkDaPesquisa::LinkDaPesquisaComEnderecoAbsoluto);
     }
-    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
+    let nao = ErroLinkDaPesquisa::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
@@ -74,8 +73,7 @@ const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
-    use ErroLinkDaPesquisa as E;
-    let nao = E::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
+    let nao = ErroLinkDaPesquisa::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| nao)?;
     let parser = dom.parser();
     let mut achados = Vec::new();

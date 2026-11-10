@@ -1,4 +1,4 @@
-use super::{ErroAtribuir as E, ler_tela, planejar};
+use super::{ErroAtribuir, ler_tela, planejar};
 use crate::erro_html::ErroHtml;
 const ID: &str = "50693";
 const HTML: &str = r#"<html><body>
@@ -36,11 +36,11 @@ fn login_exato_nao_se_confunde_com_prefixo_ou_nome() {
     );
     assert_eq!(
         planejar(&tela, Some("aluno"), Some("aluno20")),
-        Err(E::UsuarioNaoAtribuivel)
+        Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
     assert_eq!(
         planejar(&tela, Some("Rodrigo de Freitas Nogueira"), Some("aluno2")),
-        Err(E::UsuarioNaoAtribuivel)
+        Err(ErroAtribuir::UsuarioNaoAtribuivel)
     );
 }
 
@@ -51,7 +51,7 @@ fn remover_escolhe_item_nulo_sem_escrita_desnecessaria() {
     assert_eq!(planejar(&tela, None, Some("aluno2")), Ok("null".into()));
     assert_eq!(
         planejar(&tela, None, Some("")),
-        Err(E::AtribuicaoJaAplicada)
+        Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
 
@@ -61,11 +61,11 @@ fn estado_nao_observado_falha_fechado() {
     let tela = ler_tela(HTML, ID).unwrap();
     assert_eq!(
         planejar(&tela, Some("aluno2"), None),
-        Err(E::SituacaoNaoObservada)
+        Err(ErroAtribuir::SituacaoNaoObservada)
     );
     assert_eq!(
         planejar(&tela, Some("aluno2"), Some("aluno2")),
-        Err(E::AtribuicaoJaAplicada)
+        Err(ErroAtribuir::AtribuicaoJaAplicada)
     );
 }
 
@@ -80,7 +80,9 @@ fn protocolo_de_outro_processo_nao_e_aceito() {
             ),
             ID
         ),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::Html(ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma"
+        )))
     );
 }
 
@@ -90,7 +92,7 @@ fn opcoes_repetidas_geram_ambiguidade_sem_escolher_a_primeira() {
     let tela = ler_tela(&html, ID).unwrap();
     assert_eq!(
         planejar(&tela, Some("aluno2"), Some("aluno20")),
-        Err(E::UsuarioAmbiguo)
+        Err(ErroAtribuir::UsuarioAmbiguo)
     );
 }
 
@@ -103,7 +105,9 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
     );
     assert_eq!(
         ler_tela(&html, ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::Html(ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma"
+        )))
     );
 }
 
@@ -111,14 +115,18 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
         ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::Html(ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma"
+        )))
     );
     assert_eq!(
         ler_tela(
             &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
             ID
         ),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::Html(ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma"
+        )))
     );
 }
 
@@ -129,10 +137,10 @@ fn subcodigos_publicos_do_leitor_sao_estaveis() {}
 /// de seu contexto ou transferência de propriedade para apresentação.
 #[test]
 fn subcodigo_do_erro_nao_consume_a_causa_tipificada() {
-    let erro = E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"));
+    let erro = ErroAtribuir::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"));
     assert_eq!(
         erro,
-        E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))
+        ErroAtribuir::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))
     );
 }
 
@@ -146,7 +154,9 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
     );
     assert_eq!(
         ler_tela(&html, ID),
-        Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma")))
+        Err(ErroAtribuir::Html(ErroHtml::valor(
+            "tela_da_atribuicao_fora_da_forma"
+        )))
     );
 }
 
@@ -154,7 +164,7 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
 fn preparar(
     login: Option<&str>,
     atual: Option<&str>,
-) -> Result<(String, crate::formulario_web::SubmissaoDerivada), E> {
+) -> Result<(String, crate::formulario_web::SubmissaoDerivada), ErroAtribuir> {
     let instalacao =
         crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let url = format!(
@@ -237,7 +247,7 @@ fn derivacao_recusa_formulario_com_encoding_alheio_sem_enviar() {
             Some("aluno2"),
             Some("aluno20"),
         ),
-        Err(E::Formulario(
+        Err(ErroAtribuir::Formulario(
             crate::formulario_web::ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
         ))
     ));
@@ -270,7 +280,9 @@ fn formulario_com_controles_inertes_nao_e_oferta_de_atribuicao() {
     for (indice, html) in casos.iter().enumerate() {
         assert_eq!(
             ler_tela(html, ID),
-            Err(E::Html(ErroHtml::valor("tela_da_atribuicao_fora_da_forma"))),
+            Err(ErroAtribuir::Html(ErroHtml::valor(
+                "tela_da_atribuicao_fora_da_forma"
+            ))),
             "controle inerte no cenário {indice} deve recusar a escrita",
         );
     }

@@ -69,11 +69,16 @@ fn barra(inst: &Instalacao, html: &str, id: &str) -> String {
     }
 }
 
-fn tela_de_conclusao(inst: &Instalacao, html: &str, item: &serde_json::Value, id: &str) -> String {
+fn tela_de_conclusao(
+    inst: &Instalacao,
+    html: &str,
+    interacao: &serde_json::Value,
+    id: &str,
+) -> String {
     if let Err(erro) = conferir_tela_de_conclusao(html, id) {
         return format!("`{}`", erro.rotulo());
     }
-    let url = item["response"]["url"].as_str().unwrap_or("");
+    let url = interacao["response"]["url"].as_str().unwrap_or("");
     let tela = TelaServida {
         url,
         html,
@@ -116,10 +121,10 @@ fn replay_de_processo_concluir_no_acervo() {
         let mut estado = Estado::default();
         for r in gravacao::respostas(json) {
             // A tela aberta pela pesquisa rápida traz o id em `id_protocolo`.
-            let id = gravacao::id_procedimento(r.item)
-                .or_else(|| gravacao::id_da_pesquisa_rapida(r.item))
+            let id = gravacao::id_procedimento(r.interacao)
+                .or_else(|| gravacao::id_da_pesquisa_rapida(r.interacao))
                 .unwrap_or_default();
-            let html = || html_da_resposta(r.item).ok();
+            let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
                     if let Some(tela) =
@@ -156,7 +161,7 @@ fn replay_de_processo_concluir_no_acervo() {
                         somar(
                             &mut contagem,
                             "tela de conclusão",
-                            tela_de_conclusao(&inst, &h, r.item, &id),
+                            tela_de_conclusao(&inst, &h, r.interacao, &id),
                             nome,
                         );
                     } else {
@@ -172,8 +177,8 @@ fn replay_de_processo_concluir_no_acervo() {
                 ("procedimento_concluir", "POST", status) => {
                     let classe = match status {
                         302 if redirecionamento_esperado(
-                            gravacao::localizacao(r.item),
-                            &gravacao::url_sem_consulta(json, r.item),
+                            gravacao::localizacao(r.interacao),
+                            &gravacao::url_sem_consulta(json, r.interacao),
                             &id,
                         ) =>
                         {

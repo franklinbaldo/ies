@@ -66,7 +66,6 @@ fn link_do_cadastro(href: &str) -> Option<String> {
 /// prefixo ou por posição. Entidades HTML são decodificadas pelo leitor
 /// comum antes da comparação.
 pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, ErroListaDeTipos> {
-    use ErroListaDeTipos as E;
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroHtml::html("lista_de_tipos_html_invalido"))?;
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
@@ -107,8 +106,9 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
         let href = valor_do_atributo(ancora, "href")
             .map_err(|e| ErroHtml::atributo("lista_de_tipos_html_invalido", e))?
             .map(|valor| {
-                crate::formulario_web::decodificar_atributo(&valor)
-                    .ok_or(E::Html(ErroHtml::html("lista_de_tipos_html_invalido")))
+                crate::formulario_web::decodificar_atributo(&valor).ok_or(ErroListaDeTipos::Html(
+                    ErroHtml::html("lista_de_tipos_html_invalido"),
+                ))
             })
             .transpose()?;
         let onclick = valor_do_atributo(ancora, "onclick")
@@ -133,10 +133,10 @@ pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, E
     }
     match encontrados.as_slice() {
         [Some(escolhido)] => Ok(escolhido.clone()),
-        [None] => Err(E::TipoSemAcao),
+        [None] => Err(ErroListaDeTipos::TipoSemAcao),
         [_, _, ..] => Err(ErroHtml::repetido("tipo_de_processo_ambiguo").into()),
-        [] if lista_completa(html) => Err(E::TipoNaoOferecido),
-        [] => Err(E::ListaIncompleta),
+        [] if lista_completa(html) => Err(ErroListaDeTipos::TipoNaoOferecido),
+        [] => Err(ErroListaDeTipos::ListaIncompleta),
     }
 }
 

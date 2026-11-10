@@ -3,7 +3,7 @@
 //! `form#frmGerenciarMarcador` nunca participam além da conferência de
 //! identidade. Atributos pelo tokenizador de `html_atributos`; aninhamento
 //! pelo `tl`; sem regex e sem JavaScript.
-use super::{ACAO, ErroMarcadores as E, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
+use super::{ACAO, ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
 use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
@@ -22,12 +22,18 @@ const CABECALHO: [&str; 6] = [
     "A\u{e7}\u{f5}es",
 ];
 
-const ILEGIVEL: E = E::Html(ErroHtml::html("html_dos_marcadores_nao_interpretado"));
-const LINHA: E = E::Html(ErroHtml::valor("linha_do_marcador_fora_da_forma_observada"));
+const ILEGIVEL: ErroMarcadores =
+    ErroMarcadores::Html(ErroHtml::html("html_dos_marcadores_nao_interpretado"));
+const LINHA: ErroMarcadores =
+    ErroMarcadores::Html(ErroHtml::valor("linha_do_marcador_fora_da_forma_observada"));
 
 /// Lê a tela e confere a identidade (NUP e id, comparação opaca) antes de
 /// qualquer linha.
-pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosMarcadores, E> {
+pub(crate) fn ler_marcadores(
+    html: &str,
+    nup: &str,
+    id: &str,
+) -> Result<TelaDosMarcadores, ErroMarcadores> {
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ILEGIVEL)?;
     let parser = dom.parser();
     conferir_identidade(&dom, nup, id)?;
@@ -69,7 +75,7 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
         itens.push(marcador);
     }
     if itens.len() > total_declarado {
-        return Err(E::MarcadoresAlemDoTotalDeclarado);
+        return Err(ErroMarcadores::MarcadoresAlemDoTotalDeclarado);
     }
     Ok(TelaDosMarcadores::Lidos(MarcadoresLidos {
         total_declarado,
@@ -80,7 +86,7 @@ pub(crate) fn ler_marcadores(html: &str, nup: &str, id: &str) -> Result<TelaDosM
 /// O único `title` começa por "SEI - Marcadores do Processo " seguido do
 /// NUP; o único `form#frmGerenciarMarcador` tem `action` com uma
 /// `acao=andamento_marcador_gerenciar` e o `id_procedimento` aberto.
-fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E> {
+fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), ErroMarcadores> {
     let parser = dom.parser();
     let titulos: Vec<_> = dom
         .query_selector("title")
@@ -89,32 +95,32 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E>
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
         .collect();
     let [titulo] = titulos.as_slice() else {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
-    let titulo = texto(titulo, parser).map_err(|_| E::TelaDosMarcadoresAusente)?;
+    let titulo = texto(titulo, parser).map_err(|_| ErroMarcadores::TelaDosMarcadoresAusente)?;
     let numero = titulo
         .strip_prefix(TITULO)
-        .ok_or(E::TelaDosMarcadoresAusente)?;
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     if numero != nup {
-        return Err(E::NumeroDosMarcadoresDiferenteDoSolicitado);
+        return Err(ErroMarcadores::NumeroDosMarcadoresDiferenteDoSolicitado);
     }
     let formularios = nos_com_id(dom, "frmGerenciarMarcador").map_err(|_| ILEGIVEL)?;
     let [formulario] = formularios.as_slice() else {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     };
     let formulario = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
         .ok_or(ILEGIVEL)?;
     if formulario.name() != "form" {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
     let action = atributo(formulario, "action")
         .map_err(|_| ILEGIVEL)?
-        .ok_or(E::TelaDosMarcadoresAusente)?;
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     let consulta = action
         .strip_prefix("controlador.php?")
-        .ok_or(E::TelaDosMarcadoresAusente)?;
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     let valores = |chave: &str| -> Vec<&str> {
         consulta
             .split('&')
@@ -122,17 +128,17 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), E>
             .collect()
     };
     if valores("acao") != [ACAO] {
-        return Err(E::TelaDosMarcadoresAusente);
+        return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
     if valores("id_procedimento") != [id] {
-        return Err(E::IdDosMarcadoresDiferenteDoAberto);
+        return Err(ErroMarcadores::IdDosMarcadoresDiferenteDoAberto);
     }
     Ok(())
 }
 
 /// `Marcadores (N registro):` ou `Marcadores (N registros):`, sem faixa.
-fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
-    let fora = E::Html(ErroHtml::valor(
+fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, ErroMarcadores> {
+    let fora = ErroMarcadores::Html(ErroHtml::valor(
         "legenda_dos_marcadores_fora_da_forma_observada",
     ));
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
@@ -155,8 +161,12 @@ fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, E> {
 
 /// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`
 /// sem texto com `#lnkInfraCheck`.
-fn rotulo_do_th(th: Tag<'_>, parser: &tl::Parser<'_>, selecao: bool) -> Result<String, E> {
-    let fora = E::Html(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido"));
+fn rotulo_do_th(
+    th: Tag<'_>,
+    parser: &tl::Parser<'_>,
+    selecao: bool,
+) -> Result<String, ErroMarcadores> {
+    let fora = ErroMarcadores::Html(ErroHtml::valor("cabecalho_dos_marcadores_nao_reconhecido"));
     if selecao {
         let marcado = nos_com_id_em(th, parser, "lnkInfraCheck").map_err(|_| fora)?;
         if marcado.len() != 1 {
@@ -176,7 +186,7 @@ fn nos_por_elemento_e_classe_em<'p>(
     parser: &'p tl::Parser<'p>,
     elemento: &str,
     classe: &str,
-) -> Result<Vec<Tag<'p>>, E> {
+) -> Result<Vec<Tag<'p>>, ErroMarcadores> {
     let mut achados = Vec::new();
     for tag in descendentes(raiz, parser, elemento) {
         if atributos(tag)
@@ -190,7 +200,10 @@ fn nos_por_elemento_e_classe_em<'p>(
 }
 
 /// Uma linha: seleção, Marcador, Texto, Usuário, Data/Hora, Ações.
-fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProcesso, E> {
+fn linha(
+    celulas: &[Tag<'_>],
+    parser: &tl::Parser<'_>,
+) -> Result<MarcadorDoProcesso, ErroMarcadores> {
     let [selecao, marcador, texto_td, usuario, data_hora, _acoes] = celulas[..] else {
         return Err(LINHA);
     };
@@ -248,7 +261,7 @@ fn linha(celulas: &[Tag<'_>], parser: &tl::Parser<'_>) -> Result<MarcadorDoProce
 }
 
 /// Célula vazia: `None`; senão, exatamente um `a.ancoraSigla` com todo o texto.
-fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, E> {
+fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, ErroMarcadores> {
     let completo = texto(celula, parser)?;
     let ancoras = nos_por_elemento_e_classe_em(celula, parser, "a", "ancoraSigla")?;
     match ancoras.as_slice() {
@@ -261,7 +274,7 @@ fn sigla(celula: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Option<String>, E> 
 }
 
 /// `<cor>` de `svg/marcador_<cor>.svg` (com `?…` opcional).
-fn cor(src: &str) -> Result<String, E> {
+fn cor(src: &str) -> Result<String, ErroMarcadores> {
     let resto = src.strip_prefix("svg/marcador_").ok_or(LINHA)?;
     let (cor, depois) = resto.split_once(".svg").ok_or(LINHA)?;
     if cor.is_empty()
@@ -286,7 +299,7 @@ fn eh_data_hora(texto: &str) -> bool {
 }
 
 /// Valor do atributo com entidades decodificadas.
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, E> {
+fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroMarcadores> {
     let lidos = atributos(tag).map_err(|_| ILEGIVEL)?;
     lidos
         .valor(nome)
@@ -301,7 +314,7 @@ fn decodificar(bruto: &str) -> Option<String> {
 }
 
 /// Texto visível, entidades decodificadas e espaços colapsados.
-fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, E> {
+fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroMarcadores> {
     decodificar(&tag.inner_text(parser))
         .map(|t| texto_colapsado(&t))
         .ok_or(LINHA)

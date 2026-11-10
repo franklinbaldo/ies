@@ -1,6 +1,6 @@
 //! Links da árvore e da tela de trabalho guardados no índice local.
 //! Um índice velho pode ser esquecido; uma exigência de senha não pode.
-use super::{E, Passo};
+use super::{ErroProcessoObter, Passo};
 use crate::arvore_processo::{ErroArvore, ErroTelaDoProcesso, ler_tela_do_processo};
 use crate::processo_obter::abertura::{Contexto, Lida, Rede, concluir, ler_arvore_aberta};
 use crate::processo_obter::pastas::{self, Guardado};
@@ -44,7 +44,7 @@ pub(in crate::processo_obter) fn link_da_arvore<V: EnvioDoProcesso>(
             }
             // Não é uma árvore: o link envelheceu.
             Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
-            Err(erro) => return Err(E::Arvore(erro)),
+            Err(erro) => return Err(ErroProcessoObter::Arvore(erro)),
         }
     }
     contexto.esquecer_link(ACAO, &id);
@@ -90,7 +90,7 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
         }
         // Unidade distinta não é link envelhecido; recusa sem fallback.
         Err(erro @ ErroTelaDoProcesso::UnidadeDaTelaDiferenteDaSolicitada) => {
-            return Err(E::Tela(erro));
+            return Err(ErroProcessoObter::Tela(erro));
         }
         // Não é a tela deste processo: o link envelheceu.
         Err(_) => {
@@ -100,7 +100,7 @@ pub(in crate::processo_obter) fn link_de_trabalho<V: EnvioDoProcesso>(
     };
     match rede.abrir_da_tela(contexto, link.url(), (&html, &mime), tela, &id) {
         Ok((arvore, unidade)) => Ok(Some((arvore, Some(unidade), ResolvidoPor::IndiceTrabalhar))),
-        Err(E::Arvore(erro)) if erro.diverge_do_pedido() => {
+        Err(ErroProcessoObter::Arvore(erro)) if erro.diverge_do_pedido() => {
             contexto.indice.esquecer_processo(instalacao, contexto.nup);
             contexto.esquecer_link(ACAO, &id);
             Ok(None)
