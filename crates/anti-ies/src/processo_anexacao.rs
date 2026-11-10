@@ -105,8 +105,8 @@ pub(crate) fn identificar(
     })
 }
 
-/// Consulta de assinaturas publicada como AJAX. O anti-IES declara apenas a
-/// hipótese "S"; esta não é uma evidência empírica de assinaturas no SEI.
+/// Consulta de assinaturas publicada como AJAX. A resposta deriva do estado
+/// documental sintético, nunca da leitura de uma assinatura real do SEI.
 pub(crate) fn consulta(
     metodo: &str,
     alvo: &str,
@@ -132,10 +132,19 @@ pub(crate) fn consulta(
     if !matches!(processos::ler(banco, origem, cenario, &id), Ok(Some(_))) {
         return Resposta::nova(Estado::DadosInsuficientes);
     }
+    let pendencia = match iesei::editor_documento::ha_documento_sem_assinatura(
+        banco, origem, cenario, &id,
+    ) {
+        Ok(pendencia) => pendencia,
+        Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    };
+    let resultado = if pendencia { "N" } else { "S" };
     Resposta {
         estado: Estado::Ok,
         tipo_conteudo: "application/xml; charset=utf-8",
-        corpo: "<complementos><complemento nome=\"Anexacao\">S</complemento></complementos>".into(),
+        corpo: format!(
+            "<complementos><complemento nome=\"Anexacao\">{resultado}</complemento></complementos>"
+        ),
         localizacao: None,
         corpo_binario: None,
     }
