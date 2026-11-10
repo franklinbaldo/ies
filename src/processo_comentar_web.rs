@@ -1,7 +1,10 @@
 //! Prévia de comentário: navega apenas por links servidos, sem POST.
 //! A interpretação de 302 sem comentários e a confirmação ficam para outra fatia.
 use crate::arvore_processo::conferir_endereco_relativo;
-use crate::formulario_web::decodificar_atributo;
+use crate::formulario_web::{
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
+    OperacaoDeFormulario, ResultadoDoEnvio, TelaServida, decodificar_atributo, derivar_submissao,
+};
 use crate::html_atributos::atributos;
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
@@ -10,7 +13,22 @@ use crate::processo_comentarios::{TelaDosComentarios, ler_tela};
 use crate::processo_concluir::escrita::{Contador, leitura, ler_cookie, obter_tela};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, abrir_para_escrever};
 
-#[derive(Debug)]
+const COMENTAR: OperacaoDeFormulario = OperacaoDeFormulario {
+    acao: "comentario_cadastrar",
+    formulario: "frmComentarioCadastro",
+    envio: EnvioDoFormulario::BotaoDeEnvio("sbmCadastrarComentario"),
+    campos_ocultos_exigidos: &[],
+    campos_ocultos_reescritos: &[],
+    campos_usuario: &["txaDescricao"],
+    resultado: ResultadoDoEnvio::ConferidoPorLeituraPosterior,
+    unidade: ConferenciaDaUnidade::NaTelaDeOrigemDoLink,
+    efeito: EfeitoAvaliado::AlteraEstadoDoProcesso {
+        o_que: EstadoDoProcesso::ComentarioNoProcesso,
+    },
+};
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum Erro {
     Abertura,
     Barra,
@@ -19,6 +37,8 @@ pub(crate) enum Erro {
     LinkNaoPublicado,
     LinkInvalido,
     Cadastro,
+    Formulario,
+    Charset,
 }
 
 pub(crate) struct Previa {
@@ -86,12 +106,35 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     };
     let id = &aberto.arvore.processo.id;
     let url = link_do_cadastro(&instalacao, &html, id)?;
-    let (cadastro, _) = obter_tela(&mut rede, &cookie, &url).map_err(|_| Erro::Cadastro)?;
+    let (cadastro, mime) = obter_tela(&mut rede, &cookie, &url).map_err(|_| Erro::Cadastro)?;
     let TelaDosComentarios::CadastroSemComentarios =
         ler_tela(&cadastro).map_err(|_| Erro::Cadastro)?
     else {
         return Err(Erro::Cadastro);
     };
+    let codificacao = crate::pagina_do_controle::codificacao_da_tela(&mime)
+        .ok_or(Erro::Charset)?;
+    let tela = TelaServida {
+        url: &url,
+        html: &cadastro,
+        codificacao,
+    };
+    // Pré-derivação segura do POST, nunca enviada: método, identidade,
+    // action assinada e controles precisam estar comprovados.
+    let submissao = derivar_submissao(
+        &COMENTAR,
+        &instalacao,
+        &tela,
+        aberto.unidade.as_deref().unwrap_or(""),
+        &[("txaDescricao", texto)],
+    )
+    .map_err(|_| Erro::Formulario)?;
+    let endereco = submissao
+        .url()
+        .strip_prefix(&format!("{}/", instalacao.url_base()))
+        .ok_or(Erro::Formulario)?;
+    conferir_endereco_relativo(&instalacao, endereco, "comentario_cadastrar", id)
+        .map_err(|_| Erro::Formulario)?;
     Ok(Previa {
         numero: nup.as_str().to_owned(),
         id_procedimento: id.to_owned(),
