@@ -22,7 +22,20 @@ pub enum Coluna {
 }
 
 impl Coluna {
-    pub const TODAS: [Self; 12] = [Self::Atribuicao, Self::Anotacao, Self::TipoProcesso, Self::Especificacao, Self::Prioridade, Self::Interessados, Self::Observacao, Self::ControlePrazo, Self::RetornoDevolver, Self::RetornoAguardando, Self::UltimaMovimentacao, Self::Marcadores];
+    pub const TODAS: [Self; 12] = [
+        Self::Atribuicao,
+        Self::Anotacao,
+        Self::TipoProcesso,
+        Self::Especificacao,
+        Self::Prioridade,
+        Self::Interessados,
+        Self::Observacao,
+        Self::ControlePrazo,
+        Self::RetornoDevolver,
+        Self::RetornoAguardando,
+        Self::UltimaMovimentacao,
+        Self::Marcadores,
+    ];
 
     #[must_use]
     pub const fn chave(self) -> &'static str {
@@ -80,7 +93,9 @@ impl Coluna {
 
     #[must_use]
     pub fn pela_chave(chave: &str) -> Option<Self> {
-        Self::TODAS.into_iter().find(|coluna| coluna.chave() == chave)
+        Self::TODAS
+            .into_iter()
+            .find(|coluna| coluna.chave() == chave)
     }
 }
 
@@ -120,7 +135,11 @@ pub fn guardar(
         return Err(Erro::DadoInvalido);
     }
     let mut vistas = std::collections::HashSet::new();
-    if !configuracao.opcoes.iter().all(|opcao| vistas.insert(opcao.coluna)) {
+    if !configuracao
+        .opcoes
+        .iter()
+        .all(|opcao| vistas.insert(opcao.coluna))
+    {
         return Err(Erro::DadoInvalido);
     }
     let tx = banco.transaction()?;
@@ -181,7 +200,10 @@ pub fn ler(
         if !matches!(marcada, 0 | 1) || opcoes.iter().any(|o: &Opcao| o.coluna == coluna) {
             return Err(Erro::DadoInvalido);
         }
-        opcoes.push(Opcao { coluna, marcada: marcada == 1 });
+        opcoes.push(Opcao {
+            coluna,
+            marcada: marcada == 1,
+        });
     }
     Ok(unidade.map(|unidade| Configuracao { unidade, opcoes }))
 }
@@ -200,22 +222,47 @@ mod tests {
         let configuracao = Configuracao {
             unidade: UnidadeExibida::nova("TESTE").unwrap(),
             opcoes: vec![
-                Opcao { coluna: Coluna::Atribuicao, marcada: true },
-                Opcao { coluna: Coluna::Anotacao, marcada: false },
+                Opcao {
+                    coluna: Coluna::Atribuicao,
+                    marcada: true,
+                },
+                Opcao {
+                    coluna: Coluna::Anotacao,
+                    marcada: false,
+                },
             ],
         };
         guardar(&mut db, &origem, "cenario", &configuracao).unwrap();
         guardar(&mut db, &origem, "cenario", &configuracao).unwrap();
-        assert_eq!(ler(&db, &origem, "cenario").unwrap(), Some(configuracao.clone()));
+        assert_eq!(
+            ler(&db, &origem, "cenario").unwrap(),
+            Some(configuracao.clone())
+        );
         assert_eq!(ler(&db, &origem, "outro").unwrap(), None);
         let repetida = Configuracao {
             opcoes: vec![
-                Opcao { coluna: Coluna::Atribuicao, marcada: true },
-                Opcao { coluna: Coluna::Atribuicao, marcada: false },
+                Opcao {
+                    coluna: Coluna::Atribuicao,
+                    marcada: true,
+                },
+                Opcao {
+                    coluna: Coluna::Atribuicao,
+                    marcada: false,
+                },
             ],
             ..configuracao
         };
-        assert!(matches!(guardar(&mut db, &origem, "cenario", &repetida), Err(Erro::DadoInvalido)));
-        assert_eq!(ler(&db, &origem, "cenario").unwrap().unwrap().opcoes.len(), 2);
+        assert!(matches!(
+            guardar(&mut db, &origem, "cenario", &repetida),
+            Err(Erro::DadoInvalido)
+        ));
+        assert_eq!(
+            ler(&db, &origem, "cenario")
+                .unwrap()
+                .unwrap()
+                .opcoes
+                .len(),
+            2
+        );
     }
 }
