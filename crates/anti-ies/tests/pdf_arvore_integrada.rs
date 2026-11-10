@@ -323,7 +323,6 @@ fn bdd_332_03_pdf_selecionado_preserva_acoes_do_processo() {
     servidor.join().unwrap();
 }
 
-
 /// BDD-60-05: identidade de PDF em outra árvore conhecida não autoriza
 /// fallback para o processo pedido. A recusa é hipótese sintética:
 /// a cassette UnB registra navegação, não esta seleção cruzada.
@@ -364,8 +363,7 @@ fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
         )
         .unwrap();
         registrados.push(
-            externo::cadastrar(&banco, &origem, "identidades", id, "293", temporario.id)
-                .unwrap(),
+            externo::cadastrar(&banco, &origem, "identidades", id, "293", temporario.id).unwrap(),
         );
     }
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -373,8 +371,7 @@ fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
     let servidor = std::thread::spawn(move || {
         for _ in 0..4 {
             let mut conexao = aceitar(&escuta);
-            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "identidades")))
-                .unwrap();
+            anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "identidades"))).unwrap();
         }
         for processo in ["7", "8"] {
             assert_eq!(
