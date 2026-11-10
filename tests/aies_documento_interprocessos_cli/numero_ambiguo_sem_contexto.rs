@@ -26,7 +26,9 @@ fn bdd_60_05_cli_sem_nup_recusa_numero_ambiguo_sem_publicar_corpos() {
         assert_eq!(erro["documento"], DOC_A, "{erro}");
         assert_eq!(erro["documentos_lidos_antes"], 0, "{erro}");
         assert!(
-            erro["codigo"].as_str().is_some_and(|codigo| !codigo.is_empty()),
+            erro["codigo"]
+                .as_str()
+                .is_some_and(|codigo| !codigo.is_empty()),
             "a recusa precisa ser classificada: {erro}"
         );
         assert!(erro.get("documentos").is_none(), "{erro}");
@@ -40,8 +42,7 @@ fn bdd_60_05_cli_sem_nup_recusa_numero_ambiguo_sem_publicar_corpos() {
         );
         assert!(
             !trilha.iter().any(|pedido| {
-                pedido == "GET documento_visualizar"
-                    || pedido == "GET documento_download_anexo"
+                pedido == "GET documento_visualizar" || pedido == "GET documento_download_anexo"
             }),
             "nenhum corpo deve ser lido quando a busca é ambígua: {trilha:?}"
         );
@@ -56,9 +57,8 @@ fn bdd_60_05_cli_sem_nup_recusa_numero_ambiguo_sem_publicar_corpos() {
 
 #[test]
 fn bdd_60_05_humano_sem_nup_nao_exibe_corpo_ambiguo() {
-    let (saida, trilha) = apoio::executar_numero_igual_em_outro_processo(&[
-        "documento", DOC_A, "--sem-cache",
-    ]);
+    let (saida, trilha) =
+        apoio::executar_numero_igual_em_outro_processo(&["documento", DOC_A, "--sem-cache"]);
     assert_eq!(
         saida.status.code(),
         Some(1),
@@ -70,12 +70,13 @@ fn bdd_60_05_humano_sem_nup_nao_exibe_corpo_ambiguo() {
         String::from_utf8_lossy(&saida.stderr)
     );
     assert!(
-        !apresentacao.contains("primeiro processo")
-            && !apresentacao.contains("segundo processo"),
+        !apresentacao.contains("primeiro processo") && !apresentacao.contains("segundo processo"),
         "não publicar conteúdo de nenhum candidato: {apresentacao}"
     );
     assert!(
-        !trilha.iter().any(|pedido| pedido == "GET documento_visualizar"),
+        !trilha
+            .iter()
+            .any(|pedido| pedido == "GET documento_visualizar"),
         "o erro humano não pode consultar um corpo arbitrário: {trilha:?}"
     );
 }
