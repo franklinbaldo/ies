@@ -76,10 +76,8 @@ fn bdd_381_01_previa_documental_sem_incluir() {
     assert_eq!(previa["alterado"], false);
     assert!(previa["presente_depois"].is_null());
 
-    // Leitura independente: o bloco continua sem DOC.
-    let pasta_leitura = Pasta::nova();
-    preparar(&pasta_leitura);
-    let lido = executar(&pasta_leitura, &["--json", "bloco", BLOCO], 3);
+    // Nova execução no MESMO SQLite da prévia: o bloco continua sem DOC.
+    let lido = executar(&pasta, &["--json", "bloco", BLOCO], 3);
     assert_eq!(lido.status.code(), Some(0));
     let itens = json(&lido)["bloco"]["itens"].clone();
     assert!(
@@ -90,6 +88,16 @@ fn bdd_381_01_previa_documental_sem_incluir() {
             .all(|item| item["documento"] != DOC),
         "{itens}"
     );
+
+    // Consulta direta ao mesmo arquivo: o detalhe guardado é o semeado.
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (banco, instalacao) = estado(&caminho, true, 0, false);
+    let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
+        .unwrap()
+        .expect("bloco semeado");
+    assert_eq!(detalhe.total, 1);
+    assert_eq!(detalhe.itens.len(), 1);
+    assert_eq!(detalhe.itens[0].documento.as_deref(), Some("0011600"));
 }
 
 /// Pesquisa, Controle até a árvore do documento, tela de escolha; Controle,
