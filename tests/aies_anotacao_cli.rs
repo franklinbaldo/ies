@@ -80,7 +80,7 @@ fn pedido_http(fonte: &mut impl Read) -> (Vec<u8>, String) {
     (bytes, evento)
 }
 
-fn estado() -> (Connection, Instalacao) {
+fn estado(texto_anotacao: &str) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
@@ -114,7 +114,7 @@ fn estado() -> (Connection, Instalacao) {
             numero: NUP.into(),
             unidade_origem: "TESTE".into(),
             aberto_em: vec!["TESTE".into()],
-            anotacao_origem: Some(String::new()),
+            anotacao_origem: Some(texto_anotacao.to_owned()),
             destinos: vec![],
         },
     )
@@ -126,7 +126,7 @@ fn estado() -> (Connection, Instalacao) {
     clippy::too_many_lines,
     reason = "prova vertical única de prévia e confirmação pela CLI real, TLS, anti-IES e SQLite"
 )]
-fn executar_caso(confirmar: bool, resposta_recusada: bool) {
+fn executar_caso(confirmar: bool, resposta_recusada: bool, consulta: Option<&str>, modo_json: bool) {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
     let origem = pasta.privado("origem", ORIGEM);
@@ -147,8 +147,9 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool) {
     let porta = proxy.local_addr().unwrap().port();
     let parar = Arc::new(AtomicBool::new(false));
     let sinal = Arc::clone(&parar);
+    let texto_inicial = consulta.unwrap_or("").to_owned();
     let servidor = thread::spawn(move || {
-        let (banco, instalacao) = estado();
+        let (banco, instalacao) = estado(&texto_inicial);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
@@ -188,14 +189,14 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool) {
             canal.flush().unwrap();
         }
     });
-    let mut argumentos = vec![
-        "--json",
-        "processo",
-        "anotar",
-        NUP,
-        "--texto",
-        "Revisar minuta",
-    ];
+    let mut argumentos = if modo_json {
+        vec!["--json", "processo", "anotar", NUP]
+    } else {
+        vec!["processo", "anotar", NUP]
+    };
+    if consulta.is_none() {
+        argumentos.extend(["--texto", "Revisar minuta"]);
+    }
     if confirmar {
         argumentos.push("--confirmar");
     }
@@ -227,6 +228,27 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool) {
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
+    if let Some(texto) = consulta {
+        if modo_json {
+            let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+            assert_eq!(json["nup"], NUP);
+            assert_eq!(json["anotacao"], if texto.trim().is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(texto)
+            });
+            assert_eq!(json["alterado"], false);
+            assert_eq!(json["requisicoes"], pedidos.len());
+        } else {
+            let humana = String::from_utf8_lossy(&saida.stdout);
+            assert!(humana.contains(texto), "{humana}");
+            assert!(humana.contains("Nenhuma alteração"), "{humana}");
+        }
+        assert_eq!(persistido.as_deref(), Some(texto));
+        assert!(pedidos.iter().all(|evento| evento.starts_with("GET ")), "{pedidos:?}");
+        assert_eq!(pedidos.iter().filter(|e| *e == "GET anotacao_registrar").count(), 1);
+        return;
+    }
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
     if resposta_recusada {
         // O servidor aplicou, mas o túnel devolveu 403: estado final não prova autoria.
@@ -262,15 +284,26 @@ fn executar_caso(confirmar: bool, resposta_recusada: bool) {
 
 #[test]
 fn bdd_anot_01_previa_publica_texto_sem_escrever() {
-    executar_caso(false, false);
+    executar_caso(false, false, None, true);
 }
 
 #[test]
 fn bdd_anot_02_confirma_uma_vez_e_rele_retorno_da_anotacao() {
-    executar_caso(true, false);
+    executar_caso(true, false, None, true);
 }
 
 #[test]
 fn bdd_anot_02_403_apos_post_aplicado_exige_efeito_incerto() {
-    executar_caso(true, true);
+    executar_caso(true, true, None, true);
+}
+
+#[test]
+fn bdd_anot_03_consulta_texto_publicado_sem_post() {
+    executar_caso(false, false, Some("Revisar minuta"), true);
+    executar_caso(false, false, Some("Revisar minuta"), false);
+}
+
+#[test]
+fn bdd_anot_03_consulta_sem_anotacao_publica_null() {
+    executar_caso(false, false, Some(""), true);
 }
