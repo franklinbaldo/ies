@@ -2,7 +2,7 @@
 type: CommandContract
 title: Consultar, prever e confirmar anotação de processo na unidade
 operation: processo.anotar
-command: ies processo anotar NUP [--texto TEXTO] [--confirmar]
+command: ies processo anotar NUP [--texto TEXTO | --remover] [--confirmar]
 effect: read-or-preview-or-confirmed-write
 implementation: partial
 ---
@@ -33,6 +33,12 @@ Sem `--texto`, `ies processo anotar NUP` consulta a anotação **sem enviar POST
 
 A prova sintética `bdd_anot_03_consulta_texto_publicado_sem_post` executa os modos humano e JSON pela CLI Rust real, HTTPS loopback, anti-IES e SQLite; `bdd_anot_03_consulta_sem_anotacao_publica_null` verifica ausência observada. Os testes confirmam estado imutável, ausência de POST e orçamento observado. Comparação semântica independente com cassettes e ensaio de treinamento não estão demonstrados por esses testes.
 
-**BDD-ANOT-04/05:** retirada e interação com envio permanecem pendentes; não ampliar esses cenários nesta PR.
+## Retirada (BDD-ANOT-04)
+
+`ies processo anotar NUP --remover` apresenta prévia da anotação observada, sem POST. Com `--confirmar`, somente em treinamento autorizado, usa o formulário servido para o mesmo processo e envia uma única submissão `anotacao_registrar` com `txaDescricao` vazio. Só declara retirada com o 302 causal da mesma ação/processo e releitura independente do formulário mostrando a textarea explicitamente vazia. Falha após tentativa de POST termina com saída 3 e não repete a mutação. Quando a anotação já está comprovadamente vazia, não envia POST. `--texto` e `--remover` são mutuamente exclusivos; `--confirmar` exige um deles.
+
+O anti-IES já aceita anotação vazia e persiste no SQLite efêmero; `tests/aies_anotacao_cli.rs` cobre a CLI real via HTTPS loopback. **IES↔anti-IES: a conferir no CI**; **ambos↔cassettes: NOT_RUN** no confronto bilateral; **treinamento/live: NOT_RUN**. Os cards UnB/GO observam a ação, não demonstram remoção efetiva.
+
+**BDD-ANOT-05:** interação com envio permanece pendente; não ampliar esse cenário nesta PR.
 
 [Decisão](../../docs/decisoes/processo-anotar.md) · [Issue #638](https://github.com/franklinbaldo/ies/issues/638)

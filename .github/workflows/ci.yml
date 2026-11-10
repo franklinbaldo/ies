@@ -161,6 +161,10 @@ jobs:
           cargo +1.99.1 test --locked --bin ies cassette_unb_conteudo_documento_compara_leitores_por_http -- --ignored --nocapture --test-threads=1
           cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http: test'
           cargo +1.99.1 test --locked --bin ies cassette_unb_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_go_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
+          cargo +1.99.1 test --locked --bin ies -- --list --ignored | grep -F 'cassette::anti_ies_documento::cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http: test'
+          cargo +1.99.1 test --locked --bin ies cassette_ufrj_tela_do_documento_preserva_selecao_ate_arvore_http -- --ignored --nocapture --test-threads=1
 
       - name: Confrontar a barra UnB antes/depois da conclusão com HTTP anti-IES
         shell: bash

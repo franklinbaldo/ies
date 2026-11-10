@@ -1,4 +1,4 @@
-//! BDD-ANOT-01/02/03: prévia, confirmação única e consulta sem escrita.
+//! BDD-ANOT-01/02/03/04: consulta, prévia, registro e retirada conferida.
 use crate::processo::NumeroProcesso;
 use crate::processo_anotar::{self, Erro};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
@@ -13,6 +13,7 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
             Some(ProcessoAcao::Anotar {
                 numero,
                 texto,
+                remover,
                 confirmar,
             }),
         ..
@@ -24,18 +25,25 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         return Some(erro_de_uso(cli.json));
     };
     let texto = texto.as_deref();
-    if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
+    let entrada_invalida = if texto.is_some_and(|pedido| pedido.trim().is_empty()) {
+        Some("o texto da anotação não pode ser vazio")
+    } else if *confirmar && texto.is_none() && !*remover {
+        Some("a confirmação exige --texto ou --remover")
+    } else {
+        None
+    };
+    if let Some(mensagem) = entrada_invalida {
         if cli.json {
             println!(
                 "{}",
                 json!({
                     "codigo": "entrada_invalida",
-                    "erro": "o texto da anotação não pode ser vazio",
+                    "erro": mensagem,
                     "retentavel": false
                 })
             );
         } else {
-            eprintln!("IES: o texto da anotação não pode ser vazio");
+            eprintln!("IES: {mensagem}");
         }
         return Some(ExitCode::from(2));
     }
@@ -48,47 +56,33 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         {
             return crate::origem_de_treinamento::recusa(cli.json, causa);
         }
+        let intencao = if *remover {
+            processo_anotar::Intencao::Retirada {
+                confirmar: *confirmar,
+            }
+        } else if let Some(texto) = texto {
+            processo_anotar::Intencao::Registro {
+                texto,
+                confirmar: *confirmar,
+            }
+        } else {
+            processo_anotar::Intencao::Consulta
+        };
         match processo_anotar::executar(
             sessao,
             &nup,
-            texto.unwrap_or(""),
-            *confirmar,
+            &intencao,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
         ) {
             Ok(preview) => {
-                if texto.is_none() {
+                if *remover {
+                    exibir_retirada(&preview, *confirmar, cli.json);
+                } else if texto.is_none() {
                     exibir_consulta(&preview, cli.json);
-                } else if cli.json {
-                    println!(
-                        "{}",
-                        json!({
-                            "nup": preview.nup,
-                            "id_procedimento": preview.id_procedimento,
-                            "unidade": preview.unidade,
-                            "texto": preview.texto,
-                            "anotacao_antes": preview.anotacao_antes,
-                            "confirmado": *confirmar,
-                            "alterado": preview.alterado,
-                            "origem": "web",
-                            "requisicoes": preview.requisicoes,
-                        })
-                    );
-                } else if preview.alterado {
-                    println!(
-                        "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
-                        preview.nup, preview.unidade, preview.texto, preview.requisicoes
-                    );
                 } else {
-                    println!(
-                        "Prévia: anotar no processo {} ({}): {:?}. Anotação atual: {:?}. Nenhuma escrita realizada. Requisições: {}.",
-                        preview.nup,
-                        preview.unidade,
-                        preview.texto,
-                        preview.anotacao_antes,
-                        preview.requisicoes
-                    );
+                    exibir_registro(&preview, *confirmar, cli.json);
                 }
                 ExitCode::SUCCESS
             }
@@ -98,6 +92,76 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
             Err(erro) => falha_da_previa(cli, &erro),
         }
     }))
+}
+
+/// A saída de registro é uma operação de apresentação, separada do despacho.
+fn exibir_registro(preview: &processo_anotar::Previa, confirmar: bool, modo_json: bool) {
+    if modo_json {
+        println!(
+            "{}",
+            json!({
+                "nup": preview.nup,
+                "id_procedimento": preview.id_procedimento,
+                "unidade": preview.unidade,
+                "texto": preview.texto,
+                "anotacao_antes": preview.anotacao_antes,
+                "confirmado": confirmar,
+                "alterado": preview.alterado,
+                "origem": "web",
+                "requisicoes": preview.requisicoes,
+            })
+        );
+    } else if preview.alterado {
+        println!(
+            "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
+            preview.nup, preview.unidade, preview.texto, preview.requisicoes
+        );
+    } else {
+        println!(
+            "Prévia: anotar no processo {} ({}): {:?}. Anotação atual: {:?}. Nenhuma escrita realizada. Requisições: {}.",
+            preview.nup,
+            preview.unidade,
+            preview.texto,
+            preview.anotacao_antes,
+            preview.requisicoes
+        );
+    }
+}
+
+/// A retirada distingue uma prévia da ausência confirmada por releitura.
+fn exibir_retirada(preview: &processo_anotar::Previa, confirmar: bool, modo_json: bool) {
+    if modo_json {
+        println!(
+            "{}",
+            json!({
+                "nup": preview.nup,
+                "id_procedimento": preview.id_procedimento,
+                "unidade": preview.unidade,
+                "texto": "",
+                "anotacao_antes": preview.anotacao_antes,
+                "remover": true,
+                "confirmado": confirmar,
+                "alterado": preview.alterado,
+                "origem": "web",
+                "requisicoes": preview.requisicoes,
+            })
+        );
+    } else if preview.alterado {
+        println!(
+            "Anotação retirada e ausência conferida no processo {} ({}). Requisições: {}.",
+            preview.nup, preview.unidade, preview.requisicoes
+        );
+    } else if preview.anotacao_antes.is_empty() {
+        println!(
+            "Nenhuma anotação a retirar no processo {} ({}). Nenhuma escrita realizada. Requisições: {}.",
+            preview.nup, preview.unidade, preview.requisicoes
+        );
+    } else {
+        println!(
+            "Prévia: retirar anotação {:?} do processo {} ({}). Nenhuma escrita realizada. Requisições: {}.",
+            preview.anotacao_antes, preview.nup, preview.unidade, preview.requisicoes
+        );
+    }
 }
 
 /// A ausência só é publicada após o formulário do próprio processo confirmar

@@ -21,6 +21,13 @@ use crate::processo_obter::{
 use crate::transporte::FalhaTransporte;
 use crate::visao_do_controle::EnvioDoControle as _;
 
+/// Intenção exclusiva de consulta, registro ou retirada.
+pub(crate) enum Intencao<'a> {
+    Consulta,
+    Registro { texto: &'a str, confirmar: bool },
+    Retirada { confirmar: bool },
+}
+
 pub(crate) struct Previa {
     pub(crate) nup: String,
     pub(crate) id_procedimento: String,
@@ -63,12 +70,16 @@ pub(crate) enum Erro {
 pub(crate) fn executar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
-    texto: &str,
-    confirmar: bool,
+    intencao: &Intencao<'_>,
     unidade: Option<&str>,
     indice: &IndiceLocal,
     envio: &mut V,
 ) -> Result<Previa, Erro> {
+    let (texto, confirmar, remover) = match intencao {
+        Intencao::Consulta => ("", false, false),
+        Intencao::Registro { texto, confirmar } => (*texto, *confirmar, false),
+        Intencao::Retirada { confirmar } => ("", *confirmar, true),
+    };
     let mut rede = Contador::novo(envio);
     let (aberto, acoes) =
         abrir_para_escrever(sessao, &leitura(nup, unidade, true), indice, &mut rede)?;
@@ -87,8 +98,9 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     })?;
     let anotacao_antes = crate::processo_enviar::texto_anotacao(&html, &id)?;
     let mut alterado = false;
-    if confirmar {
-        if !anotacao_antes.trim().is_empty() {
+    // Retirada com anotação comprovadamente vazia dispensa POST.
+    if confirmar && (!remover || !anotacao_antes.is_empty()) {
+        if !remover && !anotacao_antes.trim().is_empty() {
             return Err(Erro::AnotacaoJaPresente);
         }
         if !crate::processo_enviar::salvar_oferecido(&html) {
@@ -106,7 +118,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             &instalacao,
             &servida,
             "",
-            &[("txaDescricao", texto)],
+            &[("txaDescricao", if remover { "" } else { texto })],
         )?;
         let mut enviada = false;
         let resposta = enviar_submissao_via(submissao, sessao.cookie, |sub, cookie| {
@@ -126,7 +138,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         let relido = obter_tela(&mut rede, &cookie, &url)
             .ok()
             .and_then(|(html, _)| crate::processo_enviar::texto_anotacao(&html, &id).ok());
-        if !resposta_aceita || relido.as_deref() != Some(texto) {
+        if !resposta_aceita || relido.as_deref() != Some(if remover { "" } else { texto }) {
             return Err(Erro::EfeitoIncerto);
         }
         alterado = true;
