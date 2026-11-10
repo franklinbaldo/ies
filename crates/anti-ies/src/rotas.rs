@@ -119,6 +119,9 @@ pub(crate) fn responder(
         {
             processo_andamento::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
+        Some("comentario_listar") if eh_controlador_sei(alvo) => {
+            crate::processo_comentarios::responder(metodo, alvo, banco, instalacao, cenario)
+        }
         Some("procedimento_anexar") if eh_controlador_sei(alvo) => {
             processo_anexacao::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
@@ -134,7 +137,8 @@ pub(crate) fn responder(
             "andamento_marcador_gerenciar"
             | "andamento_marcador_remover"
             | "andamento_marcador_cadastrar",
-        ) if eh_controlador_sei(alvo) => {
+        ) if eh_controlador_sei(alvo) =>
+        {
             processo_marcadores::responder(metodo, alvo, corpo, banco, instalacao, cenario)
         }
         Some("procedimento_atribuicao_cadastrar") if eh_controlador_sei(alvo) => {
@@ -201,7 +205,13 @@ pub(crate) fn responder(
                 })
         }
         Some("procedimento_trabalhar")
-            if eh_controlador_sei(alvo) && parametro_unico(alvo, "id_documento").is_some() =>
+            if eh_controlador_sei(alvo)
+                // Identidade documental inválida também deve chegar ao
+                // validador, nunca cair silenciosamente na rota de processo.
+                && !matches!(
+                    documento_arvore::identidade_documental(alvo, true),
+                    Ok(None)
+                ) =>
         {
             documento_arvore::responder(metodo, alvo, banco, instalacao, cenario)
         }
