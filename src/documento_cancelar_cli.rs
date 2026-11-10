@@ -61,7 +61,7 @@ struct ResultadoCancelamento<'a> {
     alterado: bool,
     confirmado: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida::FalhaPublica>,
+    falha_do_envio: Option<String>,
     id_documento: &'a str,
     motivo: &'a str,
     numero: &'a str,
@@ -76,10 +76,7 @@ fn resultado_cancelamento(feito: &DocumentoCancelado) -> ResultadoCancelamento<'
     ResultadoCancelamento {
         alterado: feito.resultado.cancelado(),
         confirmado: feito.resultado.cancelado(),
-        falha_do_envio: feito
-            .resultado
-            .falha_do_envio()
-            .map(|f| crate::saida::FalhaPublica::nova(f.status_http())),
+        falha_do_envio: feito.resultado.falha_do_envio().map(|f| format!("{f:?}")),
         id_documento: &feito.id_documento,
         motivo: &feito.motivo,
         numero: &feito.numero,

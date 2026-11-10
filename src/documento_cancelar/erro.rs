@@ -3,22 +3,13 @@ use super::ErroLinkCancelar;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroDocumentoObter;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum FalhaDoCancelamento {
     Envio(ErroSubmissaoFormulario),
     RespostaSemRedirecionamento,
     RedirecionamentoNaoReconhecido,
-}
-impl FalhaDoCancelamento {
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Envio(erro) => erro.status_http().cloned(),
-            Self::RedirecionamentoNaoReconhecido => Some(StatusHttpRecusado::sem_mensagem(302)),
-            Self::RespostaSemRedirecionamento => None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

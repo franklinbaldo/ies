@@ -14,7 +14,7 @@ use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra;
-use crate::transporte::{FalhaTransporte, RespostaWeb, StatusHttpRecusado, decodificar_resposta};
+use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 pub(crate) use ajax::{ConsultaAjax, derivar_consulta_ajax};
 use codificacao::codificar;
 pub(crate) use codificacao::decodificar_atributo;
@@ -439,10 +439,7 @@ where
     })?;
     // 200 com a validação da Infra: recusa do SEI, com ou sem marcador.
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
-        return Err(E::ValidacaoRecusadaPeloSei(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: Some(mensagem),
-        }));
+        return Err(E::ValidacaoRecusadaPeloSei(mensagem));
     }
     let marcadores: &[MarcadorDeResultado] = match &resultado {
         ResultadoDoEnvio::ConferidoPorLeituraPosterior => &[],

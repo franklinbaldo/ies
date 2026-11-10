@@ -354,11 +354,14 @@ fn validacao_da_infra_e_recusa_com_mensagem_do_sei() {
         ],
     );
     let erro = r.unwrap_err();
-    let http = erro.status_http().unwrap();
-    assert_eq!(http.status, 200);
-    assert_eq!(
-        http.mensagem_do_servidor.as_deref(),
-        Some("Protocolo não informado.")
+    assert!(
+        matches!(
+            &erro,
+            ErroBuscaDeProcesso::Pesquisa(ErroPesquisaProtocolo::Submissao(
+                crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(m)
+            )) if m == "Protocolo não informado."
+        ),
+        "{erro:?}"
     );
     assert_eq!(pedidos.len(), 3);
 }

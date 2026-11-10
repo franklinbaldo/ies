@@ -249,10 +249,7 @@ fn validacao_da_infra_no_get_mutador_preserva_mensagem_e_rele() {
     else {
         panic!("{erro:?}");
     };
-    assert_eq!(
-        recusa.mensagem_do_servidor.as_deref(),
-        Some("Solicitacao recusada")
-    );
+    assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
     assert!(matches!(
         erro,
         E::NaoConfirmado {
@@ -469,10 +466,7 @@ fn json_documento_recusado_infra_200_exibe_status_real_e_contagem() {
     else {
         panic!("{erro:?}");
     };
-    assert_eq!(
-        recusa.mensagem_do_servidor.as_deref(),
-        Some("Solicitacao recusada")
-    );
+    assert_eq!(Some(recusa.as_str()), Some("Solicitacao recusada"));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(
         pedidos

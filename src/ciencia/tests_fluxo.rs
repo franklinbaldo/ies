@@ -309,7 +309,7 @@ fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
         panic!("{erro:?}");
     };
     assert_eq!(
-        recusa.mensagem_do_servidor.as_deref(),
+        Some(recusa.as_str()),
         Some("Usuário já deu ciência no processo hoje.")
     );
     assert!(matches!(

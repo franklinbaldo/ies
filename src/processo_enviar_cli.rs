@@ -152,7 +152,7 @@ struct ResultadoEnvio<'a> {
     depois_esperado: Vec<String>,
     destino: DestinoPublico<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    falha_do_envio: Option<crate::saida::FalhaPublica>,
+    falha_do_envio: Option<String>,
     id_procedimento: &'a str,
     manter_aberto: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -193,10 +193,7 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         depois: feito.depois.as_deref(),
         reconciliado_por_leitura: feito.reconciliado_por.is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito
-            .reconciliado_por
-            .as_ref()
-            .map(crate::processo_concluir_cli::falha_do_envio_publica),
+        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
     }
 }
 

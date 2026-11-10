@@ -3,7 +3,6 @@
 //! Gerados são listas independentes, publicadas na mesma forma.
 use crate::dominio::Categoria;
 use crate::paginas::Leitura;
-use crate::transporte::StatusHttpRecusado;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -137,27 +136,3 @@ mod tests {
 #[cfg(test)]
 #[path = "saida/tests_golden.rs"]
 mod tests_golden;
-
-/// `falha_do_envio` do JSON de sucesso reconciliado: status e mensagem do
-/// SEI que acompanharam o POST cujo efeito a releitura comprovou.
-#[derive(serde::Serialize)]
-pub(crate) struct FalhaPublica {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    mensagem_do_servidor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    status_http: Option<u16>,
-}
-
-impl FalhaPublica {
-    pub(crate) fn nova(http: Option<StatusHttpRecusado>) -> Self {
-        let status_http = http
-            .as_ref()
-            .map(|h| h.status)
-            .filter(|status| *status != 200);
-        let mensagem_do_servidor = http.and_then(|h| h.mensagem_do_servidor);
-        Self {
-            mensagem_do_servidor,
-            status_http,
-        }
-    }
-}

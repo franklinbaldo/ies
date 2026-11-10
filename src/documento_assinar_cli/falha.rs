@@ -1,6 +1,5 @@
 //! Projeções públicas das assinaturas e da falha do envio reconciliada.
 use crate::arvore_processo::Assinante;
-use crate::documento_assinar::FalhaDoEnvio;
 
 #[derive(serde::Serialize)]
 pub(super) struct AssinantePublico<'a> {
@@ -18,8 +17,4 @@ pub(super) fn assinaturas_publicas(lista: &[Assinante]) -> Vec<AssinantePublico<
             unidade: &a.unidade,
         })
         .collect()
-}
-
-pub(super) fn falha_do_envio_publica(falha: &FalhaDoEnvio) -> crate::saida::FalhaPublica {
-    crate::saida::FalhaPublica::nova(falha.status_http())
 }

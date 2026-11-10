@@ -66,7 +66,10 @@ fn saida_tipificada_serializa_direto_sem_value_intermediario() {
     );
     let recebido: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(recebido, json_de_sucesso(&feito));
-    assert_eq!(recebido["falha_do_envio"]["status_http"], 302);
+    assert_eq!(
+        recebido["falha_do_envio"],
+        format!("{:?}", feito.reconciliado_por.as_ref().unwrap())
+    );
     let texto = String::from_utf8(bytes).unwrap();
     assert!(!texto.contains("infra_hash") && !texto.contains("PHPSESSID"));
     assert!(!texto.contains('\u{1b}'));

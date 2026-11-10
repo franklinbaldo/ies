@@ -206,10 +206,7 @@ fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
         r.unwrap_err(),
         E::Formulario(
             crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-                StatusHttpRecusado {
-                    status: 200,
-                    mensagem_do_servidor: Some("Protocolo nao encontrado.".into()),
-                }
+                "Protocolo nao encontrado.".into()
             )
         )
     );

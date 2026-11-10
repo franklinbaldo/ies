@@ -246,7 +246,7 @@ fn resposta_sem_finalizar_reconciliada_pela_leitura() {
     );
     let saida = crate::documento_assinar_cli::json_de_sucesso(&feito);
     assert_eq!(saida["reconciliado_por_leitura"], true);
-    assert!(saida["falha_do_envio"].is_object());
+    assert_eq!(saida["falha_do_envio"], "RespostaSemFinalizacao");
     assert_eq!(feitos, pedidos_da_escrita());
 }
 

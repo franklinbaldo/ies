@@ -5,7 +5,7 @@ use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_obter::ErroProcessoObter;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Conclusão de Processo", antes do POST.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -40,24 +40,6 @@ pub(crate) enum FalhaDoEnvio {
     RedirecionamentoNaoReconhecidoAposEnviar,
     /// POST de enviar: HTML 200 em vez do 302.
     RespostaDoEnvioSemRedirecionamento,
-}
-
-impl FalhaDoEnvio {
-    pub(crate) fn status_http(&self) -> Option<StatusHttpRecusado> {
-        match self {
-            Self::Envio(erro) => erro.status_http().cloned(),
-            Self::Transporte(falha) => falha.status_http().cloned(),
-            Self::RedirecionamentoNaoReconhecido
-            | Self::RedirecionamentoNaFuncao
-            | Self::RedirecionamentoNaReabertura
-            | Self::RedirecionamentoNaoReconhecidoAposEnviar => {
-                Some(StatusHttpRecusado::sem_mensagem(302))
-            }
-            Self::LoginAposEscrita
-            | Self::RespostaSemRedirecionamento
-            | Self::RespostaDoEnvioSemRedirecionamento => None,
-        }
-    }
 }
 
 /// O que a leitura de verificação, feita uma vez, mostrou.
