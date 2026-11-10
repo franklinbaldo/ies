@@ -14,7 +14,8 @@ use apresentacao::informar_sucesso;
 use coincidencias::{anexar_coincidencias_json, informar_coincidencias_humanas};
 use std::process::ExitCode;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 enum ErroEntradaCriacao {
     Tipo,
     Especificacao,

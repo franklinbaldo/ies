@@ -7,7 +7,8 @@ pub struct ArquivosDeAcesso {
     pub origem: PathBuf,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroConfiguracao {
     UrlDoControleSemCaminho,
     CookieSemCaminhoConfigurado,
@@ -260,7 +261,8 @@ impl ArquivoPrivado {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoPrivado {
     CaminhoNaoAbsoluto(ArquivoPrivado),
     Ausente(ArquivoPrivado),

@@ -9,11 +9,11 @@ use crate::instalacao::Instalacao;
 const ACAO_SOBRESTAR: &str = "procedimento_sobrestar";
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAcaoSobrestar {
     OutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 fn mapear_barra(_: FalhaDaBarra) -> ErroAcaoSobrestar {
@@ -72,11 +72,11 @@ pub(crate) fn ler_retomar_da_barra(
 
 /// A função de retirada pode estar no corpo inline (4.0) ou na variável
 /// servida pela tela do nó (4.1/5.0); não se executa JavaScript.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroEnderecoDeRetomar {
     OutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 pub(crate) fn ler_endereco_de_retomar(

@@ -22,22 +22,17 @@ pub(crate) struct Resultado {
     pub(crate) requisicoes: u8,
 }
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Erro {
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
-    #[causa(interna)]
-    Barra(ErroLinkDosComentarios),
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Leitura(ErroComentarios),
+    Abertura(#[from] ErroProcessoObter),
+    Barra(#[from] ErroLinkDosComentarios),
+    Cookie(#[from] CookieIlegivel),
+    Transporte(#[from] FalhaTransporte),
+    Leitura(#[from] ErroComentarios),
     ComentariosNaoOferecidos,
     RedirecionamentoNaoComprovado,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
 }
 
 /// Exige uma lista completa, sem supor lista vazia quando a URL está ausente.
@@ -60,7 +55,9 @@ pub(crate) fn ler<V: EnvioDoProcesso>(
         obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(|falha| match falha {
             FalhaDaTela::Transporte(erro) => Erro::Transporte(erro),
             FalhaDaTela::Redirecionada => Erro::RedirecionamentoNaoComprovado,
-            FalhaDaTela::SessaoEncerrada => Erro::SessaoEncerrada,
+            FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                Erro::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+            }
         })?;
     // O cadastro vazio não pode ser confundido com uma lista completa:
     // a transição 302/lista vazia receberá tratamento próprio em outra fatia.

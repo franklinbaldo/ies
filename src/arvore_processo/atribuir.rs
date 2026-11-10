@@ -7,11 +7,11 @@ use crate::instalacao::Instalacao;
 
 const ACAO: &str = "procedimento_atribuicao_cadastrar";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAtribuirNaBarra {
     EnderecoDeOutroProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Apenas um href assinado e relativo, preso ao ID do processo.

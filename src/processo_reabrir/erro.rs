@@ -8,11 +8,11 @@ use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroReabrir {
     /// A abertura do processo (a de `ies processo NUP`) falhou.
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     /// A abertura não publicou a unidade da sessão (não ocorre sem o passo 1).
     UnidadeDaSessaoNaoPublicada,
     SituacaoDoProcessoNaoLidaAntesDeReabrir {
@@ -26,19 +26,14 @@ pub(crate) enum ErroReabrir {
     ReaberturaNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
-    #[causa(interna)]
-    Barra(ErroHtml),
+    Barra(#[from] ErroHtml),
     /// O cookie não pôde ser lido antes da tela do nó.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
+    Cookie(#[from] CookieIlegivel),
     /// GET da tela do nó, antes da escrita.
-    #[causa(interna)]
-    TelaDoNo(FalhaTransporte),
+    TelaDoNo(#[from] FalhaTransporte),
     TelaDoNoRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
-    #[causa(interna)]
-    EnderecoDeReabrir(ErroEnderecoDeReabrir),
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
+    EnderecoDeReabrir(#[from] ErroEnderecoDeReabrir),
     /// A leitura depois da escrita não lista a unidade da sessão.
     ReaberturaNaoAplicada {
         aberto_em: Vec<String>,
@@ -99,7 +94,9 @@ impl ErroReabrir {
             Self::TelaDoNo(_) | Self::TelaDoNoRedirecionada => {
                 "a tela do nó não foi servida; nada foi reaberto"
             }
-            Self::SessaoEncerrada => "a sessão encerrou; rode `ies login` (nada foi reaberto)",
+            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                "a sessão encerrou; rode `ies login` (nada foi reaberto)"
+            }
             Self::EnderecoDeReabrir(_) => {
                 "a tela do nó não publica a URL de reabrir na forma observada; nada foi enviado"
             }

@@ -2,7 +2,8 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NumeroDocumento(String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum NumeroDocumentoInvalido {
     Vazio,
     Controle,

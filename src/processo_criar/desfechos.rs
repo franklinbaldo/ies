@@ -27,7 +27,8 @@ pub(crate) enum Desfecho {
     SemCorrespondenciaObservada,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroConferencia {
     LeituraAusente,
     LeituraRepetida,

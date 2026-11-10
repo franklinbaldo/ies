@@ -11,7 +11,8 @@ pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancela
 pub(crate) const ACAO_DO_NIVEL_DE_DETALHE: &str = "procedimento_configurar_detalhe";
 
 /// Uma variante por fato verificável da tela de configuração.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroNivelDeDetalhe {
     AcaoDoFormularioDoNivelDeDetalheDiferente,
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
@@ -23,10 +24,8 @@ pub(crate) enum ErroNivelDeDetalhe {
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },
-    #[causa(interna)]
-    AtributoHtml(ErroAtributoHtml),
-    #[causa(transparente)]
-    Html(ErroHtml),
+    AtributoHtml(#[from] ErroAtributoHtml),
+    Html(#[from] ErroHtml),
 }
 
 type E = ErroNivelDeDetalhe;

@@ -212,7 +212,10 @@ fn login_ou_503_na_tela_falham_sem_retry() {
         true,
         frio(arvore_com_propriedades(ID, NUP, ALTERAR), vec![r302(LOGIN)]),
     );
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     assert_eq!(pedidos.len(), 4);
     let amb = ambiente();
     let (r, pedidos) = rodar_props(

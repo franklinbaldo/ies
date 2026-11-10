@@ -58,7 +58,9 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         _ => DestinoDoAnexo::SoMetadados,
     };
     let lido = ler_anexo(resposta, numero, pedido.limite, destino).map_err(|erro| match erro {
-        ErroAnexo::TelaDeLogin => E::Processo(ErroProcessoObter::SessaoEncerrada),
+        ErroAnexo::TelaDeLogin(crate::erro_publico::SessaoEncerrada) => E::Processo(
+            ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+        ),
         ErroAnexo::Transporte(falha) => transporte(falha),
         outro => E::Anexo(outro),
     })?;

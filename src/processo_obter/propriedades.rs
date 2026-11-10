@@ -89,7 +89,7 @@ fn pelo_link_da_barra<V: EnvioDoProcesso>(
             ler_propriedades(&html, contexto.nup, id, fonte).map_err(E::Propriedades)
         }
         Lida::Redirecionamento(local) => Err(fora_de_palpite(local.as_deref())),
-        Lida::Login => Err(E::SessaoEncerrada),
+        Lida::Login => Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
         Lida::Falha(falha) => Err(E::Transporte(falha)),
     }
 }

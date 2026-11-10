@@ -18,7 +18,8 @@ pub(crate) use tokenizador::tokenizar_tag_de_abertura;
 
 /// Falha ao interpretar a tag de abertura servida; nunca é tratada como
 /// atributo ausente pelo chamador.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAtributoHtml {
     /// A fonte da tag não começa por `<` seguido do nome do elemento.
     InicioDaTagDeAberturaAusente,

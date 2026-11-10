@@ -12,7 +12,8 @@ pub(crate) enum AlvoDasColunas {
 }
 
 /// Erro de uso em `--definir` (saída 2, zero requisições).
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDaListaDeColunas {
     ListaDeColunasVazia,
     /// Item vazio entre vírgulas (`tipo,,anotacao`).

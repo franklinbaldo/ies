@@ -4,7 +4,8 @@
 
 use crate::erro_html::ErroHtml;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroArvore {
     ArgumentoDeNoNaoLiteral,
     TextoDeNoSemFechamento,
@@ -33,8 +34,7 @@ pub(crate) enum ErroArvore {
     ProcessoAnexadoIgualAoProcesso,
     NoComPaiNoProcessoAnexado,
     DocumentoMovidoComPaiDiferenteDoProcesso,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroArvore {

@@ -1,22 +1,20 @@
 //! O derive gera `From`, status HTTP e o fato de sessão encerrada.
 use super::*;
 
-#[derive(Debug, Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum Interno {
     LinkAusente,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
-    #[causa(http)]
-    Recusa(StatusHttpRecusado),
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
+    Recusa(#[source] StatusHttpRecusado),
 }
 
-#[derive(Debug, Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 enum Operacao {
-    #[causa(interna)]
-    Tela(Interno),
+    Tela(#[from] Interno),
     Folha,
-    #[causa(fonte)]
-    LinkSemHref(Interno),
+    LinkSemHref(#[source] Interno),
 }
 
 fn tela() -> Result<(), Interno> {
@@ -38,8 +36,18 @@ fn interna_gera_from_para_o_interrogacao() {
 
 #[test]
 fn sessao_encerrada_atravessa_interna_e_fonte() {
-    assert!(Operacao::Tela(Interno::SessaoEncerrada).sessao_encerrada());
-    assert!(Operacao::LinkSemHref(Interno::SessaoEncerrada).sessao_encerrada());
+    assert!(
+        Operacao::Tela(Interno::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
+        .sessao_encerrada()
+    );
+    assert!(
+        Operacao::LinkSemHref(Interno::SessaoEncerrada(
+            crate::erro_publico::SessaoEncerrada
+        ))
+        .sessao_encerrada()
+    );
     assert!(!Operacao::Tela(Interno::LinkAusente).sessao_encerrada());
     assert!(!Operacao::Folha.sessao_encerrada());
 }

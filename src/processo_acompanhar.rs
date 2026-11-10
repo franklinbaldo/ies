@@ -15,7 +15,8 @@ const GRUPO: &str = "selGrupoAcompanhamento";
 const PROTOCOLO: &str = "hdnIdProtocolo";
 const TABELA: &str = "Tabela de Acompanhamentos.";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
     CadastroNaoPublicado,
     CadastroDeOutroProcesso,
@@ -27,8 +28,7 @@ pub(crate) enum ErroAcompanhar {
     NenhumAcompanhamento,
     EscolhaDeAcompanhamentoAmbigua,
     AcompanhamentoNaoConfirmado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -134,7 +134,10 @@ fn entrada_por_id_com_sessao_vencida_e_erro_sem_recusa_registrada() {
     let inst = instalacao();
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     let (r, pedidos) = rodar(&amb, None, vec![r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     assert_eq!(pedidos.len(), 1);
     assert_eq!(amb.indice.entrada_por_id(&inst), None);
 }
@@ -225,12 +228,18 @@ fn falhas_fora_de_palpite() {
     // Tela do processo responde login: sessão encerrada.
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(controle(&[(ID, NUP)])), r302(LOGIN)]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Controle com a tela de login.
     let login = "<form action='/sip/login.php'><input id='txtUsuario'></form>";
     let amb = ambiente();
     let (r, _) = rodar(&amb, None, vec![ok(login.to_owned())]);
-    assert_eq!(r.unwrap_err(), E::SessaoEncerrada);
+    assert_eq!(
+        r.unwrap_err(),
+        E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+    );
     // Árvore de outro processo num caminho que não é palpite.
     let amb = ambiente();
     let (r, _) = rodar(

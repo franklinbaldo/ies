@@ -4,7 +4,8 @@ use super::proxy;
 
 /// Status de uma recusa HTTP e o texto que o SEI enviou junto, já saneado
 /// (`corpo_de_recusa`). É apresentação: o subcódigo da variante classifica.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("HTTP {status}")]
 pub struct StatusHttpRecusado {
     pub status: u16,
     /// `None` em 3xx (corpo não lido) ou quando o corpo não rendeu texto.
@@ -20,7 +21,8 @@ impl StatusHttpRecusado {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum FalhaTransporte {
     ChaveDeConsultaNaoCanonica,
     SeparadorDeConsultaAmbiguo,
@@ -45,38 +47,29 @@ pub enum FalhaTransporte {
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
     /// Status HTTP 401 ou 403.
-    #[causa(http)]
-    AcessoNegado(StatusHttpRecusado),
+    AcessoNegado(#[source] StatusHttpRecusado),
     /// 403 com a página de bloqueio de segurança da instalação (WAF): a
     /// sessão não venceu; não há relogin nem nova tentativa.
-    #[causa(http)]
-    BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado),
+    BloqueioDeSegurancaDaInstalacao(#[source] StatusHttpRecusado),
     /// Status HTTP 3xx; o corpo não é lido.
-    #[causa(http)]
-    Redirecionamento(StatusHttpRecusado),
+    Redirecionamento(#[source] StatusHttpRecusado),
     /// 302 do GET do Controle cujo `Location` é a entrada do login da
     /// própria instalação: a sessão foi encerrada. Mesmo subcódigo dos
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
-    #[causa(http, sessao_encerrada)]
-    ControleRedirecionadoParaOLogin(StatusHttpRecusado),
+    ControleRedirecionadoParaOLogin(#[source] StatusHttpRecusado),
     /// Status HTTP 5xx, fora 3xx/401/403 já tipados.
-    #[causa(http)]
-    StatusHttpDeErroDoServidor(StatusHttpRecusado),
+    StatusHttpDeErroDoServidor(#[source] StatusHttpRecusado),
     /// Status HTTP 429.
-    #[causa(http)]
-    StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado),
+    StatusHttpDeLimiteDeRequisicoes(#[source] StatusHttpRecusado),
     /// Qualquer outro status diferente de 200.
-    #[causa(http)]
-    StatusHttpDiferenteDe200(StatusHttpRecusado),
+    StatusHttpDiferenteDe200(#[source] StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
     CorpoNaoDecodificavelNoCharsetDeclarado,
-    #[causa(sessao_encerrada)]
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
     /// Proxy do ambiente (cliente HTTPS único, todos os comandos): `transporte::proxy`.
-    #[causa(interna)]
-    Proxy(proxy::FalhaDoProxy),
+    Proxy(#[from] proxy::FalhaDoProxy),
 }
 
 impl FalhaTransporte {

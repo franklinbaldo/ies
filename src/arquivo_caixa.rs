@@ -2,7 +2,8 @@
 use serde_json::Value;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub enum ErroArquivoCaixa {
     DestinoSemNomeDeArquivo,
     DiretorioDeDestinoAusente,

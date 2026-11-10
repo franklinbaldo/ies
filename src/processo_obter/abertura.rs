@@ -374,7 +374,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         let (html, mime) = match self.get(trabalho)? {
             Lida::Html { html, mime } => (html, mime),
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada),
+            Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
         let tela = ler_tela_do_processo(&contexto.instalacao, &html, id, contexto.unidade_pedida)?;
@@ -395,7 +395,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         let html = match self.get(tela.arvore.as_str())? {
             Lida::Html { html, .. } => html,
             Lida::Redirecionamento(local) => return Err(fora_de_palpite(local.as_deref())),
-            Lida::Login => return Err(E::SessaoEncerrada),
+            Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
             Lida::Falha(falha) => return Err(E::Transporte(falha)),
         };
         let arvore = ler_arvore_aberta(contexto, &html, id)?;
@@ -416,7 +416,7 @@ pub(super) fn fora_de_palpite(localizacao: Option<&str>) -> E {
         DestinoDoRedirecionamento::Outro => {
             E::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(302))
         }
-        _ => E::SessaoEncerrada,
+        _ => E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
     }
 }
 

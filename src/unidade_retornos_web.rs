@@ -8,14 +8,12 @@ use crate::unidade_retornos::{self, ErroRetornos, Retorno};
 use crate::url_observada::{UrlHttps, pasta};
 use std::collections::HashSet;
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLeituraRetornos {
-    #[causa(interna)]
-    Transporte(FalhaTransporte),
-    #[causa(interna)]
-    Controle(crate::erro_web::ErroCaixa),
-    #[causa(interna)]
-    Tabela(ErroRetornos),
+    Transporte(#[from] FalhaTransporte),
+    Controle(#[from] crate::erro_web::ErroCaixa),
+    Tabela(#[from] ErroRetornos),
     LinkDeRetornosAusente,
     LinkDeRetornosAmbiguo,
     LinkDeRetornosForaDaInstalacao,

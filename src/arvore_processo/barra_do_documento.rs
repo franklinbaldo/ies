@@ -50,12 +50,12 @@ pub(crate) struct BarraDoDocumento {
     pub(crate) edicao: EdicaoNaBarra,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroBarraDoDocumento {
     BarrasRepetidasNaArvore,
     EnderecoDasVersoesDeOutroDocumento,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 /// Lê a barra do `DOCUMENTO` de id `id_documento` numa árvore já conferida;

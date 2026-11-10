@@ -100,29 +100,23 @@ pub(crate) struct ResultadoCriacao {
     pub(crate) estado: EstadoCriacao,
 }
 
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroPreviaCriacao {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
     SituacaoNaoLida,
     ProcessoNaoAbertoNaUnidade,
-    #[causa(interna)]
-    Link(ErroLinkIncluirDocumento),
+    Link(#[from] ErroLinkIncluirDocumento),
     LinkNaoPublicado,
-    #[causa(interna)]
-    TelaTransporte(FalhaTransporte),
+    TelaTransporte(#[from] FalhaTransporte),
     TelaRedirecionada,
-    #[causa(sessao_encerrada)]
-    SessaoEncerrada,
-    #[causa(interna)]
-    Tipo(ErroCriar),
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    SessaoEncerrada(#[source] crate::erro_publico::SessaoEncerrada),
+    Tipo(#[from] ErroCriar),
+    Formulario(#[from] ErroSubmissaoFormulario),
     NivelNaoInformado,
     NivelRestritoSemHipotese,
     SubmissaoNaoComprovada,
@@ -164,7 +158,9 @@ fn erro_da_tela(falha: FalhaDaTela) -> ErroPreviaCriacao {
     match falha {
         FalhaDaTela::Transporte(falha) => ErroPreviaCriacao::TelaTransporte(falha),
         FalhaDaTela::Redirecionada => ErroPreviaCriacao::TelaRedirecionada,
-        FalhaDaTela::SessaoEncerrada => ErroPreviaCriacao::SessaoEncerrada,
+        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+            ErroPreviaCriacao::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+        }
     }
 }
 

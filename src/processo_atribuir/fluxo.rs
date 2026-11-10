@@ -43,10 +43,10 @@ pub(crate) struct ProcessoAtribuido {
     pub(crate) requisicoes: u8,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroProcessoAtribuir {
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Abertura(#[from] ErroProcessoObter),
     UnidadeDaSessaoNaoPublicada,
     SituacaoDaAtribuicaoNaoObservada {
         unidade: String,
@@ -55,19 +55,14 @@ pub(crate) enum ErroProcessoAtribuir {
         requisicoes: u8,
     },
     AtribuicaoNaoOferecidaNaBarra,
-    #[causa(interna)]
-    Barra(ErroAtribuirNaBarra),
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Tela(FalhaTransporte),
+    Barra(#[from] ErroAtribuirNaBarra),
+    Cookie(#[from] CookieIlegivel),
+    Tela(#[from] FalhaTransporte),
     TelaDaAtribuicaoRedirecionada,
     SessaoEncerradaNaAtribuicao,
     OrigemNaoAutorizada,
-    #[causa(interna)]
-    Preparacao(ErroAtribuir),
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Preparacao(#[from] ErroAtribuir),
+    Formulario(#[from] ErroSubmissaoFormulario),
     NaoConfirmadoNaAtribuicao {
         falha_do_envio: Option<Box<ErroSubmissaoFormulario>>,
         leitura: Option<Box<ErroProcessoObter>>,
@@ -161,7 +156,9 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         obter_tela(&mut rede, &cookie, link.as_str()).map_err(|erro| match erro {
             FalhaDaTela::Transporte(falha) => E::Tela(falha),
             FalhaDaTela::Redirecionada => E::TelaDaAtribuicaoRedirecionada,
-            FalhaDaTela::SessaoEncerrada => E::SessaoEncerradaNaAtribuicao,
+            FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
+                E::SessaoEncerradaNaAtribuicao
+            }
         })?;
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(E::OrigemNaoAutorizada)?;
     let (valor, submissao) = preparar_submissao(

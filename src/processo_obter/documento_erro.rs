@@ -9,48 +9,43 @@ use crate::documento_web::{ErroCorpoDocumento, ErroTituloDocumento};
 use crate::erro_html::ErroHtml;
 use crate::transporte::StatusHttpRecusado;
 
-#[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroDocumentoObter {
     /// Sessão, Controle, pesquisa rápida, 302, tela ou árvore.
-    #[causa(interna)]
-    Processo(ErroProcessoObter),
+    Processo(#[from] ErroProcessoObter),
     /// A pesquisa rápida respondeu sem o 302 para a tela de trabalho.
     PesquisaRapidaNaoAbriuODocumento(StatusHttpRecusado),
     /// O nó do `id_documento` aberto traz outro número SEI (a15).
     NumeroSeiDaArvoreDiferenteDoPedido,
     /// O `.src` do nó (ausente, repetido, fora da forma observada).
-    #[causa(interna)]
-    Conteudo(ErroConteudoNaArvore),
+    Conteudo(#[from] ErroConteudoNaArvore),
     /// `.src` vazio num nó com ícone e dica de cancelado.
     DocumentoCancelado,
     /// `.src` vazio: a árvore não publica o conteúdo para esta sessão.
-    ConteudoNaoPublicadoNaArvore { requisicoes: u8 },
+    ConteudoNaoPublicadoNaArvore {
+        requisicoes: u8,
+    },
     /// O arquivo do documento externo (`documento_download_anexo`, fatia 3).
-    #[causa(interna)]
-    Anexo(ErroAnexo),
+    Anexo(#[from] ErroAnexo),
     /// O título do HTML servido.
-    #[causa(interna)]
-    Titulo(ErroTituloDocumento),
+    Titulo(#[from] ErroTituloDocumento),
     /// O título servido é de outro número SEI.
     TituloDeOutroDocumento,
     /// O corpo do HTML servido.
-    #[causa(interna)]
-    Corpo(ErroCorpoDocumento),
+    Corpo(#[from] ErroCorpoDocumento),
     /// A barra do `DOCUMENTO` fora da forma observada (Refs #88).
-    #[causa(interna)]
-    BarraDoDocumento(ErroBarraDoDocumento),
+    BarraDoDocumento(#[from] ErroBarraDoDocumento),
     /// `--versao N` e a barra do documento não publica a lista de versões
     /// (inclusive no externo, recusado antes do GET do anexo).
     ListaDeVersoesNaoPublicadaNaArvore,
     /// A lista de versões servida, ou N fora dela.
-    #[causa(interna)]
-    Versoes(ErroVersao),
+    Versoes(#[from] ErroVersao),
     /// O rodapé da versão servida declara outra versão.
     VersaoServidaDiferenteDaPedida,
     /// `--saida`: o HTML servido traz `infra_hash`; a foto não é gravada (#207).
     ConteudoComLinkAssinado,
-    #[causa(transparente)]
-    Html(ErroHtml),
+    Html(#[from] ErroHtml),
 }
 
 impl ErroDocumentoObter {

@@ -1,9 +1,0 @@
-[package]
-name = "ies-derive"
-version = "0.1.0"
-edition = "2024"
-license = "MIT"
-description = "Derive local de causas de erro do IES, sem dependencias externas"
-
-[lib]
-proc-macro = true

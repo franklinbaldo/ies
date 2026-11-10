@@ -41,7 +41,8 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTela {
     HtmlInvalido,
     FormularioAusenteOuDuplicado,
@@ -155,26 +156,21 @@ pub(crate) struct Resultado {
     pub(crate) total_depois: Option<u64>,
     pub(crate) resposta_inesperada: Option<&'static str>,
 }
-#[derive(Debug, crate::erro_publico::Causa)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum Erro {
     /// O cookie privado da sessão não pôde ser lido.
-    #[causa(interna)]
-    Cookie(CookieIlegivel),
-    #[causa(interna)]
-    Abertura(ErroProcessoObter),
+    Cookie(#[from] CookieIlegivel),
+    Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
-    #[causa(interna)]
-    Barra(ErroAndamentoNaBarra),
+    Barra(#[from] ErroAndamentoNaBarra),
     AcaoNaoOferecida,
     HistoricoNaoPublicado,
     UnidadeNaoPublicada,
-    #[causa(interna)]
-    Tela(FalhaDaTela),
-    #[causa(interna)]
-    FormatoDaTela(ErroTela),
+    Tela(#[from] FalhaDaTela),
+    FormatoDaTela(#[from] ErroTela),
     CharsetNaoSuportado,
-    #[causa(interna)]
-    Formulario(ErroSubmissaoFormulario),
+    Formulario(#[from] ErroSubmissaoFormulario),
     NaoConfirmado,
 }
 impl Erro {

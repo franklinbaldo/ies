@@ -7,7 +7,8 @@ use crate::formulario_web::{
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroTela {
     NaoInterpretada,
     FormularioAusente,
