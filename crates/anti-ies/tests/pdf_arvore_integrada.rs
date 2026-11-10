@@ -33,7 +33,7 @@ fn aceitar(escuta: &TcpListener) -> TcpStream {
     }
 }
 
-fn pedir(endereco: SocketAddr, alvo: &str) -> String {
+fn pedir_metodo(endereco: SocketAddr, metodo: &str, alvo: &str) -> String {
     let mut fluxo = TcpStream::connect_timeout(&endereco, Duration::from_secs(5)).unwrap();
     fluxo
         .set_read_timeout(Some(Duration::from_secs(5)))
@@ -41,11 +41,15 @@ fn pedir(endereco: SocketAddr, alvo: &str) -> String {
     fluxo
         .set_write_timeout(Some(Duration::from_secs(5)))
         .unwrap();
-    write!(fluxo, "GET {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+    write!(fluxo, "{metodo} {alvo} HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
     fluxo.shutdown(Shutdown::Write).unwrap();
     let mut resposta = String::new();
     fluxo.read_to_string(&mut resposta).unwrap();
     resposta
+}
+
+fn pedir(endereco: SocketAddr, alvo: &str) -> String {
+    pedir_metodo(endereco, "GET", alvo)
 }
 
 #[test]
@@ -369,7 +373,7 @@ fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
-        for _ in 0..4 {
+        for _ in 0..6 {
             let mut conexao = aceitar(&escuta);
             anti_ies::atender_http(&mut conexao, Some((&banco, &origem, "identidades"))).unwrap();
         }
@@ -399,6 +403,11 @@ fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
     let primeiro = pedir(endereco, &url_primeiro);
     let cruzado = pedir(endereco, &url_cruzado);
     let segundo = pedir(endereco, &url_segundo);
+    let desconhecido = pedir(
+        endereco,
+        "/sei/controlador.php?acao=procedimento_visualizar&id_procedimento=7&id_documento=8000000000999",
+    );
+    let metodo = pedir_metodo(endereco, "POST", &url_primeiro);
     let novamente = pedir(endereco, &url_primeiro);
     servidor.join().unwrap();
 
@@ -411,5 +420,10 @@ fn bdd_60_05_pdf_conhecido_em_outro_processo_recusa_sem_trocar_arvore() {
         "PDF de outro processo conhecido deve recusar, sem resposta ambígua: {cruzado}"
     );
     assert!(!cruzado.contains(&registrados[1].numero_sei));
+    assert!(
+        desconhecido.starts_with("HTTP/1.1 503"),
+        "ausência de observação de PDF não prova inexistência: {desconhecido}"
+    );
+    assert!(metodo.starts_with("HTTP/1.1 405"));
     assert_eq!(primeiro, novamente, "recusa não modifica a árvore original");
 }
