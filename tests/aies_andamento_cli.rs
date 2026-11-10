@@ -151,7 +151,7 @@ fn servir_tunel(
 ) {
     let tls = TlsAcceptor::new(tls_id).unwrap();
     let mut post_confirmado = false;
-    while let Some(mut tcp) = aceitar(&proxy, &sinal) {
+    while let Some(mut tcp) = aceitar(&proxy, sinal) {
         let (connect, _) = pedido_http(&mut tcp);
         assert!(connect.starts_with(b"CONNECT"));
         tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
