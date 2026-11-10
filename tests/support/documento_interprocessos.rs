@@ -166,6 +166,12 @@ pub(super) fn executar_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
     executar_com_estado(true, EstadoExtra::NumeroRepetido, args)
 }
 
+/// Documento interno e PDF externo publicam o mesmo número SEI na árvore.
+/// O conflito não foi capturado na UnB: é uma hipótese testável no SQLite.
+pub(super) fn executar_pdf_numero_repetido(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::PdfNumeroDuplicado, args)
+}
+
 /// A árvore oferece um href válido; a mesma identidade é revogada somente
 /// no GET de conteúdo, antes de o anti-IES consultar o SQLite.
 pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
