@@ -214,7 +214,7 @@ pub fn ids_por_numero(
 
 /// A pesquisa rapida pode localizar o mesmo numero SEI sem os zeros iniciais.
 /// Isso e somente resolucao da busca: o numero publicado na arvore permanece
-/// opaco e precisa ser conferido literalmente pela CLI. UnB: 11505 -> 0011505.
+/// opaco e precisa ser conferido literalmente pela CLI. Na `UnB`: `11505` -> `0011505`.
 /// Nao escolhe arbitrariamente entre duas identidades equivalentes.
 ///
 /// # Errors
