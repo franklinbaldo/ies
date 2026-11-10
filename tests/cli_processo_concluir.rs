@@ -15,8 +15,15 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
+/// Falha fechada (#695): saída 1, stdout vazio, stderr `Error: <Variante>`.
+fn sem_arquivos_de_sessao(saida: &Output) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(saida.stdout.is_empty(), "falha não publica stdout");
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(
+        erro.starts_with("Error: ArquivoPrivadoAusenteOuInacessivel"),
+        "{erro}"
+    );
 }
 
 #[test]
@@ -28,8 +35,10 @@ fn nup_invalido_e_erro_de_uso_antes_da_configuracao() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert!(
+            saida.stdout.is_empty(),
+            "uso inválido é recusado pelo clap, sem JSON"
+        );
     }
 }
 
@@ -42,9 +51,7 @@ fn sem_configuracao_falha_fechado_sem_rede() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "fonte_invalida");
-        assert_ne!(valor["codigo"], "nao_implementado");
+        sem_arquivos_de_sessao(&saida);
     }
 }
 

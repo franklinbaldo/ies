@@ -162,7 +162,7 @@ fn http_403_no_post_nao_vira_criacao_por_candidato_concorrente() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
-        Err(FalhaTransporte::AcessoNegado(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Acesso negado.".to_owned()),
@@ -392,7 +392,7 @@ fn falha_http_na_releitura_apos_post_sem_resposta_preserva_status_503() {
         ok(lista(false)),
         ok(cadastro()),
         Err(FalhaTransporte::Rede),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 503,
                 mensagem_do_servidor: Some("Controle indisponível".to_owned()),
@@ -435,10 +435,10 @@ fn post_503_e_releitura_502_sao_status_distintos_sem_retry() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro()),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 502,
                 mensagem_do_servidor: Some("Falha de leitura saneada".to_owned()),

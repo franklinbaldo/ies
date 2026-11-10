@@ -39,15 +39,7 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
     Html(#[from] ErroHtml),
 }
-impl ErroBloco {
-    pub(crate) const fn mensagem(self) -> &'static str {
-        match self {
-            Self::Html(e) => e.mensagem,
-            Self::PaginaDeBlocosNaoImplementada => "página de blocos sem navegação Web comprovada",
-            Self::FaixaDeBlocosIncoerente => "a tela de blocos não comprovou a lista solicitada",
-        }
-    }
-}
+impl ErroBloco {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct BlocoLido {

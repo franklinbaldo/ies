@@ -9,6 +9,9 @@ use iesei::processos::{self, ProcessoSimulado};
 use iesei::relacionamentos;
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};

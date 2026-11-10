@@ -148,9 +148,7 @@ fn outro_3xx_continua_falha_de_transporte_sem_interpretacao() {
     assert_eq!(
         r.unwrap_err(),
         ErroPesquisaProtocolo::Submissao(ErroSubmissaoFormulario::Transporte(
-            FalhaTransporte::Redirecionamento(crate::transporte::StatusHttpRecusado::sem_mensagem(
-                303
-            ))
+            FalhaTransporte::Status(crate::transporte::StatusHttpRecusado::sem_mensagem(303))
         ))
     );
 }

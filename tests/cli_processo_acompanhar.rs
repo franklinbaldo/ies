@@ -15,8 +15,17 @@ fn sem_sessao(argumentos: &[&str]) -> Output {
         .expect("binário IES executado")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON válido")
+/// Falha de comando convertido (#695): saída 1, stdout vazio e
+/// `Error: <Variante>` no stderr.
+fn assert_falha(saida: &Output, variante: &str) {
+    assert_eq!(saida.status.code(), Some(1));
+    assert!(
+        saida.stdout.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let erro = String::from_utf8_lossy(&saida.stderr);
+    assert!(erro.starts_with(&format!("Error: {variante}")), "{erro}");
 }
 
 #[test]
@@ -27,9 +36,7 @@ fn remocao_confirmada_bloqueada_antes_da_sessao_ou_rede() {
         let mut args = vec!["processo", "acompanhar", NUP, "--confirmar", "--json"];
         args.extend(acao);
         let saida = sem_sessao(&args);
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["retentavel"], false);
+        assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
     }
 }
 
@@ -53,10 +60,7 @@ fn entrada_invalida_e_combinacoes_impossiveis() {
 #[test]
 fn previa_exige_sessao_privada_e_nunca_vira_stub() {
     let saida = sem_sessao(&["processo", "acompanhar", NUP, "--json"]);
-    assert_eq!(saida.status.code(), Some(1));
-    let valor = json(&saida);
-    assert_eq!(valor["codigo"], "fonte_invalida");
-    assert_ne!(valor["codigo"], "nao_implementado");
+    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }
 
 #[test]
@@ -71,6 +75,5 @@ fn inclusao_confirmada_nao_e_stub_e_exige_sessao() {
         "--confirmar",
         "--json",
     ]);
-    assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+    assert_falha(&saida, "ArquivoPrivadoAusenteOuInacessivel");
 }

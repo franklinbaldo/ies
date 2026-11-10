@@ -24,7 +24,7 @@ use crate::indice_local::{IndiceLocal, unidade_dos_links};
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::propriedades_documento::PropriedadesDocumento;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 #[path = "documento_erro.rs"]
 mod erro;
@@ -450,9 +450,7 @@ fn fora_do_html(lida: Lida) -> ErroProcessoObter {
         Lida::Redirecionamento(local) => fora_de_palpite(local.as_deref()),
         Lida::Login => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
         Lida::Falha(falha) => ErroProcessoObter::Transporte(falha),
-        Lida::Html { .. } => {
-            ErroProcessoObter::RedirecionamentoNaoReconhecido(StatusHttpRecusado::sem_mensagem(200))
-        }
+        Lida::Html { .. } => ErroProcessoObter::RedirecionamentoNaoReconhecido,
     }
 }
 
@@ -460,9 +458,7 @@ fn fora_do_html(lida: Lida) -> ErroProcessoObter {
 /// um documento (o resultado da pesquisa não é lido).
 fn sem_trabalho(erro: ErroProcessoObter) -> E {
     match erro {
-        ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho(status) => {
-            E::PesquisaRapidaNaoAbriuODocumento(status)
-        }
+        ErroProcessoObter::PesquisaRapidaSemUrlDeTrabalho => E::PesquisaRapidaNaoAbriuODocumento,
         outro => E::Processo(outro),
     }
 }

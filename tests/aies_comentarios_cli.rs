@@ -8,6 +8,9 @@ use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
 use native_tls::TlsAcceptor;
 use rusqlite::Connection;
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};
@@ -325,46 +328,43 @@ fn verificar_posterior(modo: Modo, posterior: Option<Output>) {
 }
 
 fn verificar(modo: Modo, saida: &Output, eventos: &[String]) {
-    let esperado = match modo {
-        Modo::Parcial | Modo::Desconhecida | Modo::NaoConfirmado => 1,
-        Modo::Completa | Modo::Previa | Modo::Confirmar => 0,
+    let variante_da_falha = match modo {
+        Modo::Parcial => Some("Leitura"),
+        Modo::Desconhecida => Some("ComentariosNaoOferecidos"),
+        Modo::NaoConfirmado => Some("NaoConfirmado"),
+        Modo::Completa | Modo::Previa | Modo::Confirmar => None,
     };
-    assert_eq!(
-        saida.status.code(),
-        Some(esperado),
-        "{modo:?}: stdout={} stderr={}",
-        String::from_utf8_lossy(&saida.stdout),
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    if matches!(modo, Modo::NaoConfirmado) {
-        assert_eq!(json["codigo"], "nao_confirmado");
-        assert_eq!(json["retentavel"], false);
-        let orientacao = json["erro"].as_str().unwrap();
-        assert!(orientacao.contains("ies processo comentarios"));
-        assert!(orientacao.contains("Não repita --confirmar"));
-    } else if matches!(modo, Modo::Previa | Modo::Confirmar) {
-        assert_eq!(json["nup"], NUP);
-        assert_eq!(json["texto"], " Comentário novo ");
-        assert_eq!(json["confirmado"], matches!(modo, Modo::Confirmar));
-        assert_eq!(json["alterado"], matches!(modo, Modo::Confirmar));
-    } else if matches!(modo, Modo::Completa) {
-        assert_eq!(json["nup"], NUP);
-        assert_eq!(json["total"], 1);
-        assert_eq!(json["lista_completa"], true);
-        assert_eq!(json["comentarios"][0]["id"], "42");
-        assert_eq!(json["comentarios"][0]["usuario"], "operador");
-        assert_eq!(json["comentarios"][0]["unidade"], "TESTE");
-        assert_eq!(json["comentarios"][0]["data_hora"], "10/11/2026 08:00");
-        assert_eq!(
-            json["comentarios"][0]["texto"],
-            "Comentário sintético & conferido"
-        );
+    if let Some(variante) = variante_da_falha {
+        // Lista incompleta ou desconhecida não vira vazia nem completa:
+        // a falha não publica nada no stdout.
+        falha(saida, variante);
     } else {
-        assert!(
-            json.get("comentarios").is_none(),
-            "lista incompleta ou desconhecida não pode virar vazia ou completa"
+        assert_eq!(
+            saida.status.code(),
+            Some(0),
+            "{modo:?}: stdout={} stderr={}",
+            String::from_utf8_lossy(&saida.stdout),
+            String::from_utf8_lossy(&saida.stderr)
         );
+        let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+        if matches!(modo, Modo::Previa | Modo::Confirmar) {
+            assert_eq!(json["nup"], NUP);
+            assert_eq!(json["texto"], " Comentário novo ");
+            assert_eq!(json["confirmado"], matches!(modo, Modo::Confirmar));
+            assert_eq!(json["alterado"], matches!(modo, Modo::Confirmar));
+        } else {
+            assert_eq!(json["nup"], NUP);
+            assert_eq!(json["total"], 1);
+            assert_eq!(json["lista_completa"], true);
+            assert_eq!(json["comentarios"][0]["id"], "42");
+            assert_eq!(json["comentarios"][0]["usuario"], "operador");
+            assert_eq!(json["comentarios"][0]["unidade"], "TESTE");
+            assert_eq!(json["comentarios"][0]["data_hora"], "10/11/2026 08:00");
+            assert_eq!(
+                json["comentarios"][0]["texto"],
+                "Comentário sintético & conferido"
+            );
+        }
     }
     let posts = eventos
         .iter()

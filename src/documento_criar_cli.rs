@@ -13,7 +13,7 @@ use crate::{Cli, Documento, DocumentoAcao, Domain, saida_erro};
 use serde_json::json;
 use std::process::ExitCode;
 
-pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_criar(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Documento(Documento {
         acao:
             Some(DocumentoAcao::Criar {
@@ -28,16 +28,14 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    let Ok(nup) = NumeroProcesso::novo(processo) else {
-        return Some(entrada_invalida(cli.json));
-    };
+    let nup = processo.clone();
     if tipo.trim().is_empty() {
-        return Some(entrada_invalida(cli.json));
+        return Some(crate::legado(entrada_invalida(cli.json)));
     }
     // O nivel de escrita ja e uma pre-condicao independente da sessao.
     // A CLI deve informar essa causa antes de abrir arquivos privados.
     if *confirmar && let Err(erro) = validar_nivel_de_confirmacao(nivel.as_deref()) {
-        return Some(publicar_erro(cli.json, &erro, 0, &nup));
+        return Some(crate::legado(publicar_erro(cli.json, &erro, 0, &nup)));
     }
     Some(com_sessao(cli, |sessao, indice| {
         let pedido = PedidoCriacao {
@@ -50,10 +48,8 @@ pub(crate) fn tentar_criar(cli: &Cli) -> Option<ExitCode> {
         // A contagem externa sobrevive ao Result::Err, inclusive depois do POST.
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);
-        match executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar) {
-            Ok(resultado) => publicar_resultado(cli.json, &resultado),
-            Err(erro) => publicar_erro(cli.json, &erro, contagem.feitas(), &nup),
-        }
+        let resultado = executar_criacao(sessao, &pedido, indice, &mut contagem, *confirmar)?;
+        crate::legado(publicar_resultado(cli.json, &resultado))
     }))
 }
 
@@ -293,7 +289,7 @@ mod tests {
         use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
         let erro = ErroPreviaCriacao::NaoConfirmadoNaReleitura(ErroProcessoObter::Transporte(
-            FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+            FalhaTransporte::Status(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("leitura recusada".to_owned()),
             }),

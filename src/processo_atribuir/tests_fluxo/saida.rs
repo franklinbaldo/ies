@@ -78,11 +78,14 @@ fn redirect_historico_sem_id_expoe_incerteza_em_vez_de_confirmacao() {
         respostas.push(ok(arvore_atual(usuario.unwrap_or(""))));
         let (resultado, pedidos) = rodar_confirmacao(usuario, respostas);
         let erro = resultado.unwrap_err();
-        let publico = crate::processo_atribuir_cli::json_de_falha(&erro);
-        assert_eq!(publico["atribuicao_relida"], usuario.unwrap_or(""));
-        assert!(
-            erro.mensagem().contains("efeito desta tentativa"),
-            "o diagnóstico deve distinguir estado relido de autoria"
+        assert_eq!(
+            erro,
+            E::NaoConfirmadoNaAtribuicao {
+                falha_do_envio: None,
+                leitura: None,
+                atribuicao_relida: Some(usuario.unwrap_or("").to_owned()),
+                requisicoes: 6
+            }
         );
         assert_eq!(pedidos.len(), 6);
         assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);

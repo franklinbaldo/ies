@@ -122,10 +122,10 @@ pub(crate) fn mostrar_caixa_detalhada(
     }
     if json_mode {
         relogin_cli::anotar_com_total(&mut saida, nota);
-        if let Err(erro) = crate::saida::imprimir_json(&saida) {
-            eprintln!("IES: falha ao emitir JSON: {erro}");
-            return std::process::ExitCode::from(1);
-        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&saida).expect("JSON serializável")
+        );
     } else {
         relogin_cli::avisar(json_mode, nota);
         println!("{}", humano_da_detalhada(leitura));

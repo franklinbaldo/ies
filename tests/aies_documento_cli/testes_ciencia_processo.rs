@@ -263,17 +263,7 @@ fn bdd_271_03_processo_lista_invisivel_e_nao_confirmado_sem_retry() {
         &pasta,
         &["--json", "processo", "ciente", NUP_CIENTE, "--confirmar"],
     );
-    assert_eq!(
-        resultado.status.code(),
-        Some(1),
-        "stdout={} stderr={}",
-        String::from_utf8_lossy(&resultado.stdout),
-        String::from_utf8_lossy(&resultado.stderr)
-    );
-    let saida = json(&resultado);
-    assert_eq!(saida["codigo"], "nao_confirmado");
-    assert_eq!(saida["retentavel"], false);
-    assert_eq!(saida["requisicoes"], pedidos_confirmacao.len());
+    falha(&resultado, "NaoConfirmado");
     assert_eq!(
         pedidos_confirmacao
             .iter()

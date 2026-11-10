@@ -96,12 +96,10 @@ fn falhas_http_da_assinatura_preservam_subcodigo_e_mensagem() {
             r#"{"codigo":"fonte_invalida","erro":"o envio da assinatura não pôde ser montado; nada foi enviado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false}"#,
         ),
         (
-            ErroAssinar::TelaDaEscrita(FalhaTransporte::StatusHttpDeErroDoServidor(
-                StatusHttpRecusado {
-                    status: 500,
-                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
-                },
-            )),
+            ErroAssinar::TelaDaEscrita(FalhaTransporte::Status(StatusHttpRecusado {
+                status: 500,
+                mensagem_do_servidor: Some("Mensagem saneada.".into()),
+            })),
             r#"{"codigo":"fonte_invalida","erro":"a tela da assinatura não foi servida; nada foi assinado","mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500}"#,
         ),
     ];

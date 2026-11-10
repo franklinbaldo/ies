@@ -301,10 +301,15 @@ fn ciencia_repetida_no_dia_e_validacao_sem_retry() {
     ]);
     let (resultado, pedidos) = rodar(true, respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|s| s.status), Some(200));
+    let E::NaoConfirmado {
+        falha_do_aceite: Some(FalhaDoAceiteProcesso::ValidacaoDaInfra(recusa)),
+        ..
+    } = &erro
+    else {
+        panic!("{erro:?}");
+    };
     assert_eq!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_deref()),
+        recusa.mensagem_do_servidor.as_deref(),
         Some("Usuário já deu ciência no processo hoje.")
     );
     assert!(matches!(

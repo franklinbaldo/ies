@@ -69,15 +69,7 @@ fn bdd_258_04_post_aceite_inconclusivo_nao_gera_sucesso_nem_retry() {
     // O anti-IES altera o banco, mas o proxy responde 200 genérico à CLI.
     // O estado final coincidente não prova aceite causal da confirmação.
     let (saida, eventos, vinculos) = executar_com(false, false, false, Modo::AdicaoSemAceite);
-    assert_eq!(
-        saida.status.code(),
-        Some(1),
-        "saída: {}",
-        String::from_utf8_lossy(&saida.stderr)
-    );
-    let valor = saida_json(&saida);
-    assert_eq!(valor["codigo"], "nao_confirmado");
-    assert_eq!(valor["retentavel"], false);
+    falha(&saida, "NaoConfirmado");
     assert_eq!(
         vinculos, 1,
         "um POST pode ter alterado o servidor apesar do 200 inconclusivo"

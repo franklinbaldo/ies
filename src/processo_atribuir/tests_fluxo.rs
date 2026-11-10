@@ -113,11 +113,6 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
             requisicoes: 3,
         } if unidade == "TESTE" && siglas.len() == 1 && siglas[0] == "PR-P"
     ));
-    let publicado = crate::processo_atribuir_cli::json_de_falha(&erro);
-    assert_eq!(publicado["unidade"], "TESTE");
-    assert_eq!(publicado["aberto_em"], serde_json::json!(["PR-P"]));
-    assert!(publicado["motivo"].is_null());
-    assert_eq!(publicado["requisicoes"], 3);
     assert_eq!(pedidos, pedidos_da_abertura());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
 }
@@ -233,19 +228,15 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
     )));
     let (resultado, pedidos) = rodar(Some("aluno2"), respostas);
     let erro = resultado.unwrap_err();
-    assert_eq!(erro.status_http().map(|h| h.status), Some(403));
     assert_eq!(
-        erro.status_http()
-            .and_then(|h| h.mensagem_do_servidor.as_deref()),
-        Some("Acesso negado.")
+        erro,
+        E::Tela(FalhaTransporte::Status(
+            crate::transporte::StatusHttpRecusado {
+                status: 403,
+                mensagem_do_servidor: Some("Acesso negado.".into())
+            }
+        ))
     );
-    let publico = crate::processo_concluir_cli::json_base_da_falha(
-        "atribuicao_recusada",
-        erro.mensagem(),
-        erro.status_http().cloned(),
-    );
-    assert_eq!(publico["status_http"], 403);
-    assert_eq!(publico["mensagem_do_servidor"], "Acesso negado.");
     assert_eq!(pedidos, pedidos_previa());
 }
 

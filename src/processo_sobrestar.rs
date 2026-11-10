@@ -13,7 +13,6 @@ use crate::processo_concluir::escrita::leitura;
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever,
 };
-use crate::transporte::StatusHttpRecusado;
 pub(crate) use fluxo::executar;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,48 +89,7 @@ pub(crate) enum ErroSobrestamento {
     NaoConfirmado,
 }
 
-impl ErroSobrestamento {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Cookie(e) => e.mensagem(),
-            Self::Abertura(e) => e.mensagem(),
-            Self::UnidadeNaoPublicada => "o SEI não publicou a unidade da sessão",
-            Self::SituacaoNaoLida(_) => "a situação do processo não foi observada com segurança",
-            Self::Barra(_) => "a ação da barra não está na forma observada",
-            Self::JaSobrestado => "o processo já está sobrestado; nenhuma escrita enviada",
-            Self::NaoSobrestado => "o processo não está sobrestado; nenhuma escrita enviada",
-            Self::ForaDaUnidade => "o processo não está aberto na unidade ativa",
-            Self::SobrestadoEmOutraUnidade => "o sobrestamento está em outra unidade",
-            Self::AcaoNaoOferecida => "a barra do SEI não oferece esta ação",
-            Self::MotivoVazio => "motivo obrigatório para sobrestar",
-            Self::TelaDaEscrita(_) | Self::TelaRedirecionada => {
-                "a tela da escrita não foi servida; nenhuma escrita enviada"
-            }
-            Self::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-                "sessão encerrada; rode ies login; nada enviado"
-            }
-            Self::CharsetNaoSuportado => "charset da tela não suportado; nada enviado",
-            Self::TelaSobrestar(_) => {
-                "formulário de sobrestamento fora da forma observada; nada enviado"
-            }
-            Self::Formulario(_) => "formulário de sobrestamento não pôde ser enviado",
-            Self::EnderecoDeRetomar(_) => {
-                "endereço de retomar fora da forma observada; nada enviado"
-            }
-            Self::EscritaNaoAplicada => "releitura confirmou que a ação não foi aplicada",
-            Self::NaoConfirmado => "escrita não confirmada; consulte processo antes de repetir",
-        }
-    }
-
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Abertura(e) => e.status_http(),
-            Self::TelaDaEscrita(e) => e.status_http(),
-            Self::Formulario(e) => e.status_http(),
-            _ => None,
-        }
-    }
-}
+impl ErroSobrestamento {}
 
 /// Prévia sem escrita. A URL assinada só vive dentro do fluxo de confirmação.
 #[cfg(test)]

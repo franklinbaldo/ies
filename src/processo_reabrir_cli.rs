@@ -4,20 +4,15 @@
 //! A saída nunca traz URL, `infra_hash` ou cookie.
 use crate::arvore_processo::FormaDaReabertura;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir_cli::{
-    com_sessao, erro_de_uso, falha::FalhaDaSituacao, falha_do_envio_publica, lista_humana,
-};
-use crate::processo_reabrir::{
-    ErroReabrir, PedidoDaReabertura, ProcessoReaberto, reabrir_processo,
-};
+use crate::processo_concluir_cli::{com_sessao, lista_humana};
+use crate::processo_reabrir::{PedidoDaReabertura, ProcessoReaberto, reabrir_processo};
 use crate::visao_do_controle::EnvioHttps;
-use crate::{Cli, Domain, Processo, ProcessoAcao, saida_erro};
+use crate::{Cli, Domain, Processo, ProcessoAcao};
 #[cfg(test)]
 use serde_json::Value;
-use std::process::ExitCode;
 
 /// `Some` só para `ies processo reabrir`.
-pub(crate) fn tentar_reabrir(cli: &Cli) -> Option<ExitCode> {
+pub(crate) fn tentar_reabrir(cli: &Cli) -> Option<anyhow::Result<()>> {
     let Domain::Processo(Processo {
         acao: Some(ProcessoAcao::Reabrir { numero, confirmar }),
         ..
@@ -25,48 +20,27 @@ pub(crate) fn tentar_reabrir(cli: &Cli) -> Option<ExitCode> {
     else {
         return None;
     };
-    Some(match NumeroProcesso::novo(numero) {
-        Ok(nup) => reabrir(cli, &nup, *confirmar),
-        Err(_) => erro_de_uso(cli.json),
-    })
+    let nup = numero.clone();
+    Some(reabrir(cli, &nup, *confirmar))
 }
 
-fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> ExitCode {
+fn reabrir(cli: &Cli, nup: &NumeroProcesso, confirmar: bool) -> anyhow::Result<()> {
     com_sessao(cli, |sessao, indice| {
         let pedido = PedidoDaReabertura {
             nup,
             unidade: cli.unidade.as_deref(),
             confirmar,
         };
-        match reabrir_processo(sessao, &pedido, indice, &mut EnvioHttps) {
-            Ok(feito) => {
-                if cli.json {
-                    if let Err(erro) = crate::saida::imprimir_json(&resultado_reabertura(&feito)) {
-                        eprintln!("IES: falha ao emitir JSON: {erro}");
-                        return std::process::ExitCode::from(1);
-                    }
-                } else {
-                    println!("{}", humano(&feito));
-                }
-                ExitCode::SUCCESS
-            }
-            Err(ErroReabrir::Abertura(erro)) => {
-                saida_erro::erro_fonte_http(cli.json, erro.mensagem(), erro.status_http())
-            }
-            Err(erro) => {
-                if cli.json {
-                    if let Err(falha) = crate::saida::imprimir_json_compacto(&json_de_falha(&erro))
-                    {
-                        eprintln!("IES: falha ao emitir JSON: {falha}");
-                    }
-                } else {
-                    for linha in linhas_da_falha(&erro) {
-                        eprintln!("{linha}");
-                    }
-                }
-                ExitCode::from(1)
-            }
+        let feito = reabrir_processo(sessao, &pedido, indice, &mut EnvioHttps)?;
+        if cli.json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&resultado_reabertura(&feito))?
+            );
+        } else {
+            println!("{}", humano(&feito));
         }
+        Ok(())
     })
 }
 
@@ -121,39 +95,6 @@ pub(crate) fn json_de_sucesso(feito: &ProcessoReaberto) -> Value {
         .expect("a projeção de sucesso só possui valores JSON")
 }
 
-/// JSON da falha depois da abertura.
-pub(crate) fn json_de_falha(erro: &ErroReabrir) -> FalhaDaSituacao<'_> {
-    let mut valor = FalhaDaSituacao::nova(erro.codigo(), erro.mensagem(), erro.status_http());
-    match erro {
-        ErroReabrir::SituacaoDoProcessoNaoLidaAntesDeReabrir { motivo } => {
-            valor.motivo = Some(motivo.como_texto());
-        }
-        ErroReabrir::UnidadeDaSessaoJaNaSituacao { aberto_em }
-        | ErroReabrir::ReaberturaNaoPublicadaNaBarra { aberto_em } => {
-            valor.aberto_em = Some(aberto_em);
-        }
-        ErroReabrir::ReaberturaNaoAplicada {
-            aberto_em,
-            depois,
-            falha_do_envio,
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.depois = Some(depois);
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        ErroReabrir::NaoConfirmadoNaReabertura {
-            aberto_em,
-            falha_do_envio,
-            ..
-        } => {
-            valor.aberto_em = Some(aberto_em);
-            valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
-        }
-        _ => {}
-    }
-    valor
-}
-
 /// Saída humana do sucesso.
 pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
     let refs = |v: &[String]| lista_humana(&v.iter().map(String::as_str).collect::<Vec<_>>());
@@ -186,40 +127,6 @@ pub(crate) fn humano(feito: &ProcessoReaberto) -> String {
     }
     linhas.push(format!("Requisições: {}", feito.requisicoes));
     linhas.join("\n")
-}
-
-/// Mensagens humanas a partir do erro de reabertura; não dependem
-/// da montagem JSON nem reinterpretam subcódigos como variantes.
-fn linhas_da_falha(erro: &ErroReabrir) -> Vec<String> {
-    use ErroReabrir as E;
-
-    let mut linhas = vec![format!("IES: {}", erro.mensagem())];
-    let aberto_em = match erro {
-        E::UnidadeDaSessaoJaNaSituacao { aberto_em }
-        | E::ReaberturaNaoPublicadaNaBarra { aberto_em }
-        | E::ReaberturaNaoAplicada { aberto_em, .. }
-        | E::NaoConfirmadoNaReabertura { aberto_em, .. } => Some(aberto_em.as_slice()),
-        _ => None,
-    };
-    let depois = match erro {
-        E::ReaberturaNaoAplicada { depois, .. } => Some(depois.as_slice()),
-        _ => None,
-    };
-    for (nome, unidades) in [("aberto_em", aberto_em), ("depois", depois)] {
-        if let Some(unidades) = unidades {
-            let siglas: Vec<_> = unidades.iter().map(String::as_str).collect();
-            linhas.push(format!("IES: {nome}: {}", lista_humana(&siglas)));
-        }
-    }
-    let falha_do_envio = match erro {
-        E::ReaberturaNaoAplicada { falha_do_envio, .. }
-        | E::NaoConfirmadoNaReabertura { falha_do_envio, .. } => falha_do_envio.as_ref(),
-        _ => None,
-    };
-    if let Some(falha) = falha_do_envio {
-        linhas.push(format!("IES: resposta da escrita: {falha:?}"));
-    }
-    linhas
 }
 
 #[cfg(test)]

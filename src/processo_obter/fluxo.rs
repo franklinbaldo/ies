@@ -21,8 +21,8 @@ use crate::pesquisa_web::fluxo::{ControleLido, SessaoDaBusca, ler_controle};
 use crate::pesquisa_web::redirecionamento::{
     ErroRedirecionamentoDaPesquisa, OrigemDoTrabalho, ProcessoRedirecionado, conferir_trabalho,
 };
+use crate::transporte::FalhaTransporte;
 use crate::transporte::contagem::ContagemDeRequisicoes;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 mod links_guardados;
 pub(super) use links_guardados::{link_da_arvore, link_de_trabalho};
@@ -209,18 +209,8 @@ fn entrada_por_id<V: EnvioDoProcesso>(contexto: &Contexto<'_>, rede: &mut Rede<'
     let localizacao = match rede.get(&url)? {
         Lida::Redirecionamento(localizacao) => localizacao,
         Lida::Login => return Err(E::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)),
-        Lida::Html { .. } => {
-            return Err(E::RespostaDaEntradaPorIdNaoReconhecida(
-                StatusHttpRecusado::sem_mensagem(200),
-            ));
-        }
-        Lida::Falha(falha) => {
-            let status = falha
-                .status_http()
-                .cloned()
-                .ok_or(E::Transporte(falha.clone()))?;
-            return Err(E::RespostaDaEntradaPorIdNaoReconhecida(status));
-        }
+        Lida::Html { .. } => return Err(E::RespostaDaEntradaPorIdNaoReconhecida),
+        Lida::Falha(falha) => return Err(E::Transporte(falha)),
     };
     match destino(localizacao.as_deref()) {
         DestinoDoRedirecionamento::RecusaSemAssinatura => {

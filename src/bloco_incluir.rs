@@ -1,9 +1,9 @@
 //! `ies bloco incluir BLOCO --documento DOC` (#381; contracts/cli/bloco-incluir.md):
-//! prévia da inclusão de documento em bloco de assinatura. Abre o documento
+//! prévia e confirmação causal de documento em bloco de assinatura. Abre o documento
 //! até a árvore, segue o `bloco_escolher` publicado na barra do documento e
 //! confere no `frmBlocoEscolher` que o bloco e o documento são oferecidos;
 //! o pertencimento anterior vem do detalhe do bloco, a mesma leitura de
-//! `ies bloco N`. Nenhum POST: a confirmação é a próxima fatia (BDD-381-02).
+//! `ies bloco N`. Confirmação: um POST e releitura independente (BDD-381-02).
 use crate::arvore_processo::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{FalhaLeitura, Leitura, ler_tipado_via};
@@ -73,34 +73,7 @@ pub(crate) enum ErroIncluir {
     NaoConfirmado,
 }
 
-impl ErroIncluir {
-    pub(crate) fn mensagem(&self) -> String {
-        match self {
-            Self::Abertura(e) => e.mensagem().to_owned(),
-            Self::AcaoNaoOferecidaNaBarra => {
-                "a barra do documento não oferece incluir em bloco de assinatura; nada foi incluído"
-                    .to_owned()
-            }
-            Self::BlocoNaoOferecido => {
-                "o bloco pedido não está entre os blocos de assinatura oferecidos pela tela; nada foi incluído"
-                    .to_owned()
-            }
-            Self::DocumentoForaDaTela => {
-                "a tela de escolha de bloco não lista o documento pedido; nada foi incluído".to_owned()
-            }
-            Self::PertencimentoNaoObservado => {
-                "não se comprovou que o documento esteja ausente do bloco; nenhuma escrita realizada".to_owned()
-            }
-            Self::NaoConfirmado => {
-                "inclusão não confirmada; consulte o bloco antes de tentar novamente".to_owned()
-            }
-            Self::LeituraDoBloco(e) => e.mensagem().to_owned(),
-            Self::Transporte(e) => e.mensagem().to_owned(),
-            Self::Html(e) => e.mensagem.to_owned(),
-            outro => format!("a inclusão em bloco não pôde ser preparada: {outro}; nada foi incluído"),
-        }
-    }
-}
+impl ErroIncluir {}
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
     let fora = || ErroHtml::valor("tela_de_escolher_bloco_fora_da_forma_observada");

@@ -116,7 +116,7 @@ fn web_mock_redirecionamento_mime_e_limite_rejeitados_sem_retry() {
             302,
             "text/html",
             Some(5),
-            FalhaTransporte::Redirecionamento(super::StatusHttpRecusado::sem_mensagem(302)),
+            FalhaTransporte::Status(super::StatusHttpRecusado::sem_mensagem(302)),
         ),
         (
             200,
@@ -278,7 +278,7 @@ fn matriz_get_3xx_nao_302_recusados_sem_follow() {
                 ))
             },
         );
-        let Err(FalhaTransporte::Redirecionamento(status)) = resultado else {
+        let Err(FalhaTransporte::Status(status)) = resultado else {
             panic!("esperada recusa tipada de {codigo}");
         };
         assert_eq!(i32::from(status.status), codigo);
