@@ -1,6 +1,6 @@
 //! Recusa pré-rede da escrita ainda não aprovada, via CLI real e escuta local.
-//! BDD-620-02 continua válido. BDD-620-01 requer revisão pelo Elefante
-//! após aprovação de andamento para usuários em produção (PR #626).
+//! BDD-620-01/02 reconciliados pelo Elefante em 10/11/2026 (#620).
+//! Atribuição continua restrita; outras escritas aprovadas não se bloqueiam.
 //! Não usa credenciais, rede externa, cassette sintética ou SEI.
 use std::fs;
 use std::net::TcpListener;
@@ -76,7 +76,7 @@ fn executar(args: &[&str]) -> Output {
 }
 
 #[test]
-fn regressao_620_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
+fn bdd_620_01_atribuicao_humana_recusa_antes_de_qualquer_requisicao() {
     let saida = executar(&[
         "processo",
         "atribuir",

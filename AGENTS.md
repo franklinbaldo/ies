@@ -226,7 +226,8 @@ O que falta implementar e em que ordem está na
 ## Limites invioláveis
 
 - Agentes só operam **treinamento/homologação**; usuários gravam em
-  produção após ensaio aprovado ([lista](src/origem_de_treinamento.rs)).
+  produção após ensaio aprovado em **todas** as instalações de treinamento
+  (bloqueio externo: `NOT_RUN` no relatório; [lista](src/origem_de_treinamento.rs)).
 - Cookies, URLs assinadas e `infra_hash` (credenciais de sessão) nunca
   vão para argumentos, logs, commits, fixtures ou saídas; senhas nunca
   vão para argumentos, logs ou saídas. Sessão e senha em uso só em

@@ -1,7 +1,12 @@
-//! Onde cada `--confirmar` pode gravar. Decisão do proprietário
-//! (10/11/2026): a escrita que passou em ensaio ao vivo em treinamento fica
-//! aprovada para produção, para uso dos usuários; as demais gravam só nas
-//! instalações públicas de treinamento. Conferido antes da primeira requisição.
+//! Onde cada `--confirmar` pode gravar. Decisões do proprietário
+//! (10/11/2026): a escrita aprovada em ensaio ao vivo fica liberada para
+//! produção, para uso dos usuários; as demais gravam só nas instalações
+//! públicas de treinamento. Conferido antes da primeira requisição.
+//!
+//! **Aprovação exige ensaio em todas as instalações de treinamento**
+//! ([`ORIGENS`]); uma instalação que bloqueie por motivo alheio ao IES
+//! (WAF, Cloudflare, conta recusada) fica `NOT_RUN` no relatório e não
+//! impede a aprovação.
 
 /// Instalações de `docs/interfaces/credenciais-de-treinamento.md` e a
 /// bancada reservada `sei.test` do anti-IES. Comparação exata da URL base:
@@ -45,11 +50,11 @@ pub(crate) enum Escrita {
 }
 
 impl Escrita {
-    /// Ensaio ao vivo aprovado em treinamento, com relatório:
-    /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
-    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`;
-    /// - relacionar e andamento:
-    ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`.
+    /// Ensaio ao vivo aprovado nas sete instalações de treinamento:
+    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-7-instalacoes.md`;
+    /// - incluir externo, relacionar, andamento e enviar removendo anotações:
+    ///   `docs/validacao-live/2026-11-10-cobertura-7-instalacoes.md` (mais os
+    ///   relatórios da `UnB` lá citados).
     fn aprovada_em_treinamento(self) -> bool {
         matches!(
             self,
@@ -57,6 +62,7 @@ impl Escrita {
                 | Self::ProcessoPrazo
                 | Self::ProcessoRelacionar
                 | Self::ProcessoAndamento
+                | Self::ProcessoEnviarRemovendoAnotacoes
         )
     }
 }
@@ -116,6 +122,13 @@ mod tests {
             assert!(exigir(Escrita::ProcessoPrazo, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoRelacionar, producao_ou_parecida).is_ok());
             assert!(exigir(Escrita::ProcessoAndamento, producao_ou_parecida).is_ok());
+            assert!(
+                exigir(
+                    Escrita::ProcessoEnviarRemovendoAnotacoes,
+                    producao_ou_parecida
+                )
+                .is_ok()
+            );
             assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
     }

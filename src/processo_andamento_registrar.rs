@@ -198,7 +198,7 @@ impl Erro {
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::EfeitoIncerto => {
-                "A escrita pode ter sido aplicada; confira o histórico antes de qualquer nova tentativa"
+                "A escrita pode ter sido aplicada; não repita --confirmar. Consulte o histórico para verificar possível resíduo"
             }
             _ => "O SEI não publicou as condições para registrar este andamento; nada foi escrito",
         }

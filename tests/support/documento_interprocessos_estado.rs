@@ -42,6 +42,7 @@ pub(super) enum EstadoExtra {
     RevogadoAoVisualizar,
     TituloTrocadoAoVisualizar,
     SessaoRevogadaAoVisualizar,
+    SessaoRevogadaAntesDaLista,
     VersaoRevogadaAoVisualizar,
     SemListaNaUnidade,
     CanceladoAntesDaLista,
@@ -240,6 +241,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         | EstadoExtra::RevogadoAoVisualizar
         | EstadoExtra::TituloTrocadoAoVisualizar
         | EstadoExtra::SessaoRevogadaAoVisualizar
+        | EstadoExtra::SessaoRevogadaAntesDaLista
         | EstadoExtra::VersaoRevogadaAoVisualizar
         | EstadoExtra::SemListaNaUnidade
         | EstadoExtra::CanceladoAntesDaLista
