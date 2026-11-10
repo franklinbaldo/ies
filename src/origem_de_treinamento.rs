@@ -99,7 +99,10 @@ mod tests {
     fn retirada_de_acompanhamento_somente_no_treinamento() {
         assert!(exigir(Escrita::ProcessoAcompanharDeixar, "https://sei.test/sei").is_ok());
         assert!(matches!(
-            exigir(Escrita::ProcessoAcompanharDeixar, "https://sei.exemplo.gov.br/sei"),
+            exigir(
+                Escrita::ProcessoAcompanharDeixar,
+                "https://sei.exemplo.gov.br/sei"
+            ),
             Err(CausaDaOrigem::OrigemForaDoTreinamento)
         ));
     }
