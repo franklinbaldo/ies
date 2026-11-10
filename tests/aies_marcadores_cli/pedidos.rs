@@ -43,4 +43,3 @@ pub(super) fn executar_caso_cli(
     }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
 }
-
