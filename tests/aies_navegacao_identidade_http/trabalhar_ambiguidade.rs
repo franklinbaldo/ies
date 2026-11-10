@@ -1,5 +1,5 @@
 //! #60 / BDD-60-05: identidade repetida não deve mudar a rota selecionada.
-//! A cassette UnB observa procedimento_trabalhar, mas não esta duplicação;
+//! A cassette `UnB` observa `procedimento_trabalhar`, mas não esta duplicação;
 //! as recusas são hipóteses sintéticas com SQLite efêmero.
 use super::*;
 
