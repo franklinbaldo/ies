@@ -264,6 +264,7 @@ fn falha_de_envio_humana_usa_causas_tipadas_sem_json() {
     let nao_aplicado = ErroEnviar::EnvioNaoAplicado {
         aberto_em: vec!["TESTE".into()],
         depois: vec!["OUTRA".into()],
+        anotacao_depois: None,
         falha_do_envio: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
     };
     let linhas = super::linhas_da_falha(&nao_aplicado);
@@ -298,6 +299,7 @@ fn falhas_do_envio_serializam_direto_com_goldens_fixos() {
             ErroEnviar::EnvioNaoAplicado {
                 aberto_em: vec![],
                 depois: vec![],
+                anotacao_depois: None,
                 falha_do_envio: None,
             },
             r#"{"aberto_em":[],"codigo":"escrita_nao_aplicada","depois":[],"erro":"a árvore lida depois de enviar não lista o destino: o processo não foi enviado","retentavel":false}"#,

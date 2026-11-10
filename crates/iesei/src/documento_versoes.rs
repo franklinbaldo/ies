@@ -212,6 +212,38 @@ pub fn ids_por_numero(
     Ok(encontrados)
 }
 
+/// A pesquisa rapida pode localizar o mesmo numero SEI sem os zeros iniciais.
+/// Isso e somente resolucao da busca: o numero publicado na arvore permanece
+/// opaco e precisa ser conferido literalmente pela CLI. Na `UnB`: `11505` -> `0011505`.
+/// Nao escolhe arbitrariamente entre duas identidades equivalentes.
+///
+/// # Errors
+/// Preserva a falha original do SQLite.
+pub fn ids_da_pesquisa_por_numero(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    numero: &str,
+) -> Result<Vec<String>, Falha> {
+    let exatos = ids_por_numero(banco, instalacao, cenario, numero)?;
+    if !exatos.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
+        return Ok(exatos);
+    }
+    let mut consulta = banco.prepare(
+        "SELECT id_documento FROM documento_simulado
+         WHERE origem=?1 AND cenario=?2 AND ltrim(numero, '0')=ltrim(?3, '0')
+         ORDER BY id_documento",
+    )?;
+    let linhas = consulta.query_map(params![instalacao.url_base(), cenario, numero], |linha| {
+        linha.get::<_, String>(0)
+    })?;
+    let mut encontrados = Vec::new();
+    for linha in linhas {
+        encontrados.push(linha?);
+    }
+    Ok(encontrados)
+}
+
 /// Lista documentos com revisão existente no processo e cenário.
 /// A identidade de um documento recém-criado não inventa versão nem corpo.
 ///
