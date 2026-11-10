@@ -208,7 +208,10 @@ pub fn incluir_documento(
     if detalhe.total != detalhe.itens.len() {
         return Err(rusqlite::Error::InvalidQuery);
     }
-    let novo_total = detalhe.total.checked_add(1).ok_or(rusqlite::Error::InvalidQuery)?;
+    let novo_total = detalhe
+        .total
+        .checked_add(1)
+        .ok_or(rusqlite::Error::InvalidQuery)?;
     let total = i64::try_from(novo_total).map_err(|_| rusqlite::Error::InvalidQuery)?;
     let posicao = i64::try_from(detalhe.itens.len()).map_err(|_| rusqlite::Error::InvalidQuery)?;
     tx.execute(
@@ -216,14 +219,27 @@ pub fn incluir_documento(
            origem,cenario,tipo,numero,posicao,processo,documento,tipo_documento,anotacoes
          ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
         params![
-            instalacao.url_base(), cenario, Tipo::Assinatura.nome(), numero, posicao,
-            item.processo, item.documento, item.tipo, item.anotacoes
+            instalacao.url_base(),
+            cenario,
+            Tipo::Assinatura.nome(),
+            numero,
+            posicao,
+            item.processo,
+            item.documento,
+            item.tipo,
+            item.anotacoes
         ],
     )?;
     tx.execute(
         "UPDATE sim_bloco_detalhe SET total=?5,inicio=1,fim=?5
          WHERE origem=?1 AND cenario=?2 AND tipo=?3 AND numero=?4",
-        params![instalacao.url_base(), cenario, Tipo::Assinatura.nome(), numero, total],
+        params![
+            instalacao.url_base(),
+            cenario,
+            Tipo::Assinatura.nome(),
+            numero,
+            total
+        ],
     )?;
     tx.commit()?;
     Ok(true)
