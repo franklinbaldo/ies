@@ -65,3 +65,36 @@ fn bdd_633_01_cli_real_valida_senha_e_abre_processo_sem_vazar_segredo() {
     assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
     assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
 }
+
+/// BDD-633-03: a recusa do servidor nao repete a senha nem libera a arvore.
+#[test]
+fn bdd_633_03_cli_real_recusa_validacao_sem_repetir_post() {
+    let (saida, pedidos, (controle, arvore)) = executar(Cena::ValidacaoRecusada);
+    assert_eq!((controle.as_str(), arvore.as_str()), (PEDIDO, PEDIDO));
+    assert_eq!(
+        saida.status.code(),
+        Some(1),
+        "stdout={} stderr={} pedidos={pedidos:?}",
+        String::from_utf8_lossy(&saida.stdout),
+        String::from_utf8_lossy(&saida.stderr),
+    );
+    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    assert!(
+        json["erro"]
+            .as_str()
+            .is_some_and(|mensagem| mensagem.contains("recusou a validação")),
+        "mensagem de recusa: {json}"
+    );
+    assert_eq!(
+        pedidos,
+        [
+            "GET procedimento_controlar",
+            "GET procedimento_trabalhar",
+            "GET usuario_validar_acesso",
+            "POST usuario_validar_acesso",
+        ]
+    );
+    assert!(json.get("documentos").is_none());
+    assert!(!String::from_utf8_lossy(&saida.stdout).contains("SENHA_APENAS_SINTETICA"));
+    assert!(!String::from_utf8_lossy(&saida.stderr).contains("SENHA_APENAS_SINTETICA"));
+}
