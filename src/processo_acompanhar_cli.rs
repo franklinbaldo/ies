@@ -33,7 +33,8 @@ pub(crate) fn tentar_acompanhar(cli: &Cli) -> Option<ExitCode> {
                 confirmar: *confirmar,
             };
             com_sessao(cli, |sessao, indice| {
-                if *deixar && *confirmar
+                if *deixar
+                    && *confirmar
                     && let Err(causa) = crate::origem_de_treinamento::exigir(
                         crate::origem_de_treinamento::Escrita::ProcessoAcompanharDeixar,
                         sessao.origem,
@@ -99,8 +100,14 @@ fn publicar_previa(json_mode: bool, plano: &Previa) -> ExitCode {
             if let Some(id) = &plano.id_de_remocao {
                 println!("ID observado na releitura: {id}");
             }
-            println!("Acompanhamento {} e confirmado por leitura.",
-                if plano.operacao == "deixar" { "retirado" } else { "incluído" });
+            println!(
+                "Acompanhamento {} e confirmado por leitura.",
+                if plano.operacao == "deixar" {
+                    "retirado"
+                } else {
+                    "incluído"
+                }
+            );
         } else {
             println!("Nenhuma escrita executada.");
         }
