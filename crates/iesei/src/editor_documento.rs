@@ -112,6 +112,47 @@ pub fn consultar_oferta(
         .transpose()
 }
 
+/// Indica se há um documento ativo com zero assinaturas explicitamente
+/// registradas no estado do simulador. Documento sem observação de assinatura
+/// não é tratado como prova de assinatura positiva.
+///
+/// # Errors
+/// Preserva falha SQLite e recusa identidade de processo inválida.
+pub fn ha_documento_sem_assinatura(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    id_procedimento: &str,
+) -> Result<bool, Falha> {
+    if cenario.is_empty()
+        || id_procedimento.is_empty()
+        || !id_procedimento.bytes().all(|b| b.is_ascii_digit())
+    {
+        return Err(Falha::DadoInvalido);
+    }
+    banco
+        .query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM documento_simulado documento
+               JOIN documento_editor editor
+                 ON editor.origem=documento.origem
+                AND editor.cenario=documento.cenario
+                AND editor.id_documento=documento.id_documento
+               WHERE documento.origem=?1 AND documento.cenario=?2
+                 AND documento.id_procedimento=?3 AND editor.assinaturas=0
+                 AND NOT EXISTS(
+                     SELECT 1 FROM documento_cancelamento cancelamento
+                     WHERE cancelamento.origem=documento.origem
+                       AND cancelamento.cenario=documento.cenario
+                       AND cancelamento.id_documento=documento.id_documento
+                 )
+             )",
+            params![instalacao.url_base(), cenario, id_procedimento],
+            |linha| linha.get(0),
+        )
+        .map_err(Falha::from)
+}
+
 /// Uma transação insere N+1 preservando N, compara base com a versão atual
 /// e registra perda de assinaturas somente após consentimento explícito.
 /// POST repetido não altera revisão previamente publicada.
