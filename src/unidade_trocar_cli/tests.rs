@@ -202,32 +202,3 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     assert!(direto["envio"].is_null());
     assert_eq!(direto["depois"], "PR-B");
 }
-
-#[test]
-fn falhas_de_troca_sao_apresentadas_direto_do_tipo_sem_json() {
-    let u = |sigla: &str| UnidadeOferecida {
-        sigla: sigla.to_owned(),
-        descricao: format!("Unidade {sigla}"),
-        id_unidade: "7".into(),
-    };
-    let nao_oferecida = ErroTroca::UnidadeNaoOferecida {
-        oferecidas: vec![u("PR-A"), u("PR-B")],
-    };
-    let linhas = linhas_da_falha(&nao_oferecida, 2);
-    assert_eq!(linhas[1], "IES: oferecidas: PR-A, PR-B");
-    assert_eq!(linhas[2], "IES: 2 requisições.");
-
-    let ambigua = ErroTroca::SiglaDeUnidadeAmbigua {
-        candidatas: vec![u("PR-A"), u("PR-A")],
-    };
-    let linhas = linhas_da_falha(&ambigua, 1);
-    assert_eq!(linhas[1], "IES: candidatas: PR-A, PR-A");
-    assert_eq!(linhas[2], "IES: 1 requisições.");
-
-    let incerta = ErroTroca::NaoConfirmado {
-        etapa: crate::unidade_trocar::EtapaDaTroca::SegundoRedirecionamento,
-        falha: crate::unidade_trocar::FalhaDepoisDoEnvio::RedirecionamentoSemLocalizacao,
-    };
-    let linhas = linhas_da_falha(&incerta, 3);
-    assert_eq!(linhas[2], "IES: 3 requisições.");
-}

@@ -10,16 +10,6 @@ pub enum ErroArquivoCaixa {
     DestinoJaExiste,
     EscritaDeArquivoFalhou,
 }
-impl ErroArquivoCaixa {
-    pub fn mensagem(self) -> &'static str {
-        match self {
-            Self::DestinoSemNomeDeArquivo => "destino da caixa não tem nome de arquivo",
-            Self::DiretorioDeDestinoAusente => "diretório de destino não existe",
-            Self::DestinoJaExiste => "arquivo de destino já existe e não será substituído",
-            Self::EscritaDeArquivoFalhou => "não foi possível gravar a caixa em arquivo privado",
-        }
-    }
-}
 /// Grava JSON apenas em arquivo novo pela gravação privada única
 /// (`0600`, sem seguir link no destino). O diretório é da pessoa: o modo
 /// dele não é conferido.

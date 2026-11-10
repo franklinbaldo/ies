@@ -138,3 +138,36 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
         assert!(valor.get("relogin").is_none());
     }
 }
+
+#[test]
+fn falha_que_sobe_preserva_o_erro_e_a_nota_do_relogin() {
+    let direta = subir(FalhaDaLeitura::Leitura {
+        erro: FalhaTransporte::Rede,
+        nota: None,
+    });
+    assert_eq!(
+        direta.downcast_ref::<FalhaTransporte>(),
+        Some(&FalhaTransporte::Rede)
+    );
+    let refeita = subir(FalhaDaLeitura::Leitura {
+        erro: FalhaTransporte::Rede,
+        nota: Some(RELOGOU),
+    });
+    assert_eq!(
+        refeita
+            .downcast_ref::<LeituraRefeitaAposRelogin>()
+            .map(|contexto| contexto.0),
+        Some(RELOGOU)
+    );
+    assert_eq!(
+        refeita.root_cause().downcast_ref::<FalhaTransporte>(),
+        Some(&FalhaTransporte::Rede)
+    );
+    let login = subir::<FalhaTransporte>(FalhaDaLeitura::Relogin(
+        crate::sessao_login::ErroLogin::CaptchaExigido,
+    ));
+    assert_eq!(
+        login.downcast_ref::<crate::sessao_login::ErroLogin>(),
+        Some(&crate::sessao_login::ErroLogin::CaptchaExigido)
+    );
+}

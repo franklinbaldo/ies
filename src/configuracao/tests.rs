@@ -156,7 +156,7 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
         fs::set_permissions(&real, fs::Permissions::from_mode(bits)).unwrap();
         assert_eq!(
             salvar_arquivos_de_acesso(&pasta.0.join("atalho/outra.json"), &arquivos),
-            Err("configuracao_ja_existe_ou_sem_permissao")
+            Err(super::ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao)
         );
     }
     assert_eq!(fs::read_dir(&real).unwrap().count(), 1);
@@ -170,7 +170,7 @@ fn salvar_configuracao_aceita_dir_link_recusa_dir_aberto_e_nao_sobrescreve() {
     assert_eq!(salvar_arquivos_de_acesso(&destino, &arquivos), Ok(()));
     assert_eq!(
         salvar_arquivos_de_acesso(&destino, &arquivos),
-        Err("configuracao_ja_existe_ou_sem_permissao")
+        Err(super::ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao)
     );
     assert_eq!(
         fs::metadata(&destino).unwrap().permissions().mode() & 0o777,

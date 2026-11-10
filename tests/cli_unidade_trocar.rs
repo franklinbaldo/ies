@@ -1,7 +1,11 @@
 //! Superfície de `ies unidade trocar SIGLA [--confirmar]` (#205): sigla
-//! vazia sai com 2 antes de qualquer arquivo; sem configuração, 1
-//! `fonte_invalida`, sem rede. Nenhum teste abre sessão nem acessa o SEI.
+//! vazia sai com 2 antes de qualquer arquivo; sem configuração, 1 com o
+//! erro tipado, sem rede. Nenhum teste abre sessão nem acessa o SEI.
 use std::process::{Command, Output};
+
+#[path = "support/falha.rs"]
+mod falha_cli;
+use falha_cli::falha;
 
 fn sem_sessao(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_ies"))
@@ -15,10 +19,6 @@ fn sem_sessao(args: &[&str]) -> Output {
         .expect("IES deve iniciar")
 }
 
-fn json(saida: &Output) -> serde_json::Value {
-    serde_json::from_slice(&saida.stdout).expect("JSON na saída")
-}
-
 #[test]
 fn sigla_vazia_e_erro_de_uso_antes_da_configuracao() {
     for confirmar in [false, true] {
@@ -28,8 +28,7 @@ fn sigla_vazia_e_erro_de_uso_antes_da_configuracao() {
         }
         let saida = sem_sessao(&args);
         assert_eq!(saida.status.code(), Some(2), "{args:?}");
-        let valor = json(&saida);
-        assert_eq!(valor["codigo"], "entrada_invalida");
+        assert_eq!(saida.stdout, b"", "{args:?}");
     }
 }
 
@@ -41,8 +40,13 @@ fn sem_configuracao_falha_fechado_sem_rede() {
             args.push("--confirmar");
         }
         let saida = sem_sessao(&args);
-        assert_eq!(saida.status.code(), Some(1), "{args:?}");
-        assert_eq!(json(&saida)["codigo"], "fonte_invalida");
+        // Com --confirmar, o lock fica ao lado da URL: diretório ausente.
+        let variante = if confirmar {
+            "ArquivoDeLockDoLoginInacessivel"
+        } else {
+            "ArquivoPrivadoAusenteOuInacessivel"
+        };
+        falha(&saida, variante);
     }
 }
 

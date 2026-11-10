@@ -72,7 +72,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     soma(
                         1,
                         "tela Trocar Unidade",
-                        classe(lida.as_ref(), |e| e.mensagem()),
+                        classe(lida.as_ref(), |e| crate::erro_publico::Rotulo::rotulo(*e)),
                     );
                     if let Ok(t) = lida {
                         // POST derivado para a primeira unidade não marcada.

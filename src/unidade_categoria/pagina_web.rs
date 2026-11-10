@@ -26,38 +26,7 @@ pub(super) enum ErroPaginaWeb {
     Visao(#[from] ErroVisaoDoControle),
 }
 
-impl ErroPaginaWeb {
-    pub(super) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::Transporte(erro) => erro.mensagem(),
-            Self::Caixa(_) => "Controle de Processos não reconhecido",
-            Self::Pagina(_) => ErroPaginaDoControle::MENSAGEM,
-            Self::Visao(erro) => erro.mensagem(),
-        }
-    }
-
-    /// Status e mensagem do SEI, do GET ou do POST do paginador.
-    pub(super) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Pagina(erro) => erro.status_http(),
-            Self::Visao(erro) => erro.status_http(),
-            Self::Caixa(_) => None,
-        }
-    }
-}
-
-impl crate::relogin_cli::FalhaPublicavel for ErroPaginaWeb {
-    fn mensagem(&self) -> &'static str {
-        ErroPaginaWeb::mensagem(self)
-    }
-    fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        ErroPaginaWeb::status_http(self)
-    }
-    fn sessao_encerrada(&self) -> bool {
-        crate::erro_publico::Causa::sessao_encerrada(self)
-    }
-}
+crate::relogin_cli::encerravel!(ErroPaginaWeb);
 
 /// HTML da visão R com a página observada ou a N da categoria: um GET e,
 /// na visão D, a troca para R, que fica (orçamento no contrato). Cada tela
@@ -141,30 +110,4 @@ fn obter_da_tela(
         colheita.colher(html, Some(&tela.mime));
     }
     Ok(obtida.unwrap_or(tela.html))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::formulario_web::ErroSubmissaoFormulario;
-    use crate::transporte::StatusHttpRecusado;
-
-    fn recusa(status: u16) -> FalhaTransporte {
-        FalhaTransporte::Status(StatusHttpRecusado {
-            status,
-            mensagem_do_servidor: Some("x".to_owned()),
-        })
-    }
-
-    #[test]
-    fn status_do_get_e_do_post_chegam_a_borda() {
-        let get = ErroPaginaWeb::Transporte(recusa(500));
-        assert_eq!(get.status_http().map(|h| h.status), Some(500));
-        let post = ErroPaginaWeb::Pagina(ErroPaginaDoControle::Submissao(
-            ErroSubmissaoFormulario::Transporte(recusa(502)),
-        ));
-        assert_eq!(post.status_http().map(|h| h.status), Some(502));
-        let local = ErroPaginaWeb::Transporte(FalhaTransporte::CookieInvalido);
-        assert_eq!(local.status_http(), None);
-    }
 }

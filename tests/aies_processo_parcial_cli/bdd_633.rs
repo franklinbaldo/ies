@@ -14,19 +14,15 @@ fn bdd_633_02_cli_real_recusa_modal_sem_credenciais_e_sem_post() {
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert!(
-        json["erro"]
-            .as_str()
-            .is_some_and(|e| e.contains("validar o acesso"))
+    // A recusa tipada do SEI, com a falta do arquivo de credenciais junto.
+    falha(&saida, "ValidacaoDeAcessoSemArquivoDeCredenciais");
+    let linhas = linhas_do_erro(&saida);
+    // A causa é a primeira da cadeia (`Caused by: 0: …`).
+    assert_eq!(
+        linhas.get(3).map(String::as_str),
+        Some("    0: Tela(ProcessoExigeValidacaoDeAcesso)"),
+        "{linhas:?}"
     );
-    assert!(
-        json["erro"]
-            .as_str()
-            .is_some_and(|e| e.contains("arquivo de credenciais")),
-        "a CLI deve explicar a ausência do arquivo de credenciais: {json}"
-    );
-    assert!(json.get("documentos").is_none());
     assert_eq!(
         pedidos,
         ["GET procedimento_controlar", "GET procedimento_trabalhar"]

@@ -304,7 +304,9 @@ fn resumida(
                 p.criterio = paginacao::criterio(html, lista.categoria());
                 saida.paginas.push(p);
             }
-            Err(erro) => l.resultado = Resultado::Recusado(erro.mensagem()),
+            Err(erro) => {
+                l.resultado = Resultado::Recusado(crate::erro_publico::Rotulo::rotulo(&erro));
+            }
         }
         saida.registros.push(l);
         saida

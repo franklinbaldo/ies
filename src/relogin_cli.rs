@@ -15,7 +15,31 @@ use std::process::ExitCode;
 
 pub(crate) use crate::sessao_login::relogin::{FalhaDaLeitura, NotaDoRelogin};
 
-/// Falha de leitura publicável como `fonte_invalida`.
+/// O fato tipado que dispara o relogin único: o único requisito de [`ler`].
+pub(crate) trait Encerravel {
+    fn sessao_encerrada(&self) -> bool;
+}
+
+impl<T: FalhaPublicavel> Encerravel for T {
+    fn sessao_encerrada(&self) -> bool {
+        FalhaPublicavel::sessao_encerrada(self)
+    }
+}
+
+/// Erros que só sobem tipados: a sessão encerrada é achada na cadeia `source()`.
+macro_rules! encerravel {
+    ($($tipo:ty),*) => {$(
+        impl $crate::relogin_cli::Encerravel for $tipo {
+            fn sessao_encerrada(&self) -> bool {
+                crate::erro_publico::Causa::sessao_encerrada(self)
+            }
+        }
+    )*};
+}
+pub(crate) use encerravel;
+
+/// Falha de leitura publicável como `fonte_invalida` (comandos ainda não
+/// convertidos ao erro que sobe tipado, #695).
 pub(crate) trait FalhaPublicavel {
     fn mensagem(&self) -> &'static str;
     fn status_http(&self) -> Option<&StatusHttpRecusado>;
@@ -50,7 +74,7 @@ publicavel!(
 /// A leitura com o relogin único: credenciais só de `IES_CREDENCIAIS_FILE`
 /// (ausente: comportamento sem relogin), lock do `ies login` e a contagem
 /// de todos os pedidos do processo.
-pub(crate) fn ler<T, E: FalhaPublicavel>(
+pub(crate) fn ler<T, E: Encerravel>(
     arquivos: &ArquivosDeAcesso,
     unidade: Option<&str>,
     ler: impl FnMut() -> Result<T, E>,
@@ -73,6 +97,29 @@ pub(crate) fn ler<T, E: FalhaPublicavel>(
         E::sessao_encerrada,
         ler,
     )
+}
+
+/// A leitura falhou depois de recomeçar com a sessão nova: o fato da nota
+/// (relogin feito aqui ou por outro processo e os pedidos já feitos) sobe
+/// junto com o erro da releitura.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) struct LeituraRefeitaAposRelogin(pub(crate) NotaDoRelogin);
+
+/// A falha que sobe: a do relogin, ou a da leitura com a nota como contexto
+/// quando a leitura recomeçou.
+pub(crate) fn subir<E>(falha: FalhaDaLeitura<E>) -> anyhow::Error
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    match falha {
+        FalhaDaLeitura::Relogin(erro) => erro.into(),
+        FalhaDaLeitura::Leitura { erro, nota: None } => erro.into(),
+        FalhaDaLeitura::Leitura {
+            erro,
+            nota: Some(nota),
+        } => anyhow::Error::from(erro).context(LeituraRefeitaAposRelogin(nota)),
+    }
 }
 
 /// `requisicoes` próprias da releitura mais as da primeira tentativa e do

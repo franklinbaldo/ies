@@ -11,9 +11,10 @@ use std::io::Read;
 mod consulta;
 use consulta::consulta;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaLupa {
-    Transporte(FalhaTransporte),
+    Transporte(#[source] FalhaTransporte),
     Tela(ErroLupa),
     LinkAusente,
     LinkAmbiguo,
@@ -21,16 +22,6 @@ pub(crate) enum FalhaDaLupa {
     CharsetInesperado,
     FormularioInesperado,
     ExcessoDePaginas,
-}
-
-impl FalhaDaLupa {
-    /// Preserva status e mensagem já saneada da recusa HTTP, sem URL/cookie.
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Transporte(falha) => falha.status_http(),
-            _ => None,
-        }
-    }
 }
 
 /// GET / POST sempre uma tentativa, sem redirect automático.

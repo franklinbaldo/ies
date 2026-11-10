@@ -2,7 +2,6 @@
 use crate::erro_web::ErroCaixa;
 use crate::{configuracao, transporte};
 use serde_json::{Value, json};
-use std::process::ExitCode;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -11,22 +10,6 @@ pub(crate) enum FalhaControleWeb {
     IdentidadeUnidadeNaoObservada,
     UnidadeExibidaDiferenteDaSolicitada,
 }
-impl FalhaControleWeb {
-    pub(crate) fn mensagem(&self) -> &'static str {
-        match self {
-            Self::ControleNaoReconhecido(_) => {
-                "resposta não contém Controle de Processos verificável"
-            }
-            Self::IdentidadeUnidadeNaoObservada => {
-                "identidade da unidade não está publicada na resposta"
-            }
-            Self::UnidadeExibidaDiferenteDaSolicitada => {
-                "a unidade exibida pelo SEI não corresponde à solicitada"
-            }
-        }
-    }
-}
-
 /// A tela precisa conter Controle de Processos e unidade única, não apenas HTTP 200.
 pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
     // Visão resumida ou detalhada: a sessão fica na última visão usada.
@@ -59,41 +42,19 @@ fn projetar_com_unidade(
 }
 
 /// Somente com pedido explícito: um GET da sessão já configurada, sem novo login.
-pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return crate::erro_fonte(json_mode, erro.mensagem()),
-    };
+pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso()?;
     let indice = crate::indice_local::IndiceLocal::da_configuracao(&arquivos);
     // Um retrato coerente da sessão (#222) para o GET e para a colheita.
-    let lido = transporte::sessao::ReferenciasDaSessao::ler(
+    let sessao = transporte::sessao::ReferenciasDaSessao::ler(
         &arquivos.url_controle,
         &arquivos.origem,
         &arquivos.cookie,
-    )
-    .and_then(|sessao| {
-        transporte::envio_post::ler_tela_do_controle(&sessao).map(|tela| (sessao, tela))
-    });
-    let html = match lido {
-        Ok((sessao, tela)) => {
-            crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
-                .colher(&tela.html, Some(&tela.mime));
-            tela.html
-        }
-        Err(erro) => {
-            return crate::saida_erro::erro_fonte_http(
-                json_mode,
-                erro.mensagem(),
-                erro.status_http(),
-            );
-        }
-    };
-    let modelo = match projetar_com_unidade(&html, unidade_esperada) {
-        Ok(modelo) => modelo,
-        Err(erro) => {
-            return crate::erro_fonte(json_mode, erro.mensagem());
-        }
-    };
+    )?;
+    let tela = transporte::envio_post::ler_tela_do_controle(&sessao)?;
+    crate::colheita_do_controle::Colheita::das_referencias(&indice, &sessao)
+        .colher(&tela.html, Some(&tela.mime));
+    let modelo = projetar_com_unidade(&tela.html, unidade_esperada)?;
     if json_mode {
         println!("{modelo}");
     } else {
@@ -102,7 +63,7 @@ pub(crate) fn mostrar(json_mode: bool, unidade_esperada: Option<&str>) -> ExitCo
             modelo["unidade_exibida"].as_str().unwrap_or("desconhecida")
         );
     }
-    ExitCode::SUCCESS
+    Ok(())
 }
 
 #[cfg(test)]
@@ -158,11 +119,6 @@ mod testes {
         assert_eq!(
             projetar_com_unidade(html, Some("OUTRA")),
             Err(FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada)
-        );
-        assert!(
-            !FalhaControleWeb::UnidadeExibidaDiferenteDaSolicitada
-                .mensagem()
-                .contains("PPI")
         );
         assert_eq!(
             projetar_com_unidade(html, Some("ppi")),

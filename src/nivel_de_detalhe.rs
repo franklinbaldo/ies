@@ -14,9 +14,10 @@ mod alvo;
 mod salvar;
 mod tela;
 
+#[cfg(test)]
+pub(crate) use alvo::ErroDaListaDeColunas;
 pub(crate) use alvo::{
-    AlvoDasColunas, ColunaIndisponivelNestaInstalacao, ErroDaListaDeColunas, PlanoDasColunas,
-    planejar,
+    AlvoDasColunas, ColunaIndisponivelNestaInstalacao, PlanoDasColunas, planejar,
 };
 pub(crate) use salvar::{
     SALVAR_NIVEL_DE_DETALHE, SinalDoSalvar, campos_do_envio, conferir_controles_do_formulario,

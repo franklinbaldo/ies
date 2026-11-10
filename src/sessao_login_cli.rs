@@ -36,6 +36,7 @@ pub(crate) fn json_do_erro(erro: &ErroLogin) -> Value {
     valor
 }
 
+/// A falha do relogin nos comandos de leitura ainda não convertidos (#695).
 pub(crate) fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
     if json_mode {
         println!("{}", json_do_erro(erro));
@@ -49,11 +50,12 @@ pub(crate) fn falhar(json_mode: bool, erro: &ErroLogin) -> ExitCode {
     ExitCode::from(1)
 }
 
-pub(crate) fn executar_login(json_mode: bool, forcar: bool, unidade: Option<&str>) -> ExitCode {
-    let arquivos = match configuracao::arquivos_de_acesso() {
-        Ok(arquivos) => arquivos,
-        Err(erro) => return falhar(json_mode, &ErroLogin::Configuracao(erro)),
-    };
+pub(crate) fn executar_login(
+    json_mode: bool,
+    forcar: bool,
+    unidade: Option<&str>,
+) -> anyhow::Result<()> {
+    let arquivos = configuracao::arquivos_de_acesso().map_err(ErroLogin::Configuracao)?;
     let credenciais = std::env::var_os("IES_CREDENCIAIS_FILE")
         .filter(|valor| !valor.is_empty())
         .map(PathBuf::from);
@@ -65,24 +67,20 @@ pub(crate) fn executar_login(json_mode: bool, forcar: bool, unidade: Option<&str
         espera_do_lock: ESPERA_DO_LOCK,
     };
     let indice = IndiceLocal::da_configuracao(&arquivos);
-    match entrar_colhendo(&pedido, &indice, &mut HttpsDoLogin) {
-        Ok(resultado) => {
-            if json_mode {
-                println!("{}", json_do_resultado(&resultado));
-            } else {
-                let como = match resultado.conexao {
-                    Conexao::LoginRealizado => "login realizado",
-                    Conexao::SessaoExistenteValida => "sessão gravada ainda válida",
-                };
-                println!(
-                    "IES: {como} na unidade {} ({} requisições).",
-                    resultado.unidade_exibida, resultado.requisicoes
-                );
-            }
-            ExitCode::SUCCESS
-        }
-        Err(erro) => falhar(json_mode, &erro),
+    let resultado = entrar_colhendo(&pedido, &indice, &mut HttpsDoLogin)?;
+    if json_mode {
+        println!("{}", json_do_resultado(&resultado));
+    } else {
+        let como = match resultado.conexao {
+            Conexao::LoginRealizado => "login realizado",
+            Conexao::SessaoExistenteValida => "sessão gravada ainda válida",
+        };
+        println!(
+            "IES: {como} na unidade {} ({} requisições).",
+            resultado.unidade_exibida, resultado.requisicoes
+        );
     }
+    Ok(())
 }
 
 #[cfg(test)]
