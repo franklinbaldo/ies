@@ -123,6 +123,10 @@ fn estado() -> (Connection, Instalacao) {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "uma prova vertical única pela CLI real, TLS, anti-IES e SQLite, com contagem de GET e ausência de POST"
+)]
 fn bdd_anot_01_previa_publica_texto_sem_escrever() {
     let pasta = Pasta::nova();
     let (cert, identidade_tls) = identidade(&pasta.0, "sei.test");
