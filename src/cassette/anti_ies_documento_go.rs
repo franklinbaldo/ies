@@ -1,8 +1,8 @@
 // BDD-60-05: confronto independente do histórico GO com o anti-IES.
 // A gravação GO não contém GET de corpo: nenhuma revisão recebe texto suposto.
 
-/// Encontra o número SEI pelo mesmo id_documento em uma árvore gravada,
-/// sem emprestar identidade ou tipo de uma fixture UnB.
+/// Encontra o número SEI pelo mesmo `id_documento` em uma árvore gravada,
+/// sem emprestar identidade ou tipo de uma fixture `UnB`.
 fn documento_go_na_arvore(
     captura: &serde_json::Value,
     id_documento: &str,
@@ -28,15 +28,15 @@ fn documento_go_na_arvore(
             continue;
         };
         for doc in &arvore.documentos {
-            if doc.id == id_documento {
-                if let Some(numero) = &doc.numero_sei {
-                    identidades.push((
-                        processo.clone(),
-                        nup.clone(),
-                        numero.clone(),
-                        doc.rotulo.clone(),
-                    ));
-                }
+            if doc.id == id_documento
+                && let Some(numero) = &doc.numero_sei
+            {
+                identidades.push((
+                    processo.clone(),
+                    nup.clone(),
+                    numero.clone(),
+                    doc.rotulo.clone(),
+                ));
             }
         }
     }
