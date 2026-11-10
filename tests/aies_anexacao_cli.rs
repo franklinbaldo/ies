@@ -167,6 +167,46 @@ enum Modo {
     JaAnexado,
 }
 
+/// Estado inicial sintético para uma das hipóteses de anexação.
+fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
+    if matches!(modo, Modo::PreviaPendencia) {
+        documento_versoes::guardar(
+            &mut banco,
+            CENARIO,
+            &DocumentoSimulado {
+                instalacao: instalacao.clone(),
+                id_documento: "77".into(),
+                id_procedimento: "22".into(),
+                numero_processo: ANEXADO.into(),
+                numero: "770000".into(),
+                tipo: "Despacho".into(),
+                revisoes: vec![Revisao {
+                    versao: NonZeroU32::new(1).unwrap(),
+                    usuario: "TESTE".into(),
+                    unidade: "TESTE".into(),
+                    modificacao: "10/11/2026".into(),
+                    html_corpo: "<p>Documento de ensaio ainda não assinado</p>".into(),
+                }],
+            },
+        )
+        .unwrap();
+        editor_documento::registrar_oferta(
+            &banco,
+            &instalacao,
+            CENARIO,
+            "77",
+            Oferta {
+                editavel: true,
+                assinaturas: 0,
+            },
+        )
+        .unwrap();
+    }
+    if matches!(modo, Modo::JaAnexado) {
+        anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
+    }
+}
+
 fn executar(modo: Modo) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -191,42 +231,7 @@ fn executar(modo: Modo) {
     let sinal = Arc::clone(&parar);
     let servidor = thread::spawn(move || {
         let (mut banco, instalacao) = estado();
-        if matches!(modo, Modo::PreviaPendencia) {
-            documento_versoes::guardar(
-                &mut banco,
-                CENARIO,
-                &DocumentoSimulado {
-                    instalacao: instalacao.clone(),
-                    id_documento: "77".into(),
-                    id_procedimento: "22".into(),
-                    numero_processo: ANEXADO.into(),
-                    numero: "770000".into(),
-                    tipo: "Despacho".into(),
-                    revisoes: vec![Revisao {
-                        versao: NonZeroU32::new(1).unwrap(),
-                        usuario: "TESTE".into(),
-                        unidade: "TESTE".into(),
-                        modificacao: "10/11/2026".into(),
-                        html_corpo: "<p>Documento de ensaio ainda não assinado</p>".into(),
-                    }],
-                },
-            )
-            .unwrap();
-            editor_documento::registrar_oferta(
-                &banco,
-                &instalacao,
-                CENARIO,
-                "77",
-                Oferta {
-                    editavel: true,
-                    assinaturas: 0,
-                },
-            )
-            .unwrap();
-        }
-        if matches!(modo, Modo::JaAnexado) {
-            anexacoes::anexar(&banco, &instalacao, CENARIO, "10", "22").unwrap();
-        }
+        preparar_estado(modo, &mut banco, &instalacao);
         while let Some(mut cliente) = aceitar(&backend, &sinal) {
             atender_http(&mut cliente, Some((&banco, &instalacao, CENARIO))).unwrap();
         }
