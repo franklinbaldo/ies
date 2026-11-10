@@ -227,11 +227,17 @@ fn executar(modo: Modo) {
     });
     let comando: &[&str] = match modo {
         Modo::Aceite | Modo::RespostaIncerta => &[
-            "--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL, "--confirmar",
+            "--json",
+            "processo",
+            "anexar",
+            ANEXADO,
+            "--a",
+            PRINCIPAL,
+            "--confirmar",
         ],
-        Modo::Previa | Modo::JaAnexado => &[
-            "--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL,
-        ],
+        Modo::Previa | Modo::JaAnexado => {
+            &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
+        },
     };
     let saida = cli(&pasta, arquivos, porta, comando);
     let posterior = cli(
@@ -318,7 +324,10 @@ fn conferir_resultados(
     }
     assert_eq!(total, i64::from(tem_anexado));
     assert_eq!(
-        pedidos.iter().filter(|e| *e == "POST procedimento_anexar").count(),
+        pedidos
+            .iter()
+            .filter(|e| *e == "POST procedimento_anexar")
+            .count(),
         usize::from(matches!(modo, Modo::Aceite | Modo::RespostaIncerta)),
         "prévia e duplicidade não enviam POST mutador; {pedidos:?}"
     );
