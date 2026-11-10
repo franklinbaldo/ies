@@ -47,6 +47,8 @@ pub(crate) mod tests_barra_documento;
 #[cfg(test)]
 mod tests_barra_marcadores;
 #[cfg(test)]
+mod tests_ciencia_unb;
+#[cfg(test)]
 pub(crate) mod tests_concluir;
 #[cfg(test)]
 pub(crate) mod tests_conteudo;

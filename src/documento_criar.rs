@@ -276,6 +276,11 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
         .ok_or(E::LinkDoTipoNaoNavegavel)?;
     let onclick = decodificar_atributo(&onclick).ok_or(E::ListaForaDaForma)?;
     let chamada = onclick.trim().trim_end_matches(';').trim();
+    // Filtro da sessão já em "todos": o botão volta a oferecer só os
+    // utilizados, e a lista servida já está completa (UnB, 10/11/2026).
+    if chamada == "exibirSeries('U')" || chamada == "exibirSeries(\"U\")" {
+        return Ok(false);
+    }
     if (href != "#" && href != "javascript:void(0);")
         || (chamada != "exibirSeries('T')" && chamada != "exibirSeries(\"T\")")
     {

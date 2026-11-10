@@ -187,7 +187,7 @@ fn conferir_campo(
                 && !presente("formmethod")?
                 && !presente("formenctype")?
         }
-        ("input" | "button", "button", "btnCancelar") => true,
+        ("input" | "button", "button", "btnCancelar" | "btnPesquisar") => true,
         ("select", _, "selProcedimentos") => presente("multiple")?,
         _ => false,
     };

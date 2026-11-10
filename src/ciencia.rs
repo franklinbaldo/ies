@@ -119,8 +119,37 @@ fn chamada_na_forma_do_aceite(script: &str, niveis: &[Option<usize>], posicao: u
     // O corpo observado começa com a recarga. Não interpretar fluxo JS:
     // return, throw, condicionais ou qualquer outra instrução anterior
     // tornam o alcance da chamada incerto, mesmo após um ponto e vírgula.
-    assinatura == b"functioninicializar()"
-        && (abertura + 1..posicao).all(|i| niveis[i] != Some(1) || separador_vazio(bytes[i]))
+    assinatura == b"functioninicializar()" && so_chamadas_simples(script, abertura + 1, posicao)
+}
+
+/// Antes da recarga, o corpo de `inicializar()` só pode ter chamadas
+/// `nome();` sem argumento (`UnB` 4.0.9: `exibirLinkVoltarArvoreVisualizar();`).
+/// Condição, retorno, atribuição ou argumento tornam o alcance incerto.
+fn so_chamadas_simples(script: &str, inicio: usize, fim: usize) -> bool {
+    // Sem comentários, mas com literais: um argumento recusa a prova.
+    let mut ativo = String::new();
+    let mut resto = &script[inicio..fim];
+    while !resto.is_empty() {
+        if let Some(depois) = resto.strip_prefix("//") {
+            resto = depois.split_once('\n').map_or("", |(_, r)| r);
+        } else if let Some(depois) = resto.strip_prefix("/*") {
+            let Some((_, r)) = depois.split_once("*/") else {
+                return false;
+            };
+            resto = r;
+        } else {
+            let mut letras = resto.chars();
+            ativo.extend(letras.next());
+            resto = letras.as_str();
+        }
+    }
+    ativo.split(';').map(str::trim).all(|instrucao| {
+        instrucao.is_empty()
+            || instrucao.strip_suffix("()").is_some_and(|nome| {
+                nome.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                    && nome.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            })
+    })
 }
 
 /// Literais como primeiro argumento de `atualizarArvore('...')`. Chamadas com
@@ -246,7 +275,18 @@ pub(crate) fn atividade_do_aceite(
         if atributos.presente("src") || !script_classico {
             continue;
         }
-        for url in literais_de_atualizar_arvore(&tag.inner_text(parser)) {
+        // Texto e fonte bruta: a `UnB` 4.0.9 envolve o script em
+        // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026);
+        // um `<script>` dentro de literal JS, ao contrário, trunca a fonte bruta.
+        let texto = tag.inner_text(parser);
+        let fonte = tag.raw().as_utf8_str();
+        let bruto = fonte.split_once('>').map_or("", |(_, resto)| {
+            resto.rsplit_once("</").map_or(resto, |(c, _)| c)
+        });
+        for url in [texto.as_ref(), bruto]
+            .into_iter()
+            .flat_map(literais_de_atualizar_arvore)
+        {
             let Some(atividade) = atividade_do_endereco(url, alvo) else {
                 continue;
             };
@@ -317,7 +357,23 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         .filter_map(|no| no.get(parser))
         .map(|no| no.inner_text(parser).into_owned())
         .collect();
-    if legendas.as_slice() != ["Lista de Ciências:"] {
+    let [legenda] = legendas.as_slice() else {
+        return Err(fora);
+    };
+    // Com ou sem contagem: `UnB` 4.0.9 publica "Lista de Ciências (1 registro):".
+    let contagem = legenda
+        .strip_prefix("Lista de Ciências")
+        .and_then(|resto| resto.strip_suffix(':'))
+        .ok_or(fora)?;
+    let contagem_valida = contagem.is_empty()
+        || contagem
+            .strip_prefix(" (")
+            .and_then(|resto| resto.strip_suffix(')'))
+            .and_then(|resto| resto.split_once(' '))
+            .is_some_and(|(n, palavra)| {
+                identificador(n) && matches!(palavra, "registro" | "registros")
+            });
+    if !contagem_valida {
         return Err(fora);
     }
     let mut ocorrencias = 0;
@@ -355,6 +411,8 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
 mod acervo;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_aceite_unb;
 #[cfg(test)]
 mod tests_documento;
 #[cfg(test)]

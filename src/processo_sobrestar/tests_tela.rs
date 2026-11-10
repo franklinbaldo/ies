@@ -103,3 +103,14 @@ fn formulario_com_submissao_diferente_do_navegador_recusa() {
         );
     }
 }
+
+#[test]
+fn botao_pesquisar_do_destino_nao_e_campo_enviado() {
+    // UnB 4.0.9 ao vivo (10/11/2026): o form traz o botão btnPesquisar
+    // (type="button") ao lado do processo de destino; ele não vai no POST.
+    let tela = formulario().replace(
+        "</form>",
+        "<button type=\"button\" name=\"btnPesquisar\" id=\"btnPesquisar\" value=\"Pesquisar\">Pesquisar</button></form>",
+    );
+    assert_eq!(conferir_formulario(&tela, ID), Ok(()));
+}

@@ -215,7 +215,9 @@ pub(crate) fn url_da_ciencia_do_documento(
         if tipo.is_some_and(|t| t != "text/javascript" && t != "application/javascript") {
             continue;
         }
-        let script = tag.inner_text(dom.parser());
+        // Fonte bruta, não inner_text: a `UnB` 4.0.9 envolve o script em
+        // `<!--//--><![CDATA[//><!--`, que inner_text omite (live 10/11/2026).
+        let script = tag.raw().as_utf8_str();
         urls.extend(javascript::urls_ativas_da_ciencia_do_documento(
             script.as_ref(),
         )?);

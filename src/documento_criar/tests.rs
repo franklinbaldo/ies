@@ -402,6 +402,13 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
         )),
         Err(ErroCriar::LinkDoTipoNaoNavegavel)
     );
+    // UnB 4.0.9 ao vivo (10/11/2026): com o filtro da sessão já em "todos",
+    // o botão passa a oferecer exibirSeries('U') ("Exibir apenas os tipos já
+    // utilizados pela unidade"). A lista já está completa: nenhum POST de filtro.
+    assert_eq!(
+        filtro_de_todos(&tela.replace("exibirSeries('T');", "exibirSeries('U');")),
+        Ok(false)
+    );
 }
 
 #[test]

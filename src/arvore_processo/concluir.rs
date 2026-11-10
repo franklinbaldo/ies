@@ -146,7 +146,7 @@ pub(crate) enum ErroFuncaoDeConcluir {
 
 impl ErroFuncaoDeConcluir {}
 
-const CONFIRM: &str = "//if (confirm(";
+const CONFIRM: &str = "if (confirm(";
 const LOCATION: &str = "location.href = '";
 
 /// A definição de uma função da tela do nó fora da forma de três linhas.
@@ -154,13 +154,15 @@ pub(super) struct FuncaoForaDaForma;
 
 /// As URLs de `location.href` de cada `function {nome}(){` da tela do nó,
 /// na forma observada no SEI 4.0: a linha da função, a do `confirm`
-/// comentado e a do `location.href = '…';` (também a de reabrir).
+/// (comentado ou ativo, como na retirada do sobrestamento da `UnB`) e a do
+/// `location.href = '…';` (também a de reabrir).
 pub(super) fn urls_das_funcoes<'h>(
     html: &'h str,
     nome: &str,
 ) -> Result<Vec<&'h str>, FuncaoForaDaForma> {
     let funcao = format!("function {nome}(){{");
-    let prefixo = format!("function {nome}");
+    // Com o parêntese: `cienciaProcessoAnexado` não é `cienciaProcesso`.
+    let prefixo = format!("function {nome}(");
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
@@ -168,6 +170,7 @@ pub(super) fn urls_das_funcoes<'h>(
             continue;
         }
         let confirm = linhas.get(i + 1).copied().unwrap_or_default();
+        let confirm = confirm.strip_prefix("//").unwrap_or(confirm);
         let url = (*linha == funcao && confirm.starts_with(CONFIRM) && confirm.ends_with("){"))
             .then(|| linhas.get(i + 2))
             .flatten()
