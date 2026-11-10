@@ -7,10 +7,10 @@ use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
 use iesei::processos::{self, ProcessoSimulado};
-use native_tls::TlsAcceptor;
+use native_tls::{Identity, TlsAcceptor};
 use rusqlite::Connection;
 use std::io::{Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -140,6 +140,53 @@ fn estado() -> (Connection, Instalacao) {
     (banco, instalacao)
 }
 
+fn servir_tunel(
+    proxy: TcpListener,
+    endereco: SocketAddr,
+    tls_id: Identity,
+    sinal: &AtomicBool,
+    pedidos: &Mutex<Vec<String>>,
+    injecao: &AtomicBool,
+    falha_releitura: bool,
+) {
+    let tls = TlsAcceptor::new(tls_id).unwrap();
+    let mut post_confirmado = false;
+    while let Some(mut tcp) = aceitar(&proxy, &sinal) {
+        let (connect, _) = pedido_http(&mut tcp);
+        assert!(connect.starts_with(b"CONNECT"));
+        tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+            .unwrap();
+        let mut canal = tls.accept(tcp).unwrap();
+        let (req, evento) = pedido_http(&mut canal);
+        if falha_releitura
+            && post_confirmado
+            && !injecao.load(Ordering::SeqCst)
+            && evento.starts_with("GET ")
+        {
+            // O POST chegou ao anti-IES e persistiu no SQLite. Só a
+            // primeira leitura posterior fica indisponível (hipótese).
+            pedidos.lock().unwrap().push(evento);
+            injecao.store(true, Ordering::SeqCst);
+            canal
+                .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .unwrap();
+            canal.flush().unwrap();
+            continue;
+        }
+        let mut destino = TcpStream::connect(endereco).unwrap();
+        destino.write_all(&req).unwrap();
+        destino.shutdown(Shutdown::Write).unwrap();
+        let mut resposta = Vec::new();
+        destino.read_to_end(&mut resposta).unwrap();
+        if evento == "POST procedimento_atualizar_andamento" {
+            post_confirmado = true;
+        }
+        pedidos.lock().unwrap().push(evento);
+        canal.write_all(&resposta).unwrap();
+        canal.flush().unwrap();
+    }
+}
+
 fn executar(confirmar: bool, falha_releitura: bool) {
     let pasta = Pasta::nova();
     let (cert, tls_id) = identidade(&pasta.0, "sei.test");
@@ -176,42 +223,15 @@ fn executar(confirmar: bool, falha_releitura: bool) {
     let falha_aplicada = Arc::new(AtomicBool::new(false));
     let injecao = Arc::clone(&falha_aplicada);
     let tunel = thread::spawn(move || {
-        let tls = TlsAcceptor::new(tls_id).unwrap();
-        let mut post_confirmado = false;
-        while let Some(mut tcp) = aceitar(&proxy, &sinal) {
-            let (connect, _) = pedido_http(&mut tcp);
-            assert!(connect.starts_with(b"CONNECT"));
-            tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
-                .unwrap();
-            let mut canal = tls.accept(tcp).unwrap();
-            let (req, evento) = pedido_http(&mut canal);
-            if falha_releitura
-                && post_confirmado
-                && !injecao.load(Ordering::SeqCst)
-                && evento.starts_with("GET ")
-            {
-                // O POST chegou ao anti-IES e persistiu no SQLite. Só a
-                // primeira leitura posterior fica indisponível (hipótese).
-                pedidos.lock().unwrap().push(evento);
-                injecao.store(true, Ordering::SeqCst);
-                canal
-                    .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                    .unwrap();
-                canal.flush().unwrap();
-                continue;
-            }
-            let mut destino = TcpStream::connect(endereco).unwrap();
-            destino.write_all(&req).unwrap();
-            destino.shutdown(Shutdown::Write).unwrap();
-            let mut resposta = Vec::new();
-            destino.read_to_end(&mut resposta).unwrap();
-            if evento == "POST procedimento_atualizar_andamento" {
-                post_confirmado = true;
-            }
-            pedidos.lock().unwrap().push(evento);
-            canal.write_all(&resposta).unwrap();
-            canal.flush().unwrap();
-        }
+        servir_tunel(
+            proxy,
+            endereco,
+            tls_id,
+            &sinal,
+            &pedidos,
+            &injecao,
+            falha_releitura,
+        );
     });
     let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
         .args({
