@@ -219,7 +219,7 @@ fn detalhada_recusa_classes_de_estado_diferentes_no_link() {
         assert_eq!(erro, ErroDetalhada::ClassesDeEstadoDiferentesNoLink);
         assert_eq!(
             crate::erro_publico::folha(&erro),
-            "classes_de_estado_diferentes_no_link_detalhado"
+            "classes_de_estado_diferentes_no_link"
         );
     }
 }

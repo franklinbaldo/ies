@@ -91,10 +91,7 @@ fn dado_confirmacao_sem_nivel_quando_nao_ha_sessao_entao_recusa_antes_de_ler_arq
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(
-        json["subcodigo"],
-        "nivel_de_documento_nao_informado_para_escrita"
-    );
+    assert_eq!(json["subcodigo"], "nivel_nao_informado");
     assert_eq!(json["retentavel"], false);
 }
 
@@ -116,9 +113,6 @@ fn dado_nivel_restrito_quando_confirmo_entao_recusa_antes_da_sessao() {
     ]);
     assert_eq!(saida.status.code(), Some(1));
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
-    assert_eq!(
-        json["subcodigo"],
-        "nivel_de_documento_requer_hipotese_legal"
-    );
+    assert_eq!(json["subcodigo"], "nivel_restrito_sem_hipotese");
     assert_eq!(json["retentavel"], false);
 }

@@ -22,13 +22,9 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
 
 #[derive(Debug, Clone, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroInteressado {
-    #[causa(nome = "interessado_autocompletar_nao_declarado")]
     AutocompletarNaoDeclarado,
-    #[causa(nome = "interessado_consulta_nao_derivada")]
     DerivacaoRecusada,
-    #[causa(nome = "interessado_de_processo_nao_oferecido")]
     NaoOferecido,
-    #[causa(nome = "interessado_de_processo_ambiguo")]
     Ambiguo,
     #[causa(transparente)]
     Html(ErroHtml),

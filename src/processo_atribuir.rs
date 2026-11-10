@@ -48,9 +48,7 @@ pub(crate) struct TelaDaAtribuicao {
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroAtribuir {
     UsuarioNaoAtribuivel,
-    #[causa(nome = "usuario_ambiguo_na_atribuicao")]
     UsuarioAmbiguo,
-    #[causa(nome = "situacao_da_atribuicao_nao_observada")]
     SituacaoNaoObservada,
     AtribuicaoJaAplicada,
     CharsetDaTelaNaoSuportado,

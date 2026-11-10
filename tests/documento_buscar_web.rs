@@ -43,14 +43,14 @@ fn termo_com_controle_e_erro_de_uso_antes_da_configuracao() {
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "termo_de_documento_contem_controle");
+    assert_eq!(valor["subcodigo"], "controle");
 }
 
 #[test]
 fn termo_vazio_e_erro_de_uso() {
     let saida = ies(&["--json", "documento", "buscar", "  "], false);
     assert_eq!(saida.status.code(), Some(2));
-    assert_eq!(json(&saida)["subcodigo"], "termo_de_documento_vazio");
+    assert_eq!(json(&saida)["subcodigo"], "vazio");
 }
 
 #[test]
@@ -67,10 +67,7 @@ fn opcoes_de_leitura_do_documento_nao_combinam_com_buscar() {
 fn sem_configuracao_a_falha_e_tipada_e_sem_rede() {
     let saida = ies(&["--json", "documento", "buscar", "0001"], false);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "caminho_url_controle_nao_informado"
-    );
+    assert_eq!(json(&saida)["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]

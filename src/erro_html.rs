@@ -110,6 +110,10 @@ impl Causa for ErroHtml {
     fn status_http(&self) -> Option<&StatusHttpRecusado> {
         None
     }
+
+    fn sessao_encerrada(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

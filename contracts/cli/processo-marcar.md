@@ -70,7 +70,7 @@ Entrada inválida não lê configuração.
 A coluna abaixo é o catálogo verificável usado pelo gate `subcodigos`.
 Todas as recusas de escrita permanecem **sem POST** neste recorte. Enquanto
 a escrita não for observada, `--confirmar` recusa
-`escrita_de_marcador_ainda_fechada` antes de abrir a sessão.
+`escrita_ainda_fechada` antes de abrir a sessão.
 
 | Subcódigo | Condição observável ou regra |
 | --- | --- |
@@ -82,7 +82,7 @@ a escrita não for observada, `--confirmar` recusa
 | `rotulo_diferente_do_marcador_lido` | Mesmo id observado com nome diferente |
 | `catalogo_da_unidade_nao_observado` | Atribuição ausente sem catálogo da unidade |
 | `remocao_sem_formulario_observado` | Confirmação de remoção sem contrato da escrita |
-| `escrita_de_marcador_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
+| `escrita_ainda_fechada` | `--confirmar` nesta fatia WIP: saída 1 antes de abrir sessão ou rede, 0 requisições |
 | `marcadores_nao_lidos_para_escrita` | Leitura ausente ou não comprovada |
 | `unidade_da_sessao_nao_publicada_para_marcar` | Unidade não conferida |
 | `texto_do_marcador_longo` | Texto excede 250 caracteres |

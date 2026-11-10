@@ -43,7 +43,7 @@ fn termo_com_controle_e_erro_de_uso_antes_da_configuracao() {
     assert_eq!(saida.status.code(), Some(2));
     let valor = json(&saida);
     assert_eq!(valor["codigo"], "entrada_invalida");
-    assert_eq!(valor["subcodigo"], "numero_processo_controle");
+    assert_eq!(valor["subcodigo"], "controle");
 }
 
 #[test]
@@ -60,10 +60,7 @@ fn opcoes_de_leitura_do_processo_nao_combinam_com_buscar() {
 fn sem_configuracao_a_falha_e_tipada_e_sem_rede() {
     let saida = ies(&["--json", "processo", "buscar", "00001"], false);
     assert_eq!(saida.status.code(), Some(1));
-    assert_eq!(
-        json(&saida)["subcodigo"],
-        "caminho_url_controle_nao_informado"
-    );
+    assert_eq!(json(&saida)["subcodigo"], "url_do_controle_sem_caminho");
 }
 
 #[test]

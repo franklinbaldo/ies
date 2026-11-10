@@ -37,14 +37,12 @@ pub(crate) enum FalhaDepoisDoEnvio {
     /// HTML 200 onde o observado é um 302.
     RespostaSemRedirecionamento,
     /// 302 sem `Location`.
-    #[causa(nome = "redirecionamento_da_troca_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     /// `Location` fora do host, da pasta ou da forma observada.
     LocalizacaoForaDaFormaObservada,
     /// `Location` para outra unidade que a escolhida.
     LocalizacaoDeOutraUnidade,
     /// Status fora de 200 e 302 (recusa do transporte com o status).
-    #[causa(nome = "status_inesperado")]
     Status(i32),
     #[causa(interna)]
     ControleNaoReconhecido(ErroCaixa),
@@ -74,7 +72,6 @@ pub(crate) enum ErroTroca {
     #[causa(interna)]
     ControleNaoReconhecido(ErroCaixa),
     UnidadeExibidaDiferenteDaSolicitada,
-    #[causa(nome = "links_de_troca_de_unidade_divergentes")]
     LinksDeTrocaDivergentes,
     ListaDeUnidadesIncompleta,
     UnidadeMarcadaDiferenteDaAtiva,
@@ -87,7 +84,6 @@ pub(crate) enum ErroTroca {
     },
     #[causa(interna)]
     Submissao(ErroSubmissaoFormulario),
-    #[causa(nome = "efeito_incerto_na_troca_de_unidade")]
     EfeitoIncerto {
         etapa: EtapaDaTroca,
         falha: FalhaDepoisDoEnvio,

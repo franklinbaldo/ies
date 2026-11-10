@@ -91,10 +91,7 @@ fn mesma_foto_de_novo_e_no_op_e_diferente_e_recusa() {
         planejar(&pasta, "0011519", v(2), &outro),
         Err(ErroCopia::FotoDivergente)
     );
-    assert_eq!(
-        ErroCopia::FotoDivergente.subcodigo(),
-        "foto_local_divergente"
-    );
+    assert_eq!(ErroCopia::FotoDivergente.subcodigo(), "foto_divergente");
     assert_eq!(
         fs::read_to_string(pasta.join("0011519.v2.html")).unwrap(),
         corpo
@@ -180,7 +177,7 @@ fn com_versao_a_foto_presente_e_conferida_antes_da_rede() {
     let ausente = pasta.join("nao-existe");
     assert_eq!(
         conferir_antes_da_rede(&ausente, &numeros, None).map_err(ErroCopia::subcodigo),
-        Err("diretorio_texto_documento_ausente")
+        Err("diretorio_ausente")
     );
     fs::remove_dir_all(pasta).unwrap();
 }

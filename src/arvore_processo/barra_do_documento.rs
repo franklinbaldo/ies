@@ -52,9 +52,7 @@ pub(crate) struct BarraDoDocumento {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroBarraDoDocumento {
-    #[causa(nome = "barras_do_documento_repetidas_na_arvore")]
     BarrasRepetidasNaArvore,
-    #[causa(nome = "link_das_versoes_de_outro_documento")]
     EnderecoDasVersoesDeOutroDocumento,
     #[causa(transparente)]
     Html(ErroHtml),

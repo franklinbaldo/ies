@@ -106,21 +106,15 @@ impl Visao {
 /// Uma variante por fato verificável; nenhum valor servido é guardado.
 #[derive(Clone, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroVisaoDoControle {
-    #[causa(nome = "charset_da_tela_do_controle_nao_suportado")]
     CharsetDaTelaNaoSuportado,
-    #[causa(nome = "unidade_da_tela_diferente_da_solicitada")]
     UnidadeDiferenteDaSolicitada,
-    #[causa(nome = "redirecionamento_ao_trocar_visao_do_controle")]
     RedirecionamentoAoTrocarVisao,
-    #[causa(nome = "visao_do_controle_nao_trocada_apos_envio")]
     VisaoNaoTrocadaAposEnvio {
         esperada: Visao,
     },
-    #[causa(nome = "unidade_alterada_ao_trocar_visao_do_controle")]
     UnidadeAlteradaAoTrocarVisao,
     PaginaAtualDaVisaoDetalhadaIlegivel,
     PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa,
-    #[causa(nome = "pagina_da_caixa_fora_do_intervalo")]
     PaginaForaDoIntervalo {
         solicitada: usize,
     },
@@ -128,7 +122,6 @@ pub(crate) enum ErroVisaoDoControle {
     CriteriosDaVisaoDetalhadaAlteradosAposPaginar,
     TotalDeclaradoAlteradoAposPaginar,
     FaixaDaRespostaDiferenteDaPaginaSolicitada,
-    #[causa(nome = "redirecionamento_apos_paginar_controle")]
     RedirecionamentoAposPaginar,
     #[causa(interna)]
     Caixa(ErroCaixa),

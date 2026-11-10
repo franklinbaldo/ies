@@ -5,12 +5,9 @@ use crate::processo_comentarios::ComentariosLidos;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum FalhaDaConferencia {
-    #[causa(nome = "id_do_comentario_ausente_no_aceite")]
     IdDoAceiteAusente,
     ComentarioNaoVisivelNaReleitura,
-    #[causa(nome = "comentario_novo_repetido_na_releitura")]
     ComentarioNovoRepetido,
-    #[causa(nome = "texto_do_comentario_diferente_do_pedido")]
     TextoDiferenteDoPedido,
 }
 

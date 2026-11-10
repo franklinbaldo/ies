@@ -1,9 +1,7 @@
 //! Relogin único das leituras: sequência exata de pedidos de cada caminho
 //! (vencida → relogin → leitura; geração já trocada; segunda falha; sem
 //! credenciais; outras falhas), com um só roteiro para login e leitura.
-use super::relogin::{
-    ContextoDoRelogin, FalhaDaLeitura, NotaDoRelogin, ler_com_relogin, sessao_encerrada,
-};
+use super::relogin::{ContextoDoRelogin, FalhaDaLeitura, NotaDoRelogin, ler_com_relogin};
 use super::tests_apoio::*;
 use super::{ErroLogin, RespostaHttp, TransporteDeLogin};
 use crate::configuracao::ArquivosDeAcesso;
@@ -138,7 +136,7 @@ fn executar(
         &contexto,
         &mut Compartilhado(roteiro),
         &|| roteiro.borrow().pedidos.len(),
-        E::subcodigo,
+        crate::erro_publico::Causa::sessao_encerrada,
         || {
             let lido = ler_controle(roteiro, &ambiente.arquivos);
             tentativas.set(tentativas.get() + 1);
@@ -156,23 +154,27 @@ fn sem_lock(ambiente: &Ambiente) -> bool {
 
 #[test]
 fn so_a_falha_tipada_de_sessao_encerrada_dispara() {
-    for sim in [
-        "pagina_de_login_recebida_no_controle",
-        "sessao_encerrada_rode_ies_login",
-    ] {
-        assert!(sessao_encerrada(sim), "{sim}");
-    }
+    use crate::erro_publico::Causa;
+    use crate::processo_obter::ErroProcessoObter;
+    let status = || StatusHttpRecusado::sem_mensagem(302);
+    assert!(FalhaTransporte::PaginaDeLoginRecebidaNoControle.sessao_encerrada());
+    assert!(FalhaTransporte::ControleRedirecionadoParaOLogin(status()).sessao_encerrada());
+    assert!(ErroProcessoObter::SessaoEncerrada.sessao_encerrada());
+    // A composição pergunta ao erro interno.
+    assert!(
+        ErroProcessoObter::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle)
+            .sessao_encerrada()
+    );
+    assert!(!ErroProcessoObter::EntradaPorIdRecusada.sessao_encerrada());
     for nao in [
-        "entrada_por_id_recusada_rode_ies_login",
-        "sessao_nao_autorizada",
-        "bloqueio_de_seguranca_da_instalacao",
-        "redirecionamento_recusado",
-        "falha_de_rede",
-        "tela_de_login_recebida_apos_envio",
-        "status_http_de_limite_de_requisicoes",
-        "tabela_ausente",
+        FalhaTransporte::AcessoNegado(StatusHttpRecusado::sem_mensagem(403)),
+        FalhaTransporte::BloqueioDeSegurancaDaInstalacao(StatusHttpRecusado::sem_mensagem(403)),
+        FalhaTransporte::Redirecionamento(status()),
+        FalhaTransporte::Rede,
+        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado::sem_mensagem(429)),
+        FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
-        assert!(!sessao_encerrada(nao), "{nao}");
+        assert!(!nao.sessao_encerrada(), "{nao:?}");
     }
 }
 
@@ -309,35 +311,32 @@ fn outras_falhas_nao_relogam_nem_repetem() {
     for (resposta, subcodigo) in [
         (
             Ok(status(403, None, &[], "Forbidden", "text/html")),
-            "sessao_nao_autorizada",
+            "acesso_negado",
         ),
         (
             Err(FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)),
             "bloqueio_de_seguranca_da_instalacao",
         ),
-        (Err(FalhaTransporte::Rede), "falha_de_rede"),
+        (Err(FalhaTransporte::Rede), "rede"),
         (
             Ok(r302("https://outro.gov.br/sip/login.php", &[])),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(r302(
                 "/sei/controlador.php?acao=procedimento_controlar",
                 &[],
             )),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(status(302, None, &[], "", "text/html")),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
-        (
-            Ok(r302("/sip/login.php#x", &[])),
-            "redirecionamento_recusado",
-        ),
+        (Ok(r302("/sip/login.php#x", &[])), "redirecionamento"),
         (
             Ok(status(301, Some(LOGIN_SIP), &[], "", "text/html")),
-            "redirecionamento_recusado",
+            "redirecionamento",
         ),
         (
             Ok(status(429, None, &[], "", "text/html")),
@@ -473,7 +472,7 @@ fn segundo_302_para_o_login_sai_com_o_erro_sem_novo_login() {
     let FalhaDaLeitura::Leitura { erro, nota } = falha else {
         panic!("esperada a falha da leitura");
     };
-    assert_eq!(erro.subcodigo(), "sessao_encerrada_rode_ies_login");
+    assert_eq!(erro.subcodigo(), "controle_redirecionado_para_o_login");
     assert_eq!(erro.status_http().map(|s| s.status), Some(302));
     assert_eq!(nota.map(NotaDoRelogin::total), Some(7));
     assert!(r.into_inner().esgotado());

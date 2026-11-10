@@ -229,7 +229,7 @@ fn dois_documentos_apos_post_sao_incerteza_sem_retry() {
     );
     assert_eq!(
         resultado.err().map(|erro| erro.subcodigo()),
-        Some("efeito_incerto_na_criacao_de_documento")
+        Some("efeito_incerto")
     );
     let mut esperados = pedidos_antes_da_escrita();
     esperados.push(pedido_criador());
@@ -324,7 +324,7 @@ fn salvar_sem_botao_observado_ou_com_acionador_divergente_recusa_antes_do_post()
         let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(
             resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_do_documento_nao_observada")
+            Some("submissao_nao_comprovada")
         );
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST criador");
     }
@@ -350,7 +350,7 @@ fn controle_salvar_dentro_de_template_nao_autoriza_post_criador() {
     let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
     assert_eq!(
         resultado.err().map(|erro| erro.subcodigo()),
-        Some("submissao_do_documento_nao_observada")
+        Some("submissao_nao_comprovada")
     );
     assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
 }
@@ -420,7 +420,7 @@ fn salvar_oculto_ou_em_fieldset_desabilitado_recusa_post() {
         let (resultado, pedidos) = executar_com_cadastro_sintetico(html);
         assert_eq!(
             resultado.err().map(|erro| erro.subcodigo()),
-            Some("submissao_do_documento_nao_observada")
+            Some("submissao_nao_comprovada")
         );
         assert_eq!(pedidos, pedidos_antes_da_escrita(), "5 GET, 0 POST");
     }

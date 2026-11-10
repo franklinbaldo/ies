@@ -75,7 +75,11 @@ fn publicar_erro(json_mode: bool, erro: &ErroCienciaProcesso) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+            crate::saida_erro::linha_humana(
+                crate::erro_publico::folha(erro),
+                erro.mensagem(),
+                erro.status_http()
+            )
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
@@ -99,7 +103,7 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
     };
     let mut objeto = json!({
         "codigo": codigo,
-        "subcodigo": erro.subcodigo(),
+        "subcodigo": crate::erro_publico::folha(erro),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
@@ -109,7 +113,7 @@ pub(crate) fn json_de_erro(erro: &ErroCienciaProcesso) -> serde_json::Value {
         falha_do_aceite,
     } = erro
     {
-        objeto["verificacao"] = json!(motivo);
+        objeto["verificacao"] = json!(crate::erro_publico::folha(motivo));
         objeto["requisicoes"] = json!(requisicoes);
         if let Some(falha) = falha_do_aceite {
             objeto["falha_do_aceite"] = json!({
@@ -137,7 +141,7 @@ mod testes_aviso {
     #[test]
     fn efeito_incerto_indica_lista_antes_de_nova_confirmacao() {
         let erro = ErroCienciaProcesso::EfeitoIncerto {
-            motivo: "aceite_sem_id_de_atividade_depois_da_escrita",
+            motivo: crate::ciencia::VerificacaoDaCiencia::AceiteSemIdDeAtividade,
             requisicoes: 6,
             falha_do_aceite: None,
         };

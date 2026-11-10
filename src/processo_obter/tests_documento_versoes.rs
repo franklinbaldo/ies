@@ -372,10 +372,7 @@ fn sem_pedido_a_barra_nao_e_lida_e_versao_atual_vem_do_rodape() {
     );
     let (r, pedidos) = rodar(ate_a_arvore(html), versao(1));
     assert_eq!(pedidos.len(), 4);
-    assert_eq!(
-        r.unwrap_err().subcodigo(),
-        "barras_do_documento_repetidas_na_arvore"
-    );
+    assert_eq!(r.unwrap_err().subcodigo(), "barras_repetidas_na_arvore");
 }
 
 /// Integração com a fatia 2 do #60: a versão N parte da árvore que o

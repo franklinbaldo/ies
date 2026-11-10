@@ -88,7 +88,7 @@ fn so_a_foto_sem_edicao_e_edicao_igual_sao_recusadas() {
     assert_eq!(previa(&pasta, None), Err(ErroCopia::EdicaoIgualABase));
     assert_eq!(
         ErroCopia::EdicaoIgualABase.subcodigo(),
-        "versao_editada_igual_a_base"
+        "edicao_igual_a_base"
     );
     fs::remove_dir_all(pasta).unwrap();
 }

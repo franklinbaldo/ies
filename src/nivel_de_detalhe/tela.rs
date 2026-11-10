@@ -16,13 +16,10 @@ pub(crate) enum ErroNivelDeDetalhe {
     AcaoDoFormularioDoNivelDeDetalheDiferente,
     /// O formulário não publica nenhuma das 12 caixas do catálogo.
     /// Uma caixa do catálogo ausente não é erro: sai com `disponivel: false`.
-    #[causa(nome = "nenhuma_opcao_do_nivel_de_detalhe_publicada")]
     NenhumaOpcaoDoDetalhePublicada,
-    #[causa(nome = "opcao_do_nivel_de_detalhe_repetida")]
     OpcaoDoDetalheRepetida {
         coluna: ColunaDoDetalhe,
     },
-    #[causa(nome = "rotulo_da_opcao_do_nivel_de_detalhe_diferente")]
     RotuloDaOpcaoDoDetalheDiferente {
         coluna: ColunaDoDetalhe,
     },

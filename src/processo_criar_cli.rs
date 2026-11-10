@@ -16,13 +16,9 @@ use std::process::ExitCode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 enum ErroEntradaCriacao {
-    #[causa(nome = "tipo_de_processo_invalido")]
     Tipo,
-    #[causa(nome = "especificacao_de_processo_invalida")]
     Especificacao,
-    #[causa(nome = "interessado_de_processo_invalido")]
     Interessado,
-    #[causa(nome = "hipotese_legal_informada_invalida")]
     Hipotese,
 }
 

@@ -28,13 +28,9 @@ pub(crate) enum ErroHipotese {
     // mantém o subcódigo público, enquanto a causa é tipada por Problema.
     #[causa(transparente)]
     Html(crate::erro_html::ErroHtml),
-    #[causa(nome = "hipotese_legal_ajax_nao_unica")]
     OpcaoNaoUnica,
-    #[causa(nome = "hipotese_legal_ajax_nao_unica")]
     OpcoesDisponiveis(Vec<(String, String)>),
-    #[causa(nome = "hipotese_legal_escolha_nao_oferecida")]
     EscolhaNaoOferecida,
-    #[causa(nome = "hipotese_legal_escolha_inline_nao_verificada")]
     EscolhaInlineNaoVerificada,
     // A causa concreta sobe, em vez de extrair nome de texto e
     // reconstruir um snapshot que perderia a variante original.
@@ -323,7 +319,7 @@ mod tests {
     fn red_oferece_id_e_nome_exatos_de_duas_hipoteses_ajax() {
         let xml = "<select><option value='null'>Selecione</option><option value='31'>Base A</option><option value='32'>Base B</option></select>";
         let erro = opcao_selecionada(xml, None).expect_err("sem escolha nao escreve");
-        assert_eq!(erro.subcodigo(), "hipotese_legal_ajax_nao_unica");
+        assert_eq!(erro.subcodigo(), "opcoes_disponiveis");
         assert_eq!(
             erro.opcoes_para_escolha(),
             Some(
@@ -429,12 +425,12 @@ mod tests {
         assert_eq!(folha(&ausente), "hipotese_legal_ajax_nao_declarada");
         assert_eq!(caminho_de(&ausente), ["html", "ausente"]);
         let transporte = ErroHipotese::de_transporte(&FalhaTransporte::Rede);
-        assert_eq!(folha(&transporte), "falha_de_rede");
+        assert_eq!(folha(&transporte), "rede");
         assert!(matches!(
             &transporte,
             ErroHipotese::Transporte(FalhaTransporte::Rede)
         ));
-        assert_eq!(caminho_de(&transporte), ["transporte", "falha_de_rede"]);
+        assert_eq!(caminho_de(&transporte), ["transporte", "rede"]);
     }
 
     #[test]

@@ -280,19 +280,16 @@ fn proxy_local_que_recusa_ou_nao_atende() {
 #[test]
 fn subcodigos_nomeiam_o_fato() {
     let casos = [
-        (FalhaDoProxy::EnderecoInvalido, "endereco_de_proxy_invalido"),
-        (
-            FalhaDoProxy::EsquemaNaoSuportado,
-            "proxy_com_esquema_nao_suportado",
-        ),
-        (FalhaDoProxy::Inacessivel, "proxy_inacessivel"),
+        (FalhaDoProxy::EnderecoInvalido, "endereco_invalido"),
+        (FalhaDoProxy::EsquemaNaoSuportado, "esquema_nao_suportado"),
+        (FalhaDoProxy::Inacessivel, "inacessivel"),
         (
             FalhaDoProxy::RespostaNaoInterpretavel,
-            "resposta_do_proxy_nao_interpretavel",
+            "resposta_nao_interpretavel",
         ),
         (
             FalhaDoProxy::RecusouOTunel { status: 407 },
-            "proxy_recusou_o_tunel",
+            "recusou_o_tunel",
         ),
     ];
     for (falha, subcodigo) in casos {

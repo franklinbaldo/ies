@@ -142,7 +142,7 @@ fn controle_302_para_o_login_e_sessao_encerrada_com_status() {
             FalhaTransporte::ControleRedirecionadoParaOLogin(StatusHttpRecusado::sem_mensagem(302)),
             "{local}"
         );
-        assert_eq!(falha.subcodigo(), "sessao_encerrada_rode_ies_login");
+        assert_eq!(falha.subcodigo(), "controle_redirecionado_para_o_login");
         assert_eq!(falha.status_http().map(|s| s.status), Some(302));
     }
 }
@@ -162,11 +162,7 @@ fn outro_302_outro_3xx_ou_sem_location_continua_recusado() {
         (307, Some(LOGIN_SIP)),
     ] {
         let falha = ler_controle(status, local);
-        assert_eq!(
-            falha.subcodigo(),
-            "redirecionamento_recusado",
-            "{status} {local:?}"
-        );
+        assert_eq!(falha.subcodigo(), "redirecionamento", "{status} {local:?}");
         assert_eq!(
             falha.status_http().map(|s| s.status),
             Some(u16::try_from(status).unwrap())

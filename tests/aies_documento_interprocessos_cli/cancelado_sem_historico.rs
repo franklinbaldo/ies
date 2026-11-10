@@ -27,10 +27,7 @@ fn bdd_60_05_cli_recusa_versao_de_documento_cancelado_sem_consultar_historico() 
         );
         let erro = json(&saida);
         assert_eq!(erro["documento"], DOC_A, "{erro}");
-        assert_eq!(
-            erro["subcodigo"], "documento_cancelado_sem_conteudo_na_arvore",
-            "{erro}"
-        );
+        assert_eq!(erro["subcodigo"], "documento_cancelado", "{erro}");
         assert!(erro.get("documentos").is_none(), "{erro}");
         assert!(
             trilha

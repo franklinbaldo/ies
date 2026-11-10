@@ -18,7 +18,7 @@ fn json(saida: &Output) -> serde_json::Value {
 #[test]
 fn marcador_invalido_sai_2_antes_de_ler_sessao() {
     for (rotulo, subcodigo) in [
-        ("sem-separador", "rotulo_do_marcador_sem_separador"),
+        ("sem-separador", "rotulo_sem_separador"),
         ("x#Nome", "id_do_marcador_nao_decimal"),
         ("501# ", "nome_do_marcador_vazio"),
     ] {
@@ -112,10 +112,7 @@ fn texto_multilinha_ou_unicode_nao_cria_recusa_antes_da_tela() {
             let saida = sem_sessao(&args);
             assert_eq!(saida.status.code(), Some(1));
             if confirmar {
-                assert_eq!(
-                    json(&saida)["subcodigo"],
-                    "escrita_de_marcador_ainda_fechada"
-                );
+                assert_eq!(json(&saida)["subcodigo"], "escrita_ainda_fechada");
                 assert_eq!(json(&saida)["requisicoes"], 0);
             } else {
                 assert_eq!(json(&saida)["codigo"], "fonte_invalida");
@@ -138,7 +135,7 @@ fn confirmacao_fechada_explicita_previa_segura_sem_sessao() {
         ]);
         assert_eq!(json_saida.status.code(), Some(1));
         let resposta = json(&json_saida);
-        assert_eq!(resposta["subcodigo"], "escrita_de_marcador_ainda_fechada");
+        assert_eq!(resposta["subcodigo"], "escrita_ainda_fechada");
         assert_eq!(resposta["requisicoes"], 0);
         assert!(
             resposta["erro"]

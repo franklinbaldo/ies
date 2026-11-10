@@ -22,32 +22,18 @@ use crate::instalacao::Instalacao;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroCriar {
-    #[causa(nome = "lista_de_tipos_fora_da_forma_observada")]
     ListaForaDaForma,
-    #[causa(nome = "tipo_de_documento_nao_oferecido")]
     TipoAusente,
-    #[causa(nome = "tipo_de_documento_ambiguo")]
     TipoAmbiguo,
-    #[causa(nome = "documento_criado_nao_comprovado")]
     NaoAplicado,
-    #[causa(
-        nome = "efeito_incerto_na_criacao_de_documento",
-        acao = "conferir_escrita"
-    )]
+    #[causa(acao = "conferir_escrita")]
     EfeitoIncerto,
-    #[causa(nome = "link_do_tipo_de_documento_nao_navegavel")]
     LinkDoTipoNaoNavegavel,
-    #[causa(nome = "endereco_do_tipo_de_documento_nao_reconhecido")]
     EnderecoDoTipoNaoReconhecido,
-    #[causa(nome = "cadastro_de_documento_fora_da_forma_observada")]
     CadastroForaDaForma,
-    #[causa(nome = "tipo_do_cadastro_diferente_do_solicitado")]
     TipoDoCadastroDiferente,
-    #[causa(nome = "descricao_nao_oferecida_no_cadastro")]
     DescricaoNaoOferecida,
-    #[causa(nome = "nivel_nao_oferecido_no_cadastro")]
     NivelNaoOferecido,
-    #[causa(nome = "campo_obrigatorio_do_cadastro_nao_atendido")]
     CampoObrigatorioNaoAtendido,
 }
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.

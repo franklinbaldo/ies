@@ -110,24 +110,20 @@ fn so_os_comandos_de_leitura_chamam_o_relogin() {
 
 #[test]
 fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
-    use crate::sessao_login::relogin::sessao_encerrada;
-
-    for subcodigo in [
-        "pagina_de_login_recebida_no_controle",
-        "sessao_encerrada_rode_ies_login",
-    ] {
-        assert!(sessao_encerrada(subcodigo), "{subcodigo}");
-    }
-    for subcodigo in [
-        "cookie_invalido",
-        "origem_nao_autorizada",
-        "status_http_de_limite_de_requisicoes",
-        "redirecionamento_recusado",
+    use crate::erro_publico::Causa;
+    assert!(Causa::sessao_encerrada(
+        &FalhaTransporte::PaginaDeLoginRecebidaNoControle
+    ));
+    for falha in [
+        FalhaTransporte::CookieInvalido,
+        FalhaTransporte::OrigemNaoAutorizada,
+        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado::sem_mensagem(429)),
+        FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(301)),
         // #222: a sessão regravada duas vezes durante a leitura não é
         // sessão vencida; nenhum relogin implícito.
-        "sessao_trocada_durante_a_leitura",
+        FalhaTransporte::SessaoTrocadaDuranteALeitura,
     ] {
-        assert!(!sessao_encerrada(subcodigo), "{subcodigo}");
+        assert!(!Causa::sessao_encerrada(&falha), "{falha:?}");
     }
     let invalidos = [
         (FalhaTransporte::CookieInvalido, "cookie_invalido"),

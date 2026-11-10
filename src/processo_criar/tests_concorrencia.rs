@@ -38,7 +38,7 @@ fn red_candidato_identico_de_outro_agente_nao_prova_autoria_do_post() {
     let diagnostico = erro
         .diagnostico_apos_post()
         .expect("preservar provas observadas");
-    assert_eq!(diagnostico.causa_post, "falha_de_rede");
+    assert_eq!(diagnostico.causa_post, "rede");
     assert_eq!(diagnostico.causa_releitura, None);
     assert_eq!(
         diagnostico.candidatos_compativeis,

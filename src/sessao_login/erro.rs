@@ -32,7 +32,6 @@ pub(crate) enum ErroLogin {
     /// Origem da instalação ilegível ou fora do formato `Instalacao`.
     #[causa(interna)]
     Origem(FalhaTransporte),
-    #[causa(nome = "caminho_credenciais_nao_informado")]
     CaminhoDasCredenciaisNaoInformado,
     #[causa(interna)]
     ArquivoDeCredenciais(FalhaTransporte),
@@ -46,9 +45,7 @@ pub(crate) enum ErroLogin {
     #[causa(interna)]
     ArquivoDaSessao(FalhaTransporte),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
-    #[causa(nome = "controle_web_nao_reconhecido")]
     ControleDaSessaoExistenteNaoReconhecido(ErroCaixa),
-    #[causa(nome = "redirecionamento_do_login_sem_localizacao")]
     RedirecionamentoSemLocalizacao,
     LocalizacaoDeRedirecionamentoNaoInterpretavel,
     RedirecionamentoParaForaDaInstalacao,

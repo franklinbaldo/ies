@@ -4,11 +4,8 @@ pub struct NumeroDocumento(String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum NumeroDocumentoInvalido {
-    #[causa(nome = "numero_documento_vazio")]
     Vazio,
-    #[causa(nome = "numero_documento_controle")]
     Controle,
-    #[causa(nome = "numero_documento_nao_numerico")]
     NaoNumerico,
 }
 

@@ -10,13 +10,9 @@ pub struct VersaoDocumento(NonZeroU32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, crate::erro_publico::Causa)]
 pub enum ErroVersao {
-    #[causa(nome = "linha_historico_incompleta")]
     LinhaIncompleta,
-    #[causa(nome = "link_versao_inseguro")]
     LinkInseguro,
-    #[causa(nome = "identidade_documento_divergente")]
     DocumentoDivergente,
-    #[causa(nome = "lista_versoes_incompleta")]
     ListaIncompleta,
     VersaoNaoObservada,
     #[causa(transparente)]
