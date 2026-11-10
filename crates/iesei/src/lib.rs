@@ -23,4 +23,5 @@ pub mod prazos;
 pub mod processos;
 pub mod relacionamentos;
 pub mod retornos_cassettes;
+pub mod sobrestamentos;
 pub mod sqlite;

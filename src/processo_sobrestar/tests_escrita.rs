@@ -183,3 +183,32 @@ fn retomar_uma_escrita_get_sem_retry_e_verificacao() {
     esperados.extend([get(&links().1), get(&url_retomar()), get(&url_arvore())]);
     assert_eq!(pedidos, esperados);
 }
+
+#[test]
+fn retomar_get_mutador_recusado_nao_atribui_mudanca_concorrente() {
+    let mut respostas = abertura(sobrestado());
+    respostas.extend([
+        ok(tela_de_retomar()),
+        r302("controlador.php?acao=login"),
+        // Outra sessão pode ter alterado o processo antes da releitura.
+        // A ausência de sobrestamento não prova que este GET o retirou.
+        ok(arvore(&[UNIDADE], &[sobrestar()])),
+    ]);
+    let (resultado, pedidos) = rodar(Acao::Retomar, None, true, respostas);
+    assert_eq!(resultado, Err(E::EfeitoIncerto));
+    assert_eq!(pedidos.len(), 6);
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 6);
+}
+
+#[test]
+fn sobrestar_post_redirecionado_ao_login_nao_prova_efeito_concorrente() {
+    let (resultado, pedidos) = rodar(
+        Acao::Sobrestar,
+        Some("Aguarda decisao"),
+        true,
+        respostas_sobrestar(r302("controlador.php?acao=login"), ok(sobrestado())),
+    );
+    assert_eq!(resultado, Err(E::EfeitoIncerto));
+    assert_eq!(pedidos, pedidos_sobrestar());
+    assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
+}

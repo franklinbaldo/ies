@@ -46,7 +46,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
         ErroProcessoObter::Transporte(FalhaTransporte::OrigemNaoAutorizada),
     ))?;
     let cookie = ler_cookie(sessao).map_err(E::TelaDaEscrita)?;
-    match acao {
+    let resposta_de_escrita_aceita = match acao {
         Acao::Sobrestar => {
             let (html, mime) =
                 obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
@@ -86,13 +86,13 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
             }
             // Um 302 esperado é evidência, nunca prova suficiente. 200,
             // 502 ou resposta perdida exigem a mesma verificação por leitura.
-            let _resposta_esperada = matches!(
+            matches!(
                 resposta,
                 Ok(RespostaDoEnvio::Redirecionamento(ref r))
                     if tela::redirecionamento_esperado(
                         r.localizacao(), r.url_do_envio(), &previa.id_procedimento,
                     )
-            );
+            )
         }
         Acao::Retomar => {
             // A URL da função só existe na tela do nó. A primeira URL
@@ -101,17 +101,23 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 obter_tela(&mut rede, &cookie, endereco.as_str()).map_err(mapear_tela)?;
             let url = ler_endereco_de_retomar(&instalacao, &html, &previa.id_procedimento)
                 .map_err(E::EnderecoDeRetomar)?;
-            let _falha = pela_funcao(
+            pela_funcao(
                 &mut rede,
                 &cookie,
                 url.as_str(),
                 FalhaDoEnvio::RedirecionamentoNaFuncao,
-            );
+            )
+            .is_none()
         }
-    }
+    };
     let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
     let depois = verificado.map_err(|_| E::EfeitoIncerto)?.arvore.aberto_em;
+    // O estado posterior pode ter mudado por outro agente; resposta de
+    // escrita recusada ou perdida não prova autoria, mesmo se coincidir.
+    if !resposta_de_escrita_aceita {
+        return Err(E::EfeitoIncerto);
+    }
     let aplicado = match (acao, depois) {
         (Acao::Sobrestar, AbertoEm::Sobrestado(unidades)) => {
             unidades.iter().any(|u| u.sigla == previa.unidade)
