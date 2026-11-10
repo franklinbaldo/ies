@@ -164,13 +164,14 @@ enum Modo {
     RespostaIncerta,
     Previa,
     PreviaPendencia,
+    PreviaAssinada,
     PreviaSemObservacao,
     JaAnexado,
 }
 
 /// Estado inicial sintético para uma das hipóteses de anexação.
 fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) {
-    if matches!(modo, Modo::PreviaPendencia | Modo::PreviaSemObservacao) {
+    if matches!(modo, Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao) {
         documento_versoes::guardar(
             banco,
             CENARIO,
@@ -186,12 +187,12 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
                     usuario: "TESTE".into(),
                     unidade: "TESTE".into(),
                     modificacao: "10/11/2026".into(),
-                    html_corpo: "<p>Documento de ensaio ainda não assinado</p>".into(),
+                    html_corpo: "<p>Documento com observação de assinatura</p>".into(),
                 }],
             },
         )
         .unwrap();
-        if matches!(modo, Modo::PreviaPendencia) {
+        if !matches!(modo, Modo::PreviaSemObservacao) {
             editor_documento::registrar_oferta(
                 banco,
                 instalacao,
@@ -199,7 +200,7 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
                 "77",
                 Oferta {
                     editavel: true,
-                    assinaturas: 0,
+                    assinaturas: u32::from(matches!(modo, Modo::PreviaAssinada)),
                 },
             )
             .unwrap();
@@ -303,7 +304,7 @@ fn executar(modo: Modo) {
             PRINCIPAL,
             "--confirmar",
         ],
-        Modo::Previa | Modo::PreviaPendencia | Modo::PreviaSemObservacao | Modo::JaAnexado => {
+        Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada | Modo::PreviaSemObservacao | Modo::JaAnexado => {
             &["--json", "processo", "anexar", ANEXADO, "--a", PRINCIPAL]
         }
     };
@@ -338,7 +339,7 @@ fn conferir_resultados(
     pedidos: &[String],
 ) {
     let esperado = match modo {
-        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia => 0,
+        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => 0,
         Modo::RespostaIncerta => 3,
         Modo::JaAnexado | Modo::PreviaSemObservacao => 1,
     };
@@ -363,7 +364,7 @@ fn conferir_resultados(
             assert!(saida_json["escrita"]["aplicada"].is_null());
             assert!(saida_json["erro"].as_str().unwrap().contains("não repita"));
         }
-        Modo::Previa => {
+        Modo::Previa | Modo::PreviaAssinada => {
             assert_eq!(saida_json["principal"], PRINCIPAL);
             assert_eq!(saida_json["anexado"], ANEXADO);
             assert_eq!(saida_json["documentos_assinados"], true);
@@ -434,6 +435,11 @@ fn bdd_270_01_previa_nao_anexa_e_preserva_o_principal() {
 #[test]
 fn bdd_270_01_previa_avisa_documento_sem_assinatura_e_nao_anexa() {
     executar(Modo::PreviaPendencia);
+}
+
+#[test]
+fn consulta_com_assinatura_positiva_observada_preserva_previa() {
+    executar(Modo::PreviaAssinada);
 }
 
 #[test]
