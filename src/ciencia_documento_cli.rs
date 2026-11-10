@@ -96,7 +96,11 @@ fn falha(json_mode: bool, erro: &ErroCienciaDocumento) -> ExitCode {
     } else {
         eprintln!(
             "{}",
-            crate::saida_erro::linha_humana(erro.subcodigo(), erro.mensagem(), erro.status_http())
+            crate::saida_erro::linha_humana(
+                crate::erro_publico::folha(erro),
+                erro.mensagem(),
+                erro.status_http()
+            )
         );
         if let Some(aviso) = aviso_da_falha(erro) {
             eprintln!("{aviso}");
@@ -119,7 +123,7 @@ fn aviso_da_falha(erro: &ErroCienciaDocumento) -> Option<String> {
 pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
     let mut saida = json!({
         "codigo": if erro.saida() == 3 { "efeito_incerto" } else { "fonte_invalida" },
-        "subcodigo": erro.subcodigo(),
+        "subcodigo": crate::erro_publico::folha(erro),
         "erro": erro.mensagem(),
         "retentavel": false,
     });
@@ -129,7 +133,7 @@ pub(crate) fn json_da_falha(erro: &ErroCienciaDocumento) -> serde_json::Value {
         falha_do_aceite,
     } = erro
     {
-        saida["verificacao"] = json!(motivo);
+        saida["verificacao"] = json!(crate::erro_publico::folha(motivo));
         saida["requisicoes"] = json!(requisicoes);
         if let Some(falha) = falha_do_aceite {
             saida["falha_do_aceite"] = json!({
@@ -192,7 +196,7 @@ mod testes_previa {
     #[test]
     fn erro_humano_da_ciencia_documental_informa_requests_e_nao_proibe_previa() {
         let erro = ErroCienciaDocumento::EfeitoIncerto {
-            motivo: "aceite_sem_atividade_do_documento",
+            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividade,
             requisicoes: 6,
             falha_do_aceite: None,
         };
@@ -213,7 +217,7 @@ mod testes_previa {
     #[test]
     fn erro_json_documental_orienta_conferir_lista_antes_de_confirmar() {
         let erro = ErroCienciaDocumento::EfeitoIncerto {
-            motivo: "aceite_sem_atividade_do_documento",
+            motivo: crate::ciencia::VerificacaoDaCienciaDoDocumento::AceiteSemAtividade,
             requisicoes: 6,
             falha_do_aceite: None,
         };

@@ -57,10 +57,34 @@ impl FalhaDoAceite {
 
     pub(crate) fn detalhe(&self) -> Option<&'static str> {
         match self {
-            Self::Aceite(erro) => Some(erro.subcodigo()),
+            Self::Aceite(erro) => Some(crate::erro_publico::folha(erro)),
             _ => None,
         }
     }
+}
+
+/// Por que a releitura não comprovou a ciência do documento depois do GET
+/// mutador. A causa original fica como `fonte`; o nome público é o mesmo.
+#[derive(Debug, crate::erro_publico::Causa)]
+pub(crate) enum VerificacaoDaCienciaDoDocumento {
+    #[causa(fonte, nome = "arvore_do_documento_nao_relida")]
+    ArvoreNaoRelida(ErroDocumentoObter),
+    #[causa(nome = "identidade_do_documento_alterada_na_releitura")]
+    IdentidadeAlterada,
+    #[causa(nome = "aceite_sem_atividade_do_documento")]
+    AceiteSemAtividade,
+    #[causa(fonte, nome = "lista_de_ciencias_do_documento_fora_da_forma")]
+    ListaForaDaForma(ErroHtml),
+    #[causa(nome = "lista_de_ciencias_do_documento_ausente")]
+    ListaAusente,
+    #[causa(fonte, nome = "releitura_da_lista_de_ciencias_do_documento_falhou")]
+    ReleituraFalhou(FalhaTransporte),
+    #[causa(fonte, nome = "resposta_da_lista_de_ciencias_do_documento_nao_lida")]
+    RespostaNaoLida(FalhaTransporte),
+    #[causa(fonte, nome = "lista_de_ciencias_do_documento_nao_comprovou_atividade")]
+    ListaNaoComprovou(super::ErroCiencia),
+    #[causa(nome = "atividade_da_ciencia_nao_encontrada_na_lista_do_documento")]
+    AtividadeNaoEncontrada,
 }
 
 #[derive(Debug, crate::erro_publico::Causa)]
@@ -87,16 +111,13 @@ pub(crate) enum ErroCienciaDocumento {
     SessaoEncerrada,
     #[causa(nome = "efeito_incerto_na_ciencia_do_documento")]
     EfeitoIncerto {
-        motivo: &'static str,
+        motivo: VerificacaoDaCienciaDoDocumento,
         requisicoes: u8,
         falha_do_aceite: Option<FalhaDoAceite>,
     },
 }
 
 impl ErroCienciaDocumento {
-    pub(crate) fn subcodigo(&self) -> &'static str {
-        crate::erro_publico::folha(self)
-    }
     pub(crate) fn mensagem(&self) -> &'static str {
         match self {
             Self::Abertura(e) => e.mensagem(),
@@ -232,7 +253,7 @@ pub(crate) fn ciencia_no_documento<V: EnvioDoProcesso>(
             Ok(feito)
         }
         Ok((false, _)) => Err(E::EfeitoIncerto {
-            motivo: "atividade_da_ciencia_nao_encontrada_na_lista_do_documento",
+            motivo: VerificacaoDaCienciaDoDocumento::AtividadeNaoEncontrada,
             requisicoes: rede.feitas(),
             falha_do_aceite,
         }),
@@ -284,7 +305,7 @@ fn verificar<V: EnvioDoProcesso>(
     id_procedimento: &str,
     id_documento: &str,
     atividade: Option<&str>,
-) -> Result<(bool, Option<String>), &'static str> {
+) -> Result<(bool, Option<String>), VerificacaoDaCienciaDoDocumento> {
     let abertura = PedidoDoDocumento {
         numero: pedido.numero,
         processo: pedido.processo,
@@ -292,26 +313,26 @@ fn verificar<V: EnvioDoProcesso>(
         anexo: PedidoDoAnexo::default(),
     };
     let novo = abrir_documento_na_arvore(sessao, &abertura, indice, rede)
-        .map_err(|_| "arvore_do_documento_nao_relida")?;
+        .map_err(VerificacaoDaCienciaDoDocumento::ArvoreNaoRelida)?;
     if novo.id_documento != id_documento || novo.processo.id != id_procedimento {
-        return Err("identidade_do_documento_alterada_na_releitura");
+        return Err(VerificacaoDaCienciaDoDocumento::IdentidadeAlterada);
     }
     let Some(atividade) = atividade else {
-        return Err("aceite_sem_atividade_do_documento");
+        return Err(VerificacaoDaCienciaDoDocumento::AceiteSemAtividade);
     };
     let lista = lista_do_documento(instalacao, &novo.html, id_procedimento, id_documento)
-        .map_err(|_| "lista_de_ciencias_do_documento_fora_da_forma")?
-        .ok_or("lista_de_ciencias_do_documento_ausente")?;
+        .map_err(VerificacaoDaCienciaDoDocumento::ListaForaDaForma)?
+        .ok_or(VerificacaoDaCienciaDoDocumento::ListaAusente)?;
     let resposta = rede
         .get_sem_seguir(lista.as_str(), cookie)
-        .map_err(|_| "releitura_da_lista_de_ciencias_do_documento_falhou")?;
+        .map_err(VerificacaoDaCienciaDoDocumento::ReleituraFalhou)?;
     let html = decodificar_resposta(resposta.resposta)
-        .map_err(|_| "resposta_da_lista_de_ciencias_do_documento_nao_lida")?;
+        .map_err(VerificacaoDaCienciaDoDocumento::RespostaNaoLida)?;
     let presente = atividade_na_lista(&html, atividade)
-        .map_err(|_| "lista_de_ciencias_do_documento_nao_comprovou_atividade")?;
+        .map_err(VerificacaoDaCienciaDoDocumento::ListaNaoComprovou)?;
     let usuario = if presente {
         super::lista_autoria::usuario_da_atividade_na_lista(&html, atividade)
-            .map_err(|_| "lista_de_ciencias_do_documento_nao_comprovou_atividade")?
+            .map_err(VerificacaoDaCienciaDoDocumento::ListaNaoComprovou)?
     } else {
         None
     };

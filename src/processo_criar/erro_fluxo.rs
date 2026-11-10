@@ -48,12 +48,12 @@ pub(crate) struct DiagnosticoPosEscrita {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ErroCriar {
-    /// Falha antes da escrita; guarda o subcódigo do transporte e, quando
-    /// houve, o status e a mensagem saneada do SEI.
-    Transporte {
-        subcodigo: &'static str,
-        http: Option<StatusHttpRecusado>,
-    },
+    /// Falha de transporte antes da escrita, com a causa original.
+    Transporte(FalhaTransporte),
+    /// O envio do formulário falhou antes de qualquer POST tentado.
+    Submissao(ErroSubmissaoFormulario),
+    /// Origem ou cookie da sessão local ilegíveis, antes da rede.
+    SessaoLocalIlegivel,
     UnidadeDiferente,
     Menu(ErroHtml),
     Lista(ErroListaDeTipos),
@@ -101,7 +101,8 @@ pub(crate) enum ErroCriar {
 impl ErroCriar {
     pub(crate) fn subcodigo(&self) -> &'static str {
         match self {
-            Self::Transporte { subcodigo, .. } => subcodigo,
+            Self::Transporte(falha) => crate::erro_publico::folha(falha),
+            Self::SessaoLocalIlegivel => "falha_de_transporte_na_criacao",
             Self::UnidadeDiferente => "unidade_da_criacao_divergente",
             Self::Menu(erro) => erro.onde,
             Self::Lista(erro) => erro.subcodigo(),
@@ -119,7 +120,9 @@ impl ErroCriar {
             Self::PropriedadesNaoOferecidas => "propriedades_nao_oferecidas_ao_candidato",
             Self::ProvaDaCriacao(erro) => crate::erro_publico::folha(erro),
             Self::VerificacaoAposPost(erro) => erro.subcodigo(),
-            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.subcodigo(),
+            Self::Submissao(erro) | Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => {
+                erro.subcodigo()
+            }
             Self::PosEscrita {
                 correspondentes: Some(nups),
                 posterior: Ok(_),
@@ -166,7 +169,7 @@ impl ErroCriar {
 
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
-            Self::Transporte { http, .. } => http.as_ref(),
+            Self::Transporte(falha) => falha.status_http(),
             Self::VerificacaoAposPost(erro) => erro.status_http(),
             Self::Hipotese(erro) => erro.status_http(),
             Self::Interessado(erro) => erro.status_http(),
@@ -180,22 +183,10 @@ impl ErroCriar {
             Self::PosRespostaInesperada { posterior, .. } => {
                 posterior.as_ref().err().and_then(|erro| erro.status_http())
             }
-            Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => erro.status_http(),
+            Self::Submissao(erro) | Self::RecusaDoPost(erro) | Self::RespostaHttpSemProva(erro) => {
+                erro.status_http()
+            }
             _ => None,
-        }
-    }
-
-    pub(super) fn de_transporte(falha: &FalhaTransporte) -> Self {
-        Self::Transporte {
-            subcodigo: falha.subcodigo(),
-            http: falha.status_http().cloned(),
-        }
-    }
-
-    pub(super) fn local() -> Self {
-        Self::Transporte {
-            subcodigo: "falha_de_transporte_na_criacao",
-            http: None,
         }
     }
 

@@ -87,9 +87,11 @@ envolvente devolve o próprio `Enum` e o `?` não está numa closure.
 
 Restam à mão:
 - **Variantes com `&'static str`** (o leitor devolve o subcódigo como
-  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura`,
-  `ErroCriar::Transporte`, e o padrão aninhado de
-  `processo_andamento_registrar::Erro`.
+  texto): `FalhaAnexar::Estrutura`, `FalhaRelacionar::Estrutura` e o
+  padrão aninhado de `processo_andamento_registrar::Erro`.
+  `ErroCriar::Transporte` já guarda a causa (`FalhaTransporte`,
+  `ErroSubmissaoFormulario`); os motivos da releitura da ciência são
+  `VerificacaoDaCiencia` e `VerificacaoDaCienciaDoDocumento`.
 - **Etapas achatadas** (tipo interno repetido): `ErroLogin` e
   `ErroReabrir` (`FalhaTransporte`), `ErroProcessoObter`
   (`ErroSubmissaoFormulario`).

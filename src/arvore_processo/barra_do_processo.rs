@@ -78,23 +78,16 @@ pub(crate) fn ler_link_das_anotacoes(
 }
 
 /// Recusas do link de controle de prazo; URLs assinadas nunca aparecem no erro.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, crate::erro_publico::Causa)]
 pub(crate) enum ErroLinkPrazo {
+    #[causa(nome = "barra_de_prazo_nao_interpretada")]
     BarraNaoInterpretada,
+    #[causa(nome = "links_de_prazo_repetidos")]
     LinksRepetidos,
+    #[causa(nome = "endereco_de_prazo_nao_reconhecido")]
     EnderecoNaoReconhecido,
+    #[causa(nome = "endereco_de_prazo_de_outro_processo")]
     EnderecoDeOutroProcesso,
-}
-
-impl ErroLinkPrazo {
-    pub(crate) fn subcodigo(self) -> &'static str {
-        match self {
-            Self::BarraNaoInterpretada => "barra_de_prazo_nao_interpretada",
-            Self::LinksRepetidos => "links_de_prazo_repetidos",
-            Self::EnderecoNaoReconhecido => "endereco_de_prazo_nao_reconhecido",
-            Self::EnderecoDeOutroProcesso => "endereco_de_prazo_de_outro_processo",
-        }
-    }
 }
 
 /// Ação de prazo servida na barra do próprio processo, nunca fabricada.
