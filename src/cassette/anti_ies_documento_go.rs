@@ -122,6 +122,46 @@ fn confrontar_corpo_observado_http(
     }
 }
 
+/// Negativos derivados dos IDs da gravação: não foram emitidos pelo SEI.
+fn confrontar_recusas_de_versoes(
+    endereco: SocketAddr,
+    id: &str,
+    processo: &str,
+    versao_inexistente: u32,
+    versao_capturada: Option<u32>,
+) {
+    let ausente = format!(
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao_inexistente}"
+    );
+    assert!(
+        pedir(endereco, "GET", &ausente).starts_with("HTTP/1.1 404"),
+        "versão não capturada nem cadastrada não pode servir o corpo atual"
+    );
+    let protocolo_conflitante = format!(
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}"
+    );
+    assert!(
+        pedir(endereco, "GET", &protocolo_conflitante).starts_with("HTTP/1.1 400"),
+        "id_protocolo contraditório não pode abrir histórico"
+    );
+    if let Some(versao) = versao_capturada {
+        let corpo_observado = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "POST", &corpo_observado).starts_with("HTTP/1.1 405"),
+            "POST no corpo observado é recusado sem editar revisão"
+        );
+        let identidade_conflitante = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "GET", &identidade_conflitante).starts_with("HTTP/1.1 400"),
+            "identidade contraditória não pode vazar o corpo capturado"
+        );
+    }
+}
+
 fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool) {
     let raiz = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let card = raiz.join(caminho_card);
@@ -220,37 +260,13 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
     confrontar_corpo_observado_http(endereco, id, &processo, &numero, conteudo.as_ref());
-    let versao_inexistente = historico_original.atual().unwrap().numero() + 1;
-    let ausente = format!(
-        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao_inexistente}"
+    confrontar_recusas_de_versoes(
+        endereco,
+        id,
+        &processo,
+        historico_original.atual().unwrap().numero() + 1,
+        conteudo.as_ref().map(|(versao, _, _)| *versao),
     );
-    assert!(
-        pedir(endereco, "GET", &ausente).starts_with("HTTP/1.1 404"),
-        "versão não capturada nem cadastrada não pode servir o corpo atual"
-    );
-    let protocolo_conflitante = format!(
-        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}"
-    );
-    assert!(
-        pedir(endereco, "GET", &protocolo_conflitante).starts_with("HTTP/1.1 400"),
-        "id_protocolo contraditório não pode abrir histórico"
-    );
-    if let Some((versao, _, _)) = &conteudo {
-        let corpo_observado = format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
-        );
-        assert!(
-            pedir(endereco, "POST", &corpo_observado).starts_with("HTTP/1.1 405"),
-            "POST no corpo observado é recusado sem editar revisão"
-        );
-        let identidade_conflitante = format!(
-            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}&versao={versao}"
-        );
-        assert!(
-            pedir(endereco, "GET", &identidade_conflitante).starts_with("HTTP/1.1 400"),
-            "identidade contraditória não pode vazar o corpo capturado"
-        );
-    }
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
