@@ -192,17 +192,14 @@ pub fn responder(
         return Resposta::nova(Estado::RequisicaoInvalida);
     };
     if acao == "anotacao_registrar" {
-        let texto = campo_unico(&campos, "txaDescricao").and_then(decodificar_formulario);
-        if campo_unico(&campos, "hdnIdProtocolo") != Some(id) || texto.is_none() {
+        let Some(texto) = campo_unico(&campos, "txaDescricao").and_then(decodificar_formulario)
+        else {
+            return Resposta::nova(Estado::RequisicaoInvalida);
+        };
+        if campo_unico(&campos, "hdnIdProtocolo") != Some(id) {
             return Resposta::nova(Estado::RequisicaoInvalida);
         }
-        return match registrar_anotacao(
-            banco,
-            instalacao,
-            cenario,
-            id,
-            texto.as_deref().expect("texto conferido"),
-        ) {
+        return match registrar_anotacao(banco, instalacao, cenario, id, &texto) {
             Ok(()) => redirecionado(acao, id),
             Err(falha) => Resposta::nova(estado_da_falha(&falha)),
         };
