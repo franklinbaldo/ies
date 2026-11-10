@@ -186,7 +186,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     let endereco = escuta.local_addr().unwrap();
     // GET de versão inexistente e identidade documental contraditória são
     // perturbações sintéticas dos IDs observados, não respostas do SEI.
-    let pedidos = 5 + 2 * usize::from(conteudo.is_some());
+    let pedidos = 5 + 3 * usize::from(conteudo.is_some());
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
