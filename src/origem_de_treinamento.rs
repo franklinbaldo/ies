@@ -57,7 +57,8 @@ pub(crate) enum Escrita {
 impl Escrita {
     /// Ensaio ao vivo aprovado em treinamento, com relatório:
     /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
-    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`;
+    /// - prazo, nas sete instalações:
+    ///   `docs/validacao-live/2026-11-10-processo-prazo-7-instalacoes.md`;
     /// - relacionar e andamento:
     ///   `docs/validacao-live/2026-11-10-processo-relacionar-andamento-unb.md`;
     /// - enviar removendo anotações:
