@@ -212,6 +212,7 @@ fn conferir_previa_humana(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta_
 enum Caso {
     AtribuirExistente,
     AtribuirAusente,
+    AtribuirSemCatalogo,
     RetirarAusente,
     RetirarPresente,
     RetirarSemMarcadores,
@@ -221,7 +222,7 @@ enum Caso {
 
 fn pedido(caso: Caso) -> (&'static str, &'static str) {
     match caso {
-        Caso::AtribuirExistente | Caso::AtribuirAusente => ("--marcador", "501#Revisão"),
+        Caso::AtribuirExistente | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo => ("--marcador", "501#Revisão"),
         Caso::RetirarAusente | Caso::RetirarSemMarcadores => ("--retirar", "502#Pendente"),
         Caso::RetirarPresente | Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto => {
             ("--retirar", "501#Revisão")
@@ -240,7 +241,7 @@ fn executar_caso_cli(
     if matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto) {
         argumentos.push("--confirmar");
     }
-    if matches!(caso, Caso::AtribuirAusente) {
+    if matches!(caso, Caso::AtribuirAusente | Caso::AtribuirSemCatalogo) {
         argumentos.extend(["--texto", "Nova revisão"]);
     }
     executar_cli(pasta, arquivos, porta_proxy, &argumentos)
@@ -271,7 +272,10 @@ fn conferir_controles(controles: &[(bool, bool, bool)], sem_marcadores: bool) {
 }
 
 fn executar(caso: Caso) {
-    let sem_marcadores = matches!(caso, Caso::RetirarSemMarcadores | Caso::AtribuirAusente);
+    let sem_marcadores = matches!(
+        caso,
+        Caso::RetirarSemMarcadores | Caso::AtribuirAusente | Caso::AtribuirSemCatalogo
+    );
     let com_catalogo = matches!(caso, Caso::AtribuirAusente);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let pasta = Pasta::nova();
@@ -380,6 +384,14 @@ fn conferir(
     let confirmado = matches!(caso, Caso::RetirarConfirmado | Caso::RetirarEfeitoIncerto);
     let efeito_incerto = matches!(caso, Caso::RetirarEfeitoIncerto);
     let json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
+    if matches!(caso, Caso::AtribuirSemCatalogo) {
+        assert_eq!(saida.status.code(), Some(1));
+        assert_eq!(json["codigo"], "fonte_invalida");
+        assert!(!pedidos.iter().any(|pedido| pedido.starts_with("POST ")));
+        assert_eq!(persistido.total_declarado, 0);
+        assert_eq!(releitura.status.code(), Some(0));
+        return;
+    }
     if matches!(caso, Caso::AtribuirAusente) {
         assert_eq!(
             saida.status.code(),
@@ -486,4 +498,9 @@ fn bdd_255_02_post_aplicado_com_403_e_efeito_incerto_sem_retry() {
 #[test]
 fn bdd_255_01_atribuicao_ausente_deve_exibir_previa_sem_post() {
     executar(Caso::AtribuirAusente);
+}
+
+#[test]
+fn bdd_255_01_sem_catalogo_observado_nao_inventa_atribuicao() {
+    executar(Caso::AtribuirSemCatalogo);
 }
