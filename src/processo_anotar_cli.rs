@@ -9,7 +9,11 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Anotar { numero, texto }),
+        acao: Some(ProcessoAcao::Anotar {
+            numero,
+            texto,
+            confirmar,
+        }),
         ..
     }) = &cli.command
     else {
@@ -34,12 +38,20 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
         }
         return Some(ExitCode::from(2));
     }
-    Some(com_sessao(
-        cli,
-        |sessao, indice| match processo_anotar::prever(
+    Some(com_sessao(cli, |sessao, indice| {
+        if *confirmar
+            && let Err(causa) = crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoAnotar,
+                sessao.origem,
+            )
+        {
+            return crate::origem_de_treinamento::recusa(cli.json, causa);
+        }
+        match processo_anotar::executar(
             sessao,
             &nup,
             texto,
+            *confirmar,
             cli.unidade.as_deref(),
             indice,
             &mut EnvioHttps,
@@ -54,11 +66,16 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                             "unidade": preview.unidade,
                             "texto": preview.texto,
                             "anotacao_antes": preview.anotacao_antes,
-                            "confirmado": false,
-                            "alterado": false,
+                            "confirmado": *confirmar,
+                            "alterado": preview.alterado,
                             "origem": "web",
                             "requisicoes": preview.requisicoes,
                         })
+                    );
+                } else if preview.alterado {
+                    println!(
+                        "Anotação registrada e conferida no processo {} ({}): {:?}. Requisições: {}.",
+                        preview.nup, preview.unidade, preview.texto, preview.requisicoes
                     );
                 } else {
                     println!(
@@ -79,8 +96,8 @@ pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
                 erro.status_http(),
             ),
             Err(erro) => falha_da_previa(cli, &erro),
-        },
-    ))
+        }
+    }))
 }
 
 /// Emite a causa tipada sem catálogo de subcódigos por operação.
@@ -91,10 +108,15 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
         Erro::SituacaoNaoLida(motivo) => Some(motivo.como_texto()),
         _ => None,
     };
-    let mensagem = "o SEI não publicou a anotação deste processo para esta unidade; nenhuma escrita foi realizada";
+    let incerto = matches!(erro, Erro::EfeitoIncerto);
+    let mensagem = if incerto {
+        "efeito incerto após tentativa de escrita; não repita --confirmar; consulte a anotação"
+    } else {
+        "o SEI não publicou as condições para anotar este processo nesta unidade"
+    };
     if cli.json {
         let mut saida = json!({
-            "codigo": "fonte_invalida",
+            "codigo": if incerto { "efeito_incerto" } else { "fonte_invalida" },
             "causa": causa,
             "erro": mensagem,
             "retentavel": false
@@ -116,5 +138,5 @@ fn falha_da_previa(cli: &Cli, erro: &Erro) -> ExitCode {
     } else {
         eprintln!("IES: {mensagem} [{}]", causa.join("/"));
     }
-    ExitCode::from(1)
+    ExitCode::from(if incerto { 3 } else { 1 })
 }
