@@ -184,7 +184,9 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     };
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
-    let pedidos = 3 + usize::from(conteudo.is_some());
+    // GET de versão inexistente e identidade documental contraditória são
+    // perturbações sintéticas dos IDs observados, não respostas do SEI.
+    let pedidos = 5 + 2 * usize::from(conteudo.is_some());
     let tarefa = std::thread::spawn(move || {
         let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
@@ -200,14 +202,55 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         assert_eq!(
             banco.query_row("SELECT count(*) FROM documento_revisao", [], |r| r.get::<_, i64>(0))
                 .unwrap(),
-            i64::try_from(quantidade).unwrap(),
-            "GET, recusa de identidade e POST não alteram as revisões"
+            i64::try_from(quantidade).unwrap()
+        );
+        assert_eq!(
+            iesei::documento_versoes::ler(
+                &banco,
+                &instalacao,
+                "cassette-historico-sei",
+                &documento.id_documento,
+            )
+            .unwrap(),
+            Some(documento),
+            "GETs e métodos recusados devem preservar todos os campos do documento"
         );
     });
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
     confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
     confrontar_corpo_observado_http(endereco, id, &processo, &numero, conteudo.as_ref());
+    let versao_inexistente = historico_original.atual().unwrap().numero() + 1;
+    let ausente = format!(
+        "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao_inexistente}"
+    );
+    assert!(
+        pedir(endereco, "GET", &ausente).starts_with("HTTP/1.1 404"),
+        "versão não capturada nem cadastrada não pode servir o corpo atual"
+    );
+    let protocolo_conflitante = format!(
+        "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}"
+    );
+    assert!(
+        pedir(endereco, "GET", &protocolo_conflitante).starts_with("HTTP/1.1 400"),
+        "id_protocolo contraditório não pode abrir histórico"
+    );
+    if let Some((versao, _, _)) = &conteudo {
+        let corpo_observado = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "POST", &corpo_observado).starts_with("HTTP/1.1 405"),
+            "POST no corpo observado é recusado sem editar revisão"
+        );
+        let identidade_conflitante = format!(
+            "/sei/controlador.php?acao=documento_visualizar&id_documento={id}&id_protocolo={id}0&id_procedimento={processo}&versao={versao}"
+        );
+        assert!(
+            pedir(endereco, "GET", &identidade_conflitante).starts_with("HTTP/1.1 400"),
+            "identidade contraditória não pode vazar o corpo capturado"
+        );
+    }
     let falso_processo = format!(
         "/sei/controlador.php?acao=documento_versao_listar&id_documento={id}&id_procedimento={processo}0"
     );
