@@ -231,6 +231,12 @@ fn linhas_da_falha(erro: &ErroEnviar) -> Vec<String> {
         E::NaoConfirmadoNoEnvio {
             anotacao_depois: Some(false),
             ..
+        } | E::EnvioNaoAplicado {
+            anotacao_depois: Some(false),
+            ..
+        } | E::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
+            anotacao_depois: Some(false),
+            ..
         } | E::FormularioAposLimpezaComprovada { .. }
     ) {
         linhas.push("IES: anotacao_depois: removida (releitura antes da tramitação)".to_owned());
@@ -337,15 +343,18 @@ pub(crate) fn json_de_falha(erro: &ErroEnviar) -> FalhaDaSituacao<'_> {
         ErroEnviar::EnvioNaoAplicado {
             aberto_em,
             depois,
+            anotacao_depois,
             falha_do_envio,
         }
         | ErroEnviar::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
             aberto_em,
             depois,
+            anotacao_depois,
             falha_do_envio,
         } => {
             valor.aberto_em = Some(aberto_em);
             valor.depois = Some(depois);
+            valor.anotacao_depois = *anotacao_depois;
             valor.falha_do_envio = falha_do_envio.as_ref().map(falha_do_envio_publica);
         }
         ErroEnviar::AnotacoesNaoRemovidasAposEnvio { depois }

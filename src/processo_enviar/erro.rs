@@ -112,12 +112,14 @@ pub(crate) enum ErroEnviar {
     EnvioNaoAplicado {
         aberto_em: Vec<String>,
         depois: Vec<String>,
+        anotacao_depois: Option<bool>,
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// O destino está aberto, mas a unidade da sessão não ficou como pedido.
     SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
         aberto_em: Vec<String>,
         depois: Vec<String>,
+        anotacao_depois: Option<bool>,
         falha_do_envio: Option<FalhaDoEnvio>,
     },
     /// Saída 3: o POST saiu e a leitura não decide o efeito.
@@ -233,8 +235,20 @@ impl ErroEnviar {
             Self::FormularioAposLimpezaComprovada { .. } => {
                 "a anotação foi removida e relida, mas o formulário de envio foi recusado; o processo não foi enviado"
             }
+            Self::EnvioNaoAplicado {
+                anotacao_depois: Some(false),
+                ..
+            } => {
+                "a anotação foi removida e relida, mas a árvore não lista o destino: o processo não foi enviado"
+            }
             Self::EnvioNaoAplicado { .. } => {
                 "a árvore lida depois de enviar não lista o destino: o processo não foi enviado"
+            }
+            Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
+                anotacao_depois: Some(false),
+                ..
+            } => {
+                "a anotação foi removida e relida; o destino recebeu o processo, mas a origem não ficou como pedido (manter aberto)"
             }
             Self::SituacaoDaOrigemDiferenteDaPedidaAposEnvio { .. } => {
                 "o processo foi enviado, mas a unidade da sessão não ficou como pedido (manter aberto)"

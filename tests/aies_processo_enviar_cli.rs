@@ -26,6 +26,10 @@ const ORIGEM: &str = "https://sei.test/sei";
 const CENARIO: &str = "bdd-333-cli";
 const NUP: &str = "00001.000001/2026-01";
 
+#[path = "aies_processo_enviar_cli/infra.rs"]
+mod infra;
+use infra::{aceitar, cabecalho, identidade, pedido, preparar_banco};
+
 struct Pasta(PathBuf);
 impl Pasta {
     fn nova() -> Self {
@@ -49,119 +53,6 @@ impl Drop for Pasta {
     fn drop(&mut self) {
         fs::remove_dir_all(&self.0).unwrap();
     }
-}
-
-fn identidade(pasta: &Path) -> (PathBuf, Identity) {
-    let cert = pasta.join("cert.pem");
-    let key = pasta.join("key.pem");
-    let p12 = pasta.join("identidade.p12");
-    assert!(
-        Command::new("openssl")
-            .args([
-                "req",
-                "-x509",
-                "-newkey",
-                "rsa:2048",
-                "-nodes",
-                "-sha256",
-                "-days",
-                "1",
-                "-subj",
-                "/CN=sei.test",
-                "-addext",
-                "subjectAltName=DNS:sei.test",
-                "-keyout"
-            ])
-            .arg(&key)
-            .arg("-out")
-            .arg(&cert)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .unwrap()
-            .success()
-    );
-    assert!(
-        Command::new("openssl")
-            .args(["pkcs12", "-export", "-passout", "pass:teste", "-inkey"])
-            .arg(&key)
-            .arg("-in")
-            .arg(&cert)
-            .arg("-out")
-            .arg(&p12)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .unwrap()
-            .success()
-    );
-    (
-        cert,
-        Identity::from_pkcs12(&fs::read(p12).unwrap(), "teste").unwrap(),
-    )
-}
-
-fn aceitar(listener: &TcpListener, parar: &AtomicBool) -> Option<TcpStream> {
-    loop {
-        match listener.accept() {
-            Ok((tcp, endereco)) => {
-                assert!(endereco.ip().is_loopback());
-                tcp.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-                tcp.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
-                return Some(tcp);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                if parar.load(Ordering::SeqCst) {
-                    return None;
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(e) => panic!("aceitar TLS de teste: {e}"),
-        }
-    }
-}
-
-fn cabecalho(fonte: &mut impl Read) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    let mut byte = [0];
-    while !bytes.ends_with(b"\r\n\r\n") {
-        assert!(bytes.len() < 16_384);
-        fonte.read_exact(&mut byte).unwrap();
-        bytes.push(byte[0]);
-    }
-    bytes
-}
-
-fn pedido(fonte: &mut impl Read) -> (Vec<u8>, String, String) {
-    let mut bytes = cabecalho(fonte);
-    let cabecalho = std::str::from_utf8(&bytes).unwrap();
-    let primeira = cabecalho.lines().next().unwrap();
-    let mut partes = primeira.split_whitespace();
-    let metodo = partes.next().unwrap().to_owned();
-    let alvo = partes.next().unwrap();
-    let acao = alvo
-        .split_once('?')
-        .and_then(|(_, q)| {
-            q.split('&').find_map(|item| {
-                item.strip_prefix("acao=")
-                    .or_else(|| item.strip_prefix("acao_ajax="))
-            })
-        })
-        .unwrap_or("sem_acao")
-        .to_owned();
-    let tamanho = cabecalho
-        .lines()
-        .find_map(|linha| {
-            let (nome, valor) = linha.split_once(':')?;
-            nome.eq_ignore_ascii_case("content-length")
-                .then(|| valor.trim().parse::<usize>().unwrap())
-        })
-        .unwrap_or(0);
-    assert!(tamanho < 64_000);
-    let mut corpo = vec![0; tamanho];
-    fonte.read_exact(&mut corpo).unwrap();
-    bytes.extend(corpo);
-    (bytes, metodo, acao)
 }
 
 /// Simula um SEI que aceita o envio, mas ignora o checkbox de remoção.
@@ -201,60 +92,6 @@ fn pedido_com_ensaio(canal: &mut impl Read, ensaio: EnsaioRemocao) -> (Vec<u8>, 
         return (omitir_checkbox_do_envio(bytes), metodo, acao);
     }
     (bytes, metodo, acao)
-}
-
-fn preparar_banco(anotacao: Option<&str>) -> (Connection, Instalacao) {
-    let mut banco = Connection::open_in_memory().unwrap();
-    banco_cassettes::iniciar(&banco).unwrap();
-    let origem = Instalacao::interpretar(ORIGEM).unwrap();
-    banco_cassettes::guardar(
-        &mut banco,
-        CENARIO,
-        &ControleResumido {
-            instalacao: origem.clone(),
-            unidade: UnidadeExibida::nova("ORIGEM").unwrap(),
-            recebidos: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-            gerados: TabelaObservada::<Linha>::nova(Some(0), None, vec![]).unwrap(),
-        },
-    )
-    .unwrap();
-    documentos_simulados::registrar_processo(
-        &banco,
-        &origem,
-        CENARIO,
-        &Processo {
-            id: "10".into(),
-            nup: NUP.into(),
-            unidade: "ORIGEM".into(),
-        },
-    )
-    .unwrap();
-    processos::guardar(
-        &mut banco,
-        &origem,
-        CENARIO,
-        &ProcessoSimulado {
-            id: "10".into(),
-            numero: NUP.into(),
-            unidade_origem: "ORIGEM".into(),
-            aberto_em: vec!["ORIGEM".into()],
-            anotacao_origem: anotacao.map(str::to_owned),
-            destinos: vec![
-                Destino {
-                    id: "2".into(),
-                    sigla: "DESTINO".into(),
-                    descricao: "DESTINO - Unidade de teste".into(),
-                },
-                Destino {
-                    id: "3".into(),
-                    sigla: "ARQUIVO".into(),
-                    descricao: "ARQUIVO - Unidade de teste".into(),
-                },
-            ],
-        },
-    )
-    .unwrap();
-    (banco, origem)
 }
 
 /// Arquivos efêmeros e proxy da bancada CLI, sem produção.
@@ -313,6 +150,44 @@ fn selecionar_unidade_destino(banco: &mut Connection, instalacao: &Instalacao, u
         },
     )
     .unwrap();
+}
+
+/// O anti-IES recebe todos os pedidos e mantém o mesmo SQLite entre CLIs.
+fn atender_simulador(
+    escuta: &TcpListener,
+    parar: &AtomicBool,
+    trocar: &AtomicBool,
+    recusar_destino: &AtomicBool,
+    anotacao: Option<&'static str>,
+    trocar_apos_primeiro: Option<&'static str>,
+) -> ProcessoSimulado {
+    let (mut banco, instalacao) = preparar_banco(anotacao);
+    let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap();
+    assert_eq!(antes.aberto_em, ["ORIGEM"]);
+    while let Some(mut tcp) = aceitar(escuta, parar) {
+        if trocar.swap(false, Ordering::SeqCst) {
+            selecionar_unidade_destino(
+                &mut banco,
+                &instalacao,
+                trocar_apos_primeiro.expect("segunda unidade especificada"),
+            );
+        }
+        if recusar_destino.swap(false, Ordering::SeqCst) {
+            // Hipótese sintética: o destino foi retirado depois do autocomplete.
+            // O POST original chega ao anti-IES, que recusa sem tramitar.
+            let mut processo = processos::ler(&banco, &instalacao, CENARIO, "10")
+                .unwrap()
+                .unwrap();
+            processo.destinos.retain(|destino| destino.id != "2");
+            processos::guardar(&mut banco, &instalacao, CENARIO, &processo).unwrap();
+        }
+        atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
+    }
+    processos::ler(&banco, &instalacao, CENARIO, "10")
+        .unwrap()
+        .unwrap()
 }
 
 /// Trilha tem apenas método e ação; nunca URL completa, corpo ou cookie.
@@ -376,25 +251,17 @@ fn executar_com_troca_de_unidade(
     let parar_sim = Arc::clone(&parar);
     let trocar = Arc::new(AtomicBool::new(false));
     let trocar_sim = Arc::clone(&trocar);
+    let recusar_destino = Arc::new(AtomicBool::new(false));
+    let recusar_no_simulador = Arc::clone(&recusar_destino);
     let simulador = thread::spawn(move || {
-        let (mut banco, instalacao) = preparar_banco(anotacao);
-        let antes = processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap();
-        assert_eq!(antes.aberto_em, ["ORIGEM"]);
-        while let Some(mut tcp) = aceitar(&escuta, &parar_sim) {
-            if trocar_sim.swap(false, Ordering::SeqCst) {
-                selecionar_unidade_destino(
-                    &mut banco,
-                    &instalacao,
-                    trocar_apos_primeiro.expect("segunda unidade especificada"),
-                );
-            }
-            atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
-        }
-        processos::ler(&banco, &instalacao, CENARIO, "10")
-            .unwrap()
-            .unwrap()
+        atender_simulador(
+            &escuta,
+            &parar_sim,
+            &trocar_sim,
+            &recusar_no_simulador,
+            anotacao,
+            trocar_apos_primeiro,
+        )
     });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     proxy.set_nonblocking(true).unwrap();
@@ -402,6 +269,7 @@ fn executar_com_troca_de_unidade(
     let parar_proxy = Arc::clone(&parar);
     let trilha = Arc::new(Mutex::new(Vec::<String>::new()));
     let capturada = Arc::clone(&trilha);
+    let recusar_no_proxy = Arc::clone(&recusar_destino);
     let tunel = thread::spawn(move || {
         let tls = TlsAcceptor::new(identidade).unwrap();
         let mut enviado = false;
@@ -413,6 +281,12 @@ fn executar_com_troca_de_unidade(
             let (bytes, metodo, acao) = pedido_com_ensaio(&mut canal, ensaio);
             // A hipótese de incerteza só atinge a releitura posterior à escrita.
             let bloquear = falhar_releitura && enviado && metodo == "GET";
+            if ensaio == EnsaioRemocao::TelaSemCheckboxEnvioRecusado
+                && metodo == "POST"
+                && acao == "procedimento_enviar"
+            {
+                recusar_no_proxy.store(true, Ordering::SeqCst);
+            }
             let mut resposta = if bloquear {
                 b"HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\nContent-Length: 7\r\nConnection: close\r\n\r\nIndispo".to_vec()
             } else {

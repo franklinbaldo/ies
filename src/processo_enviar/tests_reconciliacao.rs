@@ -151,6 +151,7 @@ fn leitura_sem_o_destino_e_escrita_nao_aplicada() {
         R::EnvioNaoAplicado {
             aberto_em: siglas(&[UNIDADE]),
             depois: siglas(&[UNIDADE]),
+            anotacao_depois: None,
             falha_do_envio: None,
         }
     );
@@ -177,6 +178,7 @@ fn origem_diferente_do_pedido_e_escrita_diferente() {
             R::SituacaoDaOrigemDiferenteDaPedidaAposEnvio {
                 aberto_em: siglas(&[UNIDADE]),
                 depois: siglas(depois),
+                anotacao_depois: None,
                 falha_do_envio: None,
             }
         );
