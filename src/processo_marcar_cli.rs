@@ -79,6 +79,11 @@ pub(crate) fn tentar_marcar(cli: &Cli) -> Option<ExitCode> {
             }
             return confirmar_retirada(cli, sessao, indice, &nup, &rotulo, &mut EnvioHttps);
         }
+        if operacao == Operacao::Atribuir {
+            return previa_atribuicao(
+                cli, sessao, indice, &nup, &rotulo, texto.as_deref(), &mut EnvioHttps
+            );
+        }
         previa(
             cli,
             sessao,
