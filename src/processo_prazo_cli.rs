@@ -50,17 +50,15 @@ pub(crate) fn tentar_prazo(cli: &Cli) -> Option<ExitCode> {
         return Some(uso(cli.json, "confirmar_sem_alteracao_de_prazo"));
     }
     Some(processo_concluir_cli::com_sessao(cli, |sessao, indice| {
-        // Limite inviolável: escrita só em instalação de treinamento.
+        // Aprovada em treinamento (10/11/2026): grava também em produção.
         if *confirmar
-            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
-                crate::origem_de_treinamento::exigir(sessao.origem)
+            && crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoPrazo,
+                sessao.origem,
+            )
+            .is_err()
         {
-            return crate::saida_erro::erro_fonte_http(
-                cli.json,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
-                None,
-            );
+            return crate::origem_de_treinamento::recusa(cli.json);
         }
         if pedido == PedidoDePrazo::Excluir {
             exclusao::executar(cli, &nup, *confirmar, sessao, indice)
@@ -325,11 +323,9 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     id: &str,
     rede: &mut Contador<'_, V>,
 ) -> Result<TelaDoPrazo, FalhaConfirmacao> {
-    let esperado = match pedido {
-        PedidoDePrazo::Ate(data) => EstadoDoPrazo::Data(data.clone()),
-        PedidoDePrazo::Dias(dias) => EstadoDoPrazo::Dias(*dias),
-        PedidoDePrazo::Ler | PedidoDePrazo::Excluir => return Err(FalhaConfirmacao::Preparo),
-    };
+    if matches!(pedido, PedidoDePrazo::Ler | PedidoDePrazo::Excluir) {
+        return Err(FalhaConfirmacao::Preparo);
+    }
     let instalacao = Instalacao::interpretar(sessao.origem).ok_or(FalhaConfirmacao::Preparo)?;
     let codificacao = codificacao_da_tela(mime).ok_or(FalhaConfirmacao::Preparo)?;
     let servida = TelaServida {
@@ -361,12 +357,21 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|local| aceite_confirmacao(local, redir.url_do_envio(), id)) => {}
-        _ => return Err(FalhaConfirmacao::EfeitoIncerto(None)),
+        // A `UnB` responde 200 com o formulário redesenhado (cassette
+        // processo-prazo-unb, interações 12 e 19; live de 10/11/2026): a
+        // prova fica com a releitura independente abaixo.
+        RespostaDoEnvio::Html(_) => {}
+        RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaConfirmacao::EfeitoIncerto(None)),
     }
     let (nova, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
     let verificada = ler_tela(&nova, id).map_err(|_| FalhaConfirmacao::EfeitoIncerto(None))?;
-    if verificada.estado != esperado {
+    let hoje = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |agora| {
+            i64::try_from(agora.as_secs() / 86_400).unwrap_or(0)
+        });
+    if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {
         return Err(FalhaConfirmacao::EfeitoIncerto(None));
     }
     Ok(verificada)

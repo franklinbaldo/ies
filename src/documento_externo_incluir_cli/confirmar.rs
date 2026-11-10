@@ -23,16 +23,14 @@ pub(super) fn executar(
     caminho_pdf: &Path,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // Limite inviolável do AGENTS.md: só treinamento/homologação.
-        if let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
-            crate::origem_de_treinamento::exigir(sessao.origem)
+        // Aprovada em treinamento (09/11/2026): grava também em produção.
+        if crate::origem_de_treinamento::exigir(
+            crate::origem_de_treinamento::Escrita::DocumentoIncluirExterno,
+            sessao.origem,
+        )
+        .is_err()
         {
-            return crate::saida_erro::erro_fonte_http(
-                cli.json,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
-                None,
-            );
+            return crate::origem_de_treinamento::recusa(cli.json);
         }
         let mut envio = EnvioHttps;
         let mut contagem = Contador::novo(&mut envio);

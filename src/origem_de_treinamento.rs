@@ -1,6 +1,7 @@
-//! Limite inviolável do AGENTS.md para escrita: só instalações públicas de
-//! treinamento ou homologação, nunca produção. Fonte única da lista usada
-//! por todo `--confirmar`; conferida antes da primeira requisição.
+//! Onde cada `--confirmar` pode gravar. Decisão do proprietário
+//! (10/11/2026): a escrita que passou em ensaio ao vivo em treinamento fica
+//! aprovada para produção, para uso dos usuários; as demais gravam só nas
+//! instalações públicas de treinamento. Conferido antes da primeira requisição.
 
 /// Instalações de `docs/interfaces/credenciais-de-treinamento.md` e a
 /// bancada reservada `sei.test` do anti-IES. Comparação exata da URL base:
@@ -26,8 +27,43 @@ impl OrigemForaDoTreinamento {
     pub(crate) const MENSAGEM: &'static str = "a origem da sessão não é instalação pública de treinamento; nenhuma requisição foi enviada";
 }
 
-/// Único ponto de construção de [`OrigemForaDoTreinamento`].
-pub(crate) fn exigir(origem: &str) -> Result<(), OrigemForaDoTreinamento> {
+/// Saída pública da recusa, antes de qualquer requisição.
+pub(crate) fn recusa(json_mode: bool) -> std::process::ExitCode {
+    crate::saida_erro::erro_fonte_http(
+        json_mode,
+        OrigemForaDoTreinamento::SUBCODIGO,
+        OrigemForaDoTreinamento::MENSAGEM,
+        None,
+    )
+}
+
+/// As escritas da CLI, cada uma com o seu estado de aprovação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Escrita {
+    DocumentoIncluirExterno,
+    ProcessoPrazo,
+    ProcessoRelacionar,
+    ProcessoAndamento,
+    ProcessoAtribuir,
+    ProcessoEnviarRemovendoAnotacoes,
+}
+
+impl Escrita {
+    /// Ensaio ao vivo aprovado em treinamento, com relatório:
+    /// - incluir externo: `docs/validacao-live/2026-11-09-documento-incluir-externo-unb.md`;
+    /// - prazo: `docs/validacao-live/2026-11-10-processo-prazo-unb.md`.
+    fn aprovada_em_treinamento(self) -> bool {
+        matches!(self, Self::DocumentoIncluirExterno | Self::ProcessoPrazo)
+    }
+}
+
+/// Único ponto de construção de [`OrigemForaDoTreinamento`]. Escrita
+/// aprovada em treinamento grava em qualquer instalação; as demais, só nas
+/// instalações públicas de treinamento.
+pub(crate) fn exigir(escrita: Escrita, origem: &str) -> Result<(), OrigemForaDoTreinamento> {
+    if escrita.aprovada_em_treinamento() {
+        return Ok(());
+    }
     let aceita = crate::instalacao::Instalacao::interpretar(origem)
         .is_some_and(|instalacao| ORIGENS.contains(&instalacao.url_base().as_str()));
     if aceita {
@@ -44,7 +80,10 @@ mod tests {
     #[test]
     fn aceita_so_instalacoes_de_treinamento_e_a_bancada() {
         for origem in ORIGENS {
-            assert!(exigir(origem).is_ok(), "{origem}");
+            assert!(
+                exigir(Escrita::ProcessoAndamento, origem).is_ok(),
+                "{origem}"
+            );
         }
         for producao_ou_parecida in [
             "https://sei.unb.br/sei",
@@ -55,9 +94,14 @@ mod tests {
             "https://sei.exemplo.gov.br/sei",
         ] {
             assert!(
-                matches!(exigir(producao_ou_parecida), Err(OrigemForaDoTreinamento)),
+                matches!(
+                    exigir(Escrita::ProcessoAndamento, producao_ou_parecida),
+                    Err(OrigemForaDoTreinamento)
+                ),
                 "{producao_ou_parecida}"
             );
+            assert!(exigir(Escrita::ProcessoPrazo, producao_ou_parecida).is_ok());
+            assert!(exigir(Escrita::DocumentoIncluirExterno, producao_ou_parecida).is_ok());
         }
     }
 }

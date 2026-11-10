@@ -39,15 +39,13 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<ExitCode> {
     }
     Some(com_sessao(cli, |sessao, indice| {
         if *confirmar
-            && let Err(crate::origem_de_treinamento::OrigemForaDoTreinamento) =
-                crate::origem_de_treinamento::exigir(sessao.origem)
+            && crate::origem_de_treinamento::exigir(
+                crate::origem_de_treinamento::Escrita::ProcessoAndamento,
+                sessao.origem,
+            )
+            .is_err()
         {
-            return crate::saida_erro::erro_fonte_http(
-                cli.json,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::SUBCODIGO,
-                crate::origem_de_treinamento::OrigemForaDoTreinamento::MENSAGEM,
-                None,
-            );
+            return crate::origem_de_treinamento::recusa(cli.json);
         }
         match processo_andamento_registrar::registrar(
             sessao,

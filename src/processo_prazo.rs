@@ -293,6 +293,46 @@ fn ler_controles_da_tela(
 }
 
 /// Campos do usuário para a derivação segura do formulário observado.
+/// Dias civis desde 1970-01-01 de uma data `DD/MM/AAAA` já validada
+/// (algoritmo de Howard Hinnant, sem dependência de calendário).
+fn dias_civis(data: &str) -> Option<i64> {
+    if !data_valida(data) {
+        return None;
+    }
+    let dia: i64 = data[0..2].parse().ok()?;
+    let mes: i64 = data[3..5].parse().ok()?;
+    let ano: i64 = data[6..10].parse().ok()?;
+    let a = if mes <= 2 { ano - 1 } else { ano };
+    let era = a.div_euclid(400);
+    let ano_da_era = a - era * 400;
+    let mes_deslocado = (mes + 9) % 12;
+    let dia_do_ano = (153 * mes_deslocado + 2) / 5 + dia - 1;
+    let dia_da_era = ano_da_era * 365 + ano_da_era / 4 - ano_da_era / 100 + dia_do_ano;
+    Some(era * 146_097 + dia_da_era - 719_468)
+}
+
+/// A releitura confirma o pedido? Para `--dias N`, o SEI da `UnB` guarda e
+/// mostra a data certa calculada (cassette processo-prazo-unb, interações
+/// 19→21; live de 10/11/2026: `19/11/2026`). Aceita essa data quando fica a
+/// N dias corridos de hoje, com folga de um dia para o fuso de Brasília.
+/// `hoje` é o dia civil UTC em dias desde 1970-01-01.
+pub(crate) fn releitura_confirma(
+    pedido: &PedidoDePrazo,
+    estado: &EstadoDoPrazo,
+    hoje: i64,
+) -> bool {
+    match (pedido, estado) {
+        (PedidoDePrazo::Ate(data_pedida), EstadoDoPrazo::Data(data_relida)) => {
+            data_pedida == data_relida
+        }
+        (PedidoDePrazo::Dias(n), EstadoDoPrazo::Dias(lidos)) => n == lidos,
+        (PedidoDePrazo::Dias(n), EstadoDoPrazo::Data(lida)) => {
+            dias_civis(lida).is_some_and(|d| (d - hoje - i64::from(*n)).abs() <= 1)
+        }
+        _ => false,
+    }
+}
+
 pub(crate) fn campos_do_pedido(pedido: &PedidoDePrazo) -> Vec<(&'static str, String)> {
     let (opcao, data, dias) = match pedido {
         PedidoDePrazo::Ate(data) => ("1", data.clone(), String::new()),
@@ -309,6 +349,43 @@ pub(crate) fn campos_do_pedido(pedido: &PedidoDePrazo) -> Vec<(&'static str, Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dias_viram_data_certa_na_releitura_da_unb() {
+        // 10/11/2026 UTC; o SEI (09/11 em Brasília) gravou 19/11/2026.
+        let hoje = dias_civis("10/11/2026").unwrap();
+        let dez = PedidoDePrazo::Dias(10);
+        for aceita in ["19/11/2026", "20/11/2026", "21/11/2026"] {
+            assert!(
+                releitura_confirma(&dez, &EstadoDoPrazo::Data(aceita.into()), hoje),
+                "{aceita}"
+            );
+        }
+        for recusada in ["18/11/2026", "22/11/2026", "29/10/2026"] {
+            assert!(
+                !releitura_confirma(&dez, &EstadoDoPrazo::Data(recusada.into()), hoje),
+                "{recusada}"
+            );
+        }
+        assert!(releitura_confirma(&dez, &EstadoDoPrazo::Dias(10), hoje));
+        assert!(!releitura_confirma(&dez, &EstadoDoPrazo::SemPrazo, hoje));
+        let ate = PedidoDePrazo::Ate("19/11/2026".into());
+        assert!(releitura_confirma(
+            &ate,
+            &EstadoDoPrazo::Data("19/11/2026".into()),
+            hoje
+        ));
+        assert!(!releitura_confirma(
+            &ate,
+            &EstadoDoPrazo::Data("20/11/2026".into()),
+            hoje
+        ));
+        assert_eq!(dias_civis("01/01/1970"), Some(0));
+        assert_eq!(
+            dias_civis("01/03/2024").unwrap() - dias_civis("28/02/2024").unwrap(),
+            2
+        );
+    }
 
     // Fixture sintética da forma observada na UnB, sem URL de sessão real.
     fn tela(opcao: &str, data: &str) -> String {
