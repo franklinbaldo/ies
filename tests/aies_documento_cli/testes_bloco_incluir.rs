@@ -100,6 +100,97 @@ fn bdd_381_01_previa_documental_sem_incluir() {
     assert_eq!(detalhe.itens[0].documento.as_deref(), Some("0011600"));
 }
 
+/// BDD-381-03: estado confirmado antes do comando e ausência da oferta
+/// de inclusão na barra. O estado deriva do mesmo SQLite, não de HTML fixo.
+fn preparar_documento_ja_incluido(pasta: &Pasta) {
+    preparar(pasta);
+    let caminho = pasta.0.join("anti-ies.sqlite3");
+    let (mut banco, instalacao) = estado(&caminho, true, 0, false);
+    bloco_detalhe::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Detalhe {
+            numero: BLOCO.into(),
+            tipo: Tipo::Assinatura,
+            total: 2,
+            faixa: Some((1, 2)),
+            itens: vec![
+                Item {
+                    processo: "00001.000002/2026-02".into(),
+                    documento: Some("0011600".into()),
+                    tipo: Some("Ofício".into()),
+                    anotacoes: String::new(),
+                },
+                Item {
+                    processo: "00001.000001/2026-01".into(),
+                    documento: Some(DOC.into()),
+                    tipo: Some("Despacho".into()),
+                    anotacoes: String::new(),
+                },
+            ],
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn bdd_381_03_idempotencia_sem_nova_acao_oferecida() {
+    let pasta = Pasta::nova();
+    preparar_documento_ja_incluido(&pasta);
+    // A árvore omite bloco_escolher porque o SQLite já comprova DOC no
+    // bloco. A CLI ainda deve ler o detalhe, sem formular nem enviar POST.
+    let saida = executar(
+        &pasta,
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO,
+            "--documento",
+            DOC,
+            "--confirmar",
+        ],
+        REQUISICOES_SEM_ACAO,
+    );
+    assert_eq!(
+        saida.status.code(),
+        Some(0),
+        "stderr={}; stdout={}",
+        String::from_utf8_lossy(&saida.stderr),
+        String::from_utf8_lossy(&saida.stdout)
+    );
+    let retorno = json(&saida);
+    assert_eq!(retorno["presente_antes"], true);
+    assert_eq!(retorno["confirmado"], true);
+    assert_eq!(retorno["alterado"], false);
+    assert!(retorno["presente_depois"].is_null());
+
+    // Outra execução e o banco provam ausência de duplicação.
+    let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    let itens = json(&leitura)["bloco"]["itens"].as_array().unwrap().clone();
+    assert_eq!(itens.iter().filter(|i| i["documento"] == DOC).count(), 1);
+    let (banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    let detalhe = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Assinatura, BLOCO)
+        .unwrap()
+        .unwrap();
+    assert_eq!(detalhe.total, 2);
+
+    let humana = executar(
+        &pasta,
+        &["bloco", "incluir", BLOCO, "--documento", DOC, "--confirmar"],
+        REQUISICOES_SEM_ACAO,
+    );
+    assert_eq!(humana.status.code(), Some(0));
+    let texto = String::from_utf8_lossy(&humana.stdout);
+    assert!(texto.contains("já está no bloco"), "{texto}");
+    assert!(!texto.contains("repita com --confirmar"), "{texto}");
+}
+
+/// Abertura do documento (pesquisa e árvore) + três GETs do detalhe;
+/// a tela de escolha nem chega a ser solicitada.
+const REQUISICOES_SEM_ACAO: usize = REQUISICOES_DA_PREVIA - 1;
+
 /// Pesquisa, Controle até a árvore do documento, tela de escolha; Controle,
 /// lista e detalhe do bloco.
 const REQUISICOES_DA_PREVIA: usize = 8;
