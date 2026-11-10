@@ -131,12 +131,9 @@ fn url_de_reabrir_ausente_fora_da_forma_repetida_ou_recusada() {
         "//if (confirm('Confirma reabetura",
         "if (confirm('Confirma reabetura",
     );
-    assert_eq!(
-        ler(&ativo),
-        Err(F::Html(ErroHtml::valor(
-            "endereco_de_reabrir_fora_da_forma_observada"
-        )))
-    );
+    // O `confirm` ativo foi observado na `UnB` 4.0.9 (retirada do
+    // sobrestamento, live de 10/11/2026): a mesma forma, aceita.
+    assert!(ler(&ativo).is_ok());
     let por_aspas = variavel.replace(
         &format!("var linkReabrirProcesso = '{}';", link_de_reabrir("10")),
         &format!("var linkReabrirProcesso = \"{}\";", link_de_reabrir("10")),

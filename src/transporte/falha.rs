@@ -33,6 +33,8 @@ pub enum FalhaTransporte {
     CookieInvalido,
     /// A resposta não declarou o Content-Type HTML esperado.
     TipoDeConteudoNaoHtml,
+    /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
+    TipoDeConteudoNaoXml,
     ArquivoPrivadoAusenteOuInacessivel,
     #[cfg_attr(not(unix), allow(dead_code))]
     ArquivoPrivadoComPermissoesInseguras,
@@ -97,6 +99,7 @@ impl FalhaTransporte {
             Self::UrlInvalida => "URL assinada da caixa inválida",
             Self::CookieInvalido => "formato de cookie de sessão inválido",
             Self::TipoDeConteudoNaoHtml => "a resposta não declara Content-Type text/html",
+            Self::TipoDeConteudoNaoXml => "a consulta não declara Content-Type XML",
             Self::ArquivoPrivadoAusenteOuInacessivel => {
                 "arquivo privado não encontrado ou sem acesso"
             }

@@ -365,3 +365,19 @@ fn nivel_restrito_concorrente_nao_prova_criacao_publica() {
     assert_eq!(requests.len(), 8); // 3 GET iniciais + 1 POST + 1 GET Controle + 3 GET de prova
     assert_eq!(requests.iter().filter(|r| r.metodo == "POST").count(), 1);
 }
+
+#[test]
+fn location_com_fragmento_da_arvore_identifica_o_processo_criado() {
+    // UnB 4.0.9 (cassette documento-criar-corpo-unb, interação 5): o 302 do
+    // procedimento_gerar termina em `#ID-<id>`, a âncora da árvore.
+    let instalacao =
+        crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
+    let envio = format!(
+        "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_gerar&acao_origem=procedimento_gerar&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={HASH}"
+    );
+    let localizacao = format!(
+        "controlador.php?acao=procedimento_trabalhar&acao_origem=procedimento_gerar&acao_retorno=procedimento_escolher_tipo&id_procedimento=51229&atualizar_arvore=1&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={HASH}#ID-51229"
+    );
+    let r = super::links::retorno_da_criacao(&instalacao, &localizacao, &envio);
+    assert_eq!(r.map(|(_, id)| id), Ok("51229".to_owned()));
+}

@@ -14,9 +14,8 @@ use crate::processo_concluir::escrita::{Contador, FalhaDaTela, leitura, ler_cook
 use crate::processo_obter::{
     EnvioDoProcesso, ErroProcessoObter, SessaoDoProcesso, abrir_para_escrever, obter_processo,
 };
-use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
+use crate::transporte::{FalhaTransporte, decodificar_resposta_xml};
 use crate::visao_do_controle::EnvioDoControle as _;
-use std::io::Read;
 
 const IDENTIFICAR: ConsultaAjax = ConsultaAjax {
     acao_ajax: "protocolo_RI1023",
@@ -72,26 +71,6 @@ impl FalhaAnexar {
     }
 }
 mod escrita;
-
-/// XML de consulta é distinto de HTML de navegação; respeita o MIME servido.
-fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
-    if resposta.status_code != 200 {
-        return Err(recusar_status(resposta));
-    }
-    let tipo = resposta.mime.split(';').next().unwrap_or_default().trim();
-    if !tipo.eq_ignore_ascii_case("application/xml") && !tipo.eq_ignore_ascii_case("text/xml") {
-        return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
-    }
-    if resposta
-        .content_length
-        .is_some_and(|t| t > crate::MAX_HTML_BYTES)
-    {
-        return Err(FalhaTransporte::RespostaExcessiva);
-    }
-    let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
-}
 
 pub(crate) struct Pedido<'a> {
     pub(crate) anexado: &'a NumeroProcesso,
@@ -183,7 +162,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_identidade_redirecionada"));
     }
-    let xml = xml_da_consulta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = decodificar_resposta_xml(resposta.resposta).map_err(E::ConsultaResposta)?;
     let anexado = ler_destino(&xml).map_err(E::Estrutura)?;
     if anexado.nup != pedido.anexado.as_str() {
         return Err(E::Estrutura("nup_do_anexado_diferente_do_solicitado"));
@@ -205,7 +184,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
     if resposta.resposta.status_code == 302 {
         return Err(E::Estrutura("consulta_de_assinaturas_redirecionada"));
     }
-    let xml = xml_da_consulta(resposta.resposta).map_err(E::ConsultaResposta)?;
+    let xml = decodificar_resposta_xml(resposta.resposta).map_err(E::ConsultaResposta)?;
     let assinaturas_em_dia = ler_confirmacao(&xml).map_err(E::Estrutura)?;
     let resultado = if pedido.confirmar {
         escrita::confirmar(

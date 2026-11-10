@@ -46,7 +46,9 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, &'static str> {
         .iter()
         .filter_map(tl::Node::as_tag)
     {
-        if tag.name().as_utf8_str().eq_ignore_ascii_case("input")
+        let elemento = tag.name().as_utf8_str();
+        // `UnB` 4.0.9 publica o envio como <button type="submit">.
+        if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
             && let Some(nome) = atributo(tag, "name")?
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
         {

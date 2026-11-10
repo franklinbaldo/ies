@@ -122,17 +122,26 @@ pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
 }
 
 /// A unidade de "Processo sobrestado na unidade <a>.<br />", ou `None`
-/// fora dessa forma (única observada: uma unidade, sem atribuição).
+/// fora dessa forma. Uma unidade; no SEI 4.1/5 (UFRJ e GO) com
+/// " (atribuído para <a>).", que não muda onde está sobrestado.
 pub(super) fn ler_sobrestamento(texto: &str) -> Option<Vec<UnidadeSobrestada>> {
-    match pecas(texto)?.as_slice() {
-        [
-            Peca::Texto(frase),
-            Peca::Ancora { sigla, nome },
-            Peca::Texto(ponto),
-            Peca::Quebra,
-        ] if frase == SOBRESTADO && ponto == "." => Some(vec![UnidadeSobrestada {
-            sigla: sigla.clone(),
-            nome: nome.clone(),
+    let pecas = pecas(texto)?;
+    let [Peca::Texto(frase), resto @ ..] = pecas.as_slice() else {
+        return None;
+    };
+    if frase != SOBRESTADO {
+        return None;
+    }
+    let (lida, fecho) = unidade(resto)?;
+    let ponto = if lida.atribuido_a.is_some() {
+        ")."
+    } else {
+        "."
+    };
+    match fecho {
+        [Peca::Texto(t), Peca::Quebra] if t == ponto => Some(vec![UnidadeSobrestada {
+            sigla: lida.sigla,
+            nome: lida.nome,
         }]),
         _ => None,
     }

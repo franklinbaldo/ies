@@ -111,7 +111,7 @@ where
     let numero = crate::documento_criar::conferir_criacao_com_rotulo(
         &antes.documentos,
         &depois.documentos,
-        |numero| format!("{tipo} ({numero})"),
+        |rotulo, numero| rotulo == format!("{tipo} ({numero})"),
     )
     .map_err(|_| E::EfeitoIncerto)?;
     let novo = depois
