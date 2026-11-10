@@ -249,6 +249,20 @@ fn bdd_565_02_alvo_ja_satisfeito_confirma_sem_post_e_rele_estado() {
     let estado = json(&releitura);
     assert_eq!(estado["unidade"], "TESTE");
     let opcoes = estado["opcoes"].as_array().unwrap();
-    assert_eq!(opcoes.len(), 3);
-    assert!(opcoes.iter().all(|opcao| opcao["marcada"] == true));
+    // A CLI publica o catálogo completo de 12, inclusive indisponíveis.
+    assert_eq!(opcoes.len(), 12);
+    assert_eq!(
+        opcoes.iter().filter(|opcao| opcao["disponivel"] == true).count(),
+        3
+    );
+    assert_eq!(
+        opcoes.iter().filter(|opcao| opcao["marcada"] == true).count(),
+        3
+    );
+    assert!(
+        opcoes
+            .iter()
+            .filter(|opcao| opcao["disponivel"] == false)
+            .all(|opcao| opcao["marcada"] == false)
+    );
 }
