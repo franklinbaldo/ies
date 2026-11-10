@@ -44,8 +44,8 @@ da tela declara.
   se houver anotação, exige releitura independente do texto vazio **antes**
   de enviar, e só então tramita. Com texto já vazio, dispensa a gravação da
   anotação. A leitura de `aberto_em` comprova tramitação, não exclusão
-  de anotações. PASS na UnB (sem anotação preexistente):
-  [ensaio de 10/11/2026](../../docs/validacao-live/2026-11-10-processo-enviar-remover-anotacoes-unb.md).
+  de anotações. PASS nas sete instalações, sem anotação preexistente:
+  [cobertura de 10/11/2026](../../docs/validacao-live/2026-11-10-cobertura-7-instalacoes.md).
   A prévia consulta o formulário `anotacao_registrar` da própria origem,
   quando o link é publicado na barra, e expõe `anotacao_antes` como
   `true` (texto presente), `false` (campo vazio) ou campo omitido (link

@@ -91,7 +91,7 @@ fn enviar(
     confirmar: bool,
 ) -> ExitCode {
     com_sessao(cli, |sessao, indice| {
-        // Só treinamento até o ensaio nas sete instalações (UnB PASS em 10/11/2026).
+        // Aprovada nas sete instalações (10/11/2026): grava também em produção.
         if remover_anotacoes
             && confirmar
             && crate::origem_de_treinamento::exigir(
