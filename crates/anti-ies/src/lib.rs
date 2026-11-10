@@ -10,6 +10,7 @@ pub mod documento_cancelar;
 mod documento_ciencia;
 pub mod documento_versoes;
 mod documentos;
+mod nivel_de_detalhe;
 pub mod editor_documento;
 pub mod pdf_externo;
 pub mod pesquisa_documento;
