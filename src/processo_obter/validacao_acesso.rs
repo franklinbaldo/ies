@@ -115,11 +115,10 @@ pub(super) fn validar<V: EnvioDoProcesso>(
     rede.requisicoes.registrar();
     let resposta = enviar_submissao_via(submissao, contexto.cookie, |s, c| rede.envio.post(s, c))
         .map_err(ErroValidacaoAcesso::from)?;
+    // Nem HTML nem 302 comprovam a validação: ambos exigem a releitura
+    // independente do trabalho e da árvore, sem seguir Location nem retry.
     match resposta {
-        RespostaDoEnvio::Html(_) => Ok(()),
-        RespostaDoEnvio::Redirecionamento(_) => {
-            Err(ErroValidacaoAcesso::RedirecionamentoSemProva.into())
-        }
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => Ok(()),
     }
 }
 
