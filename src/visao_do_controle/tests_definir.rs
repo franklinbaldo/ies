@@ -363,7 +363,7 @@ fn verificacao_com_outras_marcas_apos_resposta_esperada_e_falha() {
 }
 
 fn erro_500() -> FalhaTransporte {
-    FalhaTransporte::StatusHttpDeErroDoServidor(StatusHttpRecusado {
+    FalhaTransporte::Status(StatusHttpRecusado {
         status: 500,
         mensagem_do_servidor: Some("Erro interno.".to_owned()),
     })

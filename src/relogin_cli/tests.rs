@@ -113,8 +113,8 @@ fn subcodigos_publicos_de_sessao_separam_vencimento_de_recusas_sem_relogin() {
     for falha in [
         FalhaTransporte::CookieInvalido,
         FalhaTransporte::OrigemNaoAutorizada,
-        FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(StatusHttpRecusado::sem_mensagem(429)),
-        FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(301)),
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(429)),
+        FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(301)),
         // #222: a sessão regravada duas vezes durante a leitura não é
         // sessão vencida; nenhum relogin implícito.
         FalhaTransporte::SessaoTrocadaDuranteALeitura,

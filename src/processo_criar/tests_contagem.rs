@@ -222,7 +222,7 @@ fn ajax_de_interessado_preserva_http_503_e_contagem_sem_criar() {
         ok(tela_controle()),
         ok(lista(false)),
         ok(cadastro_com_interessado),
-        Err(FalhaTransporte::StatusHttpDeErroDoServidor(
+        Err(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado::sem_mensagem(503),
         )),
     ];

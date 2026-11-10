@@ -208,7 +208,10 @@ fn http_403_apos_get_mutador_preserva_status_e_rele_controle() {
         erro,
         E::NaoConfirmado {
             falha_do_aceite: Some(super::documento::FalhaDoAceite::Transporte(
-                FalhaTransporte::AcessoNegado(_)
+                FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                    status: 401 | 403,
+                    ..
+                })
             )),
             requisicoes: 6,
             ..

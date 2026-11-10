@@ -289,7 +289,7 @@ mod tests {
         use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
         let erro = ErroPreviaCriacao::NaoConfirmadoNaReleitura(ErroProcessoObter::Transporte(
-            FalhaTransporte::AcessoNegado(StatusHttpRecusado {
+            FalhaTransporte::Status(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("leitura recusada".to_owned()),
             }),

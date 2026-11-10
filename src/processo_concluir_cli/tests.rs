@@ -185,12 +185,10 @@ fn falha_http_preserva_mensagem_status_e_identidade_original() {
             r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada."},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false}"#,
         ),
         (
-            FalhaDoEnvio::Transporte(FalhaTransporte::StatusHttpDeErroDoServidor(
-                StatusHttpRecusado {
-                    status: 500,
-                    mensagem_do_servidor: Some("Mensagem saneada.".into()),
-                },
-            )),
+            FalhaDoEnvio::Transporte(FalhaTransporte::Status(StatusHttpRecusado {
+                status: 500,
+                mensagem_do_servidor: Some("Mensagem saneada.".into()),
+            })),
             r#"{"aberto_em":[],"codigo":"nao_confirmado","erro":"não se sabe se o processo foi concluído; confira com `ies processo NUP` antes de repetir","falha_do_envio":{"mensagem_do_servidor":"Mensagem saneada.","status_http":500},"mensagem_do_servidor":"Mensagem saneada.","retentavel":false,"status_http":500}"#,
         ),
     ];

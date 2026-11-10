@@ -20,7 +20,7 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
         E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(
-                    FalhaTransporte::AcessoNegado(crate::transporte::StatusHttpRecusado {
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
                         status: 403,
                         mensagem_do_servidor: Some("Acesso negado.".into())
                     })
@@ -209,14 +209,12 @@ fn http_503_da_releitura_pos_post_preserva_status_e_mensagem_sem_retry() {
         E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: None,
             leitura: Some(Box::new(
-                crate::processo_obter::ErroProcessoObter::Transporte(
-                    FalhaTransporte::StatusHttpDeErroDoServidor(
-                        crate::transporte::StatusHttpRecusado {
-                            status: 503,
-                            mensagem_do_servidor: Some("Serviço indisponível.".into())
-                        }
-                    )
-                )
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
             )),
             atribuicao_relida: None,
             requisicoes: 6
@@ -248,14 +246,12 @@ fn post_sem_resposta_e_releitura_503_permanecem_nao_confirmado() {
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
             leitura: Some(Box::new(
-                crate::processo_obter::ErroProcessoObter::Transporte(
-                    FalhaTransporte::StatusHttpDeErroDoServidor(
-                        crate::transporte::StatusHttpRecusado {
-                            status: 503,
-                            mensagem_do_servidor: Some("Serviço indisponível.".into())
-                        }
-                    )
-                )
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Status(
+                    crate::transporte::StatusHttpRecusado {
+                        status: 503,
+                        mensagem_do_servidor: Some("Serviço indisponível.".into())
+                    }
+                ))
             )),
             atribuicao_relida: None,
             requisicoes: 6
@@ -284,7 +280,7 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
         E::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(Box::new(
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(
-                    FalhaTransporte::AcessoNegado(crate::transporte::StatusHttpRecusado {
+                    FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
                         status: 403,
                         mensagem_do_servidor: Some("Acesso negado.".into())
                     })

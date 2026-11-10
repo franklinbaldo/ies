@@ -230,7 +230,7 @@ fn http_403_publica_status_e_mensagem_sem_repetir_requisicao() {
     let erro = resultado.unwrap_err();
     assert_eq!(
         erro,
-        E::Tela(FalhaTransporte::AcessoNegado(
+        E::Tela(FalhaTransporte::Status(
             crate::transporte::StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("Acesso negado.".into())

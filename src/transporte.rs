@@ -223,27 +223,24 @@ fn decodificar_corpo<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Fa
         .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
 }
 
-/// Status diferente de 200: a variante sai do status; o corpo (fora 3xx)
+/// Status diferente de 200: o número sobe como veio; o corpo (fora 3xx)
 /// é lido uma vez, até `corpo_de_recusa::LIMITE`, só para a mensagem.
 pub(crate) fn recusar_status<R: Read>(resposta: RespostaWeb<R>) -> FalhaTransporte {
     let codigo = resposta.status_code;
     let status = u16::try_from(codigo).unwrap_or(0);
     if (300..400).contains(&codigo) {
-        return FalhaTransporte::Redirecionamento(StatusHttpRecusado::sem_mensagem(status));
+        // 3xx: o corpo não é lido.
+        return FalhaTransporte::Status(StatusHttpRecusado::sem_mensagem(status));
     }
     let lido = corpo_de_recusa::ler(resposta.corpo, &resposta.mime);
     let recusa = StatusHttpRecusado {
         status,
         mensagem_do_servidor: lido.mensagem,
     };
-    match codigo {
-        403 if lido.bloqueio_de_seguranca => {
-            FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)
-        }
-        401 | 403 => FalhaTransporte::AcessoNegado(recusa),
-        429 => FalhaTransporte::StatusHttpDeLimiteDeRequisicoes(recusa),
-        500..=599 => FalhaTransporte::StatusHttpDeErroDoServidor(recusa),
-        _ => FalhaTransporte::StatusHttpDiferenteDe200(recusa),
+    if codigo == 403 && lido.bloqueio_de_seguranca {
+        FalhaTransporte::BloqueioDeSegurancaDaInstalacao(recusa)
+    } else {
+        FalhaTransporte::Status(recusa)
     }
 }
 

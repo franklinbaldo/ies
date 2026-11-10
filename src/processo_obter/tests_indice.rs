@@ -187,18 +187,12 @@ fn pesquisa_rapida_guardada_que_responde_login_e_esquecida() {
 }
 
 #[test]
-fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
+fn pesquisa_rapida_sem_302_validacao_ou_status_sobem_tipados() {
     let amb = ambiente();
     let pagina =
         "<html><title>SEI - Pesquisa</title><form id=\"frmPesquisaProtocolo\"></form></html>";
     let (r, pedidos) = rodar(&amb, None, vec![ok(controle(&[])), ok(pagina.to_owned())]);
-    assert_eq!(
-        r.unwrap_err(),
-        E::PesquisaRapidaSemUrlDeTrabalho(StatusHttpRecusado {
-            status: 200,
-            mensagem_do_servidor: None
-        })
-    );
+    assert_eq!(r.unwrap_err(), E::PesquisaRapidaSemUrlDeTrabalho);
     assert_eq!(pedidos.len(), 2);
     let validacao =
         "<html><textarea id=\"txaInfraValidacao\">Protocolo nao encontrado.</textarea></html>";
@@ -208,11 +202,16 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         None,
         vec![ok(controle(&[])), ok(validacao.to_owned())],
     );
-    let erro = r.unwrap_err();
     assert_eq!(
-        erro.status_http()
-            .and_then(|s| s.mensagem_do_servidor.as_deref()),
-        Some("Protocolo nao encontrado.")
+        r.unwrap_err(),
+        E::Formulario(
+            crate::formulario_web::ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
+                StatusHttpRecusado {
+                    status: 200,
+                    mensagem_do_servidor: Some("Protocolo nao encontrado.".into()),
+                }
+            )
+        )
     );
     let amb = ambiente();
     let (r, _) = rodar(
@@ -220,7 +219,12 @@ fn pesquisa_rapida_sem_302_e_erro_com_status_e_mensagem() {
         None,
         vec![ok(controle(&[])), (500, String::new(), None)],
     );
-    assert_eq!(r.unwrap_err().status_http().map(|s| s.status), Some(500));
+    assert!(matches!(
+        r.unwrap_err(),
+        E::Transporte(crate::transporte::FalhaTransporte::Status(
+            StatusHttpRecusado { status: 500, .. }
+        ))
+    ));
 }
 
 #[test]

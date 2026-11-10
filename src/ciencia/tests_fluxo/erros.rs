@@ -22,7 +22,10 @@ fn conferir_falha_do_aceite_sem_retry(resposta: Resposta, causa: FalhaEsperada) 
                 erro,
                 E::NaoConfirmado {
                     falha_do_aceite: Some(FalhaDoAceiteProcesso::Transporte(
-                        FalhaTransporte::AcessoNegado(_)
+                        FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                            status: 401 | 403,
+                            ..
+                        })
                     )),
                     ..
                 }
