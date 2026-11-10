@@ -1,4 +1,4 @@
-//! BDD-ANOT-01: o comando anotar apenas prevê a gravação, sem POST.
+//! BDD-ANOT-01/02: prévia sem escrita, confirmação única e releitura.
 use crate::processo::NumeroProcesso;
 use crate::processo_anotar::{self, Erro};
 use crate::processo_concluir_cli::{com_sessao, erro_de_uso};
@@ -9,11 +9,12 @@ use std::process::ExitCode;
 
 pub(crate) fn tentar_anotar(cli: &Cli) -> Option<ExitCode> {
     let Domain::Processo(Processo {
-        acao: Some(ProcessoAcao::Anotar {
-            numero,
-            texto,
-            confirmar,
-        }),
+        acao:
+            Some(ProcessoAcao::Anotar {
+                numero,
+                texto,
+                confirmar,
+            }),
         ..
     }) = &cli.command
     else {
