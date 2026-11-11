@@ -8,7 +8,6 @@ use crate::formulario_web::{
     derivar_submissao, derivar_submissao_com_action, enviar_submissao_via,
 };
 use crate::instalacao::Instalacao;
-use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{Contador, obter_tela};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso};
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
@@ -92,14 +91,11 @@ fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
 
 /// O sucesso requer duas provas: POST com 302 de aceite e GET novo sem vínculo.
 /// Mesmo que a GET já não mostre o vínculo, falha/recusa do POST jamais vira 0.
-#[allow(clippy::too_many_arguments)] // Contexto de origem, formulário e transporte explícitos.
 pub(super) fn remover<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,
     cookie: &str,
-    link: &str,
-    html: &str,
-    mime: &str,
+    servida: &TelaServida<'_>,
     id_alvo: &str,
     relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
@@ -108,17 +104,10 @@ pub(super) fn remover<V: EnvioDoProcesso>(
         .iter()
         .find(|relacao| relacao.id == id_alvo)
         .ok_or(FalhaRelacionar::DestinoARemoverSemIdentificador)?;
-    let codificacao = codificacao_da_tela(mime)
-        .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
-    let servida = TelaServida {
-        url: link,
-        html,
-        codificacao,
-    };
-    let url_exclusao =
-        tela::url_exclusao(html).ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
+    let url_exclusao = tela::url_exclusao(servida.html)
+        .ok_or(FalhaRelacionar::AcaoExcluirRelacionamentoNaoDeclarada)?;
     // A action deve pertencer ao mesmo processo de origem, não a outro.
-    let id_origem = link
+    let id_origem = servida.url
         .split('?')
         .nth(1)
         .and_then(|query| {
@@ -133,7 +122,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
     let submissao = derivar_submissao_com_action(
         &REMOVER,
         instalacao,
-        &servida,
+        servida,
         "",
         &[("hdnInfraItemId", id_alvo)],
         Some(&url_exclusao),
@@ -161,7 +150,7 @@ pub(super) fn remover<V: EnvioDoProcesso>(
         }
     }
     let (nova_tela, _) =
-        obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
+        obter_tela(rede, cookie, servida.url).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
     // Um id removido não prova a remoção do NUP: a relação pode ter
     // reaparecido sob outro id, ou outra relação pode ter sido perdida.
@@ -187,40 +176,28 @@ pub(super) fn remover<V: EnvioDoProcesso>(
  * `txtIdentificacaoProtocolo` e `hdnIdProtocolo` (Todos @323eb01).
  * Um POST, aceite 302 explícito, releitura independente. Sem retry.
  */
-#[allow(clippy::too_many_arguments)] // Contexto observado do formulário, identidade e rede.
 pub(super) fn adicionar<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     instalacao: &Instalacao,
     cookie: &str,
-    link: &str,
-    html: &str,
-    mime: &str,
-    id_destino: &str,
-    nup_destino: &str,
-    tipo_destino: &str,
+    servida: &TelaServida<'_>,
+    destino: &tela::DestinoConsultado,
     relacionados_antes: &[tela::Relacionamento],
     rede: &mut Contador<'_, V>,
 ) -> Result<(), FalhaRelacionar> {
-    let codificacao = codificacao_da_tela(mime)
-        .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
-    let servida = TelaServida {
-        url: link,
-        html,
-        codificacao,
-    };
     let submissao = derivar_submissao(
         &ADICIONAR,
         instalacao,
-        &servida,
+        servida,
         "",
         &[
-            ("txtProtocolo", nup_destino),
-            ("txtIdentificacaoProtocolo", tipo_destino),
-            ("hdnIdProtocolo", id_destino),
+            ("txtProtocolo", &destino.nup),
+            ("txtIdentificacaoProtocolo", destino.tipo.as_deref().unwrap_or("")),
+            ("hdnIdProtocolo", &destino.id),
         ],
     )
     .map_err(FalhaRelacionar::ConsultaDerivacao)?;
-    let id_origem = link
+    let id_origem = servida.url
         .split('?')
         .nth(1)
         .and_then(|query| {
@@ -253,11 +230,11 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         }
     }
     let (nova_tela, _) =
-        obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
+        obter_tela(rede, cookie, servida.url).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
     let linhas = tela::ler_linhas(&nova_tela).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
     let destino_confirmado = linhas
         .iter()
-        .any(|linha| linha.id == id_destino && super::mesmo_protocolo(&linha.nup, nup_destino));
+        .any(|linha| linha.id == destino.id && super::mesmo_protocolo(&linha.nup, &destino.nup));
     let anteriores_preservados = relacionados_antes.iter().all(|anterior| {
         linhas.iter().any(|atual| {
             atual.id == anterior.id && super::mesmo_protocolo(&atual.nup, &anterior.nup)

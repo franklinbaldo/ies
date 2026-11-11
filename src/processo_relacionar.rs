@@ -246,13 +246,18 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
                 .id_destino
                 .as_deref()
                 .ok_or(FalhaRelacionar::DestinoARemoverSemIdentificador)?;
+            let codificacao = codificacao_da_tela(&mime)
+                .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
+            let servida = TelaServida {
+                url: link.as_str(),
+                html: &html,
+                codificacao,
+            };
             escrita::remover(
                 sessao,
                 &instalacao,
                 &cookie,
-                link.as_str(),
-                &html,
-                &mime,
+                &servida,
                 id_destino,
                 &relacionados,
                 &mut rede,
@@ -294,42 +299,31 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         return Err(FalhaRelacionar::ConsultaDeRelacionamentoRedirecionada);
     }
     let xml = xml_da_consulta(resposta.resposta)?;
-    let DestinoConsultado {
-        id: destino_id,
-        nup,
-        tipo,
-    } = ler_destino(&xml)?;
-    if destino_id == id {
+    let destino = ler_destino(&xml)?;
+    if destino.id == id {
         return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
     }
-    if !mesmo_protocolo(pedido.com.as_str(), &nup) {
+    if !mesmo_protocolo(pedido.com.as_str(), &destino.nup) {
         return Err(FalhaRelacionar::DestinoDaConsultaDivergente);
     }
     // O mesmo id não pode identificar outro NUP na tabela já servida.
     // Caso contrário, "sem efeito" esconderia duas identidades incompatíveis.
-    previa.resultado = match relacionados.iter().find(|linha| linha.id == destino_id) {
-        Some(linha) if mesmo_protocolo(&linha.nup, &nup) => ResultadoRelacionar::SemEfeito,
+    previa.resultado = match relacionados.iter().find(|linha| linha.id == destino.id) {
+        Some(linha) if mesmo_protocolo(&linha.nup, &destino.nup) => ResultadoRelacionar::SemEfeito,
         Some(_) => return Err(FalhaRelacionar::DestinoDaConsultaDivergente),
         None => ResultadoRelacionar::Previa,
     };
-    previa.id_destino = Some(destino_id);
-    previa.tipo_destino = tipo;
-    previa.destino = nup;
+    previa.id_destino = Some(destino.id.clone());
+    previa.tipo_destino.clone_from(&destino.tipo);
+    previa.destino.clone_from(&destino.nup);
     previa.requisicoes = rede.feitas();
     if pedido.confirmar && !previa.sem_efeito() {
         escrita::adicionar(
             sessao,
             &instalacao,
             &cookie,
-            link.as_str(),
-            &html,
-            &mime,
-            previa
-                .id_destino
-                .as_deref()
-                .ok_or(FalhaRelacionar::DestinoARelacionarNaoIdentificado)?,
-            &previa.destino,
-            previa.tipo_destino.as_deref().unwrap_or(""),
+            &tela,
+            &destino,
             &relacionados,
             &mut rede,
         )?;

@@ -40,10 +40,8 @@ use std::path::{Path, PathBuf};
 pub(crate) use documentos::DocumentoGuardado;
 pub(crate) use entrada_por_id::{url_da_entrada_por_id, url_da_entrada_por_id_com_documento};
 pub(crate) use links::{ChaveDoLink, unidade_dos_links};
-#[allow(unused_imports)]
 pub(crate) use unidades::{ListaGuardada, UnidadeGuardada, filtrar_lista};
-#[allow(unused_imports)]
-pub(crate) use validacao::{RegistroRecusado, UrlAssinada};
+pub(crate) use validacao::RegistroRecusado;
 
 /// Nome do banco ao lado do `IES_URL_CONTROLE_FILE`.
 pub(crate) const NOME_DO_ARQUIVO: &str = "ies.sqlite3";
