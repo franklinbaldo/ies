@@ -200,10 +200,32 @@ fn executar_com_falha(
     executar_com_falha_modo(estado, confirmar, falha_na_releitura, false)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RespostaDeReleitura {
+    Normal,
+    Http503,
+    Redirecionamento302,
+    SemTabela,
+}
+
 fn executar_com_falha_modo(
     estado: EstadoInicial,
     confirmar: bool,
     falha_na_releitura: bool,
+    modo_humano: bool,
+) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
+    let resposta = if falha_na_releitura {
+        RespostaDeReleitura::Http503
+    } else {
+        RespostaDeReleitura::Normal
+    };
+    executar_com_resposta_modo(estado, confirmar, resposta, modo_humano)
+}
+
+fn executar_com_resposta_modo(
+    estado: EstadoInicial,
+    confirmar: bool,
+    resposta_na_releitura: RespostaDeReleitura,
     modo_humano: bool,
 ) -> (Output, Vec<String>, Option<Observacao>, Option<Output>) {
     let pasta = Pasta::nova();
@@ -247,16 +269,23 @@ fn executar_com_falha_modo(
                 .unwrap();
             let mut canal = tls.accept(tcp).unwrap();
             let (bytes, evento) = ler_pedido(&mut canal);
-            let interceptar = falha_na_releitura
+            let interceptar = resposta_na_releitura != RespostaDeReleitura::Normal
                 && post_recebido
                 && !leitura_interceptada
                 && evento == "GET acompanhamento_gerenciar";
             if interceptar {
                 leitura_interceptada = true;
                 eventos_proxy.lock().unwrap().push(evento);
-                canal.write_all(
-                    b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                ).unwrap();
+                let resposta: &[u8] = match resposta_na_releitura {
+                    RespostaDeReleitura::Http503 =>
+                        b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    RespostaDeReleitura::Redirecionamento302 =>
+                        b"HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    RespostaDeReleitura::SemTabela =>
+                        b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 13\r\nConnection: close\r\n\r\n<html></html>",
+                    RespostaDeReleitura::Normal => unreachable!(),
+                };
+                canal.write_all(resposta).unwrap();
                 canal.flush().unwrap();
                 continue;
             }
