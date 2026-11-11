@@ -6,13 +6,13 @@ use crate::arvore_processo::tests_concluir::absoluta;
 use crate::processo_concluir::tests_apoio::*;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
-fn link_anotacao() -> String {
+pub(super) fn link_anotacao() -> String {
     format!(
         "controlador.php?acao=anotacao_registrar&acao_origem=arvore_visualizar&id_procedimento={ID}&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={HASH_ENVIAR}"
     )
 }
 
-fn anotacao(texto: &str, id: &str) -> String {
+pub(super) fn anotacao(texto: &str, id: &str) -> String {
     format!(
         r#"<html><form id="frmAnotacaoCadastro" method="post" action="controlador.php?acao=anotacao_registrar">
           <input name="hdnIdProtocolo" type="hidden" value="{id}">
