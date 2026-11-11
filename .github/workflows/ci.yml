@@ -88,7 +88,7 @@ jobs:
     # As sete capturas públicas cobrem retornos #253 e atribuição #264.
     name: replay unidade.retornos (7 instalações, offline)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       IES_ACERVO_CACHE: .cache/ies-retornos
     steps:
@@ -132,6 +132,14 @@ jobs:
         with:
           path: ${{ env.IES_ACERVO_CACHE }}
           key: ${{ steps.retornos-cache.outputs.cache-primary-key }}
+
+      - name: Replay de cassettes originais para aceite de PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/baixar_acervo_todos.py
+          RUSTUP_TOOLCHAIN=1.99.1 scripts/replay acervo
+          cargo +1.99.1 test --locked --bin ies cassette_ -- --ignored --nocapture --test-threads=1
 
       - name: Replay verified monthly returns with production parser
         run: cargo test --locked --bin ies unidade_retornos::acervo::replay_retornos_no_acervo -- --ignored --exact --nocapture --test-threads=1
