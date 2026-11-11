@@ -8,6 +8,3 @@ description = "Entidades e observacoes tipadas compartilhadas entre IES e anti-I
 [dependencies]
 rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
 thiserror = "2"
-
-[lints]
-workspace = true
