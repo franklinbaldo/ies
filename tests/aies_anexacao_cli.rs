@@ -164,6 +164,7 @@ fn cli(pasta: &Pasta, arquivos: [&std::path::Path; 4], proxy: u16, args: &[&str]
 #[derive(Clone, Copy)]
 enum Modo {
     Aceite,
+    PdfAposAnexacao,
     RespostaIncerta,
     Previa,
     PreviaPendencia,
@@ -211,6 +212,9 @@ fn preparar_estado(modo: Modo, banco: &mut Connection, instalacao: &Instalacao) 
             )
             .unwrap();
         }
+    }
+    if matches!(modo, Modo::PdfAposAnexacao) {
+        pdf_apos_anexacao::preparar(banco, instalacao);
     }
     if matches!(modo, Modo::JaAnexado) {
         anexacoes::anexar(banco, instalacao, CENARIO, "10", "22").unwrap();
@@ -300,8 +304,12 @@ fn executar(modo: Modo) {
             canal.flush().unwrap();
         }
     });
+    let pdf_antes = matches!(modo, Modo::PdfAposAnexacao)
+        .then(|| pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "antes"));
+    let processo_antes =
+        matches!(modo, Modo::PdfAposAnexacao).then(|| ler_processo(&pasta, arquivos, porta));
     let comando: &[&str] = match modo {
-        Modo::Aceite | Modo::RespostaIncerta => &[
+        Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta => &[
             "--json",
             "processo",
             "anexar",
@@ -318,8 +326,26 @@ fn executar(modo: Modo) {
     };
     let saida = cli(&pasta, arquivos, porta, comando);
     conferir_aviso_pendencia(modo, &pasta, arquivos, porta);
-    let posterior = cli(
-        &pasta,
+    let posterior = ler_processo(&pasta, arquivos, porta);
+    if let Some(bytes_antes) = pdf_antes {
+        let bytes_depois = pdf_apos_anexacao::baixar(&pasta, arquivos, porta, "depois");
+        pdf_apos_anexacao::conferir(
+            &processo_antes.unwrap(),
+            &posterior,
+            &bytes_antes,
+            &bytes_depois,
+        );
+    }
+    parar.store(true, Ordering::SeqCst);
+    tunel.join().unwrap();
+    let total = servidor.join().unwrap();
+    let pedidos = eventos.lock().unwrap().clone();
+    conferir_resultados(modo, &saida, &posterior, total, &pedidos);
+}
+
+fn ler_processo(pasta: &Pasta, arquivos: [&std::path::Path; 4], porta: u16) -> Output {
+    cli(
+        pasta,
         arquivos,
         porta,
         &[
@@ -331,12 +357,7 @@ fn executar(modo: Modo) {
             "--sem-propriedades",
             "--sem-marcadores",
         ],
-    );
-    parar.store(true, Ordering::SeqCst);
-    tunel.join().unwrap();
-    let total = servidor.join().unwrap();
-    let pedidos = eventos.lock().unwrap().clone();
-    conferir_resultados(modo, &saida, &posterior, total, &pedidos);
+    )
 }
 
 fn conferir_resultados(
@@ -350,7 +371,11 @@ fn conferir_resultados(
         Modo::RespostaIncerta => Some("NaoConfirmado"),
         Modo::JaAnexado => Some("Estrutura"),
         Modo::PreviaSemObservacao => Some("ConsultaResposta"),
-        Modo::Aceite | Modo::Previa | Modo::PreviaPendencia | Modo::PreviaAssinada => None,
+        Modo::Aceite
+        | Modo::PdfAposAnexacao
+        | Modo::Previa
+        | Modo::PreviaPendencia
+        | Modo::PreviaAssinada => None,
     };
     if let Some(erro) = erro_esperado {
         falha(saida, erro);
@@ -364,7 +389,7 @@ fn conferir_resultados(
         );
         let saida_json: serde_json::Value = serde_json::from_slice(&saida.stdout).unwrap();
         match modo {
-            Modo::Aceite => {
+            Modo::Aceite | Modo::PdfAposAnexacao => {
                 assert_eq!(saida_json["confirmado"], true);
                 assert_eq!(saida_json["alterado"], true);
             }
@@ -395,7 +420,10 @@ fn conferir_resultados(
     );
     let leitura: serde_json::Value = serde_json::from_slice(&posterior.stdout).unwrap();
     assert_eq!(leitura["numero"], PRINCIPAL);
-    let tem_anexado = matches!(modo, Modo::Aceite | Modo::RespostaIncerta | Modo::JaAnexado);
+    let tem_anexado = matches!(
+        modo,
+        Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta | Modo::JaAnexado
+    );
     if tem_anexado {
         assert_eq!(leitura["anexados"][0]["numero"], ANEXADO);
         assert_eq!(leitura["anexados"][0]["id_procedimento"], "22");
@@ -408,7 +436,10 @@ fn conferir_resultados(
             .iter()
             .filter(|e| *e == "POST procedimento_anexar")
             .count(),
-        usize::from(matches!(modo, Modo::Aceite | Modo::RespostaIncerta)),
+        usize::from(matches!(
+            modo,
+            Modo::Aceite | Modo::PdfAposAnexacao | Modo::RespostaIncerta
+        )),
         "prévia e duplicidade não enviam POST mutador; {pedidos:?}"
     );
 }
@@ -447,3 +478,6 @@ fn consulta_sem_observacao_de_assinatura_nao_inventa_assinada() {
 fn bdd_270_03_duplicidade_existente_recusada_sem_nova_escrita() {
     executar(Modo::JaAnexado);
 }
+
+#[path = "aies_anexacao_cli/pdf_apos_anexacao.rs"]
+mod pdf_apos_anexacao;
