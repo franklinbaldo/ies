@@ -22,9 +22,9 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
         return Err(ErroArquivoCaixa::DestinoSemNomeDeArquivo);
     }
     // Como antes da #211: nome sem diretório (pai vazio) é recusado.
-    if !destino
+    if destino
         .parent()
-        .is_some_and(|pai| !pai.as_os_str().is_empty())
+        .is_none_or(|pai| pai.as_os_str().is_empty())
     {
         return Err(ErroArquivoCaixa::DiretorioDeDestinoAusente);
     }
@@ -41,7 +41,23 @@ pub fn gravar(destino: &Path, valor: &Value) -> Result<usize, ErroArquivoCaixa> 
             ErroArquivoCaixa::DiretorioDeDestinoAusente
         }
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoCaixa::DestinoJaExiste,
-        causa => ErroArquivoCaixa::EscritaDeArquivoFalhou(causa),
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => {
+            ErroArquivoCaixa::EscritaDeArquivoFalhou(falha)
+        }
+        FalhaDaGravacao::DiretorioNaoConsultado(_)
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou(_)
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => {
+            ErroArquivoCaixa::EscritaDeArquivoFalhou(falha)
+        }
     })?;
     Ok(bytes.len())
 }
