@@ -107,7 +107,7 @@ continuam como estavam. Desfaz-se com `ies processo concluir`.
  "depois": ["TESTE"], "reconciliado_por_leitura": false, "requisicoes": 6}
 ```
 
-`forma` é `funcao`, `variavel` ou `null` (antes de pedir a tela do nó: na
+`forma` é `funcao` ou `variavel`, omitida antes de pedir a tela do nó (na
 prévia e quando não há o que fazer). `depois` são as siglas lidas na
 verificação. Nunca URL, `infra_hash` ou cookie. Falhas: saída 1, stdout
 vazio e `Error: <ErroReabrir::…>` em stderr; `aberto_em`,

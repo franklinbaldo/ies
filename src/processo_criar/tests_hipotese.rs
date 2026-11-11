@@ -63,7 +63,7 @@ fn cadastro(com_ajax: bool) -> String {
         <input type='hidden' name='hdnIdTipoProcedimento' value='12'>\
         <input type='hidden' name='hdnFlagProcedimentoCadastro' value='0'>\
         <input type='hidden' name='hdnAssuntos' value=''>\
-        <input name='txtDescricao'>\
+        <input name='txtDescricao' maxlength='250'>\
         <input type='radio' name='rdoNivelAcesso' value='0'>\
         <input type='radio' name='rdoNivelAcesso' value='1'>\
         <select name='selAssuntos'><option value='21'>Assunto Teste</option></select>\

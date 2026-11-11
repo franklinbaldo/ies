@@ -78,7 +78,8 @@ fn paired_unit_worker() {
         let reading = crate::paginas::juntar(&[html], Some(&job.unit)).unwrap();
         assert!(reading.recebidos.completa(&reading.caixa.recebidos));
         assert!(reading.gerados.completa(&reading.caixa.gerados));
-        let serialized = serde_json::to_vec(&crate::saida::json(&reading, "paired-mock")).unwrap();
+        let serialized =
+            serde_json::to_vec(&crate::saida::json(&reading, "paired-mock").unwrap()).unwrap();
         let sample = json!({
             "total_ns": start.elapsed().as_nanos(), "cpu_ns": cpu_ns() - cpu,
             "mock_wait_ns": wait_ns, "requests": requests,

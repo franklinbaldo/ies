@@ -24,8 +24,8 @@ fn relogin_concorrente_nao_muda_o_cookie_das_requisicoes_seguintes() {
         nup: &nup,
         unidade: None,
         andamentos: PedidoDeAndamentos::Omitidos,
-        propriedades: true,
-        marcadores: true,
+        propriedades: false,
+        marcadores: false,
         unidade_exigida: false,
         leitura_das_pastas: crate::processo_obter::LeituraDasPastas::Estrita,
     };

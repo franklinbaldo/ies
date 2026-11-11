@@ -45,7 +45,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     }
     let endereco = match &aberta.marcadores {
         Ok(Some(endereco)) => endereco,
-        Ok(None) => return Ok(Marcadores::NaoPublicadosNaBarra),
+        Ok(None) => return Err(ErroProcessoObter::MarcadoresNaoPublicadosNaBarra),
         Err(erro) => return Err(ErroProcessoObter::Marcadores(erro.clone())),
     };
     let id = aberta.arvore.processo.id.as_str();
@@ -61,10 +61,12 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         (url.to_owned(), pelo_link_da_barra(contexto, rede, url, id)?)
     };
     contexto.aprender_link(AcaoDoSei::AndamentoMarcadorGerenciar, id, &url);
-    Ok(match tela {
-        TelaDosMarcadores::Lidos(lidos) => Marcadores::Lidos(lidos),
-        TelaDosMarcadores::SemTabela => Marcadores::TabelaNaoPublicada,
-    })
+    match tela {
+        TelaDosMarcadores::Lidos(lidos) => Ok(Marcadores::Lidos(lidos)),
+        TelaDosMarcadores::SemTabela => {
+            Err(ErroProcessoObter::TabelaDeMarcadoresNaoPublicadaNaTela)
+        }
+    }
 }
 
 /// Link guardado nesta geração e unidade. `Ok(None)`: não havia, ou o

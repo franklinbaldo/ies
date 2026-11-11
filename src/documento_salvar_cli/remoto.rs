@@ -351,10 +351,7 @@ pub(super) fn confirmar(
 
 #[cfg(test)]
 mod testes_moldura {
-    use super::{ErroSalvarNoSei, corpos_da_edicao, ler_par};
-    use crate::documento::NumeroDocumento;
-    use crate::documento_versoes::VersaoDocumento;
-    use std::error::Error;
+    use super::corpos_da_edicao;
 
     const BASE: &str = "<html><head><title>Documento</title></head><body><main id='corpoEditavel'><p>Antes</p></main><div>Versão 3</div></body></html>";
 
@@ -381,6 +378,10 @@ mod testes_moldura {
     #[cfg(unix)]
     #[test]
     fn base_utf8_invalida_preserva_causa_sem_expor_conteudo_privado() {
+        use super::{ErroSalvarNoSei, ler_par};
+        use crate::documento::NumeroDocumento;
+        use crate::documento_versoes::VersaoDocumento;
+        use std::error::Error;
         use std::os::unix::fs::PermissionsExt;
         use std::sync::atomic::{AtomicUsize, Ordering};
 

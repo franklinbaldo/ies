@@ -283,7 +283,9 @@ fn aies_05_cli_mes_observado_preserva_os_dois_retornos() {
             valor["retornos"][0]["data_programada"],
             format!("15/{}/2026", &mes[5..])
         );
-        assert!(valor["retornos"][0]["data_retorno"].is_null());
+        // Célula vazia é fato lido: ainda não devolvido, sem prazo.
+        assert_eq!(valor["retornos"][0]["data_retorno"], "pendente");
+        assert_eq!(valor["retornos"][0]["prazo_restante"], "sem_prazo");
         assert_eq!(valor["retornos"][1]["situacao"], "devolver");
         assert_eq!(valor["retornos"][1]["numero"], registros[1]);
         assert_eq!(valor["retornos"][1]["unidade"], "U-TESTE-B");

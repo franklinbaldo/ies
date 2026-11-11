@@ -11,7 +11,10 @@ pub(crate) enum ErroCadastro {
     AssuntoDesabilitado,
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
-    EspecificacaoAcimaDoLimite { limite: usize, tamanho: usize },
+    EspecificacaoAcimaDoLimite {
+        limite: usize,
+        tamanho: usize,
+    },
     AssuntoSugeridoNaoUnico,
     CadastroDeProcessoAusenteOuRepetido,
     CadastroDeProcessoHtmlInvalido,
@@ -19,6 +22,8 @@ pub(crate) enum ErroCadastro {
     AtributoDoCadastroIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     EspecificacaoNaoPublicadaNoCadastro,
     LimiteDaEspecificacaoInvalidoNoCadastro(#[source] std::num::ParseIntError),
+    /// O campo da especificação existe, mas o formulário não publica `maxlength`.
+    LimiteDaEspecificacaoNaoPublicado,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,18 +33,16 @@ pub(crate) struct CadastroObservado {
     pub(crate) id_assunto: String,
     pub(crate) nivel: String,
     pub(crate) hipotese_legal: Option<String>,
-    pub(crate) limite_especificacao: Option<usize>,
+    pub(crate) limite_especificacao: usize,
 }
 
 impl CadastroObservado {
     /// O maxlength de input é contado em unidades UTF-16, como no navegador.
-    /// Sem atributo no formulário servido, não inferir limite universal.
     pub(crate) fn validar_especificacao(&self, especificacao: &str) -> Result<(), ErroCadastro> {
-        if let Some(limite) = self.limite_especificacao {
-            let tamanho = especificacao.encode_utf16().count();
-            if tamanho > limite {
-                return Err(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho });
-            }
+        let limite = self.limite_especificacao;
+        let tamanho = especificacao.encode_utf16().count();
+        if tamanho > limite {
+            return Err(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho });
         }
         Ok(())
     }
@@ -158,6 +161,8 @@ fn conferir_cadastro_interno(
 
     let (id_assunto, assunto, hipotese_legal) =
         conferir_listas(form, parser, nivel, permite_ajax_pendente)?;
+    let limite_especificacao =
+        limite_especificacao.ok_or(ErroCadastro::LimiteDaEspecificacaoNaoPublicado)?;
     Ok(CadastroObservado {
         id_tipo: id_tipo.to_owned(),
         assunto,
@@ -260,7 +265,7 @@ mod tests {
 
     fn tela(assuntos: &str, publico: &str, hipotese: &str) -> String {
         format!(
-            "<form id='frmProcedimentoCadastro'><input type='hidden' name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao'><input type='radio' name='rdoNivelAcesso' value='0' {publico}><input type='radio' name='rdoNivelAcesso' value='1'><select name='selAssuntos'>{assuntos}</select><select name='selHipoteseLegal'>{hipotese}</select></form>"
+            "<form id='frmProcedimentoCadastro'><input type='hidden' name='hdnIdTipoProcedimento' value='12'><input name='txtDescricao' maxlength='250'><input type='radio' name='rdoNivelAcesso' value='0' {publico}><input type='radio' name='rdoNivelAcesso' value='1'><select name='selAssuntos'>{assuntos}</select><select name='selHipoteseLegal'>{hipotese}</select></form>"
         )
     }
     const ASSUNTO: &str = "<option value='21'>Assunto de teste</option>";

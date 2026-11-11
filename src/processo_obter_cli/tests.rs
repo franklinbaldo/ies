@@ -102,21 +102,8 @@ fn andamentos_lidos_saem_com_total_faixa_e_itens_e_deixam_nao_lidos() {
 }
 
 #[test]
-fn link_nao_publicado_sai_null_com_motivo_e_sem_andamentos_tira_a_chave() {
+fn sem_andamentos_tira_a_chave_e_so_diz_o_motivo_pedido() {
     let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
-    let mut sem_link = aberto(None);
-    sem_link.andamentos = Andamentos::LinkNaoPublicadoNaArvore;
-    let valor = json_do_processo(&nup, &sem_link, true);
-    assert!(valor["andamentos"].is_null());
-    assert!(valor.get("andamentos").is_some());
-    assert_eq!(
-        valor["andamentos_nao_lidos_motivo"],
-        "link_do_historico_nao_publicado_na_arvore"
-    );
-    assert_eq!(
-        valor["nao_lidos"],
-        json!(["andamentos", "marcadores", "propriedades"])
-    );
     let omitidos = json_do_processo(&nup, &aberto(None), true);
     assert!(omitidos.get("andamentos").is_none());
     assert_eq!(

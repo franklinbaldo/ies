@@ -27,7 +27,7 @@ fn http_403_e_atribuicao_concorrente_nao_viram_sucesso() {
                 )
             )),
             leitura: None,
-            atribuicao_relida: Ok("aluno2".into()),
+            atribuicao_relida: Ok(Some("aluno2".into())),
             requisicoes: 6
         }
     );
@@ -56,7 +56,7 @@ fn validacao_da_infra_e_alteracao_concorrente_nao_viram_sucesso() {
                 )
             )),
             leitura: None,
-            atribuicao_relida: Ok("aluno2".into()),
+            atribuicao_relida: Ok(Some("aluno2".into())),
             requisicoes: 6
         }
     );
@@ -288,7 +288,7 @@ fn falha_concorrente_publica_orcamento_exato_em_json() {
                 )
             )),
             leitura: None,
-            atribuicao_relida: Ok("aluno2".into()),
+            atribuicao_relida: Ok(Some("aluno2".into())),
             requisicoes: 6
         }
     );
@@ -341,7 +341,7 @@ fn sem_resposta_e_atribuicao_concorrente_exigem_nao_confirmado() {
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
             leitura: None,
-            atribuicao_relida: Ok("aluno2".into()),
+            atribuicao_relida: Ok(Some("aluno2".into())),
             requisicoes: 6
         }
     );
@@ -366,7 +366,7 @@ fn sem_resposta_e_remocao_concorrente_exigem_nao_confirmado() {
                 crate::formulario_web::ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede)
             )),
             leitura: None,
-            atribuicao_relida: Ok(String::new()),
+            atribuicao_relida: Ok(None),
             requisicoes: 6
         }
     );

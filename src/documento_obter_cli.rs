@@ -48,16 +48,8 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
     };
     match &d.propriedades {
         PropriedadesDocumento::NaoPedidas => {}
-        PropriedadesDocumento::NaoPublicadas => {
-            mapa.insert("propriedades".to_owned(), Value::Null);
-            mapa.insert(
-                "propriedades_motivo".to_owned(),
-                json!("nao_publicadas_na_barra"),
-            );
-        }
         PropriedadesDocumento::Lidas(p) => {
             mapa.insert("propriedades".to_owned(), json!(p));
-            mapa.insert("propriedades_motivo".to_owned(), Value::Null);
         }
     }
     if let Some(a) = &d.anexo {

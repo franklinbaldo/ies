@@ -37,8 +37,11 @@ Toda saída JSON de caixa publica listas com a mesma forma, a mesma que
   A visão detalhada (`hdnTipoVisualizacao=D`) é um **modo de exibição**
   da sessão, não uma categoria do SEI: sua tabela única mistura as duas
   listas sem indicar a categoria de cada linha, e o IES não a infere.
-- `total_declarado`: total da legenda; `faixa_observada`: `{inicio, fim}`
-  das posições lidas, ou `null` sem linhas. Nunca `completa`.
+- `total_declarado`: total da legenda (sempre número; legenda sem total
+  falha com `TotalNaoDeclaradoNaLegenda`); `faixa_observada`: `{"inicio", "fim"}`
+  das posições lidas; com zero registros a chave é omitida. Cobertura não confirmada
+  pela legenda falha com `LegendaSemFaixaComTotalDiferenteDasLinhas`.
+  Nunca `completa`, nunca `null`.
 - `unidade`: rótulo publicado em `lnkInfraUnidade` (contexto observado,
   não eco de `--unidade`); `origem`: `web`, `web_com_paginas_privadas` ou,
   nos testes da caixa resumida, a instalação da cassette.

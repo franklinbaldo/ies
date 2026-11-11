@@ -14,6 +14,7 @@ fn previa() -> ProcessoEnviado {
         unidade: "TESTE".into(),
         manter_aberto: false,
         remocao: None,
+        anotacao_depois: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
@@ -33,7 +34,7 @@ fn previa_publica_o_contrato_sem_url() {
                "origem": "web", "confirmado": false, "alterado": false, "manter_aberto": false,
                "destino": {"sigla": "TESTE_1_1", "descricao": "TESTE_1_1 - Unidade 1.1",
                            "id_unidade": "110000002"},
-               "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"], "depois": null,
+               "aberto_em": ["TESTE"], "depois_esperado": ["TESTE_1_1"],
                "reconciliado_por_leitura": false, "requisicoes": 5})
     );
     let texto = humano(&previa());
@@ -191,8 +192,7 @@ fn bdd_previa_publica_opcao_somente_se_solicitada() {
     assert!(json_de_sucesso(&feito).get("remover_anotacoes").is_none());
     feito.remocao = Some(RemocaoDaAnotacao {
         metodo: MetodoRemocao::CheckboxNoEnvio,
-        antes: None,
-        depois: None,
+        antes: false,
     });
     assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
     assert!(humano(&feito).contains("Remover anotações no envio: sim"));

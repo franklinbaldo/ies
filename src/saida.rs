@@ -2,17 +2,19 @@
 //! não campos persistidos em Caixa, Tabela ou Processo. Recebidos e
 //! Gerados são listas independentes, publicadas na mesma forma.
 use crate::dominio::Categoria;
-use crate::paginas::Leitura;
+use crate::erro_web::ErroCaixa;
+use crate::paginas::{FaixaObservada, Leitura};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-/// Posições lidas (`{inicio, fim}`) ou `null` sem linhas: dado observado
+/// `{"inicio", "fim"}` das posições lidas; `None` para zero linhas, e então
+/// a chave `faixa_observada` é omitida (nem `null`, nem `[]`). Dado observado
 /// da legenda, nunca afirmação de lista integral.
-pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
-    faixa.map_or(
-        Value::Null,
-        |(inicio, fim)| json!({"inicio": inicio, "fim": fim}),
-    )
+pub(crate) fn faixa_json(faixa: FaixaObservada) -> Option<Value> {
+    match faixa {
+        FaixaObservada::SemLinhas => None,
+        FaixaObservada::Lidas { inicio, fim } => Some(json!({"inicio": inicio, "fim": fim})),
+    }
 }
 
 /// Os dados observados de uma lista da caixa. A categoria não está aqui: só
@@ -20,24 +22,32 @@ pub(crate) fn faixa_json(faixa: Option<(usize, usize)>) -> Value {
 pub(crate) struct ListaObservada<'a, P: Serialize> {
     pub(crate) unidade: Option<&'a str>,
     pub(crate) origem: &'a str,
-    pub(crate) total_declarado: Option<usize>,
-    pub(crate) faixa_observada: Option<(usize, usize)>,
+    pub(crate) total_declarado: usize,
+    pub(crate) faixa_observada: FaixaObservada,
     pub(crate) processos: &'a [P],
 }
 
 /// Forma comum de toda lista da caixa (contracts/cli/unidade-recebidos-gerados.md).
 pub(crate) fn lista_json<P: Serialize>(lista: &ListaObservada<'_, P>) -> Value {
-    json!({
+    let mut objeto = json!({
         "unidade": lista.unidade,
         "origem": lista.origem,
         "total_declarado": lista.total_declarado,
-        "faixa_observada": faixa_json(lista.faixa_observada),
         "processos": lista.processos,
-    })
+    });
+    if let (Some(campos), Some(faixa)) = (objeto.as_object_mut(), faixa_json(lista.faixa_observada))
+    {
+        campos.insert("faixa_observada".to_owned(), faixa);
+    }
+    objeto
 }
 
 /// A lista de uma categoria da visão resumida, com `categoria` dada pela leitura.
-pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem: &str) -> Value {
+pub(crate) fn lista_da_categoria(
+    leitura: &Leitura,
+    categoria: Categoria,
+    origem: &str,
+) -> Result<Value, ErroCaixa> {
     let (tabela, cobertura) = match categoria {
         Categoria::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
         Categoria::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
@@ -46,23 +56,23 @@ pub(crate) fn lista_da_categoria(leitura: &Leitura, categoria: Categoria, origem
         unidade: leitura.unidade.as_deref(),
         origem,
         total_declarado: tabela.total_declarado,
-        faixa_observada: cobertura.faixa_observada(),
+        faixa_observada: cobertura.faixa_observada()?,
         processos: &tabela.processos,
     });
     if let Some(objeto) = lista.as_object_mut() {
         objeto.insert("categoria".to_owned(), json!(categoria.rotulo()));
     }
-    lista
+    Ok(lista)
 }
 
 /// A caixa resumida: o array `[recebidos, gerados]`, nessa ordem. Só os
 /// testes a usam, como oráculo do golden `tests/fixtures/caixa-v2.json`.
 #[cfg(test)]
-pub fn json(leitura: &Leitura, origem: &str) -> Value {
-    Value::Array(vec![
-        lista_da_categoria(leitura, Categoria::Recebidos, origem),
-        lista_da_categoria(leitura, Categoria::Gerados, origem),
-    ])
+pub fn json(leitura: &Leitura, origem: &str) -> Result<Value, ErroCaixa> {
+    Ok(Value::Array(vec![
+        lista_da_categoria(leitura, Categoria::Recebidos, origem)?,
+        lista_da_categoria(leitura, Categoria::Gerados, origem)?,
+    ]))
 }
 
 #[cfg(test)]
@@ -85,13 +95,13 @@ mod tests {
         let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         let leitura = juntar(&[html.into()], None).unwrap();
-        let listas = json(&leitura, "unb");
+        let listas = json(&leitura, "unb").unwrap();
         for lista in listas.as_array().unwrap() {
             assert!(lista.get("completa").is_none());
             assert!(lista.get("linhas_lidas").is_none());
             assert!(lista.get("paginas_lidas").is_none());
-            assert!(lista["faixa_observada"].is_null());
-            assert!(lista.get("faixa_observada").is_some());
+            // Zero linhas: a chave some, sem `null` nem `[]` no lugar.
+            assert!(lista.get("faixa_observada").is_none());
         }
     }
 
@@ -102,10 +112,11 @@ mod tests {
                     <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
         let leitura = juntar(&[html.into()], None).unwrap();
-        let listas = json(&leitura, "web");
+        let listas = json(&leitura, "web").unwrap();
         let listas = listas.as_array().expect("array de listas");
         assert_eq!(listas.len(), 2);
-        let forma = BTreeSet::from([
+        // Recebidos tem linha lida; gerados tem zero linhas e não tem a faixa.
+        let com_faixa = BTreeSet::from([
             "categoria",
             "faixa_observada",
             "origem",
@@ -113,22 +124,31 @@ mod tests {
             "total_declarado",
             "unidade",
         ]);
-        for (lista, categoria) in listas.iter().zip(["recebidos", "gerados"]) {
-            assert_eq!(chaves(lista), forma);
+        let sem_faixa = BTreeSet::from([
+            "categoria",
+            "origem",
+            "processos",
+            "total_declarado",
+            "unidade",
+        ]);
+        let esperadas = [("recebidos", &com_faixa), ("gerados", &sem_faixa)];
+        for (lista, (categoria, forma)) in listas.iter().zip(esperadas) {
+            assert_eq!(chaves(lista), *forma);
             assert_eq!(lista["categoria"], categoria);
             assert_eq!(lista["unidade"], "PPI");
             assert_eq!(lista["origem"], "web");
         }
         assert_eq!(listas[0]["total_declarado"], 5);
-        assert_eq!(listas[0]["faixa_observada"]["inicio"], 1);
+        assert_eq!(listas[0]["faixa_observada"], json!({"inicio": 1, "fim": 1}));
+        assert!(listas[1].get("faixa_observada").is_none());
         assert_eq!(listas[0]["processos"][0]["numero"], "N-1");
         assert_eq!(
             listas[1],
-            lista_da_categoria(&leitura, crate::dominio::Categoria::Gerados, "web")
+            lista_da_categoria(&leitura, crate::dominio::Categoria::Gerados, "web").unwrap()
         );
         assert_eq!(
             listas[0],
-            lista_da_categoria(&leitura, crate::dominio::Categoria::Recebidos, "web")
+            lista_da_categoria(&leitura, crate::dominio::Categoria::Recebidos, "web").unwrap()
         );
     }
 }

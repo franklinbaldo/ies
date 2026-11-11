@@ -51,6 +51,8 @@ pub(crate) enum ErroDocumentoObter {
     ConteudoComLinkAssinado,
     /// O cadastro (propriedades/anexo) publicado fora da forma observada.
     Cadastro(#[source] crate::propriedades_documento::ErroPropriedadesDocumento),
+    /// `--com-propriedades` e a barra do documento não publica o cadastro.
+    PropriedadesNaoPublicadasNaBarra,
     BarraDoDocumentoForaDaFormaObservada,
     DocumentoAusenteDaArvore,
     NumeroSeiAusenteDaArvoreDoProcesso,
@@ -78,6 +80,7 @@ impl ErroDocumentoObter {
             | Self::VersaoServidaDiferenteDaPedida
             | Self::ConteudoComLinkAssinado
             | Self::Cadastro(_)
+            | Self::PropriedadesNaoPublicadasNaBarra
             | Self::NumeroSeiAusenteDaArvoreDoProcesso
             | Self::NumeroSeiRepetidoNaArvore
             | Self::DocumentoAusenteDaArvore

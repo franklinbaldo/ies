@@ -45,16 +45,16 @@ pub(crate) fn selecionar(
     if leitura.unidade.is_none() {
         return Err(FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle);
     }
-    let (tabela, cobertura) = match categoria {
-        CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
-        CategoriaLista::Gerados => (&leitura.caixa.gerados, &leitura.gerados),
+    let cobertura = match categoria {
+        CategoriaLista::Recebidos => &leitura.recebidos,
+        CategoriaLista::Gerados => &leitura.gerados,
     };
-    paginas::conferir_faixa_publicavel(categoria.categoria(), tabela, cobertura)?;
+    paginas::conferir_faixa_publicavel(categoria.categoria(), cobertura)?;
     Ok(crate::saida::lista_da_categoria(
         leitura,
         categoria.categoria(),
         origem,
-    ))
+    )?)
 }
 
 /// Publica ou exporta a lista da categoria a partir do HTML obtido,
@@ -101,13 +101,9 @@ pub(crate) fn publicar_lista(
             "IES: {}: {quantidade} processo(s) observado(s); total declarado: {}; faixa observada: {}.",
             categoria.rotulo(),
             modelo["total_declarado"],
-            match &modelo["faixa_observada"] {
-                Value::Null => "nenhuma".to_owned(),
-                faixa @ (Value::Bool(_)
-                | Value::Number(_)
-                | Value::String(_)
-                | Value::Array(_)
-                | Value::Object(_)) => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+            match modelo.get("faixa_observada") {
+                None => "nenhuma".to_owned(),
+                Some(faixa) => format!("{} a {}", faixa["inicio"], faixa["fim"]),
             }
         );
     }
@@ -205,8 +201,7 @@ mod tests {
     fn categoria_paginada_publica_a_pagina_com_total_e_faixa() {
         let modelo = selecionar(&leitura(200), CategoriaLista::Recebidos, "web").unwrap();
         assert_eq!(modelo["total_declarado"], 200);
-        assert_eq!(modelo["faixa_observada"]["inicio"], 1);
-        assert_eq!(modelo["faixa_observada"]["fim"], 1);
+        assert_eq!(modelo["faixa_observada"], json!({"inicio": 1, "fim": 1}));
         assert_eq!(modelo["processos"][0]["numero"], "R-0001");
         assert!(modelo.get("completa").is_none());
     }
@@ -259,6 +254,7 @@ mod tests {
                 crate::dominio::Categoria::Recebidos,
                 "web"
             )
+            .unwrap()
         );
     }
 
@@ -311,7 +307,7 @@ mod tests {
         let valor = valor.unwrap();
         assert!(valor.is_object());
         assert_eq!(valor["categoria"], "recebidos");
-        assert_eq!(valor["faixa_observada"]["fim"], 1);
+        assert_eq!(valor["faixa_observada"], json!({"inicio": 1, "fim": 1}));
         assert_eq!(valor["processos"][0]["numero"], "R-0001");
     }
 

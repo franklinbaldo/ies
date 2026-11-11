@@ -131,10 +131,10 @@ troca de visão vinda da R continua `PreferenciaDeVisualizacao`, não desfeita.
  "indisponiveis": [],
  "envio": {"metodo": "POST", "acao": "procedimento_configurar_detalhe",
            "campos": ["hdnInfraTipoPagina", "sbmSalvar", "chkSinAtribuicao", "…"]},
- "depois": null, "reconciliado_por_leitura": false}
+ "reconciliado_por_leitura": false}
 ```
 
-Listas na ordem do catálogo. `envio` é `null` sem POST (alvo igual ao
+Listas na ordem do catálogo. `envio` é omitido sem POST (alvo igual ao
 atual) e só nomes de campos, nunca valores, URL ou `infra_hash`. Com
 `--confirmar` e sucesso: `confirmado: true`, `alterado: true`, `depois` com
 as marcas lidas e, se reconciliado, `falha_do_salvar`. Falhas: saída 1,

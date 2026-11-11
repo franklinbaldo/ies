@@ -96,8 +96,8 @@ fn alvo_ja_satisfeito_nao_publica_envio_nem_releitura_ficticios() {
         let valor = serde_json::to_value(resultado_colunas(&feito)).unwrap();
         assert_eq!(valor["confirmado"], confirmado);
         assert_eq!(valor["alterado"], false);
-        assert_eq!(valor["envio"], Value::Null);
-        assert_eq!(valor["depois"], Value::Null);
+        assert!(valor.get("envio").is_none());
+        assert!(valor.get("depois").is_none());
         assert_eq!(valor["reconciliado_por_leitura"], false);
         assert!(valor.get("falha_do_salvar").is_none());
         assert_eq!(valor, json_de_sucesso(&feito));
@@ -121,7 +121,7 @@ fn saida_de_colunas_tipadas_preserva_json_pretty_em_previa_e_reconciliacao() {
             assert_eq!(valor["falha_do_salvar"], format!("{:?}", erro_500()));
         } else {
             assert!(valor.get("falha_do_salvar").is_none());
-            assert!(valor["depois"].is_null());
+            assert!(valor.get("depois").is_none());
         }
         assert!(!std::str::from_utf8(&bytes).unwrap().contains("infra_hash"));
     }

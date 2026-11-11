@@ -397,7 +397,7 @@ pub(super) fn rodar_nup(
     andamentos: PedidoDeAndamentos,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
-    rodar_tudo(amb, nup, unidade, (andamentos, true, true), respostas)
+    rodar_tudo(amb, nup, unidade, (andamentos, false, false), respostas)
 }
 
 /// Como [`rodar_com`], dizendo também se as propriedades são lidas.
@@ -407,7 +407,7 @@ pub(super) fn rodar_props(
     propriedades: bool,
     respostas: Vec<Resposta>,
 ) -> (Result<ProcessoAberto, ErroProcessoObter>, Vec<Pedido>) {
-    rodar_tudo(amb, NUP, None, (andamentos, propriedades, true), respostas)
+    rodar_tudo(amb, NUP, None, (andamentos, propriedades, false), respostas)
 }
 
 /// Como [`rodar_props`], dizendo também se os marcadores são lidos.

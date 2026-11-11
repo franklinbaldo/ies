@@ -47,6 +47,12 @@ pub(crate) enum ErroProcessoObter {
     Propriedades(#[from] ErroPropriedades),
     /// O link dos marcadores na barra ou a tela deles.
     Marcadores(#[from] ErroMarcadores),
+    /// A barra não oferece `procedimento_alterar` nem `procedimento_consultar`.
+    PropriedadesNaoPublicadasNaBarra,
+    /// A barra não oferece `andamento_marcador_gerenciar`.
+    MarcadoresNaoPublicadosNaBarra,
+    /// A tela de marcadores é a deste processo, mas sem `table#tblMarcadores`.
+    TabelaDeMarcadoresNaoPublicadaNaTela,
     LinhaDoControleIlegivel,
     LinksDoProcessoRepetidosNoControle,
     ProcessoRepetidoNoControle,
@@ -76,6 +82,9 @@ impl ErroProcessoObter {
             | Self::Andamentos(_)
             | Self::Propriedades(_)
             | Self::Marcadores(_)
+            | Self::PropriedadesNaoPublicadasNaBarra
+            | Self::MarcadoresNaoPublicadosNaBarra
+            | Self::TabelaDeMarcadoresNaoPublicadaNaTela
             | Self::LinksDoProcessoRepetidosNoControle
             | Self::ProcessoRepetidoNoControle
             | Self::LinhaDoControleIlegivel => false,

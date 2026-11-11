@@ -76,6 +76,7 @@ pub(crate) struct Faixa {
 pub(crate) struct ListaDeBlocos {
     pub(crate) tipo: TipoBloco,
     pub(crate) total_declarado: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) faixa_observada: Option<Faixa>,
     pub(crate) itens: Vec<BlocoLido>,
 }
