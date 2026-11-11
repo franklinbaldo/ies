@@ -3,7 +3,7 @@ use super::*;
 
 /// Resolve um número pelas listas tipadas efetivamente publicadas, sem
 /// escolher assinatura por padrão. Uma página parcial não exclui colisões.
-pub(super) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
+pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     sessao: &ReferenciasDaSessao,
     unidade_esperada: Option<&str>,
     numero: &str,
