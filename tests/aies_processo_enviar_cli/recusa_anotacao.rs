@@ -16,11 +16,16 @@ fn atributo_repetido_no_botao_recusa_antes_de_qualquer_post() {
     falha(&saidas[0], "Anotacoes");
     let stderr = String::from_utf8_lossy(&saidas[0].stderr);
     assert!(
-        stderr.contains("TelaDeAnotacoesComAtributoIlegivel(AtributoRepetidoNaTag { atributo: \"name\" })"),
+        stderr.contains(
+            "TelaDeAnotacoesComAtributoIlegivel(AtributoRepetidoNaTag { atributo: \"name\" })"
+        ),
         "causa precisa no stderr: {stderr}"
     );
     assert_eq!(
-        pedidos.iter().filter(|p| *p == "GET anotacao_registrar").count(),
+        pedidos
+            .iter()
+            .filter(|p| *p == "GET anotacao_registrar")
+            .count(),
         1,
         "uma única leitura da anotação: {pedidos:?}"
     );
