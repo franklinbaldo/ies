@@ -13,11 +13,28 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
     // O destino foi confirmado por árvore, mas o GET independente não decide
     // a anotação por três motivos distintos: rede, redirect e outro processo.
     let casos = [
-        (Err(FalhaTransporte::Rede), "Rede"),
-        (r302("controlador.php?acao=principal"), "Redirecionada"),
-        (ok(anotacao("Outra", "999")), "AnotacaoDeOutroProcesso"),
+        (
+            Err(FalhaTransporte::Rede),
+            super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(FalhaTransporte::Rede),
+            ),
+        ),
+        (
+            r302("controlador.php?acao=principal"),
+            super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada,
+            ),
+        ),
+        (
+            ok(anotacao("Outra", "999")),
+            super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes(
+                    super::anotacoes::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso,
+                ),
+            ),
+        ),
     ];
-    for (ultima_resposta, sinal_da_causa) in casos {
+    for (ultima_resposta, causa_esperada) in casos {
         let acoes = vec![pelo_envio(ID), acao_da_barra(&link_anotacao())];
         let respostas = com(
             abertura(arvore(&[UNIDADE], &acoes)),
@@ -49,10 +66,10 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
         let erro = resultado.expect_err("anotação não comprovada não pode ser sucesso");
         let causa = std::error::Error::source(&erro)
             .expect("releitura pós-escrita precisa preservar sua causa tipada");
-        assert!(
-            format!("{causa:?}").contains(sinal_da_causa),
-            "causa não específica: {causa:?}"
-        );
+        let causa_tipada = causa
+            .downcast_ref::<super::ErroEnviar>()
+            .expect("a causa deve continuar sendo ErroEnviar tipado");
+        assert_eq!(causa_tipada, &causa_esperada);
         assert_eq!(pedidos.len(), 9);
         assert_eq!(
             pedidos
