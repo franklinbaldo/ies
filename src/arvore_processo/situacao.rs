@@ -201,7 +201,7 @@ fn pecas(texto: &str) -> Option<Vec<Peca>> {
                 (vazia && atributos(tag).ok()?.total() == 0).then_some(Peca::Quebra)?
             }
             tl::Node::Tag(tag) if tag.name() == "a" => ancora(tag, parser)?,
-            _ => return None,
+            tl::Node::Tag(_) | tl::Node::Comment(_) => return None,
         };
         pecas.push(peca);
     }

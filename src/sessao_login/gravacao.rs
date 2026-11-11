@@ -146,7 +146,13 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         FalhaDaGravacao::DiretorioGravavelPorOutros => {
             ErroLogin::DiretorioDaSessaoGravavelPorOutros(papel)
         }
-        _ => ErroLogin::GravacaoDaSessaoFalhou(papel),
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DestinoJaExiste
+        | FalhaDaGravacao::AcimaDoLimite
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }
 

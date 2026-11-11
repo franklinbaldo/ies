@@ -273,7 +273,10 @@ pub(crate) fn confirmar_retirada<V: EnvioDoProcesso>(
                 Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
                     Some(!lidos.itens.iter().any(|m| m.id == rotulo.id))
                 }
-                _ => None,
+                Marcadores::Lidos(_)
+                | Marcadores::Omitidos
+                | Marcadores::NaoPublicadosNaBarra
+                | Marcadores::TabelaNaoPublicada => None,
             }
         }
         _ => None,

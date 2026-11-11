@@ -33,7 +33,7 @@ pub(super) fn ler_natureza(a: &[Literal; super::ARGUMENTOS]) -> NaturezaDoDocume
         Literal::Texto(dica) => dica
             .strip_prefix(DICA_CANCELADO)
             .map(|resto| resto.strip_prefix(' ').unwrap_or(resto)),
-        _ => None,
+        Literal::Nulo | Literal::Booleano(_) | Literal::Inteiro(_) => None,
     };
     let (cancelado, motivo_do_cancelamento) = match (icone.as_deref(), motivo) {
         (Some(ICONE_CANCELADO), Some(motivo)) => (Some(true), Some(motivo.to_owned())),

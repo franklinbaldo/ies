@@ -243,7 +243,9 @@ fn ler_lista<V: EnvioDoProcesso>(
 ) -> Result<HistoricoDocumento, ErroDocumentoObter> {
     let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
     let numero = NumeroDocumento::novo(no.numero)
         .map_err(|_| ErroDocumentoObter::NumeroSeiDaArvoreDiferenteDoPedido)?;
@@ -260,7 +262,9 @@ fn ler_pagina<V: EnvioDoProcesso>(
 ) -> Result<(String, String, String), ErroDocumentoObter> {
     let html = match rede.get(url).map_err(ErroDocumentoObter::Processo)? {
         Lida::Html { html, .. } => html,
-        outra => return Err(ErroDocumentoObter::Processo(fora_do_html(outra))),
+        outra @ (Lida::Redirecionamento(_) | Lida::Login | Lida::Falha(_)) => {
+            return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
+        }
     };
     let identidade = identidade_do_titulo(&html).map_err(ErroDocumentoObter::Titulo)?;
     if identidade.numero != numero {

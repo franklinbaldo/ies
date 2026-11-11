@@ -30,7 +30,39 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 ErroDetalhada::UnidadeNaoIdentificada => {
                     ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle
                 }
-                _ => ErroCaixa::HtmlDaCaixaInvalido,
+                ErroDetalhada::VisualizacaoIncorreta
+                | ErroDetalhada::UnidadeDiferente
+                | ErroDetalhada::ContextoDiferente
+                | ErroDetalhada::ColunasDaLinhaDiferentes
+                | ErroDetalhada::ClassesDeEstadoDiferentesNoLink
+                | ErroDetalhada::TotalNaoDeclarado
+                | ErroDetalhada::FaixaSemIntervaloComPaginacao
+                | ErroDetalhada::FaixaDescontinua
+                | ErroDetalhada::TotalAlterado
+                | ErroDetalhada::LimitePaginas
+                | ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho
+                | ErroDetalhada::ItensDaCelulaNaoSeparados
+                | ErroDetalhada::CabecalhoDiferenteEntrePaginas
+                | ErroDetalhada::TextoForaDosMarcadoresNaCelula
+                | ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido
+                | ErroDetalhada::CabecalhoProcessoDetalhadoAusente
+                | ErroDetalhada::CabecalhoProcessoDetalhadoRepetido
+                | ErroDetalhada::ColunaDaVisaoDetalhadaRepetida
+                | ErroDetalhada::FaixaDetalhadaInvalida
+                | ErroDetalhada::HtmlDetalhadoNaoInterpretado
+                | ErroDetalhada::AtributoDaDetalhadaIlegivel(_)
+                | ErroDetalhada::IdentificadorDetalhadoInvalido
+                | ErroDetalhada::IdentificadorDetalhadoRepetido
+                | ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada
+                | ErroDetalhada::LegendaDetalhadaAusente
+                | ErroDetalhada::LegendasDetalhadasRepetidas
+                | ErroDetalhada::LinkDoProcessoDetalhadoAusente
+                | ErroDetalhada::LinksDoProcessoDetalhadoRepetidos
+                | ErroDetalhada::MarcadorDaCelulaDetalhadaForaDaFormaObservada
+                | ErroDetalhada::NumeroDetalhadoRepetido
+                | ErroDetalhada::NumeroDoProcessoDetalhadoAusente
+                | ErroDetalhada::TabelaDetalhadaAusente
+                | ErroDetalhada::TabelasDetalhadasRepetidas => ErroCaixa::HtmlDaCaixaInvalido,
             });
     }
     paginas::juntar(&[html.to_owned()], None)?

@@ -201,7 +201,7 @@ fn reconciliar<V: EnvioDoProcesso>(
         } => Err(ErroCancelar::CancelamentoNaoAplicado {
             falha_do_envio: falha,
         }),
-        outra => Err(ErroCancelar::NaoConfirmado {
+        outra @ (Ver::Lida { .. } | Ver::LeituraFalhou(_)) => Err(ErroCancelar::NaoConfirmado {
             falha_do_envio: falha,
             verificacao: Box::new(outra),
         }),

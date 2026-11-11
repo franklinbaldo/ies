@@ -4,6 +4,7 @@
 //! na lista observada, `Content-Disposition`, limite) e o corpo é lido em
 //! blocos, com SHA-256, para um parcial 0600 em `--saida` ou só para o
 //! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
+use crate::arquivo_privado::FalhaDaGravacao;
 use crate::documento_web::ErroCorpoDocumento;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
@@ -127,8 +128,15 @@ impl ArquivoParcial {
     /// o destino existe) e remove o parcial.
     pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
         self.parcial.confirmar().map_err(|falha| match falha {
-            crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
-            _ => ErroAnexo::EscritaFalhou,
+            FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+            FalhaDaGravacao::SemNomeDeArquivo
+            | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioGravavelPorOutros
+            | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+            | FalhaDaGravacao::AcimaDoLimite
+            | FalhaDaGravacao::CriacaoFalhou
+            | FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
         })
     }
 }
@@ -180,6 +188,36 @@ impl ErroAnexo {
     }
 }
 
+/// A falha de leitura do corpo do anexo: a resposta excessiva é o limite do
+/// anexo; as demais seguem como falha de transporte.
+fn erro_de_leitura(erro: &std::io::Error) -> ErroAnexo {
+    match falha_de_leitura(erro) {
+        FalhaTransporte::RespostaExcessiva => ErroAnexo::AcimaDoLimite,
+        falha @ (FalhaTransporte::ChaveDeConsultaNaoCanonica
+        | FalhaTransporte::SeparadorDeConsultaAmbiguo
+        | FalhaTransporte::OrigemNaoAutorizada
+        | FalhaTransporte::UrlInvalida
+        | FalhaTransporte::CookieInvalido
+        | FalhaTransporte::TipoDeConteudoNaoHtml
+        | FalhaTransporte::TipoDeConteudoNaoXml
+        | FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+        | FalhaTransporte::ArquivoPrivadoComPermissoesInseguras
+        | FalhaTransporte::CaminhoDeArquivoNaoEhArquivo
+        | FalhaTransporte::ArquivoPrivadoLinkSimbolico
+        | FalhaTransporte::ArquivoPrivadoVazio
+        | FalhaTransporte::ArquivoPrivadoAcimaDoLimite
+        | FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
+        | FalhaTransporte::SessaoTrocadaDuranteALeitura
+        | FalhaTransporte::Status(_)
+        | FalhaTransporte::BloqueioDeSegurancaDaInstalacao(_)
+        | FalhaTransporte::ControleRedirecionadoParaOLogin(_)
+        | FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
+        | FalhaTransporte::PaginaDeLoginRecebidaNoControle
+        | FalhaTransporte::Rede
+        | FalhaTransporte::Proxy) => ErroAnexo::Transporte(falha),
+    }
+}
+
 /// Lê a resposta de `documento_download_anexo` do documento `numero`.
 /// 3xx não chega aqui: quem chama o trata como no resto do fluxo.
 pub(crate) fn ler_anexo<R: Read>(
@@ -225,10 +263,7 @@ pub(crate) fn ler_anexo<R: Read>(
             Ok(lido) => lido,
             Err(erro) if erro.kind() == std::io::ErrorKind::Interrupted => continue,
             Err(erro) => {
-                return Err(match falha_de_leitura(&erro) {
-                    FalhaTransporte::RespostaExcessiva => ErroAnexo::AcimaDoLimite,
-                    falha => ErroAnexo::Transporte(falha),
-                });
+                return Err(erro_de_leitura(&erro));
             }
         };
         tamanho += lido as u64;
@@ -242,10 +277,15 @@ pub(crate) fn ler_anexo<R: Read>(
                 .parcial
                 .escrever(&bloco[..lido])
                 .map_err(|falha| match falha {
-                    crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite => {
-                        ErroAnexo::AcimaDoLimite
-                    }
-                    _ => ErroAnexo::EscritaFalhou,
+                    FalhaDaGravacao::AcimaDoLimite => ErroAnexo::AcimaDoLimite,
+                    FalhaDaGravacao::SemNomeDeArquivo
+                    | FalhaDaGravacao::DiretorioAusente
+                    | FalhaDaGravacao::DiretorioGravavelPorOutros
+                    | FalhaDaGravacao::DestinoJaExiste
+                    | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+                    | FalhaDaGravacao::CriacaoFalhou
+                    | FalhaDaGravacao::EscritaFalhou
+                    | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
                 })?;
         }
         if texto {

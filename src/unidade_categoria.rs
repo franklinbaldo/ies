@@ -102,7 +102,11 @@ pub(crate) fn publicar_lista(
             modelo["total_declarado"],
             match &modelo["faixa_observada"] {
                 Value::Null => "nenhuma".to_owned(),
-                faixa => format!("{} a {}", faixa["inicio"], faixa["fim"]),
+                faixa @ (Value::Bool(_)
+                | Value::Number(_)
+                | Value::String(_)
+                | Value::Array(_)
+                | Value::Object(_)) => format!("{} a {}", faixa["inicio"], faixa["fim"]),
             }
         );
     }

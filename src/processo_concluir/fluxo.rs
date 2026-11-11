@@ -178,7 +178,7 @@ fn conciliar(
 ) -> Result<ProcessoConcluido, ErroConcluir> {
     let depois = match verificacao {
         VerificacaoPorLeitura::Lida(ref siglas) => siglas.clone(),
-        _ => {
+        VerificacaoPorLeitura::SituacaoNaoLida(_) | VerificacaoPorLeitura::LeituraFalhou(_) => {
             return Err(ErroConcluir::NaoConfirmadoNaConclusao {
                 aberto_em: feito.aberto_em,
                 falha_do_envio: falha,

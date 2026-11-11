@@ -28,7 +28,15 @@ pub(crate) fn tentar_operar(cli: &Cli) -> Option<anyhow::Result<()>> {
             acao: Some(ProcessoAcao::Retomar { numero, confirmar }),
             ..
         }) => Some(operar(cli, numero, None, *confirmar, Acao::Retomar)),
-        _ => None,
+        Domain::Processo(_)
+        | Domain::Documento(_)
+        | Domain::Unidade(_)
+        | Domain::Indice(_)
+        | Domain::Bloco(_)
+        | Domain::Status(_)
+        | Domain::Setup(_)
+        | Domain::Login(_)
+        | Domain::Esquema => None,
     }
 }
 

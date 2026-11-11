@@ -77,7 +77,25 @@ fn falha(erro: &ureq::Error) -> FalhaTransporte {
     match erro {
         ureq::Error::BadUri(_) => FalhaTransporte::UrlInvalida,
         ureq::Error::InvalidProxyUrl | ureq::Error::ConnectProxyFailed(_) => FalhaTransporte::Proxy,
-        _ => FalhaTransporte::Rede,
+        ureq::Error::StatusCode(_)
+        | ureq::Error::Http(_)
+        | ureq::Error::Protocol(_)
+        | ureq::Error::Io(_)
+        | ureq::Error::Timeout(_)
+        | ureq::Error::HostNotFound
+        | ureq::Error::RedirectFailed
+        | ureq::Error::ConnectionFailed
+        | ureq::Error::BodyExceedsLimit(_)
+        | ureq::Error::TooManyRedirects
+        | ureq::Error::Tls(_)
+        | ureq::Error::Pem(_)
+        | ureq::Error::NativeTls(_)
+        | ureq::Error::Der(_)
+        | ureq::Error::RequireHttpsOnly(_)
+        | ureq::Error::LargeResponseHeader(..)
+        | ureq::Error::TlsRequired
+        | ureq::Error::Other(_)
+        | _ => FalhaTransporte::Rede,
     }
 }
 

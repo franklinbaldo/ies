@@ -110,7 +110,21 @@ impl ErroCaixa {
             | Self::TotalNaoDeclaradoNaLegenda { categoria }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
-            _ => None,
+            Self::IdInvalido
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::AtributoDaCaixaIlegivel(_)
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
     pub fn id(&self) -> Option<&str> {
@@ -120,7 +134,35 @@ impl ErroCaixa {
             | Self::MaisDeUmNumeroNaLinhaDoProcesso { id, .. }
             | Self::LinkDoProcessoNaoIdentificadoNaLinha { id, .. }
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { id, .. } => Some(id),
-            _ => None,
+            Self::TabelaAusente { .. }
+            | Self::TabelasDaCategoriaRepetidas { .. }
+            | Self::TabelaInvalida { .. }
+            | Self::LegendaAusente { .. }
+            | Self::LegendasDaTabelaRepetidas { .. }
+            | Self::IdInvalido
+            | Self::TotalExcedido { .. }
+            | Self::TotaisDeclaradosDiferentesEntrePaginas { .. }
+            | Self::FaixaInvalida { .. }
+            | Self::FaixaDesconhecida { .. }
+            | Self::FaixaAlterada { .. }
+            | Self::FaixaDescontinua { .. }
+            | Self::TotalNaoDeclaradoNaLegenda { .. }
+            | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
+            | Self::PaginadorDaTabelaSemFaixaNaLegenda { .. }
+            | Self::LimitePaginas
+            | Self::VisaoResumidaComPaginacao
+            | Self::FiltroDeMarcadorAtivoNoControle
+            | Self::IdentificacaoDaUnidadeAusenteNoControle
+            | Self::ContextoNaoVerificavel
+            | Self::ContextoDaPaginaDiferenteDoAnterior
+            | Self::SemPaginas
+            | Self::HashesDeCriteriosGeradosRepetidosNoControle
+            | Self::HashesDeCriteriosRecebidosRepetidosNoControle
+            | Self::HtmlDaCaixaInvalido
+            | Self::AtributoDaCaixaIlegivel(_)
+            | Self::IdentificacoesDaUnidadeRepetidasNoControle
+            | Self::TiposDeVisualizacaoRepetidosNoControle
+            | Self::UnidadeInesperada => None,
         }
     }
 }

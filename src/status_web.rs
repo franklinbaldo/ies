@@ -18,7 +18,39 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
             ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle => {
                 FalhaControleWeb::IdentidadeUnidadeNaoObservada
             }
-            outro => FalhaControleWeb::ControleNaoReconhecido(outro),
+            outro @ (ErroCaixa::TabelaAusente { .. }
+            | ErroCaixa::TabelasDaCategoriaRepetidas { .. }
+            | ErroCaixa::TabelaInvalida { .. }
+            | ErroCaixa::LegendaAusente { .. }
+            | ErroCaixa::LegendasDaTabelaRepetidas { .. }
+            | ErroCaixa::IdInvalido
+            | ErroCaixa::IdRepetido { .. }
+            | ErroCaixa::NumeroInvalido { .. }
+            | ErroCaixa::MaisDeUmNumeroNaLinhaDoProcesso { .. }
+            | ErroCaixa::LinkDoProcessoNaoIdentificadoNaLinha { .. }
+            | ErroCaixa::ClassesDeEstadoDiferentesNoLinkDoProcesso { .. }
+            | ErroCaixa::TotalExcedido { .. }
+            | ErroCaixa::TotaisDeclaradosDiferentesEntrePaginas { .. }
+            | ErroCaixa::FaixaInvalida { .. }
+            | ErroCaixa::FaixaDesconhecida { .. }
+            | ErroCaixa::FaixaAlterada { .. }
+            | ErroCaixa::FaixaDescontinua { .. }
+            | ErroCaixa::TotalNaoDeclaradoNaLegenda { .. }
+            | ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
+            | ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { .. }
+            | ErroCaixa::LimitePaginas
+            | ErroCaixa::VisaoResumidaComPaginacao
+            | ErroCaixa::FiltroDeMarcadorAtivoNoControle
+            | ErroCaixa::ContextoNaoVerificavel
+            | ErroCaixa::ContextoDaPaginaDiferenteDoAnterior
+            | ErroCaixa::SemPaginas
+            | ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle
+            | ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
+            | ErroCaixa::HtmlDaCaixaInvalido
+            | ErroCaixa::AtributoDaCaixaIlegivel(_)
+            | ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
+            | ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
+            | ErroCaixa::UnidadeInesperada) => FalhaControleWeb::ControleNaoReconhecido(outro),
         })?;
     Ok(json!({
         "controle_web": "observado",

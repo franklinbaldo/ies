@@ -195,7 +195,9 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
                 local.contains("acao=controle_prazo_listar")
                     && local.contains("acao_origem=controle_prazo_excluir")
             }) => {}
-        _ => return Err(FalhaDoPrazo::NaoConfirmado(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaDoPrazo::NaoConfirmado(None));
+        }
     }
     let (lista_nova, _) = obter_tela(rede, cookie, &dados.link_lista)
         .map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;

@@ -101,7 +101,67 @@ impl ErroSubmissaoFormulario {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
-            _ => None,
+            Self::EfeitoDaOperacaoNaoAvaliado
+            | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::FormulariosComMesmoIdentificadorNaTela
+            | Self::MetodoDoFormularioDiferenteDePost
+            | Self::EnctypeDoFormularioNaoUrlencoded
+            | Self::AcceptCharsetPublicadoNoFormulario
+            | Self::AcaoDoFormularioNaoEhUrlHttps
+            | Self::AcaoDoFormularioForaDaInstalacao
+            | Self::AcaoDoFormularioDiferenteDaOperacao
+            | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
+            | Self::CampoOcultoAusenteNoFormulario { .. }
+            | Self::CampoOcultoRepetidoNoFormulario { .. }
+            | Self::HdnAcaoPublicadoSemRegraDaOperacao
+            | Self::CampoForaDaListaDaOperacao { .. }
+            | Self::CampoNaoPublicadoPeloFormulario { .. }
+            | Self::CampoInformadoMaisDeUmaVez { .. }
+            | Self::CampoCriadoPeloScriptJaPublicado { .. }
+            | Self::ValorNaoRepresentavelNaCodificacao { .. }
+            | Self::TelaDeLoginRecebidaAposEnvio
+            | Self::MarcadorDeResultadoAusenteNaResposta
+            | Self::ValidacaoRecusadaPeloSei(_)
+            | Self::AtributoHtml(_)
+            | Self::AcaoDoFormularioAusente
+            | Self::BotaoDeEnvioAusenteNoFormulario
+            | Self::BotoesDeEnvioRepetidosNoFormulario
+            | Self::FormularioAusenteNaTela
+            | Self::IdentificacaoDaUnidadeAusenteNaTela
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela => None,
+        }
+    }
+}
+
+impl ErroSubmissaoFormulario {
+    /// A resposta do envio não pôde ser lida: a tela de login no lugar da
+    /// resposta é sessão perdida no envio; as demais seguem como transporte.
+    pub(crate) fn da_resposta(falha: FalhaTransporte) -> Self {
+        match falha {
+            FalhaTransporte::PaginaDeLoginRecebidaNoControle => Self::TelaDeLoginRecebidaAposEnvio,
+            outra @ (FalhaTransporte::ChaveDeConsultaNaoCanonica
+            | FalhaTransporte::SeparadorDeConsultaAmbiguo
+            | FalhaTransporte::OrigemNaoAutorizada
+            | FalhaTransporte::UrlInvalida
+            | FalhaTransporte::CookieInvalido
+            | FalhaTransporte::TipoDeConteudoNaoHtml
+            | FalhaTransporte::TipoDeConteudoNaoXml
+            | FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+            | FalhaTransporte::ArquivoPrivadoComPermissoesInseguras
+            | FalhaTransporte::CaminhoDeArquivoNaoEhArquivo
+            | FalhaTransporte::ArquivoPrivadoLinkSimbolico
+            | FalhaTransporte::ArquivoPrivadoVazio
+            | FalhaTransporte::ArquivoPrivadoAcimaDoLimite
+            | FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
+            | FalhaTransporte::SessaoTrocadaDuranteALeitura
+            | FalhaTransporte::Status(_)
+            | FalhaTransporte::BloqueioDeSegurancaDaInstalacao(_)
+            | FalhaTransporte::ControleRedirecionadoParaOLogin(_)
+            | FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
+            | FalhaTransporte::RespostaExcessiva
+            | FalhaTransporte::Rede
+            | FalhaTransporte::Proxy) => Self::Transporte(outra),
         }
     }
 }

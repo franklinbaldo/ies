@@ -153,7 +153,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(FalhaRelacionar::NaoConfirmado(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
     let (nova_tela, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
@@ -243,7 +245,9 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
             if redir
                 .localizacao()
                 .is_some_and(|loc| aceite_da_remocao(loc, redir.url_do_envio(), id_origem)) => {}
-        _ => return Err(FalhaRelacionar::NaoConfirmado(None)),
+        RespostaDoEnvio::Html(_) | RespostaDoEnvio::Redirecionamento(_) => {
+            return Err(FalhaRelacionar::NaoConfirmado(None));
+        }
     }
     let (nova_tela, _) =
         obter_tela(rede, cookie, link).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;

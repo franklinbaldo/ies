@@ -439,7 +439,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         Domain::Unidade(Unidade { acao: Some(acao) }) => {
             return cli_unidade_aux::executar(cli, acao);
         }
-        _ => {}
+        Domain::Processo(_) | Domain::Documento(_) | Domain::Unidade(_) | Domain::Indice(_) => {}
     }
     match &cli.command {
         Domain::Processo(Processo {
@@ -466,7 +466,15 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
             esquema_cli::show_noun_help("unidade");
             return Ok(());
         }
-        _ => {}
+        Domain::Processo(_)
+        | Domain::Documento(_)
+        | Domain::Unidade(_)
+        | Domain::Indice(_)
+        | Domain::Bloco(_)
+        | Domain::Status(_)
+        | Domain::Setup(_)
+        | Domain::Login(_)
+        | Domain::Esquema => {}
     }
     Err(ComandoSemImplementacaoNoSei(format!("{:?}", cli.command)).into())
 }

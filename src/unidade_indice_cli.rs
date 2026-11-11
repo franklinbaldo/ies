@@ -8,6 +8,14 @@ pub(super) fn tentar_consulta_local(cli: &Cli) -> Option<anyhow::Result<()>> {
         Domain::Indice(Indice {
             acao: Some(IndiceAcao::Caminho),
         }) => Some(indice_caminho_cli::mostrar(cli.json)),
-        _ => None,
+        Domain::Processo(_)
+        | Domain::Documento(_)
+        | Domain::Unidade(_)
+        | Domain::Indice(_)
+        | Domain::Bloco(_)
+        | Domain::Status(_)
+        | Domain::Setup(_)
+        | Domain::Login(_)
+        | Domain::Esquema => None,
     }
 }

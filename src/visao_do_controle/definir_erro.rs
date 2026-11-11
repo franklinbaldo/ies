@@ -79,7 +79,7 @@ impl ColunasDefinidas {
     pub(crate) fn depois(&self) -> Option<&[ColunaDoDetalhe]> {
         match &self.estado {
             EstadoDasColunas::Conferidas { depois, .. } => Some(depois),
-            _ => None,
+            EstadoDasColunas::Inalteradas { .. } | EstadoDasColunas::Previa { .. } => None,
         }
     }
 
@@ -88,7 +88,7 @@ impl ColunasDefinidas {
             EstadoDasColunas::Conferidas {
                 reconciliado_por, ..
             } => reconciliado_por.as_ref(),
-            _ => None,
+            EstadoDasColunas::Inalteradas { .. } | EstadoDasColunas::Previa { .. } => None,
         }
     }
 }

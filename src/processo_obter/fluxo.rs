@@ -357,7 +357,13 @@ pub(super) fn ler_controle_colhido<V: EnvioDoProcesso>(
             ErroBuscaDeProcesso::Transporte(FalhaTransporte::PaginaDeLoginRecebidaNoControle) => {
                 ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
             }
-            outro => ErroProcessoObter::Controle(outro),
+            outro @ (ErroBuscaDeProcesso::Transporte(_)
+            | ErroBuscaDeProcesso::Controle(_)
+            | ErroBuscaDeProcesso::UnidadeDoControleDiferenteDaSolicitada
+            | ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado
+            | ErroBuscaDeProcesso::Link(_)
+            | ErroBuscaDeProcesso::Pesquisa(_)
+            | ErroBuscaDeProcesso::Paginacao(_)) => ErroProcessoObter::Controle(outro),
         },
     )?;
     Colheita::com_geracao(
