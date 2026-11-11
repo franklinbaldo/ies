@@ -2,8 +2,9 @@
 //! (Todos `tests/paginas_reais/documento_alterar.html`, SEI 4.0.9; Refs #60).
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
+use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::instalacao::Instalacao;
 use serde::Serialize;
 type Tag<'p> = &'p tl::HTMLTag<'p>;
@@ -75,15 +76,6 @@ pub(crate) enum ErroPropriedadesDocumento {
     NivelCadastroDocumentoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroPropriedadesDocumento> {
-    let a = atributos(tag).map_err(ErroPropriedadesDocumento::Atributo)?;
-    a.valor(nome)
-        .map_err(ErroPropriedadesDocumento::Atributo)?
-        .map(|v| {
-            decodificar_atributo(v).ok_or(ErroPropriedadesDocumento::CadastroDocumentoIlegivel)
-        })
-        .transpose()
-}
 fn campo<'p>(
     form: Tag<'p>,
     parser: &'p tl::Parser<'p>,
@@ -100,7 +92,9 @@ fn campo<'p>(
     }
 }
 fn valor(tag: Tag<'_>) -> Result<String, ErroPropriedadesDocumento> {
-    atributo(tag, "value")?.ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
+    valor_decodificado(tag, "value")
+        .map_err(ErroPropriedadesDocumento::Atributo)?
+        .ok_or(ErroPropriedadesDocumento::ValorCadastroDocumentoAusente)
 }
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroPropriedadesDocumento> {
     decodificar_atributo(&tag.inner_text(parser))
@@ -119,7 +113,9 @@ fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedad
             == Some("rdoNivelAcesso")
             && a.presente("checked")
         {
-            marcados.push(atributo(tag, "value")?);
+            marcados.push(
+                valor_decodificado(tag, "value").map_err(ErroPropriedadesDocumento::Atributo)?,
+            );
         }
     }
     match marcados.as_slice() {
@@ -149,12 +145,15 @@ pub(crate) fn ler_link(
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(href) = atributo(tag, "href")? else {
+        let Some(href) =
+            valor_decodificado(tag, "href").map_err(ErroPropriedadesDocumento::Atributo)?
+        else {
             continue;
         };
         let acao = href
             .strip_prefix("controlador.php?")
-            .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("acao=")));
+            .and_then(|q| ConsultaDoControlador::ler(q).ok())
+            .and_then(|q| q.acao().ok());
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
         // externos publicam as ações `_recebido` (cassette UFRJ #60).
         let Some(
@@ -162,7 +161,7 @@ pub(crate) fn ler_link(
             | AcaoDoSei::DocumentoConsultar
             | AcaoDoSei::DocumentoAlterarRecebido
             | AcaoDoSei::DocumentoConsultarRecebido),
-        ) = acao.and_then(AcaoDoSei::ler)
+        ) = acao
         else {
             continue;
         };
@@ -257,6 +256,8 @@ pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
     }
 }
 
+#[cfg(test)]
+mod acervo;
 #[cfg(test)]
 mod tests {
     use super::*;

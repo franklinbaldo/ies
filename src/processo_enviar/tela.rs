@@ -13,6 +13,7 @@
 use super::Destino;
 use super::erro::ErroTelaDeEnvio;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -144,7 +145,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         if elemento == "option" {
             let valor = decodificado(tag, "value")?
                 .ok_or(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio)?;
-            let marcada = presente(tag, "selected")?;
+            let marcada = atributo_presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
                     orgao_primeira.get_or_insert_with(|| valor.clone());
@@ -166,7 +167,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
             continue;
         }
         selecao = None;
-        if presente(tag, "disabled")? {
+        if atributo_presente(tag, "disabled")? {
             continue;
         }
         let Some(nome) = decodificado(tag, "name")?.filter(|n| !n.is_empty()) else {
@@ -179,7 +180,7 @@ pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio
         };
         let tipo = decodificado(tag, "type")?
             .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = presente(tag, "checked")?;
+        let marcado = atributo_presente(tag, "checked")?;
         let servido = decodificado(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
@@ -269,10 +270,6 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeEnvio> {
-    atributo_presente(tag, nome).map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)
-}
-
 fn decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &'static str,
@@ -348,15 +345,10 @@ pub(crate) fn redirecionamento_esperado(
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
     };
-    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
-        && valores("acao_origem") == [AcaoDoSei::ProcedimentoEnviar.como_na_url()]
-        && valores("id_procedimento") == [id]
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoEnviar.como_na_url())
+        && consulta.unico("id_procedimento") == Ok(id)
 }

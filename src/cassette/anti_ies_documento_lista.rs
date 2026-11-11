@@ -163,7 +163,6 @@ fn confrontar_historico_http(
     endereco: SocketAddr,
     id: &str,
     processo: &str,
-    numero: &NumeroDocumento,
     original: &HistoricoDocumento,
 ) {
     let alvo = format!(
@@ -172,7 +171,7 @@ fn confrontar_historico_http(
     let resposta = pedir(endereco, "GET", &alvo);
     let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-    let simulado = interpretar_historico(html, numero, id, Some(original.len()))
+    let simulado = interpretar_historico(html, id, Some(original.len()))
         .expect("leitor real do IES no histórico HTTP simulado");
     assert_eq!(simulado.atual(), original.atual());
     for n in 1..=original.atual().unwrap().numero() {
@@ -252,8 +251,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
     // Dados das linhas vêm do GET original do histórico, não de uma fixture.
     // Corpos das versões antigas não foram capturados: a simulação não os
     // apresenta neste confronto, que examina somente a lista de metadados.
-    let numero = NumeroDocumento::novo(&identidade.numero).unwrap();
-    let original_historico = interpretar_historico(&html_historico, &numero, &id, None).unwrap();
+    let original_historico = interpretar_historico(&html_historico, &id, None).unwrap();
     let revisoes = revisoes_observadas(&original_historico, &texto);
 
     let documento = DocumentoSimulado {
@@ -290,7 +288,7 @@ fn cassette_unb_arvore_concluida_retira_link_de_versoes_no_http() {
             "barra original versus HTTP simulado"
         );
         if esperado {
-            confrontar_historico_http(endereco, &id, &antes.1, &numero, &original_historico);
+            confrontar_historico_http(endereco, &id, &antes.1, &original_historico);
         }
     }
     assert!(pedir(endereco, "POST", &alvo).starts_with("HTTP/1.1 405"));

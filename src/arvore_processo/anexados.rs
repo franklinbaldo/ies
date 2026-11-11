@@ -7,6 +7,8 @@
 //! recusa.
 use super::pastas::{NoDePasta, Pai};
 use super::{ARGUMENTOS, DocumentoLido, ErroArvore, Literal, ProcessoNaArvore};
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use std::collections::HashSet;
 
 /// Um anexado lido, com o pai (a2) ainda não conferido.
@@ -48,24 +50,11 @@ fn endereco_observado(url: &str, pai: &str, id: &str) -> bool {
     let Some(consulta) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let mut vistos = [0u8; 3];
-    for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').unwrap_or((par, ""));
-        let (posicao, esperado) = match chave {
-            "acao" => (0, "arvore_visualizar"),
-            "id_procedimento" => (1, pai),
-            "id_procedimento_anexado" => (2, id),
-            _ => continue,
-        };
-        if valor != esperado {
-            return false;
-        }
-        let Some(visto) = vistos.get_mut(posicao) else {
-            return false;
-        };
-        *visto += 1;
-    }
-    vistos == [1, 1, 1]
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+            && consulta.unico("id_procedimento") == Ok(pai)
+            && consulta.unico("id_procedimento_anexado") == Ok(id)
+    })
 }
 
 /// Confere os anexados contra o processo e os outros nós; devolve-os na

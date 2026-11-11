@@ -1,6 +1,7 @@
 //! Consulta de link assinado na forma conferida (chaves canônicas, `acao`
 //! única, `infra_hash` hexadecimal único, sem `acao_ajax`).
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 
 /// Confere a consulta de um link assinado: chaves canônicas, valores sem
 /// `;`, `acao` única igual a `acao`, um `infra_hash` hexadecimal aceito por
@@ -28,22 +29,19 @@ fn conferir(
     acao: AcaoDoSei,
     comprimento: impl Fn(&str) -> bool,
 ) -> Option<Vec<String>> {
-    use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
-    let (mut acoes, mut hashes) = (0, 0);
-    let mut unidades = Vec::new();
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=')?;
-        conferir_chave_de_consulta(nome).ok()?;
-        conferir_valor_de_consulta(valor).ok()?;
-        match nome {
-            "acao" if valor == acao.como_na_url() => acoes += 1,
-            "infra_hash" if comprimento(valor) && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "infra_unidade_atual" => unidades.push(valor.to_owned()),
-            "acao" | "infra_hash" | "acao_ajax" => return None,
-            _ => {}
-        }
+    let consulta = ConsultaDoControlador::ler(consulta).ok()?;
+    let hash = consulta.unico("infra_hash").ok()?;
+    if consulta.acao() != Ok(acao)
+        || consulta.valores("acao_ajax").next().is_some()
+        || !comprimento(hash)
+        || !hash.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return None;
     }
-    (acoes == 1 && hashes == 1).then_some(unidades)
+    Some(
+        consulta
+            .valores("infra_unidade_atual")
+            .map(str::to_owned)
+            .collect(),
+    )
 }

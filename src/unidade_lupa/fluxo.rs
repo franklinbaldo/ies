@@ -3,6 +3,7 @@
 //! → `unidade_selecionar_envio_processo` → GET lupa + POST por página.
 use super::{ErroLupa, PaginaDaLupa, ler_pagina, reunir_paginas};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::indice_local::UnidadeGuardada;
 use crate::instalacao::Instalacao;
@@ -103,30 +104,14 @@ fn url_publicada_autorizada(url: &str, origem: &str, acao: AcaoDoSei) -> bool {
     let Some(query) = partes.consulta else {
         return false;
     };
-    let (mut acao_encontrada, mut hash_encontrado) = (false, false);
-    for item in query.split('&') {
-        let Some((chave, valor)) = item.split_once('=') else {
-            return false;
-        };
-        if crate::transporte::conferir_chave_de_consulta(chave).is_err()
-            || crate::transporte::conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        match chave {
-            "acao" if !acao_encontrada && valor == acao.como_na_url() => acao_encontrada = true,
-            "infra_hash"
-                if !hash_encontrado
-                    && valor.len() == 64
-                    && valor.bytes().all(|b| b.is_ascii_hexdigit()) =>
-            {
-                hash_encontrado = true;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return false,
-            _ => {}
-        }
-    }
-    acao_encontrada && hash_encontrado
+    let Ok(query) = ConsultaDoControlador::ler(query) else {
+        return false;
+    };
+    query.unico("acao") == Ok(acao.como_na_url())
+        && query.valores("acao_ajax").next().is_none()
+        && query
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
 fn validar_url_de_leitura(url: &str, origem: &str) -> Result<(), FalhaDaLupa> {

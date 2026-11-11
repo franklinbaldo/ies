@@ -2,6 +2,7 @@
 //! A releitura da mesma identidade ocorre após o POST, sem retry.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::MotivoAbertoEm;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, consulta_do_controlador,
     derivar_submissao, enviar_submissao_via,
@@ -171,15 +172,12 @@ fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> 
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(nome, _)| *nome == chave)
-            .map(|(_, valor)| valor)
-            .collect()
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
     };
-    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
-        && valores("acao_origem") == [AcaoDoSei::AnotacaoRegistrar.como_na_url()]
-        && valores("id_procedimento") == [id]
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AnotacaoRegistrar.como_na_url())
+        && consulta.unico("id_procedimento") == Ok(id)
 }
+#[cfg(test)]
+mod acervo;

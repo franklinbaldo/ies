@@ -3,7 +3,7 @@
 //! SEI 4.x: linha de dados + trComentario; SEI 5.0: coluna Texto.
 //! Não usa rede, não executa JS e não infere ausência de tabela como lista vazia.
 use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id};
+use crate::html_atributos::{atributos, nos_com_id, valor_decodificado};
 use std::collections::HashSet;
 
 type Tag<'p> = &'p tl::HTMLTag<'p>;
@@ -56,7 +56,7 @@ pub(crate) enum ErroComentarios {
     TabelaDeComentariosAusente,
     TabelasDeComentariosRepetidas,
     TelaDeComentariosNaoReconhecida,
-    AtributoDosComentariosIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    AtributoDosComentariosIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 fn descendentes<'p>(raiz: Tag<'_>, parser: &'p tl::Parser<'p>, tag: &str) -> Vec<Tag<'p>> {
@@ -74,16 +74,6 @@ fn filhos<'p>(pai: Tag<'_>, parser: &'p tl::Parser<'p>, nome: &str) -> Vec<Tag<'
         .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
         .filter(|tag| tag.name() == nome)
         .collect()
-}
-
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroComentarios> {
-    atributos(tag)
-        .and_then(|a| a.valor(nome))
-        .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?
-        .map(|bruto| {
-            decodificar_atributo(bruto).ok_or(ErroComentarios::HtmlDosComentariosNaoInterpretado)
-        })
-        .transpose()
 }
 
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroComentarios> {
@@ -207,7 +197,7 @@ fn ler_itens(
         }
         let caixas: Vec<_> = descendentes(tr, parser, "input")
             .into_iter()
-            .filter(|c| atributo(c, "type").ok().flatten().as_deref() == Some("checkbox"))
+            .filter(|c| valor_decodificado(c, "type").ok().flatten().as_deref() == Some("checkbox"))
             .collect();
         if caixas.is_empty() {
             let classe = atributos(tr)
@@ -232,7 +222,8 @@ fn ler_itens(
         ) else {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
         };
-        let id = atributo(caixa, "value")?.ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
+        let id = valor_decodificado(caixa, "value")?
+            .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
         }
@@ -273,10 +264,12 @@ fn ler_lista<'p>(
     let parser = dom.parser();
     let visoes: Vec<_> = descendentes(form, parser, "input")
         .into_iter()
-        .filter(|tag| atributo(tag, "name").ok().flatten().as_deref() == Some("hdnVisualizacao"))
+        .filter(|tag| {
+            valor_decodificado(tag, "name").ok().flatten().as_deref() == Some("hdnVisualizacao")
+        })
         .collect();
     let visao = match visoes.as_slice() {
-        [unico] => match atributo(unico, "value")?.as_deref() {
+        [unico] => match valor_decodificado(unico, "value")?.as_deref() {
             Some("P") => VisaoDosComentarios::Processo,
             Some("T") => VisaoDosComentarios::Todos,
             _ => return Err(ErroComentarios::VisaoNaoPublicada),
@@ -346,13 +339,16 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios
             let botoes = descendentes(form, parser, "input");
             let area_ok = areas
                 .iter()
-                .filter(|t| atributo(t, "name").ok().flatten().as_deref() == Some("txaDescricao"))
+                .filter(|t| {
+                    valor_decodificado(t, "name").ok().flatten().as_deref() == Some("txaDescricao")
+                })
                 .count()
                 == 1;
             let botao_ok = botoes
                 .iter()
                 .filter(|t| {
-                    atributo(t, "name").ok().flatten().as_deref() == Some("sbmCadastrarComentario")
+                    valor_decodificado(t, "name").ok().flatten().as_deref()
+                        == Some("sbmCadastrarComentario")
                 })
                 .count()
                 == 1;

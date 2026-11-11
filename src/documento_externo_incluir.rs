@@ -23,6 +23,8 @@ fn somar_lidos(total: u64, lidos: usize) -> Result<u64, FalhaPdf> {
 }
 
 #[cfg(test)]
+mod acervo;
+#[cfg(test)]
 #[path = "documento_externo_incluir/tests_upload.rs"]
 mod tests_upload;
 

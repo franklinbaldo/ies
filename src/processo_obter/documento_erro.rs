@@ -34,8 +34,6 @@ pub(crate) enum ErroDocumentoObter {
     Corpo(#[from] ErroCorpoDocumento),
     /// O link da versão não tem a forma observada.
     LinkDaVersaoRecusado(#[source] crate::arvore_processo::endereco::EnderecoRecusado),
-    /// O `id_documento` pedido não é um número SEI válido.
-    NumeroSeiDaArvoreIlegivel(#[source] crate::documento::NumeroDocumentoInvalido),
     /// A raiz do cache de documentos não pôde ser resolvida.
     RaizDoCacheIlegivel(#[source] crate::cache_documento::FalhaCache),
     /// A barra do `DOCUMENTO` fora da forma observada (Refs #88).
@@ -86,7 +84,6 @@ impl ErroDocumentoObter {
             | Self::DocumentoAusenteDaArvore
             | Self::BarraDoDocumentoForaDaFormaObservada
             | Self::LinkDaVersaoRecusado(_)
-            | Self::NumeroSeiDaArvoreIlegivel(_)
             | Self::RaizDoCacheIlegivel(_) => false,
         }
     }
