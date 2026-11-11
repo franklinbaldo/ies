@@ -38,7 +38,10 @@ pub(super) fn ocultar_checkbox_na_resposta(resposta: Vec<u8>) -> Vec<u8> {
 fn duplicar_id_no_autocomplete(resposta: Vec<u8>) -> Vec<u8> {
     let texto = String::from_utf8(resposta).unwrap();
     let (cabecalho, corpo) = texto.split_once("\r\n\r\n").unwrap();
-    assert!(corpo.contains("<item id='2' "), "corpo do autocomplete: {corpo}");
+    assert!(
+        corpo.contains("<item id='2' "),
+        "corpo do autocomplete: {corpo}"
+    );
     let corpo = corpo.replacen("<item id='2' ", "<item id='2' id='99' ", 1);
     let cabecalho = cabecalho
         .split("\r\n")
