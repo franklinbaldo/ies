@@ -7,7 +7,6 @@ use super::{Leitor, Lista, PaginaLida, Registro, Replay, Resultado, paginacao};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
-use crate::erro_publico::Rotulo as _;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -96,18 +95,20 @@ pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte>
 fn tela_de_login(cas: &Cassette<'_>, resp: &Resposta<'_>) -> Registro {
     let resultado = match transporte(resp) {
         Ok(_) => Resultado::Lido,
-        Err(falha) => Resultado::Recusado(falha.rotulo()),
+        Err(falha) => Resultado::Recusado(format!("{falha:?}")),
     };
     cas.registro(Leitor::TelaDeLogin, resp.passo, resultado)
 }
 
-fn rotulo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> &'static str {
+fn rotulo_do_transporte(resp: &Resposta<'_>, falha: &FalhaTransporte) -> String {
     // No POST, a tela de login vira a recusa do envio do formulário.
     if resp.metodo == "POST" && *falha == FalhaTransporte::PaginaDeLoginRecebidaNoControle {
-        return crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
-            .rotulo();
+        return format!(
+            "{:?}",
+            crate::formulario_web::ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+        );
     }
-    falha.rotulo()
+    format!("{falha:?}")
 }
 
 fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, saida: &mut Replay) {
@@ -134,7 +135,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let ctx = match contexto(&html) {
         Ok(ctx) => ctx,
         Err(erro) => {
-            v.resultado = Resultado::Recusado(erro.rotulo());
+            v.resultado = Resultado::Recusado(format!("{erro:?}"));
             saida.registros.push(v);
             return;
         }
@@ -144,9 +145,10 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     } else if ctx.eh_resumida() {
         "R"
     } else {
-        v.resultado = Resultado::Recusado(
-            crate::visao_do_controle::ErroVisaoDoControle::VisaoDoControleNaoReconhecida.rotulo(),
-        );
+        v.resultado = Resultado::Recusado(format!(
+            "{:?}",
+            crate::visao_do_controle::ErroVisaoDoControle::VisaoDoControleNaoReconhecida
+        ));
         "ausente"
     };
     v.formas.push(format!("visao_{visao}"));
@@ -159,7 +161,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     let unidade = match unidade_da_tela(&ctx, None) {
         Ok(unidade) => unidade,
         Err(erro) => {
-            u.resultado = Resultado::Recusado(erro.rotulo());
+            u.resultado = Resultado::Recusado(format!("{erro:?}"));
             saida.registros.push(u);
             return;
         }
@@ -211,7 +213,7 @@ fn solicitada(
         .into(),
     );
     if let Err(erro) = unidade_da_tela(ctx, Some(prev)) {
-        s.resultado = Resultado::Recusado(erro.rotulo());
+        s.resultado = Resultado::Recusado(format!("{erro:?}"));
     }
     // A lista R aplica a mesma conferência (`unidade_inesperada`), quando lida.
     let pagina = [html.to_owned()];
@@ -233,7 +235,7 @@ fn resumida(
     saida: &mut Replay,
 ) {
     for leitor in [Leitor::Detalhada, Leitor::PaginaDetalhada] {
-        let motivo = Resultado::NaoAplicavel("tela_na_visao_r_o_comando_troca_para_d");
+        let motivo = Resultado::NaoAplicavel("tela_na_visao_r_o_comando_troca_para_d".to_owned());
         saida
             .registros
             .push(cas.registro(leitor, resp.passo, motivo));
@@ -242,11 +244,13 @@ fn resumida(
     let leitura = match crate::paginas::juntar(&[html.to_owned()], None) {
         Ok(leitura) => leitura,
         Err(erro) => {
-            j.resultado = fora.map_or(Resultado::Recusado(erro.rotulo()), Resultado::NaoAplicavel);
-            j.formas.push(format!("recusa_{}", erro.rotulo()));
+            j.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
+                Resultado::NaoAplicavel(motivo.to_owned())
+            });
+            j.formas.push(format!("recusa_{erro:?}"));
             saida.registros.push(j);
             for leitor in [Leitor::Recebidos, Leitor::Gerados, Leitor::LinhasComLink] {
-                let motivo = Resultado::NaoAplicavel("lista_r_nao_lida");
+                let motivo = Resultado::NaoAplicavel("lista_r_nao_lida".to_owned());
                 saida
                     .registros
                     .push(cas.registro(leitor, resp.passo, motivo));
@@ -301,7 +305,7 @@ fn resumida(
                 saida.paginas.push(p);
             }
             Err(erro) => {
-                l.resultado = Resultado::Recusado(crate::erro_publico::Rotulo::rotulo(&erro));
+                l.resultado = Resultado::Recusado(format!("{erro:?}"));
             }
         }
         saida.registros.push(l);
@@ -315,7 +319,7 @@ fn resumida(
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             k.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];
         }
-        Err(erro) => k.resultado = Resultado::Recusado(erro.rotulo()),
+        Err(erro) => k.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     saida.registros.push(k);
 }

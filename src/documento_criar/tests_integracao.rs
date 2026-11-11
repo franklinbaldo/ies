@@ -3,7 +3,6 @@
 //! O orçamento inclui abertura, escolha, cadastro, escrita e verificação.
 use super::*;
 use crate::arvore_processo::tests::no_documento;
-use crate::erro_publico::Rotulo as _;
 use crate::processo_concluir::tests_apoio as a;
 use crate::propriedades_processo::tests_apoio::acao_da_barra;
 
@@ -122,7 +121,7 @@ fn previa_completa_so_cinco_gets_e_nenhum_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("prévia falhou: {}", erro.rotulo()),
+        Err(erro) => panic!("prévia falhou: {erro:?}"),
     };
     assert!(matches!(previa.estado, EstadoCriacao::Previa));
     assert_eq!(previa.requisicoes, 5);
@@ -137,7 +136,7 @@ fn dado_descricao_e_nivel_quando_vejo_previa_entao_sao_exibidos_sem_post() {
     let (resultado, pedidos) = executar(false, vec![]);
     let previa = match resultado {
         Ok(previa) => previa,
-        Err(erro) => panic!("previa falhou: {}", erro.rotulo()),
+        Err(erro) => panic!("previa falhou: {erro:?}"),
     };
     assert_eq!(previa.descricao.as_deref(), Some("Ensaio"));
     assert_eq!(previa.nivel.as_deref(), Some("publico"));
@@ -156,7 +155,7 @@ fn confirmar_unico_post_releitura_e_numero_sei_com_sete_requisicoes() {
     );
     let confirmacao = match resultado {
         Ok(confirmacao) => confirmacao,
-        Err(erro) => panic!("confirmação sintética recusada: {}", erro.rotulo()),
+        Err(erro) => panic!("confirmação sintética recusada: {erro:?}"),
     };
     assert!(matches!(
         &confirmacao.estado,
@@ -184,7 +183,7 @@ fn dado_aceite_arvore_visualizar_quando_confirmo_entao_retorna_numero_sei() {
     );
     let criado = match resultado {
         Ok(criado) => criado,
-        Err(erro) => panic!("aceite recusado: {}", erro.rotulo()),
+        Err(erro) => panic!("aceite recusado: {erro:?}"),
     };
     assert!(matches!(
         &criado.estado,

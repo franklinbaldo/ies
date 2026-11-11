@@ -5,7 +5,6 @@
 //! página seguinte lida e conferida contra o plano feito da página 1.
 use super::{Cassette, Opcao, derivar, opcao_marcada, url, web};
 use crate::cassette::acervo::gravacao::{self, Resposta};
-use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, enviar_submissao_via,
 };
@@ -44,7 +43,8 @@ pub(super) fn tela(
 ) -> Registro {
     *d = EstadoEmDocumentos::default();
     let Some(unidade) = unidade else {
-        let motivo = Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela");
+        let motivo =
+            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela".to_owned());
         return c.registro(Leitor::TelaEmDocumentos, r.passo, motivo);
     };
     let derivada = derivar(r, &url(r), |tela| {
@@ -54,7 +54,7 @@ pub(super) fn tela(
             tela,
             (unidade, TERMO),
         )
-        .map_err(|e| e.rotulo())
+        .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(submissao) => {
@@ -95,7 +95,7 @@ fn primeiro_envio(
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = crate::erro_publico::rotulo(&falha_do_envio(erro));
+            let sub = format!("{:?}", falha_do_envio(erro));
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -103,18 +103,18 @@ fn primeiro_envio(
         d.na_tela_de_resultado = true;
         if opcao_marcada(html) != Opcao::Documentos {
             d.na_tela_de_resultado = false;
-            let motivo = Resultado::NaoAplicavel("pesquisa_gravada_em_processos");
+            let motivo = Resultado::NaoAplicavel("pesquisa_gravada_em_processos".to_owned());
             return vec![c.registro(leitor, r.passo, motivo)];
         }
     }
     let interpretado = match EmDocumentos::interpretar(enviada, &c.instalacao) {
         Ok(i) => i,
         Err(ErroPesquisaProtocolo::Redirecionamento(crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento)) => {
-            let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento");
+            let motivo = Resultado::NaoAplicavel("redirecionamento_para_processo_sem_id_documento".to_owned());
             return vec![c.registro(leitor, r.passo, motivo)];
         }
         Err(erro) => {
-            let sub = erro.rotulo();
+            let sub = format!("{erro:?}");
             return vec![c.registro(leitor, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -157,7 +157,7 @@ fn plano(
             return c.lido(leitor, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            return c.registro(leitor, r.passo, Resultado::Recusado(erro.rotulo()));
+            return c.registro(leitor, r.passo, Resultado::Recusado(format!("{erro:?}")));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
@@ -169,7 +169,7 @@ fn plano(
             pedido_da_tela,
             pedido.inicio,
         )
-        .map_err(|e| e.rotulo())
+        .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(_) => c.lido(leitor, r.passo, "pagina_2_planejada"),
@@ -190,11 +190,11 @@ fn pagina_seguinte(
     if opcao_marcada(&html) != Opcao::Documentos {
         return None;
     }
-    let recusa = |sub| Some(c.registro(leitor, r.passo, Resultado::Recusado(sub)));
+    let recusa = |sub: &str| Some(c.registro(leitor, r.passo, Resultado::Recusado(sub.to_owned())));
     let Some((primeira, html_1)) = &d.pagina_1 else {
         return match ler_resposta_de_documentos(&html, None) {
             Ok(_) => Some(c.lido(leitor, r.passo, "pagina_lida_sem_pagina_1")),
-            Err(erro) => recusa(erro.rotulo()),
+            Err(erro) => recusa(&format!("{erro:?}")),
         };
     };
     let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
@@ -205,11 +205,11 @@ fn pagina_seguinte(
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,
         Ok(None) => return Some(c.lido(leitor, r.passo, "pagina_1_reenviada")),
-        Err(erro) => return recusa(erro.rotulo()),
+        Err(erro) => return recusa(&format!("{erro:?}")),
     };
     let resposta = match ler_resposta_de_documentos(&html, Some((pedido.esperada, pedido.numero))) {
         Ok(resposta) => resposta,
-        Err(erro) => return recusa(erro.rotulo()),
+        Err(erro) => return recusa(&format!("{erro:?}")),
     };
     let forma = match &resposta {
         RespostaDeDocumentos::Lista(l) if l.linhas_ausentes_da_faixa > 0 => {
@@ -220,7 +220,7 @@ fn pagina_seguinte(
     Some(
         match conferir_contagem(&pedido, EmDocumentos::contagem(&resposta)) {
             Ok(()) => c.lido(leitor, r.passo, forma),
-            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(erro.rotulo())),
+            Err(erro) => c.registro(leitor, r.passo, Resultado::Recusado(format!("{erro:?}"))),
         },
     )
 }

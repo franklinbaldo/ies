@@ -4,7 +4,6 @@
 //! Uma resposta POST de criação não comprova efeito sem leitura posterior.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::erro_publico::Rotulo as _;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo_criar_cadastro::{conferir_cadastro, conferir_cadastro_com_ajax_pendente};
 use crate::processo_criar_hipotese::opcao_unica;
@@ -24,29 +23,37 @@ struct Registro {
 
 fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido"))?;
+        .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
-        .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido"))?;
+        .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
     let [tabela] = tabelas.as_slice() else {
-        return Err(Resultado::NaoAplicavel("tabela_de_tipos_nao_observada"));
+        return Err(Resultado::NaoAplicavel(
+            "tabela_de_tipos_nao_observada".to_owned(),
+        ));
     };
     let parser = dom.parser();
     let tag = tabela
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(Resultado::Recusado("lista_de_tipos_html_invalido"))?;
+        .ok_or(Resultado::Recusado(
+            "lista_de_tipos_html_invalido".to_owned(),
+        ))?;
     if tag.name().as_utf8_str() != "table" {
-        return Err(Resultado::Recusado("tabela_de_tipos_ausente_ou_repetida"));
+        return Err(Resultado::Recusado(
+            "tabela_de_tipos_ausente_ou_repetida".to_owned(),
+        ));
     }
     // Extrair somente o nome observado. O leitor da CLI valida a ação
     // e a unicidade de cada nome no HTML completo.
     let mut nomes = BTreeSet::new();
     for handle in tag.query_selector(parser, "a").into_iter().flatten() {
         let Some(ancora) = handle.get(parser).and_then(tl::Node::as_tag) else {
-            return Err(Resultado::Recusado("lista_de_tipos_html_invalido"));
+            return Err(Resultado::Recusado(
+                "lista_de_tipos_html_invalido".to_owned(),
+            ));
         };
         let classe = valor_do_atributo(ancora, "class")
-            .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido"))?;
+            .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
         if !classe
             .as_deref()
             .is_some_and(|s| s.split_whitespace().any(|c| c == "ancoraOpcao"))
@@ -71,11 +78,11 @@ fn ler_lista(html: &str) -> Resultado {
         Err(estado) => return estado,
     };
     if nomes.is_empty() {
-        return Resultado::NaoAplicavel("sem_tipo_na_lista_gravada");
+        return Resultado::NaoAplicavel("sem_tipo_na_lista_gravada".to_owned());
     }
     for nome in nomes {
         if let Err(erro) = tipo_na_lista(html, &nome) {
-            return Resultado::Recusado(erro.rotulo());
+            return Resultado::Recusado(format!("{erro:?}"));
         }
     }
     Resultado::Lido
@@ -104,7 +111,7 @@ fn id_tipo_do_cadastro(html: &str) -> Option<String> {
 
 fn ler_cadastro(html: &str) -> Resultado {
     let Some(id) = id_tipo_do_cadastro(html) else {
-        return Resultado::NaoAplicavel("cadastro_sem_id_tipo_observado");
+        return Resultado::NaoAplicavel("cadastro_sem_id_tipo_observado".to_owned());
     };
     // A tela pode oferecer dois níveis; basta um nível validado pelos
     // mesmos predicados do comando, sem concluir pela ausência do outro.
@@ -114,13 +121,13 @@ fn ler_cadastro(html: &str) -> Resultado {
         }
     }
     if conferir_cadastro_com_ajax_pendente(html, &id, "restrito").is_ok() {
-        return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax");
+        return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax".to_owned());
     }
     // Após a mesma validação ter falhado, não invente uma forma:
     // preserve a causa tipada concreta.
     match conferir_cadastro(html, &id, "publico") {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.rotulo()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }
 }
 
@@ -130,16 +137,16 @@ fn ler_xml(interacao: &Value) -> Resultado {
         mime.split(';').next().unwrap_or_default().trim(),
         "text/xml" | "application/xml"
     ) {
-        return Resultado::NaoAplicavel("resposta_ajax_sem_mime_xml");
+        return Resultado::NaoAplicavel("resposta_ajax_sem_mime_xml".to_owned());
     }
     let corpo = gravacao::corpo(interacao);
     let codificacao = interacao["response"]["encoding"].as_str().unwrap_or("");
     let Ok(xml) = crate::transporte::corpo::legivel(&corpo, codificacao) else {
-        return Resultado::Recusado("hipotese_legal_ajax_resposta_nao_reconhecida");
+        return Resultado::Recusado("hipotese_legal_ajax_resposta_nao_reconhecida".to_owned());
     };
     match opcao_unica(&xml) {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.rotulo()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }
 }
 
@@ -149,20 +156,20 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
         let (leitor, resultado) = match (r.operacao, r.metodo, r.status) {
             ("procedimento_gerar", "POST", _) => (
                 "escrita sem verificação",
-                Resultado::NaoAplicavel("post_sem_leitura_verificadora"),
+                Resultado::NaoAplicavel("post_sem_leitura_verificadora".to_owned()),
             ),
             ("procedimento_escolher_tipo", _, 200) => (
                 "lista de tipos",
                 match html_da_resposta(r.interacao) {
                     Ok(html) => ler_lista(&html),
-                    Err(_) => Resultado::NaoAplicavel("html_da_lista_nao_observado"),
+                    Err(_) => Resultado::NaoAplicavel("html_da_lista_nao_observado".to_owned()),
                 },
             ),
             ("procedimento_gerar", "GET", 200) => (
                 "cadastro",
                 match html_da_resposta(r.interacao) {
                     Ok(html) => ler_cadastro(&html),
-                    Err(_) => Resultado::NaoAplicavel("html_do_cadastro_nao_observado"),
+                    Err(_) => Resultado::NaoAplicavel("html_do_cadastro_nao_observado".to_owned()),
                 },
             ),
             ("hipotese_legal_select_nome_base_legal", _, 200) => {
@@ -176,7 +183,7 @@ fn replay(instalacao: &str, cassette: &Value) -> Vec<Registro> {
                 _,
             ) => (
                 "resposta sem leitura",
-                Resultado::NaoAplicavel("status_nao_observavel_por_leitor"),
+                Resultado::NaoAplicavel("status_nao_observavel_por_leitor".to_owned()),
             ),
             _ => continue,
         };
@@ -307,7 +314,7 @@ mod tests {
         assert_eq!(registros.len(), 1);
         assert_eq!(
             registros[0].resultado,
-            Resultado::NaoAplicavel("post_sem_leitura_verificadora")
+            Resultado::NaoAplicavel("post_sem_leitura_verificadora".to_owned())
         );
     }
 
