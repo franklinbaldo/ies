@@ -4,21 +4,18 @@
 //! `<url-controle>.lock` e `<url-controle>.geracao` ficam ao lado do
 //! arquivo da URL do Controle.
 use super::ErroLogin;
-use crate::arquivo_privado::{FalhaDaGravacao, Parcial, Politica};
+use super::erro::ErroDeIo;
+use crate::arquivo_privado::{
+    ErroDaTrava, FalhaDaGravacao, Parcial, Politica, TravaDeArquivo, travar_com_espera,
+};
 use crate::configuracao::{ArquivoPrivado, ArquivosDeAcesso};
 use sha2::{Digest, Sha256};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Intervalo entre tentativas de obter o lock.
 const PASSO_DA_ESPERA: Duration = Duration::from_millis(50);
-
-/// Lock exclusivo do login; liberado quando sai de escopo.
-#[derive(Debug)]
-pub(crate) struct TravaDoLogin {
-    _arquivo: File,
-}
 
 fn abrir_privado(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     #[cfg(unix)]
@@ -35,30 +32,23 @@ fn abrir_privado(opcoes: &mut OpenOptions) -> &mut OpenOptions {
     opcoes
 }
 
-impl TravaDoLogin {
-    /// Espera até `espera` pelo lock de `<url-controle>.lock` (`flock`
-    /// exclusivo da `std`). Nada é pedido ao SEI sem ele.
-    pub(crate) fn obter(url_controle: &Path, espera: Duration) -> Result<Self, ErroLogin> {
-        let caminho = caminho_ao_lado(url_controle, ".lock");
-        let arquivo = abrir_privado(OpenOptions::new().write(true).create(true))
-            .open(&caminho)
-            .map_err(|erro| ErroLogin::ArquivoDeLockDoLoginInacessivel(erro.kind()))?;
-        let limite = Instant::now() + espera;
-        loop {
-            match arquivo.try_lock() {
-                Ok(()) => return Ok(Self { _arquivo: arquivo }),
-                Err(std::fs::TryLockError::WouldBlock) if Instant::now() < limite => {
-                    std::thread::sleep(PASSO_DA_ESPERA);
-                }
-                Err(std::fs::TryLockError::WouldBlock) => {
-                    return Err(ErroLogin::LoginEmAndamentoEmOutroProcesso);
-                }
-                Err(std::fs::TryLockError::Error(erro)) => {
-                    return Err(ErroLogin::ArquivoDeLockDoLoginInacessivel(erro.kind()));
-                }
-            }
+/// Espera até `espera` pelo lock de `<url-controle>.lock` (`flock`
+/// exclusivo da `std`). Nada é pedido ao SEI sem ele. Ocupado no prazo
+/// vira `LoginEmAndamentoEmOutroProcesso`; falha de E/S, a causa inteira.
+pub(crate) fn travar_o_login(
+    url_controle: &Path,
+    espera: Duration,
+) -> Result<TravaDeArquivo, ErroLogin> {
+    let caminho = caminho_ao_lado(url_controle, ".lock");
+    let arquivo = abrir_privado(OpenOptions::new().write(true).create(true))
+        .open(&caminho)
+        .map_err(|erro| ErroLogin::ArquivoDeLockDoLoginInacessivel(ErroDeIo::new(erro)))?;
+    travar_com_espera(arquivo, espera, PASSO_DA_ESPERA).map_err(|erro| match erro {
+        ErroDaTrava::Ocupada => ErroLogin::LoginEmAndamentoEmOutroProcesso,
+        ErroDaTrava::Ilegivel(erro) => {
+            ErroLogin::ArquivoDeLockDoLoginInacessivel(ErroDeIo::new(erro))
         }
-    }
+    })
 }
 
 /// `<arquivo><sufixo>` no mesmo diretório.

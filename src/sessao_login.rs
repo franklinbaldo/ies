@@ -23,8 +23,8 @@ pub(crate) use fluxo::entrar_colhendo;
 pub(crate) use fluxo::entrar_via;
 #[cfg(test)]
 pub(crate) use gravacao::mesma_geracao;
-pub(crate) use gravacao::{TravaDoLogin, regravar_url_do_controle};
 pub(crate) use gravacao::{geracao_da_sessao, marcador_confere};
+pub(crate) use gravacao::{regravar_url_do_controle, travar_o_login};
 
 use crate::configuracao::ArquivosDeAcesso;
 use crate::formulario_web::SubmissaoDerivada;

@@ -451,6 +451,9 @@ fn sincronizar_pasta(destino: &Path) {
     }
 }
 
+pub(crate) use trava::{ErroDaTrava, TravaDeArquivo, travar_com_espera};
+mod trava;
+
 #[cfg(test)]
 #[path = "arquivo_privado/tests.rs"]
 mod tests;

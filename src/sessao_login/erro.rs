@@ -4,6 +4,28 @@ use crate::configuracao::{ArquivoPrivado, ErroConfiguracao};
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::transporte::FalhaTransporte;
+use std::sync::Arc;
+
+/// Causa de E/S guardada inteira, com `source()`. `io::Error` não é
+/// `Clone` nem `PartialEq`, então é compartilhada por `Arc` e comparada
+/// pelo `kind` e pelo código do sistema operacional.
+#[derive(Clone, Debug, thiserror::Error)]
+#[error("{0}")]
+pub(crate) struct ErroDeIo(#[source] Arc<std::io::Error>);
+
+impl ErroDeIo {
+    pub(crate) fn new(erro: std::io::Error) -> Self {
+        Self(Arc::new(erro))
+    }
+}
+
+impl PartialEq for ErroDeIo {
+    fn eq(&self, outro: &Self) -> bool {
+        self.0.kind() == outro.0.kind() && self.0.raw_os_error() == outro.0.raw_os_error()
+    }
+}
+
+impl Eq for ErroDeIo {}
 
 /// Campo do arquivo de credenciais.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,7 +50,7 @@ pub(crate) enum ErroLogin {
     CampoDasCredenciaisVazio(CampoDasCredenciais),
     LinhaDasCredenciaisSemCampoConhecido,
     LoginEmAndamentoEmOutroProcesso,
-    ArquivoDeLockDoLoginInacessivel(std::io::ErrorKind),
+    ArquivoDeLockDoLoginInacessivel(ErroDeIo),
     /// URL ou cookie gravados que o transporte recusa antes da rede.
     ArquivoDaSessao(#[from] super::fluxo::SessaoGravadaInvalida),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
