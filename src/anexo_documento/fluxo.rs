@@ -1,6 +1,10 @@
 //! Fluxo de leitura do corpo do anexo: erro de transporte e texto.
 //! O estado de arquivo continua nos primitivos privados já compartilhados.
-use super::*;
+use super::{
+    AnexoLido, BLOCO, ConteudoDoAnexo, DestinoDoAnexo, ErroAnexo, LimiteDoAnexo, Read,
+    RespostaBinaria, abrir_parcial, abrir_parcial_cache, cabecalhos, conferir, conferir_token,
+    erro_ao_escrever, erro_de_leitura, publicar_cache,
+};
 use crate::transporte::{RespostaWeb, recusar_status};
 use sha2::{Digest, Sha256};
 
