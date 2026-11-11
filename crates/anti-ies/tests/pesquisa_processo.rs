@@ -103,11 +103,11 @@ fn entrada_por_id_sem_assinatura_redireciona_sem_mutar_processo() {
     let escuta = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let endereco = escuta.local_addr().unwrap();
     let servidor = std::thread::spawn(move || {
-        let banco = Connection::open_in_memory().unwrap();
+        let mut banco = Connection::open_in_memory().unwrap();
         iniciar(&banco).unwrap();
         let origem = Instalacao::interpretar("https://simulado.invalid/sei").unwrap();
         processos::guardar(
-            &banco,
+            &mut banco,
             &origem,
             "entrada-id",
             &ProcessoSimulado {
