@@ -64,7 +64,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         &ANEXAR,
         instalacao,
         &tela,
-        "",
+        None,
         &[
             ("txtProtocolo", &destino.nup),
             ("txtIdentificacaoProtocolo", &destino.tipo),
@@ -78,11 +78,11 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         enviou = true;
         rede.post(post, c)
     })
-    .map_err(|erro| {
+    .map_err(|e| {
         if enviou {
-            FalhaAnexar::NaoConfirmadoNoPost(erro)
+            FalhaAnexar::NaoConfirmadoNoPost(e)
         } else {
-            FalhaAnexar::ConsultaDerivacao(erro)
+            FalhaAnexar::ConsultaDerivacao(e)
         }
     })?;
     match resposta {

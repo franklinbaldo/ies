@@ -161,8 +161,14 @@ fn derivar(
         (SENHA, confirmacao.credenciais.senha()),
     ];
     let unidade = feito.unidade.as_deref().unwrap_or_default();
-    derivar_submissao(&ASSINAR_DOCUMENTO, instalacao, servida, unidade, &campos)
-        .map_err(ErroAssinar::Formulario)
+    derivar_submissao(
+        &ASSINAR_DOCUMENTO,
+        instalacao,
+        servida,
+        Some(unidade),
+        &campos,
+    )
+    .map_err(ErroAssinar::Formulario)
 }
 
 /// Um único POST. `Ok(None)`: a tela com `finalizar()`; `Ok(Some(falha))`:

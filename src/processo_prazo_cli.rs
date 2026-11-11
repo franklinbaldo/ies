@@ -266,7 +266,7 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         .iter()
         .map(|(nome, valor)| (*nome, valor.as_str()))
         .collect();
-    let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, servida, "", &valores)
+    let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, servida, None, &valores)
         .map_err(FalhaDoPrazo::SubmissaoRecusada)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
