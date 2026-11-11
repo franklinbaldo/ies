@@ -15,9 +15,9 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
     let casos = [
         (
             Err(FalhaTransporte::Rede),
-            super::ErroEnviar::Anotacoes(
-                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(FalhaTransporte::Rede),
-            ),
+            super::ErroEnviar::Anotacoes(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                FalhaTransporte::Rede,
+            )),
         ),
         (
             r302("controlador.php?acao=principal"),
@@ -27,11 +27,9 @@ fn erro_da_releitura_de_anotacao_preserva_causa_sem_segundo_post() {
         ),
         (
             ok(anotacao("Outra", "999")),
-            super::ErroEnviar::Anotacoes(
-                super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes(
-                    super::anotacoes::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso,
-                ),
-            ),
+            super::ErroEnviar::Anotacoes(super::anotacoes::ErroDasAnotacoes::LeituraDasAnotacoes(
+                super::anotacoes::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso,
+            )),
         ),
     ];
     for (ultima_resposta, causa_esperada) in casos {
