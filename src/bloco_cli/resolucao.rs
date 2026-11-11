@@ -24,17 +24,17 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
     }
     let cookie = sessao.cookie().valor()?;
     let mut identidade: Option<(TipoBloco, String, String)> = None;
-    for tipo in [TipoBloco::Assinatura, TipoBloco::Interno, TipoBloco::Reuniao] {
-        let url_lista = match bloco::link_do_menu(
-            &controle.instalacao,
-            &controle.url,
-            &controle.html,
-            tipo,
-        ) {
-            Ok(link) => link,
-            Err(ErroBloco::LinkDeBlocosAusente) => continue,
-            Err(erro) => return Err(erro.into()),
-        };
+    for tipo in [
+        TipoBloco::Assinatura,
+        TipoBloco::Interno,
+        TipoBloco::Reuniao,
+    ] {
+        let url_lista =
+            match bloco::link_do_menu(&controle.instalacao, &controle.url, &controle.html, tipo) {
+                Ok(link) => link,
+                Err(ErroBloco::LinkDeBlocosAusente) => continue,
+                Err(erro) => return Err(erro.into()),
+            };
         requisicoes += 1;
         let resposta = envio.get(&url_lista, cookie)?;
         let html = transporte::decodificar_resposta(resposta)?;
@@ -56,17 +56,15 @@ pub(crate) fn ler_bloco_por_numero_via<V: EnvioDoControle>(
             return Err(FalhaLeitura::ListaParcialNaoExcluiColisao);
         }
     }
-    let (tipo, url, estado) =
-        identidade.ok_or(FalhaLeitura::BlocoNaoIdentificadoNasListas)?;
+    let (tipo, url, estado) = identidade.ok_or(FalhaLeitura::BlocoNaoIdentificadoNasListas)?;
     requisicoes += 1;
     let resposta = envio.get(&url, cookie)?;
     let html = transporte::decodificar_resposta(resposta)?;
-    let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, &estado)
-        .map_err(FalhaLeitura::Detalhe)?;
+    let detalhe =
+        bloco_detalhe::ler_detalhe(&html, numero, tipo, &estado).map_err(FalhaLeitura::Detalhe)?;
     Ok(Lido {
         unidade,
         requisicoes,
         leitura: Leitura::Detalhe(detalhe),
     })
 }
-
