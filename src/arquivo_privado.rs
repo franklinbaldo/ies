@@ -114,6 +114,7 @@ pub(crate) enum FalhaDaGravacao {
     NomesDeTemporarioEsgotados,
     /// O diretório real do destino é gravável por grupo ou outros
     /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
+    #[cfg(unix)]
     DiretorioGravavelPorOutros,
     DestinoJaExiste,
     DestinoNaoEhArquivoRegular,

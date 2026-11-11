@@ -22,6 +22,7 @@ pub enum ErroCopia {
     DestinoInseguro,
     LinkSimbolico,
     // Só construída na conferência de permissões Unix.
+    #[cfg(unix)]
     PermissoesInseguras,
     /// A foto local tem outro conteúdo que o servido (ou outro documento
     /// ou versão no próprio HTML).
