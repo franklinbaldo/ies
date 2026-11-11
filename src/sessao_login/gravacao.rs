@@ -110,13 +110,27 @@ struct Marcador {
 // Exceção inventariada (#183): leitura local do marcador de consistência
 // próprio da escrita atômica. O formato é só deste módulo; a leitura
 // coerente (`ReferenciasDaSessao`, #222) o confere por `marcador_confere`.
-fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ()> {
+fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMarcadorDaSessao> {
     let caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     match crate::transporte::arquivo_privado(&caminho, 4096) {
-        Ok(texto) => serde_json::from_str(&texto).map(Some).map_err(|_| ()),
+        Ok(texto) => serde_json::from_str(&texto).map(Some).map_err(|erro| {
+            ErroMarcadorDaSessao::ForaDoFormato {
+                linha: erro.line(),
+                coluna: erro.column(),
+            }
+        }),
         Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
-        Err(_) => Err(()),
+        Err(falha) => Err(ErroMarcadorDaSessao::Ilegivel(falha)),
     }
+}
+
+/// O marcador `.geracao` existe e não foi lido. O conteúdo (hashes) não
+/// entra no erro; do JSON fica só a posição.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroMarcadorDaSessao {
+    Ilegivel(#[source] crate::transporte::FalhaTransporte),
+    ForaDoFormato { linha: usize, coluna: usize },
 }
 
 /// O texto de um marcador confere com a URL e o cookie (os SHA-256 dele).
@@ -132,7 +146,7 @@ pub(crate) fn mesma_geracao(arquivos: &ArquivosDeAcesso, url: &str, cookie: &str
     match ler_marcador(arquivos) {
         Ok(None) => true,
         Ok(Some(m)) => m.cookie_sha256 == sha256(cookie) && m.url_controle_sha256 == sha256(url),
-        Err(()) => false,
+        Err(_ilegivel) => false,
     }
 }
 
@@ -187,7 +201,7 @@ pub(crate) fn regravar_url_do_controle(
     let geracao_caminho = caminho_ao_lado(&arquivos.url_controle, ".geracao");
     let papel = ArquivoPrivado::UrlControle;
     let marcador = ler_marcador(arquivos)
-        .map_err(|()| ErroLogin::GravacaoDaSessaoFalhou(papel))?
+        .map_err(ErroLogin::MarcadorDaSessaoIlegivel)?
         .map(|m| Marcador {
             cookie_sha256: sha256(cookie),
             url_controle_sha256: sha256(url),

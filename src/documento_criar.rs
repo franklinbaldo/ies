@@ -30,6 +30,9 @@ pub(crate) enum ErroCriar {
     NaoAplicado,
     NaoConfirmado,
     LinkDoTipoNaoNavegavel,
+    /// O link é literal, mas a função de navegação que ele chama não foi
+    /// comprovada em script ativo.
+    NavegacaoNaoComprovadaPorScript(#[source] guarda_navegacao::ErroGuardaDeNavegacao),
     EnderecoDoTipoNaoReconhecido,
     CadastroForaDaForma,
     TipoDoCadastroDiferente,
@@ -219,16 +222,20 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
 /// Reconhece só o corpo literal observado da função, com duas instruções
 /// (reescrita do id e submit da lista). Texto de JS não é executado.
 /// O parâmetro chama `id` (4.1) ou `idSerie` (SEI 5: PEN, UFRJ e GO).
-fn script_prova_escolha(html: &str) -> bool {
-    ["id", "idSerie"].iter().any(|parametro| {
-        guarda_navegacao::script_publica_funcao_de_navegacao(
-            html,
-            "functionescolher(",
-            &format!(
-                "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
-            ),
+fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDeNavegacao> {
+    let corpo = |parametro: &str| {
+        format!(
+            "functionescolher({parametro}){{document.getElementById('hdnIdSerie').value={parametro};document.getElementById('frmDocumentoEscolherTipo').submit();}}"
         )
-    })
+    };
+    guarda_navegacao::script_publica_funcao_de_navegacao(html, "functionescolher(", &corpo("id"))
+        .or_else(|_| {
+            guarda_navegacao::script_publica_funcao_de_navegacao(
+                html,
+                "functionescolher(",
+                &corpo("idSerie"),
+            )
+        })
 }
 
 /// A lista inicial pode mostrar apenas tipos recentes. O frontend 4.0/4.1
@@ -287,13 +294,12 @@ pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     {
         return Err(ErroCriar::LinkDoTipoNaoNavegavel);
     }
-    if !guarda_navegacao::script_publica_funcao_de_navegacao(
+    guarda_navegacao::script_publica_funcao_de_navegacao(
         html,
         "functionexibirSeries(",
         "functionexibirSeries(tipo){document.getElementById('hdnFiltroSerie').value=tipo;document.getElementById('frmDocumentoEscolherTipo').submit();}",
-    ) {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
-    }
+    )
+    .map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
     Ok(true)
 }
 
@@ -368,9 +374,7 @@ pub(crate) fn escolha_do_tipo(
         .as_deref()
         .and_then(id_da_escolha_literal)
         .ok_or(ErroCriar::LinkDoTipoNaoNavegavel)?;
-    if !script_prova_escolha(html) {
-        return Err(ErroCriar::LinkDoTipoNaoNavegavel);
-    }
+    script_prova_escolha(html).map_err(ErroCriar::NavegacaoNaoComprovadaPorScript)?;
     Ok(EscolhaDoDocumento::Formulario(id))
 }
 

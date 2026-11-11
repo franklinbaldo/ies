@@ -14,7 +14,9 @@ pub enum ErroArquivoTexto {
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     match falha {
         crate::arquivo_privado::FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
-        crate::arquivo_privado::FalhaDaGravacao::DiretorioAusente => {
+        crate::arquivo_privado::FalhaDaGravacao::DiretorioAusente
+        | crate::arquivo_privado::FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | crate::arquivo_privado::FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => {
             ErroArquivoTexto::DiretorioAusente
         }
         crate::arquivo_privado::FalhaDaGravacao::DestinoJaExiste => {
@@ -25,6 +27,9 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         | crate::arquivo_privado::FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | crate::arquivo_privado::FalhaDaGravacao::AcimaDoLimite
         | crate::arquivo_privado::FalhaDaGravacao::CriacaoFalhou
+        | crate::arquivo_privado::FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | crate::arquivo_privado::FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | crate::arquivo_privado::FalhaDaGravacao::NomesDeTemporarioEsgotados
         | crate::arquivo_privado::FalhaDaGravacao::EscritaFalhou
         | crate::arquivo_privado::FalhaDaGravacao::ConfirmacaoFalhou => {
             ErroArquivoTexto::EscritaFalhou

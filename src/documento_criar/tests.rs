@@ -143,7 +143,9 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
         </td></tr></table>"#;
     assert_eq!(
         escolha_do_tipo(&instalacao, script, "10", "Despacho"),
-        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+            super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+        ))
     );
 }
 
@@ -285,7 +287,9 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
     );
     assert_eq!(
         escolha_do_tipo(&instalacao, &com_efeito_extra, "4864", "Despacho"),
-        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+            super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+        ))
     );
     assert_eq!(
         escolha_do_tipo(
@@ -294,7 +298,9 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
             "4864",
             "Despacho"
         ),
-        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+            super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+        ))
     );
     assert_eq!(
         escolha_do_tipo(
@@ -370,14 +376,18 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
     );
     assert_eq!(
         filtro_de_todos(&tela.replace("function exibirSeries", "function sem_prova")),
-        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+            super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+        ))
     );
     assert_eq!(
         filtro_de_todos(&tela.replace(
             "document.getElementById('frmDocumentoEscolherTipo').submit();",
             "alert('extra'); document.getElementById('frmDocumentoEscolherTipo').submit();",
         )),
-        Err(ErroCriar::LinkDoTipoNaoNavegavel)
+        Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+            super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+        ))
     );
 }
 

@@ -142,7 +142,7 @@ carrega a identidade inteira e o arquivo é a foto fiel da versão.
 | `ConteudoComLinkAssinado` | `--saida` e o HTML servido traz `infra_hash` |
 | `ErroCopia::FotoDivergente` | `DOC.vN.html` presente com outro conteúdo, ou (antes da rede, com `--versao N`) com título ou rodapé de outro documento ou versão |
 | `ErroArquivoTexto::DiretorioAusente`, `ErroCopia::DestinoInseguro` | `DIR` ausente ou não diretório (antes da rede) |
-| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::LeituraFalhou`, `ErroCopia::GravacaoFalhou` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
+| `ErroCopia::LinkSimbolico`, `ErroCopia::PermissoesInseguras`, `ErroCopia::LeituraFalhou`, `ErroCopia::ConsultaDaFotoFalhou(ErrorKind)`, `ErroCopia::GravacaoFalhou`, `ErroCopia::GravacaoDaFotoRecusada(FalhaDaGravacao::…)` | a foto presente não pôde ser lida com segurança, ou a gravação falhou (nada publicado) |
 
 ## Documento externo
 

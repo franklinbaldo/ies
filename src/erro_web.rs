@@ -49,6 +49,8 @@ pub enum ErroCaixa {
     },
     FaixaInvalida {
         categoria: Categoria,
+        #[source]
+        motivo: crate::paginas::ErroFaixaDaLegenda,
     },
     FaixaDesconhecida {
         categoria: Categoria,
@@ -103,7 +105,7 @@ impl ErroCaixa {
             | Self::ClassesDeEstadoDiferentesNoLinkDoProcesso { categoria, .. }
             | Self::TotalExcedido { categoria }
             | Self::TotaisDeclaradosDiferentesEntrePaginas { categoria }
-            | Self::FaixaInvalida { categoria }
+            | Self::FaixaInvalida { categoria, .. }
             | Self::FaixaDesconhecida { categoria }
             | Self::FaixaAlterada { categoria }
             | Self::FaixaDescontinua { categoria }

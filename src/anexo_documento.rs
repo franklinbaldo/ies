@@ -143,7 +143,7 @@ pub(crate) enum ErroAnexo {
     SemTipoDeConteudo,
     TipoNaoPermitido,
     CabecalhoRepetido,
-    DisposicaoForaDaFormaObservada,
+    DisposicaoForaDaFormaObservada(#[source] cabecalhos::ErroDisposicao),
     AcimaDoLimite,
     Vazio,
     ConteudoComLinkAssinado,
@@ -167,7 +167,7 @@ impl ErroAnexo {
             Self::SemTipoDeConteudo
             | Self::TipoNaoPermitido
             | Self::CabecalhoRepetido
-            | Self::DisposicaoForaDaFormaObservada
+            | Self::DisposicaoForaDaFormaObservada(_)
             | Self::AcimaDoLimite
             | Self::Vazio
             | Self::ConteudoComLinkAssinado
@@ -366,7 +366,7 @@ fn conferir<R: Read>(
     let (disposicao, nome_original) = match disposicao {
         Some(valor) => {
             let (d, nome) = cabecalhos::ler_disposicao(valor)
-                .map_err(|()| ErroAnexo::DisposicaoForaDaFormaObservada)?;
+                .map_err(ErroAnexo::DisposicaoForaDaFormaObservada)?;
             (Some(d), nome)
         }
         None => (None, None),
@@ -407,15 +407,19 @@ fn abrir_parcial(
         return Err(ErroAnexo::DiretorioAusente);
     }
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
-        FalhaDaGravacao::SemNomeDeArquivo | FalhaDaGravacao::DiretorioAusente => {
-            ErroAnexo::DiretorioAusente
-        }
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
         | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
     })?;

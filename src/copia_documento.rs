@@ -28,7 +28,11 @@ pub enum ErroCopia {
     /// ou versão no próprio HTML).
     FotoDivergente,
     GravacaoFalhou,
+    /// A gravação privada recusou a foto (o motivo da gravação).
+    GravacaoDaFotoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
     LeituraFalhou,
+    /// A foto local existe e não pôde ser consultada (o motivo do sistema).
+    ConsultaDaFotoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
     BaseVersaoAusente,
     NomeVersaoLocalInvalido,

@@ -112,6 +112,23 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
     Some(encontradas)
 }
 
+/// Por que a função de navegação não foi comprovada. Falha fechada: em
+/// qualquer caso, nenhum POST de navegação sai.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroGuardaDeNavegacao {
+    HtmlNaoInterpretado,
+    NoDeTemplateNaoInterpretado,
+    NoDeScriptNaoInterpretado,
+    AtributoDoScript(#[source] crate::html_atributos::ErroAtributoHtml),
+    FonteDoScriptNaoLocalizada,
+    /// Declaração fora do nível superior, corpo diferente do literal
+    /// observado, ou script que termina dentro de cadeia/comentário/bloco.
+    ScriptForaDaFormaObservada,
+    FuncaoNaoDeclaradaEmScriptAtivo,
+    FuncaoDeclaradaMaisDeUmaVez,
+}
+
 /// Comprova uma função de navegação apenas em script inline clássico ATIVO.
 /// A antiga busca em todo o HTML aceitava textos de `template`, JSON
 /// e comentários HTML como se fossem código executável da página.
@@ -120,48 +137,49 @@ pub(super) fn script_publica_funcao_de_navegacao(
     html: &str,
     assinatura: &str,
     corpo_esperado: &str,
-) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
+) -> Result<(), ErroGuardaDeNavegacao> {
+    use ErroGuardaDeNavegacao::{
+        AtributoDoScript, FonteDoScriptNaoLocalizada, FuncaoDeclaradaMaisDeUmaVez,
+        FuncaoNaoDeclaradaEmScriptAtivo, HtmlNaoInterpretado, NoDeScriptNaoInterpretado,
+        NoDeTemplateNaoInterpretado, ScriptForaDaFormaObservada,
     };
-    let Some(faixas) = faixas_inertes(&dom) else {
-        return false;
-    };
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| HtmlNaoInterpretado)?;
+    let faixas = faixas_inertes(&dom).ok_or(NoDeTemplateNaoInterpretado)?;
     let mut encontradas = 0_usize;
     for no in dom.query_selector("script").into_iter().flatten() {
-        let Some(script) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
-            return false;
-        };
+        let script = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .ok_or(NoDeScriptNaoInterpretado)?;
         if dentro_de_template(script.boundaries(dom.parser()).0, &faixas) {
             continue;
         }
-        let Ok(tipo) = crate::html_atributos::valor_do_atributo(script, "type") else {
-            return false;
-        };
+        let tipo =
+            crate::html_atributos::valor_do_atributo(script, "type").map_err(AtributoDoScript)?;
         if tipo
             .as_deref()
             .is_some_and(|tipo| !tipo.trim().eq_ignore_ascii_case("text/javascript"))
         {
             continue;
         }
-        match crate::html_atributos::atributo_presente(script, "src") {
-            Ok(true) => continue,
-            Ok(false) => {}
-            Err(_) => return false,
+        if crate::html_atributos::atributo_presente(script, "src").map_err(AtributoDoScript)? {
+            continue;
         }
-        let Some(texto) = fonte_do_script(html, script.boundaries(dom.parser()).0) else {
-            return false;
-        };
-        let Some(ocorrencias) = definicoes_ativas(texto, assinatura, corpo_esperado) else {
-            return false;
-        };
+        let texto = fonte_do_script(html, script.boundaries(dom.parser()).0)
+            .ok_or(FonteDoScriptNaoLocalizada)?;
+        let ocorrencias = definicoes_ativas(texto, assinatura, corpo_esperado)
+            .ok_or(ScriptForaDaFormaObservada)?;
         if ocorrencias == 0 {
             continue;
         }
         encontradas += ocorrencias;
         if encontradas > 1 {
-            return false;
+            return Err(FuncaoDeclaradaMaisDeUmaVez);
         }
     }
-    encontradas == 1
+    if encontradas == 1 {
+        Ok(())
+    } else {
+        Err(FuncaoNaoDeclaradaEmScriptAtivo)
+    }
 }

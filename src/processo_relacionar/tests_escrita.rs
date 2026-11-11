@@ -102,7 +102,17 @@ fn dado_post_403_quando_remover_entao_nao_declara_sucesso_causal() {
     respostas.push(ok(pagina(true)));
     respostas.push(Ok((403, String::new(), None)));
     let (resultado, pedidos) = executar(respostas);
-    assert!(resultado.is_err());
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::NaoConfirmado(Some(
+            crate::formulario_web::ErroSubmissaoFormulario::Transporte(
+                crate::transporte::FalhaTransporte::Status(crate::transporte::StatusHttpRecusado {
+                    status: 403,
+                    ..
+                })
+            )
+        )))
+    ));
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
 }
@@ -117,7 +127,10 @@ fn dado_post_200_generico_quando_remover_entao_nao_confirmado() {
         "<html><body>Resposta não conclusiva</body></html>".to_owned()
     ));
     let (resultado, pedidos) = executar(respostas);
-    assert!(resultado.is_err());
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::NaoConfirmado(None))
+    ));
     assert_eq!(pedidos.len(), 5);
     assert_eq!(pedidos[4].metodo, "POST");
 }
@@ -133,7 +146,10 @@ fn dado_302_aceito_mas_releitura_inalterada_entao_nao_confirma_remocao() {
     ));
     respostas.push(ok(pagina(true)));
     let (resultado, pedidos) = executar(respostas);
-    assert!(resultado.is_err());
+    assert!(matches!(
+        resultado,
+        Err(super::FalhaRelacionar::NaoConfirmado(None))
+    ));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos[4].metodo, "POST");
     assert_eq!(pedidos[5].metodo, "GET");
