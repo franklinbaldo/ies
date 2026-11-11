@@ -134,7 +134,6 @@ fn arvore(
     }
 }
 
-
 #[test]
 fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
     use super::tests_apoio::{
@@ -157,7 +156,14 @@ fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
             estado.antes.insert(ID_DOC.to_owned(), Vec::new());
         }
         let mut contagem = Contagem::new();
-        arvore(&mut contagem, &mut estado, &instalacao, &depois, ID, "sintetica");
+        arvore(
+            &mut contagem,
+            &mut estado,
+            &instalacao,
+            &depois,
+            ID,
+            "sintetica",
+        );
         assert_eq!(
             contagem
                 .get(&("verificação", esperado.to_owned()))
