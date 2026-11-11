@@ -435,3 +435,6 @@ fn bdd_60_05_cli_recusa_url_revogada_apos_arvore_sem_tentar_alternativa() {
 
 #[path = "aies_documento_interprocessos_cli/recusa_humana_contexto.rs"]
 mod recusa_humana_contexto;
+
+#[path = "aies_documento_interprocessos_cli/pasta_pendente.rs"]
+mod pasta_pendente;
