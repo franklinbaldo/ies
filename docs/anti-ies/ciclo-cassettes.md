@@ -8,9 +8,10 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 
 **Cassette-first no desenvolvimento, replay obrigatório no aceite da PR.** Comece pela operação contratada da CLI e procure as
 cassettes já registradas; observações verificadas são a entrada preferida
-para modelar o estado inicial do anti-IES. **Não exija** cassette/REA/live
-para codificar, testar ou integrar: quando houver lacunas, use hipótese e
-fixture mínima. Testes sintéticos auxiliam a modelar transições não capturadas, mas não substituem E2E alimentado por cassettes disponíveis. Não criar novos BDDs, steps ou arquivos Gherkin.
+para modelar o estado inicial do anti-IES. **Não exija** captura inexistente
+nem live para começar: quando houver lacunas, use hipótese mínima.
+Para integrar uma PR, execute os replays originais disponíveis no GitHub
+Actions sobre o head final, independentemente do ensaio sintético. Testes sintéticos auxiliam a modelar transições não capturadas, mas não substituem E2E alimentado por cassettes disponíveis. Não criar novos BDDs, steps ou arquivos Gherkin.
 O anti-IES não deve simplesmente devolver HTML gravado.
 O objetivo é um **sistema funcional, com estado coerente entre operações**.
 A reconstrução do comportamento Web e das transições segue o
