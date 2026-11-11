@@ -203,3 +203,70 @@ fn comentario_em_outro_processo_ou_repetido_e_recusa() {
 fn barra_sem_comentarios_nao_inventa_endereco() {
     assert_eq!(link_da_arvore(&arvore_com_comentarios(&[])), Ok(None));
 }
+
+#[test]
+fn cadastro_com_envio_em_botao_e_reconhecido() {
+    // Caso: SEI publica o envio como `<button name="sbmCadastrarComentario">` (32 gravações).
+    let html = r#"<form id="frmComentarioCadastro">
+      <textarea name="txaDescricao"></textarea>
+      <button type="submit" accesskey="S" name="sbmCadastrarComentario" value="Salvar" class="infraButton">Salvar</button>
+      </form>"#;
+    assert_eq!(
+        ler_tela(html),
+        Ok(TelaDosComentarios::CadastroSemComentarios)
+    );
+}
+
+#[test]
+fn cadastro_com_botao_de_outro_nome_e_recusado() {
+    let html = r#"<form id="frmComentarioCadastro">
+      <textarea name="txaDescricao"></textarea>
+      <button type="submit" name="outro">Salvar</button>
+      </form>"#;
+    assert_eq!(
+        ler_tela(html),
+        Err(ErroComentarios::TelaDeComentariosNaoReconhecida)
+    );
+}
+
+#[test]
+fn visao_de_protocolo_a_e_lida_como_variante_propria() {
+    // Caso: SEI, `hdnVisualizacao="A"`: lista de um protocolo, sem os links
+    // "Ver todos"/"Ver somente do processo" e com o Novo de protocolo.
+    let lidos = lidos(&lista_41().replace("value=\"P\"", "value=\"A\""));
+    assert_eq!(lidos.visao, VisaoDosComentarios::Protocolo);
+    assert_eq!(lidos.itens[0].id, "42");
+}
+
+#[test]
+fn separador_entre_comentarios_da_visao_t_nao_e_item() {
+    // Caso: SEI, visão T com dois comentários: `<tr class="trSeparadorComentario">`
+    // vazia (`&nbsp;`) separa um comentário do seguinte.
+    let linha = r#"<tr class="trSeparadorComentario"><td colspan="5">&nbsp;</td></tr>
+            <tr><td><input type="checkbox" value="43"></td>
+            <td>16/10/2026 10:00:00</td><td>ADC</td><td>u</td><td></td></tr>
+            <tr class="trComentario"><td colspan="5">Segundo</td></tr>"#;
+    let html = lista_41()
+        .replace("(1 registro)", "(2 registros)")
+        .replace("</tbody>", &format!("{linha}</tbody>"));
+    let lidos = lidos(&html);
+    assert_eq!(lidos.itens.len(), 2);
+    assert_eq!(lidos.itens[1].id, "43");
+    assert_eq!(lidos.itens[1].texto, "Segundo");
+}
+
+#[test]
+fn separador_com_texto_ou_classe_parecida_e_recusado() {
+    let com_texto = r#"<tr class="trSeparadorComentario"><td colspan="5">Texto</td></tr>
+            <tr class="trComentario"><td colspan="5">x</td></tr>"#;
+    let classe_parecida =
+        r#"<tr class="trSeparadorComentarioExtra"><td colspan="5">&nbsp;</td></tr>"#;
+    for linha in [com_texto, classe_parecida] {
+        let html = lista_41().replace("</tbody>", &format!("{linha}</tbody>"));
+        assert_eq!(
+            ler_tela(&html),
+            Err(ErroComentarios::LinhaDoComentarioInvalida),
+            "linha recusada: {linha}"
+        );
+    }
+}

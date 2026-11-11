@@ -42,6 +42,7 @@ pub(crate) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
                     "visao": match resultado.visao {
                         VisaoDosComentarios::Processo => "P",
                         VisaoDosComentarios::Todos => "T",
+                        VisaoDosComentarios::Protocolo => "A",
                     },
                     "total": resultado.total_declarado,
                     "comentarios": itens,
