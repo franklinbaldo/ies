@@ -39,10 +39,7 @@ fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
         if posicao == 0 || !fonte.as_bytes()[posicao - 1].is_ascii_whitespace() {
             continue;
         }
-        let Some(restante) = fonte[posicao + nome.len()..]
-            .trim_start()
-            .strip_prefix('=')
-        else {
+        let Some(restante) = fonte[posicao + nome.len()..].trim_start().strip_prefix('=') else {
             continue;
         };
         let restante = restante.trim_start();
