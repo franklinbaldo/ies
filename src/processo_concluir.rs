@@ -50,6 +50,24 @@ impl FormaDaConclusao {
     }
 }
 
+/// O que `ies processo concluir` encontrou ou fez na unidade da sessão.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DesfechoDaConclusao {
+    /// Não está aberto na unidade e a barra não oferece concluir. `confirmado`
+    /// é o pedido: sem escrita, nada muda.
+    NaoAbertoNaUnidade { confirmado: bool },
+    /// A barra oferece concluir; sem `--confirmar`, nada sai.
+    Previa { forma: FormaDaConclusao },
+    /// A escrita saiu e a leitura de verificação não lista mais a unidade.
+    Concluido {
+        forma: FormaDaConclusao,
+        /// Siglas lidas na verificação (depois da escrita).
+        depois: Vec<String>,
+        /// A resposta não foi a esperada e a leitura mostrou a conclusão.
+        reconciliado_por: Option<FalhaDoEnvio>,
+    },
+}
+
 /// Sucesso: prévia, nada a fazer, ou concluído e conferido.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProcessoConcluido {
@@ -57,18 +75,10 @@ pub(crate) struct ProcessoConcluido {
     pub(crate) id_procedimento: String,
     /// A unidade da sessão (`lnkInfraUnidade` da tela do processo).
     pub(crate) unidade: String,
-    pub(crate) confirmado: bool,
-    /// A escrita saiu e a leitura não lista mais a unidade.
-    pub(crate) alterado: bool,
-    /// `None`: não está aberto na unidade e a barra não oferece concluir.
-    pub(crate) forma: Option<FormaDaConclusao>,
     /// Siglas de `aberto_em` antes.
     pub(crate) aberto_em: Vec<String>,
-    /// Siglas lidas na verificação (só depois da escrita).
-    pub(crate) depois: Option<Vec<String>>,
-    /// A resposta não foi a esperada e a leitura mostrou a conclusão.
-    pub(crate) reconciliado_por: Option<FalhaDoEnvio>,
     pub(crate) requisicoes: u8,
+    pub(crate) desfecho: DesfechoDaConclusao,
 }
 
 impl ProcessoConcluido {
@@ -79,5 +89,48 @@ impl ProcessoConcluido {
             .filter(|sigla| **sigla != self.unidade)
             .cloned()
             .collect()
+    }
+
+    pub(crate) fn confirmado(&self) -> bool {
+        match &self.desfecho {
+            DesfechoDaConclusao::NaoAbertoNaUnidade { confirmado } => *confirmado,
+            DesfechoDaConclusao::Previa { .. } => false,
+            DesfechoDaConclusao::Concluido { .. } => true,
+        }
+    }
+
+    /// A escrita saiu e a leitura não lista mais a unidade.
+    pub(crate) fn alterado(&self) -> bool {
+        matches!(self.desfecho, DesfechoDaConclusao::Concluido { .. })
+    }
+
+    /// `None`: não está aberto na unidade e a barra não oferece concluir.
+    pub(crate) fn forma(&self) -> Option<FormaDaConclusao> {
+        match &self.desfecho {
+            DesfechoDaConclusao::NaoAbertoNaUnidade { .. } => None,
+            DesfechoDaConclusao::Previa { forma }
+            | DesfechoDaConclusao::Concluido { forma, .. } => Some(*forma),
+        }
+    }
+
+    /// Só depois da escrita.
+    pub(crate) fn depois(&self) -> Option<&[String]> {
+        match &self.desfecho {
+            DesfechoDaConclusao::Concluido { depois, .. } => Some(depois.as_slice()),
+            DesfechoDaConclusao::NaoAbertoNaUnidade { .. } | DesfechoDaConclusao::Previa { .. } => {
+                None
+            }
+        }
+    }
+
+    pub(crate) fn reconciliado_por(&self) -> Option<&FalhaDoEnvio> {
+        match &self.desfecho {
+            DesfechoDaConclusao::Concluido {
+                reconciliado_por, ..
+            } => reconciliado_por.as_ref(),
+            DesfechoDaConclusao::NaoAbertoNaUnidade { .. } | DesfechoDaConclusao::Previa { .. } => {
+                None
+            }
+        }
     }
 }
