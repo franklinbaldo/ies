@@ -142,7 +142,6 @@ pub fn salvar_arquivos_de_acesso(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FalhaConfiguracaoLocal {
     Ausente,
-    MetadadosNaoLidos,
     LinkSimbolico,
     NaoRegular,
     AcimaDoLimite,
@@ -168,7 +167,6 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
             FalhaConfiguracaoLocal::JsonInvalido(_) => Self::ArquivoConfiguracaoJsonInvalido,
             FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
             FalhaConfiguracaoLocal::Ausente
-            | FalhaConfiguracaoLocal::MetadadosNaoLidos
             | FalhaConfiguracaoLocal::NaoRegular
             | FalhaConfiguracaoLocal::AcimaDoLimite
             | FalhaConfiguracaoLocal::ErroDeIoNaLeitura(_) => {
@@ -191,7 +189,7 @@ fn ler_configuracao_local(
         if erro.kind() == std::io::ErrorKind::NotFound {
             FalhaConfiguracaoLocal::Ausente
         } else {
-            FalhaConfiguracaoLocal::MetadadosNaoLidos
+            FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind())
         }
     })?;
     if info.file_type().is_symlink() {
