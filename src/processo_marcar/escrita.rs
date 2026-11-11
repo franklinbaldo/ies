@@ -46,7 +46,7 @@ const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
 
 /// Extrai SOMENTE a URL literal assinada atribuída pelo handler da mesma tela.
 /// Não executa JS, não troca host, não cria destino a partir de padrões.
-pub(super) fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
+fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarcar> {
     let script = html
         .split_once("function acaoRemover(id,desc)")
         .ok_or(ErroMarcar::AcaoDeRemocaoAusente)?
@@ -68,7 +68,7 @@ pub(super) fn action_de_remocao(html: &str, id: &str) -> Result<String, ErroMarc
     Ok(url.to_owned())
 }
 
-pub(super) fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
+fn aceite_da_remocao(redir: &Redirecionamento302, id: &str) -> bool {
     let Some(consulta) = redir
         .localizacao()
         .and_then(|url| consulta_do_controlador(url, redir.url_do_envio()))

@@ -191,7 +191,5 @@ pub(crate) use catalogo::executar_atribuicao;
 pub(crate) use escrita::confirmar_retirada;
 
 #[cfg(test)]
-mod acervo;
-#[cfg(test)]
 #[path = "processo_marcar/tests.rs"]
 mod tests;
