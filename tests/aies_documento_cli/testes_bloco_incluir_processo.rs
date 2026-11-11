@@ -1,10 +1,10 @@
 //! BDD-381-04: prévia processual e releitura independente pela CLI real.
 //! Hipótese mínima sobre a cassette PEN1 (41 interações). O confronto
 //! semântico original e o ensaio em treinamento permanecem NOT_RUN.
-use super::*;
 use super::testes_ciencia_processo::executar_ciencia_processo;
-use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
+use super::*;
 use iesei::bloco_detalhe::{self, Detalhe, Item};
+use iesei::blocos::{self, Linha as LinhaBloco, Pagina, Tipo};
 use iesei::processos::{self, ProcessoSimulado};
 
 const BLOCO_INTERNO: &str = "3102";
@@ -83,7 +83,14 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     preparar(&pasta);
     let (previa, pedidos) = executar_ciencia_processo(
         &pasta,
-        &["--json", "bloco", "incluir", BLOCO_INTERNO, "--processo", NUP_INTERNO],
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO_INTERNO,
+            "--processo",
+            NUP_INTERNO,
+        ],
     );
     assert_eq!(
         previa.status.code(),
@@ -105,8 +112,7 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
         pedidos.iter().all(|p| p.starts_with("GET ")),
         "prévia deve ser sem POST: {pedidos:?}",
     );
-    let (leitura, depois) =
-        executar_ciencia_processo(&pasta, &["--json", "bloco", BLOCO_INTERNO]);
+    let (leitura, depois) = executar_ciencia_processo(&pasta, &["--json", "bloco", BLOCO_INTERNO]);
     assert_eq!(
         leitura.status.code(),
         Some(0),
@@ -115,23 +121,18 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     );
     let detalhe = json(&leitura);
     assert_eq!(detalhe["bloco"]["tipo"], "interno");
-    assert!(detalhe["bloco"]["itens"].as_array().unwrap().iter().all(
-        |item| item["processo"] != NUP_INTERNO && item["documento"].is_null()
-    ));
-    assert!(depois.iter().all(|p| p.starts_with("GET ")));
-    let (banco, instalacao) = estado(
-        &pasta.0.join("anti-ies.sqlite3"),
-        true,
-        0,
-        false,
+    assert!(
+        detalhe["bloco"]["itens"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["processo"] != NUP_INTERNO && item["documento"].is_null())
     );
-    let persistido = bloco_detalhe::ler(
-        &banco,
-        &instalacao,
-        CENARIO,
-        Tipo::Interno,
-        BLOCO_INTERNO,
-    ).unwrap().expect("detalhe observado no mesmo SQLite");
+    assert!(depois.iter().all(|p| p.starts_with("GET ")));
+    let (banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    let persistido = bloco_detalhe::ler(&banco, &instalacao, CENARIO, Tipo::Interno, BLOCO_INTERNO)
+        .unwrap()
+        .expect("detalhe observado no mesmo SQLite");
     assert_eq!(persistido.total, 1);
     assert_eq!(persistido.itens.len(), 1);
     assert_eq!(persistido.itens[0].documento, None);
