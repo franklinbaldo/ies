@@ -108,7 +108,10 @@ fn redirecionamento_na_releitura_nao_confirma_retirada_nem_repete_post() {
     );
     falha(&saida, "RedirecionamentoDeAcompanhamentoInesperado");
     assert_eq!(
-        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        eventos
+            .iter()
+            .filter(|v| v.as_str() == "POST acompanhamento_excluir")
+            .count(),
         1
     );
     let restantes = depois.unwrap().itens;
@@ -127,7 +130,10 @@ fn lista_ausente_apos_post_preserva_causa_sem_reenvio() {
     );
     falha(&saida, "ListaNaoPublicada");
     assert_eq!(
-        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        eventos
+            .iter()
+            .filter(|v| v.as_str() == "POST acompanhamento_excluir")
+            .count(),
         1
     );
     let restantes = depois.unwrap().itens;
