@@ -131,12 +131,14 @@ fn duas_tramitacoes_sucessivas_trocam_a_unidade_da_sessao_sem_duplicar_post() {
     );
     assert!(primeiro.starts_with("HTTP/1.1 302 Found"));
 
-    let trabalho = requisitar(
-        endereco,
-        "GET",
-        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10",
-        "",
+    // A entrada por id sem assinatura redireciona; esta consulta usa a
+    // URL assinada sintética e preserva dez requests na sequência.
+    let trabalho_assinado = format!(
+        "/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=10&infra_sistema=100000100&infra_unidade_atual=110000001&infra_hash={}",
+        "4".repeat(64)
     );
+    let trabalho = requisitar(endereco, "GET", &trabalho_assinado, "");
+    assert!(trabalho.starts_with("HTTP/1.1 200 OK"));
     assert!(trabalho.contains("id='lnkInfraUnidade'>DESTINO</a>"));
     assert!(!trabalho.contains("Incluir Documento"));
     let arvore_destino = requisitar(endereco, "GET", ARVORE, "");
