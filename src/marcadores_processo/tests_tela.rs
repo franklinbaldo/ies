@@ -144,7 +144,6 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
     let html = tela_dos_marcadores(NUP, ID);
     for legenda in [
         "Marcadores:",
-        "Marcadores (dois registros):",
         "Marcadores (2 registros - 1 a 2):",
         "Lista (2 registros):",
     ] {
@@ -154,6 +153,12 @@ fn legenda_ou_cabecalho_fora_da_forma_observada_sao_recusa() {
             "{legenda}"
         );
     }
+    assert_eq!(
+        erro(&html.replace("Marcadores (2 registros):", "Marcadores (dois registros):")),
+        ErroMarcadores::Legenda(crate::legenda::ErroLegenda::ContagemIlegivel(
+            "dois".parse::<usize>().unwrap_err()
+        ))
+    );
     assert_eq!(
         erro(&html.replace(
             "<th class=\"infraTh\">Texto</th>",

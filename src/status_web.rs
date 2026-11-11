@@ -36,6 +36,7 @@ pub(crate) fn projetar(html: &crate::tela_html::HtmlServido) -> Result<Value, Fa
             | ErroCaixa::FaixaAlterada { .. }
             | ErroCaixa::FaixaDescontinua { .. }
             | ErroCaixa::TotalNaoDeclaradoNaLegenda { .. }
+            | ErroCaixa::LegendaIlegivel { .. }
             | ErroCaixa::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
             | ErroCaixa::PaginadorDaTabelaSemFaixaNaLegenda { .. }
             | ErroCaixa::LimitePaginas

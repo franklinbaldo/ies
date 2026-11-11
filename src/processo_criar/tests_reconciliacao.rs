@@ -17,7 +17,7 @@ fn tela(registros: &[(&str, &str)], total: usize, inicio: usize) -> String {
         "0 registros:".to_owned()
     } else {
         format!(
-            "{total} registros - {inicio} a {}):",
+            "Processos ({total} registros - {inicio} a {}):",
             inicio + registros.len().saturating_sub(1)
         )
     };

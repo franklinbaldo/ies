@@ -8,6 +8,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
+use crate::legenda::{Legenda, ler_legenda};
 use crate::nivel_de_detalhe::texto_colapsado;
 use std::collections::HashSet;
 
@@ -142,21 +143,15 @@ fn legenda(tabela: Tag<'_>, parser: &tl::Parser<'_>) -> Result<usize, ErroMarcad
     let [caption] = descendentes(tabela, parser, "caption")[..] else {
         return Err(fora());
     };
-    let legenda = texto(caption, parser).map_err(|_| fora())?;
-    let (numero, palavra) = legenda
-        .strip_prefix("Marcadores (")
-        .and_then(|r| r.strip_suffix("):"))
-        .and_then(|r| r.split_once(' '))
-        .ok_or_else(fora)?;
-    if !matches!(palavra, "registro" | "registros")
-        || numero.is_empty()
-        || !numero.bytes().all(|b| b.is_ascii_digit())
-    {
+    let legenda = texto(caption, parser)?;
+    if !legenda.starts_with("Marcadores (") {
         return Err(fora());
     }
-    numero
-        .parse()
-        .map_err(ErroMarcadores::NumeroDaLegendaIlegivel)
+    let Legenda { total, faixa } = ler_legenda(&legenda)?;
+    if faixa.is_some() {
+        return Err(fora());
+    }
+    Ok(total)
 }
 
 /// Rótulo de `div.infraDivRotuloOrdenacao` ou do `th`; a seleção é o `th`

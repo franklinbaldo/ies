@@ -48,7 +48,7 @@ pub(crate) fn trabalhar_controle(id: &str) -> String {
 pub(crate) fn controle() -> String {
     format!(
         "<html><body><a id=\"lnkInfraUnidade\">{UNIDADE}</a>\
-         <table id=\"tblProcessosRecebidos\"><caption>1 registros - 1 a 1):</caption>\
+         <table id=\"tblProcessosRecebidos\"><caption>Processos recebidos (1 registros - 1 a 1):</caption>\
          <tr id=\"P{ID}\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr></table>\
          <table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table></body></html>",
         trabalhar_controle(ID)

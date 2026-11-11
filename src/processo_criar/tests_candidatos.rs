@@ -14,7 +14,7 @@ pub(super) fn gerados_com_candidato() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
-            "<table id=\"tblProcessosGerados\"><caption>1 registros - 1 a 1):</caption>\
+            "<table id=\"tblProcessosGerados\"><caption>Processos (1 registros - 1 a 1):</caption>\
              <tr id=\"P10\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr></table>",
             trabalhar_controle("10")
         ),
@@ -193,7 +193,7 @@ pub(super) fn gerados_com_dois_candidatos() -> String {
     tela_controle().replace(
         "<table id=\"tblProcessosGerados\"><caption>0 registros:</caption></table>",
         &format!(
-            "<table id=\"tblProcessosGerados\"><caption>2 registros - 1 a 2):</caption>\
+            "<table id=\"tblProcessosGerados\"><caption>Processos (2 registros - 1 a 2):</caption>\
              <tr id=\"P10\"><td><a href=\"{}\" class=\"processoVisualizado\">{NUP}</a></td></tr>\
              <tr id=\"P11\"><td><a href=\"{}\" class=\"processoVisualizado\">{SEGUNDO_NUP}</a></td></tr></table>",
             trabalhar_controle("10"),

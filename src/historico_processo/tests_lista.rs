@@ -88,19 +88,30 @@ fn legenda_ausente_ou_fora_da_forma_e_recusa() {
         ler_andamentos(&sem, NUP),
         Err(super::ErroAndamentos::LegendaDosAndamentosAusente)
     );
-    for legenda in [
-        "Lista de Andamentos (1 registro - 1 a 1):",
-        "Lista de Andamentos (um registro):",
-        "Andamentos (1 registro):",
-        "Lista de Andamentos (1 registro)",
-    ] {
+    let casos = [
+        (
+            "Lista de Andamentos (1 registro - 1 a 1):",
+            super::ErroAndamentos::Legenda(crate::legenda::ErroLegenda::SingularComFaixa),
+        ),
+        (
+            "Lista de Andamentos (um registro):",
+            super::ErroAndamentos::Legenda(crate::legenda::ErroLegenda::ContagemIlegivel(
+                "um".parse::<usize>().unwrap_err(),
+            )),
+        ),
+        (
+            "Andamentos (1 registro):",
+            super::ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada,
+        ),
+        (
+            "Lista de Andamentos (1 registro)",
+            super::ErroAndamentos::Legenda(crate::legenda::ErroLegenda::SemContagem),
+        ),
+    ];
+    for (legenda, esperado) in casos {
         let trocada =
             HtmlServido::de_teste(&html.replace("Lista de Andamentos (1 registro):", legenda));
-        assert_eq!(
-            ler_andamentos(&trocada, NUP),
-            Err(super::ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada),
-            "{legenda}"
-        );
+        assert_eq!(ler_andamentos(&trocada, NUP), Err(esperado), "{legenda}");
     }
     let duas = HtmlServido::de_teste(&html.replace(
         "</caption>",

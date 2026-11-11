@@ -2,6 +2,7 @@
 //! tem de aparecer uma única vez no `table#tblAndamentos` publicado.
 use super::{ErroCiencia, identificador};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::legenda::ler_legenda;
 
 /// Verifica a atividade no único `table#tblAndamentos` da Lista de Ciências
 /// que o processo/documento publicou na **releitura**. O chamador deve antes
@@ -70,16 +71,8 @@ pub(crate) fn atividade_na_lista(
         .strip_prefix("Lista de Ciências")
         .and_then(|resto| resto.strip_suffix(':'))
         .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
-    let contagem_valida = contagem.is_empty()
-        || contagem
-            .strip_prefix(" (")
-            .and_then(|resto| resto.strip_suffix(')'))
-            .and_then(|resto| resto.split_once(' '))
-            .is_some_and(|(n, palavra)| {
-                identificador(n) && matches!(palavra, "registro" | "registros")
-            });
-    if !contagem_valida {
-        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
+    if !contagem.is_empty() {
+        ler_legenda(legenda)?;
     }
     let mut ocorrencias = 0;
     for no in tabela.query_selector(parser, "input").into_iter().flatten() {

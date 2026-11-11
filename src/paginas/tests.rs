@@ -37,7 +37,7 @@ fn html(rec: (usize, usize, usize, &[u32]), ger: (usize, usize, usize, &[u32])) 
         let legenda = if total == 0 {
             "0 registros:".to_owned()
         } else {
-            format!("{total} registros - {ini} a {fim}):")
+            format!("Processos ({total} registros - {ini} a {fim}):")
         };
         format!(
             "<table id='tblProcessos{nome}'><caption>{legenda}</caption>{}</table>",

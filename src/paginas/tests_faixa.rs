@@ -88,8 +88,8 @@ fn pagina_lembrada_pelo_servidor_publica_faixa_fora_do_inicio() {
 
 #[test]
 fn paginas_contiguas_fora_do_inicio_somam_faixas() {
-    let p2 = tabela("Recebidos", "(6 registros - 3 a 4):", &[3, 4], "");
-    let p3 = tabela("Recebidos", "(6 registros - 5 a 6):", &[5, 6], "");
+    let p2 = tabela("Recebidos", "Processos (6 registros - 3 a 4):", &[3, 4], "");
+    let p3 = tabela("Recebidos", "Processos (6 registros - 5 a 6):", &[5, 6], "");
     let paginas = [
         HtmlServido::de_teste(&pagina(&p2, &vazia("Gerados"))),
         HtmlServido::de_teste(&pagina(&p3, &vazia("Gerados"))),
@@ -103,8 +103,8 @@ fn paginas_contiguas_fora_do_inicio_somam_faixas() {
 
 #[test]
 fn paginas_com_lacuna_continuam_recusadas() {
-    let p1 = tabela("Recebidos", "(6 registros - 1 a 2):", &[1, 2], "");
-    let p3 = tabela("Recebidos", "(6 registros - 5 a 6):", &[5, 6], "");
+    let p1 = tabela("Recebidos", "Processos (6 registros - 1 a 2):", &[1, 2], "");
+    let p3 = tabela("Recebidos", "Processos (6 registros - 5 a 6):", &[5, 6], "");
     let paginas = [
         HtmlServido::de_teste(&pagina(&p1, &vazia("Gerados"))),
         HtmlServido::de_teste(&pagina(&p3, &vazia("Gerados"))),
@@ -174,7 +174,7 @@ fn faixa_publicavel_exige_total_e_intervalo_ou_todas_as_linhas() {
 
 #[test]
 fn faixa_publicavel_aceita_parcial_vazia_e_integral() {
-    let rec = tabela("Recebidos", "(4 registros - 1 a 2):", &[1, 2], "");
+    let rec = tabela("Recebidos", "Processos (4 registros - 1 a 2):", &[1, 2], "");
     let leitura = juntar(
         &[HtmlServido::de_teste(&pagina(&rec, &vazia("Gerados")))],
         None,
@@ -190,7 +190,12 @@ fn faixa_publicavel_aceita_parcial_vazia_e_integral() {
 
 #[test]
 fn faixa_na_pagina_le_total_e_intervalo_de_uma_tabela() {
-    let rec = tabela("Recebidos", "(114 registros - 101 a 102):", &[1, 2], "");
+    let rec = tabela(
+        "Recebidos",
+        "Processos (114 registros - 101 a 102):",
+        &[1, 2],
+        "",
+    );
     let html = HtmlServido::de_teste(&pagina(
         &rec,
         &tabela("Gerados", "2 registros:", &[7, 8], ""),
@@ -232,7 +237,7 @@ fn legenda_no_singular_comprova_a_faixa_de_um_registro() {
         conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos),
         Ok(())
     );
-    let parcial = tabela("Recebidos", "(1 registro - 1 a 1):", &[1], "");
+    let parcial = tabela("Recebidos", "Processos (1 registro):", &[1], "");
     let html = HtmlServido::de_teste(&pagina(&parcial, &vazia("Gerados")));
     assert_eq!(
         faixa_na_pagina(&html, Categoria::Recebidos),

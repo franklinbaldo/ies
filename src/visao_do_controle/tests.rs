@@ -77,7 +77,7 @@ impl TelaR {
             format!("{total} registros:")
         } else {
             format!(
-                "({total} registros - {inicio} a {}):",
+                "Processos ({total} registros - {inicio} a {}):",
                 inicio + ids.len() - 1
             )
         };

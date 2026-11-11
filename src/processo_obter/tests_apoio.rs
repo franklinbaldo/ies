@@ -122,7 +122,7 @@ pub(super) fn controle(linhas: &[(&str, &str)]) -> String {
     let legenda = if n == 0 {
         "0 registros:".to_owned()
     } else {
-        format!("{n} registros - 1 a {n}):")
+        format!("Processos recebidos ({n} registros - 1 a {n}):")
     };
     format!(
         "<html><body>{}<a id=\"lnkInfraUnidade\">{UNIDADE}</a>\

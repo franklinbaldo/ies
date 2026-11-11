@@ -51,8 +51,7 @@ pub(crate) fn unidade_do_controle(
                 | ErroDetalhada::CabecalhoProcessoDetalhadoRepetido
                 | ErroDetalhada::ColunaDaVisaoDetalhadaRepetida
                 | ErroDetalhada::FaixaDetalhadaInvalida
-                | ErroDetalhada::TotalNaoNumerico(_)
-                | ErroDetalhada::NumeroDaFaixaIlegivel(_)
+                | ErroDetalhada::Legenda(_)
                 | ErroDetalhada::ControleDaPaginaNaoInterpretado(_)
                 | ErroDetalhada::AtributoDaDetalhadaIlegivel(_)
                 | ErroDetalhada::IdentificadorDetalhadoInvalido(_)

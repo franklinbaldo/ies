@@ -14,6 +14,7 @@ use crate::html_atributos::{
     atributo_presente, nos_com_id, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
 };
 use crate::instalacao::Instalacao;
+use crate::legenda::{Legenda, ler_legenda};
 
 #[path = "tela/consulta.rs"]
 mod consulta;
@@ -151,11 +152,16 @@ fn tags<'p>(
 
 const LEGENDA: &str = "Lista de Unidades com Permissão (";
 
-/// O total da legenda `Lista de Unidades com Permissão (N registros):`.
-fn total_da_legenda(legenda: &str) -> Option<usize> {
-    let resto = legenda.strip_prefix(LEGENDA)?;
-    let (numero, fim) = resto.split_once(' ')?;
-    (fim == "registros):" || fim == "registro):").then(|| numero.parse().ok())?
+/// O total da legenda `Lista de Unidades com Permissão (N registros):`, sem faixa.
+fn total_da_legenda(legenda: &str) -> Result<usize, super::ErroTroca> {
+    if !legenda.starts_with(LEGENDA) {
+        return Err(super::ErroTroca::ListaDeUnidadesIncompleta);
+    }
+    let Legenda { total, faixa } = ler_legenda(legenda)?;
+    if faixa.is_some() {
+        return Err(super::ErroTroca::ListaDeUnidadesIncompleta);
+    }
+    Ok(total)
 }
 
 /// A tabela da lista: exatamente uma `table.infraTable` com a legenda.
@@ -183,7 +189,7 @@ fn tabela_da_lista<'d>(
         let (None, [legenda]) = (&achada, legendas.as_slice()) else {
             return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
         };
-        let total = total_da_legenda(legenda).ok_or(super::ErroTroca::ListaDeUnidadesIncompleta)?;
+        let total = total_da_legenda(legenda)?;
         achada = Some((tabela, total));
     }
     achada.ok_or(super::ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)

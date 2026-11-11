@@ -1,8 +1,9 @@
 //! Interpretação somente-leitura da tabela tblProtocolosBlocos.
 //! Caso derivado de Todos `src/todos/sei/blocos_lista.py` @323eb01.
-use crate::bloco::{Faixa, TipoBloco};
+use crate::bloco::TipoBloco;
 use crate::bloco_estado::EstadoDoBloco;
 use crate::html_atributos::nos_com_id;
+use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -45,12 +46,8 @@ pub(crate) enum ErroBlocoDetalhe {
     LinhaDoBlocoInvalida,
     TabelaDoBlocoAusente,
     TabelasDoBlocoRepetidas,
-    /// O total da legenda não é um inteiro decimal que caiba em `usize`.
-    TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
-    /// O primeiro número da faixa não é um inteiro decimal que caiba em `usize`.
-    InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
-    /// O último número da faixa não é um inteiro decimal que caiba em `usize`.
-    FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    /// A legenda não está em nenhuma forma observada (leitor `legenda`).
+    Legenda(#[from] ErroLegenda),
     /// `nos_com_id` recusou a tag do bloco.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
 }
@@ -79,68 +76,35 @@ fn bloco_vazio(dom: &tl::VDom<'_>, parser: &tl::Parser<'_>) -> Result<bool, Erro
 }
 
 fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlocoDetalhe> {
-    // O singular "(1 registro):" é publicado só para um item; o plural, para os demais.
-    let (inicio, resto, singular) = if let Some((inicio, resto)) = legenda.split_once(" registros")
-    {
-        (inicio, resto, false)
-    } else {
-        let (inicio, resto) = legenda
-            .split_once(" registro")
-            .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
-        (inicio, resto, true)
-    };
-    let total = inicio
-        .split_whitespace()
-        .last()
-        .ok_or(ErroBlocoDetalhe::LegendaDoBlocoInvalida)?
-        .trim_start_matches('(')
-        .replace('.', "")
-        .parse::<usize>()
-        .map_err(ErroBlocoDetalhe::TotalDaLegendaIlegivel)?;
-    if singular {
-        if resto != "):" || total != 1 {
-            return Err(ErroBlocoDetalhe::LegendaDoBlocoInvalida);
-        }
-        if linhas != 1 {
-            return Err(ErroBlocoDetalhe::FaixaDoBlocoInvalida);
-        }
-        return Ok((1, Some(Faixa { inicio: 1, fim: 1 })));
-    }
-    if let Some((_, r)) = resto.split_once(" - ") {
-        let (de, ate) = r
-            .split_once(" a ")
-            .ok_or(ErroBlocoDetalhe::FaixaDoBlocoInvalida)?;
-        let de = de
-            .parse::<usize>()
-            .map_err(ErroBlocoDetalhe::InicioDaFaixaIlegivel)?;
-        let ate = ate
-            .chars()
-            .take_while(char::is_ascii_digit)
-            .collect::<String>()
-            .parse::<usize>()
-            .map_err(ErroBlocoDetalhe::FimDaFaixaIlegivel)?;
-        if de == 0 || ate < de || ate > total || ate - de + 1 != linhas {
+    let Legenda { total, faixa } = ler_legenda(legenda)?;
+    let Some(Faixa {
+        inicio: de,
+        fim: ate,
+    }) = faixa
+    else {
+        if total != linhas {
             return Err(ErroBlocoDetalhe::FaixaDoBlocoInvalida);
         }
         return Ok((
             total,
-            Some(Faixa {
-                inicio: de,
-                fim: ate,
+            (total > 0).then_some(Faixa {
+                inicio: 1,
+                fim: total,
             }),
         ));
-    }
-    if total != linhas {
+    };
+    if de == 0 || ate < de || ate > total || ate - de + 1 != linhas {
         return Err(ErroBlocoDetalhe::FaixaDoBlocoInvalida);
     }
     Ok((
         total,
-        (total > 0).then_some(Faixa {
-            inicio: 1,
-            fim: total,
+        Some(Faixa {
+            inicio: de,
+            fim: ate,
         }),
     ))
 }
+
 fn ler_itens(
     tabela: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
@@ -340,7 +304,9 @@ mod tests {
         ));
         assert_eq!(
             ler_detalhe(&dois, "91", TipoBloco::Reuniao, EstadoDoBloco::Gerado).err(),
-            Some(ErroBlocoDetalhe::LegendaDoBlocoInvalida)
+            Some(ErroBlocoDetalhe::Legenda(
+                crate::legenda::ErroLegenda::SingularComTotalDiferenteDeUm { total: 2 }
+            ))
         );
         let sem_linha = crate::tela_html::HtmlServido::de_teste(
             "<table id='tblProtocolosBlocos'><caption>Lista (1 registro):</caption><tr><th>Processo</th><th>Anotações</th></tr></table>",

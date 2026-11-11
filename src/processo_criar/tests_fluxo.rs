@@ -416,7 +416,7 @@ fn gerados_paginados_nao_impedem_o_post_mas_tornam_a_resposta_incerta() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
     let respostas = vec![
@@ -447,7 +447,7 @@ fn previa_nao_exige_fotografia_completa_de_gerados() {
     let amb = ambiente();
     let parcial = tela_controle().replace(
         "<caption>0 registros:</caption></table>",
-        "<caption>5 registros - 1 a 1):</caption>\
+        "<caption>Processos (5 registros - 1 a 1):</caption>\
          <tr id='P17'><td><a class='processoVisualizado'>00000.000017/2026-17</a></td></tr></table>",
     );
     let respostas = vec![ok(parcial), ok(lista(false)), ok(cadastro())];

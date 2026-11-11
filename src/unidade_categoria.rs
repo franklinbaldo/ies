@@ -148,9 +148,9 @@ mod tests {
         let html = crate::tela_html::HtmlServido::de_teste(&format!(
             "<a id='lnkInfraUnidade'>PPI</a>\
              <table id='tblProcessosRecebidos'>\
-             <caption>{recebidos_total} registros - 1 a 1):</caption>\
+             <caption>Processos ({recebidos_total} registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
-             <table id='tblProcessosGerados'><caption>1 registros - 1 a 1):</caption>\
+             <table id='tblProcessosGerados'><caption>Processos (1 registros - 1 a 1):</caption>\
              <tr id='P2'><td><a class='processoVisualizado'>G-0002</a></td></tr></table>"
         ));
         paginas::juntar(&[html], None).unwrap()
@@ -276,7 +276,7 @@ mod tests {
     ) -> (anyhow::Result<()>, Option<Value>) {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<a id='lnkInfraUnidade'>PPI</a>\
-             <table id='tblProcessosRecebidos'><caption>(3 registros - 1 a 1):</caption>\
+             <table id='tblProcessosRecebidos'><caption>Processos (3 registros - 1 a 1):</caption>\
              <tr id='P1'><td><a class='processoVisualizado'>R-0001</a></td></tr></table>\
              <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
         );
