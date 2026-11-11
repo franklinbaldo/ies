@@ -35,7 +35,7 @@ name = "sei"
 path = "src/main.rs"
 
 [[bin]]
-name = "ies-cli"
+name = "ies-sei"
 path = "src/main.rs"
 
 [workspace]
