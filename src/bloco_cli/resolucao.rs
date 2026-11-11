@@ -1,9 +1,9 @@
 //! Resolução de um número pelas listas de blocos publicadas.
-use crate::acao_do_sei::AcaoDoSei;
 use super::{
     EnvioDoControle, ErroBloco, FalhaLeitura, Leitura, Lido, ReferenciasDaSessao, TipoBloco, bloco,
     bloco_detalhe, controle_reconhecido, ler_tela_via, transporte,
 };
+use crate::acao_do_sei::AcaoDoSei;
 
 /// Resolve um número pelas listas tipadas efetivamente publicadas, sem
 /// escolher assinatura por padrão. Uma página parcial não exclui colisões.
