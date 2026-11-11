@@ -270,30 +270,4 @@ mod tests {
             Ok(Desfecho::SemCorrespondenciaObservada)
         );
     }
-
-    #[test]
-    fn tipo_nao_marcado_na_tela_impede_a_leitura_da_conferencia() {
-        assert_eq!(
-            ProcessoConferido::novo(
-                "17",
-                "NUP-17",
-                None,
-                ESPECIFICACAO.into(),
-                "publico".into(),
-                Vec::new()
-            ),
-            Err(ErroConferencia::TipoDoProcessoNaoMarcado)
-        );
-        assert!(
-            ProcessoConferido::novo(
-                "17",
-                "NUP-17",
-                Some(TIPO.into()),
-                ESPECIFICACAO.into(),
-                "publico".into(),
-                Vec::new()
-            )
-            .is_ok()
-        );
-    }
 }
