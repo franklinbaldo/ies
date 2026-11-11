@@ -408,13 +408,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn consulta_do_cache_preserva_not_a_directory() {
-        let raiz = std::env::temp_dir().join(format!(
-            "ies-cache-causa-diretorio-{}",
-            std::process::id()
-        ));
+        let raiz =
+            std::env::temp_dir().join(format!("ies-cache-causa-diretorio-{}", std::process::id()));
         fs::write(&raiz, b"arquivo, nao diretorio").unwrap();
-        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste")
-            .unwrap_err();
+        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste").unwrap_err();
         assert_eq!(
             causa,
             FalhaCache::ArquivoDoCacheInacessivel(std::io::ErrorKind::NotADirectory)
@@ -429,19 +426,14 @@ mod tests {
     #[test]
     fn cache_preserva_causa_da_gravacao_privada() {
         use std::os::unix::fs::PermissionsExt;
-        let raiz = std::env::temp_dir().join(format!(
-            "ies-cache-causa-permissoes-{}",
-            std::process::id()
-        ));
+        let raiz =
+            std::env::temp_dir().join(format!("ies-cache-causa-permissoes-{}", std::process::id()));
         fs::create_dir(&raiz).unwrap();
         fs::set_permissions(&raiz, fs::Permissions::from_mode(0o770)).unwrap();
-        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste")
-            .unwrap_err();
+        let causa = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"teste").unwrap_err();
         assert_eq!(
             causa,
-            FalhaCache::GravacaoPrivadaFalhou(
-                FalhaDaGravacao::DiretorioGravavelPorOutros
-            )
+            FalhaCache::GravacaoPrivadaFalhou(FalhaDaGravacao::DiretorioGravavelPorOutros)
         );
         fs::set_permissions(&raiz, fs::Permissions::from_mode(0o700)).unwrap();
         fs::remove_dir_all(raiz).unwrap();
