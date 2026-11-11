@@ -132,7 +132,7 @@ fn documento_cancelado_publica_motivo_e_meia_marca_e_null() {
     processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
         icone: Some("documento_cancelado".into()),
         cancelamento: Cancelamento::Cancelado {
-            motivo: Some("erro".into()),
+            motivo: "erro".into(),
         },
         dica: Some("Documento Cancelado: erro".into()),
     };

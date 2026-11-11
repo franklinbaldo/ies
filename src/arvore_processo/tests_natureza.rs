@@ -57,7 +57,7 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             esperada(
                 Some("documento_cancelado"),
                 Cancelamento::Cancelado {
-                    motivo: Some("erro".into()),
+                    motivo: "erro".into(),
                 },
             ),
             "Documento Cancelado: erro"
@@ -73,7 +73,7 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
             esperada(
                 Some("documento_cancelado"),
                 Cancelamento::Cancelado {
-                    motivo: Some(" enviado em duplicidade ".into()),
+                    motivo: " enviado em duplicidade ".into(),
                 },
             ),
             "Documento Cancelado:  enviado em duplicidade "

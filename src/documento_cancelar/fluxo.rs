@@ -186,10 +186,7 @@ fn reconciliar<V: EnvioDoProcesso>(
     feito.requisicoes = rede.feitas();
     match verificacao {
         Ver::Lida {
-            cancelamento:
-                Cancelamento::Cancelado {
-                    motivo: Some(ref lido),
-                },
+            cancelamento: Cancelamento::Cancelado { motivo: ref lido },
         } if lido == &feito.motivo => {
             feito.resultado = ResultadoDaVerificacao::Cancelado {
                 falha_do_envio: falha,

@@ -23,8 +23,9 @@ pub(crate) enum Cancelamento {
     /// Sem ícone lido, ou só uma das duas marcas: não observado.
     NaoObservado,
     Ativo,
+    /// As duas marcas lidas: o ícone e a dica com o motivo.
     Cancelado {
-        motivo: Option<String>,
+        motivo: String,
     },
 }
 
@@ -40,7 +41,7 @@ impl Cancelamento {
 
     pub(crate) fn motivo(&self) -> Option<&str> {
         match self {
-            Self::Cancelado { motivo } => motivo.as_deref(),
+            Self::Cancelado { motivo } => Some(motivo),
             Self::NaoObservado | Self::Ativo => None,
         }
     }
@@ -65,7 +66,7 @@ pub(super) fn ler_natureza(a: &[Literal; super::ARGUMENTOS]) -> NaturezaDoDocume
     };
     let cancelamento = match (icone.as_deref(), motivo) {
         (Some(ICONE_CANCELADO), Some(motivo)) => Cancelamento::Cancelado {
-            motivo: Some(motivo.to_owned()),
+            motivo: motivo.to_owned(),
         },
         (Some(ICONE_CANCELADO), None) | (None, _) | (Some(_), Some(_)) => {
             Cancelamento::NaoObservado
