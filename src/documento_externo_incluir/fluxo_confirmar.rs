@@ -2,9 +2,9 @@
 //! Transporte de upload é injetado; o comando público não autoriza escrita
 //! até a validação em treinamento e a confirmação segura do fluxo completo.
 use super::{
-    FalhaPdf, PdfLocal,
-    confirmacao::{FalhaConfirmacao, FotoProcesso, confirmar_sequencia},
-    fluxo::{ErroPreviaExterna, preparar_previa},
+    PdfLocal,
+    confirmacao::{FotoProcesso, confirmar_sequencia},
+    fluxo::{ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
@@ -20,50 +20,25 @@ pub(crate) struct InclusaoComprovada {
     pub(crate) unidade: String,
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("{self:?}")]
-pub(crate) enum ErroConfirmacaoExterna {
-    Previa(ErroPreviaExterna),
-    Pdf(FalhaPdf),
-    EnderecoDeUploadNaoObservado,
-    CampoCadastroNaoOferecido(&'static str),
-    Sequencia(FalhaConfirmacao),
+/// Campo que a submissão definitiva exige e o cadastro precisa oferecer
+/// antes de qualquer upload.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CampoExigidoDoCadastro {
+    DataElaboracao,
+    Formato,
+    NivelAcesso,
 }
-impl ErroConfirmacaoExterna {
-    pub(crate) fn etapa(&self) -> &'static str {
+
+impl CampoExigidoDoCadastro {
+    const TODOS: [Self; 3] = [Self::DataElaboracao, Self::Formato, Self::NivelAcesso];
+
+    /// O `name` do controle no `frmDocumentoCadastro`.
+    fn nome_do_controle(self) -> &'static str {
         match self {
-            Self::Pdf(_) => "arquivo_local",
-            Self::Previa(_)
-            | Self::EnderecoDeUploadNaoObservado
-            | Self::CampoCadastroNaoOferecido(_) => "previa",
-            Self::Sequencia(
-                FalhaConfirmacao::FotoInicialIncompleta
-                | FalhaConfirmacao::FotoInicialInconsistente,
-            ) => "fotografia_inicial",
-            Self::Sequencia(
-                FalhaConfirmacao::UploadRecusado(_) | FalhaConfirmacao::UploadIncerto(_),
-            ) => "upload_temporario",
-            Self::Sequencia(FalhaConfirmacao::TemporarioSemCadastro(_)) => "preparo_do_cadastro",
-            Self::Sequencia(FalhaConfirmacao::CadastroIncerto(_)) => "cadastro_definitivo",
-            Self::Sequencia(
-                FalhaConfirmacao::ReleituraIncerta(_) | FalhaConfirmacao::NaoConfirmado,
-            ) => "releitura_independente",
+            Self::DataElaboracao => "txtDataElaboracao",
+            Self::Formato => "rdoFormato",
+            Self::NivelAcesso => "rdoNivelAcesso",
         }
-    }
-
-    pub(crate) fn temporario_possivel(&self) -> bool {
-        matches!(self, Self::Sequencia(e) if e.temporario_possivel())
-    }
-
-    pub(crate) fn cadastro_tentado(&self) -> bool {
-        matches!(
-            self,
-            Self::Sequencia(
-                FalhaConfirmacao::CadastroIncerto(_)
-                    | FalhaConfirmacao::ReleituraIncerta(_)
-                    | FalhaConfirmacao::NaoConfirmado
-            )
-        )
     }
 }
 
@@ -73,8 +48,8 @@ fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
     processo: &str,
-) -> Result<String, ErroConfirmacaoExterna> {
-    let erro = || ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado;
+) -> Result<String, ErroIncluirExterno> {
+    let erro = || ErroIncluirExterno::EnderecoDeUploadNaoObservado;
     let consulta = relativo.strip_prefix("controlador.php?").ok_or_else(erro)?;
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(erro());
@@ -117,7 +92,7 @@ pub(crate) fn executar_confirmacao_via<V, U>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload: U,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -151,7 +126,7 @@ pub(crate) fn executar_confirmacao_via_prevalidada<V, U>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload: U,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -186,7 +161,7 @@ fn executar_confirmacao_via_impl<V, U>(
     envio: &mut V,
     upload: U,
     prevalidar: bool,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna>
+) -> Result<InclusaoComprovada, ErroIncluirExterno>
 where
     V: EnvioDoProcesso,
     U: FnOnce(
@@ -197,24 +172,23 @@ where
         &PdfLocal,
     ) -> Result<ReciboUpload, FalhaUpload>,
 {
-    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)
-        .map_err(ErroConfirmacaoExterna::Previa)?;
+    let preparado = preparar_previa(sessao, nup, unidade_pedida, tipo, pdf, indice, envio)?;
     // O recibo do upload nao deve ser criado se o cadastro ja mostrou
     // faltar um dos campos que a submissao definitiva exigira.
     if prevalidar {
-        for campo in ["txtDataElaboracao", "rdoFormato", "rdoNivelAcesso"] {
+        for campo in CampoExigidoDoCadastro::TODOS {
             if !preparado
                 .previa
                 .campos_oferecidos
                 .iter()
-                .any(|nome| nome == campo)
+                .any(|nome| nome == campo.nome_do_controle())
             {
-                return Err(ErroConfirmacaoExterna::CampoCadastroNaoOferecido(campo));
+                return Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(campo));
             }
         }
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
-        .ok_or(ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado)?;
+        .ok_or(ErroIncluirExterno::EnderecoDeUploadNaoObservado)?;
     let destino = conferir_upload(
         &instalacao,
         preparado.cadastro.plano.url_upload(),
@@ -248,8 +222,7 @@ where
             obter_processo(sessao, &leitura(nup, unidade_pedida, false), indice, rede)
                 .map(|depois| FotoProcesso::da_arvore(&depois.arvore))
         },
-    )
-    .map_err(ErroConfirmacaoExterna::Sequencia)?;
+    )?;
     Ok(InclusaoComprovada {
         numero_sei,
         unidade,
@@ -270,15 +243,11 @@ pub(crate) fn executar_confirmacao_https<V: EnvioDoProcesso>(
     indice: &IndiceLocal,
     envio: &mut V,
     upload_tentado: &mut bool,
-) -> Result<InclusaoComprovada, ErroConfirmacaoExterna> {
+) -> Result<InclusaoComprovada, ErroIncluirExterno> {
     // Validar antes de abrir sessão/rede. É o mesmo descritor que será
     // transmitido, não uma segunda abertura suscetível a substituição.
-    let arquivo =
-        super::abrir_pdf_para_envio(caminho_pdf, pdf).map_err(ErroConfirmacaoExterna::Pdf)?;
-    let cookie = sessao
-        .cookie
-        .valor()
-        .map_err(|e| ErroConfirmacaoExterna::Previa(ErroPreviaExterna::Transporte(e)))?;
+    let arquivo = super::abrir_pdf_para_envio(caminho_pdf, pdf)?;
+    let cookie = sessao.cookie.valor()?;
     // A origem já foi validada quando a sessão foi aberta.
     let origem = sessao
         .origem

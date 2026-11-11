@@ -7,7 +7,7 @@ use crate::marcadores_processo::ErroMarcadores;
 use crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::propriedades_processo::ErroPropriedades;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -79,20 +79,6 @@ impl ErroProcessoObter {
             | Self::LinksDoProcessoRepetidosNoControle
             | Self::ProcessoRepetidoNoControle
             | Self::LinhaDoControleIlegivel => false,
-        }
-    }
-}
-
-impl ErroProcessoObter {
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Controle(erro) => erro.status_http(),
-            Self::Formulario(erro) => erro.status_http(),
-            Self::ValidacaoDeAcesso(erro) => erro.status_http(),
-            Self::FormularioDoHistorico(erro) => erro.status_http(),
-            _ => None,
         }
     }
 }

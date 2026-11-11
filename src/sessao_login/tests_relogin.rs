@@ -479,7 +479,14 @@ fn segundo_302_para_o_login_sai_com_o_erro_sem_novo_login() {
     let FalhaDaLeitura::Leitura { erro, nota } = falha else {
         panic!("esperada a falha da leitura");
     };
-    assert_eq!(erro.status_http().map(|s| s.status), Some(302));
+    assert!(
+        matches!(
+            &erro,
+            crate::pesquisa_web::erro_busca::ErroBuscaDeProcesso::Transporte(transporte)
+                if transporte.status_http().map(|s| s.status) == Some(302)
+        ),
+        "{erro:?}"
+    );
     assert_eq!(nota.map(NotaDoRelogin::total), Some(7));
     assert!(r.into_inner().esgotado());
 }

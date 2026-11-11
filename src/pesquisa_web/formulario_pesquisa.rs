@@ -98,15 +98,6 @@ impl ErroPesquisaProtocolo {
     }
 }
 
-impl ErroPesquisaProtocolo {
-    pub(crate) fn status_http(&self) -> Option<&crate::transporte::StatusHttpRecusado> {
-        match self {
-            Self::Submissao(erro) => erro.status_http(),
-            _ => None,
-        }
-    }
-}
-
 /// Deriva o POST da pesquisa por protocolo em processos, sem rede.
 #[cfg(test)]
 pub(crate) fn derivar_pesquisa_de_protocolo(

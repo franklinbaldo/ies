@@ -15,7 +15,6 @@ use crate::historico_processo::{
     TipoDoHistorico, VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico, ler_andamentos,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
-use crate::transporte::StatusHttpRecusado;
 
 /// O formulário `verHistorico('P')` não foi derivado nem enviado como
 /// observado. Tipo próprio da etapa do histórico completo, distinto da
@@ -32,14 +31,6 @@ impl HistoricoNaoPedido {
     pub(crate) fn sessao_encerrada(&self) -> bool {
         match self {
             Self::Formulario(erro) => erro.sessao_encerrada(),
-        }
-    }
-}
-
-impl HistoricoNaoPedido {
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Formulario(erro) => erro.status_http(),
         }
     }
 }

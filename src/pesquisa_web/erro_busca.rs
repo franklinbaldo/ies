@@ -4,7 +4,7 @@ use super::formulario_pesquisa::ErroPesquisaProtocolo;
 use super::link_da_pesquisa::ErroLinkDaPesquisa;
 use super::paginacao::ErroPaginacaoDaPesquisa;
 use crate::erro_web::ErroCaixa;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::FalhaTransporte;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -32,17 +32,6 @@ impl ErroBuscaDeProcesso {
             | Self::CharsetDaTelaNaoSuportado
             | Self::Link(_)
             | Self::Paginacao(_) => false,
-        }
-    }
-}
-
-impl ErroBuscaDeProcesso {
-    /// Status e mensagem do SEI, da requisição recusada.
-    pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Transporte(erro) => erro.status_http(),
-            Self::Pesquisa(erro) => erro.status_http(),
-            _ => None,
         }
     }
 }

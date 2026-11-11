@@ -3,17 +3,18 @@
 use super::anexo::{FalhaAnexo, PlanoAnexo};
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaCadastroExterno {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     FormaNaoObservada,
     TipoNaoOferecido,
     TipoAmbiguo,
     TipoNaoRecarregado,
     PdfNaoOferecido,
     PdfAcimaDoLimite,
-    PlanoAnexo(FalhaAnexo),
+    PlanoAnexo(#[source] FalhaAnexo),
 }
 
 pub(crate) struct CadastroExterno {
