@@ -4,7 +4,8 @@
 use super::tests::aberto;
 use super::*;
 use crate::arvore_processo::{
-    AbertoEm, Atribuicao, MotivoAbertoEm, NaturezaDoDocumento, UnidadeAberta, UnidadeSobrestada,
+    AbertoEm, Atribuicao, Cancelamento, MotivoAbertoEm, NaturezaDoDocumento, UnidadeAberta,
+    UnidadeSobrestada,
 };
 
 fn nup() -> NumeroProcesso {
@@ -130,14 +131,14 @@ fn documento_cancelado_publica_motivo_e_meia_marca_e_null() {
     let mut processo = aberto(None);
     processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
         icone: Some("documento_cancelado".into()),
-        cancelado: Some(true),
-        motivo_do_cancelamento: Some("erro".into()),
+        cancelamento: Cancelamento::Cancelado {
+            motivo: Some("erro".into()),
+        },
         dica: Some("Documento Cancelado: erro".into()),
     };
     processo.arvore.documentos[1].natureza = NaturezaDoDocumento {
         icone: Some("documento_cancelado".into()),
-        cancelado: None,
-        motivo_do_cancelamento: None,
+        cancelamento: Cancelamento::NaoObservado,
         dica: None,
     };
     let valor = json_do_processo(&nup(), &processo, false);
@@ -161,8 +162,7 @@ fn dica_sai_no_json_e_cada_linha_no_texto_humano() {
     let mut processo = aberto(None);
     processo.arvore.documentos[0].natureza = NaturezaDoDocumento {
         icone: Some("documento_email".into()),
-        cancelado: Some(false),
-        motivo_do_cancelamento: None,
+        cancelamento: Cancelamento::Ativo,
         dica: Some("Data de Envio: 01/01/2026 10:00:00\nDe: a@x\nAssunto: y\n".into()),
     };
     processo.arvore.documentos[1].natureza.dica = None;
