@@ -155,6 +155,6 @@ transição como hipótese; registre a lacuna e avance com fixture mínima
 rotulada, sem confundir teste sintético com replay.
 
 O [ciclo de cassettes](anti-ies/ciclo-cassettes.md) e a
-[skill de E2E](../.agents/skills/cassette-e2e/SKILL.md) são normativos.
+skill de E2E `.agents/skills/cassette-e2e/SKILL.md` são normativos.
 Não apagar testes Rust úteis que ainda protejam invariantes não gravadas
 sem antes substituí-los por cobertura equivalente.

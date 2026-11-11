@@ -29,7 +29,7 @@ saída do IES como oráculo. Não exigir cassette inexistente como condição
 para começar: usar hipótese mínima rotulada, nunca confundi-la com
 compatibilidade externa comprovada. O guia é
 [docs/anti-ies/ciclo-cassettes.md](docs/anti-ies/ciclo-cassettes.md)
-e a [skill cassette-e2e](.agents/skills/cassette-e2e/SKILL.md).
+e a skill `.agents/skills/cassette-e2e/SKILL.md`.
 
 **Testes:** remover o runner e as features Gherkin. Não apagar testes
 unitários, regressões Rust ou E2E úteis sem substituí-los por uma prova

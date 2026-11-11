@@ -164,5 +164,5 @@ confronto separado do anti-IES com a fonte. Testes unitários não são
 excluídos automaticamente. Não criar um gate especial de BDD nem
 aceitar somente resultados sintéticos como fidelidade às cassettes.
 
-Consultar [skill](../.agents/skills/cassette-e2e/SKILL.md) e
+Consultar skill `.agents/skills/cassette-e2e/SKILL.md` e
 [ciclo](anti-ies/ciclo-cassettes.md).
