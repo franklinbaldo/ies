@@ -46,7 +46,7 @@ fn bdd_348_02_confirmar_retira_so_g_com_um_post_e_segunda_cli() {
 fn bdd_348_02_releitura_503_apos_post_nao_reenvia_e_retorna_saida_1() {
     let (saida, eventos, depois, segunda_cli) =
         executar_com_falha(EstadoInicial::GrupoG, true, true);
-    falha(&saida, "NaoConfirmado");
+    falha(&saida, "AcompanhamentoNaoConfirmado");
     assert_eq!(
         eventos
             .iter()
