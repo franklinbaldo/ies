@@ -2,8 +2,10 @@
 //! sequências exatas de requisições (orçamento do contrato).
 use super::erro::{ErroEnviar, ErroTelaDeEnvio, FalhaDaConsulta};
 use super::tests_apoio::*;
+use crate::arvore_processo::tests_concluir::absoluta;
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
 use crate::processo_concluir::tests_apoio::*;
+use crate::propriedades_processo::tests_apoio::acao_da_barra;
 use crate::transporte::FalhaTransporte;
 
 fn previa_respostas(versao: Versao, aberto_em: &[&str], consulta: String) -> Vec<Resposta> {
@@ -200,23 +202,40 @@ fn bdd_previa_remover_anotacoes_exige_checkbox_e_nao_escreve() {
     // então a prévia apresenta a escolha com a mesma consulta de destino.
     for versao in [Versao::V40, Versao::V41] {
         let amb = ambiente();
-        let (resultado, pedidos) = rodar_com(
-            &amb,
-            previa_respostas(versao, &[UNIDADE], um_destino()),
-            |sessao, nup, indice, rede| {
-                let pedido = super::PedidoDoEnvio {
-                    nup,
-                    unidade: None,
-                    para: DESTINO,
-                    manter_aberto: false,
-                    remover_anotacoes: true,
-                    confirmar: false,
-                };
-                super::enviar_processo(sessao, &pedido, indice, rede)
-            },
+        let acoes = vec![
+            pelo_envio(ID),
+            acao_da_barra(&super::tests_anotacoes::link_anotacao()),
+        ];
+        let respostas = com(
+            abertura(arvore(&[UNIDADE], &acoes)),
+            vec![
+                ok(tela_de_envio(versao, ID)),
+                ok(super::tests_anotacoes::anotacao("", ID)),
+                ok(um_destino()),
+            ],
         );
-        assert!(resultado.unwrap().remover_anotacoes());
-        assert_eq!(pedidos, pedidos_da_previa(versao));
+        let (resultado, pedidos) = rodar_com(&amb, respostas, |sessao, nup, indice, rede| {
+            let pedido = super::PedidoDoEnvio {
+                nup,
+                unidade: None,
+                para: DESTINO,
+                manter_aberto: false,
+                remover_anotacoes: true,
+                confirmar: false,
+            };
+            super::enviar_processo(sessao, &pedido, indice, rede)
+        });
+        let feito = resultado.unwrap();
+        assert!(feito.remover_anotacoes());
+        assert_eq!(feito.anotacao_antes(), Some(false));
+        let mut esperado = pedidos_da_abertura();
+        esperado.push(get(&url_da_tela()));
+        esperado.push(get(&absoluta(&super::tests_anotacoes::link_anotacao())));
+        esperado.push(post(
+            &absoluta(&autocompletar()),
+            &corpo_da_consulta(versao),
+        ));
+        assert_eq!(pedidos, esperado);
     }
 }
 

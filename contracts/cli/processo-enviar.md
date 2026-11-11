@@ -46,10 +46,12 @@ da tela declara.
   anotação. A leitura de `aberto_em` comprova tramitação, não exclusão
   de anotações. PASS nas sete instalações, sem anotação preexistente:
   [cobertura de 10/11/2026](../../docs/validacao-live/2026-11-10-cobertura-7-instalacoes.md).
-  A prévia consulta o formulário `anotacao_registrar` da própria origem,
-  quando o link é publicado na barra, e expõe `anotacao_antes` como
-  `true` (texto presente), `false` (campo vazio) ou campo omitido (link
-  não observado); essa primeira leitura **não prova a remoção posterior**.
+  A prévia consulta o formulário `anotacao_registrar` da própria origem
+  e expõe `anotacao_antes` como `true` (texto presente) ou `false` (campo
+  vazio). Sem o link de `anotacao_registrar` na barra, a remoção é recusada
+  (`RemocaoDeAnotacoesNaoOferecida` na prévia, `RemocaoDeAnotacoesSemVerificacao`
+  com `--confirmar`), pois a presença antes não pode ser lida. Essa primeira
+  leitura **não prova a remoção posterior**.
 - `--unidade SIGLA` (global): conferida na tela do processo.
 - `--confirmar`: envia. Sem ele, só prévia.
 
@@ -176,10 +178,11 @@ Só na prévia com `--remover-anotacoes`, se a barra servir um link
 `frmAnotacaoCadastro` sem escrever. O campo oculto `hdnIdProtocolo`
 identifica o processo; `txaDescricao` com texto não vazio indica anotação
 presente na unidade de origem. A tela só permite comprovar o **antes**.
-A prévia publica `anotacao_antes` sem converter ausência de observação em
-ausência de anotação. Leitura recusada é falha tipada, antes do autocomplete.
+A prévia publica `anotacao_antes` sem converter falha de leitura em ausência
+de anotação. Sem o link da tela de anotações, a remoção é recusada antes do
+autocomplete. Leitura recusada é falha tipada, antes do autocomplete.
 
-| Forma não observada | Erro (stderr) |
+| Falha de leitura | Erro (stderr) |
 | --- | --- |
 | Barra ilegível | `ErroLinkDasAnotacoes::BarraDeAnotacoesNaoInterpretada` |
 | Endereço de anotação inválido | `ErroLinkDasAnotacoes::EnderecoDeAnotacoesNaoReconhecido` |

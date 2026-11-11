@@ -73,7 +73,8 @@ URL ou hash.
 O classificador offline `processo_criar/desfechos.rs` usa candidatos e
 provas independentes de processo NUP já lidas. Ele exige ID, NUP, tipo
 e especificação exatos; falta de leitura, identidade divergente,
-prova duplicada e propriedades não observadas são recusadas.
+prova duplicada e tipo de processo não marcado na tela de propriedades
+(`TipoDoProcessoNaoMarcado`) são recusados.
 Uma correspondência: `CoincidenciaUnica` (possível resíduo, **não** autoria);
 duas ou mais: `CandidatosAmbiguos`; zero: `SemCorrespondenciaObservada`
 (**não** prova de não aplicação). A recusa expressa da Infra é o único caso

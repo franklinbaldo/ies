@@ -55,7 +55,8 @@ pub(crate) fn json_da_previa(feito: &ProcessoAtribuido) -> serde_json::Value {
         "nup": feito.nup,
         "id_procedimento": feito.id_procedimento,
         "unidade": feito.unidade,
-        "usuario_atual": feito.usuario_atual,
+        // Contrato: texto vazio quando a unidade não tinha atribuição.
+        "usuario_atual": feito.usuario_atual.as_deref().unwrap_or(""),
         "usuario_pedido": feito.usuario_pedido,
         "remover": feito.usuario_pedido.is_none(),
         "valor_da_opcao": feito.valor_da_opcao,
@@ -78,11 +79,7 @@ pub(crate) fn texto_humano(feito: &ProcessoAtribuido) -> String {
         "{titulo}: processo {}, unidade {}.",
         feito.nup, feito.unidade
     )];
-    let atual = if feito.usuario_atual.is_empty() {
-        "nenhuma"
-    } else {
-        &feito.usuario_atual
-    };
+    let atual = feito.usuario_atual.as_deref().unwrap_or("nenhuma");
     if feito.estado == EstadoDaAtribuicao::Previa {
         linhas.push(format!("Atribuição atual: {atual}."));
         match &feito.usuario_pedido {

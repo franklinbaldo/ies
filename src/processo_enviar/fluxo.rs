@@ -70,22 +70,25 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
     let id = aberto.arvore.processo.id.clone();
     let cookie = ler_cookie(sessao)?;
     let tela = ler_tela(&mut rede, &cookie, link.as_str(), &id)?;
-    let link_anotacao = if pedido.remover_anotacoes {
-        acoes
+    let (link_anotacao, anotacao_lida, metodo_remocao) = if pedido.remover_anotacoes {
+        // Sem a tela de anotações a presença antes não é lida: a remoção
+        // não é oferecida na prévia nem conferível na confirmação.
+        let Some(link) = acoes
             .anotacoes
             .map_err(super::anotacoes::ErroDasAnotacoes::LinkDasAnotacoes)?
+        else {
+            return Err(if pedido.confirmar {
+                ErroEnviar::RemocaoDeAnotacoesSemVerificacao
+            } else {
+                ErroEnviar::RemocaoDeAnotacoesNaoOferecida
+            });
+        };
+        let lida = ler_anotacao_antes(&mut rede, &cookie, &link, &id)?;
+        let metodo = escolher_metodo(pedido, &tela.conferida, &lida)?;
+        (Some(link), Some(lida), Some(metodo))
     } else {
-        None
+        (None, None, None)
     };
-    let anotacao_lida = ler_anotacao_antes(&mut rede, &cookie, link_anotacao.as_deref(), &id)?;
-    let anotacao_antes = anotacao_lida.as_ref().map(|lida| lida.presente);
-    let metodo_remocao = escolher_metodo(
-        pedido,
-        &tela.conferida,
-        anotacao_antes,
-        link_anotacao.as_deref(),
-        anotacao_lida.as_ref(),
-    )?;
     let destino = consultar_destino(&mut rede, &cookie, &instalacao, &tela, pedido.para)?;
     if aberto_em.contains(&destino.sigla) {
         return Err(ErroEnviar::ProcessoJaAbertoNoDestino { aberto_em });
@@ -95,11 +98,13 @@ pub(crate) fn enviar_processo<V: EnvioDoProcesso>(
         id_procedimento: id,
         unidade,
         manter_aberto: pedido.manter_aberto,
-        remocao: metodo_remocao.map(|metodo| RemocaoDaAnotacao {
-            metodo,
-            antes: anotacao_antes,
-            depois: None,
-        }),
+        remocao: metodo_remocao
+            .zip(anotacao_lida.as_ref())
+            .map(|(metodo, lida)| RemocaoDaAnotacao {
+                metodo,
+                antes: lida.presente,
+            }),
+        anotacao_depois: None,
         destino,
         aberto_em,
         desfecho: DesfechoDoEnvio::Previa,
@@ -148,7 +153,7 @@ fn limpar_se_publicada<V: EnvioDoProcesso>(
         return Ok(feito);
     }
     let (Some(link), Some(lida)) = (link, lida) else {
-        return Ok(feito);
+        return Err(ErroEnviar::RemocaoDeAnotacoesSemVerificacao);
     };
     if lida.presente {
         limpar_anotacao(
@@ -225,12 +230,14 @@ fn submeter_envio<V: EnvioDoProcesso>(
 /// comprovado por GET. Preserva a causa tipada e as unidades observadas.
 fn erro_apos_limpeza(feito: &ProcessoEnviado, causa: ErroSubmissaoFormulario) -> ErroEnviar {
     let limpeza_comprovada = matches!(
-        feito.remocao,
-        Some(RemocaoDaAnotacao {
-            metodo: MetodoRemocao::LimparAnotacao,
-            antes: Some(true),
-            depois: Some(false),
-        })
+        (&feito.remocao, feito.anotacao_depois),
+        (
+            Some(RemocaoDaAnotacao {
+                metodo: MetodoRemocao::LimparAnotacao,
+                antes: true,
+            }),
+            Some(false),
+        )
     );
     if limpeza_comprovada {
         ErroEnviar::FormularioAposLimpezaComprovada {
@@ -308,56 +315,42 @@ fn conferir_link_do_envio(
 }
 
 /// Decide a estratégia publicada na tela sem confundir leitura com gravação.
+/// Só é chamada quando a remoção foi pedida e a tela de anotações foi lida.
 fn escolher_metodo(
     pedido: &PedidoDoEnvio<'_>,
     tela: &TelaDeEnvio,
-    anotacao_antes: Option<bool>,
-    link: Option<&str>,
-    anotacao_lida: Option<&AnotacaoLida>,
-) -> Result<Option<MetodoRemocao>, ErroEnviar> {
-    if !pedido.remover_anotacoes {
-        return Ok(None);
+    lida: &AnotacaoLida,
+) -> Result<MetodoRemocao, ErroEnviar> {
+    if tela.remover_anotacoes_oferecida {
+        return Ok(MetodoRemocao::CheckboxNoEnvio);
     }
-    let metodo = if tela.remover_anotacoes_oferecida {
-        MetodoRemocao::CheckboxNoEnvio
-    } else if anotacao_antes.is_some() {
-        if !anotacao_lida.is_some_and(|lida| super::anotacoes::salvar_oferecido(&lida.html)) {
-            return Err(if pedido.confirmar {
-                ErroEnviar::RemocaoDeAnotacoesSemVerificacao
-            } else {
-                ErroEnviar::RemocaoDeAnotacoesNaoOferecida
-            });
-        }
-        MetodoRemocao::LimparAnotacao
+    if super::anotacoes::salvar_oferecido(&lida.html) {
+        return Ok(MetodoRemocao::LimparAnotacao);
+    }
+    Err(if pedido.confirmar {
+        ErroEnviar::RemocaoDeAnotacoesSemVerificacao
     } else {
-        return Err(ErroEnviar::RemocaoDeAnotacoesNaoOferecida);
-    };
-    if pedido.confirmar && link.is_none() {
-        return Err(ErroEnviar::RemocaoDeAnotacoesSemVerificacao);
-    }
-    Ok(Some(metodo))
+        ErroEnviar::RemocaoDeAnotacoesNaoOferecida
+    })
 }
 
-/// Prévia: o campo vazio só é ausência observada quando o formulário
-/// pertence ao mesmo processo. Falta de link continua não observada.
+/// Lê a presença da anotação da origem por GET independente. O campo vazio
+/// só é ausência comprovada quando o formulário pertence ao mesmo processo.
 fn ler_anotacao_antes<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
-    link: Option<&str>,
+    link: &str,
     id: &str,
-) -> Result<Option<AnotacaoLida>, ErroEnviar> {
-    let Some(link) = link else {
-        return Ok(None);
-    };
+) -> Result<AnotacaoLida, ErroEnviar> {
     let (html, mime) = obter_tela_das_anotacoes(rede, cookie, link)?;
     let presente = super::anotacoes::anotacao_presente(&html, id)
         .map_err(super::anotacoes::ErroDasAnotacoes::from)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(ErroEnviar::CharsetDaTelaNaoSuportado)?;
-    Ok(Some(AnotacaoLida {
+    Ok(AnotacaoLida {
         presente,
         html,
         codificacao,
-    }))
+    })
 }
 
 /// Salva uma vez e comprova a limpeza antes de tramitar; efeito incerto

@@ -150,7 +150,7 @@ fn formulario_real_do_ies_tramita_e_confere_estado_do_anti_ies() {
 }
 
 #[test]
-fn barra_da_origem_fechada_nao_oferece_novo_envio_ou_anotacao_nao_observada() {
+fn barra_da_origem_fechada_nao_oferece_novo_envio_ou_anotacao_sem_link() {
     let mut banco = Connection::open_in_memory().unwrap();
     iniciar(&banco).unwrap();
     let origem = OrigemSimulada::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
