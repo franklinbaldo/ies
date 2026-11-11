@@ -69,7 +69,7 @@ fn corpo_da_cassette(
         .collect();
     assert!(originais.len() <= 1, "um único GET de corpo por identidade");
     let conteudo = originais.first().map(|r| {
-        let html = html_da_resposta(r.interacao).unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(&html_da_resposta(r.interacao).unwrap());
         let identidade = crate::documento_web::identidade_do_titulo(&html).unwrap();
         assert_eq!(identidade.numero, numero_observado);
         let versao = crate::rodape_do_documento::versao_do_rodape(&html)
@@ -99,11 +99,11 @@ fn confrontar_corpo_observado_http(
         let resposta = pedir(endereco, "GET", &alvo);
         let (cabecalho, html) = resposta.split_once("\r\n\r\n").unwrap();
         assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-        let identidade = crate::documento_web::identidade_do_titulo(html).unwrap();
+        let identidade = crate::documento_web::identidade_do_titulo(&HtmlServido::de_teste(html)).unwrap();
         assert_eq!(identidade.numero.as_str(), numero.as_str());
         assert_eq!(&identidade.tipo, tipo_original);
         assert_eq!(
-            crate::rodape_do_documento::versao_do_rodape(html)
+            crate::rodape_do_documento::versao_do_rodape(&HtmlServido::de_teste(html))
                 .map(crate::documento_versoes::VersaoDocumento::numero),
             Some(*versao)
         );
@@ -114,7 +114,7 @@ fn confrontar_corpo_observado_http(
             .split_once("</main>")
             .unwrap()
             .0;
-        let texto = crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap();
+        let texto = crate::documento_web::texto_do_corpo(&HtmlServido::de_teste(&format!("<body>{corpo}</body>"))).unwrap();
         assert_eq!(
             &texto, texto_original,
             "corpo capturado deve sobreviver ao transporte"
@@ -231,7 +231,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
     let (processo, nup, numero_observado, rotulo_observado) =
         documento_na_arvore(&captura.json, id);
     let numero = NumeroDocumento::novo(&numero_observado).unwrap();
-    let html_original = html_da_resposta(respostas[0].interacao).unwrap();
+    let html_original = crate::tela_html::HtmlServido::de_teste(&html_da_resposta(respostas[0].interacao).unwrap());
     let historico_original = interpretar_historico(&html_original, id, None)
         .expect("leitor real do IES na lista original");
     let conteudo = corpo_da_cassette(&captura.json, id, &numero_observado, exigir_corpo);

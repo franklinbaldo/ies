@@ -15,7 +15,6 @@ use crate::instalacao::Instalacao;
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBlocoNaBarra {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     EnderecoDeOutroDocumento,
@@ -37,8 +36,7 @@ pub(crate) fn ler_bloco_escolher_da_barra(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(None);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroBlocoNaBarra::ParseDaBarraDoDocumentoFalhou)?;
+    let dom = crate::tela_html::interpretar(&texto);
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {

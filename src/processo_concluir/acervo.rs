@@ -18,6 +18,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -74,13 +75,14 @@ fn tela_de_conclusao(
     interacao: &serde_json::Value,
     id: &str,
 ) -> String {
-    if let Err(erro) = conferir_tela_de_conclusao(html, id) {
+    if let Err(erro) = conferir_tela_de_conclusao(&HtmlServido::de_teste(html), id) {
         return format!("`{erro:?}`");
     }
     let url = interacao["response"]["url"].as_str().unwrap_or("");
+    let html = HtmlServido::de_teste(html);
     let tela = TelaServida {
         url,
-        html,
+        html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
     // A unidade não é conferida: a janela não publica `lnkInfraUnidade`.
@@ -126,9 +128,9 @@ fn replay_de_processo_concluir_no_acervo() {
             let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(tela) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(tela) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         estado.unidade = Some(tela.unidade);
                     }
                 }

@@ -4,6 +4,7 @@
 use super::tests::{TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use crate::transporte::sessao::CookieDaSessao;
 use crate::transporte::testes_http::{atender, resposta, resposta_post};
@@ -65,7 +66,7 @@ impl EnvioDoControle for Roteiro {
         Ok(resposta(status, "text/html; charset=utf-8", bytes, None))
     }
 
-    fn colher_controle(&mut self, _html: &str, _mime: Option<&str>) {
+    fn colher_controle(&mut self, _html: &HtmlServido, _mime: Option<&str>) {
         self.colheitas += 1;
     }
 }

@@ -21,7 +21,6 @@ use crate::instalacao::Instalacao;
 pub(crate) enum ErroCienciaNaArvore {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    ParseDoHtmlDaCienciaFalhou(#[source] tl::ParseError),
     EnderecoDaCienciaDoDocumentoRecusado(
         #[source] crate::arvore_processo::endereco::EnderecoRecusado,
     ),
@@ -141,8 +140,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
         return Ok(false);
     };
     let fora = || super::ErroBarraDoDocumento::BarraDaCienciaDoDocumentoForaDaForma;
-    let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(super::ErroBarraDoDocumento::ParseDaBarraDaCienciaFalhou)?;
+    let dom = crate::tela_html::interpretar(&barra);
     let mut total = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -172,7 +170,7 @@ pub(crate) fn ciencia_do_documento_na_barra(
 /// do nó já foi vinculada ao processo na árvore.
 pub(crate) fn url_da_ciencia_do_documento(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_documento: &str,
     id_procedimento: &str,
 ) -> Result<EnderecoDeEscrita, ErroCienciaNaArvore> {
@@ -192,8 +190,7 @@ pub(crate) fn url_da_ciencia_do_documento(
     }) {
         return Err(ErroCienciaNaArvore::ScriptDaCienciaDoDocumentoForaDaForma);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCienciaNaArvore::ParseDoHtmlDaCienciaFalhou)?;
+    let dom = crate::tela_html::interpretar(html);
     let mut urls = Vec::<String>::new();
     for no in dom.query_selector("script").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {

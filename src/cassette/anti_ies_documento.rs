@@ -4,6 +4,8 @@
 //! Processo e revisão simulados não são evidência de paridade externa.
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
+use crate::documento_versoes::interpretar_historico;
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::iniciar;
 use iesei::documento_versoes::{DocumentoSimulado, Revisao, guardar};
 use rusqlite::Connection;
@@ -83,7 +85,8 @@ fn texto_do_editor_simulado(html: &str) -> String {
         .split_once("</main>")
         .unwrap()
         .0;
-    crate::documento_web::texto_do_corpo(&format!("<body>{corpo}</body>")).unwrap()
+    crate::documento_web::texto_do_corpo(&HtmlServido::de_teste(&format!("<body>{corpo}</body>")))
+        .unwrap()
 }
 
 #[test]
@@ -114,8 +117,10 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
         "o GET original deve apontar para um único documento"
     );
     let html_original = html_da_resposta(originais[0].interacao).unwrap();
-    let identidade = crate::documento_web::identidade_do_titulo(&html_original).unwrap();
-    let texto_original = crate::documento_web::texto_do_corpo(&html_original).unwrap();
+    let identidade =
+        crate::documento_web::identidade_do_titulo(&HtmlServido::de_teste(&html_original)).unwrap();
+    let texto_original =
+        crate::documento_web::texto_do_corpo(&HtmlServido::de_teste(&html_original)).unwrap();
     assert!(!texto_original.contains("infra_hash"));
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
@@ -139,9 +144,10 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     let resposta = pedir(endereco, "GET", &url);
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
-    let identidade_anti = crate::documento_web::identidade_do_titulo(html_anti).unwrap();
+    let identidade_anti =
+        crate::documento_web::identidade_do_titulo(&HtmlServido::de_teste(html_anti)).unwrap();
     assert_eq!(
-        crate::rodape_do_documento::versao_do_rodape(html_anti)
+        crate::rodape_do_documento::versao_do_rodape(&HtmlServido::de_teste(html_anti))
             .map(crate::documento_versoes::VersaoDocumento::numero),
         Some(numero_versao),
         "o anti-IES precisa devolver a versão observada, não uma revisão suposta"
@@ -204,9 +210,8 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id, &numero_observado);
     let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
-    let html_original = html_da_resposta(originais[0].interacao).unwrap();
-    let historico_original =
-        crate::documento_versoes::interpretar_historico(&html_original, id, None).unwrap();
+    let original = HtmlServido::de_teste(&html_da_resposta(originais[0].interacao).unwrap());
+    let historico_original = interpretar_historico(&original, id, None).unwrap();
     let atual = historico_original
         .atual()
         .expect("histórico não vazio")
@@ -258,7 +263,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let historico_anti =
-        crate::documento_versoes::interpretar_historico(html_anti, id, None).unwrap();
+        interpretar_historico(&HtmlServido::de_teste(html_anti), id, None).unwrap();
     assert_eq!(historico_anti.len(), historico_original.len());
     assert_eq!(historico_anti.atual(), historico_original.atual());
     for n in &versoes {

@@ -6,6 +6,7 @@ use super::*;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::indice_local::{ChaveDoLink, NOME_DO_ARQUIVO, unidade_dos_links};
 use crate::sessao_login::geracao_da_sessao;
+use crate::tela_html::HtmlServido;
 use crate::unidade_trocar::tests_apoio::{
     COOKIE, ID_A, ID_B, ORIGEM, controle, url_controle, url_limpa,
 };
@@ -49,7 +50,7 @@ fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     let novo = ControleLido {
         url: url_limpa(ID_B),
-        html: controle("PR-B", ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
         mime: "text/html; charset=iso-8859-1".into(),
     };
 
@@ -116,7 +117,7 @@ fn troca_regrava_sessao_e_nada_da_unidade_anterior_e_reaproveitado() {
     assert!(indice.link(&instalacao, chave(ID_A)).is_some());
     let novo = ControleLido {
         url: url_limpa(ID_B),
-        html: controle("PR-B", ID_B),
+        html: HtmlServido::de_teste(&controle("PR-B", ID_B)),
         mime: "text/html; charset=iso-8859-1".into(),
     };
     assert_eq!(
@@ -162,7 +163,7 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     };
     let lido = |url: String| ControleLido {
         url,
-        html: String::new(),
+        html: HtmlServido::de_teste(""),
         mime: String::new(),
     };
     let mut troca = Troca {

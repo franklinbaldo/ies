@@ -32,8 +32,7 @@ pub(crate) fn derivar_pagina(
         return Err(excessiva());
     }
     let usuario = {
-        let dom = tl::parse(tela.html, tl::ParserOptions::default())
-            .map_err(ErroPaginaDoControle::HtmlDaTelaDeEnvioRecusadoPeloParser)?;
+        let dom = crate::tela_html::interpretar(tela.html);
         let form = localizar_formulario(&dom, OBTER_PAGINA_DO_CONTROLE.formulario)?;
         regras::campos_do_usuario(form, dom.parser(), regras::CAMPOS_USUARIO)?
     };
@@ -55,7 +54,7 @@ pub(crate) fn derivar_pagina(
 
 /// A página obtida precisa manter o contexto da origem e trazer a faixa pedida.
 fn conferir_resposta(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     origem: &ContextoPagina,
     categoria: Categoria,
     esperada: FaixaNaPagina,
@@ -94,7 +93,7 @@ pub(crate) fn obter_pagina_via<R: Read, F>(
     pagina: usize,
     cookie: &CookieDaSessao,
     enviar: F,
-) -> Result<Option<String>, ErroPaginaDoControle>
+) -> Result<Option<crate::tela_html::HtmlServido>, ErroPaginaDoControle>
 where
     F: FnOnce(SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
 {

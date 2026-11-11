@@ -273,7 +273,7 @@ impl ConsultaDaTela<'_> {
         declaracao: &str,
         id_procedimento: &str,
         redirecionada: FalhaAnexar,
-    ) -> Result<String, FalhaAnexar> {
+    ) -> Result<crate::tela_html::HtmlServido, FalhaAnexar> {
         let url = url_da_consulta(self.tela.html, declaracao)?;
         let consulta = derivar_consulta_ajax(
             operacao,

@@ -39,8 +39,6 @@ pub(crate) enum ErroCiencia {
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,
     AtividadesRepetidasNaLista,
-    ListaDeCienciasNaoInterpretada(#[source] tl::ParseError),
-    AceiteNaoInterpretado(#[source] tl::ParseError),
 }
 
 fn identificador(valor: &str) -> bool {
@@ -220,11 +218,10 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
 /// processo/documento coerente contam. Duas atividades distintas recusam;
 /// a ausência não é confundida com sucesso ou ciência inexistente.
 pub(crate) fn atividade_do_aceite(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCiencia::AceiteNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
     // não rodam. Ignore somente esses nós, em vez de recusar a resposta

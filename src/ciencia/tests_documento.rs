@@ -7,6 +7,7 @@ use crate::arvore_processo::tests_assinatura::{
 };
 use crate::documento::NumeroDocumento;
 use crate::processo_concluir::tests_apoio::*;
+use crate::tela_html::HtmlServido;
 use crate::transporte::FalhaTransporte;
 
 const DOC: &str = "0000101";
@@ -307,7 +308,7 @@ fn fixture_da_lista_publica_link_do_documento_conferido() {
 #[test]
 fn fixture_do_aceite_publica_atividade_do_documento_correto() {
     let atividade = super::atividade_do_aceite(
-        &aceite(ATIVIDADE),
+        &HtmlServido::de_teste(&aceite(ATIVIDADE)),
         super::AlvoDaCiencia::Documento {
             id_procedimento: ID,
             id_documento: ID_DOC,

@@ -91,11 +91,10 @@ fn redirecionamento_do_gerenciar(
 /// Apenas `btnAdicionar` da lista pode abrir um cadastro adicional.
 fn adicionar_da_lista(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<String, ErroAcompanhar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::TelaDeAcompanhamentoRecusadaPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let mut urls = Vec::new();
     for no in dom.query_selector("button").into_iter().flatten() {
         let tag = no
@@ -129,7 +128,7 @@ fn html_da_tela<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     url: &str,
-) -> Result<(String, String), ErroAcompanhar> {
+) -> Result<(crate::tela_html::HtmlServido, String), ErroAcompanhar> {
     let resposta = rede.get_sem_seguir(url, cookie)?;
     if resposta.resposta.status_code == 302 {
         return Err(ErroAcompanhar::RedirecionamentoDeAcompanhamentoInesperado);

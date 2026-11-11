@@ -3,6 +3,7 @@ use super::*;
 use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 use crate::documento_externo_incluir::cadastro::observar_cadastro;
 use crate::formulario_web::{CodificacaoDaTela, Redirecionamento302};
+use crate::tela_html::HtmlServido;
 
 const URL: &str = "https://sei.exemplo.gov.br/sei/controlador.php?acao=documento_receber&id_procedimento=10&infra_hash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
@@ -68,10 +69,10 @@ fn contexto() -> (String, Instalacao) {
 #[test]
 fn confirmado_so_apos_cadastro_e_releitura_unica() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -113,10 +114,10 @@ fn confirmado_so_apos_cadastro_e_releitura_unica() {
 #[test]
 fn upload_recusado_nao_cadastra_nem_rele() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -145,10 +146,10 @@ fn upload_recusado_nao_cadastra_nem_rele() {
 #[test]
 fn html_generico_e_arvore_nova_nao_provam_autoria() {
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let mut passos = Vec::new();
@@ -166,7 +167,9 @@ fn html_generico_e_arvore_nova_nao_provam_autoria() {
         },
         |p, _| {
             p.push("cadastro");
-            Ok(RespostaDoEnvio::Html("<html>ok</html>".into()))
+            Ok(RespostaDoEnvio::Html(HtmlServido::de_teste(
+                "<html>ok</html>",
+            )))
         },
         |p| {
             p.push("reler");
@@ -185,10 +188,10 @@ fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
     // Rótulo/Número novos, isoladamente, não comprovam sua natureza.
     // Ícone ausente ou fora da forma não chega aqui: a leitura da árvore recusa.
     let (html, instalacao) = contexto();
-    let cadastro = observar_cadastro(&html, "Anexo", 68).unwrap();
+    let cadastro = observar_cadastro(&HtmlServido::de_teste(&html), "Anexo", 68).unwrap();
     let tela = TelaServida {
         url: URL,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let erro = confirmar_sequencia(

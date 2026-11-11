@@ -1,5 +1,6 @@
 use super::*;
 use crate::consulta_do_controlador::{ErroChaveDaConsulta, ErroConsultaDoControlador};
+use crate::tela_html::HtmlServido;
 
 const ORIGEM: &str = "https://sei.treinamento.unb.br/sei";
 const CONTROLE: &str =
@@ -54,15 +55,15 @@ fn mes_da_tela_custa_dois_get_apos_o_controle() {
     let mut chamados = Vec::new();
     let resultado = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 10)),
         |url| {
             chamados.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok(linha().to_owned())
+                Ok(HtmlServido::de_teste(linha()))
             } else {
-                Ok(calendario(2026, 10, true))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, true)))
             }
         },
     )
@@ -80,17 +81,19 @@ fn proximo_mes_usa_um_get_adicional_sem_repetir_pagina() {
     let mut chamados = Vec::new();
     let resultado = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 11)),
         |url| {
             chamados.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok("<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>".into())
+                Ok(HtmlServido::de_teste(
+                    "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>",
+                ))
             } else if url.contains("data_atual=01%2F11%2F2026") {
-                Ok(calendario(2026, 11, false))
+                Ok(HtmlServido::de_teste(&calendario(2026, 11, false)))
             } else {
-                Ok(calendario(2026, 10, true))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, true)))
             }
         },
     )
@@ -114,15 +117,15 @@ fn dois_links_mensais_identicos_sao_uma_unica_oferta() {
     let mut chamados = 0;
     let lido = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 10)),
         |url| {
             chamados += 1;
             if url.contains("data_inicial=") {
-                Ok(linha().to_owned())
+                Ok(HtmlServido::de_teste(linha()))
             } else {
-                Ok(calendario_duplo.clone())
+                Ok(HtmlServido::de_teste(&calendario_duplo.clone()))
             }
         },
     )
@@ -144,12 +147,12 @@ fn links_mensais_diferentes_continuam_ambiguos_e_sem_get_criador() {
     let mut chamados = 0;
     let resultado = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 10)),
         |_| {
             chamados += 1;
-            Ok(calendario_ambiguo.clone())
+            Ok(HtmlServido::de_teste(&calendario_ambiguo.clone()))
         },
     );
     assert!(matches!(
@@ -165,21 +168,23 @@ fn mes_anterior_segue_link_publicado_sem_inventar_url() {
     let mut chamados = Vec::new();
     let resultado = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 9)),
         |url| {
             chamados.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok("<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>".into())
+                Ok(HtmlServido::de_teste(
+                    "<div id='divAguardandoAreaTabela'>Nenhum registro encontrado.</div>",
+                ))
             } else if url.contains("data_atual=01%2F09%2F2026") {
-                Ok(calendario(2026, 9, false))
+                Ok(HtmlServido::de_teste(&calendario(2026, 9, false)))
             } else {
-                Ok(format!(
+                Ok(HtmlServido::de_teste(&format!(
                     "{}<a href='{}'>dia do mes anterior</a>",
                     calendario(2026, 10, true),
                     href("data_atual=01%2F09%2F2026")
-                ))
+                )))
             }
         },
     )
@@ -196,12 +201,12 @@ fn mes_anterior_sem_link_publicado_falha_fechado_sem_get_extra() {
     let mut chamados = 0;
     let resultado = ler_com(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 9)),
         |_| {
             chamados += 1;
-            Ok(calendario(2026, 10, true))
+            Ok(HtmlServido::de_teste(&calendario(2026, 10, true)))
         },
     );
     assert!(matches!(
@@ -217,14 +222,14 @@ fn sem_mes_nao_inventa_o_relogio_do_sei() {
     let mut chamados = 0;
     let resultado = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
         (2026, 10, 16),
         |url| {
             chamados += 1;
             assert!(!url.contains("data_inicial="));
-            Ok(calendario(2026, 10, false))
+            Ok(HtmlServido::de_teste(&calendario(2026, 10, false)))
         },
     );
     assert!(matches!(
@@ -235,11 +240,14 @@ fn sem_mes_nao_inventa_o_relogio_do_sei() {
 }
 #[test]
 fn link_em_outro_host_e_recusado_antes_do_get() {
-    let controle = format!("<a href='https://outro.test/sei/{}'>Retornos</a>", href(""));
+    let controle = HtmlServido::de_teste(&format!(
+        "<a href='https://outro.test/sei/{}'>Retornos</a>",
+        href("")
+    ));
     let mut chamados = 0;
     let resultado = ler_com(CONTROLE, &controle, &instalacao(), Some((2026, 10)), |_| {
         chamados += 1;
-        Ok(String::new())
+        Ok(HtmlServido::de_teste(""))
     });
     assert!(matches!(
         resultado,
@@ -270,11 +278,11 @@ fn link_de_retorno_com_causa_de_consulta_ou_chave_repetida() {
 
 #[test]
 fn menu_repetido_nao_dispara_get() {
-    let controle = format!("{}{}", controle(), controle());
+    let controle = HtmlServido::de_teste(&format!("{}{}", controle(), controle()));
     let mut chamados = 0;
     let resultado = ler_com(CONTROLE, &controle, &instalacao(), Some((2026, 10)), |_| {
         chamados += 1;
-        Ok(String::new())
+        Ok(HtmlServido::de_teste(""))
     });
     assert!(matches!(
         resultado,
@@ -299,22 +307,22 @@ fn sem_mes_encontra_dia_hoje_em_mes_anterior_ao_aberto() {
     let mut pedidos = Vec::new();
     let lido = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
         (2026, 10, 16),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok(linha().into())
+                Ok(HtmlServido::de_teste(linha()))
             } else if url.contains("data_atual=01%2F10%2F2026") {
-                Ok(calendario(2026, 10, true))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, true)))
             } else {
-                Ok(format!(
+                Ok(HtmlServido::de_teste(&format!(
                     "{}<a href='{}'>anterior</a>",
                     calendario(2026, 11, false),
                     href("data_atual=01%2F10%2F2026")
-                ))
+                )))
             }
         },
     )
@@ -334,22 +342,22 @@ fn sem_mes_na_virada_utc_nao_converte_hoje_da_maquina_em_hoje_do_sei() {
     let mut pedidos = Vec::new();
     let lido = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
         (2026, 11, 1),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok(linha().into())
+                Ok(HtmlServido::de_teste(linha()))
             } else if url.contains("data_atual=01%2F10%2F2026") {
-                Ok(calendario(2026, 10, true))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, true)))
             } else {
-                Ok(format!(
+                Ok(HtmlServido::de_teste(&format!(
                     "{}<a href='{}'>anterior</a>",
                     calendario(2026, 11, false),
                     href("data_atual=01%2F10%2F2026")
-                ))
+                )))
             }
         },
     )
@@ -365,20 +373,20 @@ fn sem_mes_sem_dia_hoje_nos_candidatos_recusa_sem_consultar_lista() {
     let mut pedidos = Vec::new();
     let resultado = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
         (2026, 11, 1),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_atual=01%2F10%2F2026") {
-                Ok(calendario(2026, 10, false))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, false)))
             } else {
-                Ok(format!(
+                Ok(HtmlServido::de_teste(&format!(
                     "{}<a href='{}'>anterior</a>",
                     calendario(2026, 11, false),
                     href("data_atual=01%2F10%2F2026")
-                ))
+                )))
             }
         },
     );
@@ -397,21 +405,21 @@ fn primeiro_dia_duplicado_com_url_identica_nao_inventa_ambiguidade() {
     let mut pedidos = Vec::new();
     let lido = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 10)),
         (2026, 11, 5),
         |url| {
             pedidos.push(url.to_owned());
             if url.contains("data_inicial=") {
-                Ok(linha().into())
+                Ok(HtmlServido::de_teste(linha()))
             } else if url.contains("data_atual=01%2F10%2F2026") {
-                Ok(calendario(2026, 10, false))
+                Ok(HtmlServido::de_teste(&calendario(2026, 10, false)))
             } else {
-                Ok(format!(
+                Ok(HtmlServido::de_teste(&format!(
                     "{}<a href='{anterior}'>prev 1</a><a href='{anterior}'>prev 2</a>",
                     calendario(2026, 11, false)
-                ))
+                )))
             }
         },
     )
@@ -431,17 +439,17 @@ fn calendario_utc_cobre_virada_de_ano_e_bissexto_sem_dependencia_de_fuso() {
 }
 #[test]
 fn dois_dias_hoje_conflitantes_nao_publicam_mes() {
-    let duplo = calendario(2026, 11, true).replace(
+    let duplo = HtmlServido::de_teste(&calendario(2026, 11, true).replace(
         "</html>",
         &format!(
             "<td class='diaHoje'><a href='{}'>outro dia</a></td></html>",
             href("data_atual=16%2F11%2F2026")
         ),
-    );
+    ));
     let mut pedidos = 0;
     let erro = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         None,
         (2026, 11, 5),
@@ -460,14 +468,14 @@ fn dois_dias_hoje_conflitantes_nao_publicam_mes() {
 fn primeiro_dia_duplicado_com_url_divergente_falha_antes_do_get() {
     let primeiro = href("data_atual=01%2F10%2F2026");
     let outro = href("data_atual=01%2F10%2F2026&pagina=2");
-    let tela = format!(
+    let tela = HtmlServido::de_teste(&format!(
         "{}<a href='{primeiro}'>prev 1</a><a href='{outro}'>prev 2</a>",
         calendario(2026, 11, false)
-    );
+    ));
     let mut pedidos = 0;
     let erro = ler_com_data_utc(
         CONTROLE,
-        &controle(),
+        &HtmlServido::de_teste(&controle()),
         &instalacao(),
         Some((2026, 10)),
         (2026, 11, 5),

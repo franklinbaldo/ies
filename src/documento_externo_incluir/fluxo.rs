@@ -76,7 +76,7 @@ pub(crate) struct CadastroPreparado {
     pub(crate) previa: PreviaExterna,
     pub(crate) cadastro: CadastroExterno,
     pub(crate) url_cadastro: String,
-    pub(crate) html_cadastro: String,
+    pub(crate) html_cadastro: crate::tela_html::HtmlServido,
     pub(crate) codificacao: CodificacaoDaTela,
     pub(crate) foto_antes: FotoProcesso,
 }
@@ -159,7 +159,7 @@ fn recarregar_tipo<V: EnvioDoProcesso>(
     tela: &TelaServida<'_>,
     unidade: &str,
     id_tipo: &str,
-) -> Result<String, ErroIncluirExterno> {
+) -> Result<crate::tela_html::HtmlServido, ErroIncluirExterno> {
     let submissao = derivar_submissao(
         &RECARREGAR_TIPO,
         instalacao,

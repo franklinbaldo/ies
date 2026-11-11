@@ -34,7 +34,6 @@ pub(crate) enum ErroNivelDeDetalhe {
     CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
     FormularioDoNivelDeDetalheAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     FormulariosDoNivelDeDetalheRepetidos,
-    HtmlDoNivelDeDetalheNaoInterpretado(#[source] tl::ParseError),
     OpcaoDoNivelDeDetalheNaoPrevista,
 }
 
@@ -69,9 +68,10 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
 /// As 12 opções do catálogo: as que a tela publica (`disponivel`) e as
 /// marcadas. A tela pode publicar um subconjunto (`UnB` 4.0.9: 11, sem
 /// Prioridade); caixa `chkSin*` fora do catálogo é recusa.
-pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNivelDeDetalhe> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
+pub(crate) fn ler_nivel_de_detalhe(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<NivelDeDetalhe, ErroNivelDeDetalhe> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form =
         localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE).map_err(|erro| match erro {
@@ -107,8 +107,7 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
             | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
             | ErroSubmissaoFormulario::FormularioAusenteNaTela
             | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
-            | ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado(_)) => {
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)) => {
                 E::FormularioDoNivelDeDetalheAusente(outro)
             }
         })?;

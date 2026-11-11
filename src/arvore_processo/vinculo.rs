@@ -24,8 +24,7 @@ pub(crate) fn ler_vinculo_de_anexacao(
     let Some(texto) = html_da_raiz(html)? else {
         return Ok(None);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroArvore::ParseDoHtmlDoNoDoProcessoFalhou)?;
+    let dom = crate::tela_html::interpretar(&texto);
     let parser = dom.parser();
     let mut achado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -61,7 +60,9 @@ pub(super) fn texto_unico(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Str
 }
 
 /// O texto do `.html` do nó `PROCESSO`; dois `.html` para ele são recusa.
-pub(super) fn html_da_raiz(html: &str) -> Result<Option<String>, ErroArvore> {
+pub(super) fn html_da_raiz(
+    html: &str,
+) -> Result<Option<crate::tela_html::HtmlServido>, ErroArvore> {
     let mut raiz = None;
     let mut texto = None;
     for linha in html.split('\n') {

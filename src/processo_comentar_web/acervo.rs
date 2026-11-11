@@ -17,6 +17,7 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::instalacao::Instalacao;
 use crate::processo_comentarios::{ComentariosLidos, TelaDosComentarios, ler_tela};
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -86,10 +87,10 @@ impl Estado {
         id: &str,
         instalacao: &Instalacao,
     ) -> Vec<(&'static str, String)> {
-        let html = match html_servido(interacao) {
+        let html = HtmlServido::de_teste(&match html_servido(interacao) {
             Ok(html) => html,
             Err(erro) => return vec![(LISTA, erro)],
-        };
+        });
         let mut leituras = Vec::new();
         // A primeira lista depois de um aceite é a releitura, lida ou não.
         let pendente = self.aceito_pendente.take();
@@ -125,7 +126,7 @@ impl Estado {
     fn cadastro(interacao: &serde_json::Value) -> (&'static str, String) {
         let classe = match html_servido(interacao) {
             Err(erro) => erro,
-            Ok(html) => match ler_tela(&html) {
+            Ok(html) => match ler_tela(&HtmlServido::de_teste(&html)) {
                 Ok(TelaDosComentarios::CadastroSemComentarios) => {
                     "lido (sem comentários)".to_owned()
                 }

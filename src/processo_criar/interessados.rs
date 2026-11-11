@@ -7,7 +7,7 @@ use crate::formulario_web::{
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{corpo::decode_http_body, ler_limitado};
+use crate::transporte::ler_limitado;
 use crate::visao_do_controle::EnvioDoControle;
 
 const PREFIXO: &str = "objAutoCompletarInteressadoRI1225 = new infraAjaxAutoCompletar('hdnIdInteressadoProcedimento','txtInteressadoProcedimento','";
@@ -27,11 +27,9 @@ pub(crate) enum ErroInteressado {
     NaoOferecido,
     Ambiguo,
     InteressadoControlesAusentes,
-    HtmlDosControlesNaoAnalisavel(#[source] tl::ParseError),
     FormularioDosControlesRecusado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AtributoDosControlesDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     InteressadoRespostaNaoReconhecida,
-    XmlDaRespostaNaoAnalisavel(#[source] tl::ParseError),
     CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
     AtributoDaRespostaDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
@@ -48,11 +46,9 @@ impl ErroInteressado {
             | Self::NaoOferecido
             | Self::Ambiguo
             | Self::InteressadoControlesAusentes
-            | Self::HtmlDosControlesNaoAnalisavel(_)
             | Self::FormularioDosControlesRecusado(_)
             | Self::AtributoDosControlesDeInteressadoIlegivel(_)
             | Self::InteressadoRespostaNaoReconhecida
-            | Self::XmlDaRespostaNaoAnalisavel(_)
             | Self::CorpoDaRespostaIlegivel(_)
             | Self::AtributoDaRespostaDeInteressadoIlegivel(_) => None,
         }
@@ -91,9 +87,8 @@ fn campo_unico(
 
 /// URL declarada na inicialização do autocomplete, sem executar o script.
 /// Também confere os campos reais do formulário que receberá os IDs.
-fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroInteressado::HtmlDosControlesNaoAnalisavel)?;
+fn url_publicada(html: &crate::tela_html::HtmlServido) -> Result<String, ErroInteressado> {
+    let dom = crate::tela_html::interpretar(html);
     let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
         .map_err(ErroInteressado::FormularioDosControlesRecusado)?;
     campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
@@ -110,9 +105,10 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
     }
 }
 
-fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(ErroInteressado::XmlDaRespostaNaoAnalisavel)?;
+fn itens_da_resposta(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<Vec<(String, String)>, ErroInteressado> {
+    let dom = crate::tela_html::interpretar(xml);
     let parser = dom.parser();
     let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
     let [root] = roots.as_slice() else {
@@ -207,8 +203,8 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         }
         let mime = resposta.resposta.mime.clone();
         let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)?;
-        let xml =
-            decode_http_body(&bytes, &mime).map_err(ErroInteressado::CorpoDaRespostaIlegivel)?;
+        let xml = crate::tela_html::HtmlServido::do_corpo(&bytes, &mime)
+            .map_err(ErroInteressado::CorpoDaRespostaIlegivel)?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
         if !resultados
             .iter()
@@ -235,7 +231,7 @@ mod tests {
     fn xml_sem_correspondencia_exata_eh_recusado() {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa B'/></itens>";
-        let itens = itens_da_resposta(xml).unwrap();
+        let itens = itens_da_resposta(&crate::tela_html::HtmlServido::de_teste(xml)).unwrap();
         assert_eq!(
             escolher("Pessoa C", &itens),
             Err(ErroInteressado::NaoOferecido)
@@ -250,7 +246,10 @@ mod tests {
         let xml =
             "<itens><item id='1' descricao='Pessoa A'/><item id='2' descricao='Pessoa A'/></itens>";
         assert_eq!(
-            escolher("Pessoa A", &itens_da_resposta(xml).unwrap()),
+            escolher(
+                "Pessoa A",
+                &itens_da_resposta(&crate::tela_html::HtmlServido::de_teste(xml)).unwrap()
+            ),
             Err(ErroInteressado::Ambiguo)
         );
     }
@@ -261,8 +260,10 @@ mod tests {
     fn autocomplete_nao_aceita_item_fora_da_raiz_xml() {
         // Estrutura dos itens: autocomplete de interessado publicado no
         // cadastro; o segundo `item` é uma mutação sintética negativa.
-        let xml = "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>";
-        let itens = itens_da_resposta(xml).unwrap();
+        let xml = crate::tela_html::HtmlServido::de_teste(
+            "<itens><item id='1' descricao='Pessoa A'></item></itens><item id='2' descricao='Pessoa B'></item>",
+        );
+        let itens = itens_da_resposta(&xml).unwrap();
         assert_eq!(itens, vec![("1".into(), "Pessoa A".into())]);
         assert_eq!(
             escolher("Pessoa B", &itens),

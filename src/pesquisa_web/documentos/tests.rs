@@ -12,9 +12,10 @@ use crate::pesquisa_web::formulario_pesquisa::ErroPesquisaProtocolo;
 use crate::pesquisa_web::redirecionamento::ErroRedirecionamentoDaPesquisa;
 use crate::pesquisa_web::resposta::ErroRespostaDaPesquisa;
 use crate::pesquisa_web::tests_fixtures::{sem_resultado, url_do_envio};
+use crate::tela_html::HtmlServido;
 
 fn erro_da_linha(html: &str) -> ErroDocumentoDaPesquisa {
-    ler_documentos(html).unwrap_err()
+    ler_documentos(&HtmlServido::de_teste(html)).unwrap_err()
 }
 
 fn uma_linha(linha: &str) -> String {
@@ -23,7 +24,7 @@ fn uma_linha(linha: &str) -> String {
 
 #[test]
 fn le_numero_sei_rotulo_processo_unidade_inclusao_e_anexo() {
-    let html = resultado_de_documentos("0005", 1, 3, "3");
+    let html = HtmlServido::de_teste(&resultado_de_documentos("0005", 1, 3, "3"));
     let documentos = ler_documentos(&html).unwrap();
     assert_eq!(documentos.len(), 3);
     assert_eq!(
@@ -43,7 +44,7 @@ fn le_numero_sei_rotulo_processo_unidade_inclusao_e_anexo() {
 
 #[test]
 fn resposta_classifica_lista_com_total_e_faixa_e_sem_resultado() {
-    let html = resultado_de_documentos("0005", 11, 20, "1.234");
+    let html = HtmlServido::de_teste(&resultado_de_documentos("0005", 11, 20, "1.234"));
     let RespostaDeDocumentos::Lista(lista) = ler_resposta_de_documentos(&html, None).unwrap()
     else {
         panic!("esperada lista");
@@ -58,7 +59,7 @@ fn resposta_classifica_lista_com_total_e_faixa_e_sem_resultado() {
     );
     assert_eq!(lista.documentos.len(), 10);
     assert_eq!(
-        ler_resposta_de_documentos(&sem_resultado("0005"), None).unwrap(),
+        ler_resposta_de_documentos(&HtmlServido::de_teste(&sem_resultado("0005")), None).unwrap(),
         RespostaDeDocumentos::SemResultado
     );
 }
@@ -67,7 +68,10 @@ fn resposta_classifica_lista_com_total_e_faixa_e_sem_resultado() {
 /// de 225.304" com 4 registros no HTML; publicadas as 4 e as 6 ausentes.
 #[test]
 fn menos_linhas_que_a_faixa_publicam_as_ausentes_como_em_processos() {
-    let html = resultado_com("x", &tabela(1, 10, "225.304", &linhas(1, 4)));
+    let html = HtmlServido::de_teste(&resultado_com(
+        "x",
+        &tabela(1, 10, "225.304", &linhas(1, 4)),
+    ));
     let RespostaDeDocumentos::Lista(lista) = ler_resposta_de_documentos(&html, None).unwrap()
     else {
         panic!("esperada lista");
@@ -76,14 +80,14 @@ fn menos_linhas_que_a_faixa_publicam_as_ausentes_como_em_processos() {
     assert_eq!(lista.total_declarado, 225_304);
     assert_eq!(lista.faixa, FaixaDaPesquisa { inicio: 1, fim: 10 });
     assert_eq!(lista.linhas_ausentes_da_faixa, 6);
-    let vazia = resultado_com("x", &tabela(1, 10, "3.300", ""));
+    let vazia = HtmlServido::de_teste(&resultado_com("x", &tabela(1, 10, "3.300", "")));
     let RespostaDeDocumentos::Lista(lista) = ler_resposta_de_documentos(&vazia, None).unwrap()
     else {
         panic!("esperada lista");
     };
     assert_eq!(lista.documentos.len(), 0);
     assert_eq!(lista.linhas_ausentes_da_faixa, 10);
-    let mais = resultado_com("x", &tabela(1, 10, "3.300", &linhas(1, 11)));
+    let mais = HtmlServido::de_teste(&resultado_com("x", &tabela(1, 10, "3.300", &linhas(1, 11))));
     assert_eq!(
         ler_resposta_de_documentos(&mais, None).unwrap_err(),
         ErroRespostaDaPesquisa::LinhasDaTabelaDiferentesDaFaixaDaBarra
@@ -251,7 +255,7 @@ fn processo_visitado_com_class_repetido_contendo_a_classe_e_lido() {
         1,
     );
     assert_ne!(visitado, linha);
-    let documentos = ler_documentos(&uma_linha(&visitado)).unwrap();
+    let documentos = ler_documentos(&HtmlServido::de_teste(&uma_linha(&visitado))).unwrap();
     assert_eq!(documentos[0].numero_sei, "0005001");
     let sem_a_classe = linha.replacen(
         "class=\"protocoloNormal\" href=\"controlador.php?acao=procedimento_trabalhar",

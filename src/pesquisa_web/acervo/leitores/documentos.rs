@@ -21,6 +21,7 @@ use crate::pesquisa_web::paginacao::{
 };
 use crate::pesquisa_web::regras_formulario::PesquisarEm;
 use crate::pesquisa_web::resposta::pagina_selecionada;
+use crate::tela_html::HtmlServido;
 use crate::transporte::decodificar_resposta;
 
 /// O termo derivado: só precisa caber no `maxlength` (a resposta é a gravada).
@@ -30,7 +31,7 @@ const TERMO: &str = "0";
 pub(super) struct EstadoEmDocumentos {
     pendente: Option<SubmissaoDerivada>,
     /// Página 1 lida (contagem e HTML) da última pesquisa em documentos.
-    pagina_1: Option<(Contagem, String)>,
+    pagina_1: Option<(Contagem, HtmlServido)>,
     na_tela_de_resultado: bool,
 }
 
@@ -132,7 +133,9 @@ fn primeiro_envio(
             let mut lido = c.lido(leitor, r.passo, forma);
             lido.total_declarado = Some(lista.total_declarado);
             let contagem = EmDocumentos::contagem(&interpretado.resposta);
-            let html = interpretado.html.unwrap_or_default();
+            let html = interpretado
+                .html
+                .unwrap_or_else(|| HtmlServido::de_teste(""));
             let plano = plano(c, r, contagem, &html, &url_do_envio, unidade);
             d.pagina_1 = Some((contagem, html));
             vec![lido, plano]
@@ -145,7 +148,7 @@ fn plano(
     c: &Cassette<'_>,
     r: &Resposta<'_>,
     contagem: Contagem,
-    html: &str,
+    html: &HtmlServido,
     url_do_envio: &str,
     unidade: &str,
 ) -> Registro {
@@ -197,7 +200,7 @@ fn pagina_seguinte(
             Err(erro) => recusa(&format!("{erro:?}")),
         };
     };
-    let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
+    let dom = crate::tela_html::interpretar(&html);
     let numero = match pagina_selecionada(&dom) {
         Ok(Some(n)) => u32::try_from(n).unwrap_or(u32::MAX),
         _ => return recusa("pagina_selecionada_ausente_no_paginador"),

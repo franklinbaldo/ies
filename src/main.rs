@@ -122,6 +122,7 @@ mod sessao_login_cli;
 mod setup_cli;
 mod status_cli;
 mod status_web;
+mod tela_html;
 mod tela_login;
 mod transporte;
 mod unidade_atual_cli;

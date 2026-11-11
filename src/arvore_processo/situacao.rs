@@ -96,7 +96,7 @@ enum Peca {
 
 /// As unidades do texto do `.html` da raiz, ou `None` fora das formas
 /// observadas.
-pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
+pub(super) fn ler_unidades(texto: &crate::tela_html::HtmlServido) -> Option<Vec<UnidadeAberta>> {
     let pecas = pecas(texto)?;
     let unidades = match pecas.as_slice() {
         [Peca::Texto(t), Peca::Quebra] if t == NENHUMA => Vec::new(),
@@ -124,7 +124,9 @@ pub(super) fn ler_unidades(texto: &str) -> Option<Vec<UnidadeAberta>> {
 /// A unidade de "Processo sobrestado na unidade <a>.<br />", ou `None`
 /// fora dessa forma. Uma unidade; no SEI 4.1/5 (UFRJ e GO) com
 /// " (atribuído para <a>).", que não muda onde está sobrestado.
-pub(super) fn ler_sobrestamento(texto: &str) -> Option<Vec<UnidadeSobrestada>> {
+pub(super) fn ler_sobrestamento(
+    texto: &crate::tela_html::HtmlServido,
+) -> Option<Vec<UnidadeSobrestada>> {
     let pecas = pecas(texto)?;
     let [Peca::Texto(frase), resto @ ..] = pecas.as_slice() else {
         return None;
@@ -189,8 +191,8 @@ fn unidade(pecas: &[Peca]) -> Option<(UnidadeAberta, &[Peca])> {
 
 /// O primeiro nível do texto como peças; `None` para comentário, outra
 /// tag ou âncora fora da forma.
-fn pecas(texto: &str) -> Option<Vec<Peca>> {
-    let dom = tl::parse(texto, tl::ParserOptions::default()).ok()?;
+fn pecas(texto: &crate::tela_html::HtmlServido) -> Option<Vec<Peca>> {
+    let dom = crate::tela_html::interpretar(texto);
     let parser = dom.parser();
     let mut pecas = Vec::new();
     for no in dom.children() {

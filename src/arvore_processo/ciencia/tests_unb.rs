@@ -5,6 +5,7 @@
 use super::super::sobrestar::ler_endereco_de_retomar;
 use super::{url_da_ciencia, url_da_ciencia_do_documento};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 
 const TELA: &str = r#"<html><head>
 <script type="text/javascript" charset="iso-8859-1" >
@@ -46,7 +47,7 @@ fn ciencia_do_processo_ignora_a_funcao_do_processo_anexado() {
 
 #[test]
 fn ciencia_do_documento_le_script_em_cdata() {
-    let r = url_da_ciencia_do_documento(&unb(), TELA, "51898", "51897");
+    let r = url_da_ciencia_do_documento(&unb(), &HtmlServido::de_teste(TELA), "51898", "51897");
     assert!(r.is_ok(), "{r:?}");
 }
 

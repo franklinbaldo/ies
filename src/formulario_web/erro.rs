@@ -58,8 +58,6 @@ pub(crate) enum ErroSubmissaoFormulario {
     IdentificacaoDaUnidadeAusenteNaTela,
     /// A identificação da unidade publicada na tela repetiu: a causa é a do controle.
     IdentificacoesDaUnidadeRepetidasNaTela(#[source] crate::erro_web::ErroCaixa),
-    /// O parser de HTML recusou a tela do formulário.
-    HtmlDaTelaNaoInterpretado(#[source] tl::ParseError),
 }
 
 impl ErroSubmissaoFormulario {
@@ -97,8 +95,7 @@ impl ErroSubmissaoFormulario {
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
-            | Self::HtmlDaTelaNaoInterpretado(_) => false,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => false,
         }
     }
 }
@@ -137,8 +134,7 @@ impl ErroSubmissaoFormulario {
             | Self::BotoesDeEnvioRepetidosNoFormulario
             | Self::FormularioAusenteNaTela
             | Self::IdentificacaoDaUnidadeAusenteNaTela
-            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_)
-            | Self::HtmlDaTelaNaoInterpretado(_) => None,
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela(_) => None,
         }
     }
 }

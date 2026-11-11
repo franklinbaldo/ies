@@ -1,6 +1,7 @@
 //! Testes sintéticos do fluxo Web de unidades (issue #244).
 use super::*;
 use crate::formulario_web::RespostaDoPost;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::fmt::Write as _;
 use std::io::Cursor;
@@ -380,7 +381,7 @@ fn dois_submits_sem_name_da_lupa_go_nao_entram_no_corpo() {
     let post = consulta(
         &instalacao,
         &url("unidade_selecionar_envio_processo"),
-        &html,
+        &HtmlServido::de_teste(&html),
         "text/html; charset=utf-8",
         0,
     )
@@ -407,7 +408,7 @@ fn botoes_sem_nome_ausentes_ou_repetidos_demais_falham_fechados() {
             consulta(
                 &instalacao,
                 &url("unidade_selecionar_envio_processo"),
-                html,
+                &HtmlServido::de_teste(html),
                 "text/html; charset=utf-8",
                 0,
             ),

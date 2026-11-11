@@ -32,9 +32,8 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// O GO serve dois submits com id btnPesquisar, ambos sem name.
 /// O navegador nao transmite botao sem name. A forma sintética mais antiga
 /// serve um submit nomeado: nesse caso, seu par entra no corpo.
-fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
+fn envio_da_lupa(html: &crate::tela_html::HtmlServido) -> Result<EnvioDoFormulario, FalhaDaLupa> {
+    let dom = crate::tela_html::interpretar(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut nomeados = 0;
@@ -90,7 +89,7 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
 pub(super) fn consulta(
     instalacao: &Instalacao,
     url: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     mime: &str,
     pagina: usize,
 ) -> Result<SubmissaoDerivada, FalhaDaLupa> {
@@ -110,8 +109,7 @@ pub(super) fn consulta(
     // campos de formulário ausentes; a identidade e o paginador da página
     // são conferidos estruturalmente antes de derivar o único POST.
     let lida = super::ler_pagina(html).map_err(FalhaDaLupa::Tela)?;
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut superior = 0;
@@ -195,8 +193,10 @@ mod replay_integral_go {
                 post += 1;
                 atual
             };
-            let html = html_da_resposta(resposta.interacao)
-                .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo));
+            let html = crate::tela_html::HtmlServido::de_teste(
+                &html_da_resposta(resposta.interacao)
+                    .unwrap_or_else(|_| panic!("HTML ilegivel no passo {}", resposta.passo)),
+            );
             let url = gravacao::url_sem_consulta(&conferida.json, resposta.interacao);
             let mime = gravacao::mime(resposta.interacao);
             consulta(&instalacao, &url, &html, &mime, pagina)

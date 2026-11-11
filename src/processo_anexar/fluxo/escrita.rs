@@ -45,7 +45,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     instalacao: &Instalacao,
     cookie: &str,
     link: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     mime: &str,
     id_principal: &str,
     destino: &Destino,

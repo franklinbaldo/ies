@@ -46,7 +46,6 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 pub(crate) enum ErroTela {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    HtmlInvalido(#[source] tl::ParseError),
     FormularioAusenteOuDuplicado(#[source] ErroSubmissaoFormulario),
     ControleAusenteOuDuplicado,
     ProtocoloDiferente,
@@ -54,8 +53,11 @@ pub(crate) enum ErroTela {
 }
 
 /// Um formulário, dois ocultos de identidade e um botão submit.
-pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlInvalido)?;
+pub(crate) fn conferir_formulario(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<(), ErroTela> {
+    let dom = crate::tela_html::interpretar(html);
     let form = localizar_formulario(&dom, FORM).map_err(ErroTela::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
@@ -384,13 +386,19 @@ mod tests {
     #[test]
     fn formulario_exige_identidade_unica() {
         let html = formulario("123");
-        assert_eq!(conferir_formulario(&html, "123"), Ok(()));
         assert_eq!(
-            conferir_formulario(&html, "124"),
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "123"),
+            Ok(())
+        );
+        assert_eq!(
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "124"),
             Err(ErroTela::ProtocoloDiferente)
         );
         assert!(matches!(
-            conferir_formulario(&format!("{html}{html}"), "123"),
+            conferir_formulario(
+                &crate::tela_html::HtmlServido::de_teste(&format!("{html}{html}")),
+                "123"
+            ),
             Err(ErroTela::FormularioAusenteOuDuplicado(_))
         ));
     }
@@ -399,7 +407,7 @@ mod tests {
         let html =
             formulario("123").replace("</form>", "<input name='acao' value='invasor'></form>");
         assert_eq!(
-            conferir_formulario(&html, "123"),
+            conferir_formulario(&crate::tela_html::HtmlServido::de_teste(&html), "123"),
             Err(ErroTela::CampoInesperado)
         );
     }

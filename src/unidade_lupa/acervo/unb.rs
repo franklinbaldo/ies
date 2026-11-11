@@ -4,6 +4,7 @@ use super::super::fluxo;
 use super::{ZipDoAcervo, conferir_cassette_ate, gravacao, html_da_resposta, ler_pagina};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 use std::path::Path;
@@ -62,7 +63,8 @@ impl fluxo::TransporteLupa for TransporteGravado {
 }
 
 fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
-    let dom = tl::parse(html, tl::ParserOptions::default()).expect("lupa UnB HTML");
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .expect("formulario da lupa UnB");
     let mut submits_nomeados = 0;
@@ -105,7 +107,8 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
     println!(
         "observacao UnB formulario passo {passo}: controles={controles}, submits_nomeados={submits_nomeados}, submits_sem_nome={submits_sem_nome}"
     );
-    let lida = ler_pagina(html).unwrap_or_else(|e| panic!("lupa UnB passo {passo}: {e:?}"));
+    let lida = ler_pagina(&HtmlServido::de_teste(html))
+        .unwrap_or_else(|e| panic!("lupa UnB passo {passo}: {e:?}"));
     assert!(lida.paginas >= 1);
     assert!(lida.pagina < lida.paginas);
     assert!(lida.unidades.len() <= lida.total);
@@ -114,6 +117,38 @@ fn observar_formulario_da_lupa_unb(html: &str, passo: usize) {
         lida.paginas,
         lida.unidades.len()
     );
+}
+
+/// Como a lista `UnB` publica o `btnNovo` (observação, sem asserção).
+fn observar_btn_novo_unb(html: &HtmlServido) {
+    let dom = crate::tela_html::interpretar(html);
+    for no in
+        crate::html_atributos::nos_com_id(&dom, "btnNovo").expect("id do btnNovo sem ambiguidade")
+    {
+        let tag = no
+            .get(dom.parser())
+            .and_then(tl::Node::as_tag)
+            .expect("btnNovo é elemento HTML");
+        let href = crate::html_atributos::valor_do_atributo(tag, "href").expect("href válido");
+        let onclick =
+            crate::html_atributos::valor_do_atributo(tag, "onclick").expect("onclick válido");
+        println!(
+            "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
+            tag.name().as_utf8_str(),
+            href.as_deref()
+                .is_some_and(|x| x.contains("controlador.php?")),
+            onclick
+                .as_deref()
+                .is_some_and(|x| x.contains("controlador.php?")),
+            onclick.as_deref().is_some_and(|x| x.contains("location")),
+            onclick
+                .as_deref()
+                .map_or(0, |x| x.matches("controlador.php?").count()),
+            onclick
+                .as_deref()
+                .is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
+        );
+    }
 }
 
 #[test]
@@ -163,38 +198,12 @@ fn observacao_dos_links_da_lupa_unb_no_acervo() {
             None
         };
         let Some(proxima) = proxima else { continue };
-        let html = html_da_resposta(resposta.interacao)
-            .unwrap_or_else(|_| panic!("resposta UnB ilegível no passo {}", resposta.passo));
+        let html = html_da_resposta(resposta.interacao).map_or_else(
+            |_| panic!("resposta UnB ilegível no passo {}", resposta.passo),
+            |html| HtmlServido::de_teste(&html),
+        );
         if resposta.operacao == "grupo_unidade_listar" {
-            let dom = tl::parse(&html, tl::ParserOptions::default()).expect("lista UnB analisável");
-            for no in crate::html_atributos::nos_com_id(&dom, "btnNovo")
-                .expect("id do btnNovo sem ambiguidade")
-            {
-                let tag = no
-                    .get(dom.parser())
-                    .and_then(tl::Node::as_tag)
-                    .expect("btnNovo é elemento HTML");
-                let href =
-                    crate::html_atributos::valor_do_atributo(tag, "href").expect("href válido");
-                let onclick = crate::html_atributos::valor_do_atributo(tag, "onclick")
-                    .expect("onclick válido");
-                println!(
-                    "observacao UnB btnNovo: tag={}, href_url={}, onclick_url={}, onclick_location={}, onclick_urls={}, alvo_cadastro={}",
-                    tag.name().as_utf8_str(),
-                    href.as_deref()
-                        .is_some_and(|x| x.contains("controlador.php?")),
-                    onclick
-                        .as_deref()
-                        .is_some_and(|x| x.contains("controlador.php?")),
-                    onclick.as_deref().is_some_and(|x| x.contains("location")),
-                    onclick
-                        .as_deref()
-                        .map_or(0, |x| x.matches("controlador.php?").count()),
-                    onclick
-                        .as_deref()
-                        .is_some_and(|x| x.contains("acao=grupo_unidade_cadastrar"))
-                );
-            }
+            observar_btn_novo_unb(&html);
         }
         let candidatos =
             fluxo::candidatos(&html, proxima).expect("controle UnB precisa ser analisável");

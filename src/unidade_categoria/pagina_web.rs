@@ -48,7 +48,7 @@ pub(super) fn obter(
     unidade: Option<&str>,
     categoria: Categoria,
     pagina: Option<usize>,
-) -> Result<String, ErroPaginaWeb> {
+) -> Result<crate::tela_html::HtmlServido, ErroPaginaWeb> {
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let colheita = Colheita::das_referencias(indice, &sessao);
@@ -89,7 +89,7 @@ fn obter_da_tela(
     categoria: Categoria,
     numero: usize,
     colheita: &Colheita<'_>,
-) -> Result<String, ErroPaginaWeb> {
+) -> Result<crate::tela_html::HtmlServido, ErroPaginaWeb> {
     // A tela de origem passa pelas mesmas recusas da leitura sem opção.
     let leitura = paginas::juntar(std::slice::from_ref(&tela.html), unidade)?;
     let unidade_da_tela = leitura.unidade.ok_or(ErroPaginaWeb::Caixa(

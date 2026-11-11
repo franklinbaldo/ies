@@ -112,8 +112,8 @@ enum Resultado {
 /// além da resposta ao único POST. Sem essa prova, o efeito é incerto.
 /// A contagem é informação explícita no editor sintético, não heurística
 /// sobre a presença de blocos de assinatura no HTML da versão.
-fn assinaturas_no_editor(html: &str) -> Option<u32> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+fn assinaturas_no_editor(html: &crate::tela_html::HtmlServido) -> Option<u32> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut contagem = None;
     for handle in dom.query_selector("output")? {
@@ -130,7 +130,7 @@ fn assinaturas_no_editor(html: &str) -> Option<u32> {
     contagem
 }
 
-fn editor_observado(html: &str, versao_base: u32) -> bool {
+fn editor_observado(html: &crate::tela_html::HtmlServido, versao_base: u32) -> bool {
     html.contains(&format!("name='hdnVersao' value='{versao_base}'"))
         && html.contains("name='hdnIgnorarNovaVersao' value='N'")
         && html.contains("name='txaEditor_1'")

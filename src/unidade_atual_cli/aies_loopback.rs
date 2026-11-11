@@ -62,7 +62,8 @@ fn aies_01_controle_do_sqlite_chega_ao_leitor_da_cli_por_http() {
     );
     let (cabecalho, html) = resposta.split_once("\r\n\r\n").expect("resposta HTTP");
     assert!(cabecalho.contains("Content-Type: text/html; charset=utf-8"));
-    let unidade = unidade_validada(html).expect("Controle R reconhecido pelo IES");
+    let unidade = unidade_validada(&crate::tela_html::HtmlServido::de_teste(html))
+        .expect("Controle R reconhecido pelo IES");
     assert_eq!(unidade, "TESTE");
     let json = super::dados_publicos_unidade(&unidade);
     assert_eq!(json["unidade_exibida"], "TESTE");

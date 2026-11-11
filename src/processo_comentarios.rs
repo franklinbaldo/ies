@@ -52,7 +52,6 @@ pub(crate) enum ErroComentarios {
     CabecalhoDosComentariosInvalido,
     FormulariosDeComentariosRepetidos,
     HtmlDosComentariosNaoInterpretado,
-    ParseDoHtmlDosComentariosFalhou(#[source] tl::ParseError),
     TotalDaLegendaDosComentariosIlegivel(#[source] std::num::ParseIntError),
     IdDoComentarioRepetido,
     LegendaDosComentariosInvalida,
@@ -335,9 +334,10 @@ fn ler_lista<'p>(
 ///
 /// Recusa telas sem forma observada, controles repetidos, tabelas ausentes,
 /// dados incompletos ou ids de comentários não inequívocos.
-pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroComentarios::ParseDoHtmlDosComentariosFalhou)?;
+pub(crate) fn ler_tela(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDosComentarios, ErroComentarios> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
         .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;

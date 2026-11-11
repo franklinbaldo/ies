@@ -107,7 +107,7 @@ pub(crate) struct Criacao {
 
 struct Tela {
     url: String,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     mime: String,
 }
 

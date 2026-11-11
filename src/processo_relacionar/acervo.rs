@@ -14,6 +14,7 @@ use super::tela::{
 use super::{mesmo_protocolo, xml_da_consulta};
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -125,7 +126,7 @@ impl Estado {
             "consulta não declarada"
         };
         let mut leituras = vec![(CONSULTA, consulta.to_owned())];
-        match ler_linhas(&html) {
+        match ler_linhas(&HtmlServido::de_teste(&html)) {
             Ok(linhas) => {
                 let forma = if linhas.is_empty() {
                     "lida (sem relacionamentos)"
@@ -142,7 +143,7 @@ impl Estado {
                         .iter()
                         .map(|l| (l.id.clone(), l.nup.clone()))
                         .collect(),
-                    acao: url_exclusao(&html),
+                    acao: url_exclusao(&HtmlServido::de_teste(&html)),
                 });
             }
             Err(erro) => {

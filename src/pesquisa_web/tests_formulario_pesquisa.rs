@@ -2,6 +2,7 @@
 //! nomes e a estrutura observados (rádio `D` marcado, órgão `multiple`).
 use super::*;
 use crate::formulario_web::tests::{instalacao, tela_iso, url_servida};
+use crate::tela_html::HtmlServido;
 
 const OPCOES_DE_ORGAO: &str = "<option value='1' selected>A</option>\
     <option value='2'>B</option><option value='3' selected='selected'>C</option>";
@@ -61,7 +62,7 @@ fn derivar(html: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
     derivar_pesquisa_de_protocolo(
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         "UNIDADE TESTE",
         "0001",
     )
@@ -266,7 +267,7 @@ fn recusas_do_primitivo_continuam_tipadas_na_operacao() {
     assert_eq!(
         derivar_pesquisa_de_protocolo(
             &instalacao(),
-            &tela_iso(&url, &html),
+            &tela_iso(&url, &HtmlServido::de_teste(&html)),
             "OUTRA UNIDADE",
             "0001",
         )
@@ -327,7 +328,12 @@ fn com_campo_do_termo(campo: &str) -> String {
 
 fn derivar_termo(html: &str, termo: &str) -> Result<SubmissaoDerivada, ErroPesquisaProtocolo> {
     let url = url_servida();
-    derivar_pesquisa_de_protocolo(&instalacao(), &tela_iso(&url, html), "UNIDADE TESTE", termo)
+    derivar_pesquisa_de_protocolo(
+        &instalacao(),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
+        "UNIDADE TESTE",
+        termo,
+    )
 }
 
 fn regra_do_termo(html: &str, termo: &str) -> ErroRegraDoFormularioDePesquisa {
@@ -348,11 +354,11 @@ fn termo_no_limite_do_maxlength_servido_e_enviado() {
 
 #[test]
 fn filtro_de_tipo_exato_e_periodo_usam_mesmo_post() {
-    let html = observado()
+    let html = HtmlServido::de_teste(&observado()
         .replace("<option value='null'>-</option></select>",
                  "<option value='null'>-</option><option value='73'>Administrativo</option></select>")
         .replace("<input type='hidden' id='hdnInicio'",
-                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'");
+                 "<input type='text' id='txtDataInicio' name='txtDataInicio' value=''><input type='text' id='txtDataFim' name='txtDataFim' value=''><input type='hidden' id='hdnInicio'"));
     let url = url_servida();
     let filtros = FiltrosDaPesquisa {
         tipo: Some("Administrativo"),
@@ -379,7 +385,7 @@ fn filtro_ausente_na_tela_falha_antes_do_post() {
     let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
-        &tela_iso(&url, &observado()),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
         ("UNIDADE TESTE", "0001"),
         FiltrosDaPesquisa {
             de: Some("01/01/2026"),
@@ -394,7 +400,7 @@ fn assunto_nao_vira_texto_sem_id_de_autocompletar() {
     let _erro = derivar_pesquisa_em_filtrada(
         PesquisarEm::Processos,
         &instalacao(),
-        &tela_iso(&url, &observado()),
+        &tela_iso(&url, &HtmlServido::de_teste(&observado())),
         ("UNIDADE TESTE", "0001"),
         FiltrosDaPesquisa {
             assunto: Some("023.1"),

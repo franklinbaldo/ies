@@ -14,8 +14,6 @@ pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 pub(crate) enum ErroLupa {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
-    /// O parser de HTML recusou a página recebida.
-    HtmlNaoInterpretado(#[source] tl::ParseError),
     FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TabelaForaDaForma,
     TotalAusente,
@@ -169,9 +167,8 @@ fn ler_unidades(
 
 /// A resposta da lupa deve ser uma página de dados identificada pelo formulário,
 /// pela tabela, pelo cabeçalho, pelo total e pelo paginador.
-pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
+pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaDaLupa, ErroLupa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(ErroLupa::FormularioAusente)?;
@@ -269,9 +266,10 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 ///
 /// O valor "null" do órgão não é "Todos": só o valor vazio é universal
 /// na lupa observada no GO pelo Todos @323eb01.
-pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroLupa> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
+pub(crate) fn conferir_filtros_de_lista_integral(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<(), ErroLupa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
         .map_err(ErroLupa::FormularioAusente)?;

@@ -5,6 +5,7 @@ use super::tela;
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::valor_do_atributo;
+use crate::tela_html::HtmlServido;
 use iesei::banco_cassettes::{self, ControleResumido, Linha};
 use iesei::instalacao::Instalacao;
 use iesei::observacao::{FaixaObservada, TabelaObservada, UnidadeExibida};
@@ -21,7 +22,8 @@ const ID: &str = "10";
 /// Campos enviaveis e botoes exibidos, sem valores de sessao nem links.
 /// Preserva a ordem observada e os valores publicos das opcoes de formulario.
 fn forma(html: &str) -> Vec<(String, String, Option<String>)> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).unwrap();
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmDesentranharDocumento")
         .expect("frmDesentranharDocumento presente");
     form.children()
@@ -120,7 +122,7 @@ fn cache() -> PathBuf {
 #[ignore = "ZIPs publicos SHA-verificados em IES_ACERVO_CACHE; sem rede SEI"]
 fn replay_do_formulario_de_sobrestamento_unb_go_contra_anti_ies() {
     let simulado = forma_do_anti_ies();
-    tela::conferir_formulario(&simulado, ID).unwrap();
+    tela::conferir_formulario(&HtmlServido::de_teste(&simulado), ID).unwrap();
     let campos_simulados = forma(&simulado);
     for caminho in [
         "cassettes/unb/processo-sobrestar-retomar-unb--cde2a847ebd8.md",
@@ -142,7 +144,7 @@ fn replay_do_formulario_de_sobrestamento_unb_go_contra_anti_ies() {
             let id = gravacao::id_procedimento(resposta.interacao)
                 .expect("id_procedimento unico na resposta original");
             let original = html_da_resposta(resposta.interacao).unwrap();
-            tela::conferir_formulario(&original, &id)
+            tela::conferir_formulario(&HtmlServido::de_teste(&original), &id)
                 .unwrap_or_else(|e| panic!("{caminho}: leitor IES recusou forma real: {e:?}"));
             assert_eq!(
                 forma(&original),

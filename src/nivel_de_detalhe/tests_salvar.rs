@@ -4,6 +4,7 @@
 //! GET da tela e resposta do salvar que gravou). Ids e hashes fictícios.
 use super::tests_alvo::{HASH_DO_SALVAR, tela_salvavel};
 use super::*;
+use crate::tela_html::HtmlServido;
 
 /// `inicializar()` como a tela serve: `V` vazio no GET, `1` depois de gravar.
 fn script(sinal: &str) -> String {
@@ -88,7 +89,7 @@ fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
         ],
         "",
     );
-    let lido = ler_nivel_de_detalhe(&html).unwrap();
+    let lido = ler_nivel_de_detalhe(&HtmlServido::de_teste(&html)).unwrap();
     assert_eq!(
         lido.marcadas(),
         [
@@ -97,13 +98,16 @@ fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
             ColunaDoDetalhe::Interessados
         ]
     );
-    assert_eq!(conferir_controles_do_formulario(&html), Ok(()));
+    assert_eq!(
+        conferir_controles_do_formulario(&HtmlServido::de_teste(&html)),
+        Ok(())
+    );
     let plano = planejar(&lido, &AlvoDasColunas::Todas).unwrap();
     let instalacao =
         crate::instalacao::Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
     let tela = TelaServida {
         url: servida,
-        html: &html,
+        html: &HtmlServido::de_teste(&html),
         codificacao: CodificacaoDaTela::Iso88591,
     };
     let campos = campos_do_envio(&plano);

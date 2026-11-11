@@ -122,9 +122,11 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
-pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeEnvio::ParseDaTelaDeEnvioFalhou)?;
+pub(crate) fn conferir_tela_de_envio(
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
         .map_err(ErroTelaDeEnvio::FormularioDeEnvioAusente)?;

@@ -8,8 +8,6 @@ use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 pub(crate) enum FalhaCadastroExterno {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    /// O tokenizador HTML recusou a tela inteira.
-    HtmlNaoAnalisavel(#[source] tl::ParseError),
     /// `hdnIdSerie` ausente ou repetido: o tipo recarregado não é lido.
     TipoRecarregadoAusenteOuRepetido,
     /// `hdnIdSerie` sem `value`.
@@ -181,12 +179,11 @@ fn campos_oferecidos(
 /// Inspeciona o cadastro servido depois da escolha do tipo (sem escrita).
 /// A saída mantém o destino de upload somente em memória.
 pub(crate) fn observar_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     tipo: &str,
     tamanho_pdf: u64,
 ) -> Result<CadastroExterno, FalhaCadastroExterno> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(FalhaCadastroExterno::HtmlNaoAnalisavel)?;
+    let dom = crate::tela_html::interpretar(html);
     let formularios =
         nos_com_id(&dom, "frmDocumentoCadastro").map_err(FalhaCadastroExterno::Atributo)?;
     let forms: Vec<_> = formularios

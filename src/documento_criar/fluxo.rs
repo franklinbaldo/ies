@@ -350,5 +350,9 @@ mod tests;
 mod tests_confirmacao;
 
 #[cfg(test)]
+#[path = "tests_confirmacao_recusas.rs"]
+mod tests_confirmacao_recusas;
+
+#[cfg(test)]
 #[path = "tests_integracao.rs"]
 mod tests_integracao;

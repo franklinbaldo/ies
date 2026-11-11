@@ -42,7 +42,6 @@ pub(crate) struct AssinaturaNaArvore {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAssinaturaNaArvore {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
     BarraDoDocumentoIlegivel(#[source] super::ErroBarraDoDocumento),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
@@ -71,9 +70,7 @@ pub(crate) fn ler_assinatura_na_arvore(
         | super::ErroBarraDoDocumento::LinkDasVersoesRepetidoNaBarra => {
             ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada
         }
-        outro @ (super::ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou(_)
-        | super::ErroBarraDoDocumento::ParseDaBarraDaCienciaFalhou(_)
-        | super::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(_)) => {
+        outro @ super::ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel(_) => {
             ErroAssinaturaNaArvore::BarraDoDocumentoIlegivel(outro)
         }
     })?;
@@ -91,10 +88,11 @@ pub(crate) fn ler_assinatura_na_arvore(
 }
 
 /// Quantas âncoras da barra têm exatamente `onclick="assinarDocumento();"`.
-fn acoes_de_assinar(texto: &str) -> Result<usize, ErroAssinaturaNaArvore> {
+fn acoes_de_assinar(
+    texto: &crate::tela_html::HtmlServido,
+) -> Result<usize, ErroAssinaturaNaArvore> {
     let fora = || ErroAssinaturaNaArvore::BarraDoDocumentoForaDaFormaObservada;
-    let dom = tl::parse(texto, tl::ParserOptions::default())
-        .map_err(ErroAssinaturaNaArvore::ParseDaBarraDoDocumentoFalhou)?;
+    let dom = crate::tela_html::interpretar(texto);
     let parser = dom.parser();
     let mut contagem = 0;
     for no in dom.query_selector("a").into_iter().flatten() {

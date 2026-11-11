@@ -8,6 +8,7 @@ use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
 use crate::paginas::FaixaObservada;
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -84,7 +85,7 @@ fn mime(interacao: &serde_json::Value) -> String {
 }
 
 /// A mesma decodificação do GET do Controle e do POST do formulário.
-pub(super) fn transporte(resp: &Resposta<'_>) -> Result<String, FalhaTransporte> {
+pub(super) fn transporte(resp: &Resposta<'_>) -> Result<HtmlServido, FalhaTransporte> {
     let corpo = bytes(resp.interacao);
     decodificar_resposta(RespostaWeb {
         status_code: i32::try_from(resp.status).unwrap_or(0),
@@ -135,7 +136,7 @@ fn ler(cas: &Cassette<'_>, resp: &Resposta<'_>, anterior: &mut Option<String>, s
     };
     saida.registros.push(t);
     let mut v = cas.registro(Leitor::Visao, resp.passo, Resultado::Lido);
-    let ctx = match contexto(&html) {
+    let ctx = match contexto(&HtmlServido::de_teste(&html)) {
         Ok(ctx) => ctx,
         Err(erro) => {
             v.resultado = Resultado::Recusado(format!("{erro:?}"));
@@ -201,7 +202,7 @@ fn parametro_de<'a>(url: &'a str, nome: &str) -> Option<&'a str> {
 fn solicitada(
     cas: &Cassette<'_>,
     resp: &Resposta<'_>,
-    html: &str,
+    html: &HtmlServido,
     ctx: &ContextoPagina,
     prev: &str,
     unidade: &str,
@@ -244,7 +245,7 @@ fn resumida(
             .push(cas.registro(leitor, resp.passo, motivo));
     }
     let mut j = cas.registro(Leitor::Resumida, resp.passo, Resultado::Lido);
-    let leitura = match crate::paginas::juntar(&[html.to_owned()], None) {
+    let leitura = match crate::paginas::juntar(&[HtmlServido::de_teste(html)], None) {
         Ok(leitura) => leitura,
         Err(erro) => {
             j.resultado = fora.map_or(Resultado::Recusado(format!("{erro:?}")), |motivo| {
@@ -324,7 +325,7 @@ fn resumida(
             .push(paginacao::da_tabela(cas, resp, html, lista.categoria()));
     }
     let mut k = cas.registro(Leitor::LinhasComLink, resp.passo, Resultado::Lido);
-    match crate::caixa::linhas_com_link(html) {
+    match crate::caixa::linhas_com_link(&HtmlServido::de_teste(html)) {
         Ok(linhas) => {
             let com = linhas.iter().filter(|l| l.href.is_some()).count() as u64;
             k.contagens = vec![("linhas", linhas.len() as u64), ("com_href", com)];

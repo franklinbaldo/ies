@@ -8,6 +8,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::processo_criar_cadastro::{conferir_cadastro, conferir_cadastro_com_ajax_pendente};
 use crate::processo_criar_hipotese::opcao_unica;
 use crate::processo_criar_lista::tipo_na_lista;
+use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
@@ -22,8 +23,8 @@ struct Registro {
 }
 
 fn nome_da_ancora(html: &str) -> Result<Vec<String>, Resultado> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
         .map_err(|_| Resultado::Recusado("lista_de_tipos_html_invalido".to_owned()))?;
     let tabela = match tabelas.as_slice() {
@@ -89,7 +90,7 @@ fn ler_lista(html: &str) -> Resultado {
         return Resultado::NaoAplicavel("sem_tipo_na_lista_gravada".to_owned());
     }
     for nome in nomes {
-        if let Err(erro) = tipo_na_lista(html, &nome) {
+        if let Err(erro) = tipo_na_lista(&HtmlServido::de_teste(html), &nome) {
             return Resultado::Recusado(format!("{erro:?}"));
         }
     }
@@ -97,7 +98,8 @@ fn ler_lista(html: &str) -> Resultado {
 }
 
 fn id_tipo_do_cadastro(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let forms = nos_com_id(&dom, "frmProcedimentoCadastro").ok()?;
     let [form] = forms.as_slice() else {
         return None;
@@ -124,16 +126,16 @@ fn ler_cadastro(html: &str) -> Resultado {
     // A tela pode oferecer dois níveis; basta um nível validado pelos
     // mesmos predicados do comando, sem concluir pela ausência do outro.
     for nivel in ["publico", "restrito"] {
-        if conferir_cadastro(html, &id, nivel).is_ok() {
+        if conferir_cadastro(&HtmlServido::de_teste(html), &id, nivel).is_ok() {
             return Resultado::Lido;
         }
     }
-    if conferir_cadastro_com_ajax_pendente(html, &id, "restrito").is_ok() {
+    if conferir_cadastro_com_ajax_pendente(&HtmlServido::de_teste(html), &id, "restrito").is_ok() {
         return Resultado::NaoAplicavel("hipotese_restrita_pendente_de_ajax".to_owned());
     }
     // Após a mesma validação ter falhado, não invente uma forma:
     // preserve a causa tipada concreta.
-    match conferir_cadastro(html, &id, "publico") {
+    match conferir_cadastro(&HtmlServido::de_teste(html), &id, "publico") {
         Ok(_) => Resultado::Lido,
         Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }
@@ -154,7 +156,7 @@ fn ler_xml(interacao: &Value) -> Resultado {
     let Ok(xml) = crate::transporte::corpo::legivel(&corpo, codificacao) else {
         return Resultado::Recusado("hipotese_legal_ajax_resposta_nao_reconhecida".to_owned());
     };
-    match opcao_unica(&xml) {
+    match opcao_unica(&HtmlServido::de_teste(&xml)) {
         Ok(_) => Resultado::Lido,
         Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }

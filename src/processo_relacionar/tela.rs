@@ -30,7 +30,6 @@ pub(crate) enum ErroAtributoDeRelacionamento {
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeRelacionamentos {
     Atributo(#[from] ErroAtributoDeRelacionamento),
-    HtmlDeRelacionamentosNaoInterpretado(#[source] tl::ParseError),
     FormularioDeRelacionamentosNaoLocalizado(#[source] ErroSubmissaoFormulario),
     TabelaDeRelacionamentosAusenteOuRepetida,
     NumeroDoRelacionadoAusente,
@@ -43,7 +42,6 @@ pub(crate) enum ErroTelaDeRelacionamentos {
 #[error("{self:?}")]
 pub(crate) enum ErroDestinoDaConsulta {
     Atributo(#[from] ErroAtributoDeRelacionamento),
-    RespostaDaConsultaNaoInterpretada(#[source] tl::ParseError),
     ProcessoDeDestinoNaoEncontrado,
     DestinoDaConsultaAmbiguo,
     DestinoARelacionarNaoIdentificado,
@@ -60,9 +58,10 @@ fn id_do_processo(href: &str) -> Option<&str> {
 }
 
 /// Só a linha da tabela própria do formulário é evidência da relação.
-pub(super) fn ler_linhas(html: &str) -> Result<Vec<Relacionamento>, ErroTelaDeRelacionamentos> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDeRelacionamentos::HtmlDeRelacionamentosNaoInterpretado)?;
+pub(super) fn ler_linhas(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<Relacionamento>, ErroTelaDeRelacionamentos> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmProcedimentoListarRelacionamentos")
         .map_err(ErroTelaDeRelacionamentos::FormularioDeRelacionamentosNaoLocalizado)?;
@@ -185,9 +184,10 @@ pub(super) fn url_complementar(html: &str) -> Option<String> {
 }
 
 /// Só devolve identidade observada nos complementos únicos da resposta.
-pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
-    let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(ErroDestinoDaConsulta::RespostaDaConsultaNaoInterpretada)?;
+pub(super) fn ler_destino(
+    xml: &crate::tela_html::HtmlServido,
+) -> Result<DestinoConsultado, ErroDestinoDaConsulta> {
+    let dom = crate::tela_html::interpretar(xml);
     let parser = dom.parser();
     if dom
         .query_selector("erros")
@@ -244,14 +244,14 @@ pub(super) fn ler_destino(xml: &str) -> Result<DestinoConsultado, ErroDestinoDaC
 /// Não interpreta JavaScript. A submissão ainda precisa ser validada
 /// pela fronteira de formulários antes de iniciar um único POST. `None`
 /// se a tela não declara exatamente um `acaoRemover` na forma observada.
-pub(super) fn url_exclusao(html: &str) -> Option<String> {
+pub(super) fn url_exclusao(html: &crate::tela_html::HtmlServido) -> Option<String> {
     const FUNCAO: &str = "function acaoRemover(id){";
     const ID: &str = "document.getElementById('hdnInfraItemId').value=id;";
     const ACTION: &str = "document.getElementById('frmProcedimentoListarRelacionamentos').action='";
     const ENVIAR: &str =
         "document.getElementById('frmProcedimentoListarRelacionamentos').submit();";
 
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     // Um script dentro de template não oferece evento acionável.
     let inertes: Vec<_> = dom

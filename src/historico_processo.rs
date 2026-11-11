@@ -57,8 +57,6 @@ pub(crate) enum ErroLinkDoHistorico {
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
     EnderecoDoHistoricoNaoReconhecido,
-    /// O tokenizador HTML recusou a árvore onde o link é procurado.
-    HtmlDaArvoreNaoInterpretado(#[source] tl::ParseError),
     LinkDoHistoricoForaDaFormaObservada,
     LinksDoHistoricoRepetidosNaArvore,
 }
@@ -81,7 +79,6 @@ pub(crate) enum ErroAndamentos {
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
-    TabelaDoHistoricoNaoInterpretada(#[source] tl::ParseError),
     NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
     FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }

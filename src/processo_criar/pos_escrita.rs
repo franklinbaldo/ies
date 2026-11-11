@@ -43,16 +43,12 @@ impl CausaPosEscrita {
 /// Aceita o href servido na linha da tabela Gerados cujo par (ID, NUP)
 /// coincide integralmente com a fotografia. Duplicidades falham fechadas.
 fn link_do_gerado(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     candidato: &reconciliacao::CandidatoGerado,
 ) -> Result<String, ErroCriar> {
     let erro =
         || ErroCriar::Fotografia(reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado);
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|causa| {
-        ErroCriar::Fotografia(reconciliacao::ErroFotografia::HtmlDoControleNaoAnalisavel(
-            causa,
-        ))
-    })?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
@@ -100,7 +96,7 @@ fn conferir_candidato<V: EnvioDoControle>(
     url_controle: &str,
     cookie: &str,
     unidade: &str,
-    html_controle: &str,
+    html_controle: &crate::tela_html::HtmlServido,
     candidato: &reconciliacao::CandidatoGerado,
     requisicoes: &mut u32,
 ) -> Result<ProcessoConferido, ErroCriar> {

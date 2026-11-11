@@ -72,10 +72,9 @@ pub(crate) struct TelaDeTroca {
 pub(crate) fn link_da_troca(
     instalacao: &Instalacao,
     url_da_tela: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
 ) -> Result<String, super::ErroTroca> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTroca::ParseDoLinkDeTrocaFalhou)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let nos =
         nos_com_id(&dom, "lnkInfraUnidade").map_err(ErroTroca::AtributoDoLinkDeTrocaIlegivel)?;
@@ -313,9 +312,10 @@ fn publica_selecao_por_script(html: &str) -> bool {
 }
 
 /// Lê e confere a tela Trocar Unidade.
-pub(crate) fn ler_tela_de_troca(html: &str) -> Result<TelaDeTroca, super::ErroTroca> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTroca::ParseDaTelaDeTrocaFalhou)?;
+pub(crate) fn ler_tela_de_troca(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<TelaDeTroca, super::ErroTroca> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let formularios = nos_com_id(&dom, "frmInfraSelecaoUnidade")
         .map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)?;

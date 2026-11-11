@@ -41,7 +41,7 @@ const COM_ARGUMENTO: &str = "consultarAndamento('";
 /// é a árvore que não publica nenhuma das formas.
 pub(crate) fn ler_link_do_historico(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<EnderecoDoHistorico, ErroLinkDoHistorico> {
     let mut achados = do_onclick(html)?;
@@ -67,9 +67,8 @@ pub(crate) fn ler_link_do_historico(
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
-fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLinkDoHistorico::HtmlDaArvoreNaoInterpretado)?;
+fn do_onclick(html: &crate::tela_html::HtmlServido) -> Result<Vec<String>, ErroLinkDoHistorico> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut achados = Vec::new();
     for div in nos_com_id(&dom, "divConsultarAndamento").map_err(ErroLinkDoHistorico::Atributo)? {

@@ -38,8 +38,6 @@ pub enum ErroResultadoPesquisa {
     /// processo não leva o mesmo `id_documento` (Goiás, acerto em documento).
     LinkDoDocumentoDaLinhaDiferenteDoProcesso,
     HtmlDePesquisaNaoInterpretado,
-    /// O parser HTML recusou a tela de resultado.
-    HtmlDePesquisaRecusadoPeloParser(#[source] tl::ParseError),
     /// `href` de um `a.protocoloNormal` da linha ilegível.
     HrefDoLinkDaLinhaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     IdentificadorDoProcessoRepetidoNaPesquisa,
@@ -118,9 +116,10 @@ fn contar_arvore_da_linha(
 
 /// Resultados observados somente na tabela de pesquisa retornada pelo SEI.
 /// Nunca serializa links assinados, IDs técnicos, trechos HTML ou filtros.
-pub fn ler_resultados(html: &str) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroResultadoPesquisa::HtmlDePesquisaRecusadoPeloParser)?;
+pub fn ler_resultados(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<ResultadoPesquisa>, ErroResultadoPesquisa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     // Classes e `href` vêm da fonte da tag (defeito do tl 0.7.8 no mapa).
     let primeira = match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")

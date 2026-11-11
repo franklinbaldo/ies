@@ -230,7 +230,7 @@ pub(crate) fn pesquisar_a_partir_do_controle_filtrado<A: AlvoDaPesquisa, V: Envi
         });
     };
     let contagem = A::contagem(&resposta);
-    let Some(pagina) = planejar_pagina_por(contagem, html.as_deref(), solicitada)? else {
+    let Some(pagina) = planejar_pagina_por(contagem, html.as_ref(), solicitada)? else {
         return Ok(BuscaRealizada {
             unidade: unidade.clone(),
             resposta,

@@ -13,6 +13,7 @@ use crate::arvore_processo::{
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -29,10 +30,12 @@ fn somar(contagem: &mut Contagem, leitor: &'static str, classe: String, instalac
 fn tela(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Option<String> {
     let id = gravacao::id_da_pesquisa_rapida(interacao)?;
     let instalacao = gravacao::instalacao(json)?;
-    Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
-        Ok(_) => "documento selecionado na árvore".to_owned(),
-        Err(erro) => format!("`{erro:?}`"),
-    })
+    Some(
+        match ler_tela_do_documento(&instalacao, &HtmlServido::de_teste(html), &id, None) {
+            Ok(_) => "documento selecionado na árvore".to_owned(),
+            Err(erro) => format!("`{erro:?}`"),
+        },
+    )
 }
 
 fn arvore(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> Vec<String> {
@@ -99,9 +102,9 @@ fn anexo(interacao: &serde_json::Value) -> String {
 }
 
 fn conteudo(html: &str) -> String {
-    match identidade_do_titulo(html) {
+    match identidade_do_titulo(&HtmlServido::de_teste(html)) {
         Err(erro) => format!("`{erro:?}`"),
-        Ok(_) => match texto_do_corpo(html) {
+        Ok(_) => match texto_do_corpo(&HtmlServido::de_teste(html)) {
             Ok(_) => "título e texto lidos".to_owned(),
             Err(erro) => format!("`{erro:?}`"),
         },

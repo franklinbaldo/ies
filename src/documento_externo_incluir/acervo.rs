@@ -15,6 +15,7 @@ use super::fluxo_confirmar::conferir_upload;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -36,9 +37,8 @@ fn html(interacao: &serde_json::Value) -> Result<String, String> {
 
 /// Os textos das opções habilitadas e com valor do `selSerie`, como o usuário as veria.
 fn tipos_oferecidos(html: &str) -> Vec<String> {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Vec::new();
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let parser = dom.parser();
     let selects = dom.query_selector("select").into_iter().flatten();
     selects
@@ -80,7 +80,7 @@ fn tipos_oferecidos(html: &str) -> Vec<String> {
 fn escolha(r: &gravacao::Resposta<'_>) -> String {
     match html(r.interacao) {
         Err(classe) => classe,
-        Ok(lista) => match escolher_externo(&lista) {
+        Ok(lista) => match escolher_externo(&HtmlServido::de_teste(&lista)) {
             Ok(EscolhaExterna::Url(_)) => "escolha por link (`documento_receber`)".to_owned(),
             Ok(EscolhaExterna::Formulario) => "escolha por formulário (`escolher(-1)`)".to_owned(),
             Err(erro) => format!("`{erro:?}`"),
@@ -113,10 +113,12 @@ fn tipos(r: &gravacao::Resposta<'_>) -> Vec<String> {
     }
     oferecidos
         .iter()
-        .map(|tipo| match identificar_tipo(&cadastro, tipo) {
-            Ok(_) => "tipo oferecido lido".to_owned(),
-            Err(erro) => format!("`{erro:?}`"),
-        })
+        .map(
+            |tipo| match identificar_tipo(&HtmlServido::de_teste(&cadastro), tipo) {
+                Ok(_) => "tipo oferecido lido".to_owned(),
+                Err(erro) => format!("`{erro:?}`"),
+            },
+        )
         .collect()
 }
 
@@ -124,7 +126,7 @@ fn upload(instalacao: &Instalacao, r: &gravacao::Resposta<'_>, processo: &str) -
     let Ok(cadastro) = html(r.interacao) else {
         return "HTML ilegível".to_owned();
     };
-    match ler_plano(&cadastro) {
+    match ler_plano(&HtmlServido::de_teste(&cadastro)) {
         Err(erro) => format!("`{erro:?}`"),
         Ok(plano) => match conferir_upload(instalacao, plano.url_upload(), processo) {
             Ok(_) => "upload conferido".to_owned(),

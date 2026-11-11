@@ -61,12 +61,6 @@ pub(crate) enum ErroAcompanhar {
     OpcoesDeGrupoDeAcompanhamentoInvalidas,
     /// O endereço do cadastro de acompanhamento foi recusado.
     EnderecoDoCadastroRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
-    /// O parser HTML recusou a tela de acompanhamento.
-    TelaDeAcompanhamentoRecusadaPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a lista de acompanhamentos.
-    HtmlDeAcompanhamentoRecusadoPeloParser(#[source] tl::ParseError),
-    /// O parser HTML recusou a tela de exclusão.
-    HtmlDaTelaDeExclusaoRecusadoPeloParser(#[source] tl::ParseError),
     /// O endereço de exclusão observado foi recusado.
     EnderecoDaExclusaoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
 }
@@ -99,14 +93,13 @@ fn campo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, Er
 /// A página de cadastro da `UnB` 4.0.9 tem um form e o select publicado.
 /// Confere a identidade do processo no action E no oculto antes de escolher.
 pub(crate) fn grupos_do_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_procedimento: &str,
 ) -> Result<Vec<GrupoOferecido>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut forms = Vec::new();
     for no in dom.query_selector("form").into_iter().flatten() {
@@ -209,12 +202,13 @@ pub(crate) fn escolher_grupo<'a>(
 
 /// Uma lista vazia SÓ é comprovada por tabela com cabeçalho, nunca por HTML
 /// cortado, tela de login ou ausência de tabela.
-pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
+pub(crate) fn acompanhamentos_da_lista(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Vec<Acompanhamento>, ErroAcompanhar> {
     if html.len() > crate::MAX_HTML_BYTES {
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut tabelas = Vec::new();
     for no in dom.query_selector("table").into_iter().flatten() {

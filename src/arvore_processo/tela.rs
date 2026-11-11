@@ -37,7 +37,6 @@ pub(crate) struct TelaDoProcesso {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDoProcesso {
-    ParseDaTelaDoProcessoFalhou(#[source] tl::ParseError),
     UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
     UnidadeDaTelaDiferenteDaSolicitada,
     EnderecoDaArvoreDeOutroProcesso,
@@ -64,7 +63,7 @@ pub(crate) enum ErroTelaDoProcesso {
 /// pedida (`--unidade`) é comparada com espaços normalizados.
 pub(crate) fn ler_tela_do_processo(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
     unidade: Option<&str>,
 ) -> Result<TelaDoProcesso, ErroTelaDoProcesso> {
@@ -82,7 +81,7 @@ pub(crate) fn ler_tela_do_processo(
 /// igual ao protocolo pesquisado. Devolve a tela e o id do processo.
 pub(crate) fn ler_tela_do_documento(
     instalacao: &Instalacao,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_documento: &str,
     unidade: Option<&str>,
 ) -> Result<(TelaDoProcesso, String), ErroTelaDoProcesso> {
@@ -108,11 +107,10 @@ pub(crate) fn ler_tela_do_documento(
 /// A unidade publicada (conferida com `--unidade`) e o `src` decodificado
 /// do único `iframe#ifrArvore`.
 fn unidade_e_src(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroTelaDoProcesso::ParseDaTelaDoProcessoFalhou)?;
+    let dom = crate::tela_html::interpretar(html);
     let publicada = crate::controle_contexto::unidade_html(&dom)
         .map_err(ErroTelaDoProcesso::UnidadeDoControleIlegivel)?
         .ok_or(ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;

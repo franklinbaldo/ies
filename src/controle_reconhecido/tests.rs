@@ -1,4 +1,5 @@
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn resumida() -> String {
     "<html><body><a id='lnkInfraUnidade'>PPI</a>\
@@ -26,28 +27,43 @@ fn detalhada(inicio: usize) -> String {
 
 #[test]
 fn reconhece_a_unidade_na_visao_resumida() {
-    assert_eq!(unidade_do_controle(&resumida()).unwrap(), "PPI");
+    assert_eq!(
+        unidade_do_controle(&HtmlServido::de_teste(&resumida())).unwrap(),
+        "PPI"
+    );
 }
 
 #[test]
 fn reconhece_a_unidade_na_visao_detalhada() {
-    assert_eq!(unidade_do_controle(&detalhada(1)).unwrap(), "PPI");
+    assert_eq!(
+        unidade_do_controle(&HtmlServido::de_teste(&detalhada(1))).unwrap(),
+        "PPI"
+    );
 }
 
 #[test]
 fn reconhece_a_visao_detalhada_lembrada_fora_da_primeira_pagina() {
-    assert_eq!(unidade_do_controle(&detalhada(101)).unwrap(), "PPI");
+    assert_eq!(
+        unidade_do_controle(&HtmlServido::de_teste(&detalhada(101))).unwrap(),
+        "PPI"
+    );
 }
 
 #[test]
 fn detalhada_sem_unidade_publicada_continua_recusada() {
-    let sem_unidade = detalhada(1).replace("<a id='lnkInfraUnidade'>PPI</a>", "");
+    let sem_unidade =
+        HtmlServido::de_teste(&detalhada(1).replace("<a id='lnkInfraUnidade'>PPI</a>", ""));
     assert!(unidade_do_controle(&sem_unidade).is_err());
 }
 
 #[test]
 fn pagina_sem_controle_continua_recusada() {
-    assert!(unidade_do_controle("<html><body><p>outra tela</p></body></html>").is_err());
+    assert!(
+        unidade_do_controle(&HtmlServido::de_teste(
+            "<html><body><p>outra tela</p></body></html>"
+        ))
+        .is_err()
+    );
 }
 
 #[test]
@@ -84,7 +100,7 @@ fn metamorfismo_estrutural_do_controle_resumido_sem_mudar_unidade() {
             html = html.replace("</body>", "\n</body>");
         }
         assert_eq!(
-            unidade_do_controle(&html).unwrap(),
+            unidade_do_controle(&HtmlServido::de_teste(&html)).unwrap(),
             "PPI",
             "mascara={mascara}"
         );
@@ -94,28 +110,30 @@ fn metamorfismo_estrutural_do_controle_resumido_sem_mudar_unidade() {
 #[test]
 fn ablar_componentes_obrigatorios_nunca_gera_sucesso() {
     let html = resumida();
-    let sem_gerados = html.replace(
+    let sem_gerados = HtmlServido::de_teste(&html.replace(
         "<table id='tblProcessosGerados'>",
         "<div id='tblProcessosGerados'>",
-    );
+    ));
     assert!(unidade_do_controle(&sem_gerados).is_err());
 
-    let sem_unidade = html.replace("<a id='lnkInfraUnidade'>PPI</a>", "");
+    let sem_unidade = HtmlServido::de_teste(&html.replace("<a id='lnkInfraUnidade'>PPI</a>", ""));
     assert!(unidade_do_controle(&sem_unidade).is_err());
 
-    let so_marcador = "<form id='frmLogin'><input name='txtUsuario'></form>\
-                      <a id='lnkInfraUnidade'>PPI</a>";
-    assert!(unidade_do_controle(so_marcador).is_err());
+    let so_marcador = HtmlServido::de_teste(
+        "<form id='frmLogin'><input name='txtUsuario'></form>\
+                      <a id='lnkInfraUnidade'>PPI</a>",
+    );
+    assert!(unidade_do_controle(&so_marcador).is_err());
 }
 
 #[test]
 fn metamorfismo_da_visao_detalhada_nao_altera_unidade() {
     for inicio in [1, 2, 101] {
         let html = detalhada(inicio);
-        let cosmetico = html.replace(
+        let cosmetico = HtmlServido::de_teste(&html.replace(
             "<a id='lnkInfraUnidade'>",
             "<a data-ensaio='1' id='lnkInfraUnidade'>",
-        );
+        ));
         assert_eq!(unidade_do_controle(&cosmetico).unwrap(), "PPI");
     }
 }

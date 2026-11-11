@@ -3,7 +3,8 @@
 
 /// Lê somente o `id_documento` publicado no src do iframe, sem executar JS.
 fn id_selecionado_na_tela(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let iframes = crate::html_atributos::nos_com_id(&dom, "ifrArvore").ok()?;
     let [iframe] = iframes.as_slice() else {
         return None;
@@ -69,7 +70,7 @@ fn confrontar_tela_de_pesquisa_com_cassette(caminho_card: &str) {
             let original = html_da_resposta(r.interacao).ok()?;
             let id = id_selecionado_na_tela(&original)?;
             let (tela, processo) =
-                ler_tela_do_documento(&instalacao, &original, &id, None).ok()?;
+                ler_tela_do_documento(&instalacao, &HtmlServido::de_teste(&original), &id, None).ok()?;
             Some((id, processo, tela))
         })
         .collect();
@@ -121,7 +122,7 @@ fn confrontar_tela_de_pesquisa_com_cassette(caminho_card: &str) {
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"));
     let (tela_anti, processo_anti) =
-        ler_tela_do_documento(&instalacao, html_anti, id, None).unwrap();
+        ler_tela_do_documento(&instalacao, &HtmlServido::de_teste(html_anti), id, None).unwrap();
     assert_eq!(&processo_anti, processo, "iframe aponta para o mesmo processo");
     assert_eq!(
         tela_anti.unidade, tela_original.unidade,

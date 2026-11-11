@@ -28,10 +28,10 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
 /// linha e o `href` com entidades decodificadas, ainda relativo. NUP em
 /// duas linhas, ou dois links para ele na mesma linha, é recusa.
 pub(super) fn link_do_processo_no_controle(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     nup: &str,
 ) -> Result<Option<(String, String)>, ErroProcessoObter> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(ilegivel)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut achado: Option<(String, String)> = None;
     let linhas = dom.query_selector("tr").into_iter().flatten();

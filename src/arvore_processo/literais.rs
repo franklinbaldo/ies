@@ -2,6 +2,7 @@
 //! aspas duplas ou simples com escapes, `null`, `true`, `false`, inteiros).
 //! Nada é avaliado; qualquer outra forma é recusa.
 use super::ErroArvore;
+use crate::tela_html::HtmlServido;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum Literal {
@@ -86,7 +87,7 @@ pub(super) fn concatenacao_vazia_da_barra(linha: &str) -> Option<usize> {
 
 /// `Ok(Some((i, texto)))` para a linha inteira `Nos[i].acoes = '<texto>';`;
 /// `Ok(None)` se a linha não atribui `.acoes` a um nó.
-pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, HtmlServido)>, ErroArvore> {
     let linha = linha.strip_suffix('\r').unwrap_or(linha);
     let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
         return Ok(None);
@@ -96,7 +97,7 @@ pub(super) fn ler_barra(linha: &str) -> Result<Option<(usize, String)>, ErroArvo
     };
     let fora = || ErroArvore::BarraDeNoForaDaFormaObservada;
     match ler_literal(resto).map_err(|e| ErroArvore::BarraDeNoIlegivel(Box::new(e)))? {
-        (Literal::Texto(texto), ";") => Ok(Some((indice, texto))),
+        (Literal::Texto(texto), ";") => Ok(Some((indice, HtmlServido::novo(texto)?))),
         _ => Err(fora()),
     }
 }
@@ -135,7 +136,7 @@ pub(super) fn indice_do_html(linha: &str) -> Option<usize> {
 /// seguida da declaração seguinte (`';Nos[i+1] = new infraArvoreNo(…`, já
 /// conferida por [`ler_declaracao`]); `Ok(None)` se a linha não atribui
 /// `.html` a um nó.
-pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvore> {
+pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, HtmlServido)>, ErroArvore> {
     let linha = linha.strip_suffix('\r').unwrap_or(linha);
     let Some((indice, resto)) = indice_entre(linha, "Nos[") else {
         return Ok(None);
@@ -146,7 +147,7 @@ pub(super) fn ler_html(linha: &str) -> Result<Option<(usize, String)>, ErroArvor
     let fora = || ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
     match ler_literal(resto).map_err(|e| ErroArvore::HtmlDoNoDoProcessoIlegivel(Box::new(e)))? {
         (Literal::Texto(texto), depois) if depois == ";" || depois.starts_with(";Nos[") => {
-            Ok(Some((indice, texto)))
+            Ok(Some((indice, HtmlServido::novo(texto)?)))
         }
         _ => Err(fora()),
     }

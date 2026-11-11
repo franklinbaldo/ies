@@ -10,6 +10,7 @@
 use super::{ler_anexo_publicado, ler_formulario, ler_link};
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
+use crate::tela_html::HtmlServido;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -56,10 +57,10 @@ fn cadastro(
     instalacao: &crate::instalacao::Instalacao,
     r: &gravacao::Resposta<'_>,
 ) -> Vec<(&'static str, String)> {
-    let corpo = match html(r.interacao) {
+    let corpo = HtmlServido::de_teste(&match html(r.interacao) {
         Ok(corpo) => corpo,
         Err(classe) => return vec![(FORMULARIO, classe)],
-    };
+    });
     let documento = valor_unico(r.interacao, "id_documento");
     let processo = gravacao::id_procedimento(r.interacao).unwrap_or_default();
     let mut leituras = vec![(

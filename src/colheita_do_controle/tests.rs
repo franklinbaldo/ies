@@ -5,6 +5,7 @@
 //! hashes, ids e números inventados; sem rede.
 use super::*;
 use crate::configuracao::ArquivosDeAcesso;
+use crate::tela_html::HtmlServido;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -148,7 +149,8 @@ pub(crate) fn geracao() -> String {
 }
 
 fn colher(indice: &IndiceLocal, html: &str, mime: Option<&str>) {
-    Colheita::do_cookie(indice, &instalacao(), COOKIE, &url_controle()).colher(html, mime);
+    Colheita::do_cookie(indice, &instalacao(), COOKIE, &url_controle())
+        .colher(&HtmlServido::de_teste(html), mime);
 }
 
 pub(crate) fn processo(nup: &str, id: &str) -> [String; 3] {
@@ -335,7 +337,10 @@ fn sem_mime_a_pesquisa_rapida_nao_e_colhida() {
 #[test]
 fn url_do_controle_sem_unidade_nao_grava_nada() {
     let (_pasta, indice) = indice();
-    let html = pagina_r(&[("10", "NUP-A", Some(href_da_linha("10", 'c')))], &[]);
+    let html = HtmlServido::de_teste(&pagina_r(
+        &[("10", "NUP-A", Some(href_da_linha("10", 'c')))],
+        &[],
+    ));
     let url = url_controle().replace("&infra_unidade_atual=110000001", "");
     Colheita::do_cookie(&indice, &instalacao(), COOKIE, &url).colher(&html, Some(MIME));
     assert_eq!(indice.conteudo(), (Vec::new(), Vec::new()));
@@ -355,7 +360,7 @@ fn indice_desligado_e_nenhuma_nao_fazem_nada() {
     let html = pagina_r(&[("10", "NUP-A", Some(href_da_linha("10", 'c')))], &[]);
     let desligado = IndiceLocal::desligado();
     colher(&desligado, &html, Some(MIME));
-    Colheita::nenhuma().colher(&html, Some(MIME));
+    Colheita::nenhuma().colher(&HtmlServido::de_teste(&html), Some(MIME));
     assert!(!desligado.ligado());
 }
 

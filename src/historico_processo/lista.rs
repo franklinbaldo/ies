@@ -8,10 +8,12 @@ use crate::historico::ler_historico;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 
 /// Lê a página e confere o NUP do título com o pedido.
-pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, ErroAndamentos> {
+pub(crate) fn ler_andamentos(
+    html: &crate::tela_html::HtmlServido,
+    nup: &str,
+) -> Result<AndamentosLidos, ErroAndamentos> {
     let detalhe = ler_historico(html, nup)?;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroAndamentos::TabelaDoHistoricoNaoInterpretada)?;
+    let dom = crate::tela_html::interpretar(html);
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if usize::try_from(total_declarado).is_ok_and(|total| detalhe.andamentos.len() > total) {

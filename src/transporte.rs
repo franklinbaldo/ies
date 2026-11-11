@@ -186,7 +186,7 @@ pub(crate) struct RespostaWeb<R: Read> {
 
 pub(crate) fn decodificar_resposta<R: Read>(
     resposta: RespostaWeb<R>,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     if resposta.status_code == 200 && !crate::mime_web::e_html(&resposta.mime) {
         return Err(FalhaTransporte::TipoDeConteudoNaoHtml);
     }
@@ -201,7 +201,7 @@ pub(crate) fn decodificar_resposta<R: Read>(
 /// status, limite e charset da tela HTML, com o MIME XML.
 pub(crate) fn decodificar_resposta_xml<R: Read>(
     resposta: RespostaWeb<R>,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     let principal = resposta.mime.split(';').next().unwrap_or_default().trim();
     if resposta.status_code == 200
         && !principal.eq_ignore_ascii_case("application/xml")
@@ -212,7 +212,9 @@ pub(crate) fn decodificar_resposta_xml<R: Read>(
     decodificar_corpo(resposta)
 }
 
-fn decodificar_corpo<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, FalhaTransporte> {
+fn decodificar_corpo<R: Read>(
+    mut resposta: RespostaWeb<R>,
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     if resposta.status_code != 200 {
         return Err(recusar_status(resposta));
     }
@@ -224,7 +226,7 @@ fn decodificar_corpo<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Fa
     }
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
-    corpo::decode_http_body(&bytes, &resposta.mime)
+    crate::tela_html::HtmlServido::do_corpo(&bytes, &resposta.mime)
         .map_err(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
 }
 
@@ -260,7 +262,7 @@ fn read_box_via<R: Read, F>(
     cookie_file: &Path,
     origem_autorizada: &str,
     requisitar: F,
-) -> Result<String, FalhaTransporte>
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte>
 where
     F: FnOnce(&str, &str) -> Result<RespostaWeb<R>, FalhaTransporte>,
 {
@@ -275,7 +277,7 @@ pub fn read_box(
     url: &str,
     cookie_file: &Path,
     origem_autorizada: &str,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     read_box_via(url, cookie_file, origem_autorizada, get_https)
 }
 
@@ -293,7 +295,7 @@ pub fn read_box_from_file(
     url_file: &Path,
     cookie_file: &Path,
     origem_file: &Path,
-) -> Result<String, FalhaTransporte> {
+) -> Result<crate::tela_html::HtmlServido, FalhaTransporte> {
     let referencias = sessao::ReferenciasDaSessao::ler(url_file, origem_file, cookie_file)?;
     read_box(
         referencias.url_do_controle(),

@@ -50,8 +50,6 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
     HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado,
-    /// O parser HTML recusou a tela de resultado.
-    TelaDeResultadoRecusadaPeloParser(#[source] tl::ParseError),
     /// O formulário de paginação não foi localizado na tela de resultado.
     FormularioDaPesquisaNaoLocalizadoNaTela(
         #[source] crate::formulario_web::ErroSubmissaoFormulario,
@@ -101,7 +99,7 @@ pub(crate) struct PedidoDePaginaDaPesquisa {
 #[cfg(test)]
 pub(crate) fn planejar_pagina(
     resposta: &RespostaDaPesquisa,
-    html_da_resposta: Option<&str>,
+    html_da_resposta: Option<&crate::tela_html::HtmlServido>,
     solicitada: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
     planejar_pagina_por(resposta.contagem(), html_da_resposta, solicitada)
@@ -110,7 +108,7 @@ pub(crate) fn planejar_pagina(
 /// [`planejar_pagina`] pela contagem da página 1 (processos ou documentos).
 pub(crate) fn planejar_pagina_por(
     contagem: Contagem,
-    html_da_resposta: Option<&str>,
+    html_da_resposta: Option<&crate::tela_html::HtmlServido>,
     solicitada: u32,
 ) -> Result<Option<PedidoDePaginaDaPesquisa>, ErroPaginacaoDaPesquisa> {
     if solicitada <= 1 {
@@ -165,13 +163,12 @@ const REGRA_DE_NAVEGAR: [&str; 3] = [
 /// Todo `javascript:navegar(…)` publicado tem a forma `navegar('K')`, K
 /// decimal, múltiplo do tamanho e menor que o total; pelo menos um existe.
 fn conferir_links_de_navegar(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPaginacaoDaPesquisa::TelaDeResultadoRecusadaPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut publicados = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -207,12 +204,11 @@ fn conferir_links_de_navegar(
 /// O termo servido em `txtProtocoloPesquisa` da tela de resultado é o
 /// pesquisado: o POST de página repete o formulário servido.
 pub(crate) fn conferir_protocolo_servido(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
     let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroPaginacaoDaPesquisa::TelaDeResultadoRecusadaPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
         .map_err(ErroPaginacaoDaPesquisa::FormularioDaPesquisaNaoLocalizadoNaTela)?;

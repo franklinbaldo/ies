@@ -8,6 +8,7 @@ use super::{
     trocar_unidade,
 };
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
 
@@ -298,8 +299,10 @@ fn desvios_depois_do_post_sao_nao_confirmado_sem_novo_pedido() {
             ],
             Etapa::ControleDaUnidadeNova,
             FalhaDepoisDoEnvio::ControleNaoReconhecido(
-                crate::controle_reconhecido::unidade_do_controle("<html>outra tela</html>")
-                    .unwrap_err(),
+                crate::controle_reconhecido::unidade_do_controle(&HtmlServido::de_teste(
+                    "<html>outra tela</html>",
+                ))
+                .unwrap_err(),
             ),
             5,
         ),

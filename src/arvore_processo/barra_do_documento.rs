@@ -52,8 +52,6 @@ pub(crate) struct BarraDoDocumento {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoDocumento {
-    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
-    ParseDaBarraDaCienciaFalhou(#[source] tl::ParseError),
     LinhaDaBarraDoDocumentoIlegivel(#[source] super::ErroArvore),
     BarrasRepetidasNaArvore,
     AtributoDeLinkDaBarra(#[source] ErroAtributoHtml),
@@ -80,8 +78,7 @@ pub(crate) fn ler_barra_do_documento(
     let Some(texto) = barra_do_no(html, id_documento)? else {
         return Ok(nada);
     };
-    let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou)?;
+    let dom = crate::tela_html::interpretar(&texto);
     let parser = dom.parser();
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -154,7 +151,10 @@ pub(crate) fn ler_barra_do_documento(
 }
 
 /// O texto da barra do nó `DOCUMENTO` de id `id`; duas barras são recusa.
-pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBarraDoDocumento> {
+pub(crate) fn barra_do_no(
+    html: &str,
+    id: &str,
+) -> Result<Option<crate::tela_html::HtmlServido>, ErroBarraDoDocumento> {
     let mut indice = None;
     for linha in html.split('\n') {
         if let Ok(Some((i, argumentos))) = ler_declaracao(linha)

@@ -2,6 +2,7 @@
 //! assinadas: `UnB` 4.0.9 e as instalações PEN, UFRJ e GO de treinamento.
 use super::*;
 use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
+use crate::tela_html::HtmlServido;
 
 const EXIBIR: &str = "function exibirSeries(tipo) {
         document.getElementById('hdnFiltroSerie').value = tipo;
@@ -12,12 +13,12 @@ const EXIBIR: &str = "function exibirSeries(tipo) {
 fn botao_de_utilizados_indica_lista_ja_completa() {
     // Filtro da sessão já em "todos": o botão passa a oferecer
     // exibirSeries('U') ("Exibir apenas os tipos já utilizados pela unidade").
-    let tela = format!(
+    let tela = HtmlServido::de_teste(&format!(
         r#"<html><head><script>{EXIBIR}</script></head><body>
     <form id="frmDocumentoEscolherTipo" method="post"><input type="hidden" id="hdnFiltroSerie" name="hdnFiltroSerie" value=""></form>
     <a id="ancExibirSeries" href="javascript:void(0);" onclick="exibirSeries('U');">Utilizados</a>
     <table id="tblSeries"><tr><td><a href="controlador.php?acao=documento_gerar">Despacho</a></td></tr></table></body></html>"#
-    );
+    ));
     assert_eq!(filtro_de_todos(&tela), Ok(false));
 }
 
@@ -38,11 +39,11 @@ function escolher(idSerie){
 <a href="#" onclick="escolher(7)" class="ancoraOpcao">Termo de Efetivo Exercicio&nbsp;(Formulário)</a>
 </td></tr></table></body></html>"##;
     assert_eq!(
-        tipos_oferecidos(html).unwrap(),
+        tipos_oferecidos(&HtmlServido::de_teste(html)).unwrap(),
         ["Despacho", "Termo de Efetivo Exercicio\u{a0}(Formulário)"]
     );
     assert_eq!(
-        escolha_do_tipo(&instalacao, html, "1", "Despacho"),
+        escolha_do_tipo(&instalacao, &HtmlServido::de_teste(html), "1", "Despacho"),
         Ok(EscolhaDoDocumento::Formulario("5".into()))
     );
 }

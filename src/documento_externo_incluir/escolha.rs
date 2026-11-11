@@ -16,8 +16,6 @@ pub(crate) enum EscolhaExterna {
 pub(crate) enum ErroEscolhaExterna {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    /// O tokenizador HTML recusou a tela inteira.
-    HtmlNaoAnalisavel(#[source] tl::ParseError),
     NaoOferecido,
     Ambiguo,
     ForaDaForma,
@@ -25,9 +23,10 @@ pub(crate) enum ErroEscolhaExterna {
 
 /// Não executa JS: SEI 4 publica link para `documento_receber`;
 /// SEI 4.1/5 publicam escolher(-1) na lista.
-pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolhaExterna> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroEscolhaExterna::HtmlNaoAnalisavel)?;
+pub(crate) fn escolher_externo(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<EscolhaExterna, ErroEscolhaExterna> {
+    let dom = crate::tela_html::interpretar(html);
     // Links em <template> não estão na interface ativa.
     let mut inertes = Vec::new();
     for no in dom.query_selector("template").into_iter().flatten() {
@@ -97,9 +96,11 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
 
 /// Na tela inicial o tipo ainda não está marcado: extrair somente o valor
 /// da opção oferecida. A confirmação da seleção ocorrerá na tela recarregada.
-pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEscolhaExterna> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroEscolhaExterna::HtmlNaoAnalisavel)?;
+pub(crate) fn identificar_tipo(
+    html: &crate::tela_html::HtmlServido,
+    tipo: &str,
+) -> Result<String, ErroEscolhaExterna> {
+    let dom = crate::tela_html::interpretar(html);
     let selects = nos_com_id(&dom, "selSerie").map_err(ErroEscolhaExterna::Atributo)?;
     let [no] = selects.as_slice() else {
         return Err(ErroEscolhaExterna::ForaDaForma);

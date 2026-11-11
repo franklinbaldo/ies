@@ -3,6 +3,7 @@
 use super::tests::{instalacao, tela_iso, url_servida};
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::tela_html::HtmlServido;
 
 const OPERACAO_COM_SELECAO: OperacaoDeFormulario = OperacaoDeFormulario {
     acao: AcaoDoSei::ProtocoloPesquisar,
@@ -42,7 +43,7 @@ fn derivar(
     derivar_submissao(
         &OPERACAO_COM_SELECAO,
         &instalacao(),
-        &tela_iso(&url, html),
+        &tela_iso(&url, &HtmlServido::de_teste(html)),
         Some("UNIDADE TESTE"),
         campos,
     )

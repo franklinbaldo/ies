@@ -36,8 +36,6 @@ pub(crate) enum ErroPrazo {
     PrazoAtualIlegivel,
     /// O formulário não traz `hdnIdProcedimentos`: o processo não é conferido.
     IdDoProcessoAusenteNoFormulario,
-    /// O tokenizador HTML recusou a tela do controle de prazo.
-    TelaNaoInterpretada(#[source] tl::ParseError),
     /// O formulário de cadastro do prazo não foi localizado de forma única.
     FormularioDoPrazoAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     OutroProcesso,
@@ -119,9 +117,11 @@ fn data_valida(valor: &str) -> bool {
 /// aponta para `controle_prazo_definir` deste processo e
 /// `hdnIdProcedimentos` é o dele. A forma dos controles fica com a
 /// derivação do formulário.
-pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
-    let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(ErroPrazo::TelaNaoInterpretada)?;
+pub(crate) fn ler_tela(
+    html: &crate::tela_html::HtmlServido,
+    id_procedimento: &str,
+) -> Result<TelaDoPrazo, ErroPrazo> {
+    let dom = crate::tela_html::interpretar(html);
     let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
         .map_err(ErroPrazo::FormularioDoPrazoAusente)?;
     conferir_destino(form, id_procedimento)?;
@@ -288,9 +288,9 @@ mod tests {
         };
         assert_eq!(
             ler_tela(
-                &html(
+                &crate::tela_html::HtmlServido::de_teste(&html(
                     "controlador.php?acao=controle_prazo_definir&amp;lixo&amp;id_procedimento=12"
-                ),
+                )),
                 "12"
             ),
             Err(ErroPrazo::ConsultaDoDestinoIlegivel(
@@ -299,9 +299,9 @@ mod tests {
         );
         assert_eq!(
             ler_tela(
-                &html(
+                &crate::tela_html::HtmlServido::de_teste(&html(
                     "controlador.php?acao=controle_prazo_definir&amp;id_procedimento=12&amp;id_procedimento=12"
-                ),
+                )),
                 "12"
             ),
             Err(ErroPrazo::ChaveDoDestinoIlegivel(
@@ -412,15 +412,30 @@ mod tests {
     #[test]
     fn tela_le_prazo_atual_sem_escrita_e_concluido() {
         assert_eq!(
-            ler_tela(&tela("1", "30/10/2026"), "10").unwrap().estado,
+            ler_tela(
+                &crate::tela_html::HtmlServido::de_teste(&tela("1", "30/10/2026")),
+                "10"
+            )
+            .unwrap()
+            .estado,
             EstadoDoPrazo::Data("30/10/2026".to_owned())
         );
         assert_eq!(
-            ler_tela(&tela("3", ""), "10").unwrap().estado,
+            ler_tela(
+                &crate::tela_html::HtmlServido::de_teste(&tela("3", "")),
+                "10"
+            )
+            .unwrap()
+            .estado,
             EstadoDoPrazo::Concluido
         );
         assert_eq!(
-            ler_tela(&tela("", ""), "10").unwrap().estado,
+            ler_tela(
+                &crate::tela_html::HtmlServido::de_teste(&tela("", "")),
+                "10"
+            )
+            .unwrap()
+            .estado,
             EstadoDoPrazo::SemPrazo
         );
     }
@@ -430,7 +445,9 @@ mod tests {
         let por_dias =
             tela("2", "").replace("name='txtDias' value=''", "name='txtDias' value='15'");
         assert_eq!(
-            ler_tela(&por_dias, "10").unwrap().estado,
+            ler_tela(&crate::tela_html::HtmlServido::de_teste(&por_dias), "10")
+                .unwrap()
+                .estado,
             EstadoDoPrazo::Dias(15)
         );
     }
@@ -438,7 +455,10 @@ mod tests {
     #[test]
     fn processo_estranho_falha_fechado() {
         assert_eq!(
-            ler_tela(&tela("1", "30/10/2026"), "11"),
+            ler_tela(
+                &crate::tela_html::HtmlServido::de_teste(&tela("1", "30/10/2026")),
+                "11"
+            ),
             Err(ErroPrazo::OutroProcesso)
         );
     }

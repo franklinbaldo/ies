@@ -23,8 +23,8 @@ const MAX_PROFUNDIDADE: usize = 256;
 
 /// Texto bruto (ainda não saneado) da exceção do SEI, ou `<title>` e o
 /// texto visível do `<body>`; entidades básicas decodificadas.
-pub(crate) fn texto_do_html(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+pub(crate) fn texto_do_html(html: &crate::tela_html::HtmlServido) -> Option<String> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     // A validação da Infra (txaInfraValidacao) vem antes de tudo.
     if let Some(texto) = super::validacao_da_infra::texto_da_validacao(&dom) {
@@ -70,8 +70,9 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
 /// A página traz o contêiner de exceção do SEI (`divInfraExcecao`,
 /// `div.infraExcecao` ou `div.infraMensagemErro`): é a tela de recusa,
 /// não um conteúdo (Refs #60, fatia 3: o HTML recebido de um anexo).
-pub(crate) fn e_excecao_do_sei(html: &str) -> bool {
-    tl::parse(html, tl::ParserOptions::default()).is_ok_and(|dom| conteiner_de_erro(&dom).is_some())
+pub(crate) fn e_excecao_do_sei(html: &crate::tela_html::HtmlServido) -> bool {
+    let dom = crate::tela_html::interpretar(html);
+    conteiner_de_erro(&dom).is_some()
 }
 
 fn conteiner_de_erro(dom: &tl::VDom<'_>) -> Option<tl::NodeHandle> {

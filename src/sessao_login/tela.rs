@@ -76,14 +76,14 @@ fn tem_classe(tag: &tl::HTMLTag<'_>, classe: &str) -> bool {
     atributos(tag).is_ok_and(|a| a.tem_classe(classe).unwrap_or(false))
 }
 
-fn algum(html: &str, teste: impl Fn(&tl::HTMLTag<'_>) -> bool) -> bool {
-    tl::parse(html, tl::ParserOptions::default())
-        .is_ok_and(|dom| tags(&dom).any(|(_, tag)| teste(tag)))
+fn algum(html: &crate::tela_html::HtmlServido, teste: impl Fn(&tl::HTMLTag<'_>) -> bool) -> bool {
+    let dom = crate::tela_html::interpretar(html);
+    tags(&dom).any(|(_, tag)| teste(tag))
 }
 
 /// Controle de captcha servido (não basta CSS ou função JS de captcha):
 /// `txtInfraCaptcha`, ou `g-recaptcha`/`h-captcha` (marcadores do Todos).
-pub(crate) fn captcha_exigido(html: &str) -> bool {
+pub(crate) fn captcha_exigido(html: &crate::tela_html::HtmlServido) -> bool {
     algum(html, |tag| {
         tem_id_ou_nome(tag, "txtInfraCaptcha")
             || tem_classe(tag, "g-recaptcha")
@@ -92,21 +92,21 @@ pub(crate) fn captcha_exigido(html: &str) -> bool {
 }
 
 /// Campo do segundo fator servido (`txtCodigo2FA`, observado pelo Todos).
-pub(crate) fn segundo_fator_exigido(html: &str) -> bool {
+pub(crate) fn segundo_fator_exigido(html: &crate::tela_html::HtmlServido) -> bool {
     algum(html, |tag| tem_id_ou_nome(tag, "txtCodigo2FA"))
 }
 
 /// Texto saneado da mensagem de erro que a tela declara, se houver: a
 /// validação da Infra (`txaInfraValidacao`, `UnB` 4.0.9) e, sem ela, os
 /// contêineres de recusa.
-pub(crate) fn mensagem_de_recusa(html: &str) -> Option<String> {
+pub(crate) fn mensagem_de_recusa(html: &crate::tela_html::HtmlServido) -> Option<String> {
     use crate::transporte::texto_de_recusa::texto_visivel;
     if let Some(mensagem) =
         crate::transporte::validacao_da_infra::mensagem_de_validacao_da_infra(html)
     {
         return Some(mensagem);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let dom = crate::tela_html::interpretar(html);
     tags(&dom)
         .filter(|(_, tag)| {
             !tem_id_ou_nome(tag, AVISO_DO_NAVEGADOR)
@@ -131,9 +131,10 @@ fn url_do_onclick(onclick: &str) -> Option<&str> {
 
 /// URL (relativa, como publicada) do `lnkControleProcessos` do menu.
 /// Vários links iguais (barras móvel e padrão) valem como um.
-pub(crate) fn link_do_controle(html: &str) -> Result<Option<String>, ErroLogin> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroLogin::LinkDoControleNaoInterpretado)?;
+pub(crate) fn link_do_controle(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<Option<String>, ErroLogin> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let mut achado: Option<String> = None;
     for h in nos_com_id(&dom, "lnkControleProcessos").map_err(ErroLogin::Atributo)? {
@@ -281,8 +282,7 @@ pub(crate) fn derivar_login(
     tela: &TelaServida<'_>,
     credenciais: &Credenciais,
 ) -> Result<SubmissaoDerivada, ErroLogin> {
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroLogin::TelaDeLoginNaoInterpretada)?;
+    let dom = crate::tela_html::interpretar(tela.html);
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;

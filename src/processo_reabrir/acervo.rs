@@ -17,6 +17,7 @@ use crate::formulario_web::RespostaDoPost;
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::FalhaDoEnvio;
 use crate::processo_concluir::escrita::resposta_da_funcao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -105,9 +106,9 @@ fn replay_de_processo_reabrir_no_acervo() {
             let html = || html_da_resposta(r.interacao).ok();
             match (r.operacao, r.metodo, r.status) {
                 ("procedimento_trabalhar", "GET", 200) => {
-                    if let Some(tela) =
-                        html().and_then(|h| ler_tela_do_processo(&inst, &h, &id, None).ok())
-                    {
+                    if let Some(tela) = html().and_then(|h| {
+                        ler_tela_do_processo(&inst, &HtmlServido::de_teste(&h), &id, None).ok()
+                    }) {
                         unidade = Some(tela.unidade);
                     }
                 }

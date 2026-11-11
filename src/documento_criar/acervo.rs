@@ -5,6 +5,7 @@ use super::{conferir_cadastro, tipos_oferecidos};
 use crate::cassette::acervo::gravacao;
 use crate::cassette::{ZipDoAcervo, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::nos_com_id;
+use crate::tela_html::HtmlServido;
 use std::path::Path;
 
 const CARDS: [&str; 2] = [
@@ -13,7 +14,8 @@ const CARDS: [&str; 2] = [
 ];
 
 fn tipo_do_cadastro(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let rotulos = nos_com_id(&dom, "lblSerieTitulo").ok()?;
     let [rotulo] = rotulos.as_slice() else {
         return None;
@@ -69,9 +71,12 @@ fn replay_documento_criar_go() {
                 continue;
             };
             let resultado = match resposta.operacao {
-                "documento_escolher_tipo" => tipos_oferecidos(&html).is_ok(),
-                "documento_gerar" => tipo_do_cadastro(&html)
-                    .is_some_and(|tipo| conferir_cadastro(&html, &tipo, None, None).is_ok()),
+                "documento_escolher_tipo" => {
+                    tipos_oferecidos(&HtmlServido::de_teste(&html)).is_ok()
+                }
+                "documento_gerar" => tipo_do_cadastro(&html).is_some_and(|tipo| {
+                    conferir_cadastro(&HtmlServido::de_teste(&html), &tipo, None, None).is_ok()
+                }),
                 _ => unreachable!(),
             };
             if resultado {

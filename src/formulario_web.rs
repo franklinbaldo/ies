@@ -130,7 +130,7 @@ pub(crate) enum CodificacaoDaTela {
 /// HTML e URL exata da mesma resposta, na mesma geração de sessão.
 pub(crate) struct TelaServida<'a> {
     pub(crate) url: &'a str,
-    pub(crate) html: &'a str,
+    pub(crate) html: &'a crate::tela_html::HtmlServido,
     pub(crate) codificacao: CodificacaoDaTela,
 }
 
@@ -337,8 +337,7 @@ pub(crate) fn derivar_submissao_com_action(
         ));
     }
     // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
-    let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
+    let dom = crate::tela_html::interpretar(tela.html);
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
         ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
@@ -414,7 +413,7 @@ impl fmt::Debug for Redirecionamento302 {
 /// HTML com o marcador da operação, ou 302 entregue à operação como dado.
 #[derive(Debug)]
 pub(crate) enum RespostaDoEnvio {
-    Html(String),
+    Html(crate::tela_html::HtmlServido),
     Redirecionamento(Redirecionamento302),
 }
 
@@ -456,8 +455,7 @@ where
     };
     let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
     if !marcadores.is_empty() {
-        let dom = tl::parse(&html, tl::ParserOptions::default())
-            .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
+        let dom = crate::tela_html::interpretar(&html);
         for MarcadorDeResultado { elemento, classe } in marcadores {
             marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)?.is_empty();
         }

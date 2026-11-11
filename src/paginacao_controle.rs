@@ -5,9 +5,10 @@ use crate::html_atributos::valor_do_atributo;
 
 /// Em visão resumida, um paginador observado impede certificar a caixa
 /// pelo total da legenda da primeira página, mesmo quando coincide.
-pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn controles_de_paginacao(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     for seletor in ["a", "select"] {
         if let Some(elementos) = dom.query_selector(seletor) {
@@ -35,7 +36,7 @@ pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
 /// (02/11/2026). `hdn{T}PaginaAtual` não conta: as telas `UnB` e `UFRJ` o publicam em
 /// telas de uma página.
 pub(crate) fn paginador_da_tabela(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     categoria: crate::dominio::Categoria,
 ) -> Result<bool, ErroCaixa> {
     let prefixo = match categoria {
@@ -47,9 +48,11 @@ pub(crate) fn paginador_da_tabela(
 
 /// Paginador `lnk{prefixo}*`/`sel{prefixo}Paginacao*`; `Detalhado` na visão D
 /// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
-pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn paginador_com_prefixo(
+    html: &crate::tela_html::HtmlServido,
+    prefixo: &str,
+) -> Result<bool, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     for (seletor, marcas) in [
         (
@@ -95,12 +98,18 @@ mod tests {
             "<select id='selRecebidosPaginacaoInferior'><option>1</option></select>",
         ] {
             assert_eq!(
-                paginador_da_tabela(controle, Categoria::Recebidos),
+                paginador_da_tabela(
+                    &crate::tela_html::HtmlServido::de_teste(controle),
+                    Categoria::Recebidos
+                ),
                 Ok(true),
                 "{controle}"
             );
             assert_eq!(
-                paginador_da_tabela(controle, Categoria::Gerados),
+                paginador_da_tabela(
+                    &crate::tela_html::HtmlServido::de_teste(controle),
+                    Categoria::Gerados
+                ),
                 Ok(false),
                 "{controle}"
             );
@@ -110,9 +119,11 @@ mod tests {
     #[test]
     fn campo_de_pagina_atual_nao_indica_paginacao() {
         // UnB e UFRJ publicam o campo em telas de uma página.
-        let html = "<input type='hidden' id='hdnGeradosPaginaAtual' value='0'>\
-                    <div id='divGeradosAreaPaginacaoSuperior'></div>";
-        assert_eq!(paginador_da_tabela(html, Categoria::Gerados), Ok(false));
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<input type='hidden' id='hdnGeradosPaginaAtual' value='0'>\
+                    <div id='divGeradosAreaPaginacaoSuperior'></div>",
+        );
+        assert_eq!(paginador_da_tabela(&html, Categoria::Gerados), Ok(false));
     }
 
     #[test]
@@ -121,8 +132,17 @@ mod tests {
             "<a hidden id='lnkInfraProximaPaginaSuperior'>»</a>",
             "<select disabled id='selInfraPaginacaoSuperior'></select>",
         ] {
-            assert_eq!(controles_de_paginacao(html), Ok(true), "{html}");
+            assert_eq!(
+                controles_de_paginacao(&crate::tela_html::HtmlServido::de_teste(html)),
+                Ok(true),
+                "{html}"
+            );
         }
-        assert_eq!(controles_de_paginacao("<a hidden id='x'>»</a>"), Ok(false));
+        assert_eq!(
+            controles_de_paginacao(&crate::tela_html::HtmlServido::de_teste(
+                "<a hidden id='x'>»</a>"
+            )),
+            Ok(false)
+        );
     }
 }

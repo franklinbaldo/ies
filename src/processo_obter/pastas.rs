@@ -98,7 +98,7 @@ pub(super) fn completar<V: EnvioDoProcesso>(
 /// A árvore servida por "Abrir todas as Pastas": conferida e sem `AGUARDE`.
 pub(super) fn aberta_inteira(
     contexto: &Contexto<'_>,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     aberta_inteira_da_pagina(&contexto.instalacao, contexto.nup, html, id)
@@ -108,7 +108,7 @@ pub(super) fn aberta_inteira(
 pub(super) fn aberta_inteira_da_pagina(
     instalacao: &Instalacao,
     nup: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     let completa = ler_arvore_da_pagina(instalacao, nup, html, id)?;

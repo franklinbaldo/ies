@@ -92,9 +92,11 @@ mod tests {
 
     #[test]
     fn json_publica_somente_dados_sem_sinal_de_completude() {
-        let html = "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = juntar(&[html.into()], None).unwrap();
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<table id='tblProcessosRecebidos'><caption>0 registros:</caption></table>\
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let leitura = juntar(&[html], None).unwrap();
         let listas = json(&leitura, "unb").unwrap();
         for lista in listas.as_array().unwrap() {
             assert!(lista.get("completa").is_none());
@@ -107,11 +109,13 @@ mod tests {
 
     #[test]
     fn caixa_sao_duas_listas_independentes_na_ordem_recebidos_gerados() {
-        let html = "<a id='lnkInfraUnidade'>PPI</a>\
+        let html = crate::tela_html::HtmlServido::de_teste(
+            "<a id='lnkInfraUnidade'>PPI</a>\
                     <table id='tblProcessosRecebidos'><caption>(5 registros - 1 a 1):</caption>\
                     <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
-                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>";
-        let leitura = juntar(&[html.into()], None).unwrap();
+                    <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
+        );
+        let leitura = juntar(&[html], None).unwrap();
         let listas = json(&leitura, "web").unwrap();
         let listas = listas.as_array().expect("array de listas");
         assert_eq!(listas.len(), 2);

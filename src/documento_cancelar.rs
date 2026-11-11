@@ -29,8 +29,6 @@ pub(crate) enum ErroLinkCancelar {
     BarraForaDaForma,
     /// A barra do documento não pôde ser lida do HTML da tela.
     BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
-    /// O parser de HTML recusou a barra do documento.
-    BarraRecusadaPeloParser(#[source] tl::ParseError),
     LinksRepetidos,
     EnderecoNaoReconhecido,
     EnderecoDeOutroDocumento,
@@ -62,8 +60,7 @@ pub(crate) fn ler_link_cancelar(
     else {
         return Ok(None);
     };
-    let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(ErroLinkCancelar::BarraRecusadaPeloParser)?;
+    let dom = crate::tela_html::interpretar(&barra);
     let parser = dom.parser();
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {

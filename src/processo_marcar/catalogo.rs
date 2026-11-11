@@ -45,9 +45,10 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// Extrai o link do botão `btnAdicionar` servido, sem executar JavaScript.
 /// O link só vale depois de `conferir_endereco_relativo` (ação, processo e
 /// assinatura); a forma do botão não é conferida aqui.
-pub(super) fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::DestinoDoCadastroAusente)?;
+pub(super) fn link_de_adicionar(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<String, ErroMarcar> {
+    let dom = crate::tela_html::interpretar(html);
     dom.query_selector("button")
         .into_iter()
         .flatten()
@@ -95,9 +96,11 @@ fn destino_cadastro<V: EnvioDoProcesso>(
 /// A identidade do catálogo vem de option[value=id] no select da unidade,
 /// não do marcador aplicado ao processo nem de uma lista sem origem: o id
 /// escrito precisa estar oferecido com o nome pedido.
-pub(super) fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMarcar::OpcaoDoMarcadorNaoOferecida)?;
+pub(super) fn rotulo_oferecido(
+    html: &crate::tela_html::HtmlServido,
+    rotulo: &Rotulo,
+) -> Result<(), ErroMarcar> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let nomes: Vec<String> = dom
         .query_selector("select")

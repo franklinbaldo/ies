@@ -66,8 +66,6 @@ pub(crate) enum ErroComentar {
     TelaDaLista(#[source] FalhaDaTela),
     ListaIlegivel(#[source] ErroComentarios),
     ListaForaDaForma,
-    /// O tokenizador HTML recusou a lista de comentários.
-    ListaHtmlNaoInterpretada(#[source] tl::ParseError),
     /// O tokenizador de atributos recusou o `href` de um link da lista.
     AtributoDaLinkIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Zero ou mais de um link `comentario_cadastrar` na lista.
@@ -126,10 +124,13 @@ fn url_do_botao_de_cadastro(onclick: &str) -> Option<&str> {
 /// Encontra exatamente um link de Novo Comentário publicado no HTML da lista,
 /// seja `<a href>` seja `<button onclick="location.href='…'">`.
 /// A URL é conferida pela política canônica do controlador e pela identidade.
-fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroComentar> {
+fn link_do_cadastro(
+    instalacao: &Instalacao,
+    html: &crate::tela_html::HtmlServido,
+    id: &str,
+) -> Result<String, ErroComentar> {
     let fora = || ErroComentar::ListaForaDaForma;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroComentar::ListaHtmlNaoInterpretada)?;
+    let dom = crate::tela_html::interpretar(html);
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let tag = no

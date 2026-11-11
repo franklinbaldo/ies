@@ -46,7 +46,6 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 | `ErroRegistrarAndamento::HistoricoNaoPublicado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroAndamentoNaBarra::LinksDeAtualizarAndamentoRepetidos` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela(SessaoEncerrada(..))` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
-| `ErroTela::HtmlInvalido` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::UnidadeNaoPublicada` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | erro do clap (saída 2) | Texto vazio ou com mais de 500 caracteres. |

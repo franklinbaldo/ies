@@ -15,6 +15,7 @@ use crate::bloco_detalhe::ler_detalhe;
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
@@ -48,7 +49,7 @@ fn tela(interacao: &serde_json::Value, numeros: &mut HashMap<String, String>) ->
     let Ok(html) = html_da_resposta(interacao) else {
         return "HTML ilegível".into();
     };
-    match ler_tela_de_escolha(&html) {
+    match ler_tela_de_escolha(&HtmlServido::de_teste(&html)) {
         Ok(tela) => {
             for documento in tela.documentos {
                 numeros.insert(documento.id, documento.numero);
@@ -108,7 +109,12 @@ fn detalhe(interacao: &serde_json::Value, documento: Option<&str>) -> String {
     let Ok(html) = html_da_resposta(interacao) else {
         return "HTML ilegível".into();
     };
-    match ler_detalhe(&html, bloco, TipoBloco::Assinatura, "") {
+    match ler_detalhe(
+        &HtmlServido::de_teste(&html),
+        bloco,
+        TipoBloco::Assinatura,
+        "",
+    ) {
         Err(erro) => format!("`{erro:?}`"),
         Ok(lido) => match documento {
             None => "lido".into(),

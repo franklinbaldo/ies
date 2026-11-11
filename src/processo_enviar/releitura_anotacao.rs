@@ -9,7 +9,7 @@ pub(super) fn obter_tela_das_anotacoes<V: EnvioDoProcesso>(
     rede: &mut Contador<'_, V>,
     cookie: &str,
     link: &str,
-) -> Result<(String, String), ErroEnviar> {
+) -> Result<(crate::tela_html::HtmlServido, String), ErroEnviar> {
     obter_tela(rede, cookie, link).map_err(|falha| match falha {
         FalhaDaTela::Transporte(falha) => {
             ErroEnviar::from(ErroDasAnotacoes::TelaDasAnotacoes(falha))

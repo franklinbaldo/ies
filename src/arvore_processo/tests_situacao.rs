@@ -6,6 +6,7 @@ use super::situacao::{ler_aberto_em, ler_sobrestamento, ler_unidades};
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_anexado_a::{ID_PAI, NUP_PAI, href_do_pai, html_do_anexado};
 use super::*;
+use crate::tela_html::HtmlServido;
 
 fn ancora(nome: &str, sigla: &str) -> String {
     format!("<a alt=\"{nome}\" title=\"{nome}\" class=\"ancoraSigla\">{sigla}</a>")
@@ -55,18 +56,23 @@ fn plural_go() -> String {
 #[test]
 fn somente_numa_unidade_sem_e_com_atribuicao() {
     assert_eq!(
-        ler_unidades(&somente(&ancora("Unidade1", "Unidade1"))),
+        ler_unidades(&HtmlServido::de_teste(&somente(&ancora(
+            "Unidade1", "Unidade1"
+        )))),
         Some(vec![unidade("Unidade1", "Unidade1", None)])
     );
     assert_eq!(
-        ler_unidades(&somente(&ancora("Unidade de Teste 1", "TESTE"))),
+        ler_unidades(&HtmlServido::de_teste(&somente(&ancora(
+            "Unidade de Teste 1",
+            "TESTE"
+        )))),
         Some(vec![unidade("TESTE", "Unidade de Teste 1", None)])
     );
-    let atribuida = format!(
+    let atribuida = HtmlServido::de_teste(&format!(
         "Processo aberto somente na unidade {} (atribuído para {}).<br />",
         ancora("Unidade1", "Unidade1"),
         ancora("aluno2", "aluno2")
-    );
+    ));
     assert_eq!(
         ler_unidades(&atribuida),
         Some(vec![unidade(
@@ -80,7 +86,7 @@ fn somente_numa_unidade_sem_e_com_atribuicao() {
 #[test]
 fn nas_unidades_na_ordem_servida_com_atribuicao_por_unidade() {
     assert_eq!(
-        ler_unidades(&plural_unb()),
+        ler_unidades(&HtmlServido::de_teste(&plural_unb())),
         Some(vec![
             unidade("ACE", "Arquivo Central", None),
             unidade("Unidade2", "Unidade2", None),
@@ -89,7 +95,7 @@ fn nas_unidades_na_ordem_servida_com_atribuicao_por_unidade() {
         ])
     );
     assert_eq!(
-        ler_unidades(&plural_go()),
+        ler_unidades(&HtmlServido::de_teste(&plural_go())),
         Some(vec![
             unidade("CGE/GETEC-18153", "GIRÊNCUO DI TICNALAGUO", None),
             unidade(
@@ -109,7 +115,9 @@ fn nas_unidades_na_ordem_servida_com_atribuicao_por_unidade() {
 #[test]
 fn sem_andamentos_abertos_e_lista_vazia() {
     assert_eq!(
-        ler_unidades("Processo não possui andamentos abertos.<br />"),
+        ler_unidades(&HtmlServido::de_teste(
+            "Processo não possui andamentos abertos.<br />"
+        )),
         Some(Vec::new())
     );
 }
@@ -117,7 +125,10 @@ fn sem_andamentos_abertos_e_lista_vazia() {
 #[test]
 fn entidade_no_nome_e_decodificada() {
     assert_eq!(
-        ler_unidades(&somente(&ancora("Arquivo &amp; Protocolo", "AP"))),
+        ler_unidades(&HtmlServido::de_teste(&somente(&ancora(
+            "Arquivo &amp; Protocolo",
+            "AP"
+        )))),
         Some(vec![unidade("AP", "Arquivo & Protocolo", None)])
     );
 }
@@ -156,7 +167,7 @@ fn formas_nao_observadas_nao_sao_lidas() {
         format!("Processo aberto nas unidades:<br /><!-- x -->{u1}<br /><br />"),
     ];
     for caso in casos {
-        assert_eq!(ler_unidades(&caso), None, "{caso}");
+        assert_eq!(ler_unidades(&HtmlServido::de_teste(&caso)), None, "{caso}");
     }
 }
 
@@ -173,7 +184,7 @@ fn a_arvore_publica_aberto_em_do_html_da_raiz() {
     let lida = ler_arvore(&com_html(&plural_unb()), NUP, "10").unwrap();
     assert_eq!(
         lida.aberto_em,
-        AbertoEm::Unidades(ler_unidades(&plural_unb()).unwrap())
+        AbertoEm::Unidades(ler_unidades(&HtmlServido::de_teste(&plural_unb())).unwrap())
     );
     let mesma_linha = arvore(&[
         no_processo(0, "10", NUP),
@@ -250,12 +261,12 @@ fn sobrestado_numa_unidade_nas_formas_do_acervo() {
     for (sigla, nome) in casos {
         let html = sobrestado(&ancora(nome, sigla));
         assert_eq!(
-            ler_sobrestamento(&html),
+            ler_sobrestamento(&HtmlServido::de_teste(&html)),
             Some(vec![sobrestada(sigla, nome)]),
             "{html}"
         );
         // Não é unidade aberta: a frase não diz onde o processo está aberto.
-        assert_eq!(ler_unidades(&html), None, "{html}");
+        assert_eq!(ler_unidades(&HtmlServido::de_teste(&html)), None, "{html}");
     }
     let lida = ler_arvore(
         &com_html(&sobrestado(&ancora("Unidade1", "Unidade1"))),
@@ -275,7 +286,9 @@ fn sobrestado_numa_unidade_nas_formas_do_acervo() {
 fn sobrestado_com_atribuicao_e_lido() {
     let u1 = ancora("Administração Central", "ADCENTRAL");
     let pessoa = ancora("Usuário teste 1", "servidor1");
-    let caso = format!("Processo sobrestado na unidade {u1} (atribuído para {pessoa}).<br />");
+    let caso = HtmlServido::de_teste(&format!(
+        "Processo sobrestado na unidade {u1} (atribuído para {pessoa}).<br />"
+    ));
     assert_eq!(
         ler_sobrestamento(&caso),
         Some(vec![sobrestada("ADCENTRAL", "Administração Central")])
@@ -297,7 +310,11 @@ fn sobrestamento_fora_da_forma_observada_nao_e_lido() {
         somente(&u1),
     ];
     for caso in casos {
-        assert_eq!(ler_sobrestamento(&caso), None, "{caso}");
+        assert_eq!(
+            ler_sobrestamento(&HtmlServido::de_teste(&caso)),
+            None,
+            "{caso}"
+        );
         assert!(
             !matches!(ler_aberto_em(&com_html(&caso)), AbertoEm::Sobrestado(_)),
             "{caso}"

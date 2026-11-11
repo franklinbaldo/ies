@@ -234,10 +234,9 @@ fn ler_registro(
 /// Documentos observados na tabela de resultado, na ordem servida. Nunca
 /// publica links assinados, ids técnicos, trechos ou o usuário.
 pub(crate) fn ler_documentos(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<DocumentoEncontrado>, ErroDocumentoDaPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroResultadoPesquisa::HtmlDePesquisaRecusadoPeloParser)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabela =
         match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?.as_slice() {

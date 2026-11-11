@@ -20,6 +20,7 @@ use crate::formulario_web::{Redirecionamento302, decodificar_atributo};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::marcadores_processo::{TelaDosMarcadores, ler_marcadores};
 use crate::processo_obter::marcadores::sem_marcadores;
+use crate::tela_html::HtmlServido;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
@@ -56,9 +57,8 @@ struct Estado {
 
 /// As opções do `select#selMarcador` servido, como `Rotulo` (id e texto).
 fn opcoes_do_select(html: &str) -> Vec<Rotulo> {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return Vec::new();
-    };
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let parser = dom.parser();
     let Ok(selects) = nos_com_id(&dom, "selMarcador") else {
         return Vec::new();
@@ -108,7 +108,7 @@ impl Estado {
             leituras.push((TELA, "NUP do principal não lido na árvore".to_owned()));
             return leituras;
         };
-        let tela = ler_marcadores(&html, nup, id);
+        let tela = ler_marcadores(&HtmlServido::de_teste(&html), nup, id);
         match &tela {
             Ok(TelaDosMarcadores::Lidos(lidos)) => {
                 let n = lidos.itens.len();
@@ -121,7 +121,10 @@ impl Estado {
             Ok(TelaDosMarcadores::SemTabela) => leituras.push((TELA, "sem tabela".to_owned())),
             Err(erro) => leituras.push((TELA, format!("`{erro:?}`"))),
         }
-        leituras.push((CADASTRO, resultado(link_de_adicionar(&html), "lido")));
+        leituras.push((
+            CADASTRO,
+            resultado(link_de_adicionar(&HtmlServido::de_teste(&html)), "lido"),
+        ));
         if std::mem::take(&mut self.aceito_pendente) {
             let classe = match tela {
                 Ok(TelaDosMarcadores::Lidos(lidos)) => {
@@ -187,7 +190,15 @@ impl Estado {
         };
         opcoes_do_select(&html)
             .iter()
-            .map(|rotulo| (OPCOES, resultado(rotulo_oferecido(&html, rotulo), "lido")))
+            .map(|rotulo| {
+                (
+                    OPCOES,
+                    resultado(
+                        rotulo_oferecido(&HtmlServido::de_teste(&html), rotulo),
+                        "lido",
+                    ),
+                )
+            })
             .collect()
     }
 

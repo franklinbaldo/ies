@@ -128,7 +128,7 @@ impl Contexto<'_> {
     pub(super) fn aprender_pesquisa_rapida(
         &self,
         url: &str,
-        html: &str,
+        html: &crate::tela_html::HtmlServido,
         mime: &str,
         unidade: &str,
     ) {
@@ -158,7 +158,7 @@ pub(super) struct ArvoreAberta {
     pub(super) arvore: ArvoreLida,
     /// A página lida (a de "Abrir todas as Pastas", se aberta): o `.src` de
     /// cada documento sai dela.
-    pub(super) html: String,
+    pub(super) html: crate::tela_html::HtmlServido,
     pub(super) historico: Result<EnderecoDoHistorico, ErroLinkDoHistorico>,
     /// Link de inclusão na barra, observado somente para documento criar.
     pub(super) incluir: Result<Option<EnderecoDoIncluirDocumento>, ErroLinkIncluirDocumento>,
@@ -196,7 +196,7 @@ pub(super) struct ArvoreAberta {
 
 pub(super) fn ler_arvore_aberta(
     contexto: &Contexto<'_>,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     ler_arvore_da_pagina_com_modo(
@@ -213,7 +213,7 @@ pub(super) fn ler_arvore_aberta(
 pub(super) fn ler_arvore_da_pagina(
     instalacao: &Instalacao,
     nup: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
 ) -> Result<ArvoreAberta, ErroArvore> {
     ler_arvore_da_pagina_com_modo(instalacao, nup, html, id, false)
@@ -222,7 +222,7 @@ pub(super) fn ler_arvore_da_pagina(
 pub(super) fn ler_arvore_da_pagina_com_modo(
     instalacao: &Instalacao,
     nup: &str,
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id: &str,
     permitir_parcial: bool,
 ) -> Result<ArvoreAberta, ErroArvore> {
@@ -286,7 +286,10 @@ pub(super) struct Rede<'v, V> {
 
 /// Uma resposta lida sem seguir 302.
 pub(super) enum Lida {
-    Html { html: String, mime: String },
+    Html {
+        html: crate::tela_html::HtmlServido,
+        mime: String,
+    },
     Redirecionamento(Option<String>),
     Login,
     Falha(FalhaTransporte),
@@ -383,7 +386,7 @@ impl<V: EnvioDoProcesso> Rede<'_, V> {
         &mut self,
         contexto: &Contexto<'_>,
         trabalho: &str,
-        (html, mime): (&str, &str),
+        (html, mime): (&crate::tela_html::HtmlServido, &str),
         tela: TelaDoProcesso,
         id: &str,
     ) -> Result<(ArvoreAberta, String), ErroProcessoObter> {

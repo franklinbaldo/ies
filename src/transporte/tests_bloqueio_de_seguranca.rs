@@ -3,6 +3,7 @@
 //! código e textos de apoio inventados). 403 genérico não muda.
 use super::bloqueio_de_seguranca::e_bloqueio_de_seguranca;
 use super::*;
+use crate::tela_html::HtmlServido;
 use std::io::Cursor;
 
 const BLOQUEIO: &str = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Acesso Negado</title>\
@@ -25,26 +26,29 @@ fn resposta(status_code: i32, mime: &str, corpo: &str) -> RespostaWeb<Cursor<Vec
 
 #[test]
 fn reconhece_a_pagina_pelo_titulo_e_pela_frase_visivel() {
-    assert!(e_bloqueio_de_seguranca(BLOQUEIO));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(BLOQUEIO)));
     let com_entidades = BLOQUEIO
         .replace("requisição", "requisi&ccedil;&atilde;o")
         .replace("política", "pol&iacute;tica")
         .replace("bloqueada por nossa", "bloqueada\n   por   nossa");
-    assert!(e_bloqueio_de_seguranca(&com_entidades));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &com_entidades
+    )));
 }
 
 #[test]
 fn outro_titulo_frase_ausente_ou_frase_fora_do_texto_visivel_nao_e_bloqueio() {
-    assert!(!e_bloqueio_de_seguranca(&BLOQUEIO.replace(
-        "<title>Acesso Negado</title>",
-        "<title>SEI - Erro</title>"
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &BLOQUEIO.replace("<title>Acesso Negado</title>", "<title>SEI - Erro</title>")
     )));
-    assert!(!e_bloqueio_de_seguranca(
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
         &BLOQUEIO.replace("bloqueada por nossa política de segurança", "negada")
-    ));
-    let em_script = "<html><head><title>Acesso Negado</title></head><body>\
-        <script>var t='bloqueada por nossa política de segurança';</script><p>Negado.</p></body></html>";
-    assert!(!e_bloqueio_de_seguranca(em_script));
+    )));
+    let em_script = HtmlServido::de_teste(
+        "<html><head><title>Acesso Negado</title></head><body>\
+        <script>var t='bloqueada por nossa política de segurança';</script><p>Negado.</p></body></html>",
+    );
+    assert!(!e_bloqueio_de_seguranca(&em_script));
 }
 
 #[test]
@@ -88,7 +92,7 @@ const CLOUDFLARE: &str = "<!DOCTYPE html><html lang=\"en-US\"><head><title>Atten
 
 #[test]
 fn bloqueio_do_cloudflare_observado_na_pen2_e_bloqueio_de_seguranca() {
-    assert!(e_bloqueio_de_seguranca(CLOUDFLARE));
+    assert!(e_bloqueio_de_seguranca(&HtmlServido::de_teste(CLOUDFLARE)));
     let falha =
         decodificar_resposta(resposta(403, "text/html; charset=UTF-8", CLOUDFLARE)).unwrap_err();
     assert_eq!(falha.status_http().unwrap().status, 403);
@@ -96,16 +100,14 @@ fn bloqueio_do_cloudflare_observado_na_pen2_e_bloqueio_de_seguranca() {
 
 #[test]
 fn titulo_do_cloudflare_sem_a_frase_do_bloqueio_nao_e_bloqueio() {
-    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
-        "Sorry, you have been blocked",
-        "Checking your browser"
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &CLOUDFLARE.replace("Sorry, you have been blocked", "Checking your browser")
     )));
-    assert!(!e_bloqueio_de_seguranca(&CLOUDFLARE.replace(
-        "Attention Required! | Cloudflare",
-        "Just a moment..."
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
+        &CLOUDFLARE.replace("Attention Required! | Cloudflare", "Just a moment...")
     )));
     // A frase de um par com o título do outro não conta.
-    assert!(!e_bloqueio_de_seguranca(
+    assert!(!e_bloqueio_de_seguranca(&HtmlServido::de_teste(
         &CLOUDFLARE.replace("Attention Required! | Cloudflare", "Acesso Negado")
-    ));
+    )));
 }

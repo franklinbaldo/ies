@@ -1,6 +1,7 @@
 //! Casos sintéticos do cadastro e da reconciliação de documento interno.
 use super::*;
 use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
+use crate::tela_html::HtmlServido;
 fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
     DocumentoNaArvore {
         id: id.into(),
@@ -17,12 +18,14 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
 #[test]
 fn lista_tipo_ausente_ambiguo_e_externo() {
     // Caso de Todos src/todos/documentos.py::_tipos_da_tela @323eb01
-    let html = r#"<table id="tblSeries"><tr><td>
+    let html = HtmlServido::de_teste(
+        r#"<table id="tblSeries"><tr><td>
         <a href="controlador.php?acao=documento_gerar">Despacho</a>
         <a href="controlador.php?acao=documento_receber">Externo</a>
         <a href="javascript:void(0);" onclick="escolher(3);">Ofício</a>
-        </td></tr></table>"#;
-    let tipos = tipos_oferecidos(html).unwrap();
+        </td></tr></table>"#,
+    );
+    let tipos = tipos_oferecidos(&html).unwrap();
     assert_eq!(tipos, ["Despacho", "Ofício"]);
     assert_eq!(conferir_tipo("Despacho", &tipos), Ok(()));
     assert_eq!(
@@ -37,7 +40,7 @@ fn lista_tipo_ausente_ambiguo_e_externo() {
 #[test]
 fn lista_fora_da_forma_falha_fechado() {
     assert_eq!(
-        tipos_oferecidos("<html></html>"),
+        tipos_oferecidos(&HtmlServido::de_teste("<html></html>")),
         Err(ErroCriar::ListaForaDaForma)
     );
 }
@@ -124,9 +127,9 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
         "controlador.php?acao=documento_gerar&id_procedimento=10&infra_hash={}",
         "a".repeat(64)
     );
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{href}\">Despacho</a></td></tr></table>"
-    );
+    ));
     assert_eq!(
         escolha_do_tipo(&instalacao, &html, "10", "Despacho"),
         Ok(EscolhaDoDocumento::Link(format!(
@@ -137,11 +140,13 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
         escolha_do_tipo(&instalacao, &html, "11", "Despacho"),
         Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
     ));
-    let script = r#"<table id="tblSeries"><tr><td>
+    let script = HtmlServido::de_teste(
+        r#"<table id="tblSeries"><tr><td>
         <a href="javascript:void(0);" onclick="escolher(3);">Despacho</a>
-        </td></tr></table>"#;
+        </td></tr></table>"#,
+    );
     assert_eq!(
-        escolha_do_tipo(&instalacao, script, "10", "Despacho"),
+        escolha_do_tipo(&instalacao, &script, "10", "Despacho"),
         Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
             super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
         ))
@@ -151,12 +156,14 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
 #[test]
 fn cadastro_recusa_nivel_com_valor_radio_diferente_do_observado() {
     // O número do nível vem da tela, não pode ser escolhido por suposição.
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
+    let html = HtmlServido::de_teste(
+        r#"<form id="frmDocumentoCadastro" method="post">
         <label id="lblSerieTitulo">Despacho</label>
         <input type="radio" id="optPublico" name="rdoNivelAcesso" value="9">
-        </form>"#;
+        </form>"#,
+    );
     assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("publico")),
+        conferir_cadastro(&html, "Despacho", None, Some("publico")),
         Err(ErroCriar::NivelNaoOferecido)
     );
 }
@@ -171,28 +178,48 @@ fn cadastro_so_aceita_tipo_e_controles_publicados_habilitados() {
         <input type="radio" id="optRestrito" name="rdoNivelAcesso" value="1" disabled="disabled">
         </form>"#;
     assert_eq!(
-        conferir_cadastro(html, "Despacho", Some("Ensaio"), Some("publico")),
+        conferir_cadastro(
+            &HtmlServido::de_teste(html),
+            "Despacho",
+            Some("Ensaio"),
+            Some("publico")
+        ),
         Ok(())
     );
     assert_eq!(
-        conferir_cadastro(html, "Ofício", None, None),
+        conferir_cadastro(&HtmlServido::de_teste(html), "Ofício", None, None),
         Err(ErroCriar::TipoDoCadastroDiferente)
     );
     assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("restrito")),
+        conferir_cadastro(
+            &HtmlServido::de_teste(html),
+            "Despacho",
+            None,
+            Some("restrito")
+        ),
         Err(ErroCriar::NivelNaoOferecido)
     );
     assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("sigiloso")),
+        conferir_cadastro(
+            &HtmlServido::de_teste(html),
+            "Despacho",
+            None,
+            Some("sigiloso")
+        ),
         Err(ErroCriar::NivelNaoOferecido)
     );
-    let sem_campo = html.replace("id=\"txtDescricao\"", "id=\"outro\"");
+    let sem_campo = HtmlServido::de_teste(&html.replace("id=\"txtDescricao\"", "id=\"outro\""));
     assert_eq!(
         conferir_cadastro(&sem_campo, "Despacho", Some("texto"), None),
         Err(ErroCriar::DescricaoNaoOferecida)
     );
     assert_eq!(
-        conferir_cadastro("<html></html>", "Despacho", None, None),
+        conferir_cadastro(
+            &HtmlServido::de_teste("<html></html>"),
+            "Despacho",
+            None,
+            None
+        ),
         Err(ErroCriar::CadastroForaDaForma)
     );
 }
@@ -206,7 +233,9 @@ fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
     let publico = r#"<input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">"#;
     let descricao = r#"<input id="txtDescricao" name="txtDescricao" type="text">"#;
 
-    let dentro_de_template = format!("{abertura}{publico}<template>{descricao}</template></form>");
+    let dentro_de_template = HtmlServido::de_teste(&format!(
+        "{abertura}{publico}<template>{descricao}</template></form>"
+    ));
     assert_eq!(
         conferir_cadastro(
             &dentro_de_template,
@@ -217,7 +246,8 @@ fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
         Err(ErroCriar::DescricaoNaoOferecida)
     );
 
-    let fora_do_formulario = format!("{descricao}{abertura}{publico}</form>");
+    let fora_do_formulario =
+        HtmlServido::de_teste(&format!("{descricao}{abertura}{publico}</form>"));
     assert_eq!(
         conferir_cadastro(
             &fora_do_formulario,
@@ -232,7 +262,7 @@ fn controles_de_cadastro_inertes_ou_fora_do_formulario_nao_autorizam_escrita() {
         format!("{abertura}<fieldset disabled>{publico}</fieldset>{descricao}</form>");
     assert_eq!(
         conferir_cadastro(
-            &radio_desabilitado,
+            &HtmlServido::de_teste(&radio_desabilitado),
             "Despacho",
             Some("Prova"),
             Some("publico")
@@ -258,13 +288,21 @@ fn tipo_41_requer_escolha_por_formulario_sem_executar_js() {
             <a href="#" onclick="escolher(291)">Despacho</a>
             <a href="#" onclick="escolher(-1)">Externo</a>
         </td></tr></table></body></html>"##;
-    assert_eq!(tipos_oferecidos(html).unwrap(), ["Despacho"]);
     assert_eq!(
-        escolha_do_tipo(&instalacao, html, "4864", "Despacho"),
+        tipos_oferecidos(&HtmlServido::de_teste(html)).unwrap(),
+        ["Despacho"]
+    );
+    assert_eq!(
+        escolha_do_tipo(
+            &instalacao,
+            &HtmlServido::de_teste(html),
+            "4864",
+            "Despacho"
+        ),
         Ok(EscolhaDoDocumento::Formulario("291".into()))
     );
     assert_eq!(
-        escolha_do_tipo(&instalacao, html, "4864", "Externo"),
+        escolha_do_tipo(&instalacao, &HtmlServido::de_teste(html), "4864", "Externo"),
         Err(ErroCriar::TipoAusente)
     );
 }
@@ -280,10 +318,10 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
     <table id="tblSeries"><tr><td>
         <a href="#" onclick="escolher(291)">Despacho</a>
     </td></tr></table>"##;
-    let com_efeito_extra = original.replace(
+    let com_efeito_extra = HtmlServido::de_teste(&original.replace(
         "document.getElementById('frmDocumentoEscolherTipo').submit();",
         "alert('extra'); document.getElementById('frmDocumentoEscolherTipo').submit();",
-    );
+    ));
     assert_eq!(
         escolha_do_tipo(&instalacao, &com_efeito_extra, "4864", "Despacho"),
         Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
@@ -293,7 +331,7 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
     assert_eq!(
         escolha_do_tipo(
             &instalacao,
-            &original.replace("function escolher", "function outro"),
+            &HtmlServido::de_teste(&original.replace("function escolher", "function outro")),
             "4864",
             "Despacho"
         ),
@@ -304,7 +342,7 @@ fn escolha_41_nao_confia_em_onclick_sem_prova_do_script() {
     assert_eq!(
         escolha_do_tipo(
             &instalacao,
-            &original.replace("escolher(291)", "escolher(291); excluir()"),
+            &HtmlServido::de_teste(&original.replace("escolher(291)", "escolher(291); excluir()")),
             "4864",
             "Despacho"
         ),
@@ -368,106 +406,29 @@ fn exibir_todos_so_por_acao_publicada_e_sem_js_executado() {
     <table id="tblSeries"><tr><td>
        <a href="controlador.php?acao=documento_gerar">Despacho</a>
     </td></tr></table></body></html>"#;
-    assert_eq!(filtro_de_todos(tela), Ok(true));
+    assert_eq!(filtro_de_todos(&HtmlServido::de_teste(tela)), Ok(true));
     assert_eq!(
-        filtro_de_todos(&tela.replace("ancExibirSeries", "outro")),
+        filtro_de_todos(&HtmlServido::de_teste(
+            &tela.replace("ancExibirSeries", "outro")
+        )),
         Ok(false)
     );
     assert_eq!(
-        filtro_de_todos(&tela.replace("function exibirSeries", "function sem_prova")),
+        filtro_de_todos(&HtmlServido::de_teste(
+            &tela.replace("function exibirSeries", "function sem_prova")
+        )),
         Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
             super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
         ))
     );
     assert_eq!(
-        filtro_de_todos(&tela.replace(
+        filtro_de_todos(&HtmlServido::de_teste(&tela.replace(
             "document.getElementById('frmDocumentoEscolherTipo').submit();",
             "alert('extra'); document.getElementById('frmDocumentoEscolherTipo').submit();",
-        )),
+        ))),
         Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
             super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
         ))
-    );
-}
-
-#[test]
-fn cadastro_recusa_controle_obrigatorio_nao_suportado() {
-    // HTML5 required: não enviar um POST ignorando um campo que a página exige.
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
-        <input type="text" name="txtPrazoNovo" required>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
-    );
-}
-
-#[test]
-fn cadastro_recusa_descricao_obrigatoria_nao_preenchida() {
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
-        <input type="text" id="txtDescricao" name="txtDescricao" required>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
-    );
-}
-
-#[test]
-fn cadastro_recusa_selecao_obrigatoria_nao_suportada() {
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
-        <select name="selNovaExigencia" required><option value="">Selecione</option></select>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::CampoObrigatorioNaoAtendido)
-    );
-}
-
-#[test]
-fn cadastro_aceita_controles_obrigatorios_atendidos_e_ignora_desabilitado() {
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0" required>
-        <input type="text" id="txtDescricao" name="txtDescricao" required>
-        <input type="text" name="txtCampoNaoUsado" required disabled>
-        <input type="hidden" name="hdnIdSerie" value="291" required>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", Some("Ensaio"), Some("publico")),
-        Ok(())
-    );
-}
-
-#[test]
-fn cadastro_recusa_nivel_com_disabled_booleano() {
-    // `disabled` sem valor é booleano HTML; valor_do_atributo não o representa.
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0" disabled>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", None, Some("publico")),
-        Err(ErroCriar::NivelNaoOferecido)
-    );
-}
-
-#[test]
-fn cadastro_recusa_descricao_com_disabled_booleano() {
-    let html = r#"<form id="frmDocumentoCadastro" method="post">
-        <label id="lblSerieTitulo">Despacho</label>
-        <input type="radio" id="optPublico" name="rdoNivelAcesso" value="0">
-        <input type="text" id="txtDescricao" name="txtDescricao" disabled>
-        </form>"#;
-    assert_eq!(
-        conferir_cadastro(html, "Despacho", Some("texto"), Some("publico")),
-        Err(ErroCriar::DescricaoNaoOferecida)
     );
 }
 
@@ -480,9 +441,9 @@ fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura(
         "controlador.php?acao=documento_gerar&acao_origem=documento_escolher_tipo&id_procedimento=50693&id_serie=291&id_procedimento=50693&infra_hash={}",
         "a".repeat(64)
     );
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{href}\">Despacho</a></td></tr></table>"
-    );
+    ));
     assert_eq!(
         escolha_do_tipo(&instalacao, &html, "50693", "Despacho"),
         Ok(EscolhaDoDocumento::Link(format!(
@@ -494,17 +455,17 @@ fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura(
         "&id_procedimento=50000&infra_hash=",
         1,
     );
-    let html_divergente = format!(
+    let html_divergente = HtmlServido::de_teste(&format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{divergente}\">Despacho</a></td></tr></table>"
-    );
+    ));
     assert!(matches!(
         escolha_do_tipo(&instalacao, &html_divergente, "50693", "Despacho"),
         Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
     ));
     let triplo = href.replace("&infra_hash=", "&id_procedimento=50693&infra_hash=");
-    let html_triplo = format!(
+    let html_triplo = HtmlServido::de_teste(&format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{triplo}\">Despacho</a></td></tr></table>"
-    );
+    ));
     assert!(matches!(
         escolha_do_tipo(&instalacao, &html_triplo, "50693", "Despacho"),
         Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))

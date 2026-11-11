@@ -18,7 +18,6 @@ pub(crate) enum ErroCadastro {
     AssuntoSugeridoNaoUnico,
     CadastroDeProcessoAusenteOuRepetido,
     CadastroDeProcessoHtmlInvalido,
-    HtmlDoCadastroNaoAnalisavel(#[source] tl::ParseError),
     AtributoDoCadastroIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     EspecificacaoNaoPublicadaNoCadastro,
     LimiteDaEspecificacaoInvalidoNoCadastro(#[source] std::num::ParseIntError),
@@ -52,7 +51,7 @@ impl CadastroObservado {
 /// sugerido e o nível pedido. Não autoriza uma submissão: a ação, todos
 /// os hidden e os interessados ainda precisam ser conferidos pelo fluxo.
 pub(crate) fn conferir_cadastro(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
@@ -63,7 +62,7 @@ pub(crate) fn conferir_cadastro(
 /// por AJAX observado, que o fluxo consulta antes de derivar a escrita.
 /// Nada aqui autoriza escolher um valor ausente da resposta real.
 pub(crate) fn conferir_cadastro_com_ajax_pendente(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
     nivel: &str,
 ) -> Result<CadastroObservado, ErroCadastro> {
@@ -71,13 +70,12 @@ pub(crate) fn conferir_cadastro_com_ajax_pendente(
 }
 
 fn conferir_cadastro_interno(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     id_tipo: &str,
     nivel: &str,
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCadastro::HtmlDoCadastroNaoAnalisavel)?;
+    let dom = crate::tela_html::interpretar(html);
     let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
         .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
     let [formulario] = formularios.as_slice() else {
@@ -273,7 +271,7 @@ mod tests {
 
     #[test]
     fn valida_cadastro_publico_e_restrito_sem_escrever() {
-        let html = tela(ASSUNTO, "", HIPOTESE);
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE));
         let publico = conferir_cadastro(&html, "12", "publico").unwrap();
         assert_eq!(publico.id_assunto, "21");
         assert_eq!(publico.assunto, "Assunto de teste");
@@ -285,11 +283,19 @@ mod tests {
     #[test]
     fn recusa_formulario_ausente_e_tipo_de_outro_cadastro() {
         assert_eq!(
-            conferir_cadastro("<div></div>", "12", "publico"),
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste("<div></div>"),
+                "12",
+                "publico"
+            ),
             Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido)
         );
         assert_eq!(
-            conferir_cadastro(&tela(ASSUNTO, "", HIPOTESE), "13", "publico"),
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE)),
+                "13",
+                "publico"
+            ),
             Err(ErroCadastro::TipoDeCadastroDivergente)
         );
     }
@@ -301,7 +307,11 @@ mod tests {
             "<option value='1'>Um</option><option value='2'>Outro</option>",
         ] {
             assert_eq!(
-                conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
+                conferir_cadastro(
+                    &crate::tela_html::HtmlServido::de_teste(&tela(opcoes, "", HIPOTESE)),
+                    "12",
+                    "publico"
+                ),
                 Err(ErroCadastro::AssuntoSugeridoNaoUnico)
             );
         }
@@ -310,14 +320,22 @@ mod tests {
     #[test]
     fn recusa_nivel_desabilitado() {
         assert_eq!(
-            conferir_cadastro(&tela(ASSUNTO, "disabled", HIPOTESE), "12", "publico"),
+            conferir_cadastro(
+                &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "disabled", HIPOTESE)),
+                "12",
+                "publico"
+            ),
             Err(ErroCadastro::NivelDesabilitado)
         );
     }
 
     #[test]
     fn placeholder_null_precisa_de_ajax_antes_de_uma_escrita() {
-        let html = tela(ASSUNTO, "", "<option value='null'> </option>");
+        let html = crate::tela_html::HtmlServido::de_teste(&tela(
+            ASSUNTO,
+            "",
+            "<option value='null'> </option>",
+        ));
         assert_eq!(
             conferir_cadastro(&html, "12", "restrito"),
             Err(ErroCadastro::HipoteseLegalNaoIdentificada)
@@ -333,16 +351,19 @@ mod tests {
     fn select_desabilitado_nao_comprova_assunto_ou_hipotese() {
         // Teste sintético da semântica HTML; oráculo de campos:
         // Todos tests/paginas_reais/procedimento_gerar.html @323eb01.
-        let assunto_desabilitado = tela(ASSUNTO, "", HIPOTESE)
-            .replace("name='selAssuntos'", "name='selAssuntos' disabled");
+        let assunto_desabilitado = crate::tela_html::HtmlServido::de_teste(
+            &tela(ASSUNTO, "", HIPOTESE)
+                .replace("name='selAssuntos'", "name='selAssuntos' disabled"),
+        );
         assert_eq!(
             conferir_cadastro(&assunto_desabilitado, "12", "publico"),
             Err(ErroCadastro::AssuntoDesabilitado)
         );
-        let hipotese_desabilitada = tela(ASSUNTO, "", HIPOTESE).replace(
-            "name='selHipoteseLegal'",
-            "name='selHipoteseLegal' disabled",
-        );
+        let hipotese_desabilitada =
+            crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", HIPOTESE).replace(
+                "name='selHipoteseLegal'",
+                "name='selHipoteseLegal' disabled",
+            ));
         assert_eq!(
             conferir_cadastro(&hipotese_desabilitada, "12", "restrito"),
             Err(ErroCadastro::HipoteseLegalDesabilitada)
@@ -358,7 +379,11 @@ mod tests {
             "<option value='1'>Uma</option><option value='2'>Outra</option>",
         ] {
             assert_eq!(
-                conferir_cadastro(&tela(ASSUNTO, "", opcoes), "12", "restrito"),
+                conferir_cadastro(
+                    &crate::tela_html::HtmlServido::de_teste(&tela(ASSUNTO, "", opcoes)),
+                    "12",
+                    "restrito"
+                ),
                 Err(ErroCadastro::HipoteseLegalNaoIdentificada)
             );
         }

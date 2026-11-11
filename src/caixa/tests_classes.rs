@@ -1,6 +1,7 @@
 //! Classes do link do processo na visão resumida (fixtures sintéticas).
 use super::*;
 use crate::paginas::juntar;
+use crate::tela_html::HtmlServido;
 
 fn gerados(linhas: &str, total: usize) -> String {
     format!(
@@ -17,7 +18,10 @@ fn linha(id: u32, classe: &str, numero: &str) -> String {
 }
 
 fn unico(classe: &str) -> Result<Processo, ErroCaixa> {
-    let caixa = parse_html(&gerados(&linha(7, classe, "000123/2026"), 1))?;
+    let caixa = parse_html(&HtmlServido::de_teste(&gerados(
+        &linha(7, classe, "000123/2026"),
+        1,
+    )))?;
     Ok(caixa.gerados.processos[0].clone())
 }
 
@@ -58,7 +62,7 @@ fn tabela_mista_preserva_estado_de_cada_linha() {
         linha(4, "processoNaoVisualizadoSigiloso", "000004/2026"),
     ]
     .concat();
-    let caixa = parse_html(&gerados(&linhas, 4)).unwrap();
+    let caixa = parse_html(&HtmlServido::de_teste(&gerados(&linhas, 4))).unwrap();
     let estados: Vec<_> = caixa
         .gerados
         .processos
@@ -78,10 +82,10 @@ fn tabela_mista_preserva_estado_de_cada_linha() {
 
 #[test]
 fn numero_de_quinze_digitos_sem_pontuacao_e_preservado() {
-    let caixa = parse_html(&gerados(
+    let caixa = parse_html(&HtmlServido::de_teste(&gerados(
         &linha(9, "processoVisualizadoSigiloso", "001234500000015"),
         1,
-    ))
+    )))
     .unwrap();
     assert_eq!(caixa.gerados.processos[0].numero, "001234500000015");
 }
@@ -129,7 +133,7 @@ fn pagina_de_dez_com_sigiloso_e_lida_mas_nao_cobre_os_totais() {
         };
         gerados.push_str(&linha(200 + i, classe, &format!("00000000000{i:04}")));
     }
-    let html = format!(
+    let html = HtmlServido::de_teste(&format!(
         "<a id='lnkInfraUnidade'>TESTE</a>\
          <input type='hidden' id='hdnTipoVisualizacao' value='R' />\
          <input id='hdnRecebidosHashCriterios' value='r'>\
@@ -140,7 +144,7 @@ fn pagina_de_dez_com_sigiloso_e_lida_mas_nao_cobre_os_totais() {
          Processos recebidos (131 registros - 1 a 10):</caption>{recebidos}</table>\
          <table id='tblProcessosGerados'><caption class='infraCaption'>\
          Processos gerados (7990 registros - 1 a 10):</caption>{gerados}</table>"
-    );
+    ));
     let leitura = juntar(&[html], Some("TESTE")).unwrap();
     assert_eq!(leitura.unidade.as_deref(), Some("TESTE"));
     assert_eq!(leitura.caixa.recebidos.total_declarado, 131);

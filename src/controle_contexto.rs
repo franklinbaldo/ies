@@ -84,8 +84,8 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
 /// Verificador leve mantido para testes da identidade, sem uso no caminho de produção.
 #[cfg(test)]
 pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+    let servido = crate::tela_html::HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
@@ -104,9 +104,10 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
     Ok((!valor.is_empty()).then_some(valor))
 }
 
-pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn contexto_da_pagina(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<ContextoPagina, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     contexto_do_dom(&dom)
 }
 
@@ -121,9 +122,10 @@ pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, Erro
 /// `hdnIdMarcador{id da unidade}` com valor: a visão R mostra só os
 /// processos do marcador escolhido (POST de "Listar processos com o
 /// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
-pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
+pub(crate) fn filtro_de_marcador_ativo(
+    html: &crate::tela_html::HtmlServido,
+) -> Result<bool, ErroCaixa> {
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     for no in dom.query_selector("input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -245,7 +247,8 @@ mod tests {
 
     #[test]
     fn diferenca_aponta_o_primeiro_campo_alterado() {
-        let base = contexto_da_pagina(&controle()).unwrap();
+        let base =
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&controle())).unwrap();
         assert_eq!(base.diferenca(&base.clone()), None);
         for (de, para, esperada) in [
             ("UNIDADE A", "UNIDADE B", DiferencaDeContexto::Unidade),
@@ -261,7 +264,10 @@ mod tests {
                 DiferencaDeContexto::CriteriosGerados,
             ),
         ] {
-            let outra = contexto_da_pagina(&controle().replace(de, para)).unwrap();
+            let outra = contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(
+                &controle().replace(de, para),
+            ))
+            .unwrap();
             assert_eq!(base.diferenca(&outra), Some(esperada), "{para}");
         }
     }
@@ -269,12 +275,14 @@ mod tests {
     #[test]
     fn booleano_antes_do_id_e_do_value_nao_apaga_o_contexto() {
         let html = crate::html_atributos::com_booleano_antes_dos_atributos(&controle());
-        let contexto = contexto_da_pagina(&html).unwrap();
+        let contexto = contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&html)).unwrap();
         assert_eq!(contexto.unidade.as_deref(), Some("UNIDADE A"));
         assert_eq!(contexto.modo.as_deref(), Some("R"));
         assert_eq!(contexto.criterios_recebidos.as_deref(), Some("recebidos"));
         assert_eq!(contexto.criterios_gerados.as_deref(), Some("gerados"));
-        let repetido = format!("{html}<input disabled id='hdnTipoVisualizacao' value='D'>");
+        let repetido = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{html}<input disabled id='hdnTipoVisualizacao' value='D'>"
+        ));
         assert_eq!(
             contexto_da_pagina(&repetido).unwrap_err(),
             ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
@@ -289,14 +297,17 @@ mod tests {
             Err(ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle)
         );
         assert_eq!(
-            contexto_da_pagina(&html).unwrap_err(),
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&html)).unwrap_err(),
             ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
         );
     }
 
     #[test]
     fn tipo_de_visualizacao_repetido_nao_prova_mesma_paginacao() {
-        let html = format!("{}<input id='hdnTipoVisualizacao' value='D'>", controle());
+        let html = crate::tela_html::HtmlServido::de_teste(&format!(
+            "{}<input id='hdnTipoVisualizacao' value='D'>",
+            controle()
+        ));
         assert_eq!(
             contexto_da_pagina(&html).unwrap_err(),
             ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
@@ -315,14 +326,18 @@ mod tests {
                 ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle,
             ),
         ] {
-            let html = format!("{}<input id='{id}' value='CRITERIO ALTERADO'>", controle());
+            let html = crate::tela_html::HtmlServido::de_teste(&format!(
+                "{}<input id='{id}' value='CRITERIO ALTERADO'>",
+                controle()
+            ));
             assert_eq!(contexto_da_pagina(&html).unwrap_err(), esperado);
         }
     }
 
     #[test]
     fn controle_com_identificadores_unicos_preserva_o_contexto_original() {
-        let ctx = contexto_da_pagina(&controle()).unwrap();
+        let ctx =
+            contexto_da_pagina(&crate::tela_html::HtmlServido::de_teste(&controle())).unwrap();
         assert_eq!(ctx.unidade.as_deref(), Some("UNIDADE A"));
         assert!(ctx.verificavel());
     }

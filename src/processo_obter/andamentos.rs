@@ -47,7 +47,7 @@ pub(super) struct Leitura<'a> {
 /// Página do histórico lida: URL de onde veio, HTML, MIME e a leitura.
 struct PaginaLida {
     url: String,
-    html: String,
+    html: crate::tela_html::HtmlServido,
     mime: String,
     lidos: AndamentosLidos,
 }

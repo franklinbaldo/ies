@@ -2,6 +2,7 @@
 //! sequência de pedidos conferida.
 use super::tests_apoio::*;
 use super::{ErroLogin, entrar_via, tela};
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
 
 fn erro_com(respostas: Vec<super::RespostaHttp>) -> (ErroLogin, Roteiro) {
@@ -203,10 +204,10 @@ fn credencial_recusada_le_a_validacao_da_infra_antes_dos_conteineres() {
         }
     );
     assert_eq!(posts(&roteiro), 1);
-    let ambas = tela_recusada("Outro texto").replace(
+    let ambas = HtmlServido::de_teste(&tela_recusada("Outro texto").replace(
         "<form id=",
         "<textarea id=\"txaInfraValidacao\" style=\"display:none\">Senha expirada.</textarea><form id=",
-    );
+    ));
     assert_eq!(
         tela::mensagem_de_recusa(&ambas).as_deref(),
         Some("Senha expirada.")

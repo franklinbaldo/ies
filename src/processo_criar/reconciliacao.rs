@@ -24,15 +24,17 @@ pub(crate) enum ErroFotografia {
     IdentidadeAnteriorAusente,
     LinkDoCandidatoNaoComprovado,
     LinksDoCandidatoRepetidos,
-    HtmlDoControleNaoAnalisavel(#[source] tl::ParseError),
 }
 
 impl FotografiaDosGerados {
     /// Exige unidade e cobertura integral dos Gerados no Controle R.
     /// Uma página parcial, ainda que apresente o primeiro candidato,
     /// não comprova ausência nem unicidade depois da escrita.
-    pub(crate) fn da_tela(html: &str, unidade: &str) -> Result<Self, ErroFotografia> {
-        let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))?;
+    pub(crate) fn da_tela(
+        html: &crate::tela_html::HtmlServido,
+        unidade: &str,
+    ) -> Result<Self, ErroFotografia> {
+        let leitura = crate::paginas::juntar(std::slice::from_ref(html), Some(unidade))?;
         let tabela = &leitura.caixa.gerados;
         let total = tabela.total_declarado;
         let faixa = leitura.gerados.faixa_observada()?;

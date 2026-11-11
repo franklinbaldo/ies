@@ -16,10 +16,12 @@ use crate::pesquisa_web::resposta::{
 /// A resposta 200 da pesquisa em documentos (`na_pagina`: a faixa esperada
 /// e o número da página pedida por `--pagina N`).
 pub(crate) fn ler_resposta_de_documentos(
-    html: &str,
+    html: &crate::tela_html::HtmlServido,
     na_pagina: Option<(FaixaDaPesquisa, u64)>,
 ) -> Result<RespostaDeDocumentos, ErroRespostaDaPesquisa> {
-    let ler = |html: &str| ler_documentos(html).map_err(ErroRespostaDaPesquisa::Documento);
+    let ler = |html: &crate::tela_html::HtmlServido| {
+        ler_documentos(html).map_err(ErroRespostaDaPesquisa::Documento)
+    };
     Ok(match classificar_resposta(html, na_pagina, ler)? {
         Classificada::SemResultado => RespostaDeDocumentos::SemResultado,
         Classificada::Lista {
@@ -70,7 +72,7 @@ impl AlvoDaPesquisa for EmDocumentos {
         }
     }
     fn ler_pagina(
-        html: &str,
+        html: &crate::tela_html::HtmlServido,
         na_pagina: (FaixaDaPesquisa, u64),
     ) -> Result<RespostaDeDocumentos, ErroRespostaDaPesquisa> {
         ler_resposta_de_documentos(html, Some(na_pagina))

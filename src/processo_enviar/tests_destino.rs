@@ -5,6 +5,7 @@ use super::destino::{escolher_destino, itens_do_autocompletar, ler_resposta_da_c
 use super::erro::{ErroEnviar, FalhaDaConsulta};
 use super::tests_apoio::*;
 use crate::formulario_web::RespostaDoPost;
+use crate::tela_html::HtmlServido;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
 
@@ -41,13 +42,16 @@ fn itens_na_forma_observada() {
         ("110000934", "ADCENTRAL/GR - Gabinete &amp; Reitoria"),
     ]);
     assert_eq!(
-        itens_do_autocompletar(&xml).unwrap(),
+        itens_do_autocompletar(&HtmlServido::de_teste(&xml)).unwrap(),
         itens(&[
             ("110000933", "ADCENTRAL - Administração Central"),
             ("110000934", "ADCENTRAL/GR - Gabinete & Reitoria"),
         ])
     );
-    assert_eq!(itens_do_autocompletar(&resposta_xml(&[])).unwrap(), []);
+    assert_eq!(
+        itens_do_autocompletar(&HtmlServido::de_teste(&resposta_xml(&[]))).unwrap(),
+        []
+    );
     for fora in [
         "<html><body>login</body></html>",
         "<?xml version=\"1.0\"?><erro descricao=\"x\"/>",
@@ -55,7 +59,7 @@ fn itens_na_forma_observada() {
         "<?xml version=\"1.0\"?><itens><item descricao=\"X - Y\"></item></itens>",
     ] {
         assert_eq!(
-            itens_do_autocompletar(fora),
+            itens_do_autocompletar(&HtmlServido::de_teste(fora)),
             Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada),
             "{fora}"
         );

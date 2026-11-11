@@ -5,6 +5,7 @@ use super::tests::{
 };
 use super::*;
 use crate::indice_local::FalhaDoIndice;
+use crate::tela_html::HtmlServido;
 
 #[test]
 fn nup_invalido_na_linha_vira_aviso_e_nao_grava_o_par() {
@@ -12,13 +13,13 @@ fn nup_invalido_na_linha_vira_aviso_e_nao_grava_o_par() {
     // NUP opaco acima do limite do índice (128 bytes): a linha é conferida,
     // o link grava e o par NUP ↔ id é recusado.
     let longo = "N".repeat(129);
-    let html = pagina_r(
+    let html = HtmlServido::de_teste(&pagina_r(
         &[
             ("10", "NUP-A", Some(href_da_linha("10", 'c'))),
             ("11", longo.as_str(), Some(href_da_linha("11", 'd'))),
         ],
         &[],
-    );
+    ));
     Colheita::do_cookie(
         &indice,
         &instalacao(),

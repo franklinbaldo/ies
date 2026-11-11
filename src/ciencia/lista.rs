@@ -7,12 +7,14 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 /// que o processo/documento publicou na **releitura**. O chamador deve antes
 /// conferir a URL da lista contra o alvo e a sessão: o HTML isolado não prova
 /// qual processo serviu a tabela. Não deduz usuário nem data não observados.
-pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, ErroCiencia> {
+pub(crate) fn atividade_na_lista(
+    html: &crate::tela_html::HtmlServido,
+    atividade: &str,
+) -> Result<bool, ErroCiencia> {
     if !identificador(atividade) {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(ErroCiencia::ListaDeCienciasNaoInterpretada)?;
+    let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(ErroCiencia::Atributo)?;
     let [unica] = tabelas.as_slice() else {

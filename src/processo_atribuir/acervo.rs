@@ -3,6 +3,7 @@
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::tela_html::HtmlServido;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -17,7 +18,8 @@ struct Registro {
 /// Somente um ID oculto singular permite correlacionar a tela com seu
 /// formulário; não usamos URL assinada de sessão como identidade pública.
 fn id_da_tela(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
+    let servido = HtmlServido::de_teste(html);
+    let dom = crate::tela_html::interpretar(&servido);
     let forms = nos_com_id(&dom, "frmAtividadeAtribuir").ok()?;
     let [form] = forms.as_slice() else {
         return None;
@@ -57,7 +59,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                             .or_else(|| id_da_tela(&html));
                         match id {
                             None => Resultado::NaoAplicavel("id_do_processo_ausente".to_owned()),
-                            Some(id) => match super::ler_tela(&html, &id) {
+                            Some(id) => match super::ler_tela(&HtmlServido::de_teste(&html), &id) {
                                 Ok(_) => Resultado::Lido,
                                 Err(erro) => Resultado::Recusado(format!("{erro:?}")),
                             },
@@ -192,7 +194,7 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
         else {
             continue;
         };
-        let Ok(esperado) = super::ler_tela(&original, &id) else {
+        let Ok(esperado) = super::ler_tela(&HtmlServido::de_teste(&original), &id) else {
             // O replay separado mantém a classificação de formas recusadas.
             continue;
         };
@@ -260,7 +262,8 @@ fn confrontar_formularios(instalacao: &str, json: &Value) -> usize {
             cabecalho.starts_with("HTTP/1.1 200 OK"),
             "formulário observado não foi oferecido pelo anti-IES em {instalacao}"
         );
-        let obtido = super::ler_tela(corpo, &id).expect("projeção HTTP do anti-IES");
+        let obtido =
+            super::ler_tela(&HtmlServido::de_teste(corpo), &id).expect("projeção HTTP do anti-IES");
         // Falhas não devem imprimir os nomes da cassette nos logs do CI.
         assert!(
             obtido.usuarios == esperado.usuarios,

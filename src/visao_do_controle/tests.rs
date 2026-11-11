@@ -6,6 +6,7 @@ use super::envio::EnvioDoControle;
 use super::*;
 use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::instalacao::Instalacao;
+use crate::tela_html::HtmlServido;
 use crate::transporte::RespostaWeb;
 use std::fmt::Write as _;
 use std::fs;
@@ -359,7 +360,7 @@ impl EnvioDoControle for EnvioRoteirizado {
 pub(super) fn tela_atual(html: String) -> TelaAtual {
     TelaAtual {
         url: URL_GET.to_owned(),
-        html,
+        html: HtmlServido::novo(html).unwrap(),
         mime: "text/html; charset=iso-8859-1".to_owned(),
     }
 }

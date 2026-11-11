@@ -2,6 +2,7 @@
 use super::tests::{EnvioRoteirizado, TelaD, TelaR, cookie, instalacao, tela_atual, tela_nivel};
 use super::*;
 use crate::dominio::Categoria;
+use crate::tela_html::HtmlServido;
 use crate::transporte::sessao::CookieDaSessao;
 
 fn r() -> TelaR {
@@ -17,7 +18,7 @@ fn resumida(
     categoria: Categoria,
     pagina: Option<usize>,
     respostas: Vec<(i32, String)>,
-) -> (Result<String, ErroVisaoDoControle>, Vec<String>) {
+) -> (Result<HtmlServido, ErroVisaoDoControle>, Vec<String>) {
     let (_pasta, arquivo) = cookie();
     let mut envio = EnvioRoteirizado::novo(respostas);
     let resultado = obter_na_visao_resumida(
