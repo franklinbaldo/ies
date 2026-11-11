@@ -319,13 +319,18 @@ fn executar_com_estado(
     if matches!(modo, EstadoExtra::PastaPendente) {
         let primeira = comando()
             .args([
-                "--json", "processo", NUP_A, "--sem-andamentos",
-                "--sem-propriedades", "--sem-marcadores",
+                "--json",
+                "processo",
+                NUP_A,
+                "--sem-andamentos",
+                "--sem-propriedades",
+                "--sem-marcadores",
             ])
             .output()
             .expect("consulta informativa anterior");
         assert_eq!(
-            primeira.status.code(), Some(0),
+            primeira.status.code(),
+            Some(0),
             "processo com pasta pendente: {}",
             String::from_utf8_lossy(&primeira.stderr)
         );
@@ -334,9 +339,9 @@ fn executar_com_estado(
         assert_eq!(observado["documentos_incluidos"], false);
         assert_eq!(observado["documentos"], serde_json::json!([]));
         assert!(
-            observado["aviso_leitura_parcial"].as_str().is_some_and(
-                |aviso| aviso.contains("leitura parcial")
-            ),
+            observado["aviso_leitura_parcial"]
+                .as_str()
+                .is_some_and(|aviso| aviso.contains("leitura parcial")),
             "lista vazia não significa ausência: {observado}"
         );
     }
