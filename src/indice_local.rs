@@ -196,7 +196,8 @@ impl IndiceLocal {
             transacao.commit()?;
             Ok(valor)
         });
-        resultado.unwrap_or_else(|abertura::Falha| {
+        // O índice é cache: a falha desliga-o e o comando segue com `padrao`.
+        resultado.unwrap_or_else(|_: abertura::ErroAberturaDoIndice| {
             self.ligado.set(false);
             padrao
         })

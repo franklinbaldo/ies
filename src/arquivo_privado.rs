@@ -97,10 +97,21 @@ impl Politica {
 }
 
 /// Falha tipada, sem caminho nem conteúdo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaDaGravacao {
     SemNomeDeArquivo,
     DiretorioAusente,
+    /// Um nível do caminho existe e não é diretório.
+    NivelDoCaminhoNaoEhDiretorio,
+    /// Um nível do caminho não pôde ser consultado (o motivo do sistema).
+    NivelDoCaminhoIlegivel(std::io::ErrorKind),
+    /// O sistema recusou criar um nível `0700`.
+    CriacaoDoDiretorioFalhou(std::io::ErrorKind),
+    /// O sistema recusou criar o temporário `0600`.
+    CriacaoDoTemporarioFalhou(std::io::ErrorKind),
+    /// Oito nomes de temporário seguidos já existiam.
+    NomesDeTemporarioEsgotados,
     /// O diretório real do destino é gravável por grupo ou outros
     /// (`mode & 0o022`) sem o sticky bit (`0o1000`). Só no Unix.
     #[cfg_attr(not(unix), allow(dead_code))]
@@ -140,7 +151,8 @@ fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDa
                 Err(erro) if erro.kind() == ErrorKind::NotFound => {
                     criar_nivel(nivel, politica.diretorio)?;
                 }
-                Ok(_) | Err(_) => return Err(FalhaDaGravacao::DiretorioAusente),
+                Ok(_) => return Err(FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio),
+                Err(erro) => return Err(FalhaDaGravacao::NivelDoCaminhoIlegivel(erro.kind())),
             }
         }
     }
@@ -200,9 +212,10 @@ fn criar_nivel(nivel: &Path, dono: Diretorio) -> Result<(), FalhaDaGravacao> {
         // Outro processo criou ao mesmo tempo: vale se for diretório.
         Err(erro) if erro.kind() == ErrorKind::AlreadyExists => match fs::metadata(&nivel) {
             Ok(info) if info.is_dir() => Ok(()),
-            _ => Err(FalhaDaGravacao::DiretorioAusente),
+            Ok(_) => Err(FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio),
+            Err(erro) => Err(FalhaDaGravacao::NivelDoCaminhoIlegivel(erro.kind())),
         },
-        Err(_) => Err(FalhaDaGravacao::CriacaoFalhou),
+        Err(erro) => Err(FalhaDaGravacao::CriacaoDoDiretorioFalhou(erro.kind())),
     }
 }
 
@@ -379,10 +392,10 @@ fn criar_temporario(pasta: &Path, prefixo: &str) -> Result<(PathBuf, File), Falh
             Ok(arquivo) => return Ok((temporario, arquivo)),
             // Órfão recente de um PID reaproveitado: o próximo número.
             Err(erro) if erro.kind() == ErrorKind::AlreadyExists => {}
-            Err(_) => return Err(FalhaDaGravacao::CriacaoFalhou),
+            Err(erro) => return Err(FalhaDaGravacao::CriacaoDoTemporarioFalhou(erro.kind())),
         }
     }
-    Err(FalhaDaGravacao::CriacaoFalhou)
+    Err(FalhaDaGravacao::NomesDeTemporarioEsgotados)
 }
 
 /// Remove `PREFIXO*` regulares sem modificação há mais de

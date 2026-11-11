@@ -54,6 +54,8 @@ pub(crate) enum ErroLogin {
     DestinoDaSessaoNaoEhArquivoRegular(ArquivoPrivado),
     DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
+    /// O marcador `.geracao` existe e não pôde ser lido.
+    MarcadorDaSessaoIlegivel(#[source] super::gravacao::ErroMarcadorDaSessao),
     UnidadeExibidaDiferenteDaSolicitada,
     Transporte(#[from] FalhaTransporte),
     BotaoDeEnvioDoLoginNaoReconhecido,
@@ -101,6 +103,7 @@ impl ErroLogin {
             | Self::DestinoDaSessaoNaoEhArquivoRegular(_)
             | Self::DiretorioDaSessaoGravavelPorOutros(_)
             | Self::GravacaoDaSessaoFalhou(_)
+            | Self::MarcadorDaSessaoIlegivel(_)
             | Self::UnidadeExibidaDiferenteDaSolicitada
             | Self::BotaoDeEnvioDoLoginNaoReconhecido
             | Self::LinkDoControleDeProcessosNaoReconhecido

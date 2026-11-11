@@ -81,11 +81,26 @@ fn link_da_lista(html: &str, origem: &str) -> Option<String> {
     (encontrados.len() == 1).then(|| encontrados.remove(0))
 }
 
+/// A lista de prazos fora da forma observada.
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroListaDePrazos {
+    HtmlDaListaNaoInterpretado,
+    FormularioDaListaNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
+    AtributoDaLista(#[source] crate::html_atributos::ErroAtributoHtml),
+    AcaoExcluirForaDaForma,
+    IdDoControleNaoNumerico,
+    /// Duas linhas com `acaoExcluir` para o mesmo NUP.
+    ControlesRepetidosParaOProcesso,
+}
+
 /// Lê uma funcao de linha observada sem executar o JavaScript.
 /// Ausencia de acao ao confirmar a exclusao significa ausencia da linha.
-fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ())?;
-    crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista").map_err(|_| ())?;
+fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroListaDePrazos::HtmlDaListaNaoInterpretado)?;
+    crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
+        .map_err(ErroListaDePrazos::FormularioDaListaNaoLocalizado)?;
     let mut encontrado = None;
     for ancora in dom
         .query_selector("a")
@@ -93,8 +108,8 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
         .flatten()
         .filter_map(|n| n.get(dom.parser()).and_then(tl::Node::as_tag))
     {
-        let Some(acao) =
-            crate::html_atributos::valor_do_atributo(ancora, "onclick").map_err(|_| ())?
+        let Some(acao) = crate::html_atributos::valor_do_atributo(ancora, "onclick")
+            .map_err(ErroListaDePrazos::AtributoDaLista)?
         else {
             continue;
         };
@@ -102,22 +117,22 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ()> {
             continue;
         };
         let Some((id, numero)) = resto.split_once("','") else {
-            return Err(());
+            return Err(ErroListaDePrazos::AcaoExcluirForaDaForma);
         };
         let Some(numero) = numero
             .strip_suffix("');")
             .or_else(|| numero.strip_suffix("')"))
         else {
-            return Err(());
+            return Err(ErroListaDePrazos::AcaoExcluirForaDaForma);
         };
         if numero != nup {
             continue;
         }
-        if id.is_empty()
-            || !id.bytes().all(|c| c.is_ascii_digit())
-            || encontrado.replace(id.to_owned()).is_some()
-        {
-            return Err(());
+        if id.is_empty() || !id.bytes().all(|c| c.is_ascii_digit()) {
+            return Err(ErroListaDePrazos::IdDoControleNaoNumerico);
+        }
+        if encontrado.replace(id.to_owned()).is_some() {
+            return Err(ErroListaDePrazos::ControlesRepetidosParaOProcesso);
         }
     }
     Ok(encontrado)
@@ -205,7 +220,8 @@ fn escrever_e_verificar<V: EnvioDoProcesso>(
     // A mesma linha do NUP precisa desaparecer da lista relida.
     match id_na_lista(&lista_nova, &dados.nup) {
         Ok(None) => {}
-        Ok(Some(_)) | Err(()) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
+        Ok(Some(_)) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
+        Err(erro) => return Err(FalhaDoPrazo::ListaRelidaIlegivel(erro)),
     }
     // O GET do formulario de definicao e testemunha independente da lista.
     // O link guardado leva `id_controle_prazo` do controle excluido (cassette
@@ -281,7 +297,7 @@ pub(super) fn executar(
     let id_controle = match id_na_lista(&html_lista, nup.as_str()) {
         Ok(Some(id)) => id,
         Ok(None) => return Err(FalhaDoPrazo::ProcessoForaDaListaDePrazos.into()),
-        Err(()) => return Err(FalhaDoPrazo::ControleNaoUnicoNaLista.into()),
+        Err(erro) => return Err(FalhaDoPrazo::ListaDePrazos(erro).into()),
     };
     let preparada = ExclusaoPreparada {
         link_lista,

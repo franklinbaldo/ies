@@ -40,8 +40,11 @@ pub(crate) enum FalhaDoPrazo {
     /// O Controle da unidade não publicou a lista de prazos.
     ListaDePrazosNaoPublicada,
     ProcessoForaDaListaDePrazos,
-    /// A lista de prazos não identifica um único controle do processo.
-    ControleNaoUnicoNaLista,
+    /// A lista de prazos fora da forma observada ou sem um único controle
+    /// do processo.
+    ListaDePrazos(#[source] exclusao::ErroListaDePrazos),
+    /// O POST saiu e a lista relida não pôde ser lida: efeito incerto.
+    ListaRelidaIlegivel(#[source] exclusao::ErroListaDePrazos),
     /// A lista não publicou a ação de exclusão.
     AcaoDeExclusaoNaoPublicada,
 }

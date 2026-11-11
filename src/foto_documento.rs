@@ -48,7 +48,7 @@ pub(crate) fn existente(pasta: &Path, nome: &str) -> Result<Option<Vec<u8>>, Err
     let alvo = pasta.join(nome);
     match fs::symlink_metadata(&alvo) {
         Err(erro) if erro.kind() == ErrorKind::NotFound => Ok(None),
-        Err(_) => Err(ErroCopia::LeituraFalhou),
+        Err(erro) => Err(ErroCopia::ConsultaDaFotoFalhou(erro.kind())),
         Ok(_) => ler_regular(&alvo, ErroCopia::LeituraFalhou).map(Some),
     }
 }
@@ -141,7 +141,7 @@ pub(crate) fn gravar(
             }
             Ok(de_novo)
         }
-        Err(_) => Err(ErroCopia::GravacaoFalhou),
+        Err(falha) => Err(ErroCopia::GravacaoDaFotoRecusada(falha)),
     }
 }
 

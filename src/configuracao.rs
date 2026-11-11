@@ -116,7 +116,12 @@ pub fn salvar_arquivos_de_acesso(
             | FalhaDaGravacao::DiretorioGravavelPorOutros
             | FalhaDaGravacao::DestinoJaExiste
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
-            | FalhaDaGravacao::CriacaoFalhou => {
+            | FalhaDaGravacao::CriacaoFalhou
+            | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+            | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+            | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+            | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+            | FalhaDaGravacao::NomesDeTemporarioEsgotados => {
                 ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao
             }
         },

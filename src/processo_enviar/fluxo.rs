@@ -369,7 +369,9 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }) => {
             Err(ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar)
         }
-        Err(_) => Err(ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao),
+        Err(releitura) => Err(ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(Box::new(
+            releitura,
+        ))),
     }
 }
 

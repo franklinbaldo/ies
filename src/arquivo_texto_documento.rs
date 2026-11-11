@@ -15,15 +15,26 @@ pub enum ErroArquivoTexto {
 fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto {
     match falha {
         FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
-        FalhaDaGravacao::DiretorioAusente => ErroArquivoTexto::DiretorioAusente,
-        FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
+        FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => {
+            ErroArquivoTexto::DiretorioAusente
+        }
+        FalhaDaGravacao::DestinoJaExiste => {
+            ErroArquivoTexto::DestinoJaExiste
+        }
         // Diretório do usuário: a peça não confere o modo.
         FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
+        | FalhaDaGravacao::ConfirmacaoFalhou => {
+            ErroArquivoTexto::EscritaFalhou
+        }
     }
 }
 

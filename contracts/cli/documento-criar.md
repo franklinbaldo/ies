@@ -68,7 +68,8 @@ com o contexto `TentativaDeCriacao { requisicoes }`).
 | `ErroDocumentoCriar::LinkNaoPublicado` | A unidade não publicou a opção de incluir |
 | `ErroDocumentoCriar::UnidadeNaoPublicada` | A tela não identifica a unidade de trabalho |
 | `ErroDocumentoCriar::SituacaoNaoLida` | A árvore não publicou a situação segura para gravação |
-| `ErroCriar::LinkDoTipoNaoNavegavel` | O onclick/script não comprova exatamente a navegação segura por formulário |
+| `ErroCriar::LinkDoTipoNaoNavegavel` | O `href`/`onclick` do tipo não é a navegação literal observada |
+| `ErroCriar::NavegacaoNaoComprovadaPorScript(ErroGuardaDeNavegacao::…)` | O `onclick` é literal, mas a função que ele chama não foi comprovada em script ativo (ausente, repetida, fora do nível superior ou com corpo diferente) |
 | `ErroCriar::EnderecoDoTipoNaoReconhecido` | URL do tipo ausente, inválida ou vinculada a outro processo |
 | `ErroCriar::TipoDoCadastroDiferente` | A tela aberta não identifica o tipo pedido |
 | `ErroCriar::DescricaoNaoOferecida` | A descrição solicitada não tem controle utilizável |
@@ -231,7 +232,7 @@ A seleção do tipo por `escolher(id)` e a troca do filtro por
 um único `script` clássico inline ativo. Texto idêntico em
 `template`, comentário HTML ou `script type=application/json` não
 autoriza o POST de navegação; não se executa JavaScript nem se inventa
-endpoint. A recusa conserva `ErroCriar::LinkDoTipoNaoNavegavel`
+endpoint. A recusa é `ErroCriar::NavegacaoNaoComprovadaPorScript`
 e acontece antes do envio daquele formulário. Testes adversariais
 sintéticos cobrem os três conteúdos inertes em ambos os caminhos e
 controles positivos com código ativo. Não extrapolar para outras
