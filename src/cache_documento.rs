@@ -137,10 +137,10 @@ pub(crate) fn gravar_em(
                 Err(arquivo_privado::FalhaDaGravacao::DestinoJaExiste) => {
                     conferir_existente(&destino, bytes)?;
                 }
-                Err(_) => return Err(FalhaCache::Gravacao),
+                Err(falha) => return Err(FalhaCache::GravacaoPrivadaFalhou(falha)),
             }
         }
-        Err(_) => return Err(FalhaCache::Gravacao),
+        Err(erro) => return Err(FalhaCache::ArquivoDoCacheInacessivel(erro.kind())),
     }
     Ok(destino)
 }
