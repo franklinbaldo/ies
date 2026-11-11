@@ -50,7 +50,7 @@ pub(crate) fn derivar_submissao_guardada(
         if !operacao.campos_usuario.contains(nome) {
             return Err(ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { campo });
         }
-        if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+        if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
             return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
         if !valor.bytes().all(|b| (32..=126).contains(&b)) {

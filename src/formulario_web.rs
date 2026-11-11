@@ -207,7 +207,7 @@ fn ordenar_campos<'c>(
             if controles.iter().any(|c| c.nome() == *nome) {
                 return Err(ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { campo });
             }
-            if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
                 return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
             }
             continue;
@@ -238,7 +238,7 @@ fn ordenar_campos<'c>(
         let multipla = publicados
             .iter()
             .all(|c| matches!(c, Controle::SelecaoMultipla(_)));
-        if !multipla && campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+        if !multipla && campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
             return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
     }

@@ -155,6 +155,10 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
         leitura: Leitura::Lista(lista.lista),
     })
 }
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn executar_leitura(
     cli: &Cli,
     tipo: TipoBloco,

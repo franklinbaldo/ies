@@ -55,7 +55,12 @@ pub fn registrar(
         return Err(ErroAtribuicoes::DadoInvalido);
     }
     for (i, usuario) in observacao.usuarios.iter().enumerate() {
-        if observacao.usuarios[..i].iter().any(|x| x.id == usuario.id) {
+        if observacao
+            .usuarios
+            .iter()
+            .take(i)
+            .any(|x| x.id == usuario.id)
+        {
             return Err(ErroAtribuicoes::DadoInvalido);
         }
     }

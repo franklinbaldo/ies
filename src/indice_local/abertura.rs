@@ -276,10 +276,10 @@ fn migrar(conexao: &mut Connection) -> Result<(), ErroAberturaDoIndice> {
     let versao: i64 = transacao.pragma_query_value(None, "user_version", |l| l.get(0))?;
     let inicio = usize::try_from(versao)
         .map_err(|_| ErroAberturaDoIndice::VersaoDoEsquemaNegativa(versao))?;
-    if inicio > MIGRACOES.len() {
-        return Err(ErroAberturaDoIndice::EsquemaDeBinarioMaisNovo);
-    }
-    for migracao in &MIGRACOES[inicio..] {
+    let pendentes = MIGRACOES
+        .get(inicio..)
+        .ok_or(ErroAberturaDoIndice::EsquemaDeBinarioMaisNovo)?;
+    for migracao in pendentes {
         transacao.execute_batch(migracao)?;
     }
     if inicio < MIGRACOES.len() {

@@ -43,8 +43,10 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
                     profundidade = profundidade.checked_sub(1)?;
                     ultimo = atual;
                 }
-                'f' if texto[indice..].starts_with("function") => {
-                    let inicio: String = texto[indice..]
+                'f' if texto.split_at(indice).1.starts_with("function") => {
+                    let inicio: String = texto
+                        .split_at(indice)
+                        .1
                         .chars()
                         .filter(|c| !c.is_ascii_whitespace())
                         .take(assinatura.len())
@@ -60,7 +62,9 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
                         if encontradas > 1 {
                             return None;
                         }
-                        let literal: String = texto[indice..]
+                        let literal: String = texto
+                            .split_at(indice)
+                            .1
                             .chars()
                             .filter(|c| !c.is_ascii_whitespace())
                             .take(corpo_esperado.len())

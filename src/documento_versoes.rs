@@ -184,14 +184,16 @@ fn linhas_do_historico(
         if celulas.is_empty() {
             continue;
         }
-        if !cabecalho || celulas.len() != 6 {
+        let (true, [_, versao, usuario, unidade, modificacao, acoes]) =
+            (cabecalho, celulas.as_slice())
+        else {
             return Err(ErroVersao::LinhaIncompleta);
-        }
-        let numero = VersaoDocumento::interpretar(&texto(celulas[1], parser))?;
+        };
+        let numero = VersaoDocumento::interpretar(&texto(versao, parser))?;
         if !encontrados.insert(numero) {
             return Err(ErroVersao::VersaoDocumentoDuplicada);
         }
-        let td = celulas[5].as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
+        let td = acoes.as_tag().ok_or(ErroVersao::LinhaIncompleta)?;
         let mut links = Vec::new();
         for a in td
             .query_selector(parser, "a")
@@ -207,20 +209,24 @@ fn linhas_do_historico(
                 valor_do_atributo(a, "href").map_err(ErroVersao::LinkVersaoComAtributoIlegivel)?;
             links.extend(href.filter(|h| !h.starts_with('#')));
         }
-        if links.len() != 1 {
+        let Ok([link]) = <[String; 1]>::try_from(links) else {
             return Err(ErroVersao::LinkVersaoAusenteOuAmbiguo);
-        }
-        conferir_link(&links[0], id_interno, numero)?;
-        let valores: Vec<_> = celulas[2..5].iter().map(|n| texto(n, parser)).collect();
-        if valores.iter().any(String::is_empty) {
+        };
+        conferir_link(&link, id_interno, numero)?;
+        let [usuario, unidade, modificacao] =
+            [usuario, unidade, modificacao].map(|n| texto(n, parser));
+        if [&usuario, &unidade, &modificacao]
+            .iter()
+            .any(|s| s.is_empty())
+        {
             return Err(ErroVersao::LinhaIncompleta);
         }
         entradas.push(EntradaVersao {
             versao: numero,
-            usuario: valores[0].clone(),
-            unidade: valores[1].clone(),
-            modificacao: valores[2].clone(),
-            link: links.remove(0),
+            usuario,
+            unidade,
+            modificacao,
+            link,
         });
         if entradas.len() > 10_000 {
             return Err(ErroVersao::ListaIncompleta);

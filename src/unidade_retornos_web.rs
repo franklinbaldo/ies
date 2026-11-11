@@ -81,8 +81,8 @@ fn decodificar_data(valor: &str) -> Option<String> {
     let mut out = Vec::new();
     let bytes = valor.as_bytes();
     let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' {
+    while let Some(&byte) = bytes.get(i) {
+        if byte == b'%' {
             let d = |b: u8| -> Option<u8> {
                 match b {
                     b'0'..=b'9' => Some(b - b'0'),
@@ -96,7 +96,7 @@ fn decodificar_data(valor: &str) -> Option<String> {
             out.push(hi * 16 + lo);
             i += 3;
         } else {
-            out.push(bytes[i]);
+            out.push(byte);
             i += 1;
         }
     }

@@ -135,9 +135,12 @@ pub(crate) fn sinal_do_salvar(html: &str) -> SinalDoSalvar {
     let (Some((inicio, _)), None) = (ocorrencias.next(), ocorrencias.next()) else {
         return SinalDoSalvar::NaoReconhecido;
     };
-    let Some((valor, resto)) = html[inicio + FUNCAO.len()..]
-        .trim_start()
-        .strip_prefix("if ('")
+    let Some((valor, resto)) = html
+        .split_at(inicio)
+        .1
+        .strip_prefix(FUNCAO)
+        .map(str::trim_start)
+        .and_then(|resto| resto.strip_prefix("if ('"))
         .and_then(|resto| resto.split_once('\''))
     else {
         return SinalDoSalvar::NaoReconhecido;

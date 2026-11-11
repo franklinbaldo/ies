@@ -172,8 +172,8 @@ fn decodificar(texto: &str) -> Option<String> {
     let bytes = texto.as_bytes();
     let mut saida = Vec::new();
     let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
+    while let Some(&byte) = bytes.get(i) {
+        match byte {
             b'+' => saida.push(b' '),
             b'%' => {
                 let h = char::from(*bytes.get(i + 1)?).to_digit(16)?;

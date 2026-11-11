@@ -75,8 +75,8 @@ fn id_do_processo(href: &str) -> Option<&str> {
             _ => (),
         }
     }
-    if acao == 1 && ids.len() == 1 {
-        Some(ids[0])
+    if let (1, [id]) = (acao, ids.as_slice()) {
+        Some(*id)
     } else {
         None
     }
@@ -304,25 +304,25 @@ pub(super) fn url_exclusao(html: &str) -> Option<String> {
             }
             continue;
         };
-        if linhas[*inicio] != FUNCAO {
+        let (antes, a_partir) = linhas.split_at(*inicio);
+        let [funcao, depois @ ..] = a_partir else {
+            return None;
+        };
+        if *funcao != FUNCAO {
             return None;
         }
         // Uma declaração dentro de comentário de bloco não é executável.
-        let prefixo = linhas[..*inicio].join("\n");
+        let prefixo = antes.join("\n");
         let ultimo_abre = prefixo.rfind("/*");
         let ultimo_fecha = prefixo.rfind("*/");
         if ultimo_abre.is_some_and(|p| ultimo_fecha.is_none_or(|f| f < p)) {
             continue;
         }
         // O primeiro fechamento pertence à guarda confirm da função observada.
-        let Some(fim) = linhas[*inicio + 1..]
-            .iter()
-            .position(|linha| *linha == "}")
-            .map(|i| i + *inicio + 1)
-        else {
+        let Some(fim) = depois.iter().position(|linha| *linha == "}") else {
             continue;
         };
-        let corpo = &linhas[*inicio + 1..fim];
+        let (corpo, _) = depois.split_at(fim);
         let pos_id = corpo.iter().position(|l| *l == ID);
         let pos_action = corpo.iter().position(|l| l.starts_with(ACTION));
         let pos_enviar = corpo.iter().position(|l| *l == ENVIAR);
@@ -332,8 +332,9 @@ pub(super) fn url_exclusao(html: &str) -> Option<String> {
         if !(i < a && a < s) {
             continue;
         }
-        let Some(url) = corpo[a]
-            .strip_prefix(ACTION)
+        let Some(url) = corpo
+            .get(a)
+            .and_then(|linha| linha.strip_prefix(ACTION))
             .and_then(|l| l.strip_suffix("';"))
         else {
             continue;

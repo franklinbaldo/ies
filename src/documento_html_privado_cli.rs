@@ -21,9 +21,9 @@ fn conferir_comando(
     documento: &Documento,
     unidade: Option<&str>,
 ) -> Result<documento::NumeroDocumento, UsoInvalido> {
-    if documento.numeros.len() != 1 {
+    let [numero] = documento.numeros.as_slice() else {
         return Err(UsoInvalido::QuantidadeDeDocumentos);
-    }
+    };
     if documento.processo.is_some()
         || documento.versao.is_some()
         || documento.ocultar_inacessiveis
@@ -33,7 +33,7 @@ fn conferir_comando(
     {
         return Err(UsoInvalido::OpcoesDeDocumentoSemEvidencia);
     }
-    Ok(documento.numeros[0].clone())
+    Ok(numero.clone())
 }
 
 /// Seleção positiva deve verificar identidade exata, sem converter zeros.

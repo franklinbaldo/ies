@@ -212,21 +212,25 @@ fn ler_itens(
                 .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?
                 .tem_classe("trComentario")
                 .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-            if aguardando_texto && classe && celulas.len() == 1 {
+            if let (true, true, [celula]) = (aguardando_texto, classe, celulas.as_slice()) {
                 let ultimo = itens
                     .last_mut()
                     .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
-                ultimo.texto = texto(celulas[0], parser)?;
+                ultimo.texto = texto(celula, parser)?;
                 aguardando_texto = false;
             } else if !(total == 0 && texto(tr, parser)?.contains("Nenhum registro")) {
                 return Err(ErroComentarios::LinhaDoComentarioInvalida);
             }
             continue;
         }
-        if caixas.len() != 1 || aguardando_texto || celulas.len() != colunas.total {
+        let ([caixa], false, true) = (
+            caixas.as_slice(),
+            aguardando_texto,
+            celulas.len() == colunas.total,
+        ) else {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
-        }
-        let id = atributo(caixas[0], "value")?.ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
+        };
+        let id = atributo(caixa, "value")?.ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroComentarios::LinhaDoComentarioInvalida);
         }
@@ -330,8 +334,8 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios
         .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
     let listas = nos_com_id(&dom, "frmComentarioLista")
         .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
-    if cadastros.len() == 1 && listas.is_empty() {
-        let form = cadastros[0]
+    if let ([cadastro], []) = (cadastros.as_slice(), listas.as_slice()) {
+        let form = cadastro
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;

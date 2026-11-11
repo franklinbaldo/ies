@@ -20,6 +20,10 @@ fn espaco(b: u8) -> bool {
 }
 
 /// Tokeniza `<nome atributos...>`; ignora o que vem depois do `>`.
+#[expect(
+    clippy::string_slice,
+    reason = "inicio e i param sempre num byte ASCII (<, espaço, /, =, aspas, >), que é fronteira de caractere UTF-8"
+)]
 pub(crate) fn tokenizar_tag_de_abertura(
     fonte: &str,
 ) -> Result<AtributosDaTag<'_>, ErroAtributoHtml> {
@@ -29,7 +33,10 @@ pub(crate) fn tokenizar_tag_de_abertura(
     }
     // Estado "nome da tag": até espaço, `/` ou `>`.
     let mut i = 1;
-    while i < bytes.len() && !espaco(bytes[i]) && !matches!(bytes[i], b'/' | b'>') {
+    while bytes
+        .get(i)
+        .is_some_and(|&b| !espaco(b) && !matches!(b, b'/' | b'>'))
+    {
         i += 1;
     }
     let mut pares: Vec<(String, Option<&str>)> = Vec::new();

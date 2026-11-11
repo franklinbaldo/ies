@@ -72,13 +72,20 @@ fn validar(processo: &ProcessoSimulado) -> Result<(), ErroProcessos> {
         return Err(ErroProcessos::DadoInvalido);
     }
     for (i, unidade) in processo.aberto_em.iter().enumerate() {
-        if processo.aberto_em[..i].contains(unidade) {
+        if processo
+            .aberto_em
+            .iter()
+            .take(i)
+            .any(|anterior| anterior == unidade)
+        {
             return Err(ErroProcessos::DadoInvalido);
         }
     }
     for (i, destino) in processo.destinos.iter().enumerate() {
-        if processo.destinos[..i]
+        if processo
+            .destinos
             .iter()
+            .take(i)
             .any(|anterior| anterior.id == destino.id || anterior.sigla == destino.sigla)
         {
             return Err(ErroProcessos::DadoInvalido);

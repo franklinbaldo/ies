@@ -191,11 +191,10 @@ fn tabela_da_lista<'d>(
         if !legendas.iter().any(|l| l.starts_with(LEGENDA)) {
             continue;
         }
-        if achada.is_some() || legendas.len() != 1 {
+        let (None, [legenda]) = (&achada, legendas.as_slice()) else {
             return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
-        }
-        let total =
-            total_da_legenda(&legendas[0]).ok_or(super::ErroTroca::ListaDeUnidadesIncompleta)?;
+        };
+        let total = total_da_legenda(legenda).ok_or(super::ErroTroca::ListaDeUnidadesIncompleta)?;
         achada = Some((tabela, total));
     }
     achada.ok_or(super::ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)
@@ -232,17 +231,19 @@ fn ler_linha(
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
     if atributo(radio, "type")?.as_deref() != Some("radio")
         || atributo(radio, "onclick")?.as_deref().map(str::trim) != Some(esperado.as_str())
-        || celulas.len() < 3
     {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
-    let sigla = texto(celulas[1], parser);
+    let [_, sigla, descricao, ..] = celulas.as_slice() else {
+        return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
+    };
+    let sigla = texto(sigla, parser);
     if sigla.is_empty() || atributo(radio, "title")?.as_deref() != Some(sigla.as_str()) {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let marcada =
         atributo_presente(radio, "checked").map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?;
-    let descricao = texto(celulas[2], parser);
+    let descricao = texto(descricao, parser);
     Ok(Some((
         UnidadeOferecida {
             sigla,

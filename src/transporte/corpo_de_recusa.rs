@@ -69,7 +69,7 @@ pub(crate) fn decodificar(bytes: &[u8], mime: &str) -> String {
         Ok(texto) => texto.to_owned(),
         // Sequência incompleta só no fim: o corte do limite; o resto vale.
         Err(erro) if erro.error_len().is_none() => {
-            String::from_utf8_lossy(&bytes[..erro.valid_up_to()]).into_owned()
+            String::from_utf8_lossy(bytes.split_at(erro.valid_up_to()).0).into_owned()
         }
         Err(_) => iso_8859_1(bytes),
     }
