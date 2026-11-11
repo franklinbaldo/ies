@@ -2,7 +2,7 @@
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCadastro {
     TipoDeCadastroDivergente,
@@ -15,9 +15,10 @@ pub(crate) enum ErroCadastro {
     AssuntoSugeridoNaoUnico,
     CadastroDeProcessoAusenteOuRepetido,
     CadastroDeProcessoHtmlInvalido,
+    HtmlDoCadastroNaoAnalisavel(#[source] tl::ParseError),
     AtributoDoCadastroIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     EspecificacaoNaoPublicadaNoCadastro,
-    LimiteDaEspecificacaoInvalidoNoCadastro,
+    LimiteDaEspecificacaoInvalidoNoCadastro(#[source] std::num::ParseIntError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,7 +74,7 @@ fn conferir_cadastro_interno(
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
+        .map_err(ErroCadastro::HtmlDoCadastroNaoAnalisavel)?;
     let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
         .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
     let [formulario] = formularios.as_slice() else {
@@ -119,7 +120,7 @@ fn conferir_cadastro_interno(
                     .map(|literal| {
                         literal
                             .parse::<usize>()
-                            .map_err(|_| ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro)
+                            .map_err(ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro)
                     })
                     .transpose()?;
                 descricoes += 1;

@@ -28,9 +28,11 @@ pub(crate) enum ErroHipotese {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     HipoteseLegalAjaxNaoDeclarada,
-    HipoteseLegalAjaxNaoDerivada,
+    HipoteseLegalAjaxNaoDerivada(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     HipoteseLegalAjaxRespostaNaoReconhecida,
     OpcaoNaoUnica,
+    XmlDaOpcaoNaoAnalisavel(#[source] tl::ParseError),
+    CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
     OpcoesDisponiveis(Vec<(String, String)>),
     EscolhaNaoOferecida,
     EscolhaInlineNaoVerificada,
@@ -42,10 +44,6 @@ pub(crate) enum ErroHipotese {
 impl ErroHipotese {
     fn consulta_nao_declarada() -> Self {
         Self::HipoteseLegalAjaxNaoDeclarada
-    }
-
-    fn consulta_nao_derivada() -> Self {
-        Self::HipoteseLegalAjaxNaoDerivada
     }
 
     fn resposta_nao_reconhecida() -> Self {
@@ -67,8 +65,10 @@ impl ErroHipotese {
         match self {
             Self::Transporte(falha) => falha.status_http(),
             Self::HipoteseLegalAjaxNaoDeclarada
-            | Self::HipoteseLegalAjaxNaoDerivada
+            | Self::HipoteseLegalAjaxNaoDerivada(_)
             | Self::HipoteseLegalAjaxRespostaNaoReconhecida
+            | Self::XmlDaOpcaoNaoAnalisavel(_)
+            | Self::CorpoDaRespostaIlegivel(_)
             | Self::OpcaoNaoUnica
             | Self::OpcoesDisponiveis(_)
             | Self::EscolhaNaoOferecida
@@ -100,7 +100,7 @@ fn url_publicada(html: &str) -> Result<String, ErroHipotese> {
 /// A resposta do infraAjaxMontarSelect é um select XML.
 fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
+        .map_err(ErroHipotese::XmlDaOpcaoNaoAnalisavel)?;
     let mut selects = dom.query_selector("select").into_iter().flatten();
     let select = selects
         .next()
@@ -119,9 +119,7 @@ fn opcoes(xml: &str) -> Result<Vec<(String, String)>, ErroHipotese> {
             .get(parser)
             .and_then(tl::Node::as_tag)
             .ok_or(ErroHipotese::resposta_nao_reconhecida())?;
-        if atributo_presente(opcao, "disabled")
-            .map_err(|_| ErroHipotese::resposta_nao_reconhecida())?
-        {
+        if atributo_presente(opcao, "disabled").map_err(ErroHipotese::Atributo)? {
             continue;
         }
         let valor = valor_do_atributo(opcao, "value").map_err(ErroHipotese::Atributo)?;
@@ -254,7 +252,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             ("staNivelAcesso", "1"),
         ],
     )
-    .map_err(|_| ErroHipotese::consulta_nao_derivada())?;
+    .map_err(ErroHipotese::HipoteseLegalAjaxNaoDerivada)?;
     *requisicoes += 1;
     let resposta = envio
         .post(consulta, cookie)
@@ -278,8 +276,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
     let mime = resposta.resposta.mime.clone();
     let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(|f| ErroHipotese::de_transporte(&f))?;
-    let xml =
-        decode_http_body(&bytes, &mime).map_err(|_| ErroHipotese::resposta_nao_reconhecida())?;
+    let xml = decode_http_body(&bytes, &mime).map_err(ErroHipotese::CorpoDaRespostaIlegivel)?;
     opcao_selecionada(&xml, escolha)
 }
 

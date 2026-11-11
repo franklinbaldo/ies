@@ -23,12 +23,16 @@ const AUTOCOMPLETAR: ConsultaAjax = ConsultaAjax {
 #[error("{self:?}")]
 pub(crate) enum ErroInteressado {
     AutocompletarNaoDeclarado,
-    DerivacaoRecusada,
+    DerivacaoRecusada(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     NaoOferecido,
     Ambiguo,
     InteressadoControlesAusentes,
+    HtmlDosControlesNaoAnalisavel(#[source] tl::ParseError),
+    FormularioDosControlesRecusado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AtributoDosControlesDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     InteressadoRespostaNaoReconhecida,
+    XmlDaRespostaNaoAnalisavel(#[source] tl::ParseError),
+    CorpoDaRespostaIlegivel(#[source] crate::transporte::corpo::ErroCorpoHttp),
     AtributoDaRespostaDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
     Transporte(#[from] crate::transporte::FalhaTransporte),
@@ -40,12 +44,16 @@ impl ErroInteressado {
         match self {
             Self::Transporte(falha) => falha.status_http(),
             Self::AutocompletarNaoDeclarado
-            | Self::DerivacaoRecusada
+            | Self::DerivacaoRecusada(_)
             | Self::NaoOferecido
             | Self::Ambiguo
             | Self::InteressadoControlesAusentes
+            | Self::HtmlDosControlesNaoAnalisavel(_)
+            | Self::FormularioDosControlesRecusado(_)
             | Self::AtributoDosControlesDeInteressadoIlegivel(_)
             | Self::InteressadoRespostaNaoReconhecida
+            | Self::XmlDaRespostaNaoAnalisavel(_)
+            | Self::CorpoDaRespostaIlegivel(_)
             | Self::AtributoDaRespostaDeInteressadoIlegivel(_) => None,
         }
     }
@@ -85,9 +93,9 @@ fn campo_unico(
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroInteressado::InteressadoControlesAusentes)?;
+        .map_err(ErroInteressado::HtmlDosControlesNaoAnalisavel)?;
     let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
-        .map_err(|_| ErroInteressado::InteressadoControlesAusentes)?;
+        .map_err(ErroInteressado::FormularioDosControlesRecusado)?;
     campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
     campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;
     campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
@@ -104,7 +112,7 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
 
 fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroInteressado::InteressadoRespostaNaoReconhecida)?;
+        .map_err(ErroInteressado::XmlDaRespostaNaoAnalisavel)?;
     let parser = dom.parser();
     let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
     let [root] = roots.as_slice() else {
@@ -177,7 +185,7 @@ pub(crate) fn resolver<V: EnvioDoControle>(
             &url,
             &[("palavras_pesquisa", pedido)],
         )
-        .map_err(|_| ErroInteressado::DerivacaoRecusada)?;
+        .map_err(ErroInteressado::DerivacaoRecusada)?;
         *requisicoes += 1;
         let resposta = envio.post(consulta, cookie)?;
         if resposta.resposta.status_code != 200 {
@@ -199,8 +207,8 @@ pub(crate) fn resolver<V: EnvioDoControle>(
         }
         let mime = resposta.resposta.mime.clone();
         let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)?;
-        let xml = decode_http_body(&bytes, &mime)
-            .map_err(|_| ErroInteressado::InteressadoRespostaNaoReconhecida)?;
+        let xml =
+            decode_http_body(&bytes, &mime).map_err(ErroInteressado::CorpoDaRespostaIlegivel)?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
         if !resultados
             .iter()

@@ -5,13 +5,14 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroListaDeTipos {
     TipoNaoOferecido,
     TipoSemAcao,
     ListaIncompleta,
     ListaDeTiposHtmlInvalido,
+    HtmlDaListaNaoAnalisavel(#[source] tl::ParseError),
     AtributoDaListaDeTiposIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     TabelaDeTiposAusenteOuRepetida,
     TipoDeProcessoAmbiguo,
@@ -70,7 +71,7 @@ fn link_do_cadastro(href: &str) -> Option<String> {
 /// comum antes da comparação.
 pub(crate) fn tipo_na_lista(html: &str, pedido: &str) -> Result<TipoEscolhido, ErroListaDeTipos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroListaDeTipos::ListaDeTiposHtmlInvalido)?;
+        .map_err(ErroListaDeTipos::HtmlDaListaNaoAnalisavel)?;
     let tabelas = nos_com_id(&dom, "tblTipoProcedimento")
         .map_err(ErroListaDeTipos::AtributoDaListaDeTiposIlegivel)?;
     let [tabela] = tabelas.as_slice() else {
