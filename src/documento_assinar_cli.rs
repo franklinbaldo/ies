@@ -90,10 +90,9 @@ fn assinar_na_sessao(
     };
     let feito = assinar_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
     if cli.json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json_de_sucesso(&feito)?)?
-        );
+        let mut valor = json_de_sucesso(&feito)?;
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{}", serde_json::to_string_pretty(&valor)?);
     } else {
         println!("{}", humano(&feito));
     }

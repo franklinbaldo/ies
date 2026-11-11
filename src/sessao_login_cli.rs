@@ -2,7 +2,7 @@
 //! privado de `IES_CREDENCIAIS_FILE`; a saída nunca publica credencial,
 //! cookie ou URL assinada.
 use crate::configuracao;
-use crate::indice_local::IndiceLocal;
+use crate::indice_local::{self, IndiceLocal};
 use crate::sessao_login::http::HttpsDoLogin;
 use crate::sessao_login::{Conexao, ErroLogin, PedidoDeLogin, ResultadoDoLogin, entrar_colhendo};
 use serde_json::{Value, json};
@@ -40,8 +40,11 @@ pub(crate) fn executar_login(
     let indice = IndiceLocal::da_configuracao(&arquivos);
     let resultado = entrar_colhendo(&pedido, &indice, &mut HttpsDoLogin)?;
     if json_mode {
-        println!("{}", json_do_resultado(&resultado));
+        let mut valor = json_do_resultado(&resultado);
+        indice_local::anexar_avisos(&mut valor, &indice);
+        println!("{valor}");
     } else {
+        indice_local::avisar_no_texto(&indice);
         let como = match resultado.conexao {
             Conexao::LoginRealizado => "login realizado",
             Conexao::SessaoExistenteValida => "sessão gravada ainda válida",

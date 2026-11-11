@@ -46,29 +46,28 @@ pub(crate) fn tentar_relacionar(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let preview = prever(sessao, &pedido, indice, &mut EnvioHttps)?;
-        publicar(cli.json, &preview);
+        publicar(cli.json, &preview, indice);
         Ok(())
     }))
 }
 
-fn publicar(json_mode: bool, previa: &Previa) {
+fn publicar(json_mode: bool, previa: &Previa, indice: &crate::indice_local::IndiceLocal) {
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "nup": previa.nup,
-                "id_procedimento": previa.id_procedimento,
-                "destino": previa.destino,
-                "id_destino": previa.id_destino,
-                "tipo_destino": previa.tipo_destino,
-                "remover": previa.remover,
-                "confirmado": previa.resultado == ResultadoRelacionar::Confirmado,
-                "alterado": previa.resultado == ResultadoRelacionar::Confirmado,
-                "sem_efeito": previa.sem_efeito(),
-                "origem": "web",
-                "requisicoes": previa.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "nup": previa.nup,
+            "id_procedimento": previa.id_procedimento,
+            "destino": previa.destino,
+            "id_destino": previa.id_destino,
+            "tipo_destino": previa.tipo_destino,
+            "remover": previa.remover,
+            "confirmado": previa.resultado == ResultadoRelacionar::Confirmado,
+            "alterado": previa.resultado == ResultadoRelacionar::Confirmado,
+            "sem_efeito": previa.sem_efeito(),
+            "origem": "web",
+            "requisicoes": previa.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if previa.resultado == ResultadoRelacionar::Confirmado {
         println!(
             "Relacionamento {} e conferido: {} com {}. Requisições: {}",

@@ -23,29 +23,28 @@ pub(crate) fn tentar_ciente_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
             confirmar: *confirmar,
         };
         let feito = ciencia_no_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
-        sucesso(cli.json, &feito);
+        sucesso(cli.json, &feito, indice);
         Ok(())
     }))
 }
 
-fn sucesso(json_mode: bool, feito: &CienciaDoDocumento) {
+fn sucesso(json_mode: bool, feito: &CienciaDoDocumento, indice: &crate::indice_local::IndiceLocal) {
     if json_mode {
-        println!(
-            "{}",
-            json!({
-                "numero": feito.numero,
-                "id_documento": feito.id_documento,
-                "rotulo": feito.rotulo,
-                "processo": {"nup": feito.processo_nup, "id": feito.id_procedimento},
-                "unidade": feito.unidade,
-                "origem": "web",
-                "confirmado": feito.confirmado,
-                "verificado": feito.verificado,
-                "id_atividade": feito.id_atividade,
-                "usuario": feito.usuario,
-                "requisicoes": feito.requisicoes,
-            })
-        );
+        let mut valor = json!({
+            "numero": feito.numero,
+            "id_documento": feito.id_documento,
+            "rotulo": feito.rotulo,
+            "processo": {"nup": feito.processo_nup, "id": feito.id_procedimento},
+            "unidade": feito.unidade,
+            "origem": "web",
+            "confirmado": feito.confirmado,
+            "verificado": feito.verificado,
+            "id_atividade": feito.id_atividade,
+            "usuario": feito.usuario,
+            "requisicoes": feito.requisicoes,
+        });
+        crate::indice_local::anexar_avisos(&mut valor, indice);
+        println!("{valor}");
     } else if feito.verificado {
         println!(
             "Ciência no documento {} verificada na Lista de Ciências (atividade {}). Requisições: {}.",

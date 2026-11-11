@@ -39,20 +39,19 @@ pub(crate) fn tentar_registrar(cli: &Cli) -> Option<anyhow::Result<()>> {
             &mut EnvioHttps,
         )?;
         if cli.json {
-            println!(
-                "{}",
-                json!({
-                    "numero": r.numero,
-                    "texto": r.texto,
-                    "confirmado": r.confirmado,
-                    "alterado": r.total_depois.is_some(),
-                    "origem": "web",
-                    "total_antes": r.total_antes,
-                    "total_depois": r.total_depois,
-                    "requisicoes": r.requisicoes,
-                    "resposta_inesperada": r.resposta_inesperada,
-                })
-            );
+            let mut valor = json!({
+                "numero": r.numero,
+                "texto": r.texto,
+                "confirmado": r.confirmado,
+                "alterado": r.total_depois.is_some(),
+                "origem": "web",
+                "total_antes": r.total_antes,
+                "total_depois": r.total_depois,
+                "requisicoes": r.requisicoes,
+                "resposta_inesperada": r.resposta_inesperada,
+            });
+            crate::indice_local::anexar_avisos(&mut valor, indice);
+            println!("{valor}");
         } else if r.confirmado {
             println!(
                 "Andamento registrado e conferido no processo {}. Requisições: {}",

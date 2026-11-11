@@ -15,10 +15,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// Por que o banco não abriu. O índice se desliga em qualquer caso
-/// (`IndiceLocal::executar`); o erro diz qual conferência recusou.
+/// (`IndiceLocal::executar`); o erro diz qual conferência recusou e vai
+/// para os avisos da saída ([`ErroAberturaDoIndice::serialize`]).
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
-pub(super) enum ErroAberturaDoIndice {
+pub(crate) enum ErroAberturaDoIndice {
     DiretoriosRecusados(#[source] crate::arquivo_privado::FalhaDaGravacao),
     DiretorioIlegivel(#[source] std::io::Error),
     DiretorioNaoPrivado,
@@ -34,6 +35,65 @@ pub(super) enum ErroAberturaDoIndice {
     VersaoDoEsquemaNegativa(i64, #[source] std::num::TryFromIntError),
     EsquemaDeBinarioMaisNovo,
     Sqlite(#[from] rusqlite::Error),
+}
+
+/// Forma tipada para a saída: o nome da variante e, quando há, o `kind` do
+/// sistema, a falha da gravação privada, a versão lida ou o código estendido
+/// do SQLite. Nunca o caminho (diz onde a sessão mora) nem a mensagem do
+/// SQLite.
+impl serde::Serialize for ErroAberturaDoIndice {
+    fn serialize<S: serde::Serializer>(&self, serializador: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut mapa = serializador.serialize_map(None)?;
+        match self {
+            Self::DiretoriosRecusados(falha) => {
+                mapa.serialize_entry("erro", "diretorios_recusados")?;
+                mapa.serialize_entry("gravacao", &format!("{falha:?}"))?;
+            }
+            Self::DiretorioIlegivel(erro) => {
+                mapa.serialize_entry("erro", "diretorio_ilegivel")?;
+                mapa.serialize_entry("io", &format!("{:?}", erro.kind()))?;
+            }
+            Self::DiretorioNaoPrivado => mapa.serialize_entry("erro", "diretorio_nao_privado")?,
+            Self::CaminhoDoBancoSemNomeDeArquivo => {
+                mapa.serialize_entry("erro", "caminho_do_banco_sem_nome_de_arquivo")?;
+            }
+            Self::ArquivoIlegivel(erro) => {
+                mapa.serialize_entry("erro", "arquivo_ilegivel")?;
+                mapa.serialize_entry("io", &format!("{:?}", erro.kind()))?;
+            }
+            Self::ArquivoNaoPrivado => mapa.serialize_entry("erro", "arquivo_nao_privado")?,
+            Self::CriacaoDoBancoRecusada(falha) => {
+                mapa.serialize_entry("erro", "criacao_do_banco_recusada")?;
+                mapa.serialize_entry("gravacao", &format!("{falha:?}"))?;
+            }
+            Self::BancoAusenteAposCriacao => {
+                mapa.serialize_entry("erro", "banco_ausente_apos_criacao")?;
+            }
+            Self::TravaDaPreparacaoIlegivel(erro) => {
+                mapa.serialize_entry("erro", "trava_da_preparacao_ilegivel")?;
+                mapa.serialize_entry("io", &format!("{:?}", erro.kind()))?;
+            }
+            Self::TravaDaPreparacaoOcupada => {
+                mapa.serialize_entry("erro", "trava_da_preparacao_ocupada")?;
+            }
+            Self::ModoWalRecusado => mapa.serialize_entry("erro", "modo_wal_recusado")?,
+            Self::VersaoDoEsquemaNegativa(versao, _) => {
+                mapa.serialize_entry("erro", "versao_do_esquema_negativa")?;
+                mapa.serialize_entry("versao", versao)?;
+            }
+            Self::EsquemaDeBinarioMaisNovo => {
+                mapa.serialize_entry("erro", "esquema_de_binario_mais_novo")?;
+            }
+            Self::Sqlite(erro) => {
+                mapa.serialize_entry("erro", "sqlite")?;
+                if let Some(falha) = erro.sqlite_error() {
+                    mapa.serialize_entry("codigo_sqlite", &falha.extended_code)?;
+                }
+            }
+        }
+        mapa.end()
+    }
 }
 
 /// Vários `ies` ao mesmo tempo: as transações são minúsculas.

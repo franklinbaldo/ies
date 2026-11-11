@@ -44,14 +44,14 @@ impl ErroPaginaWeb {
 /// do Controle lida é colhida no índice local, sem requisição a mais.
 pub(super) fn obter(
     arquivos: &ArquivosDeAcesso,
+    indice: &IndiceLocal,
     unidade: Option<&str>,
     categoria: Categoria,
     pagina: Option<usize>,
 ) -> Result<String, ErroPaginaWeb> {
-    let indice = IndiceLocal::da_configuracao(arquivos);
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
-    let colheita = Colheita::das_referencias(&indice, &sessao);
+    let colheita = Colheita::das_referencias(indice, &sessao);
     let tela = ler_tela_do_controle(&sessao)?;
     colheita.colher(&tela.html, Some(&tela.mime));
     let detalhada = crate::controle_contexto::contexto_da_pagina(&tela.html)
