@@ -3,11 +3,13 @@
 
 use super::recibo::ReciboUpload;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaAnexo {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    /// O tokenizador HTML recusou a tela inteira.
+    HtmlNaoAnalisavel(#[source] tl::ParseError),
     FormaNaoObservada,
     LinhaInvalida,
     ReciboIncompativel,
@@ -194,7 +196,7 @@ fn corpo_do_script(html: &str, inicio: usize) -> Option<&str> {
 /// Não executa JS, não inventa URL e não aceita colunas de template inerte.
 pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaAnexo::FormaNaoObservada)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaAnexo::HtmlNaoAnalisavel)?;
     let mut inertes = Vec::new();
     for no in dom.query_selector("template").into_iter().flatten() {
         let tag = no
@@ -225,9 +227,7 @@ pub(crate) fn ler_plano(html: &str) -> Result<PlanoAnexo, FalhaAnexo> {
         {
             continue;
         }
-        if crate::html_atributos::atributo_presente(tag, "src")
-            .map_err(|_| FalhaAnexo::FormaNaoObservada)?
-        {
+        if crate::html_atributos::atributo_presente(tag, "src").map_err(FalhaAnexo::Atributo)? {
             continue;
         }
         let fonte = corpo_do_script(html, inicio).ok_or(FalhaAnexo::FormaNaoObservada)?;

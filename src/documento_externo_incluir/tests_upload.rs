@@ -133,8 +133,5 @@ fn falha_de_rede_no_upload_temporario_eh_incerta_sem_reenvio() {
         PDF.len() as u64,
     );
     assert_eq!(tentativas, 1);
-    assert!(matches!(
-        resultado,
-        Err(FalhaUpload::NaoConfirmado { status_http: None })
-    ));
+    assert!(matches!(resultado, Err(FalhaUpload::EnvioSemResposta(_))));
 }

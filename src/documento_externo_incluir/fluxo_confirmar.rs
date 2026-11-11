@@ -59,8 +59,8 @@ fn conferir_upload(
     let mut processo_informado = false;
     for par in consulta.split('&') {
         let (chave, valor) = par.split_once('=').ok_or_else(erro)?;
-        conferir_chave_de_consulta(chave).map_err(|_| erro())?;
-        conferir_valor_de_consulta(valor).map_err(|_| erro())?;
+        conferir_chave_de_consulta(chave).map_err(ErroIncluirExterno::Transporte)?;
+        conferir_valor_de_consulta(valor).map_err(ErroIncluirExterno::Transporte)?;
         match chave {
             "acao" if valor == "documento_upload_anexo" => acao += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {

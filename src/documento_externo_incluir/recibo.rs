@@ -2,6 +2,8 @@
 //! Oráculo: Todos #775 (`UnB` SEI 4), cassette de escrita `UnB`; a etapa não cadastra documento.
 //! Os testes exercitam respostas sintéticas; isto ainda não habilita `--confirmar`.
 
+use crate::transporte::{FalhaTransporte, corpo::ErroCorpoHttp};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ReciboUpload {
     pub(crate) nome_upload: String,
@@ -11,7 +13,8 @@ pub(crate) struct ReciboUpload {
     pub(crate) data_hora: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaUpload {
     PreparacaoMultipart(super::multipart::FalhaMultipart),
     Recusado {
@@ -21,6 +24,14 @@ pub(crate) enum FalhaUpload {
     NaoConfirmado {
         status_http: Option<u16>,
     },
+    /// O POST não obteve resposta (falha de transporte).
+    EnvioSemResposta(#[source] FalhaTransporte),
+    /// O corpo da resposta não foi lido dentro do limite.
+    CorpoNaoLido(#[source] FalhaTransporte),
+    /// O corpo da resposta não decodifica no charset declarado.
+    CorpoIlegivel(#[source] ErroCorpoHttp),
+    /// O tamanho informado no recibo não é um número.
+    TamanhoDoReciboIlegivel(#[source] std::num::ParseIntError),
 }
 
 pub(crate) fn interpretar_resposta(
@@ -55,7 +66,9 @@ pub(crate) fn interpretar_resposta(
     let [nome_upload, nome, tipo, tamanho, data_hora, fim] = partes.as_slice() else {
         return Err(incerto());
     };
-    let tamanho_bytes = tamanho.parse::<u64>().map_err(|_| incerto())?;
+    let tamanho_bytes = tamanho
+        .parse::<u64>()
+        .map_err(FalhaUpload::TamanhoDoReciboIlegivel)?;
     if !fim.is_empty()
         || nome_upload.is_empty()
         || nome.is_empty()
@@ -93,10 +106,10 @@ pub(crate) fn interpretar_http<R: std::io::Read>(
     {
         return Err(incerto());
     }
-    let bytes =
-        crate::transporte::ler_limitado(resposta.corpo, 64 * 1024).map_err(|_| incerto())?;
+    let bytes = crate::transporte::ler_limitado(resposta.corpo, 64 * 1024)
+        .map_err(FalhaUpload::CorpoNaoLido)?;
     let corpo = crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| incerto())?;
+        .map_err(FalhaUpload::CorpoIlegivel)?;
     interpretar_resposta(status_http, &corpo, nome_esperado, tamanho_esperado)
 }
 
@@ -191,7 +204,6 @@ mod tests {
     #[test]
     fn recibo_ambiguo_ou_com_tamanho_nao_numerico_nao_autoriza_cadastro() {
         for corpo in [
-            "94e336aa#prova.pdf#application/pdf#xx#11/10/2026 11:07:50#",
             "94e336aa#prova.pdf#application/pdf#68#11/10/2026 11:07:50#extra#",
             "#prova.pdf#application/pdf#68#11/10/2026 11:07:50#",
         ] {
@@ -202,5 +214,15 @@ mod tests {
                 })
             );
         }
+        // Tamanho não numérico: a causa do `parse` é guardada na variante.
+        assert!(matches!(
+            interpretar_resposta(
+                200,
+                "94e336aa#prova.pdf#application/pdf#xx#11/10/2026 11:07:50#",
+                "prova.pdf",
+                68
+            ),
+            Err(FalhaUpload::TamanhoDoReciboIlegivel(_))
+        ));
     }
 }
