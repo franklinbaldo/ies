@@ -3,6 +3,7 @@
 #[test]
 fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -16,7 +17,6 @@ fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
     let arquivo = |nome: &str, bytes: &str| {
         let caminho = pasta.join(nome);
         fs::write(&caminho, bytes).unwrap();
-        use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&caminho, fs::Permissions::from_mode(0o600)).unwrap();
         caminho
     };
