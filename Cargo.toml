@@ -36,6 +36,20 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 members = ["xtask", "crates/iesei", "crates/anti-ies"]
 resolver = "3"
 
+# Limpos por ablação (#727): ligados para não regredir. Os testes ficam
+# liberados de expect/unwrap/panic/indexação pelo clippy.toml.
+[workspace.lints.clippy]
+wildcard_enum_match_arm = "deny"
+string_slice = "deny"
+indexing_slicing = "deny"
+expect_used = "deny"
+unwrap_used = "deny"
+panic = "deny"
+as_conversions = "deny"
+
+[lints]
+workspace = true
+
 [[test]]
 name = "bdd_cli"
 harness = false

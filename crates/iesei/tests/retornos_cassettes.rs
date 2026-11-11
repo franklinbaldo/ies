@@ -1,3 +1,5 @@
+#![expect(clippy::unwrap_used, reason = "fixture do teste de integração")]
+
 use iesei::banco_cassettes::iniciar;
 use iesei::instalacao::Instalacao;
 use iesei::retornos_cassettes::{Mes, Retorno, Situacao, guardar, ler};

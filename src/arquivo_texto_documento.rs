@@ -17,12 +17,8 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
         FalhaDaGravacao::DiretorioAusente
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
-        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => {
-            ErroArquivoTexto::DiretorioAusente
-        }
-        FalhaDaGravacao::DestinoJaExiste => {
-            ErroArquivoTexto::DestinoJaExiste
-        }
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoTexto::DiretorioAusente,
+        FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
         FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
@@ -32,9 +28,7 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
-        | FalhaDaGravacao::ConfirmacaoFalhou => {
-            ErroArquivoTexto::EscritaFalhou
-        }
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
     }
 }
 

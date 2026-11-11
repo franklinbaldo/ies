@@ -181,7 +181,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
         | ErroEnviar::RemocaoDeAnotacoesSemVerificacao
         | ErroEnviar::AnotacoesNaoRemovidasAposEnvio { .. }
         | ErroEnviar::AnotacaoNaoLimpaAntesDeEnviar
-        | ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao
+        | ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(_)
         | ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { .. }
         | ErroEnviar::Anotacoes(_)
         | ErroEnviar::DestinoNaoOferecidoPeloSei { .. }

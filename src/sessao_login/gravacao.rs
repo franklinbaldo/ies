@@ -166,6 +166,11 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
         | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::ConfirmacaoFalhou => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }

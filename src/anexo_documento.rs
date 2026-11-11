@@ -137,6 +137,11 @@ impl ArquivoParcial {
             | FalhaDaGravacao::AcimaDoLimite
             | FalhaDaGravacao::CriacaoFalhou
             | FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+            | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+            | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+            | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+            | FalhaDaGravacao::NomesDeTemporarioEsgotados
             | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
         })
     }
@@ -191,6 +196,26 @@ impl ErroAnexo {
 
 /// A falha de leitura do corpo do anexo: a resposta excessiva é o limite do
 /// anexo; as demais seguem como falha de transporte.
+/// A falha ao acrescentar bytes ao parcial: só o limite tem fato próprio.
+fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
+    match falha {
+        FalhaDaGravacao::AcimaDoLimite => ErroAnexo::AcimaDoLimite,
+        FalhaDaGravacao::SemNomeDeArquivo
+        | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioGravavelPorOutros
+        | FalhaDaGravacao::DestinoJaExiste
+        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        | FalhaDaGravacao::CriacaoFalhou
+        | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
+        | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
+        | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
+        | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
+        | FalhaDaGravacao::NomesDeTemporarioEsgotados
+        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+    }
+}
+
 fn erro_de_leitura(erro: &std::io::Error) -> ErroAnexo {
     let falha = falha_de_leitura(erro);
     match falha.fato_da_resposta() {
@@ -260,20 +285,7 @@ pub(crate) fn ler_anexo<R: Read>(
         conferir_token(lidos, &mut token_lido)?;
         hasher.update(lidos);
         if let Some(aberto) = &mut arquivo {
-            aberto
-                .parcial
-                .escrever(lidos)
-                .map_err(|falha| match falha {
-                    FalhaDaGravacao::AcimaDoLimite => ErroAnexo::AcimaDoLimite,
-                    FalhaDaGravacao::SemNomeDeArquivo
-                    | FalhaDaGravacao::DiretorioAusente
-                    | FalhaDaGravacao::DiretorioGravavelPorOutros
-                    | FalhaDaGravacao::DestinoJaExiste
-                    | FalhaDaGravacao::DestinoNaoEhArquivoRegular
-                    | FalhaDaGravacao::CriacaoFalhou
-                    | FalhaDaGravacao::EscritaFalhou
-                    | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
-                })?;
+            aberto.parcial.escrever(lidos).map_err(erro_ao_escrever)?;
         }
         if texto {
             guardado.extend_from_slice(lidos);
