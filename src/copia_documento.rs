@@ -243,8 +243,12 @@ fn par(
             _ => maior,
         }
     };
-    let editada = VersaoDocumento::nova(base.numero().saturating_add(1))
-        .map_err(|_| ErroCopia::VersaoEditadaAusente)?;
+    let seguinte = base
+        .numero()
+        .checked_add(1)
+        .ok_or(ErroCopia::VersaoEditadaAusente)?;
+    let editada =
+        VersaoDocumento::nova(seguinte).map_err(|_| ErroCopia::VersaoEditadaAusente)?;
     Ok((base, editada))
 }
 
