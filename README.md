@@ -28,10 +28,13 @@ gates do `prek` usados localmente.
 
 O binário Rust `ies` também pode ser distribuído como wheel pelo
 `maturin` (`bindings = "bin"`, sem PyO3). Quando o pacote
-`ies-sei` estiver publicado com wheels pré-compilados:
+`ies-cli` estiver publicado com wheels pré-compilados:
 
 ```sh
-uvx --from ies-sei ies --help
+uvx ies-cli --help
+# Os nomes ies e sei continuam disponiveis apos a instalacao:
+uv tool install ies-cli
+sei --help
 ```
 
 O pacote **ainda não foi publicado no PyPI**. Veja o
