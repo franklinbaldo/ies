@@ -141,3 +141,20 @@ no Archive. Não substitua a captura histórica.
 
 Leia também [como o SEI funciona](como-o-sei-funciona/README.md)
 e o [contrato da CLI](../contracts/cli.md).
+
+## E2E como teste de aceitação (11/11/2026)
+
+Os antigos cenários BDD/Gherkin/Cucumber foram aposentados. A referência
+para qualquer nova alteração Web é a **cassette original verificável**:
+primeiro os cards e hashes do acervo; depois o binário real do IES
+sobre a resposta gravada e, para transição, CLI ↔ anti-IES ↔ SQLite
+compartilhado semeado com fatos da cassette. O simulador deve ser comparado
+**independentemente** com a resposta original, nunca apenas com o parser
+que ele próprio alimentou. Captura sem POST ou releitura mantém essa
+transição como hipótese; registre a lacuna e avance com fixture mínima
+rotulada, sem confundir teste sintético com replay.
+
+O [ciclo de cassettes](anti-ies/ciclo-cassettes.md) e a
+skill de E2E `.agents/skills/cassette-e2e/SKILL.md` são normativos.
+Não apagar testes Rust úteis que ainda protejam invariantes não gravadas
+sem antes substituí-los por cobertura equivalente.

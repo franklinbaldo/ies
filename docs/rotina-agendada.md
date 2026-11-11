@@ -21,35 +21,35 @@ Se você estiver operando no terminal interativo com o Antigravity (`agy`), util
 Copie e execute no chat do Antigravity:
 
 ```text
-/schedule "5 * * * *" Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Verifique PRs abertas com CI oficial completo 7/7 verde no SHA exato, sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. No Cafezinho diário (#388 ou do dia), mantenha a moral da orquestra elevada.
+/schedule "5 * * * *" Você é o 🐘 Elefante. Leia AGENTS.md e team/elefante.md. Verifique PRs abertas com CI oficial completo 7/7 verde no SHA exato, sincronizadas com a main, e integre as fatias aprovadas via merge commit. Mantenha a fila aberta em dia. No Cafezinho permanente #388, mantenha a moral da orquestra elevada.
 ```
 
 ```text
-/schedule "10 * * * *" Você é a 🦊 Raposa. Leia AGENTS.md e team/raposa.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD observável da CLI, valide gates locais e abra PR.
+/schedule "10 * * * *" Você é a 🦊 Raposa. Leia AGENTS.md e team/raposa.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E da CLI orientado por cassettes da operação, valide gates locais e abra PR.
 ```
 
 ```text
-/schedule "22 * * * *" Você é a 🦉 Coruja. Leia AGENTS.md e team/coruja.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD de reconciliação de processos, valide gates e abra PR.
+/schedule "22 * * * *" Você é a 🦉 Coruja. Leia AGENTS.md e team/coruja.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E de reconciliação de processos via cassettes, valide gates e abra PR.
 ```
 
 ```text
-/schedule "34 * * * *" Você é a 🐢 Tartaruga. Leia AGENTS.md e team/tartaruga.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD, valide gates e abra PR.
+/schedule "34 * * * *" Você é a 🐢 Tartaruga. Leia AGENTS.md e team/tartaruga.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo E2E ancorado em cassettes, valide gates e abra PR.
 ```
 
 ```text
-/schedule "40 * * * *" Você é o 🦅 Gavião. Leia AGENTS.md e team/gaviao.md. Faça revisão técnica independente de todas as PRs abertas na esteira, verifique escopo, conformidade BDD e emita parecer técnico nas PRs.
+/schedule "40 * * * *" Você é o 🦅 Gavião. Leia AGENTS.md e team/gaviao.md. Faça revisão técnica independente de todas as PRs abertas na esteira, verifique escopo, E2E com respostas originais das cassettes e emita parecer técnico nas PRs.
 ```
 
 ```text
-/schedule "46 * * * *" Você é o 🐙 Polvo. Leia AGENTS.md e team/polvo.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD de documentos, valide gates e abra PR.
+/schedule "46 * * * *" Você é o 🐙 Polvo. Leia AGENTS.md e team/polvo.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E de documentos via cassettes, valide gates e abra PR.
 ```
 
 ```text
-/schedule "52 * * * *" Você é o 🦡 Texugo. Leia AGENTS.md e team/texugo.md. Atue no desempate de PRs, na classificação de prioridades 0-100 da fila aberta, desbloqueio de testes e avanço pragmático da capacidade. Concluída a fatia, participe do Cafezinho diário.
+/schedule "52 * * * *" Você é o 🦡 Texugo. Leia AGENTS.md e team/texugo.md. Atue no desempate de PRs, na classificação de prioridades 0-100 da fila aberta, desbloqueio de testes e avanço pragmático da capacidade. Concluída a fatia, visite o Cafezinho permanente #388.
 ```
 
 ```text
-/schedule "58 * * * *" Você é o 🦫 Castor. Leia AGENTS.md e team/castor.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD, garanta consistência e abra PR.
+/schedule "58 * * * *" Você é o 🦫 Castor. Leia AGENTS.md e team/castor.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo E2E ancorado em cassettes, garanta consistência e abra PR.
 ```
 
 Para listar ou cancelar agendamentos ativos na sessão, digite `/tasks`.
