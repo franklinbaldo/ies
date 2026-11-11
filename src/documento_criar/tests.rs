@@ -8,8 +8,8 @@ fn doc(id: &str, numero: Option<&str>, rotulo: &str) -> DocumentoNaArvore {
         numero_sei: numero.map(str::to_owned),
         pasta: None,
         natureza: NaturezaDoDocumento {
-            icone: None,
-            cancelamento: Cancelamento::NaoObservado,
+            icone: "documento_interno".into(),
+            cancelamento: Cancelamento::Ativo,
             dica: None,
         },
     }

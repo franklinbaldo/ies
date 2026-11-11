@@ -99,7 +99,7 @@ fn previa_seleciona_login_exato_com_quatro_gets_e_nenhum_post() {
 }
 
 // Caso de diagnóstico UFRJ: árvore expôs PR-P mas a prévia recusou
-// situacao_da_atribuicao_nao_observada (runs 42229686084, 42230157551).
+// (diagnóstico anterior à divisão por fato; runs 42229686084, 42230157551).
 // A divergência da unidade da tela é uma HIPÓTESE sintética, não fato live.
 #[test]
 fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() {
@@ -107,12 +107,11 @@ fn previa_com_unidade_da_arvore_diferente_publica_fatos_e_tentativas_sem_post() 
     let erro = resultado.unwrap_err();
     assert!(matches!(
         &erro,
-        ErroProcessoAtribuir::SituacaoDaAtribuicaoNaoObservada {
+        ErroProcessoAtribuir::UnidadeNaoPublicadaNaArvore {
             unidade,
-            aberto_em: Some(siglas),
-            motivo: None,
+            unidades_da_arvore,
             requisicoes: 3,
-        } if unidade == "TESTE" && siglas.len() == 1 && siglas[0] == "PR-P"
+        } if unidade == "TESTE" && unidades_da_arvore.len() == 1 && unidades_da_arvore[0] == "PR-P"
     ));
     assert_eq!(pedidos, pedidos_da_abertura());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 0);
@@ -350,7 +349,7 @@ fn post_sem_resposta_e_releitura_coincidente_nao_comprovam_autoria() {
         ErroProcessoAtribuir::NaoConfirmadoNaAtribuicao {
             falha_do_envio: Some(falha),
             leitura: None,
-            atribuicao_relida: Some(atual),
+            atribuicao_relida: Ok(atual),
             requisicoes: 6,
         } if matches!(
             falha.as_ref(),

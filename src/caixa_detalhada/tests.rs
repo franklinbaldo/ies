@@ -33,7 +33,7 @@ fn pagina_detalhada_completa_de_um_get_vira_lista_sem_categorias_inventadas() {
     assert_eq!(resposta.processos.len(), 2);
     assert_eq!(resposta.processos[0].id.as_str(), "1");
     assert_eq!(resposta.processos[0].numero, "000001/2026");
-    assert_eq!(resposta.processos[0].visualizado, Some(true));
+    assert!(resposta.processos[0].visualizado);
     assert_eq!(resposta.processos[1].numero, "000002/2026");
 }
 
@@ -44,7 +44,7 @@ fn booleano_antes_de_id_href_e_class_nao_altera_a_leitura() {
     assert!(possui_tabela(&html));
     let resposta = ler_paginas(&[html], Some("PPI")).unwrap();
     assert_eq!(resposta.processos.len(), 2);
-    assert_eq!(resposta.processos[0].visualizado, Some(true));
+    assert!(resposta.processos[0].visualizado);
     assert_eq!(resposta.processos[1].numero, "000002/2026");
 }
 
@@ -191,17 +191,18 @@ fn detalhada_le_sigilo_da_classe_e_preserva_numero_opaco() {
     ] {
         let leitura = com_classe(classe).unwrap();
         let processo = &leitura.processos[0];
-        assert_eq!(processo.visualizado, Some(visualizado), "{classe}");
-        assert_eq!(processo.sigiloso, Some(sigiloso), "{classe}");
+        assert_eq!(processo.visualizado, visualizado, "{classe}");
+        assert_eq!(processo.sigiloso, sigiloso, "{classe}");
         assert_eq!(processo.numero, "001234500000015");
     }
 }
 
 #[test]
-fn detalhada_sem_classe_reconhecida_nao_inventa_estado() {
-    let leitura = com_classe("outraClasse").unwrap();
-    assert_eq!(leitura.processos[0].visualizado, None);
-    assert_eq!(leitura.processos[0].sigiloso, None);
+fn detalhada_sem_classe_reconhecida_recusa_em_vez_de_inventar_estado() {
+    assert_eq!(
+        com_classe("outraClasse").map(|leitura| leitura.processos.len()),
+        Err(ErroDetalhada::EstadoDoLinkDoProcessoAusente)
+    );
 }
 
 #[test]

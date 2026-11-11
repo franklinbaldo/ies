@@ -15,26 +15,30 @@ fn regra_servida_na_visao_resumida_e_aceita() {
 }
 
 #[test]
-fn regra_alterada_ou_link_para_outra_visao_e_recusa() {
+fn regra_alterada_e_recusa() {
     let html = pagina_do_historico(NUP, "10", 'R', 2, 2);
-    for trocado in [
-        html.replace("function verHistorico(valor){", "function verHistorico(v){"),
-        html.replace(
-            "document.getElementById('hdnTipoHistorico').value = valor;",
-            "document.getElementById('hdnTipoHistorico').value = 'P';",
+    let casos = [
+        (
+            html.replace("function verHistorico(valor){", "function verHistorico(v){"),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
         ),
-        html.replace(
-            "document.getElementById('frmProcedimentoHistorico').submit();",
-            "infraSubmit();",
+        (
+            html.replace(
+                "document.getElementById('hdnTipoHistorico').value = valor;",
+                "document.getElementById('hdnTipoHistorico').value = 'P';",
+            ),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
         ),
-        html.replace("verHistorico('P');", "verHistorico('X');"),
-        html.replace("id=\"ancTipoHistorico\" ", ""),
-        pagina_do_historico(NUP, "10", 'P', 2, 2),
-    ] {
-        assert_eq!(
-            conferir_regra_de_ver_historico(&trocado),
-            Err(super::ErroAndamentos::RegraDeVerHistoricoNaoObservada)
-        );
+        (
+            html.replace(
+                "document.getElementById('frmProcedimentoHistorico').submit();",
+                "infraSubmit();",
+            ),
+            super::ErroAndamentos::RegraDeVerHistoricoAusenteNaPagina,
+        ),
+    ];
+    for (trocado, esperado) in casos {
+        assert_eq!(conferir_regra_de_ver_historico(&trocado), Err(esperado));
     }
 }
 

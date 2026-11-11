@@ -1,9 +1,12 @@
 //! BDD-255-01: atribuição ausente exige catálogo publicado no formulário da unidade.
 //! Prévia não modifica processo e confirmação só será permitida após aceite causal.
-use super::{Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa};
+use super::{
+    Decisao, ErroMarcar, FalhaDaMarcacao, Operacao, Rotulo, decidir, recusa,
+    releitura_de_marcadores,
+};
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
-use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -14,10 +17,10 @@ use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, ler_cookie, obter_tela};
+use crate::processo_concluir::escrita::{Contador, FalhaDaTela, ler_cookie, obter_tela};
 use crate::processo_obter::{
     EnvioDoProcesso, Marcadores, PedidoDeAndamentos, PedidoDoProcesso, SessaoDoProcesso,
-    abrir_para_escrever, obter_processo,
+    abrir_para_escrever,
 };
 use crate::transporte::decodificar_resposta;
 use crate::visao_do_controle::EnvioDoControle as _;
@@ -38,28 +41,27 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-/// Extrai link do botão efetivamente servido, sem executar JavaScript.
-/// O link retornado só é usado depois da validação de ação, processo e assinatura.
-fn link_de_adicionar(html: &str) -> Option<String> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).ok()?;
-    let mut links = Vec::new();
-    for tag in dom
-        .query_selector("button")?
+/// Extrai o link do botão `btnAdicionar` servido, sem executar JavaScript.
+/// O link só vale depois de `conferir_endereco_relativo` (ação, processo e
+/// assinatura); a forma do botão não é conferida aqui.
+fn link_de_adicionar(html: &str) -> Result<String, ErroMarcar> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroMarcar::DestinoDoCadastroAusente)?;
+    dom.query_selector("button")
+        .into_iter()
+        .flatten()
         .filter_map(|h| h.get(dom.parser()).and_then(tl::Node::as_tag))
-    {
-        if valor_do_atributo(tag, "id").ok()?.as_deref() != Some("btnAdicionar") {
-            continue;
-        }
-        let onclick = valor_do_atributo(tag, "onclick").ok()??;
-        let relativo = onclick
-            .strip_prefix("location.href='")?
-            .strip_suffix('\'')?;
-        links.push(decodificar_atributo(relativo)?);
-    }
-    match links.as_slice() {
-        [link] => Some(link.clone()),
-        _ => None,
-    }
+        .filter(|tag| {
+            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("btnAdicionar"))
+        })
+        .find_map(|tag| {
+            let onclick = valor_do_atributo(tag, "onclick").ok()??;
+            let relativo = onclick
+                .strip_prefix("location.href='")?
+                .strip_suffix('\'')?;
+            decodificar_atributo(relativo)
+        })
+        .ok_or(ErroMarcar::DestinoDoCadastroAusente)
 }
 
 fn destino_cadastro<V: EnvioDoProcesso>(
@@ -68,60 +70,61 @@ fn destino_cadastro<V: EnvioDoProcesso>(
     link: &str,
     instalacao: &Instalacao,
     id: &str,
-) -> Option<String> {
-    let resposta = rede.get_sem_seguir(link, cookie).ok()?;
+) -> anyhow::Result<String> {
+    let resposta = rede.get_sem_seguir(link, cookie)?;
     let destino = if resposta.resposta.status_code == 302 {
-        let redir = resposta.localizacao?;
+        let redir = resposta
+            .localizacao
+            .ok_or_else(|| recusa(ErroMarcar::DestinoDoCadastroAusente, rede.feitas()))?;
         let prefixo = format!("{}/", instalacao.url_base());
         redir.strip_prefix(&prefixo).unwrap_or(&redir).to_owned()
     } else {
-        let html = decodificar_resposta(resposta.resposta).ok()?;
-        link_de_adicionar(&html)?
+        let html = decodificar_resposta(resposta.resposta)?;
+        link_de_adicionar(&html).map_err(|causa| recusa(causa, rede.feitas()))?
     };
-    conferir_endereco_relativo(instalacao, &destino, ADICIONAR.acao, id).ok()
+    conferir_endereco_relativo(instalacao, &destino, ADICIONAR.acao, id).map_err(|recusado| {
+        let causa = match recusado {
+            EnderecoRecusado::NaoReconhecido => ErroMarcar::EnderecoDoCadastroNaoReconhecido,
+            EnderecoRecusado::DeOutroProcesso => ErroMarcar::EnderecoDoCadastroDeOutroProcesso,
+        };
+        recusa(causa, rede.feitas())
+    })
 }
 
 /// A identidade do catálogo vem de option[value=id] no select da unidade,
-/// não do marcador aplicado ao processo nem de uma lista sem origem.
-fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> bool {
-    let Ok(dom) = tl::parse(html, tl::ParserOptions::default()) else {
-        return false;
-    };
+/// não do marcador aplicado ao processo nem de uma lista sem origem: o id
+/// escrito precisa estar oferecido com o nome pedido.
+fn rotulo_oferecido(html: &str, rotulo: &Rotulo) -> Result<(), ErroMarcar> {
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(|_| ErroMarcar::OpcaoDoMarcadorNaoOferecida)?;
     let parser = dom.parser();
-    let mut selects = dom
+    let nomes: Vec<String> = dom
         .query_selector("select")
         .into_iter()
         .flatten()
         .filter_map(|h| h.get(parser).and_then(tl::Node::as_tag))
         .filter(|tag| {
-            valor_do_atributo(tag, "id").ok().flatten().as_deref() == Some("selMarcador")
-        });
-    let Some(select) = selects.next() else {
-        return false;
-    };
-    if selects.next().is_some() {
-        return false;
-    }
-    let mut encontrados = 0;
-    for tag in select
-        .children()
-        .all(parser)
-        .iter()
+            valor_do_atributo(tag, "id").is_ok_and(|id| id.as_deref() == Some("selMarcador"))
+        })
+        .flat_map(|select| select.children().all(parser).iter())
         .filter_map(tl::Node::as_tag)
         .filter(|tag| tag.name().as_utf8_str() == "option")
-    {
-        let Ok(Some(id)) = valor_do_atributo(tag, "value") else {
-            return false;
-        };
-        if id == rotulo.id {
-            encontrados += 1;
-            let nome = tag.inner_text(parser).to_string();
-            if decodificar_atributo(&nome).as_deref() != Some(rotulo.nome.as_str()) {
-                return false;
-            }
-        }
+        .filter(|tag| {
+            valor_do_atributo(tag, "value")
+                .is_ok_and(|id| id.as_deref() == Some(rotulo.id.as_str()))
+        })
+        .map(|tag| tag.inner_text(parser).to_string())
+        .collect();
+    if nomes.is_empty() {
+        return Err(ErroMarcar::OpcaoDoMarcadorNaoOferecida);
     }
-    encontrados == 1
+    if nomes
+        .iter()
+        .any(|nome| decodificar_atributo(nome).as_deref() != Some(rotulo.nome.as_str()))
+    {
+        return Err(ErroMarcar::NomeDoMarcadorDiferenteDoCatalogo);
+    }
+    Ok(())
 }
 
 fn submissao_cadastro<V: EnvioDoProcesso>(
@@ -132,24 +135,29 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
     unidade: &str,
     rotulo: &Rotulo,
     texto: Option<&str>,
-) -> Option<crate::formulario_web::SubmissaoDerivada> {
-    let Ok(cookie) = ler_cookie(sessao) else {
-        return None;
-    };
-    let instalacao = Instalacao::interpretar(sessao.origem)?;
+) -> anyhow::Result<crate::formulario_web::SubmissaoDerivada> {
+    let cookie = ler_cookie(sessao)?;
+    let instalacao = Instalacao::interpretar(sessao.origem)
+        .ok_or_else(|| recusa(ErroMarcar::OrigemNaoInterpretada, rede.feitas()))?;
     let url = destino_cadastro(rede, &cookie, link, &instalacao, id)?;
-    let Ok((html, mime)) = obter_tela(rede, &cookie, &url) else {
-        return None;
+    let (html, mime) = match obter_tela(rede, &cookie, &url) {
+        Ok(tela) => tela,
+        Err(FalhaDaTela::Transporte(erro)) => return Err(erro.into()),
+        Err(FalhaDaTela::Redirecionada | FalhaDaTela::SessaoEncerrada(_)) => {
+            return Err(recusa(
+                ErroMarcar::FormularioDeCadastroNaoLido,
+                rede.feitas(),
+            ));
+        }
     };
-    let codificacao = codificacao_da_tela(&mime)?;
+    let codificacao = codificacao_da_tela(&mime)
+        .ok_or_else(|| recusa(ErroMarcar::CharsetDoFormularioNaoSuportado, rede.feitas()))?;
     let tela = TelaServida {
         url: &url,
         html: &html,
         codificacao,
     };
-    if !rotulo_oferecido(&html, rotulo) {
-        return None;
-    }
+    rotulo_oferecido(&html, rotulo).map_err(|causa| recusa(causa, rede.feitas()))?;
     derivar_submissao(
         &ADICIONAR,
         &instalacao,
@@ -160,7 +168,7 @@ fn submissao_cadastro<V: EnvioDoProcesso>(
             ("txaTexto", texto.unwrap_or("")),
         ],
     )
-    .ok()
+    .map_err(Into::into)
 }
 
 fn saida_previa(
@@ -237,7 +245,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
     };
     let nada = match decidir(lidos, rotulo, Operacao::Atribuir) {
         Ok(Decisao::NadaAFazer) => true,
-        Err(ErroMarcar::CatalogoDaUnidadeNaoObservado) => false,
+        Ok(Decisao::PreviaDeAtribuicao) => false,
         Ok(Decisao::PreviaDeRetirada) => unreachable!(),
         Err(e) => return Err(recusa(e, rede.feitas())),
     };
@@ -253,11 +261,10 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         );
         return Ok(());
     }
-    let sem_catalogo = |n| recusa(ErroMarcar::CatalogoDaUnidadeNaoObservado, n);
-    let Some(link) = acoes.marcadores.ok().flatten() else {
-        return Err(sem_catalogo(rede.feitas()));
-    };
-    let Some(submissao) = submissao_cadastro(
+    let link = acoes
+        .marcadores?
+        .ok_or_else(|| recusa(ErroMarcar::LinkDeMarcadoresNaoPublicado, rede.feitas()))?;
+    let submissao = submissao_cadastro(
         sessao,
         &mut rede,
         link.as_str(),
@@ -265,9 +272,7 @@ pub(crate) fn executar_atribuicao<V: EnvioDoProcesso>(
         unidade,
         rotulo,
         texto,
-    ) else {
-        return Err(sem_catalogo(rede.feitas()));
-    };
+    )?;
     if !confirmar {
         saida_previa(
             cli,
@@ -310,10 +315,10 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
         rede.post(submissao, cookie)
     });
     if !tentativa {
-        return Err(recusa(
-            ErroMarcar::CatalogoDaUnidadeNaoObservado,
-            rede.feitas(),
-        ));
+        return Err(match resposta {
+            Err(erro) => erro.into(),
+            Ok(_) => recusa(ErroMarcar::SubmissaoDoMarcadorNaoEnviada, rede.feitas()),
+        });
     }
     let aceito = matches!(
         resposta,
@@ -321,8 +326,15 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
             if aceite_da_atribuicao(redir, id)
     );
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
-    let presente = releitura_comprova(sessao, indice, pedido, rede, (id, unidade), (rotulo, texto));
-    if !aceito || presente != Some(true) {
+    let presente =
+        releitura_de_marcadores(sessao, indice, pedido, rede, (id, unidade)).map(|lidos| {
+            lidos.itens.iter().any(|m| {
+                m.id == rotulo.id
+                    && m.nome == rotulo.nome
+                    && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
+            })
+        });
+    if !aceito || !matches!(presente, Ok(true)) {
         return Err(FalhaDaMarcacao::AtribuicaoNaoConfirmada {
             requisicoes: rede.feitas(),
             presente_relido: presente,
@@ -389,38 +401,5 @@ fn saida_confirmada(
             unidade,
             requisicoes
         );
-    }
-}
-
-fn releitura_comprova<V: EnvioDoProcesso>(
-    sessao: &SessaoDoProcesso<'_>,
-    indice: &IndiceLocal,
-    pedido: &PedidoDoProcesso<'_>,
-    rede: &mut Contador<'_, V>,
-    processo: (&str, &str),
-    marcador: (&Rotulo, Option<&str>),
-) -> Option<bool> {
-    let (id, unidade) = processo;
-    let (rotulo, texto) = marcador;
-    let releitura = obter_processo(sessao, pedido, indice, rede);
-    match releitura {
-        Ok(ref novo)
-            if novo.arvore.processo.id == id && novo.unidade.as_deref() == Some(unidade) =>
-        {
-            match &novo.marcadores {
-                Marcadores::Lidos(lidos) if lidos.itens.len() == lidos.total_declarado => {
-                    Some(lidos.itens.iter().any(|m| {
-                        m.id == rotulo.id
-                            && m.nome == rotulo.nome
-                            && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
-                    }))
-                }
-                Marcadores::Lidos(_)
-                | Marcadores::Omitidos
-                | Marcadores::NaoPublicadosNaBarra
-                | Marcadores::TabelaNaoPublicada => None,
-            }
-        }
-        _ => None,
     }
 }

@@ -74,14 +74,14 @@ fn retirada_ausente_sem_escrita() {
     );
 }
 #[test]
-fn atribuir_sem_catalogo_da_unidade_falha_fechado() {
+fn atribuir_ausente_segue_para_o_catalogo_sem_escrita() {
     assert_eq!(
         decidir(
             &marcadores(&[], 0),
             &interpretar_rotulo("501#A").unwrap(),
             Operacao::Atribuir
         ),
-        Err(ErroMarcar::CatalogoDaUnidadeNaoObservado)
+        Ok(Decisao::PreviaDeAtribuicao)
     );
 }
 #[test]

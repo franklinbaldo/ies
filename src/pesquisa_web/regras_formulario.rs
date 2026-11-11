@@ -22,6 +22,10 @@ pub(crate) enum ErroRegraDoFormularioDePesquisa {
     MaxlengthDoTermoIlegivelNaTela,
     /// `maxlength` decimal que não cabe em `u32`.
     MaxlengthDoTermoNaoCabeEmU32NaTela(#[source] std::num::ParseIntError),
+    /// O campo `txtProtocoloPesquisa` não existe na tela do formulário.
+    CampoDoTermoAusenteNaTela,
+    /// O campo do termo existe, mas a tela não serve `maxlength` nele.
+    MaxlengthDoTermoAusenteNaTela,
     OpcaoDeDocumentosComNomeDiferenteDeRdoPesquisarEm,
     /// Nenhuma das duas servida marcada: `onSubmitForm()` não envia.
     NenhumTipoDeDocumentoMarcadoNaTela,
@@ -61,8 +65,8 @@ pub(crate) struct RegrasDaTela {
     /// Em documentos: as caixas de tipo servidas marcadas (nome, valor).
     pub(crate) caixas_de_documento: Vec<(&'static str, String)>,
     pub(crate) orgaos_selecionados: Vec<String>,
-    /// `maxlength` servido no campo do termo; `None` quando não publicado.
-    pub(crate) maxlength_do_termo: Option<u32>,
+    /// `maxlength` servido no campo do termo, sempre publicado pela tela.
+    pub(crate) maxlength_do_termo: u32,
 }
 
 fn atributo(
@@ -267,9 +271,7 @@ fn orgaos_selecionados(
 /// `maxlength` de `txtProtocoloPesquisa` como servido (50 nas quatro
 /// instalações, sem presumir esse valor). Só dígitos ASCII são aceitos,
 /// mais estrito que o navegador, que ignora o atributo inválido.
-fn maxlength_do_termo(
-    tags: &[&tl::HTMLTag<'_>],
-) -> Result<Option<u32>, ErroRegraDoFormularioDePesquisa> {
+fn maxlength_do_termo(tags: &[&tl::HTMLTag<'_>]) -> Result<u32, ErroRegraDoFormularioDePesquisa> {
     let mut campos = Vec::new();
     for tag in tags.iter().filter(|t| eh(t, "input")) {
         if atributo(tag, "name")?.as_deref() == Some("txtProtocoloPesquisa") {
@@ -277,19 +279,18 @@ fn maxlength_do_termo(
         }
     }
     let campo = match campos.as_slice() {
-        [] => return Ok(None),
+        [] => return Err(ErroRegraDoFormularioDePesquisa::CampoDoTermoAusenteNaTela),
         [campo] => *campo,
         _ => return Err(ErroRegraDoFormularioDePesquisa::CamposDoTermoRepetidosNaTela),
     };
     let Some(valor) = atributo(campo, "maxlength")? else {
-        return Ok(None);
+        return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoAusenteNaTela);
     };
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoIlegivelNaTela);
     }
     valor
         .parse()
-        .map(Some)
         .map_err(ErroRegraDoFormularioDePesquisa::MaxlengthDoTermoNaoCabeEmU32NaTela)
 }
 

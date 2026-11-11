@@ -73,12 +73,14 @@ pub(crate) enum ErroAndamentos {
     Historico(#[from] ErroHistorico),
     AndamentosAlemDoTotalDeclarado,
     TipoDoHistoricoNaoPublicado,
+    /// O campo `hdnTipoHistorico` existe, mas não publica o atributo `value`.
+    TipoDoHistoricoSemValor,
     CharsetDoHistoricoNaoSuportado,
-    RegraDeVerHistoricoNaoObservada,
+    /// A função `verHistorico` servida não aparece literalmente na página.
+    RegraDeVerHistoricoAusenteNaPagina,
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
-    RegraDeVerHistoricoNaoInterpretada(#[source] tl::ParseError),
     TabelaDoHistoricoNaoInterpretada(#[source] tl::ParseError),
     NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
     FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),

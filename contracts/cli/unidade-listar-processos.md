@@ -68,7 +68,7 @@ paginação. O modo existente `--verificar-arquivos` continua consultando
 ## Resultado e alcance
 
 `ies unidade listar-processos` devolve um **array com uma lista** D
-`categoria: null`, `colunas_ausentes` e, por processo, `categoria`
+sem o campo `categoria` na lista, `colunas_ausentes` e, por processo, `categoria`
 observada e `colunas` ([visão detalhada](unidade-listar-processos-visao-detalhada.md)).
 A caixa resumida (Recebidos e Gerados da visão R, sem comando próprio) segue
 o [golden v2](../../tests/fixtures/caixa-v2.json), conferido por teste unitário:
@@ -174,7 +174,7 @@ a identidade da unidade em `lnkInfraUnidade`, além de demonstrar
 cobertura da categoria. Sem esse rótulo, não se deve retornar sucesso
 com `unidade: null` nem exportar uma lista de processos que não foi
 atribuída a contexto observável. Retornar falha Rust tipada
-`FalhaCategoria::UnidadeNaoObservada`, subcódigo
+`FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle`, subcódigo
 `identificacao_da_unidade_ausente_no_controle`. A ausência na página
 não demonstra falta de permissão ou inexistência da unidade.
 
@@ -288,8 +288,8 @@ permissão ou propriedade imutável do processo. Um link com duas
 classes reconhecidas de estados diferentes falha com
 `ClassesDeEstadoDiferentesNoLinkDoProcesso` (visão resumida)
 ou `classes_de_estado_diferentes_no_link_detalhado` (detalhada).
-Na visão detalhada, `visualizado` e `sigiloso` são `null` quando o
-link não traz classe reconhecida.
+Na visão detalhada, um link sem classe de estado reconhecida falha com
+`EstadoDoLinkDoProcessoAusente` (sem `null`, sem estado inventado).
 
 A importação local aceita exportação anterior sem `sigiloso` como
 `false`: aquelas versões recusavam qualquer linha sem as duas classes

@@ -210,7 +210,7 @@ fn versao_ausente_lista_nao_publicada_e_titulo_de_outro_documento() {
     let erro = r.unwrap_err();
     assert_eq!(
         erro,
-        ErroDocumentoObter::Versoes(ErroVersao::VersaoNaoObservada)
+        ErroDocumentoObter::Versoes(ErroVersao::VersaoPedidaAusenteNoHistorico)
     );
 
     let (r, pedidos) = rodar(ate_a_arvore(arvore_com_barra(None, false)), versao(1));

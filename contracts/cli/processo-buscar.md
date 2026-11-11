@@ -97,8 +97,10 @@ Controle), `origem: "web"` e `requisicoes`.
 - Termo (antes de qualquer POST): `TermoAcimaDoMaxlengthDaTela`
   (mais unidades UTF-16 que o `maxlength` servido em
   `txtProtocoloPesquisa`), `MaxlengthDoTermoIlegivelNaTela`,
-  `campos_do_termo_repetidos_na_tela`. Sem `maxlength` publicado, a tela
-  não limita o termo.
+  `campos_do_termo_repetidos_na_tela`. Sem o campo `txtProtocoloPesquisa`
+  ou sem `maxlength` publicado nele, a leitura falha antes do POST
+  (`CampoDoTermoAusenteNaTela`, `MaxlengthDoTermoAusenteNaTela`): a tela
+  deve publicar o limite, sem valor presumido.
 - Link: `link_da_pesquisa_ausente_no_controle`,
   `links_da_pesquisa_repetidos_no_controle`,
   `LinkDaPesquisaComEnderecoAbsoluto`,
@@ -110,7 +112,7 @@ Controle), `origem: "web"` e `requisicoes`.
   `FaixaDaBarraDeContagemImpossivel`,
   `LinhasDaTabelaDiferentesDaFaixaDaBarra`.
 - Paginação: `pagina_da_pesquisa_fora_do_intervalo` (antes do POST de página),
-  `RegraDeNavegacaoDaPesquisaNaoObservada`,
+  `HtmlDaRespostaParaPaginarAusente`, `RegraDeNavegacaoAusenteNoHtml`,
   `PaginadorDaPesquisaNaoPublicado`,
   `link_de_paginacao_da_pesquisa_fora_da_regra`,
   `ProtocoloDaTelaDeResultadoDiferenteDoPesquisado`,
