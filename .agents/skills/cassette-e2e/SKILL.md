@@ -21,7 +21,8 @@ issues são referências, nunca pré-condição de implementação.
    GitHub Actions; **não invente captura disponível**.
 2. **Leitor real:** rode o mesmo leitor do binário `ies` nas respostas
    originais (replay). Teste o resultado observável: identidade, corpo,
-   status, opções, recusas, saída e arquivos. Não basta parser isolado.
+   status, opções, recusas, saída e arquivos, sem contagem fixa de
+   requisições como critério de compatibilidade. Não basta parser isolado.
 3. **Transição:** quando houver escrita ou estado entre operações,
    construa SQLite efêmero versionado a partir da captura; execute a
    CLI real sobre HTTPS loopback → anti-IES → SQLite, confirme com outra
@@ -33,10 +34,21 @@ issues são referências, nunca pré-condição de implementação.
 5. **Se não há captura relevante:** teste a hipótese mínima no E2E,
    identifique explicitamente a lacuna da cassette, não rotule PASS de
    replay. Não bloquee o desenvolvimento esperando REA/live.
-6. **Live opcional, somente autorizado:** em SEI de treinamento, orçamento
-   de requisições, prévia, confirmação única e verificação independente;
+6. **Live opcional, somente autorizado:** em SEI de treinamento,
+   orçamento de requisições declarado, prévia, POST mutador único,
+   sem retry e verificação independente;
    agentes nunca operam produção. Nunca registrar credencial, cookie,
    URL assinada ou `infra_hash`.
+
+**Aceite de cada PR:** executar no GitHub Actions, sobre o head final,
+ os testes de replay dos ZIPs originais aplicáveis e o ciclo anti-IES.
+ O CI oficial já contém jobs de replay, e seu acervo deve ser ampliado
+ quando a PR afetar comportamento ainda não coberto. Inspecionar hashes
+ não substitui rodar o teste, e PASS sintético não substitui confronto
+ independente com a cassette existente. Não se exige CI em cada commit WIP:
+ exige-se o resultado no head que será integrado. Sem captura aplicável,
+ manter a transição como hipótese sintética identificada e executar os
+ replays existentes sem afirmar paridade externa.
 
 ## Resultado mínimo na PR
 
