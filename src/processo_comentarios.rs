@@ -19,10 +19,14 @@ pub struct ComentarioLido {
     pub tipo: Option<String>,
 }
 
+/// Visão publicada em `hdnVisualizacao`. `Protocolo` (`A`) é a lista aberta
+/// a partir de um protocolo: sem os links "Ver todos"/"Ver somente do
+/// processo" e com `id_rel_protocolo_protocolo` no link de Novo Comentário.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum VisaoDosComentarios {
     Processo,
     Todos,
+    Protocolo,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -200,9 +204,13 @@ fn ler_itens(
             .filter(|c| valor_decodificado(c, "type").ok().flatten().as_deref() == Some("checkbox"))
             .collect();
         if caixas.is_empty() {
-            let classe = atributos(tr)
-                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?
+            let da_linha =
+                atributos(tr).map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
+            let classe = da_linha
                 .tem_classe("trComentario")
+                .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
+            let separador = da_linha
+                .tem_classe("trSeparadorComentario")
                 .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;
             if let (true, true, [celula]) = (aguardando_texto, classe, celulas.as_slice()) {
                 let ultimo = itens
@@ -210,6 +218,11 @@ fn ler_itens(
                     .ok_or(ErroComentarios::LinhaDoComentarioInvalida)?;
                 ultimo.texto = texto(celula, parser)?;
                 aguardando_texto = false;
+            } else if let (true, [celula]) = (separador, celulas.as_slice()) {
+                // Separador visual entre comentários: forma, não item.
+                if !texto(celula, parser)?.trim().is_empty() {
+                    return Err(ErroComentarios::LinhaDoComentarioInvalida);
+                }
             } else if !(total == 0 && texto(tr, parser)?.contains("Nenhum registro")) {
                 return Err(ErroComentarios::LinhaDoComentarioInvalida);
             }
@@ -272,6 +285,7 @@ fn ler_lista<'p>(
         [unico] => match valor_decodificado(unico, "value")?.as_deref() {
             Some("P") => VisaoDosComentarios::Processo,
             Some("T") => VisaoDosComentarios::Todos,
+            Some("A") => VisaoDosComentarios::Protocolo,
             _ => return Err(ErroComentarios::VisaoNaoPublicada),
         },
         _ => return Err(ErroComentarios::VisaoNaoPublicada),
@@ -336,7 +350,11 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios
             .ok_or(ErroComentarios::TelaDeComentariosNaoReconhecida)?;
         if form.name() == "form" {
             let areas = descendentes(form, parser, "textarea");
-            let botoes = descendentes(form, parser, "input");
+            // O SEI publica o envio como `<input>` ou como `<button>`.
+            let botoes: Vec<_> = descendentes(form, parser, "input")
+                .into_iter()
+                .chain(descendentes(form, parser, "button"))
+                .collect();
             let area_ok = areas
                 .iter()
                 .filter(|t| {
