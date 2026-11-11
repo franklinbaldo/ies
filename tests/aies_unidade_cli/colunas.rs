@@ -40,53 +40,80 @@ fn configurar_banco(banco: &mut Connection, instalacao: &Instalacao, todas: bool
     .unwrap();
 }
 
-fn atender_quatro_gets(listener: &TcpListener, todas: bool) {
+fn atender_requisicoes(listener: &TcpListener, todas: bool, quantas: usize) -> Vec<Opcao> {
     let mut banco = Connection::open_in_memory().unwrap();
     let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
     configurar_banco(&mut banco, &instalacao, todas);
-    for _ in 0..4 {
+    for _ in 0..quantas {
         let mut tcp = aceitar(listener);
         atender_http(&mut tcp, Some((&banco, &instalacao, CENARIO))).unwrap();
     }
-    let opcoes = colunas_detalhe::ler(&banco, &instalacao, CENARIO)
+    colunas_detalhe::ler(&banco, &instalacao, CENARIO)
         .unwrap()
         .unwrap()
-        .opcoes;
-    assert_eq!(
-        opcoes.iter().filter(|opcao| opcao.marcada).count(),
-        if todas { 3 } else { 1 }
-    );
+        .opcoes
 }
 
-fn encaminhar_quatro_gets(
+const PREVIA_E_LEITURA: &[(&str, &str)] = &[
+    ("GET", "procedimento_controlar"),
+    ("GET", "procedimento_configurar_detalhe"),
+    ("GET", "procedimento_controlar"),
+    ("GET", "procedimento_configurar_detalhe"),
+];
+
+const CONFIRMACAO_E_LEITURA: &[(&str, &str)] = &[
+    ("GET", "procedimento_controlar"),
+    ("GET", "procedimento_configurar_detalhe"),
+    ("POST", "procedimento_configurar_detalhe"),
+    ("GET", "procedimento_configurar_detalhe"),
+    ("GET", "procedimento_controlar"),
+    ("GET", "procedimento_configurar_detalhe"),
+];
+
+fn encaminhar_requisicoes(
     proxy: &TcpListener,
     destino: std::net::SocketAddr,
     identidade: Identity,
+    esperadas: &[(&str, &str)],
 ) {
     let tls = TlsAcceptor::new(identidade).unwrap();
-    let mut rotas = Vec::new();
-    for _ in 0..4 {
+    for &(metodo, acao) in esperadas {
         let mut tcp = aceitar(proxy);
         assert!(cabecalho(&mut tcp).starts_with(b"CONNECT sei.test:443 HTTP/1.1\r\n"));
         tcp.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
             .unwrap();
         let mut canal = tls.accept(tcp).unwrap();
         let pedido = cabecalho(&mut canal);
-        assert!(pedido.starts_with(b"GET /sei/controlador.php?acao="));
-        let rota = String::from_utf8_lossy(&pedido);
-        rotas.push(rota.lines().next().unwrap().to_owned());
+        let cabecalho_http = String::from_utf8_lossy(&pedido);
+        assert!(
+            cabecalho_http.starts_with(&format!("{metodo} /sei/controlador.php?acao={acao}")),
+            "método/ação divergentes"
+        );
         let mut upstream = TcpStream::connect(destino).unwrap();
         upstream.write_all(&pedido).unwrap();
+        if metodo == "POST" {
+            let tamanho: usize = cabecalho_http
+                .lines()
+                .find_map(|linha| {
+                    let (nome, valor) = linha.split_once(':')?;
+                    nome.eq_ignore_ascii_case("Content-Length")
+                        .then(|| valor.trim().parse().unwrap())
+                })
+                .expect("Content-Length do POST");
+            let mut corpo = vec![0; tamanho];
+            canal.read_exact(&mut corpo).unwrap();
+            assert_eq!(
+                corpo,
+                b"hdnInfraTipoPagina=2&sbmSalvar=Salvar&chkSinAtribuicao=on&chkSinAnotacao=on&chkSinTipoProcesso=on"
+            );
+            upstream.write_all(&corpo).unwrap();
+        }
         upstream.shutdown(Shutdown::Write).unwrap();
         let mut resposta = Vec::new();
         upstream.read_to_end(&mut resposta).unwrap();
         canal.write_all(&resposta).unwrap();
         canal.flush().unwrap();
     }
-    assert!(rotas[0].contains("acao=procedimento_controlar"));
-    assert!(rotas[1].contains("acao=procedimento_configurar_detalhe"));
-    assert!(rotas[2].contains("acao=procedimento_controlar"));
-    assert!(rotas[3].contains("acao=procedimento_configurar_detalhe"));
 }
 
 #[derive(Clone, Copy)]
@@ -157,10 +184,18 @@ fn duas_clis_colunas(todas: bool, confirmar: bool) -> (Output, Output) {
     let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
     let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let destino = servidor.local_addr().unwrap();
-    let backend = thread::spawn(move || atender_quatro_gets(&servidor, todas));
+    let backend = thread::spawn(move || {
+        let opcoes = atender_requisicoes(&servidor, todas, PREVIA_E_LEITURA.len());
+        assert_eq!(
+            opcoes.iter().filter(|opcao| opcao.marcada).count(),
+            if todas { 3 } else { 1 }
+        );
+    });
     let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
     let porta = proxy.local_addr().unwrap().port();
-    let tunel = thread::spawn(move || encaminhar_quatro_gets(&proxy, destino, identidade));
+    let tunel = thread::spawn(move || {
+        encaminhar_requisicoes(&proxy, destino, identidade, PREVIA_E_LEITURA);
+    });
 
     let comando = if confirmar {
         ComandoColunas::Confirmar
@@ -271,4 +306,88 @@ fn bdd_565_02_alvo_ja_satisfeito_confirma_sem_post_e_rele_estado() {
             .filter(|opcao| opcao["disponivel"] == false)
             .all(|opcao| opcao["marcada"] == false)
     );
+}
+
+#[test]
+fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
+    let pasta = Pasta::nova();
+    fs::set_permissions(&pasta.0, fs::Permissions::from_mode(0o700)).unwrap();
+    let (cert, identidade) = certificado(&pasta.0);
+    let origem = pasta.privado("origem", ORIGEM);
+    let hash = ["infra", "hash"].join("_");
+    let url = pasta.privado(
+        "url",
+        &format!(
+            "{ORIGEM}/controlador.php?acao=procedimento_controlar&{hash}={}",
+            "a".repeat(64)
+        ),
+    );
+    let cookie = pasta.privado("cookie", "PHPSESSID=FICTICIO");
+    let servidor = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let destino = servidor.local_addr().unwrap();
+    let backend =
+        thread::spawn(move || atender_requisicoes(&servidor, false, CONFIRMACAO_E_LEITURA.len()));
+    let proxy = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let porta = proxy.local_addr().unwrap().port();
+    let tunel = thread::spawn(move || {
+        encaminhar_requisicoes(&proxy, destino, identidade, CONFIRMACAO_E_LEITURA);
+    });
+
+    let confirmacao = cli_colunas(
+        &pasta,
+        &cert,
+        porta,
+        &url,
+        &cookie,
+        &origem,
+        ComandoColunas::Confirmar,
+    );
+    let releitura = cli_colunas(
+        &pasta,
+        &cert,
+        porta,
+        &url,
+        &cookie,
+        &origem,
+        ComandoColunas::Listar,
+    );
+    tunel.join().unwrap();
+    let opcoes = backend.join().unwrap();
+
+    assert_eq!(
+        confirmacao.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&confirmacao.stderr)
+    );
+    let valor = json(&confirmacao);
+    assert_eq!(valor["antes"], serde_json::json!(["atribuicao"]));
+    assert_eq!(
+        valor["alvo"],
+        serde_json::json!(["atribuicao", "anotacao", "tipo"])
+    );
+    assert_eq!(valor["depois"], valor["alvo"]);
+    assert_eq!(valor["confirmado"], true);
+    assert_eq!(valor["alterado"], true);
+    assert_eq!(valor["reconciliado_por_leitura"], false);
+    assert_eq!(valor["falha_do_salvar"], Value::Null);
+
+    assert_eq!(
+        releitura.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&releitura.stderr)
+    );
+    let observadas = json(&releitura);
+    assert_eq!(observadas["unidade"], "TESTE");
+    let opcoes_da_cli = observadas["opcoes"].as_array().unwrap();
+    assert_eq!(opcoes_da_cli.len(), 12);
+    assert_eq!(
+        opcoes_da_cli
+            .iter()
+            .filter(|opcao| opcao["marcada"] == true)
+            .count(),
+        3
+    );
+    assert_eq!(opcoes.iter().filter(|opcao| opcao.marcada).count(), 3);
 }

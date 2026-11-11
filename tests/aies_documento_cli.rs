@@ -469,3 +469,6 @@ mod testes_ciencia_processo;
 
 #[path = "aies_documento_cli/testes_bloco_incluir.rs"]
 mod testes_bloco_incluir;
+
+#[path = "aies_documento_cli/testes_bloco_incluir_processo.rs"]
+mod testes_bloco_incluir_processo;

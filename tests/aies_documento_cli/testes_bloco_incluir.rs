@@ -342,7 +342,8 @@ fn bdd_381_03_recusa_bloco_de_tipo_inadequado_sem_inclusao() {
         String::from_utf8_lossy(&saida.stdout),
         String::from_utf8_lossy(&saida.stderr)
     );
-    let consulta = executar(&pasta, &["--json", "bloco", BLOCO], 3);
+    // Controle, listas de assinatura e interno, detalhe: quatro GETs.
+    let consulta = executar(&pasta, &["--json", "bloco", BLOCO], 4);
     assert_eq!(consulta.status.code(), Some(0));
     let itens = json(&consulta)["bloco"]["itens"]
         .as_array()
