@@ -23,6 +23,98 @@ fn processo(id: &str, numero: String) -> ProcessoSimulado {
     }
 }
 
+// Extrator independente dos fatos observáveis. Usa apenas o DOM e os
+// atributos da resposta original, jamais `ler_tela` nem a saída do IES.
+#[derive(Debug, PartialEq, Eq)]
+struct FatosDoFormulario {
+    controles: Vec<String>,
+    anexados: Vec<String>,
+}
+
+fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
+    tag.attributes()
+        .get(nome)
+        .flatten()
+        .map(|valor| String::from_utf8_lossy(valor.as_ref()).into_owned())
+}
+
+fn fatos_da_fonte(html: &str) -> FatosDoFormulario {
+    let dom = tl::parse(html, tl::ParserOptions::default()).expect("DOM da fonte");
+    let parser = dom.parser();
+    let formulario = dom
+        .query_selector("form")
+        .into_iter()
+        .flatten()
+        .filter_map(|no| no.get(parser).and_then(tl::Node::as_tag))
+        .find(|tag| atributo_da_fonte(tag, "id").as_deref() == Some("frmProcedimentoAnexar"))
+        .expect("formulário oferecido na fonte");
+    assert_eq!(
+        atributo_da_fonte(formulario, "method")
+            .unwrap_or_default()
+            .to_ascii_lowercase(),
+        "post",
+        "método da oferta original"
+    );
+    assert!(
+        atributo_da_fonte(formulario, "action")
+            .is_some_and(|v| v.contains("acao=procedimento_anexar")),
+        "ação do formulário da fonte"
+    );
+    let exigidos = [
+        "hdnAnexacao",
+        "hdnIdProtocolo",
+        "sbmAnexar",
+        "txtIdentificacaoProtocolo",
+        "txtProtocolo",
+    ];
+    let mut controles: Vec<String> = formulario
+        .children()
+        .all(parser)
+        .iter()
+        .filter_map(tl::Node::as_tag)
+        .filter(|tag| matches!(tag.name().as_utf8_str().as_ref(), "input" | "button"))
+        .filter_map(|tag| atributo_da_fonte(tag, "name"))
+        .filter(|nome| exigidos.contains(&nome.as_str()))
+        .collect();
+    controles.sort_unstable();
+    assert_eq!(controles, exigidos, "campos da oferta original");
+
+    let mut anexados = Vec::new();
+    let mut tabelas = 0;
+    for tabela in dom.query_selector("table").into_iter().flatten() {
+        let Some(tag) = tabela.get(parser).and_then(tl::Node::as_tag) else {
+            continue;
+        };
+        if atributo_da_fonte(tag, "summary").as_deref() != Some("Lista de Processos Anexados") {
+            continue;
+        }
+        tabelas += 1;
+        for filho in tag.children().all(parser) {
+            let Some(input) = filho.as_tag() else {
+                continue;
+            };
+            if input.name().as_utf8_str().eq_ignore_ascii_case("input")
+                && atributo_da_fonte(input, "type")
+                    .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
+            {
+                let id = atributo_da_fonte(input, "value").expect("ID original de anexado");
+                assert!(
+                    !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()),
+                    "ID original precisa ser decimal"
+                );
+                anexados.push(id);
+            }
+        }
+    }
+    assert!(tabelas <= 1, "lista original ambígua");
+    anexados.sort_unstable();
+    assert!(
+        anexados.windows(2).all(|par| par[0] != par[1]),
+        "ID original duplicado"
+    );
+    FatosDoFormulario { controles, anexados }
+}
+
 /// Consulta o anti-IES por HTTP local, sem usar a saída do IES como oráculo.
 fn formulario_simulado(
     banco: rusqlite::Connection,
@@ -68,15 +160,21 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
         if !html.contains("frmProcedimentoAnexar") {
             continue; // outros GETs da mesma operação não oferecem o formulário
         }
+        let fonte = fatos_da_fonte(&html);
         let observado = super::ler_tela(&html).expect("leitor Rust da tela original de anexação");
+        let mut ids_ies = observado.anexados;
+        ids_ies.sort_unstable();
+        assert_eq!(
+            ids_ies, fonte.anexados,
+            "IES divergiu dos IDs extraídos da fonte em {instalacao}"
+        );
         lidos += 1;
 
         let Some(id) = gravacao::id_procedimento(resposta.interacao) else {
             continue; // sem identidade de URL não se pode confrontar o contexto HTTP
         };
-        // O ID principal e os anexados são fatos da resposta observada.
-        // Os NUPs abaixo NÃO foram extraídos desta tela: só permitem criar
-        // o contexto relacional do SQLite sem fingir origem externa.
+        // IDs vêm do extrator da resposta original, nunca do leitor IES.
+        // Os NUPs NÃO constam da tela: apenas permitem a projeção SQLite.
         let mut banco = rusqlite::Connection::open_in_memory().unwrap();
         banco_cassettes::iniciar(&banco).unwrap();
         processos::guardar(
@@ -86,7 +184,7 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             &processo(&id, "NUP-PRINCIPAL-NAO-OBSERVADO".to_owned()),
         )
         .unwrap();
-        for (indice, anexado) in observado.anexados.iter().enumerate() {
+        for (indice, anexado) in fonte.anexados.iter().enumerate() {
             assert_ne!(
                 anexado, &id,
                 "processo anexado igual ao principal em {instalacao}"
@@ -101,14 +199,17 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
             anexacoes::anexar(&banco, &origem, CENARIO, &id, anexado).unwrap();
         }
         let simulado = formulario_simulado(banco, origem.clone(), &id);
+        let fonte_simulada = fatos_da_fonte(&simulado);
+        assert_eq!(
+            fonte_simulada, fonte,
+            "oferta/IDs do anti-IES divergem da fonte em {instalacao}"
+        );
         let projetado = super::ler_tela(&simulado).expect("leitor Rust da projeção do anti-IES");
-        let mut ids_originais = observado.anexados;
         let mut ids_simulados = projetado.anexados;
-        ids_originais.sort_unstable();
         ids_simulados.sort_unstable();
         assert_eq!(
-            ids_simulados, ids_originais,
-            "IDs de anexados divergentes em {instalacao}"
+            ids_simulados, fonte.anexados,
+            "leitor do HTTP simulado diverge da fonte em {instalacao}"
         );
         bilaterais += 1;
     }
@@ -142,6 +243,10 @@ fn replay_de_processo_anexar_no_acervo() {
         assert!(
             leitor > 0,
             "nenhum GET original de formulário legível em {instalacao}"
+        );
+        assert!(
+            confronto > 0,
+            "nenhum confronto independente anti-IES em {instalacao}"
         );
         lidos += leitor;
         bilaterais += confronto;
