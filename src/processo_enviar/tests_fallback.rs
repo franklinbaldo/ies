@@ -140,7 +140,14 @@ fn bdd_333_04_limpeza_inconclusiva_falha_sem_tramitar() {
     assert_eq!(
         erro,
         super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(Box::new(
-            super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes { depois: None }
+            super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
+                depois: None,
+                causa: Box::new(super::ErroEnviar::Anotacoes(
+                    super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                        crate::transporte::FalhaTransporte::Rede,
+                    ),
+                )),
+            }
         ))
     );
     assert_eq!(

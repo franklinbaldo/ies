@@ -5,6 +5,9 @@
 //! repetida.
 use super::destino::{ler_resposta_da_consulta, resolver_destino};
 use super::erro::{ErroEnviar, FalhaDaConsulta};
+use super::releitura_anotacao::{
+    conferir_anotacao_depois, observar_anotacao_depois, obter_tela_das_anotacoes,
+};
 use super::tela::{
     AUTOCOMPLETAR_UNIDADE, ENVIAR_PROCESSO, TelaDeEnvio, campos_da_consulta_no_orgao,
     campos_do_envio, conferir_tela_de_envio, redirecionamento_esperado,
@@ -220,23 +223,34 @@ fn conciliar_efeitos<V: EnvioDoProcesso>(
     falha: Option<FalhaDoEnvio>,
     verificacao: VerificacaoPorLeitura,
 ) -> Result<ProcessoEnviado, ErroEnviar> {
-    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
+    let observacao = if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
         let link = link_anotacao.ok_or(ErroEnviar::RemocaoDeAnotacoesSemVerificacao)?;
-        feito.anotacao_depois =
-            observar_anotacao_depois(rede, cookie, link, &feito.id_procedimento);
+        Some(observar_anotacao_depois(
+            rede,
+            cookie,
+            link,
+            &feito.id_procedimento,
+        ))
+    } else {
+        None
+    };
+    // Preservar o que a anotação mostrou mesmo se a árvore ficar ilegível.
+    if let Some(Ok(presente)) = &observacao {
+        feito.anotacao_depois = Some(*presente);
     }
     let feito = conciliar(feito, falha, verificacao)?;
-    if feito.metodo_remocao == Some(MetodoRemocao::CheckboxNoEnvio) {
-        match feito.anotacao_depois {
-            Some(false) => {}
-            Some(true) => {
+    if let Some(observada) = observacao {
+        match observada {
+            Ok(false) => {}
+            Ok(true) => {
                 return Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
                     depois: feito.depois,
                 });
             }
-            None => {
+            Err(causa) => {
                 return Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
                     depois: feito.depois,
+                    causa: Box::new(causa),
                 });
             }
         }
@@ -311,17 +325,7 @@ fn ler_anotacao_antes<V: EnvioDoProcesso>(
     let Some(link) = link else {
         return Ok(None);
     };
-    let (html, mime) = obter_tela(rede, cookie, link).map_err(|falha| match falha {
-        FalhaDaTela::Transporte(falha) => {
-            ErroEnviar::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(falha))
-        }
-        FalhaDaTela::Redirecionada => {
-            ErroEnviar::from(super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoesRedirecionada)
-        }
-        FalhaDaTela::SessaoEncerrada(crate::erro_publico::SessaoEncerrada) => {
-            ErroEnviar::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
-        }
-    })?;
+    let (html, mime) = obter_tela_das_anotacoes(rede, cookie, link)?;
     let presente = super::anotacoes::anotacao_presente(&html, id)
         .map_err(super::anotacoes::ErroDasAnotacoes::from)?;
     let codificacao = codificacao_da_tela(&mime).ok_or(ErroEnviar::CharsetDaTelaNaoSuportado)?;
@@ -373,39 +377,6 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
             releitura,
         ))),
     }
-}
-
-/// A árvore já confirmou a tramitação; outro GET decide se a anotação
-/// realmente desapareceu, sem repetir POST diante de recusa ou incerteza.
-fn conferir_anotacao_depois<V: EnvioDoProcesso>(
-    rede: &mut Contador<'_, V>,
-    cookie: &str,
-    link: &str,
-    id: &str,
-    unidades_apos_envio: Option<&[String]>,
-) -> Result<(), ErroEnviar> {
-    match observar_anotacao_depois(rede, cookie, link, id) {
-        Some(false) => Ok(()),
-        Some(true) => Err(ErroEnviar::AnotacoesNaoRemovidasAposEnvio {
-            depois: unidades_apos_envio.map(ToOwned::to_owned),
-        }),
-        None => Err(ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
-            depois: unidades_apos_envio.map(ToOwned::to_owned),
-        }),
-    }
-}
-
-/// A remoção é um efeito distinto da tramitação: observar separadamente
-/// permite registrar o que ocorreu mesmo se a árvore ficou indisponível.
-fn observar_anotacao_depois<V: EnvioDoProcesso>(
-    rede: &mut Contador<'_, V>,
-    cookie: &str,
-    link: &str,
-    id: &str,
-) -> Option<bool> {
-    obter_tela(rede, cookie, link)
-        .ok()
-        .and_then(|(html, _)| super::anotacoes::anotacao_presente(&html, id).ok())
 }
 
 /// GET da tela de envio (o link da barra), conferida sem rede.
