@@ -7,6 +7,7 @@
 //! O GET de ciência é ESCRITA e não pode ser feito durante a prévia.
 //! Nenhum JavaScript é executado, e nenhuma URL assinada é publicada.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 
 mod documento;
 mod fluxo;
@@ -40,20 +41,6 @@ pub(crate) enum ErroCiencia {
     AtividadesRepetidasNaLista,
     ListaDeCienciasNaoInterpretada(#[source] tl::ParseError),
     AceiteNaoInterpretado(#[source] tl::ParseError),
-}
-
-/// Só admite o valor da chave com uma única ocorrência. Uma chave duplicada
-/// não permite escolher o primeiro nem o último valor.
-fn parametro_unico<'a>(consulta: &'a str, chave: &str) -> Option<&'a str> {
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|parte| parte.split_once('='))
-        .filter(|(nome, _)| *nome == chave)
-        .map(|(_, valor)| valor);
-    match (valores.next(), valores.next()) {
-        (Some(valor), None) => Some(valor),
-        _ => None,
-    }
 }
 
 fn identificador(valor: &str) -> bool {
@@ -201,7 +188,7 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
     if caminho != "controlador.php" {
         return None;
     }
-    let consulta = restante.split('#').next()?;
+    let consulta = ConsultaDoControlador::ler(restante.split('#').next()?).ok()?;
     let (id_procedimento, marca, id_documento) = match alvo {
         AlvoDaCiencia::Processo { id_procedimento } => {
             (id_procedimento, "procedimento_visualizar_ciencias", None)
@@ -215,16 +202,15 @@ fn atividade_do_endereco(url: &str, alvo: AlvoDaCiencia<'_>) -> Option<String> {
             Some(id_documento),
         ),
     };
-    if parametro_unico(consulta, "acao").and_then(AcaoDoSei::ler)
-        != Some(AcaoDoSei::ProcedimentoVisualizar)
-        || parametro_unico(consulta, "id_procedimento") != Some(id_procedimento)
-        || parametro_unico(consulta, marca) != Some("1")
-        || id_documento.is_some_and(|doc| parametro_unico(consulta, "id_documento") != Some(doc))
-        || (id_documento.is_none() && parametro_unico(consulta, "id_documento").is_some())
+    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoVisualizar)
+        || consulta.unico("id_procedimento") != Ok(id_procedimento)
+        || consulta.unico(marca) != Ok("1")
+        || id_documento.is_some_and(|doc| consulta.unico("id_documento") != Ok(doc))
+        || (id_documento.is_none() && consulta.valores("id_documento").next().is_some())
     {
         return None;
     }
-    let atividade = parametro_unico(consulta, "id_atividade")?;
+    let atividade = consulta.unico("id_atividade").ok()?;
     identificador(atividade).then(|| atividade.to_owned())
 }
 

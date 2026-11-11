@@ -28,8 +28,11 @@ pub(crate) enum ErroConsultaDoControlador {
 }
 
 impl<'a> ConsultaDoControlador<'a> {
-    /// `consulta` é o texto depois do `?`, sem ele.
+    /// `consulta` é o texto depois do `?`, sem ele; vazia, não tem pares.
     pub(crate) fn ler(consulta: &'a str) -> Result<Self, ErroConsultaDoControlador> {
+        if consulta.is_empty() {
+            return Ok(Self { pares: Vec::new() });
+        }
         let pares = consulta
             .split('&')
             .map(|par| {

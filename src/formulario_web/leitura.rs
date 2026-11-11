@@ -2,9 +2,10 @@
 use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 pub(super) use crate::url_observada::UrlHttps;
 use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
@@ -124,20 +125,12 @@ pub(super) fn resolver_action_no_host(
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
-    for item in alvo
-        .consulta
-        .unwrap_or_default()
-        .split('&')
-        .filter(|item| !item.is_empty())
-    {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::UrlInvalida,
-            ))?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
-    }
+    ConsultaDoControlador::ler(alvo.consulta.unwrap_or_default()).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroSubmissaoFormulario::Transporte(falha)
+        }
+        _ => ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida),
+    })?;
     Ok(absoluta)
 }
 
@@ -180,33 +173,19 @@ pub(super) fn conferir_consulta(
     consulta: &str,
     acao: AcaoDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let (mut acoes, mut acoes_iguais, mut hashes) = (0, 0, 0);
-    for item in consulta.split('&').filter(|item| !item.is_empty()) {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::UrlInvalida,
-            ))?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
-        match nome {
-            "acao" => {
-                acoes += 1;
-                acoes_iguais += usize::from(AcaoDoSei::ler(valor) == Some(acao));
-            }
-            "infra_hash" => {
-                if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
-                }
-                hashes += 1;
-            }
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroSubmissaoFormulario::Transporte(falha)
         }
-    }
-    if acoes != 1 || acoes_iguais != 1 {
+        _ => ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida),
+    })?;
+    if consulta.acao() != Ok(acao) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
-    if hashes != 1 {
+    if !consulta
+        .unico("infra_hash")
+        .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
     }
     Ok(())

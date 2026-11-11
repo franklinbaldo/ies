@@ -59,3 +59,13 @@ fn chave_ausente_repetida_e_acao_desconhecida() {
     );
     assert_eq!(consulta.valores("id").collect::<Vec<_>>(), ["1", "2"]);
 }
+
+#[test]
+fn consulta_vazia_nao_tem_pares() {
+    let consulta = ConsultaDoControlador::ler("").unwrap();
+    assert_eq!(consulta.valores("acao").count(), 0);
+    assert_eq!(
+        ConsultaDoControlador::ler("acao=x&&id=1").err(),
+        Some(ErroConsultaDoControlador::ParSemIgual)
+    );
+}

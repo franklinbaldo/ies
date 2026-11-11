@@ -16,6 +16,7 @@ pub(crate) use fluxo::{
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::DocumentoNaArvore;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -210,11 +211,8 @@ fn id_da_escolha_literal(onclick: &str) -> Option<String> {
 /// A opçao externa nao integra a lista de tipos de documento nativo.
 fn link_de_tipo_externo(href: &str, onclick: Option<&str>) -> bool {
     href.strip_prefix("controlador.php?")
-        .is_some_and(|consulta| {
-            consulta
-                .split('&')
-                .any(|par| par == "acao=documento_receber")
-        })
+        .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
+        .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoReceber))
         || onclick.is_some_and(|chamada| chamada.trim().trim_end_matches(';') == "escolher(-1)")
 }
 
@@ -223,7 +221,8 @@ fn link_de_tipo_interno(href: &str, onclick: Option<&str>) -> bool {
     !link_de_tipo_externo(href, onclick)
         && (href
             .strip_prefix("controlador.php?")
-            .is_some_and(|consulta| consulta.split('&').any(|par| par == "acao=documento_gerar"))
+            .and_then(|consulta| ConsultaDoControlador::ler(consulta).ok())
+            .is_some_and(|consulta| consulta.acao() == Ok(AcaoDoSei::DocumentoGerar))
             || ((href == "#" || href == "javascript:void(0);")
                 && onclick.and_then(id_da_escolha_literal).is_some()))
 }
