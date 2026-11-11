@@ -148,7 +148,9 @@ fn ler_xml(interacao: &Value) -> Resultado {
         return Resultado::NaoAplicavel("resposta_ajax_sem_mime_xml".to_owned());
     }
     let corpo = gravacao::corpo(interacao);
-    let codificacao = interacao["response"]["encoding"].as_str().unwrap_or("");
+    let codificacao = interacao["response"]["encoding"]
+        .as_str()
+        .filter(|e| !e.is_empty());
     let Ok(xml) = crate::transporte::corpo::legivel(&corpo, codificacao) else {
         return Resultado::Recusado("hipotese_legal_ajax_resposta_nao_reconhecida".to_owned());
     };

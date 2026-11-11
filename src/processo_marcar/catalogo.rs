@@ -329,11 +329,10 @@ fn finalizar_atribuicao<V: EnvioDoProcesso>(
     // Segunda leitura independente: não confiar no próprio POST nem repetir.
     let presente =
         releitura_de_marcadores(sessao, indice, pedido, rede, (id, unidade)).map(|lidos| {
-            lidos.itens.iter().any(|m| {
-                m.id == rotulo.id
-                    && m.nome == rotulo.nome
-                    && m.texto.as_deref().unwrap_or("") == texto.unwrap_or("")
-            })
+            lidos
+                .itens
+                .iter()
+                .any(|m| m.id == rotulo.id && m.nome == rotulo.nome && m.texto.as_deref() == texto)
         });
     if !aceito || !matches!(presente, Ok(true)) {
         return Err(FalhaDaMarcacao::AtribuicaoNaoConfirmada {
