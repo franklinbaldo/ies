@@ -33,6 +33,12 @@ pub enum ErroCopia {
     LeituraFalhou,
     /// A foto local existe e não pôde ser consultada (o motivo do sistema).
     ConsultaDaFotoFalhou(std::io::ErrorKind),
+    /// O destino não pôde ser consultado (o motivo do sistema).
+    ConsultaDoDestinoFalhou(std::io::ErrorKind),
+    /// A pasta de versões não pôde ser lida (o motivo do sistema).
+    LeituraDaPastaFalhou(std::io::ErrorKind),
+    /// Um arquivo da cópia não pôde ser lido (o motivo do sistema).
+    LeituraDoArquivoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
     BaseVersaoAusente,
     NomeVersaoLocalInvalido,
@@ -41,7 +47,13 @@ pub enum ErroCopia {
 }
 
 pub(crate) fn pasta_segura(pasta: &Path) -> Result<(), ErroCopia> {
-    let dados = fs::symlink_metadata(pasta).map_err(|_| ErroCopia::DestinoInseguro)?;
+    let dados = fs::symlink_metadata(pasta).map_err(|erro| {
+        if erro.kind() == std::io::ErrorKind::NotFound {
+            ErroCopia::DestinoInseguro
+        } else {
+            ErroCopia::ConsultaDoDestinoFalhou(erro.kind())
+        }
+    })?;
     if dados.file_type().is_symlink() || !dados.is_dir() {
         return Err(ErroCopia::DestinoInseguro);
     }
@@ -57,8 +69,8 @@ pub(crate) fn versoes_locais(
     pasta_segura(pasta)?;
     let prefixo = format!("{}.v", documento.as_str());
     let mut versoes = BTreeSet::new();
-    for item in fs::read_dir(pasta).map_err(|_| ErroCopia::LeituraFalhou)? {
-        let item = item.map_err(|_| ErroCopia::LeituraFalhou)?;
+    for item in fs::read_dir(pasta).map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))? {
+        let item = item.map_err(|erro| ErroCopia::LeituraDaPastaFalhou(erro.kind()))?;
         let nome_os = item.file_name();
         let Some(digitos) = nome_os
             .to_str()

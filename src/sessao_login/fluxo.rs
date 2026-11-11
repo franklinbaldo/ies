@@ -93,7 +93,7 @@ fn ler_da_sessao(caminho: &std::path::Path) -> Result<Option<String>, ErroLogin>
         Ok(texto) => Ok(Some(texto.trim().to_owned())),
         // Vazio: o arquivo que o `ies setup` exige antes do primeiro login.
         Err(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)
             | FalhaTransporte::ArquivoPrivadoVazio,
         ) => Ok(None),
         Err(falha) => Err(SessaoGravadaInvalida::Arquivo(falha).into()),

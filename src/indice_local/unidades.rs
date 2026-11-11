@@ -104,7 +104,8 @@ impl IndiceLocal {
                     })
                 })?
                 .collect::<rusqlite::Result<_>>()?;
-            let total = usize::try_from(total).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let total = usize::try_from(total)
+                .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(1, total))?;
             if total != unidades.len() {
                 return Err(rusqlite::Error::InvalidQuery);
             }

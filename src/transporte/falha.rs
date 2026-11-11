@@ -34,14 +34,18 @@ pub enum FalhaTransporte {
     TipoDeConteudoNaoHtml,
     /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
     TipoDeConteudoNaoXml,
-    ArquivoPrivadoAusenteOuInacessivel,
+    /// O arquivo não existe ou não pode ser consultado (o motivo do sistema).
+    ArquivoPrivadoAusenteOuInacessivel(std::io::ErrorKind),
     #[cfg(unix)]
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
     ArquivoPrivadoLinkSimbolico,
     ArquivoPrivadoVazio,
     ArquivoPrivadoAcimaDoLimite,
-    ArquivoPrivadoNaoPodeSerLido,
+    /// O arquivo não pôde ser aberto ou lido (o motivo do sistema).
+    ArquivoPrivadoNaoPodeSerLido(std::io::ErrorKind),
+    /// O conteúdo do arquivo não é UTF-8 (só a posição do erro, sem o texto).
+    ArquivoPrivadoNaoUtf8(#[source] std::str::Utf8Error),
     /// O marcador `.geracao` mudou (ou não confere com URL e cookie) nas
     /// duas leituras locais da sessão: outro processo gravou no meio.
     SessaoTrocadaDuranteALeitura,
@@ -80,12 +84,13 @@ impl FalhaTransporte {
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
             | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::ArquivoPrivadoNaoPodeSerLido(_)
+            | Self::ArquivoPrivadoNaoUtf8(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)
@@ -113,12 +118,13 @@ impl FalhaTransporte {
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
             | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::ArquivoPrivadoNaoPodeSerLido(_)
+            | Self::ArquivoPrivadoNaoUtf8(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
             | Self::PaginaDeLoginRecebidaNoControle
@@ -156,12 +162,13 @@ impl FalhaTransporte {
             | Self::CookieInvalido
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
-            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoAusenteOuInacessivel(_)
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
             | Self::ArquivoPrivadoAcimaDoLimite
-            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::ArquivoPrivadoNaoPodeSerLido(_)
+            | Self::ArquivoPrivadoNaoUtf8(_)
             | Self::SessaoTrocadaDuranteALeitura
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)

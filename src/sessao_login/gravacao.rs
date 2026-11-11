@@ -119,7 +119,7 @@ fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMar
                 coluna: erro.column(),
             }
         }),
-        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
+        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)) => Ok(None),
         Err(falha) => Err(ErroMarcadorDaSessao::Ilegivel(falha)),
     }
 }
@@ -163,16 +163,18 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         }
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
         | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroLogin::GravacaoDaSessaoFalhou(papel),
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }
 

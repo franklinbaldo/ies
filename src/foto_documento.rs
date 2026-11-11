@@ -39,7 +39,14 @@ pub(crate) struct FotoGravada {
 /// `DIR`, são aceitos); o modo é da pessoa e não é conferido.
 pub(crate) fn conferir_pasta(pasta: &Path) -> Result<(), ErroCopia> {
     conferir_diretorios(&pasta.join("x"))?;
-    pasta_segura(&fs::canonicalize(pasta).map_err(|_| ErroCopia::DestinoInseguro)?)
+    let real = fs::canonicalize(pasta).map_err(|erro| {
+        if erro.kind() == ErrorKind::NotFound {
+            ErroCopia::DestinoInseguro
+        } else {
+            ErroCopia::ConsultaDoDestinoFalhou(erro.kind())
+        }
+    })?;
+    pasta_segura(&real)
 }
 
 /// Os bytes da foto já presente, lidos sem seguir link e só se privada;
