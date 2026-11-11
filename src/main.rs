@@ -8,6 +8,7 @@ mod arvore_processo;
 mod bloco;
 mod bloco_cli;
 mod bloco_detalhe;
+mod bloco_estado;
 mod bloco_incluir;
 mod bloco_incluir_cli;
 mod cache_documento;

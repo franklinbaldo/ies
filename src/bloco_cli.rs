@@ -143,8 +143,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             .iter()
             .find(|b| b.numero == numero)
             .ok_or(FalhaLeitura::Bloco(ErroBloco::BlocoNaoEncontradoNaPagina))?
-            .estado
-            .as_str();
+            .estado;
         let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)
             .map_err(crate::bloco_cli::FalhaLeitura::Detalhe)?;
         return Ok(Lido {

@@ -1,6 +1,7 @@
 //! Interpretação somente-leitura da tabela tblProtocolosBlocos.
 //! Caso derivado de Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::bloco::{Faixa, TipoBloco};
+use crate::bloco_estado::EstadoDoBloco;
 use crate::html_atributos::nos_com_id;
 use serde::Serialize;
 
@@ -19,7 +20,7 @@ pub(crate) struct BlocoDetalhado {
     pub(crate) numero: String,
     pub(crate) tipo: TipoBloco,
     /// O estado foi observado na lista que ofereceu o link do detalhe.
-    pub(crate) estado: String,
+    pub(crate) estado: EstadoDoBloco,
     pub(crate) total_declarado: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) faixa_observada: Option<Faixa>,
@@ -204,7 +205,7 @@ pub(crate) fn ler_detalhe(
     html: &crate::tela_html::HtmlServido,
     numero: &str,
     tipo: TipoBloco,
-    estado: &str,
+    estado: EstadoDoBloco,
 ) -> Result<BlocoDetalhado, ErroBlocoDetalhe> {
     let dom = crate::tela_html::interpretar(html);
     let parser = dom.parser();
@@ -213,7 +214,7 @@ pub(crate) fn ler_detalhe(
         return Ok(BlocoDetalhado {
             numero: numero.to_owned(),
             tipo,
-            estado: estado.to_owned(),
+            estado,
             total_declarado: 0,
             faixa_observada: None,
             itens: Vec::new(),
@@ -278,7 +279,7 @@ pub(crate) fn ler_detalhe(
     Ok(BlocoDetalhado {
         numero: numero.to_owned(),
         tipo,
-        estado: estado.to_owned(),
+        estado,
         total_declarado,
         faixa_observada,
         itens,
@@ -294,7 +295,7 @@ mod tests {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<table id='tblProtocolosBlocos'><caption>Lista de Processos/Documentos (1 registros):</caption><tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th><th>Tipo</th></tr><tr><td><input type='checkbox'/></td><td>0001234</td><td>0000.00/2026-01</td><td>Observação</td><td>Despacho</td></tr></table>",
         );
-        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
+        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, EstadoDoBloco::Gerado).unwrap();
         assert_eq!(d.total_declarado, 1);
         assert_eq!(d.itens[0].documento.as_deref(), Some("0001234"));
         assert_eq!(d.itens[0].anotacoes, "Observação");
@@ -305,7 +306,7 @@ mod tests {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<table id='tblProtocolosBlocos'><caption>Lista (1 registros):</caption><tr><th></th><th>Processo</th><th>Anotações</th></tr><tr><td><input type='checkbox'/></td><td>NUP 001</td><td></td></tr></table>",
         );
-        let d = ler_detalhe(&html, "91", TipoBloco::Interno, "Gerado").unwrap();
+        let d = ler_detalhe(&html, "91", TipoBloco::Interno, EstadoDoBloco::Gerado).unwrap();
         assert!(d.itens[0].documento.is_none());
         assert!(d.itens[0].tipo.is_none());
     }
@@ -315,7 +316,7 @@ mod tests {
             "<table id='tblProtocolosBlocos'><caption>Lista (9 registros):</caption><tr><th>Processo</th><th>Anotações</th></tr><tr><td>NUP</td><td></td></tr></table>",
         );
         assert_eq!(
-            ler_detalhe(&html, "91", TipoBloco::Reuniao, "Gerado").err(),
+            ler_detalhe(&html, "91", TipoBloco::Reuniao, EstadoDoBloco::Gerado).err(),
             Some(ErroBlocoDetalhe::FaixaDoBlocoInvalida)
         );
     }
@@ -325,7 +326,7 @@ mod tests {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<table id='tblProtocolosBlocos'><caption class='infraCaption'>Lista de Processos/Documentos (1 registro):</caption><tr><th></th><th>Documento</th><th>Processo</th><th>Anotações</th></tr><tr><td><input type='checkbox'/></td><td>0001234</td><td>0000.00/2026-01</td><td></td></tr></table>",
         );
-        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
+        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, EstadoDoBloco::Gerado).unwrap();
         assert_eq!(d.total_declarado, 1);
         assert_eq!(d.faixa_observada, Some(Faixa { inicio: 1, fim: 1 }));
         assert_eq!(d.itens.len(), 1);
@@ -338,14 +339,14 @@ mod tests {
             "<table id='tblProtocolosBlocos'><caption>Lista (2 registro):</caption>{linha}</table>"
         ));
         assert_eq!(
-            ler_detalhe(&dois, "91", TipoBloco::Reuniao, "Gerado").err(),
+            ler_detalhe(&dois, "91", TipoBloco::Reuniao, EstadoDoBloco::Gerado).err(),
             Some(ErroBlocoDetalhe::LegendaDoBlocoInvalida)
         );
         let sem_linha = crate::tela_html::HtmlServido::de_teste(
             "<table id='tblProtocolosBlocos'><caption>Lista (1 registro):</caption><tr><th>Processo</th><th>Anotações</th></tr></table>",
         );
         assert_eq!(
-            ler_detalhe(&sem_linha, "91", TipoBloco::Reuniao, "Gerado").err(),
+            ler_detalhe(&sem_linha, "91", TipoBloco::Reuniao, EstadoDoBloco::Gerado).err(),
             Some(ErroBlocoDetalhe::FaixaDoBlocoInvalida)
         );
     }
@@ -355,14 +356,14 @@ mod tests {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<div id='divInfraAreaTabela' class='infraAreaTabela'><label class='infraLabelTabelaNenhumRegistro'>Nenhum registro encontrado.</label></div><input type='hidden' id='hdnInfraNroItens' name='hdnInfraNroItens' value='0'/>",
         );
-        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, "Gerado").unwrap();
+        let d = ler_detalhe(&html, "91", TipoBloco::Assinatura, EstadoDoBloco::Gerado).unwrap();
         assert_eq!(d.total_declarado, 0);
         assert_eq!(d.faixa_observada, None);
         assert!(d.itens.is_empty());
         let sem_classe = crate::tela_html::HtmlServido::de_teste(
             "<div id='divInfraAreaTabela' class='infraAreaTabela'><label>Nenhum registro encontrado.</label></div>",
         );
-        let d = ler_detalhe(&sem_classe, "91", TipoBloco::Interno, "Gerado").unwrap();
+        let d = ler_detalhe(&sem_classe, "91", TipoBloco::Interno, EstadoDoBloco::Gerado).unwrap();
         assert!(d.itens.is_empty());
     }
     #[test]
@@ -371,14 +372,26 @@ mod tests {
             "<div id='divInfraAreaTabela' class='infraAreaTabela'><label>Outra mensagem.</label></div>",
         );
         assert_eq!(
-            ler_detalhe(&outra_mensagem, "91", TipoBloco::Assinatura, "Gerado").err(),
+            ler_detalhe(
+                &outra_mensagem,
+                "91",
+                TipoBloco::Assinatura,
+                EstadoDoBloco::Gerado
+            )
+            .err(),
             Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
         );
         let marca_fora_da_area = crate::tela_html::HtmlServido::de_teste(
             "<div><label>Nenhum registro encontrado.</label></div>",
         );
         assert_eq!(
-            ler_detalhe(&marca_fora_da_area, "91", TipoBloco::Assinatura, "Gerado").err(),
+            ler_detalhe(
+                &marca_fora_da_area,
+                "91",
+                TipoBloco::Assinatura,
+                EstadoDoBloco::Gerado
+            )
+            .err(),
             Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
         );
         let marca_com_conteudo_extra = crate::tela_html::HtmlServido::de_teste(
@@ -389,7 +402,7 @@ mod tests {
                 &marca_com_conteudo_extra,
                 "91",
                 TipoBloco::Assinatura,
-                "Gerado"
+                EstadoDoBloco::Gerado
             )
             .err(),
             Some(ErroBlocoDetalhe::TabelaDoBlocoAusente)
