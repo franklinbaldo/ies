@@ -325,7 +325,7 @@ fn inspecao_local_humana_mantem_aviso_sem_sessao_ou_rede() {
     assert_eq!(
         humano,
         format!(
-            "IES: arquivo local {} (23 bytes, SHA-256 49286c45c90723857946342e0610a2b28974f176218f77f79efacc34cc4567bc) inspecionado para 23106.000001/2026-11. Tipo solicitado: Anexo. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.\\n",
+            "IES: arquivo local {} (23 bytes, SHA-256 49286c45c90723857946342e0610a2b28974f176218f77f79efacc34cc4567bc) inspecionado para 23106.000001/2026-11. Tipo solicitado: Anexo. Nenhuma tela do SEI foi consultada; não é prévia remota e nenhuma escrita está habilitada.\n",
             pdf.0.file_name().unwrap().to_str().unwrap()
         )
     );
