@@ -81,6 +81,7 @@ pub(crate) enum TelaDosMarcadores {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
@@ -102,7 +103,6 @@ pub(crate) enum ErroMarcadores {
     CabecalhoDosMarcadoresNaoReconhecido,
     HtmlDosMarcadoresNaoInterpretado,
     /// O número da legenda dos marcadores não é um inteiro decimal.
-    NumeroDaLegendaIlegivel(#[source] std::num::ParseIntError),
     LegendaDosMarcadoresForaDaFormaObservada,
     LinhaDoMarcadorForaDaFormaObservada,
     MarcadorRepetidoNaTela,

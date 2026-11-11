@@ -17,7 +17,7 @@ fn detalhada(inicio: usize) -> String {
          <input id='hdnTipoVisualizacao' value='D'>\
          <input id='hdnRecebidosHashCriterios' value='r'>\
          <input id='hdnGeradosHashCriterios' value='g'>\
-         <table id='tblProcessosDetalhado'><caption>(150 registros - {inicio} a {inicio}):</caption>\
+         <table id='tblProcessosDetalhado'><caption>Processos (150 registros - {inicio} a {inicio}):</caption>\
          <tr><th></th><th>Processo</th><th>Tipo</th></tr>\
          <tr id='P7'><td>linha</td><td><a class='processoVisualizado' \
          href='controlador.php?acao=procedimento_trabalhar&amp;id_procedimento=7'>N-7</a></td>\

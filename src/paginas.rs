@@ -4,6 +4,7 @@ use crate::controle_contexto::contexto_da_pagina;
 use crate::dominio::{CaixaDeEntrada, Categoria, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::nos_com_id;
+use crate::legenda::{ErroLegenda, Legenda, ler_legenda};
 use crate::paginacao_controle::{controles_de_paginacao, paginador_da_tabela};
 use std::collections::BTreeMap;
 
@@ -20,43 +21,20 @@ struct Faixa {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroFaixaDaLegenda {
-    TotalIlegivel,
-    FaixaSemSeparador,
-    InicioIlegivel(#[source] std::num::ParseIntError),
-    FimIlegivel(#[source] std::num::ParseIntError),
+    Legenda(#[from] ErroLegenda),
     /// Início zero, início depois do fim, fim acima do total ou tamanho
     /// diferente das linhas servidas.
     FaixaIncoerenteComAsLinhas,
 }
 
 fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroFaixaDaLegenda> {
-    let normalizada = legenda
-        .replace("&nbsp;", " ")
-        .replace("&#160;", " ")
-        .replace('\u{a0}', " ");
-    // Singular (`1 registro:`, UFRJ `(1 registro):`), como a visão D já lê.
-    let Some((antes, depois)) = normalizada.trim().split_once(" registro") else {
-        return Ok(None);
+    // Sem contagem na legenda, a faixa é deduzida das linhas servidas.
+    let Legenda { total, faixa } = match ler_legenda(legenda) {
+        Ok(lida) => lida,
+        Err(ErroLegenda::SemContagem) => return Ok(None),
+        Err(motivo) => return Err(ErroFaixaDaLegenda::Legenda(motivo)),
     };
-    let depois = depois.strip_prefix('s').unwrap_or(depois);
-    let total = antes
-        .split_whitespace()
-        .last()
-        .and_then(|x| x.trim_start_matches('(').parse::<usize>().ok())
-        .ok_or(ErroFaixaDaLegenda::TotalIlegivel)?;
-    if let Some(resto) = depois.strip_prefix(" - ") {
-        let (inicio, fim) = resto
-            .split_once(" a ")
-            .ok_or(ErroFaixaDaLegenda::FaixaSemSeparador)?;
-        let inicio = inicio
-            .trim()
-            .parse::<usize>()
-            .map_err(ErroFaixaDaLegenda::InicioIlegivel)?;
-        let fim = fim
-            .trim()
-            .trim_end_matches(|c: char| !c.is_ascii_digit())
-            .parse::<usize>()
-            .map_err(ErroFaixaDaLegenda::FimIlegivel)?;
+    if let Some(crate::legenda::Faixa { inicio, fim }) = faixa {
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
             return Err(ErroFaixaDaLegenda::FaixaIncoerenteComAsLinhas);
         }

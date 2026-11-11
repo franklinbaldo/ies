@@ -111,7 +111,7 @@ mod tests {
     fn caixa_sao_duas_listas_independentes_na_ordem_recebidos_gerados() {
         let html = crate::tela_html::HtmlServido::de_teste(
             "<a id='lnkInfraUnidade'>PPI</a>\
-                    <table id='tblProcessosRecebidos'><caption>(5 registros - 1 a 1):</caption>\
+                    <table id='tblProcessosRecebidos'><caption>Processos (5 registros - 1 a 1):</caption>\
                     <tr id='P1'><td><a class='processoVisualizado'>N-1</a></td></tr></table>\
                     <table id='tblProcessosGerados'><caption>0 registros:</caption></table>",
         );

@@ -3,25 +3,10 @@ use crate::classe_link_processo::{ClassesDeEstadoDiferentesNoLink, estado_do_lin
 use crate::dominio::{CaixaDeEntrada, Categoria, IdProcedimento, Processo, Tabela};
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::legenda::{ErroLegenda, ler_legenda};
 
 mod vazia;
 pub(crate) use vazia::lista_vazia_comprovada;
-
-pub(crate) fn total_da_legenda(texto: &str) -> Option<usize> {
-    // O tl mantém algumas entidades HTML como texto literal.
-    let texto = texto
-        .replace("&nbsp;", " ")
-        .replace("&#160;", " ")
-        .replace('\u{a0}', " ");
-    let palavras: Vec<&str> = texto.split_whitespace().collect();
-    palavras
-        .windows(2)
-        .find_map(|par| match par {
-            [numero, palavra] if palavra.starts_with("registro") => Some(*numero),
-            _ => None,
-        })
-        .and_then(|numero| numero.trim_start_matches('(').parse::<usize>().ok())
-}
 
 /// Uma linha do Controle (visão R ou D) com o `href` do link do número
 /// como a fonte da tag o traz (entidades ainda codificadas). Só para a
@@ -94,8 +79,13 @@ fn ler_linhas(
         .and_then(tl::Node::as_tag)
         .ok_or(ErroCaixa::LegendaAusente { categoria })?
         .inner_text(parser);
-    let total =
-        total_da_legenda(&legenda).ok_or(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria })?;
+    let total = match ler_legenda(&legenda) {
+        Ok(lida) => lida.total,
+        Err(ErroLegenda::SemContagem) => {
+            return Err(ErroCaixa::TotalNaoDeclaradoNaLegenda { categoria });
+        }
+        Err(motivo) => return Err(ErroCaixa::LegendaIlegivel { categoria, motivo }),
+    };
     let mut processos = Vec::new();
     let linhas = tabela
         .query_selector(parser, "tr")
@@ -209,13 +199,19 @@ mod tests {
 
     #[test]
     fn legendas_reais_e_entidades() {
-        assert_eq!(total_da_legenda("25 registros:"), Some(25));
+        assert_eq!(ler_legenda("25 registros:").map(|l| l.total), Ok(25));
         assert_eq!(
-            total_da_legenda("Processos recebidos (131 registros - 1 a 10):"),
-            Some(131)
+            ler_legenda("Processos recebidos (131 registros - 1 a 10):").map(|l| l.total),
+            Ok(131)
         );
-        assert_eq!(total_da_legenda("131&nbsp;registros:"), Some(131));
-        assert_eq!(total_da_legenda("indefinido"), None);
+        assert_eq!(
+            ler_legenda("131&nbsp;registros:"),
+            Err(crate::legenda::ErroLegenda::SemContagem)
+        );
+        assert_eq!(
+            ler_legenda("indefinido"),
+            Err(crate::legenda::ErroLegenda::SemContagem)
+        );
     }
 
     #[test]

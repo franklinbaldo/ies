@@ -9,6 +9,7 @@ use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
 use crate::nivel_de_detalhe::ColunaDoDetalhe;
 use crate::processo::NumeroProcesso;
 pub(crate) use colunas::ColunasDaLinha;
@@ -81,10 +82,8 @@ pub(crate) enum ErroDetalhada {
     ColunaDaVisaoDetalhadaRepetida,
     FaixaDetalhadaInvalida,
     AtributoDaDetalhadaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
-    /// O total declarado na página não é um inteiro decimal.
-    TotalNaoNumerico(#[source] std::num::ParseIntError),
-    /// Um número da faixa exibida não é um inteiro decimal.
-    NumeroDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    /// A legenda não está em nenhuma forma observada (leitor `legenda`).
+    Legenda(#[from] ErroLegenda),
     /// O controle da página recusou o HTML recebido.
     ControleDaPaginaNaoInterpretado(#[source] crate::erro_web::ErroCaixa),
     IdentificadorDetalhadoInvalido(#[source] crate::erro_web::ErroCaixa),
@@ -164,36 +163,13 @@ fn faixa(
     linhas: usize,
     paginacao_visivel: bool,
 ) -> Result<(usize, usize, usize), ErroDetalhada> {
-    let (anterior, restante) = legenda
-        .split_once(" registro")
-        .ok_or(ErroDetalhada::TotalNaoDeclarado)?;
-    let bruto = anterior
-        .split_whitespace()
-        .last()
-        .ok_or(ErroDetalhada::TotalNaoDeclarado)?
-        .trim_start_matches('(');
-    let total = bruto
-        .replace('.', "")
-        .parse::<usize>()
-        .map_err(ErroDetalhada::TotalNaoNumerico)?;
-    let Some((_, intervalo)) = restante.split_once(" - ") else {
+    let Legenda { total, faixa } = ler_legenda(legenda)?;
+    let Some(Faixa { inicio, fim }) = faixa else {
         if paginacao_visivel {
             return Err(ErroDetalhada::FaixaSemIntervaloComPaginacao);
         }
         return Ok((total, 1, linhas));
     };
-    let (inicio, fim) = intervalo
-        .split_once(" a ")
-        .ok_or(ErroDetalhada::FaixaDetalhadaInvalida)?;
-    let inicio = inicio
-        .parse::<usize>()
-        .map_err(ErroDetalhada::NumeroDaFaixaIlegivel)?;
-    let fim = fim
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect::<String>()
-        .parse::<usize>()
-        .map_err(ErroDetalhada::NumeroDaFaixaIlegivel)?;
     if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
         return Err(ErroDetalhada::FaixaDetalhadaInvalida);
     }

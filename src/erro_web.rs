@@ -65,6 +65,12 @@ pub enum ErroCaixa {
     TotalNaoDeclaradoNaLegenda {
         categoria: Categoria,
     },
+    /// A legenda da tabela não está em nenhuma forma observada (leitor `legenda`).
+    LegendaIlegivel {
+        categoria: Categoria,
+        #[source]
+        motivo: crate::legenda::ErroLegenda,
+    },
     /// Legenda sem intervalo e total diferente do número de linhas.
     LegendaSemFaixaComTotalDiferenteDasLinhas {
         categoria: Categoria,
@@ -110,6 +116,7 @@ impl ErroCaixa {
             | Self::FaixaAlterada { categoria }
             | Self::FaixaDescontinua { categoria }
             | Self::TotalNaoDeclaradoNaLegenda { categoria }
+            | Self::LegendaIlegivel { categoria, .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { categoria }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { categoria } => Some(*categoria),
             Self::IdInvalido
@@ -149,6 +156,7 @@ impl ErroCaixa {
             | Self::FaixaAlterada { .. }
             | Self::FaixaDescontinua { .. }
             | Self::TotalNaoDeclaradoNaLegenda { .. }
+            | Self::LegendaIlegivel { .. }
             | Self::LegendaSemFaixaComTotalDiferenteDasLinhas { .. }
             | Self::PaginadorDaTabelaSemFaixaNaLegenda { .. }
             | Self::LimitePaginas

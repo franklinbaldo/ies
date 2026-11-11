@@ -163,3 +163,27 @@ fn link_de_bloco_com_chave_repetida_ou_par_sem_igual_tem_a_causa() {
         Err(ErroBloco::LinkDeBlocosNaoReconhecido)
     );
 }
+
+#[test]
+fn singular_da_legenda_e_aceito_com_um_bloco() {
+    let um = linha("2195", "Gerado", "Exemplo");
+    let lida = ler_lista(
+        &crate::tela_html::HtmlServido::de_teste(&pagina(&um, "Lista (1 registro):")),
+        TipoBloco::Interno,
+    )
+    .unwrap();
+    assert_eq!(lida.lista.total_declarado, 1);
+    assert_eq!(
+        lida.lista.faixa_observada,
+        Some(Faixa { inicio: 1, fim: 1 })
+    );
+    assert_eq!(
+        ler_lista(
+            &crate::tela_html::HtmlServido::de_teste(&pagina(&um, "Lista (2 registro):")),
+            TipoBloco::Interno,
+        )
+        .err()
+        .unwrap(),
+        ErroBloco::Legenda(crate::legenda::ErroLegenda::SingularComTotalDiferenteDeUm { total: 2 })
+    );
+}

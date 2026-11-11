@@ -9,8 +9,14 @@ pub(crate) fn html(controle: &ControleDetalhado) -> Option<String> {
     }
     let total = tabela.total_declarado?;
     let legenda = tabela.faixa_observada.map_or_else(
-        || format!("({total} registros)"),
-        |faixa| format!("({total} registros - {} a {})", faixa.inicio(), faixa.fim()),
+        || format!("Processos ({total} registros)"),
+        |faixa| {
+            format!(
+                "Processos ({total} registros - {} a {})",
+                faixa.inicio(),
+                faixa.fim()
+            )
+        },
     );
     let mut html = format!(
         "<html><body><a id='lnkInfraUnidade'>{}</a>\

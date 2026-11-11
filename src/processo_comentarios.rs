@@ -4,6 +4,7 @@
 //! Não usa rede, não executa JS e não infere ausência de tabela como lista vazia.
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, valor_decodificado};
+use crate::legenda::{Legenda, ler_legenda};
 use std::collections::HashSet;
 
 type Tag<'p> = &'p tl::HTMLTag<'p>;
@@ -46,13 +47,13 @@ pub enum TelaDosComentarios {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroComentarios {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     VisaoNaoPublicada,
     TextoDoComentarioNaoPublicado,
     ListaIncompleta,
     CabecalhoDosComentariosInvalido,
     FormulariosDeComentariosRepetidos,
     HtmlDosComentariosNaoInterpretado,
-    TotalDaLegendaDosComentariosIlegivel(#[source] std::num::ParseIntError),
     IdDoComentarioRepetido,
     LegendaDosComentariosInvalida,
     LinhaDoComentarioInvalida,
@@ -298,26 +299,19 @@ fn ler_lista<'p>(
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     };
     let legenda = texto(caption, parser)?;
-    let (prefixo, resto) = legenda
-        .rsplit_once('(')
+    let (prefixo, _) = legenda
+        .split_once('(')
         .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
     if !prefixo.to_lowercase().contains("coment") {
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     }
-    let resto = resto
-        .strip_suffix("):")
-        .or_else(|| resto.strip_suffix(')'))
-        .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
-    let numero = resto
-        .strip_suffix(" registros")
-        .or_else(|| resto.strip_suffix(" registro"))
-        .ok_or(ErroComentarios::LegendaDosComentariosInvalida)?;
-    if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    let Legenda {
+        total: total_declarado,
+        faixa,
+    } = ler_legenda(&legenda)?;
+    if faixa.is_some() {
         return Err(ErroComentarios::LegendaDosComentariosInvalida);
     }
-    let total_declarado = numero
-        .parse::<usize>()
-        .map_err(ErroComentarios::TotalDaLegendaDosComentariosIlegivel)?;
     let colunas = ler_colunas(tabela, parser)?;
     let itens = ler_itens(tabela, parser, &colunas, total_declarado)?;
     Ok(TelaDosComentarios::Lista(ComentariosLidos {

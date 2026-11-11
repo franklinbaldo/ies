@@ -54,6 +54,7 @@ pub(crate) enum ErroRetornos {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     TelaDeRetornosDesconhecida,
+    Legenda(#[from] crate::legenda::ErroLegenda),
     PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
     ListaDeRetornosIncompleta,
     ListaDeRetornosComMaisDeUmaPagina,
@@ -144,8 +145,7 @@ fn ler_tabela(
     let [legenda] = legendas.as_slice() else {
         return Err(ErroRetornos::TelaDeRetornosDesconhecida);
     };
-    let declarado = crate::caixa::total_da_legenda(&texto(legenda, parser))
-        .ok_or(ErroRetornos::TelaDeRetornosDesconhecida)?;
+    let declarado = crate::legenda::ler_legenda(&texto(legenda, parser))?.total;
     let titulos: Vec<String> = tabela
         .query_selector(parser, "th")
         .into_iter()

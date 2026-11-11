@@ -7,11 +7,13 @@ mod acervo;
 mod fluxo;
 use crate::html_atributos::valor_decodificado;
 use crate::indice_local::UnidadeGuardada;
+use crate::legenda::ler_legenda;
 pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLupa {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
@@ -58,19 +60,11 @@ fn campo_unico(
     };
     valor_decodificado(unico, "value")?.ok_or(ErroLupa::PaginaInvalida)
 }
-fn total_da_legenda(legenda: &str) -> Option<usize> {
-    let resto = legenda.strip_prefix("Lista de Unidades (")?;
-    let (numero, depois) = resto.split_once(' ')?;
-    let sufixo = depois
-        .strip_prefix("registros")
-        .or_else(|| depois.strip_prefix("registro"))?;
-    // A cassette GO 5.0.3 publica a faixa após o número de registros:
-    // "Lista de Unidades (13671 registros - 1 a 50):".
-    // Não a confundir com uma legenda de outra tabela.
-    if !(sufixo.starts_with(')') || sufixo.starts_with(" - ")) {
-        return None;
+fn total_da_legenda(legenda: &str) -> Result<usize, ErroLupa> {
+    if !legenda.starts_with("Lista de Unidades (") {
+        return Err(ErroLupa::TotalAusente);
     }
-    numero.parse().ok()
+    Ok(ler_legenda(legenda)?.total)
 }
 
 fn ler_unidades(
@@ -241,7 +235,7 @@ pub(crate) fn ler_pagina(html: &crate::tela_html::HtmlServido) -> Result<PaginaD
         .first()
         .map(|legenda| texto_da_tag(legenda, parser))
         .ok_or(ErroLupa::TabelaForaDaForma)?;
-    let total = total_da_legenda(&legenda).ok_or(ErroLupa::TotalAusente)?;
+    let total = total_da_legenda(&legenda)?;
     if pagina >= paginas {
         return Err(ErroLupa::PaginaInvalida);
     }

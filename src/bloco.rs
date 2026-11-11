@@ -8,6 +8,7 @@ use crate::consulta_do_controlador::{
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
+use crate::legenda::{ErroLegenda, Faixa, Legenda, ler_legenda};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -44,9 +45,7 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
     BlocoNaoEncontradoNaPagina,
     CabecalhoDeBlocosNaoReconhecido,
-    TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
-    InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
-    FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    Legenda(#[from] ErroLegenda),
     /// A consulta do link de bloco não se deixa ler em pares.
     ConsultaDoLinkDeBloco(#[source] ErroConsultaDoControlador),
     /// `acao`, `infra_hash` do link de bloco ausentes ou repetidos.
@@ -70,12 +69,6 @@ pub(crate) struct BlocoLido {
     pub(crate) tipo: TipoBloco,
     pub(crate) estado: EstadoDoBloco,
     pub(crate) descricao: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize)]
-pub(crate) struct Faixa {
-    pub(crate) inicio: usize,
-    pub(crate) fim: usize,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -170,49 +163,23 @@ fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<S
 }
 
 fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>), ErroBloco> {
-    let (inicio, resto) = legenda
-        .split_once(" registros")
-        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
-    let total = inicio
-        .split_whitespace()
-        .last()
-        .ok_or(ErroBloco::LegendaDeBlocosInvalida)?
-        .trim_start_matches('(')
-        .replace('.', "")
-        .parse::<usize>()
-        .map_err(ErroBloco::TotalDaLegendaIlegivel)?;
-    if let Some((_, intervalo)) = resto.split_once(" - ") {
-        let (de, ate) = intervalo
-            .split_once(" a ")
-            .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
-        let de = de
-            .parse::<usize>()
-            .map_err(ErroBloco::InicioDaFaixaIlegivel)?;
-        let ate = ate
-            .chars()
-            .take_while(char::is_ascii_digit)
-            .collect::<String>()
-            .parse::<usize>()
-            .map_err(ErroBloco::FimDaFaixaIlegivel)?;
-        if de == 0 || ate < de || ate > total || ate - de + 1 != observados {
+    let Legenda { total, faixa } = ler_legenda(legenda)?;
+    let Some(Faixa { inicio, fim }) = faixa else {
+        if total != observados {
             return Err(ErroBloco::FaixaDeBlocosIncoerente);
         }
         return Ok((
             total,
-            Some(Faixa {
-                inicio: de,
-                fim: ate,
+            (total > 0).then_some(Faixa {
+                inicio: 1,
+                fim: total,
             }),
         ));
-    }
-    if total != observados {
+    };
+    if inicio == 0 || fim < inicio || fim > total || fim - inicio + 1 != observados {
         return Err(ErroBloco::FaixaDeBlocosIncoerente);
     }
-    let faixa = (total > 0).then_some(Faixa {
-        inicio: 1,
-        fim: total,
-    });
-    Ok((total, faixa))
+    Ok((total, Some(Faixa { inicio, fim })))
 }
 
 /// Leitura de uma única página, com nomes de colunas, sem assumir ordem fixa.

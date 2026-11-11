@@ -22,14 +22,16 @@ fn total_da_legenda_aceita_faixa_observada_no_go() {
     // Cassette real unidade-listar-destinos-go @2026-10-21.
     assert_eq!(
         total_da_legenda("Lista de Unidades (13671 registros - 1 a 50):"),
-        Some(13671)
+        Ok(13671)
     );
-    assert_eq!(total_da_legenda("Lista de Unidades (1 registro):"), Some(1));
+    assert_eq!(total_da_legenda("Lista de Unidades (1 registro):"), Ok(1));
+    assert_eq!(total_da_legenda("Lista de Unidades (2 registros):"), Ok(2));
     assert_eq!(
-        total_da_legenda("Lista de Unidades (2 registros):"),
-        Some(2)
+        total_da_legenda("Lista de Unidades (x registros):"),
+        Err(ErroLupa::Legenda(
+            crate::legenda::ErroLegenda::ContagemIlegivel("x".parse::<usize>().unwrap_err())
+        ))
     );
-    assert_eq!(total_da_legenda("Lista de Unidades (x registros):"), None);
 }
 #[test]
 fn paginas_inteiras_sem_repeticao() {

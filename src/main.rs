@@ -58,6 +58,7 @@ mod html_atributos;
 mod indice_caminho_cli;
 mod indice_local;
 mod instalacao;
+mod legenda;
 mod marcadores_processo;
 mod mime_web;
 mod nivel_de_detalhe;

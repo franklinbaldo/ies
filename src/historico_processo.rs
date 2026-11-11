@@ -65,6 +65,8 @@ pub(crate) enum ErroLinkDoHistorico {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
+    Legenda(#[from] crate::legenda::ErroLegenda),
+    TotalDeclaradoNaoCabeEmU64(#[source] std::num::TryFromIntError),
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Título, tabela ou linhas (leitor de `crate::historico`).
@@ -79,7 +81,6 @@ pub(crate) enum ErroAndamentos {
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
-    NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
     FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 

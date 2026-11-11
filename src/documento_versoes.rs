@@ -2,6 +2,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::html_atributos::{nos_por_elemento_e_classe, valor_decodificado};
+use crate::legenda::ler_legenda;
 use std::collections::HashSet;
 use std::num::NonZeroU32;
 
@@ -11,6 +12,7 @@ pub struct VersaoDocumento(NonZeroU32);
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroVersao {
+    Legenda(#[from] crate::legenda::ErroLegenda),
     LinhaIncompleta,
     /// O número da versão não cabe em u32; guarda o tipo do erro de conversão.
     NumeroDaVersaoIlegivel(std::num::IntErrorKind),
@@ -293,11 +295,7 @@ pub fn interpretar_historico(
     }
     let tabela = tabela.ok_or(ErroVersao::HistoricoDocumentoAusente)?;
     let legenda = legenda_unica(tabela, parser)?;
-    let declaradas = legenda
-        .rsplit_once('(')
-        .and_then(|(_, resto)| resto.split_once(" registros"))
-        .and_then(|(numero, _)| numero.parse::<usize>().ok())
-        .ok_or(ErroVersao::ListaIncompleta)?;
+    let declaradas = ler_legenda(&legenda)?.total;
     let entradas = linhas_do_historico(tabela, parser, id_interno)?;
     if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);

@@ -6,6 +6,7 @@ use super::{AndamentosLidos, ErroAndamentos, TipoDoHistorico};
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::historico::ler_historico;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
+use crate::legenda::{Legenda, ler_legenda};
 
 /// Lê a página e confere o NUP do título com o pedido.
 pub(crate) fn ler_andamentos(
@@ -14,11 +15,13 @@ pub(crate) fn ler_andamentos(
 ) -> Result<AndamentosLidos, ErroAndamentos> {
     let detalhe = ler_historico(html, nup)?;
     let dom = crate::tela_html::interpretar(html);
-    let total_declarado = legenda(&dom)?;
+    let total = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
-    if usize::try_from(total_declarado).is_ok_and(|total| detalhe.andamentos.len() > total) {
+    if detalhe.andamentos.len() > total {
         return Err(ErroAndamentos::AndamentosAlemDoTotalDeclarado);
     }
+    let total_declarado =
+        u64::try_from(total).map_err(ErroAndamentos::TotalDeclaradoNaoCabeEmU64)?;
     Ok(AndamentosLidos {
         tipo,
         total_declarado,
@@ -27,7 +30,7 @@ pub(crate) fn ler_andamentos(
 }
 
 /// A única `caption` da tabela (já conferida única pelo leitor das linhas).
-fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
+fn legenda(dom: &tl::VDom<'_>) -> Result<usize, ErroAndamentos> {
     let parser = dom.parser();
     let nos = nos_com_id(dom, "tblHistorico").map_err(ErroAndamentos::Atributo)?;
     let tabela = nos
@@ -55,19 +58,14 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
         [texto] => texto,
         _ => return Err(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada),
     };
-    let resto = texto
-        .strip_prefix("Lista de Andamentos (")
-        .ok_or(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada)?;
-    let numero = resto
-        .strip_suffix(" registros):")
-        .or_else(|| resto.strip_suffix(" registro):"))
-        .ok_or(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada)?;
-    if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
+    if !texto.starts_with("Lista de Andamentos (") {
         return Err(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada);
     }
-    numero
-        .parse()
-        .map_err(ErroAndamentos::NumeroDeRegistrosIlegivel)
+    let Legenda { total, faixa } = ler_legenda(texto)?;
+    if faixa.is_some() {
+        return Err(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada);
+    }
+    Ok(total)
 }
 
 /// O único `hdnTipoHistorico` do formulário: `R` ou `P`.

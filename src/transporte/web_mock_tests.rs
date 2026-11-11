@@ -54,7 +54,7 @@ fn html_caixa(n: usize) -> String {
         .unwrap();
     }
     format!(
-        "<html><a id='lnkInfraUnidade'>TESTE</a>         <input id='hdnTipoVisualizacao' value='R'>         <input id='hdnRecebidosHashCriterios' value='recebidos'>         <input id='hdnGeradosHashCriterios' value='gerados'>         <table id='tblProcessosRecebidos'><caption>{n} registros - 1 a {n}):</caption>{linhas}</table>         <table id='tblProcessosGerados'><caption>0 registros:</caption></table></html>"
+        "<html><a id='lnkInfraUnidade'>TESTE</a>         <input id='hdnTipoVisualizacao' value='R'>         <input id='hdnRecebidosHashCriterios' value='recebidos'>         <input id='hdnGeradosHashCriterios' value='gerados'>         <table id='tblProcessosRecebidos'><caption>Processos ({n} registros - 1 a {n}):</caption>{linhas}</table>         <table id='tblProcessosGerados'><caption>0 registros:</caption></table></html>"
     )
 }
 

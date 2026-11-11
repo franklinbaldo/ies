@@ -115,7 +115,7 @@ fn pagina_d(linhas: &[(&str, &str, String)]) -> String {
     format!(
         "<html><body>{}<input id='hdnTipoVisualizacao' value='D'>\
          <input id='hdnRecebidosHashCriterios' value='r'><input id='hdnGeradosHashCriterios' value='g'>\
-         <table id='tblProcessosDetalhado'><caption>({n} registros - 1 a {n}):</caption>\
+         <table id='tblProcessosDetalhado'><caption>Processos ({n} registros - 1 a {n}):</caption>\
          <tr><th></th><th>Processo</th><th>Tipo</th></tr>{html}</table></body></html>",
         menu()
     )
