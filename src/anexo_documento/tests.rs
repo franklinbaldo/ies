@@ -431,4 +431,5 @@ fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
     }
 }
 
+#[path = "tests/arquivo.rs"]
 mod arquivo;
