@@ -76,9 +76,8 @@ pub(crate) fn responder(
     if !matches!(metodo, "GET" | "POST") {
         return Resposta::nova(Estado::MetodoNaoPermitido);
     }
-    let configuracao = match colunas_detalhe::ler(banco, instalacao, cenario) {
-        Ok(Some(configuracao)) => configuracao,
-        Ok(None) | Err(_) => return Resposta::nova(Estado::DadosInsuficientes),
+    let Ok(Some(configuracao)) = colunas_detalhe::ler(banco, instalacao, cenario) else {
+        return Resposta::nova(Estado::DadosInsuficientes);
     };
     if metodo == "GET" {
         return Resposta::html(html(&configuracao, false));
