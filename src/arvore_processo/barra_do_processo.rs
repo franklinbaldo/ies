@@ -8,6 +8,7 @@
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, indice_da_barra, ler_barra, ler_declaracao};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -27,10 +28,10 @@ pub(crate) fn ler_link_das_propriedades(
 ) -> Result<Option<EnderecoDasPropriedades>, ErroPropriedades> {
     let (mut alterar, mut consultar) = (Vec::new(), Vec::new());
     for href in hrefs_da_barra(html)? {
-        match acao_do_href(&href) {
-            Some(acao) if acao == FonteDasPropriedades::Alterar.acao() => alterar.push(href),
-            Some(acao) if acao == FonteDasPropriedades::Consultar.acao() => consultar.push(href),
-            _ => {}
+        if menciona_acao(&href, FonteDasPropriedades::Alterar.acao()) {
+            alterar.push(href);
+        } else if menciona_acao(&href, FonteDasPropriedades::Consultar.acao()) {
+            consultar.push(href);
         }
     }
     let (fonte, achados) = if alterar.is_empty() {
@@ -74,7 +75,7 @@ pub(crate) fn ler_link_das_anotacoes(
     let hrefs = hrefs_da_barra(html).map_err(ErroLinkDasAnotacoes::BarraDeAnotacoesIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::AnotacaoRegistrar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::AnotacaoRegistrar))
         .collect();
     match candidatos.as_slice() {
         [] => Ok(None),
@@ -104,7 +105,7 @@ pub(crate) fn ler_link_do_prazo(
     let hrefs = hrefs_da_barra(html).map_err(ErroLinkPrazo::BarraDoPrazoIlegivel)?;
     let candidatos: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ControlePrazoDefinir))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ControlePrazoDefinir))
         .collect();
     let href = match candidatos.as_slice() {
         [] => return Ok(None),
@@ -130,7 +131,7 @@ pub(crate) fn ler_link_dos_marcadores(
     let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::AndamentoMarcadorGerenciar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::AndamentoMarcadorGerenciar))
         .collect();
     let href = match achados.as_slice() {
         [] => return Ok(None),
@@ -157,7 +158,7 @@ pub(crate) fn ler_link_dos_comentarios(
     let hrefs = hrefs_da_barra(html)?;
     let achados: Vec<_> = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ComentarioListar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ComentarioListar))
         .collect();
     let href = match achados.as_slice() {
         [] => return Ok(None),
@@ -232,14 +233,6 @@ pub(super) fn ancoras_da_barra(html: &str) -> Result<Vec<AncoraDaBarra>, ErroBar
     }
     Ok(ancoras)
 }
-/// O primeiro `acao=` da consulta do `href` (a conferência recusa dois).
-pub(super) fn acao_do_href(href: &str) -> Option<AcaoDoSei> {
-    let (_, consulta) = href.split_once('?')?;
-    consulta
-        .split('&')
-        .find_map(|par| par.strip_prefix("acao="))
-        .and_then(AcaoDoSei::ler)
-}
 
 /// O texto da barra do nó `PROCESSO`; duas barras para ele são recusa.
 fn barra_da_raiz(html: &str) -> Result<Option<String>, ErroBarraDoProcesso> {
@@ -307,7 +300,7 @@ pub(crate) fn ler_link_de_incluir_documento(
     let hrefs = hrefs_da_barra(html)?;
     let mut links = hrefs
         .iter()
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::DocumentoEscolherTipo));
+        .filter(|href| menciona_acao(href, AcaoDoSei::DocumentoEscolherTipo));
     let Some(href) = links.next() else {
         return Ok(None);
     };

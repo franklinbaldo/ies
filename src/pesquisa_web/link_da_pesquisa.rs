@@ -3,7 +3,9 @@
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -97,12 +99,7 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
             }
             continue;
         };
-        let publica = href.split_once('?').is_some_and(|(_, consulta)| {
-            consulta.split('&').any(|par| {
-                par.strip_prefix("acao=").and_then(AcaoDoSei::ler)
-                    == Some(AcaoDoSei::ProtocoloPesquisar)
-            })
-        });
+        let publica = menciona_acao(&href, AcaoDoSei::ProtocoloPesquisar);
         if publica {
             achados.push(href);
         }

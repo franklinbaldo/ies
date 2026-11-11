@@ -1,9 +1,10 @@
 //! Link observado da ação `procedimento_anexar` na barra do PROCESSO.
 //! Endereço assinado validado pela mesma peça das outras escritas.
-use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -23,7 +24,7 @@ pub(crate) fn ler_anexar_da_barra(
     let links: Vec<_> = ancoras
         .iter()
         .filter_map(|ancora| ancora.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoAnexar))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoAnexar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),

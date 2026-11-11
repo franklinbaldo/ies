@@ -10,10 +10,11 @@
 //!   linhas: a da função, a do `confirm` comentado e a do `location.href`.
 //!
 //! Sem regex e sem JavaScript executado: só essas formas exatas.
-use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_declaracao};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
 const ONCLICK: &str = "concluirProcesso();";
@@ -69,7 +70,7 @@ pub(crate) fn ler_concluir_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoConcluir))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoConcluir))
         .collect();
     let funcoes = ancoras
         .iter()
