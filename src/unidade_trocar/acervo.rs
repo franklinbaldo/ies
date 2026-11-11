@@ -11,10 +11,9 @@ use super::tela::{TROCAR_UNIDADE, TelaDeTroca, campos_do_envio, ler_tela_de_troc
 use crate::cassette::acervo::{Resultado, gravacao, percorrer, publicar, tabela};
 use crate::cassette::html_da_resposta;
 use crate::controle_reconhecido::unidade_do_controle;
-use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, derivar_submissao};
 
-fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> &'static str) -> Resultado {
+fn classe<T, E>(r: Result<T, E>, sub: impl Fn(&E) -> String) -> Resultado {
     match r {
         Ok(_) => Resultado::Lido,
         Err(e) => Resultado::Recusado(sub(&e)),
@@ -57,10 +56,9 @@ fn replay_de_unidade_trocar_no_acervo() {
                         soma(
                             0,
                             "link da troca no Controle",
-                            classe(
-                                link_da_troca(&inst, url, &h),
-                                crate::erro_publico::rotulo::<ErroTroca>,
-                            ),
+                            classe(link_da_troca(&inst, url, &h), |e: &ErroTroca| {
+                                format!("{e:?}")
+                            }),
                         );
                     }
                 }
@@ -72,7 +70,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                     soma(
                         1,
                         "tela Trocar Unidade",
-                        classe(lida.as_ref(), |e| crate::erro_publico::Rotulo::rotulo(*e)),
+                        classe(lida.as_ref(), |e| format!("{:?}", *e)),
                     );
                     if let Ok(t) = lida {
                         // POST derivado para a primeira unidade não marcada.
@@ -92,12 +90,9 @@ fn replay_de_unidade_trocar_no_acervo() {
                             soma(
                                 2,
                                 "POST derivado",
-                                classe(
-                                    s,
-                                    crate::erro_publico::rotulo::<
-                                        crate::formulario_web::ErroSubmissaoFormulario,
-                                    >,
-                                ),
+                                classe(s, |e: &crate::formulario_web::ErroSubmissaoFormulario| {
+                                    format!("{e:?}")
+                                }),
                             );
                         }
                         tela = Some((t, url.to_owned()));
@@ -119,7 +114,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                         if oferecido.is_some() {
                             Resultado::Lido
                         } else {
-                            Resultado::Recusado("id_fora_da_tela")
+                            Resultado::Recusado("id_fora_da_tela".to_owned())
                         },
                     );
                     let seguinte = rs
@@ -131,8 +126,10 @@ fn replay_de_unidade_trocar_no_acervo() {
                         "Location do POST (URL = a pedida)",
                         match (&primeiro, seguinte) {
                             (Ok(u), Some(s)) if u == s => Resultado::Lido,
-                            (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                            (Err(e), _) => Resultado::Recusado(e.rotulo()),
+                            (Ok(_), _) => {
+                                Resultado::Recusado("url_diferente_da_gravada".to_owned())
+                            }
+                            (Err(e), _) => Resultado::Recusado(format!("{e:?}")),
                         },
                     );
                     let Some(s1) = rs.get(i + 1) else { continue };
@@ -153,8 +150,10 @@ fn replay_de_unidade_trocar_no_acervo() {
                                 {
                                     Resultado::Lido
                                 }
-                                (Ok(_), _) => Resultado::Recusado("url_diferente_da_gravada"),
-                                (Err(e), _) => Resultado::Recusado(e.rotulo()),
+                                (Ok(_), _) => {
+                                    Resultado::Recusado("url_diferente_da_gravada".to_owned())
+                                }
+                                (Err(e), _) => Resultado::Recusado(format!("{e:?}")),
                             },
                         );
                         let Some(s2) = s2 else { continue };
@@ -169,18 +168,18 @@ fn replay_de_unidade_trocar_no_acervo() {
                         "Controle da unidade nova",
                         match lida {
                             Some(Ok(u)) if controle.status == 200 && u == sigla => Resultado::Lido,
-                            Some(Ok(_)) => {
-                                Resultado::Recusado("unidade_do_controle_diferente_da_pedida")
-                            }
-                            Some(Err(e)) => Resultado::Recusado(e.rotulo()),
-                            None => Resultado::NaoAplicavel("corpo ilegível"),
+                            Some(Ok(_)) => Resultado::Recusado(
+                                "unidade_do_controle_diferente_da_pedida".to_owned(),
+                            ),
+                            Some(Err(e)) => Resultado::Recusado(format!("{e:?}")),
+                            None => Resultado::NaoAplicavel("corpo ilegível".to_owned()),
                         },
                     );
                 }
                 ("infra_trocar_unidade", "POST", _) => soma(
                     4,
                     "Location do POST (URL = a pedida)",
-                    Resultado::Recusado("status_inesperado"),
+                    Resultado::Recusado("status_inesperado".to_owned()),
                 ),
                 _ => {}
             }

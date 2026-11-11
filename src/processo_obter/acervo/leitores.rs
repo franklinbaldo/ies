@@ -6,7 +6,6 @@ use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::{ler_tela_do_processo, nup_declarado_na_arvore};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::cassette::html_da_resposta;
-use crate::erro_publico::Rotulo as _;
 use crate::historico_processo::{TipoDoHistorico, ler_andamentos};
 use crate::html_atributos::nos_com_id;
 use crate::instalacao::Instalacao;
@@ -36,11 +35,11 @@ impl Cassette<'_> {
         }
     }
 
-    pub(super) fn nup(&self, id: &str) -> Result<&str, &'static str> {
+    pub(super) fn nup(&self, id: &str) -> Result<&str, String> {
         match self.nups.get(id) {
             Some(Some(nup)) => Ok(nup),
-            Some(None) => Err("nups_divergentes_nas_arvores_do_mesmo_id"),
-            None => Err("sem_arvore_do_mesmo_id_na_cassette"),
+            Some(None) => Err("nups_divergentes_nas_arvores_do_mesmo_id".to_owned()),
+            None => Err("sem_arvore_do_mesmo_id_na_cassette".to_owned()),
         }
     }
 }
@@ -97,7 +96,8 @@ fn ler(c: &Cassette<'_>, r: &Resposta<'_>) -> Vec<Registro> {
             .flatten()
     });
     let Some(id) = id else {
-        let motivo = Resultado::NaoAplicavel("id_procedimento_nao_publicado_na_url_servida");
+        let motivo =
+            Resultado::NaoAplicavel("id_procedimento_nao_publicado_na_url_servida".to_owned());
         return vec![c.registro(leitor, r.passo, motivo)];
     };
     if r.status == 302 {
@@ -107,11 +107,11 @@ fn ler(c: &Cassette<'_>, r: &Resposta<'_>) -> Vec<Registro> {
         Ok(html) => html,
         // O transporte da CLI recusa o mesmo corpo (`MAX_HTML_BYTES`).
         Err(_) if corpo_acima_do_limite(r.interacao) => {
-            let recusa = Resultado::Recusado("html_acima_do_limite_do_transporte");
+            let recusa = Resultado::Recusado("html_acima_do_limite_do_transporte".to_owned());
             return vec![c.registro(leitor, r.passo, recusa)];
         }
         Err(_) => {
-            let motivo = Resultado::NaoAplicavel("corpo_nao_e_html_decodificavel");
+            let motivo = Resultado::NaoAplicavel("corpo_nao_e_html_decodificavel".to_owned());
             return vec![c.registro(leitor, r.passo, motivo)];
         }
     };
@@ -145,7 +145,7 @@ fn corpo_acima_do_limite(interacao: &serde_json::Value) -> bool {
 fn tela(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, id: &str) -> Registro {
     let resultado = match ler_tela_do_processo(&c.instalacao, html, id, None) {
         Ok(_) => Resultado::Lido,
-        Err(erro) => Resultado::Recusado(erro.rotulo()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     };
     c.registro(Leitor::Tela, r.passo, resultado)
 }
@@ -203,7 +203,7 @@ fn andamentos(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str) -> Regi
                 registro.formas.push("linhas_abaixo_do_total".into());
             }
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.rotulo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     registro
 }
@@ -226,7 +226,7 @@ fn propriedades(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &
                 .push(lidas.nivel_de_acesso.como_texto().into());
             registro.formas.push(fonte.acao().into());
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.rotulo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     registro
 }
@@ -243,9 +243,9 @@ fn marcadores(c: &Cassette<'_>, r: &Resposta<'_>, html: &str, nup: &str, id: &st
         }
         Ok(TelaDosMarcadores::SemTabela) => {
             registro.resultado =
-                Resultado::NaoAplicavel("tabela_de_marcadores_nao_publicada_na_tela");
+                Resultado::NaoAplicavel("tabela_de_marcadores_nao_publicada_na_tela".to_owned());
         }
-        Err(erro) => registro.resultado = Resultado::Recusado(erro.rotulo()),
+        Err(erro) => registro.resultado = Resultado::Recusado(format!("{erro:?}")),
     }
     registro
 }
@@ -264,10 +264,10 @@ fn marcadores_302(c: &Cassette<'_>, r: &Resposta<'_>, id: &str) -> Registro {
                 id,
             ) {
                 Ok(_) => Resultado::Lido,
-                Err(_) => Resultado::Recusado("redirecionamento_nao_reconhecido"),
+                Err(_) => Resultado::Recusado("redirecionamento_nao_reconhecido".to_owned()),
             }
         }
-        None => Resultado::NaoAplicavel("location_nao_gravado"),
+        None => Resultado::NaoAplicavel("location_nao_gravado".to_owned()),
     };
     let mut registro = c.registro(Leitor::Marcadores, r.passo, resultado);
     if registro.resultado == Resultado::Lido {

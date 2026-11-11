@@ -11,7 +11,6 @@ use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento::NumeroDocumento;
 use crate::documento_versoes::interpretar_historico;
-use crate::erro_publico::Rotulo as _;
 use crate::rodape_do_documento::versao_do_rodape;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -55,7 +54,7 @@ fn barras(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -
                     };
                     format!("{lista}, {edicao}")
                 }
-                Err(erro) => format!("`{}`", erro.rotulo()),
+                Err(erro) => format!("`{erro:?}`"),
             },
         )
         .collect()
@@ -74,7 +73,7 @@ fn lista(html: &str, interacao: &serde_json::Value) -> String {
             h.atual()
                 .map_or(0, crate::documento_versoes::VersaoDocumento::numero)
         ),
-        Err(erro) => format!("`{}`", erro.rotulo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 

@@ -117,7 +117,7 @@ fn formas(s: &mut String, registros: &[Registro]) {
 fn recusas(s: &mut String, registros: &[Registro]) {
     let mut mapa: BTreeMap<(Leitor, &str, &str), Vec<String>> = BTreeMap::new();
     for r in registros {
-        if let Resultado::Recusado(sub) = r.resultado {
+        if let Resultado::Recusado(sub) = &r.resultado {
             mapa.entry((r.leitor, sub, r.instalacao.as_str()))
                 .or_default()
                 .push(format!("{}#{}", r.card, r.passo));

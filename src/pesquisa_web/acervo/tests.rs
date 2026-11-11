@@ -148,7 +148,7 @@ fn controle_sem_menu_da_pesquisa_e_recusado() {
     assert_eq!(
         de(&r, Leitor::Tela),
         [(
-            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela"),
+            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela".to_owned()),
             None
         )]
     );
@@ -160,7 +160,7 @@ fn envio_sem_tela_derivada_antes_nao_se_aplica() {
     assert_eq!(
         de(&r, Leitor::Envio),
         [(
-            Resultado::NaoAplicavel("tela_da_pesquisa_nao_derivada_antes_do_envio"),
+            Resultado::NaoAplicavel("tela_da_pesquisa_nao_derivada_antes_do_envio".to_owned()),
             None
         )]
     );
@@ -177,7 +177,7 @@ fn lista_da_pesquisa_em_documentos_nao_e_lida_como_processos() {
     assert_eq!(
         de(&r, Leitor::Envio),
         [(
-            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos"),
+            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos".to_owned()),
             None
         )]
     );
@@ -212,7 +212,7 @@ fn post_da_tela_de_resultado_nao_tem_corpo_gravado() {
     assert_eq!(
         de(&r, Leitor::PostDaTelaDeResultado),
         [(
-            Resultado::NaoAplicavel("post_da_tela_de_resultado_sem_corpo_gravado"),
+            Resultado::NaoAplicavel("post_da_tela_de_resultado_sem_corpo_gravado".to_owned()),
             None
         )]
     );

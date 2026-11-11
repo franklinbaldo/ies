@@ -13,21 +13,3 @@ pub struct SessaoEncerrada;
 #[cfg(test)]
 #[path = "erro_publico/tests.rs"]
 mod tests;
-
-/// Rótulo de um erro tipado para replays e testes: o seu `Debug`.
-#[cfg(test)]
-pub(crate) trait Rotulo {
-    fn rotulo(&self) -> &'static str;
-}
-
-#[cfg(test)]
-impl<T: std::fmt::Debug> Rotulo for T {
-    fn rotulo(&self) -> &'static str {
-        Box::leak(format!("{self:?}").into_boxed_str())
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn rotulo<T: std::fmt::Debug>(erro: &T) -> &'static str {
-    erro.rotulo()
-}
