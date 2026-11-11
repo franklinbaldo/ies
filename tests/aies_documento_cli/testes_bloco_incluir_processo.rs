@@ -138,3 +138,64 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     assert_eq!(persistido.itens[0].documento, None);
     assert_ne!(persistido.itens[0].processo, NUP_INTERNO);
 }
+
+#[test]
+fn bdd_381_04_colisao_entre_tipos_nao_escolhe_o_primeiro() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    blocos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Reuniao,
+            total: 1,
+            faixa: Some((1, 1)),
+            linhas: vec![LinhaBloco {
+                numero: BLOCO_INTERNO.into(),
+                estado: "Gerado".into(),
+                descricao: "Outro tipo com mesmo número".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let (resultado, pedidos) =
+        executar_ciencia_processo(&pasta, &["--json", "bloco", BLOCO_INTERNO]);
+    assert_eq!(resultado.status.code(), Some(1), "colisão precisa recusar");
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+    let (db, origem) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    let detalhe = bloco_detalhe::ler(&db, &origem, CENARIO, Tipo::Interno, BLOCO_INTERNO)
+        .unwrap()
+        .expect("estado original preservado");
+    assert_eq!(detalhe.itens.len(), 1);
+}
+
+#[test]
+fn bdd_381_04_lista_parcial_nao_prova_ausencia_de_colisao() {
+    let pasta = Pasta::nova();
+    preparar(&pasta);
+    let (mut banco, instalacao) = estado(&pasta.0.join("anti-ies.sqlite3"), true, 0, false);
+    blocos::guardar(
+        &mut banco,
+        &instalacao,
+        CENARIO,
+        &Pagina {
+            tipo: Tipo::Reuniao,
+            total: 2,
+            faixa: Some((1, 1)),
+            linhas: vec![LinhaBloco {
+                numero: "9999".into(),
+                estado: "Gerado".into(),
+                descricao: "Primeira página de reunião".into(),
+            }],
+        },
+    )
+    .unwrap();
+    let (resultado, pedidos) = executar_ciencia_processo(
+        &pasta,
+        &["--json", "bloco", "incluir", BLOCO_INTERNO, "--processo", NUP_INTERNO],
+    );
+    assert_eq!(resultado.status.code(), Some(1), "lista parcial não exclui colisão");
+    assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
+}
