@@ -288,7 +288,9 @@ fn executar_com_resposta_modo(
             if interceptar {
                 leitura_interceptada = true;
                 eventos_proxy.lock().unwrap().push(evento);
-                canal.write_all(resposta_injetada(resposta_na_releitura)).unwrap();
+                canal
+                    .write_all(resposta_injetada(resposta_na_releitura))
+                    .unwrap();
                 canal.flush().unwrap();
                 continue;
             }
