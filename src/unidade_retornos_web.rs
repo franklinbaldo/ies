@@ -1,7 +1,8 @@
 //! Navegacao somente GET na tela Retorno Programado publicada pelo Controle.
 //! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::consulta_do_controlador::{
-    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador,
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
@@ -209,21 +210,17 @@ fn links(
         };
         let bruto = valor_do_atributo(tag, "href").map_err(ErroLeituraRetornos::Atributo)?;
         let Some(bruto) = bruto else { continue };
-        // O nome da acao precisa ser uma chave exata, nunca sufixo de
-        // outra_acao nem acao_origem. Decodificar &amp; antes de separar.
-        if bruto.contains("acao=retorno_programado_listar") {
-            let href = decodificar_atributo(&bruto)
-                .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-            let eh_retorno = href.split_once('?').is_some_and(|(_, consulta)| {
-                ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
-                    consulta
-                        .valores("acao")
-                        .any(|valor| valor.starts_with("retorno_programado_listar"))
-                })
-            });
-            if eh_retorno {
-                saida.push(conferir_link(&bruto, servida, instalacao)?);
+        // Seleção tolerante pela ação exata (decodificada antes); a conferência
+        // estrita fica em `conferir_link`. Href sem decodificação só é suspeito
+        // se citar a operação.
+        let Some(href) = decodificar_atributo(&bruto) else {
+            if bruto.contains("retorno_programado_listar") {
+                return Err(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao);
             }
+            continue;
+        };
+        if menciona_acao(&href, AcaoDoSei::RetornoProgramadoListar) {
+            saida.push(conferir_link(&bruto, servida, instalacao)?);
         }
     }
     Ok(saida)

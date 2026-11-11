@@ -493,3 +493,36 @@ fn primeiro_dia_duplicado_com_url_divergente_falha_antes_do_get() {
 
 #[path = "tests/saltos.rs"]
 mod saltos;
+
+#[test]
+fn link_de_retorno_com_par_sem_igual_nao_some_em_silencio() {
+    let html = format!("<a href='{}'>Retornos</a>", href("lixo"));
+    assert!(matches!(
+        links(
+            &crate::tela_html::HtmlServido::de_teste(&html),
+            CONTROLE,
+            &instalacao()
+        ),
+        Err(ErroLeituraRetornos::ConsultaDoLinkIlegivel(
+            ErroConsultaDoControlador::ParSemIgual
+        ))
+    ));
+}
+
+#[test]
+fn link_de_retorno_com_acao_repetida_nao_some_em_silencio() {
+    let html = format!(
+        "<a href='{}'>Retornos</a>",
+        href("acao=retorno_programado_listar")
+    );
+    assert!(matches!(
+        links(
+            &crate::tela_html::HtmlServido::de_teste(&html),
+            CONTROLE,
+            &instalacao()
+        ),
+        Err(ErroLeituraRetornos::ChaveDoLinkIlegivel(
+            ErroChaveDaConsulta::Repetida { chave: "acao" }
+        ))
+    ));
+}
