@@ -69,6 +69,22 @@ fn diretorio_e_excesso_sao_diagnosticos_internos_distintos() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn ancestral_regular_preserva_causa_io_sem_alterar_bytes() {
+    let pasta = Pasta::nova();
+    let ancestral = pasta.0.join("ancestral-regular");
+    gravar(&ancestral, "sentinela-sintetica");
+    let destino = ancestral.join("config.json");
+    assert_eq!(
+        ler_configuracao_local(&destino).err(),
+        Some(FalhaConfiguracaoLocal::ErroDeIoNaLeitura(
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert_eq!(fs::read_to_string(ancestral).unwrap(), "sentinela-sintetica");
+}
+
 #[test]
 fn json_invalido_nao_e_campo_invalido() {
     let pasta = Pasta::nova();
