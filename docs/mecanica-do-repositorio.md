@@ -19,16 +19,15 @@ força das regras que ficaram lá.
   É exceção à divisão rígida por prefixos, não licença para editar
   branch ou arquivos com dono ativo sem coordenação. Fluxo, shape
   versionado, SQLite efêmero e critérios: [ciclo anti-IES](anti-ies/ciclo-cassettes.md).
-  BDD AIES da CLI já registrado na #355 pode ser mantido pelo 🦡
-  (autorização do proprietário); nos demais comandos, vale o 🐘.
+  Contratos e evidências da CLI substituem os antigos identificadores BDD.
   **Anti-IES é trabalho de todos os oito agentes**, sem nona rotina.
-  **Cassette-first, não cassette-gated:** BDD → cards/ZIPs existentes →
+  **Cassette-first, não cassette-gated:** operação CLI → cards/ZIPs existentes →
   SQLite → IES ↔ anti-IES ↔ CLI → confronto com a cassette. Sem rede
   local, use o [workflow](../.github/workflows/inspecionar-cassettes.yml)
   via Actions/arquivo temporário na PR ([guia](cassettes.md)).
   Sem cassette aplicável, implemente hipótese/fixture mínima; não espere
   REA/live. PASS sintético ≠ paridade cassette ≠ live. 🦅 não veta
-  por ausência; 🦡 evita churn; 🐘 coordena. Respeite BDD e ownership.
+  por ausência; 🦡 evita churn; 🐘 coordena. Respeite os testes E2E, o contrato e o ownership.
   **REA / emulação seletiva:** efeitos no SQLite; HTML, URLs,
   formulários e tokens são projeções sintéticas. Dispensar mecanismos
   internos não observáveis; separar fatos, hipóteses e desconhecidos.

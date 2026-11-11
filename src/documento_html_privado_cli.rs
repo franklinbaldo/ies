@@ -91,8 +91,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
                         json!({
                             "documento": identidade, "bytes": bytes,
                             "escopo": "html_privado_texto_exportado_offline",
-                            "autenticacao_remota": false,
-                            "versao_atual": null
+                            "autenticacao_remota": false
                         })
                     );
                 } else {
@@ -107,8 +106,7 @@ pub(super) fn tentar_ler(cli: &Cli) -> Option<anyhow::Result<()>> {
                     json!({
                         "documento": identidade, "texto": texto,
                         "escopo": "html_privado_offline",
-                        "autenticacao_remota": false,
-                        "versao_atual": null
+                        "autenticacao_remota": false
                     })
                 );
             } else {

@@ -27,7 +27,7 @@ relativo, uma `acao`, `id_procedimento` igual ao da árvore, um
 
 **Link não publicado.** Barra ausente, vazia ou sem nenhum dos dois links
 faz o comando falhar com `PropriedadesNaoPublicadasNaBarra` (saída 1, sem
-GET, nada publicado como `null`). Só `--sem-propriedades` dispensa a
+GET, nada publicado). Só `--sem-propriedades` dispensa a
 leitura. Link presente mas inválido ou repetido é recusa tipada.
 
 ## A tela
@@ -89,11 +89,11 @@ Sem link na barra, o comando falha antes de qualquer GET das propriedades.
 ## Saída
 
 ```json
-"propriedades": {"tipo": "texto ou null", "especificacao": "texto",
+"propriedades": {"tipo": "texto", "especificacao": "texto",
   "interessados": ["texto"],
   "assuntos": [{"codigo": "999.99", "descricao": "texto"}],
   "observacoes": "texto", "nivel_de_acesso": "publico",
-  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa",
+  "data_de_geracao": "dd/mm/aaaa",
   "fonte": "procedimento_alterar"}
 ```
 

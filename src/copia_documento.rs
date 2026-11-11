@@ -147,6 +147,7 @@ pub struct PreviaCopia {
     /// Sempre `false`: a prévia é offline e não confere a base com o SEI;
     /// só a releitura (`foto_local_divergente`) ou o salvar remoto (#89).
     pub base_verificada: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trecho_divergente: Option<TrechoDivergente>,
     /// Mostrado só na saída humana; JSON legado não contém corpo HTML.
     #[serde(skip_serializing)]

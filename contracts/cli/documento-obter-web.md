@@ -25,7 +25,7 @@ com um único GET adicional (sem POST) e publica `propriedades` com
 `nome_na_arvore`, `observacoes` e `nivel_de_acesso`.
 Sem qualquer link de cadastro com `--com-propriedades`: falha tipada
 `PropriedadesNaoPublicadasNaBarra` (saída 1, nenhum GET extra, nada
-publicado como `null`). Sem a flag, a chave `propriedades` não sai.
+publicado). Sem a flag, a chave `propriedades` não sai.
 Com `--anexo` e sem o cadastro do anexo: `ConteudoNaoPublicadoNaArvore`.
 Formulário ilegível ou identidade divergente são recusas tipadas.
 Não fabricar link de consulta nem tratar ausência de link como ausência
@@ -89,8 +89,9 @@ aprendê-lo; falha do banco nunca derruba o comando.
 
 JSON `{"documentos": [...], "requisicoes": N}`; cada documento traz
 `numero`, `id_documento`, `rotulo` (a5), `tipo` (do título), `icone`,
-`cancelado`, `pasta`, `processo` (`nup`, `id`, `tipo`), `unidade` (da
-tela; `null` pelo link da árvore, que não a publica), `resolvido_por`
+`cancelado`, `pasta` (sem a chave quando não há), `processo` (`nup`, `id`,
+`tipo`), `unidade` (da tela; sem a chave pelo link da árvore, que não a
+publica), `resolvido_por`
 (`indice_link`, `indice_trabalhar`, `indice_entrada_documento`,
 `pesquisa_rapida` e, com `--processo`, também `indice_entrada` e
 `caixa`), `requisicoes` (inclusive as dos palpites desmentidos),
@@ -103,7 +104,8 @@ Com `--saida DIR` (diretório existente, conferido antes da rede), cada
 interno grava só a foto `DOC.vN.html`, o HTML servido da versão lida,
 0600, sem seguir symlink e de forma idempotente (mesmo SHA-256: nada
 gravado, saída 0), **depois** de todos lidos; o JSON troca `texto` pelo
-objeto `arquivo` (`nome`, `bytes`, `sha256`, `gravado`, `motivo`).
+objeto `arquivo` (`nome`, `bytes`, `sha256`, `gravado`; `motivo: "igual"`
+só quando a foto já existia igual).
 Nenhum `DOC.txt` nem `DOC.vN.txt` (substituídos em #207;
 [versões e foto](documento-obter-versoes.md)).
 
@@ -168,8 +170,9 @@ já conferidos. A leitura não consulta lista apenas para nomear o cache.
 `--saida DIR` continua como cópia opcional. Ao copiar PDF do cache,
 a foto recebe inode próprio, sem hard link: uma edição local não altera
 o cache. Uma cópia já igual é no-op; uma divergente não é sobrescrita.
-O JSON acrescenta `cache: {caminho, versao, sha256}` ou `null` e
-`crc_rodape` do bloco assinado, quando observado, ou `null`.
+O JSON acrescenta `cache: {caminho, versao, sha256}` (`versao` só quando
+observada; sem o cache, a chave `cache` não sai) e `crc_rodape` do bloco
+assinado, só quando observado.
 CRC não é identidade ou validação criptográfica.
 
 As gravações do cache usam diretórios privados 0700, arquivo 0600
