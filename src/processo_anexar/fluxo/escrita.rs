@@ -91,11 +91,11 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         enviou = true;
         rede.post(post, c)
     })
-    .map_err(|e| {
+    .map_err(|erro| {
         if enviou {
-            FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::RespostaDoPost)
+            FalhaAnexar::NaoConfirmadoNoPost(erro)
         } else {
-            FalhaAnexar::ConsultaDerivacao(e)
+            FalhaAnexar::ConsultaDerivacao(erro)
         }
     })?;
     match resposta {
