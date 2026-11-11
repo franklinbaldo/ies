@@ -2,6 +2,7 @@
 //! A remoção não é inferida do HTML devolvido pelo POST nem só do estado final.
 use super::{FalhaRelacionar, tela};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -10,7 +11,6 @@ use crate::formulario_web::{
 use crate::instalacao::Instalacao;
 use crate::processo_concluir::escrita::{Contador, obter_tela};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const REMOVER: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -46,20 +46,7 @@ fn action_do_processo(url: &str, id: &str) -> bool {
     let Some(query) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let mut ids = Vec::new();
-    for par in query.split('&') {
-        let Some((chave, valor)) = par.split_once('=') else {
-            return false;
-        };
-        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        if chave == "id_procedimento" {
-            ids.push(valor);
-        }
-    }
-    ids.as_slice() == [id]
+    ConsultaDoControlador::ler(query).is_ok_and(|query| query.unico("id_procedimento") == Ok(id))
 }
 
 /// O 302 de aceite volta à tela; resultado=1 e ação únicos.
@@ -67,26 +54,13 @@ fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };
-    let (mut acoes, mut resultados, mut ids) = (0, 0, 0);
-    for par in query.split('&') {
-        let Some((chave, valor)) = par.split_once('=') else {
-            return false;
-        };
-        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        match chave {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoRelacionar) => {
-                acoes += 1;
-            }
-            "resultado" if valor == "1" => resultados += 1,
-            "id_procedimento" if valor == id => ids += 1,
-            "acao" | "resultado" | "id_procedimento" => return false,
-            _ => {}
-        }
-    }
-    acoes == 1 && resultados == 1 && ids <= 1
+    let Ok(query) = ConsultaDoControlador::ler(query) else {
+        return false;
+    };
+    let ids: Vec<_> = query.valores("id_procedimento").collect();
+    query.acao() == Ok(AcaoDoSei::ProcedimentoRelacionar)
+        && query.unico("resultado") == Ok("1")
+        && (ids.is_empty() || ids == [id])
 }
 
 /// O sucesso requer duas provas: POST com 302 de aceite e GET novo sem vínculo.

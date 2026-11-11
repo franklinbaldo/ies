@@ -1,6 +1,7 @@
 //! CLI Web de controle de prazo: leitura, prévia e confirmação local testável.
 //! O binário de distribuição continua recusando escrita antes da rede.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -226,22 +227,12 @@ fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
     let Some(consulta) = consulta_do_controlador(local, url_post) else {
         return false;
     };
-    let mut acoes = Vec::new();
-    let mut resultados = Vec::new();
-    let mut processos = Vec::new();
-    for parte in consulta.split('&') {
-        let Some((chave, valor)) = parte.split_once('=') else {
-            return false;
-        };
-        match chave {
-            "acao" => acoes.push(valor),
-            "resultado" => resultados.push(valor),
-            "id_procedimento" => processos.push(valor),
-            _ => {}
-        }
-    }
-    acoes == ["controle_prazo_definir"]
-        && resultados == ["1"]
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
+    let processos: Vec<_> = consulta.valores("id_procedimento").collect();
+    consulta.acao() == Ok(AcaoDoSei::ControlePrazoDefinir)
+        && consulta.unico("resultado") == Ok("1")
         && (processos.is_empty() || processos == [id])
 }
 

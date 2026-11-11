@@ -13,6 +13,7 @@
 use super::Destino;
 use super::erro::ErroTelaDeEnvio;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -344,15 +345,10 @@ pub(crate) fn redirecionamento_esperado(
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
     };
-    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
-        && valores("acao_origem") == [AcaoDoSei::ProcedimentoEnviar.como_na_url()]
-        && valores("id_procedimento") == [id]
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoEnviar.como_na_url())
+        && consulta.unico("id_procedimento") == Ok(id)
 }

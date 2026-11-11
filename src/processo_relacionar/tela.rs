@@ -1,6 +1,7 @@
 //! Tela de relacionamentos do SEI 4.0 (PEN1): leitura estrutural, sem JS
 //! executado e sem regex; todos os atributos passam por `html_atributos`.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{ErroSubmissaoFormulario, localizar_formulario};
 use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
 use ErroAtributoDeRelacionamento::AtributoDaTelaIlegivel;
@@ -50,24 +51,12 @@ pub(crate) enum ErroDestinoDaConsulta {
 
 fn id_do_processo(href: &str) -> Option<&str> {
     let query = href.strip_prefix("controlador.php?")?;
-    let mut acao = 0;
-    let mut ids = Vec::new();
-    for parte in query.split('&') {
-        let (nome, valor) = parte.split_once('=')?;
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoTrabalhar) => acao += 1,
-            "id_procedimento" if !valor.is_empty() && valor.bytes().all(|c| c.is_ascii_digit()) => {
-                ids.push(valor);
-            }
-            "acao" | "id_procedimento" => return None,
-            _ => (),
-        }
-    }
-    if let (1, [id]) = (acao, ids.as_slice()) {
-        Some(*id)
-    } else {
-        None
-    }
+    let query = ConsultaDoControlador::ler(query).ok()?;
+    let id = query.unico("id_procedimento").ok()?;
+    (query.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+        && !id.is_empty()
+        && id.bytes().all(|c| c.is_ascii_digit()))
+    .then_some(id)
 }
 
 /// Só a linha da tabela própria do formulário é evidência da relação.

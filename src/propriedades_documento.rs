@@ -2,6 +2,7 @@
 //! (Todos `tests/paginas_reais/documento_alterar.html`, SEI 4.0.9; Refs #60).
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{barra_do_no, endereco::conferir_endereco_relativo_por};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::instalacao::Instalacao;
@@ -151,7 +152,8 @@ pub(crate) fn ler_link(
         };
         let acao = href
             .strip_prefix("controlador.php?")
-            .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("acao=")));
+            .and_then(|q| ConsultaDoControlador::ler(q).ok())
+            .and_then(|q| q.acao().ok());
         // UFRJ 4.1: processo fechado oferece consultar em lugar de alterar;
         // externos publicam as ações `_recebido` (cassette UFRJ #60).
         let Some(
@@ -159,7 +161,7 @@ pub(crate) fn ler_link(
             | AcaoDoSei::DocumentoConsultar
             | AcaoDoSei::DocumentoAlterarRecebido
             | AcaoDoSei::DocumentoConsultarRecebido),
-        ) = acao.and_then(AcaoDoSei::ler)
+        ) = acao
         else {
             continue;
         };

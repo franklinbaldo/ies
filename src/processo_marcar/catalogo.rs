@@ -7,6 +7,7 @@ use super::{
 use crate::Cli;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, Redirecionamento302, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -352,24 +353,12 @@ fn aceite_da_atribuicao(redir: &Redirecionamento302, id: &str) -> bool {
     else {
         return false;
     };
-    let (mut acao, mut procedimento, mut origem) = (None, None, None);
-    for item in consulta.split('&') {
-        let Some((nome, valor)) = item.split_once('=') else {
-            return false;
-        };
-        let destino = match nome {
-            "acao" => &mut acao,
-            "id_procedimento" => &mut procedimento,
-            "acao_origem" => &mut origem,
-            _ => continue,
-        };
-        if destino.replace(valor).is_some() {
-            return false;
-        }
-    }
-    acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorGerenciar)
-        && origem.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::AndamentoMarcadorCadastrar)
-        && procedimento == Some(id)
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
+    consulta.acao() == Ok(AcaoDoSei::AndamentoMarcadorGerenciar)
+        && consulta.unico("acao_origem") == Ok(AcaoDoSei::AndamentoMarcadorCadastrar.como_na_url())
+        && consulta.unico("id_procedimento") == Ok(id)
 }
 
 fn saida_confirmada(
