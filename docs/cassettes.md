@@ -36,10 +36,10 @@ da matriz do Todos com estes registros, sem inventar provas de escrita.
 
 ## Caminho curto para qualquer agente — mesmo sem rede no sandbox
 
-**Cassette-first, não cassette-gated:** localize o card antes de inventar
+**Cassette-first, com replay obrigatório no aceite da PR:** localize o card antes de inventar
 uma fixture; se não houver observação aplicável, siga com hipótese e teste.
 Não confunda falha de rede do sandbox com falta de cassette: use o
-[workflow opcional de inspeção](../.github/workflows/inspecionar-cassettes.yml).
+[workflow de inspeção auxiliar](../.github/workflows/inspecionar-cassettes.yml).
 Ele baixa ZIPs públicos, verifica SHA-1/SHA-256, `schema_version`,
 `complete` e contagem, e mostra apenas métodos, nomes de ações e
 estrutura das requisições, nunca HTML, cookies ou URLs assinadas.
@@ -59,7 +59,10 @@ na branch da PR ativa, crie temporariamente
 linha** (em `cassettes/`). O evento `pull_request` executará a mesma
 inspeção no Actions. Consulte o run; depois **remova o arquivo da PR**
 para não persistir solicitações transitórias. Não é necessário escrever
-outro workflow. O workflow não é gate do CI regular.
+outro workflow. O workflow de inspeção não substitui o replay. Para integrar qualquer PR,
+execute os testes cassette-backed aplicáveis no CI oficial do GitHub
+Actions sobre o head final. Sem captura da transição, execute os replays
+existentes, rotule a hipótese sintética e não afirme paridade externa.
 
 **Com rede local:** rode
 `python3 scripts/inspecionar_cassettes.py cassettes/<instalacao>/<card>.md`
@@ -121,7 +124,8 @@ permitem que a mesma PR altere parser, tipos, SQL e servidor.
 Falta de ZIP é pânico com o nome do arquivo; o script não baixa nada.
 `IES_ACERVO_SAIDA` grava o relatório num arquivo em vez de imprimi-lo
 (cada teste sobrescreve o arquivo; use com o filtro de um só teste).
-A rodada inteira (onze testes) levou cerca de dez minutos em 05/11/2026.
+A suíte executa os testes de acervo disponíveis e registra resultados;
+o tempo de execução é variável.
 
 Os relatórios de cada rodada ficam em `docs/validacao-replay/`.
 
