@@ -6,11 +6,12 @@ description: "Contrato de trabalho vertical, banco derivado efêmero e compatibi
 
 # Ciclo fechado IES ↔ anti-IES
 
-**Cassette-first, não cassette-gated.** Comece pela operação contratada da CLI e procure as
+**Cassette-first no desenvolvimento, replay obrigatório no aceite da PR.** Comece pela operação contratada da CLI e procure as
 cassettes já registradas; observações verificadas são a entrada preferida
-para modelar o estado inicial do anti-IES. **Não exija** cassette/REA/live
-para codificar, testar ou integrar: quando houver lacunas, use hipótese e
-fixture mínima. Testes sintéticos auxiliam a modelar transições não capturadas, mas não substituem E2E alimentado por cassettes disponíveis. Não criar novos BDDs, steps ou arquivos Gherkin.
+para modelar o estado inicial do anti-IES. **Não exija** captura inexistente
+nem live para começar: quando houver lacunas, use hipótese mínima.
+Para integrar uma PR, execute os replays originais disponíveis no GitHub
+Actions sobre o head final, independentemente do ensaio sintético. Testes sintéticos auxiliam a modelar transições não capturadas, mas não substituem E2E alimentado por cassettes disponíveis. Não criar novos BDDs, steps ou arquivos Gherkin.
 O anti-IES não deve simplesmente devolver HTML gravado.
 O objetivo é um **sistema funcional, com estado coerente entre operações**.
 A reconstrução do comportamento Web e das transições segue o
@@ -78,8 +79,8 @@ ao comando e contrato da CLI, ao SHA e à evidência executada:
    versão/unidade identificadas; comparar o resultado real com o
    contrato e com a hipótese do anti-IES. Leitura/GET pode ter efeito.
    Escrita exige prévia → `--confirmar` uma vez → releitura
-   independente, com orçamento e resíduo; nunca produção, credenciais
-   em log ou repetição de escrita não confirmada. Divergência real gera correção
+   independente, com orçamento de requisições declarado e resíduo
+   registrado; nunca produção, credenciais em log nem retry da escrita. Divergência real gera correção
    da fatia IES/anti-IES e regressão de cassette quando aplicável.
 
 **A concordância entre os dois programas não prova os níveis 2 ou 3.**
@@ -87,16 +88,17 @@ Também não basta IES ler uma cassette: a simulação deve ser confrontada
 **separadamente** com a fonte. Não atribuir um PASS antigo à implementação
 nova sem cobrir seu comportamento e SHA/versão correspondentes.
 
-**Cadência:** procurar primeiro os cards disponíveis e inspecioná-los
-pelo runner GitHub Actions quando o sandbox não tiver rede. Isso é
-observação inicial, não autorização ou gate: se a cassette estiver
-realmente ausente ou inacessível também no runner, avance pelo nível 1
-com fixture mínima e registre nível 2 `NOT_RUN` com motivo. Havendo
-cassette aplicável, confrontá-la na mesma fatia. Nenhum desses casos
-impede código, PR ou integração sintética verde.
+**Cadência:** procurar primeiro os cards disponíveis. No GitHub Actions,
+executar em cada PR os replays do acervo original e as comparações
+independentes aplicáveis no head que será integrado, não só inspecionar
+hashes. O workflow de inspeção é auxiliar, não prova semântica.
+Se a transição não estiver capturada, avance com fixture mínima e
+registre essa comparação `NOT_RUN`, mas exija PASS dos replays existentes
+antes do merge. Não exigir CI em cada commit WIP, somente no head final.
 O nível 3 acontece quando houver ambiente autorizado e acessível;
-`NOT_RUN` não é fracasso sintético, nem PASS real. Não criar novo gate,
-pipeline ou modo CLI só para mostrar esses estados.
+`NOT_RUN` não é fracasso sintético, nem PASS real. O objetivo é
+compatibilidade observável, sem igualdade fixa de GETs/POSTs como
+critério de paridade; orçamento de ensaio e POST mutador único permanecem.
 
 **Registro mínimo na PR/issue**, sem relatório cerimonial: `comando/contrato` +
 `IES↔anti-IES: PASS/FAIL/NOT_RUN (teste/CI)` +
@@ -185,8 +187,9 @@ framework, outra suíte de CI ou testes repetidos.
 
 A PR informa comando/contrato, cassette, hipótese residual, testes, schema/tipos, ciclo
 `IES → SQLite → anti-IES → IES`, status do CI e riscos. Card e hashes
-somente quando disponíveis. **PASS nos testes é evidência suficiente
-para continuar implementação e integrar a fatia com gates verdes.**
+somente quando disponíveis. **PASS nos testes é evidência suficiente para continuar implementação.
+A integração exige também replay de cassettes disponíveis aprovado no
+GitHub Actions para o head final.**
 Não confundir PASS sintético com compatibilidade externa comprovada.
 Ausência de cassette/REA **não bloqueia desenvolvimento ou PR**;
 HTTPS, restrições de produção e segurança continuam vigentes.
