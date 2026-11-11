@@ -1,6 +1,7 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
 //! Oráculo de cenários: Todos `src/todos/sei/blocos_lista.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::bloco_estado::EstadoDoBloco;
 use crate::consulta_do_controlador::{
     ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
 };
@@ -50,6 +51,8 @@ pub(crate) enum ErroBloco {
     ConsultaDoLinkDeBloco(#[source] ErroConsultaDoControlador),
     /// `acao`, `infra_hash` do link de bloco ausentes ou repetidos.
     ChaveDoLinkDeBloco(#[source] ErroChaveDaConsulta),
+    /// A coluna Estado traz um texto fora do conjunto que o SEI publica.
+    EstadoDoBlocoDesconhecido(String),
     LegendaDeBlocosInvalida,
     LinhaDeBlocoForaDaForma,
     LinkDeBlocosAusente,
@@ -65,7 +68,7 @@ pub(crate) enum ErroBloco {
 pub(crate) struct BlocoLido {
     pub(crate) numero: String,
     pub(crate) tipo: TipoBloco,
-    pub(crate) estado: String,
+    pub(crate) estado: EstadoDoBloco,
     pub(crate) descricao: String,
 }
 
@@ -121,6 +124,15 @@ fn texto_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Texto fora do conjunto de estados não passa: vira erro com o texto observado.
+fn estado_da_celula(
+    celula: &tl::HTMLTag<'_>,
+    parser: &tl::Parser<'_>,
+) -> Result<EstadoDoBloco, ErroBloco> {
+    let texto = texto_tag(celula, parser);
+    EstadoDoBloco::ler(&texto).ok_or(ErroBloco::EstadoDoBlocoDesconhecido(texto))
 }
 
 fn cabecalhos(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<Vec<String>, ErroBloco> {
@@ -280,7 +292,7 @@ fn ler_linhas(
         itens.push(BlocoLido {
             numero,
             tipo,
-            estado: texto_tag(celula(indice_estado)?, parser),
+            estado: estado_da_celula(celula(indice_estado)?, parser)?,
             descricao: texto_tag(celula(indice_descricao)?, parser),
         });
     }
@@ -411,158 +423,4 @@ pub(crate) fn link_do_menu(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    const HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    fn linha(numero: &str, estado: &str, descricao: &str) -> String {
-        format!(
-            "<tr><td><input type='checkbox'/></td><td><a href='controlador.php?acao=rel_bloco_protocolo_listar&amp;id_bloco={numero}&amp;infra_hash={HASH}'>{numero}</a></td><td>{descricao}</td><td>{estado}</td><td></td></tr>"
-        )
-    }
-    fn pagina(linhas: &str, caption: &str) -> String {
-        format!(
-            "<table id='tblBlocos'><caption>{caption}</caption><tr><th></th><th>Número</th><th>Descrição</th><th>Estado</th><th>Ações</th></tr>{linhas}</table>"
-        )
-    }
-    #[test]
-    fn bloco_com_colunas_fora_de_ordem_e_numeros_opacos() {
-        // Caso de Todos tests/paginas_reais/menu_blocos.html @323eb01
-        let l = ler_lista(
-            &crate::tela_html::HtmlServido::de_teste(&pagina(
-                &linha("2195", "Gerado", "Teste de Bloco"),
-                "Lista de Blocos (1 registros):",
-            )),
-            TipoBloco::Assinatura,
-        )
-        .unwrap();
-        assert_eq!(l.lista.total_declarado, 1);
-        assert_eq!(l.lista.itens[0].numero, "2195");
-        assert_eq!(l.lista.itens[0].descricao, "Teste de Bloco");
-        // A tela de listagem não mostra quantidade de itens: o campo não existe.
-        assert!(
-            !serde_json::to_string(&l.lista)
-                .unwrap()
-                .contains("quantidade_itens")
-        );
-        assert!(!serde_json::to_string(&l.lista).unwrap().contains(HASH));
-    }
-    #[test]
-    fn duplicidade_ou_truncamento_nao_viram_lista_completa() {
-        let um = linha("2195", "Gerado", "Exemplo");
-        assert_eq!(
-            ler_lista(
-                &crate::tela_html::HtmlServido::de_teste(&pagina(
-                    &(um.clone() + &um),
-                    "Lista (2 registros):"
-                )),
-                TipoBloco::Interno
-            )
-            .err()
-            .unwrap(),
-            ErroBloco::NumeroDoBlocoRepetido
-        );
-        assert_eq!(
-            ler_lista(
-                &crate::tela_html::HtmlServido::de_teste(&pagina(&um, "Lista (3 registros):")),
-                TipoBloco::Interno
-            )
-            .err()
-            .unwrap(),
-            ErroBloco::FaixaDeBlocosIncoerente
-        );
-    }
-    #[test]
-    fn faixa_de_pagina_e_observada_nao_inferida() {
-        let l = ler_lista(
-            &crate::tela_html::HtmlServido::de_teste(&pagina(
-                &linha("2195", "Gerado", "X"),
-                "Lista (100 registros - 51 a 51):",
-            )),
-            TipoBloco::Reuniao,
-        )
-        .unwrap();
-        assert_eq!(
-            l.lista.faixa_observada,
-            Some(Faixa {
-                inicio: 51,
-                fim: 51
-            })
-        );
-    }
-    #[test]
-    fn tipo_certo_e_hash_unico_sao_obrigatorios() {
-        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-        let base = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
-        let href = format!("controlador.php?acao=bloco_interno_listar&infra_hash={HASH}");
-        assert!(
-            resolver_link(
-                &instalacao,
-                base,
-                &href,
-                AcaoDoSei::BlocoInternoListar,
-                None
-            )
-            .is_ok()
-        );
-        assert_eq!(
-            resolver_link(
-                &instalacao,
-                base,
-                &format!("{href}&infra_hash={HASH}"),
-                AcaoDoSei::BlocoInternoListar,
-                None
-            ),
-            Err(ErroBloco::ChaveDoLinkDeBloco(
-                crate::consulta_do_controlador::ErroChaveDaConsulta::Repetida {
-                    chave: "infra_hash"
-                }
-            ))
-        );
-        assert_eq!(
-            resolver_link(
-                &instalacao,
-                base,
-                "https://outra.test/controlador.php?acao=bloco_interno_listar",
-                AcaoDoSei::BlocoInternoListar,
-                None
-            ),
-            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
-        );
-    }
-
-    #[test]
-    fn link_de_bloco_com_chave_repetida_ou_par_sem_igual_tem_a_causa() {
-        let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
-        let base = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
-        let link = |consulta: String| {
-            let href = format!("controlador.php?{consulta}");
-            resolver_link(
-                &instalacao,
-                base,
-                &href,
-                AcaoDoSei::BlocoInternoListar,
-                None,
-            )
-        };
-        assert_eq!(
-            link(format!(
-                "acao=bloco_interno_listar&acao=bloco_interno_listar&infra_hash={HASH}"
-            )),
-            Err(ErroBloco::ChaveDoLinkDeBloco(
-                ErroChaveDaConsulta::Repetida { chave: "acao" }
-            ))
-        );
-        assert_eq!(
-            link(format!("acao=bloco_interno_listar&lixo&infra_hash={HASH}")),
-            Err(ErroBloco::ConsultaDoLinkDeBloco(
-                ErroConsultaDoControlador::ParSemIgual
-            ))
-        );
-        assert_eq!(
-            link(format!(
-                "acao=bloco_interno_listar&infra_hash={HASH}&id_bloco=5"
-            )),
-            Err(ErroBloco::LinkDeBlocosNaoReconhecido)
-        );
-    }
-}
+mod tests;
