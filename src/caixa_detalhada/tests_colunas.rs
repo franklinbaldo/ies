@@ -76,12 +76,7 @@ fn colunas_de_go_saem_com_chaves_estaveis_e_texto_colapsado() {
     assert!(json.get("categoria").is_none());
     let colunas = json["colunas"].as_object().unwrap();
     let chaves: Vec<_> = colunas.keys().map(String::as_str).collect();
-    let mut esperadas = vec![
-        "atribuicao",
-        "tipo",
-        "interessados",
-        "ultima_movimentacao",
-    ];
+    let mut esperadas = vec!["atribuicao", "tipo", "interessados", "ultima_movimentacao"];
     esperadas.sort_unstable();
     let mut obtidas = chaves.clone();
     obtidas.sort_unstable();
