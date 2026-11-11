@@ -164,7 +164,7 @@ fn recarregar_tipo<V: EnvioDoProcesso>(
         &RECARREGAR_TIPO,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[("selSerie", id_tipo), ("hdnIdSerie", id_tipo)],
     )?;
     let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
@@ -220,7 +220,7 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
                 &ESCOLHER_EXTERNO,
                 &instalacao,
                 &servida,
-                &unidade,
+                Some(unidade.as_str()),
                 &[("hdnIdSerie", "-1")],
             )?;
             let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {

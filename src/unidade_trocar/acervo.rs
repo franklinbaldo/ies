@@ -84,7 +84,7 @@ fn replay_de_unidade_trocar_no_acervo() {
                                 &TROCAR_UNIDADE,
                                 &inst,
                                 &servida,
-                                &t.marcada.sigla,
+                                Some(t.marcada.sigla.as_str()),
                                 &campos_do_envio(&t, outra),
                             );
                             soma(

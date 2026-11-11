@@ -235,7 +235,7 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
             html: html_lista,
             codificacao: CodificacaoDaTela::Utf8,
         },
-        "TESTE",
+        Some("TESTE"),
         &[("hdnIdSerie", "291")],
     )
     .expect("o IES consegue derivar o POST do formulario de escolha");
@@ -270,7 +270,7 @@ fn formularios_servidos_pelo_anti_ies_produzem_submissoes_reais_do_ies() {
             html: html_cadastro,
             codificacao: CodificacaoDaTela::Utf8,
         },
-        "TESTE",
+        Some("TESTE"),
         &[
             ("hdnFlagDocumentoCadastro", "2"),
             ("rdoNivelAcesso", "0"),
@@ -362,7 +362,7 @@ fn filtro_de_todos_http_e_derivacao_do_formulario_ies() {
             html: html_curto,
             codificacao: CodificacaoDaTela::Utf8,
         },
-        "TESTE",
+        Some("TESTE"),
         &[("hdnFiltroSerie", "T")],
     )
     .unwrap();

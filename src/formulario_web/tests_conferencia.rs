@@ -28,7 +28,7 @@ fn derivar(
         operacao,
         &instalacao(),
         &tela_iso(&url, html),
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("txtProtocoloPesquisa", "1")],
     )
 }
@@ -117,4 +117,60 @@ fn resposta_sem_marcador_aceita_so_quando_a_operacao_confere_por_leitura() {
         ErroSubmissaoFormulario::MarcadorDeResultadoAusenteNaResposta
     );
     // Status, login e MIME continuam recusas do envio.
+}
+
+fn derivar_com(
+    operacao: &OperacaoDeFormulario,
+    html: &str,
+    solicitada: Option<&str>,
+) -> Result<SubmissaoDerivada, ErroSubmissaoFormulario> {
+    let url = url_servida();
+    derivar_submissao(
+        operacao,
+        &instalacao(),
+        &tela_iso(&url, html),
+        solicitada,
+        &[("txtProtocoloPesquisa", "1")],
+    )
+}
+
+#[test]
+fn unidade_nao_informada_e_recusa_so_quando_a_tela_publica_a_unidade() {
+    let publica = JANELA.replacen(
+        "<html>",
+        "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>",
+        1,
+    );
+    assert_eq!(
+        derivar_com(&OPERACAO, &publica, None).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeNaoInformada
+    );
+    assert_eq!(
+        derivar_com(&NA_ORIGEM, &publica, None).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeNaoInformada
+    );
+    // Sem a unidade publicada, a ausência continua sendo a causa.
+    assert_eq!(
+        derivar_com(&OPERACAO, JANELA, None).unwrap_err(),
+        ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+    );
+}
+
+#[test]
+fn origem_do_link_sem_unidade_publicada_deriva_sem_conferir() {
+    assert!(derivar_com(&NA_ORIGEM, JANELA, None).is_ok());
+}
+
+#[test]
+fn unidade_informada_confere_com_a_tela() {
+    let publica = JANELA.replacen(
+        "<html>",
+        "<html><a id='lnkInfraUnidade'>UNIDADE TESTE</a>",
+        1,
+    );
+    assert!(derivar_com(&OPERACAO, &publica, Some("UNIDADE TESTE")).is_ok());
+    assert_eq!(
+        derivar_com(&OPERACAO, &publica, Some("OUTRA")).unwrap_err(),
+        ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+    );
 }

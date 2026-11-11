@@ -56,7 +56,7 @@ fn post_reenvia_os_ocultos_servidos_com_o_tipo_p_e_sem_o_botao_de_escrita() {
         &VER_HISTORICO_COMPLETO,
         &instalacao,
         &tela,
-        "",
+        None,
         &[(CAMPO_TIPO, "P")],
     )
     .unwrap();

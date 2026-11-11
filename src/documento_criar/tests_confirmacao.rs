@@ -63,7 +63,7 @@ fn submissao_sintetica() -> crate::formulario_web::SubmissaoDerivada {
         &CADASTRAR,
         &instalacao,
         &servida,
-        "UNIDADE TESTE",
+        Some("UNIDADE TESTE"),
         &[("hdnFlagDocumentoCadastro", "2"), ("rdoNivelAcesso", "0")],
     )
     .unwrap()

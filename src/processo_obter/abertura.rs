@@ -144,7 +144,7 @@ impl Contexto<'_> {
             &PESQUISA_RAPIDA,
             &self.instalacao,
             &tela,
-            unidade,
+            Some(unidade),
             &[(CAMPO, "")],
         ) {
             self.aprender_link(PESQUISA_RAPIDA.acao, "", submissao.url());

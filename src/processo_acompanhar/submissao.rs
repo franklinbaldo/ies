@@ -43,7 +43,7 @@ pub(crate) fn derivar_inclusao(
         &INCLUIR,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[
             ("selGrupoAcompanhamento", &escolhido.valor),
             ("txaObservacao", observacao),
@@ -79,7 +79,7 @@ pub(crate) fn derivar_exclusao(
         &EXCLUIR,
         instalacao,
         tela,
-        unidade,
+        Some(unidade),
         &[("hdnInfraItemId", id_alvo)],
         Some(action_observada),
     )
