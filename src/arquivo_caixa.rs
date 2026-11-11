@@ -118,7 +118,7 @@ mod tests {
         let ancestral = dir.join("regular");
         fs::write(&ancestral, b"SENTINELA").unwrap();
         let erro = gravar(
-            &ancestral.join("caixa.json"),
+            &ancestral.join("sub").join("caixa.json"),
             &serde_json::json!({"codigo": 1}),
         )
         .unwrap_err();
