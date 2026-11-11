@@ -33,10 +33,6 @@ pub(crate) enum ErroNivelDeDetalhe {
 
 type E = ErroNivelDeDetalhe;
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, E> {
-    valor_do_atributo(tag, nome).map_err(E::AtributoHtml)
-}
-
 /// Texto visível com espaços (inclusive `&nbsp;`) colapsados.
 pub(crate) fn texto_colapsado(texto: &str) -> String {
     texto
@@ -51,7 +47,7 @@ pub(crate) fn texto_colapsado(texto: &str) -> String {
 /// `action` com exatamente um `acao=procedimento_configurar_detalhe`.
 fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
     let diferente = || E::AcaoDoFormularioDoNivelDeDetalheDiferente;
-    let bruto = atributo(form, "action")?.ok_or_else(diferente)?;
+    let bruto = valor_do_atributo(form, "action")?.ok_or_else(diferente)?;
     let acao = decodificar_atributo(&bruto).ok_or_else(diferente)?;
     let (_, consulta) = acao.split_once('?').ok_or_else(diferente)?;
     let acoes: Vec<_> = consulta
@@ -121,14 +117,16 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "label" {
-            if let Some(alvo) = atributo(tag, "for")? {
+            if let Some(alvo) = valor_do_atributo(tag, "for")? {
                 rotulos.insert(alvo, texto_colapsado(&tag.inner_text(parser)));
             }
             continue;
         }
         let caixa = elemento == "input"
-            && atributo(tag, "type")?.is_some_and(|t| t.eq_ignore_ascii_case("checkbox"));
-        let Some(nome) = atributo(tag, "name")?.filter(|n| caixa && n.starts_with("chkSin")) else {
+            && valor_do_atributo(tag, "type")?.is_some_and(|t| t.eq_ignore_ascii_case("checkbox"));
+        let Some(nome) =
+            valor_do_atributo(tag, "name")?.filter(|n| caixa && n.starts_with("chkSin"))
+        else {
             continue;
         };
         let coluna = ColunaDoDetalhe::pelo_campo(&nome)

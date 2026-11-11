@@ -119,13 +119,8 @@ fn cassette_unb_conteudo_documento_compara_leitores_por_http() {
     assert!(!texto_original.contains("infra_hash"));
     let (processo_observado, nup_observado) =
         processo_observado_da_arvore(&captura.json, id_observado, &identidade.numero);
-    let revisao = revisao_do_conteudo_observado(
-        &captura.json,
-        id_observado,
-        &identidade.numero,
-        &html_original,
-        &texto_original,
-    );
+    let revisao =
+        revisao_do_conteudo_observado(&captura.json, id_observado, &html_original, &texto_original);
     let numero_versao = revisao.versao.get();
 
     let documento = DocumentoSimulado {
@@ -211,7 +206,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let numero = crate::documento::NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(originais[0].interacao).unwrap();
     let historico_original =
-        crate::documento_versoes::interpretar_historico(&html_original, &numero, id, None).unwrap();
+        crate::documento_versoes::interpretar_historico(&html_original, id, None).unwrap();
     let atual = historico_original
         .atual()
         .expect("histórico não vazio")
@@ -263,7 +258,7 @@ fn cassette_unb_historico_preserva_versoes_e_metadados_por_http() {
     let (cabecalho, html_anti) = resposta.split_once("\r\n\r\n").unwrap();
     assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "{cabecalho}");
     let historico_anti =
-        crate::documento_versoes::interpretar_historico(html_anti, &numero, id, None).unwrap();
+        crate::documento_versoes::interpretar_historico(html_anti, id, None).unwrap();
     assert_eq!(historico_anti.len(), historico_original.len());
     assert_eq!(historico_anti.atual(), historico_original.atual());
     for n in &versoes {

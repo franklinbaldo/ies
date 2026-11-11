@@ -20,7 +20,7 @@ pub(crate) enum ErroTelaDeAssinatura {
     /// O parser de HTML recusou a tela de assinatura.
     HtmlDaTelaDeAssinaturaRecusadoPeloParser(#[source] tl::ParseError),
     TelaDeAssinaturaNaoInterpretada,
-    TelaDeAssinaturaComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    TelaDeAssinaturaComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta do POST não é a esperada. O POST saiu (ou pode ter

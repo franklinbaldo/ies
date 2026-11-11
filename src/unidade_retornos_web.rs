@@ -1,5 +1,6 @@
 //! Navegacao somente GET na tela Retorno Programado publicada pelo Controle.
 //! Oraculo: Todos `retorno_programado.py` @323eb01, cassette unidade-listar-retornos-unb.
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -203,9 +204,10 @@ fn links(
             let href = decodificar_atributo(&bruto)
                 .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
             let eh_retorno = href.split_once('?').is_some_and(|(_, consulta)| {
-                consulta.split('&').any(|par| {
-                    matches!(par.split_once('='), Some(("acao", valor))
-                        if valor.starts_with("retorno_programado_listar"))
+                ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+                    consulta
+                        .valores("acao")
+                        .any(|valor| valor.starts_with("retorno_programado_listar"))
                 })
             });
             if eh_retorno {

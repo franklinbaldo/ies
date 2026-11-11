@@ -1,4 +1,6 @@
 //! Relações entre processos: prévia, escrita única e conferência independente.
+#[cfg(test)]
+mod acervo;
 mod escrita;
 mod tela;
 #[cfg(test)]

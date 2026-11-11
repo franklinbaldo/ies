@@ -10,8 +10,9 @@ use super::{
     codificar_corpo,
 };
 use crate::acao_do_sei::{AcaoAjaxDoSei, AcaoDaSubmissao};
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 
 /// A consulta declarada pela operação (sem catálogo central).
 #[derive(Debug)]
@@ -90,33 +91,27 @@ fn conferir_consulta_ajax(
     consulta: &str,
     acao_ajax: AcaoAjaxDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let (mut acoes, mut hashes) = (0, 0);
-    for item in consulta.split('&').filter(|item| !item.is_empty()) {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::UrlInvalida,
-            ))?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
-        match nome {
-            "acao_ajax" if AcaoAjaxDoSei::ler(valor) == Some(acao_ajax) => acoes += 1,
-            "acao_ajax" | "acao" => {
-                return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
-            }
-            "infra_hash" => {
-                if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
-                }
-                hashes += 1;
-            }
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroSubmissaoFormulario::Transporte(falha)
         }
-    }
-    if acoes != 1 {
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
+    })?;
+    if consulta
+        .unico("acao_ajax")
+        .ok()
+        .and_then(AcaoAjaxDoSei::ler)
+        != Some(acao_ajax)
+        || consulta.valores("acao").next().is_some()
+    {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
-    if hashes != 1 {
+    if !consulta
+        .unico("infra_hash")
+        .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
     }
     Ok(())

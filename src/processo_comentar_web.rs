@@ -3,6 +3,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::conferir_endereco_relativo;
 use crate::arvore_processo::endereco::EnderecoRecusado;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -142,23 +143,21 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
 
 /// Confere a identidade do aceite sem seguir o redirecionamento.
 fn id_do_aceite<'a>(local: &'a str, url_post: &str, id_processo: &str) -> Option<&'a str> {
-    let consulta = consulta_do_controlador(local, url_post)?;
-    let mut acao = None;
-    let mut id = None;
-    let mut processo = None;
-    for campo in consulta.split('&') {
-        let (nome, valor) = campo.split_once('=')?;
-        match nome {
-            "acao" if acao.replace(valor).is_some() => return None,
-            "id_comentario" if id.replace(valor).is_some() => return None,
-            "id_procedimento" if processo.replace(valor).is_some() => return None,
-            _ => {}
-        }
-    }
-    (acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::ComentarioListar)
-        && processo.is_none_or(|processo| processo == id_processo))
-    .then_some(id?)
-    .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
+    let consulta = ConsultaDoControlador::ler(consulta_do_controlador(local, url_post)?).ok()?;
+    // `id_procedimento` é opcional, mas repetido nunca casa.
+    let processo_confere = match consulta
+        .valores("id_procedimento")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => true,
+        [processo] => *processo == id_processo,
+        _ => false,
+    };
+    let id = consulta.unico("id_comentario").ok()?;
+    (consulta.acao() == Ok(AcaoDoSei::ComentarioListar) && processo_confere)
+        .then_some(id)
+        .filter(|valor| !valor.is_empty() && valor.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// Uma tentativa de POST e uma releitura da lista; jamais reenvia a escrita.

@@ -11,6 +11,7 @@
 //! mesmo processo.
 use super::erro::ErroTelaDeConclusao;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
@@ -72,17 +73,17 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
     {
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
-            preenchida |= presente(tag, "selected")?;
+            preenchida |= atributo_presente(tag, "selected")?;
             continue;
         }
         if !matches!(
             elemento.as_str(),
             "input" | "button" | "select" | "textarea"
-        ) || presente(tag, "disabled")?
+        ) || atributo_presente(tag, "disabled")?
         {
             continue;
         }
-        let Some(nome) = valor(tag, "name")?.filter(|n| !n.is_empty()) else {
+        let Some(nome) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
             continue;
         };
         let padrao = if elemento == "button" {
@@ -90,10 +91,10 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
         } else {
             "text"
         };
-        let tipo =
-            valor(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
-        let marcado = presente(tag, "checked")?;
-        let servido = valor(tag, "value")?.unwrap_or_default();
+        let tipo = valor_do_atributo(tag, "type")?
+            .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+        let marcado = atributo_presente(tag, "checked")?;
+        let servido = valor_do_atributo(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
                 return Err(ErroTelaDeConclusao::TelaDeConclusaoDeOutroProcesso);
@@ -124,14 +125,6 @@ pub(crate) fn conferir_tela_de_conclusao(html: &str, id: &str) -> Result<(), Err
     Ok(())
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeConclusao> {
-    atributo_presente(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
-}
-
-fn valor(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroTelaDeConclusao> {
-    valor_do_atributo(tag, nome).map_err(ErroTelaDeConclusao::TelaDeConclusaoComAtributoIlegivel)
-}
-
 /// O 302 do POST é o esperado: `controlador.php?acao=arvore_visualizar`
 /// ou `acao=principal` (relativo, como gravado, ou no host e na pasta do
 /// POST: ver `consulta_do_controlador`), com
@@ -144,20 +137,11 @@ pub(crate) fn redirecionamento_esperado(
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
-    };
-    matches!(
-        valores("acao").as_slice(),
-        [acao] if matches!(
-            AcaoDoSei::ler(acao),
-            Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
-        )
-    ) && valores("acao_origem") == [AcaoDoSei::ProcedimentoConcluir.como_na_url()]
-        && valores("id_procedimento") == [id]
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        matches!(
+            consulta.acao(),
+            Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+        ) && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoConcluir.como_na_url())
+            && consulta.unico("id_procedimento") == Ok(id)
+    })
 }
