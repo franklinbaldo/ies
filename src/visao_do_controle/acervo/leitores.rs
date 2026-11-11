@@ -51,8 +51,10 @@ pub(super) fn replay(card: &str, instalacao: &str, json: &serde_json::Value) -> 
     let mut saida = Replay::default();
     let mut anterior: Option<String> = None;
     for resp in gravacao::respostas(json) {
-        let pathname = resp.interacao["request"]["pathname"].as_str().unwrap_or("");
-        if resp.metodo == "GET" && resp.status == 200 && pathname.ends_with("/sip/login.php") {
+        let login = resp.interacao["request"]["pathname"]
+            .as_str()
+            .is_some_and(|pathname| pathname.ends_with("/sip/login.php"));
+        if resp.metodo == "GET" && resp.status == 200 && login {
             saida.registros.push(tela_de_login(&cas, &resp));
         }
         if resp.operacao == "procedimento_controlar" {

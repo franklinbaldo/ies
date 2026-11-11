@@ -4,7 +4,7 @@
 use super::ErroDetalhada;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::atributos;
+use crate::html_atributos::valor_decodificado;
 use crate::marcadores_processo::rotulo_do_marcador;
 use crate::nivel_de_detalhe::texto_colapsado;
 use serde::Serialize;
@@ -48,17 +48,6 @@ fn filhos<'d>(
         }
     }
     Ok(elementos)
-}
-
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroDetalhada> {
-    let bruto = atributos(tag)
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .valor(nome)
-        .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?
-        .map(str::to_owned);
-    bruto
-        .map(|v| decodificar_atributo(&v).ok_or(FORA))
-        .transpose()
 }
 
 /// `controlador.php?` com uma `acao=andamento_marcador_gerenciar` e um
@@ -139,11 +128,14 @@ fn marcador(
     parser: &tl::Parser<'_>,
     id_procedimento: &str,
 ) -> Result<MarcadorDaCelula, ErroDetalhada> {
-    if atributo(ancora, "class")?.as_deref() != Some("ancMarcador") {
+    if valor_decodificado(ancora, "class")?.as_deref() != Some("ancMarcador") {
         return Err(FORA);
     }
-    let id = id_do_href(&atributo(ancora, "href")?.ok_or(FORA)?, id_procedimento)?;
-    let texto = atributo(ancora, "onmouseover")?
+    let id = id_do_href(
+        &valor_decodificado(ancora, "href")?.ok_or(FORA)?,
+        id_procedimento,
+    )?;
+    let texto = valor_decodificado(ancora, "onmouseover")?
         .map(|v| texto_do_tooltip(&v))
         .transpose()?
         .map(|t| texto_colapsado(&t))
@@ -160,7 +152,7 @@ fn marcador(
     if img.name() != "img" {
         return Err(FORA);
     }
-    let cor = cor(&atributo(img, "src")?.ok_or(FORA)?)?;
+    let cor = cor(&valor_decodificado(img, "src")?.ok_or(FORA)?)?;
     let so_texto = rotulo
         .children()
         .top()

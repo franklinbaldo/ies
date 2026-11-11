@@ -48,7 +48,7 @@ pub(crate) enum ErroLinkDaLista {
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
-fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLinkDaLista> {
+pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLinkDaLista> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(|_| ErroLinkDaLista::ControleIlegivel)?;
     let instalacao =
@@ -120,7 +120,7 @@ pub(crate) enum ErroListaDePrazos {
 
 /// Lê uma funcao de linha observada sem executar o JavaScript.
 /// Ausencia de acao ao confirmar a exclusao significa ausencia da linha.
-fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
+pub(super) fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
         .map_err(ErroListaDePrazos::HtmlDaListaRecusadoPeloParser)?;
     crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoLista")
@@ -168,7 +168,7 @@ fn id_na_lista(html: &str, nup: &str) -> Result<Option<String>, ErroListaDePrazo
 /// processo-prazo-excluir-unb, interacao 13; live de 10/11/2026):
 /// `controlador.php?acao=controle_prazo_excluir&acao_origem=…&infra_hash=…`.
 /// Exige uma unica URL distinta, terminada por `infra_hash` de 64 hex.
-fn action_de_exclusao(html: &str) -> Result<String, ErroAcaoDeExclusao> {
+pub(super) fn action_de_exclusao(html: &str) -> Result<String, ErroAcaoDeExclusao> {
     let prefixo = "controlador.php?acao=controle_prazo_excluir";
     let mut encontradas: Vec<&str> = Vec::new();
     for (inicio, _) in html.match_indices(prefixo) {
@@ -298,7 +298,7 @@ fn publicar_exclusao(
     cli: &Cli,
     nup: &NumeroProcesso,
     confirmar: bool,
-    aberto: &crate::processo_obter::ProcessoAberto,
+    (aberto, indice): (&crate::processo_obter::ProcessoAberto, &IndiceLocal),
     requisicoes: u8,
 ) {
     // Na prévia o prazo atual não é lido: a chave `atual` sai, sem null.
@@ -319,6 +319,7 @@ fn publicar_exclusao(
         }
     }
     if cli.json {
+        crate::indice_local::anexar_avisos(&mut resultado, indice);
         println!("{resultado}");
     } else if confirmar {
         println!(
@@ -374,7 +375,7 @@ pub(super) fn executar(
     if confirmar {
         escrever_e_verificar(sessao, (&leitura, indice), &preparada, &mut rede, &cookie)?;
     }
-    publicar_exclusao(cli, nup, confirmar, &aberto, rede.feitas());
+    publicar_exclusao(cli, nup, confirmar, (&aberto, indice), rede.feitas());
     Ok(())
 }
 

@@ -11,7 +11,6 @@ use super::{ErroDocumentoObter, fora_do_html};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_relativo;
 use crate::arvore_processo::{BarraDoDocumento, EnderecoDoConteudo, ler_barra_do_documento};
-use crate::documento::NumeroDocumento;
 use crate::documento_versoes::{
     ErroVersao, HistoricoDocumento, VersaoDocumento, interpretar_historico,
 };
@@ -248,10 +247,7 @@ fn ler_lista<V: EnvioDoProcesso>(
             return Err(ErroDocumentoObter::Processo(fora_do_html(outra)));
         }
     };
-    let numero =
-        NumeroDocumento::novo(no.numero).map_err(ErroDocumentoObter::NumeroSeiDaArvoreIlegivel)?;
-    interpretar_historico(&html, &numero, no.id_documento, None)
-        .map_err(ErroDocumentoObter::Versoes)
+    interpretar_historico(&html, no.id_documento, None).map_err(ErroDocumentoObter::Versoes)
 }
 
 /// GET de um `documento_visualizar` assinado: tipo, texto e o HTML servido;

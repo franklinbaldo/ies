@@ -4,6 +4,7 @@
 //! guardam o `href`; esta leitura usa o mesmo tokenizador de atributos.
 use super::ErroProcessoObter;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 
@@ -16,16 +17,11 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
     let Some(consulta) = href.strip_prefix("controlador.php?") else {
         return false;
     };
-    let pares: Vec<_> = consulta.split('&').collect();
-    let acoes: Vec<_> = pares
-        .iter()
-        .filter_map(|p| p.strip_prefix("acao="))
-        .collect();
-    let ids: Vec<_> = pares
-        .iter()
-        .filter_map(|p| p.strip_prefix("id_procedimento="))
-        .collect();
-    acoes == [AcaoDoSei::ProcedimentoTrabalhar.como_na_url()] && ids == [id]
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoTrabalhar)
+        && consulta.unico("id_procedimento") == Ok(id)
 }
 
 /// `Ok(None)`: o NUP não está nesta página. `Ok(Some((id, href)))`: o id da

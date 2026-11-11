@@ -2,20 +2,13 @@
 use super::codificacao::decodificar_atributo;
 use super::{EnvioDoFormulario, ErroSubmissaoFormulario, OperacaoDeFormulario};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 pub(super) use crate::url_observada::UrlHttps;
 use crate::url_observada::{pasta, tem_esquema};
 use std::collections::HashSet;
-
-/// Valor bruto lido da fonte da tag (não do mapa do `tl`, defeituoso).
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroSubmissaoFormulario> {
-    valor_do_atributo(tag, nome).map_err(ErroSubmissaoFormulario::AtributoHtml)
-}
 
 /// Exatamente um `<form>` com o `id` ou `name` da operação.
 pub(crate) fn localizar_formulario<'d>(
@@ -31,7 +24,7 @@ pub(crate) fn localizar_formulario<'d>(
         .filter_map(|n| n.get(parser).and_then(tl::Node::as_tag))
     {
         for chave in ["id", "name"] {
-            if atributo(form, chave)?.is_some_and(|v| v == identificador) {
+            if valor_do_atributo(form, chave)?.is_some_and(|v| v == identificador) {
                 achados.push(form);
                 break;
             }
@@ -47,15 +40,15 @@ pub(crate) fn localizar_formulario<'d>(
 pub(super) fn conferir_metodo_e_codificacao(
     form: &tl::HTMLTag<'_>,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    if !atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
+    if !valor_do_atributo(form, "method")?.is_some_and(|m| m.eq_ignore_ascii_case("post")) {
         return Err(ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost);
     }
-    if atributo(form, "enctype")?
+    if valor_do_atributo(form, "enctype")?
         .is_some_and(|v| !v.eq_ignore_ascii_case("application/x-www-form-urlencoded"))
     {
         return Err(ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded);
     }
-    if atributo(form, "accept-charset")?.is_some() {
+    if valor_do_atributo(form, "accept-charset")?.is_some() {
         return Err(ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario);
     }
     Ok(())
@@ -132,20 +125,14 @@ pub(super) fn resolver_action_no_host(
     {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao);
     }
-    for item in alvo
-        .consulta
-        .unwrap_or_default()
-        .split('&')
-        .filter(|item| !item.is_empty())
-    {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::UrlInvalida,
-            ))?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
-    }
+    ConsultaDoControlador::ler(alvo.consulta.unwrap_or_default()).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroSubmissaoFormulario::Transporte(falha)
+        }
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
+    })?;
     Ok(absoluta)
 }
 
@@ -155,8 +142,8 @@ fn resolver_referencia(
     form: &tl::HTMLTag<'_>,
     servida: &UrlHttps<'_>,
 ) -> Result<String, ErroSubmissaoFormulario> {
-    let bruto =
-        atributo(form, "action")?.ok_or(ErroSubmissaoFormulario::AcaoDoFormularioAusente)?;
+    let bruto = valor_do_atributo(form, "action")?
+        .ok_or(ErroSubmissaoFormulario::AcaoDoFormularioAusente)?;
     let decodificado = decodificar_atributo(&bruto).ok_or_else(|| {
         ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: "action".to_owned(),
@@ -188,33 +175,21 @@ pub(super) fn conferir_consulta(
     consulta: &str,
     acao: AcaoDoSei,
 ) -> Result<(), ErroSubmissaoFormulario> {
-    let (mut acoes, mut acoes_iguais, mut hashes) = (0, 0, 0);
-    for item in consulta.split('&').filter(|item| !item.is_empty()) {
-        let (nome, valor) = item
-            .split_once('=')
-            .ok_or(ErroSubmissaoFormulario::Transporte(
-                FalhaTransporte::UrlInvalida,
-            ))?;
-        conferir_chave_de_consulta(nome)?;
-        conferir_valor_de_consulta(valor)?;
-        match nome {
-            "acao" => {
-                acoes += 1;
-                acoes_iguais += usize::from(AcaoDoSei::ler(valor) == Some(acao));
-            }
-            "infra_hash" => {
-                if valor.len() != 64 || !valor.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
-                }
-                hashes += 1;
-            }
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroSubmissaoFormulario::Transporte(falha)
         }
-    }
-    if acoes != 1 || acoes_iguais != 1 {
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
+    })?;
+    if consulta.acao() != Ok(acao) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);
     }
-    if hashes != 1 {
+    if !consulta
+        .unico("infra_hash")
+        .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico);
     }
     Ok(())
@@ -250,7 +225,7 @@ fn valor_decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &str,
 ) -> Result<String, ErroSubmissaoFormulario> {
-    decodificar_atributo(&atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
+    decodificar_atributo(&valor_do_atributo(tag, "value")?.unwrap_or_default()).ok_or_else(|| {
         ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo {
             campo: nome.to_owned(),
         }
@@ -269,7 +244,7 @@ fn classificar(
     {
         return Ok(None);
     }
-    let Some(bruto) = atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
+    let Some(bruto) = valor_do_atributo(tag, "name")?.filter(|n| !n.is_empty()) else {
         return Ok(None);
     };
     let nome = decodificar_atributo(&bruto).ok_or_else(|| {
@@ -286,7 +261,8 @@ fn classificar(
     } else {
         "text"
     };
-    let tipo = atributo(tag, "type")?.map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
+    let tipo = valor_do_atributo(tag, "type")?
+        .map_or_else(|| padrao.to_owned(), |t| t.to_ascii_lowercase());
     Ok(match (elemento.as_str(), tipo.as_str()) {
         ("input", "hidden") => {
             let valor = valor_decodificado(tag, &nome)?;

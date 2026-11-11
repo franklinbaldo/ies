@@ -29,7 +29,7 @@ fn link(amb: &Ambiente, objeto: &str) -> Option<String> {
 
 fn guardar(amb: &Ambiente, objeto: &str, url: &str) {
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,

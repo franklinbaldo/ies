@@ -11,7 +11,7 @@ use crate::formulario_web::{
     ResultadoDoEnvio,
 };
 use crate::html_atributos::{
-    atributo_presente, nos_com_id, nos_por_elemento_e_classe, valor_do_atributo,
+    atributo_presente, nos_com_id, nos_por_elemento_e_classe, valor_decodificado, valor_do_atributo,
 };
 use crate::instalacao::Instalacao;
 
@@ -137,16 +137,6 @@ fn texto(no: &tl::Node<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, super::ErroTroca> {
-    match valor_do_atributo(tag, nome) {
-        Ok(None) => Ok(None),
-        Ok(Some(bruto)) => decodificar_atributo(&bruto)
-            .map(Some)
-            .ok_or(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada),
-        Err(causa) => Err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel(causa)),
-    }
-}
-
 fn tags<'p>(
     tag: &tl::HTMLTag<'_>,
     parser: &'p tl::Parser<'p>,
@@ -216,21 +206,33 @@ fn ler_linha(
     }
     let mut radios = Vec::new();
     for input in tags(tr, parser, "input") {
-        if atributo(input, "name")?.as_deref() == Some("chkInfraItem") {
+        if valor_decodificado(input, "name")
+            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+            .as_deref()
+            == Some("chkInfraItem")
+        {
             radios.push(input);
         }
     }
     let [radio] = radios.as_slice() else {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     };
-    let id =
-        atributo(radio, "value")?.ok_or(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada)?;
+    let id = valor_decodificado(radio, "value")
+        .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+        .ok_or(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
-    if atributo(radio, "type")?.as_deref() != Some("radio")
-        || atributo(radio, "onclick")?.as_deref().map(str::trim) != Some(esperado.as_str())
+    if valor_decodificado(radio, "type")
+        .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+        .as_deref()
+        != Some("radio")
+        || valor_decodificado(radio, "onclick")
+            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+            .as_deref()
+            .map(str::trim)
+            != Some(esperado.as_str())
     {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
@@ -238,7 +240,12 @@ fn ler_linha(
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     };
     let sigla = texto(sigla, parser);
-    if sigla.is_empty() || atributo(radio, "title")?.as_deref() != Some(sigla.as_str()) {
+    if sigla.is_empty()
+        || valor_decodificado(radio, "title")
+            .map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?
+            .as_deref()
+            != Some(sigla.as_str())
+    {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let marcada =

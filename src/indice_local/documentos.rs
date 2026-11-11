@@ -4,7 +4,7 @@
 //! para a entrada por id montada e por isso só se guardam dígitos ASCII. A
 //! observação nova que conflita com as antigas as substitui.
 use super::IndiceLocal;
-use super::validacao::{RegistroRecusado, conferir_id_procedimento, conferir_numero_sei};
+use super::validacao::{conferir_id_procedimento, conferir_numero_sei};
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -47,14 +47,17 @@ impl IndiceLocal {
     /// Os documentos `(número SEI, id_documento)` de uma árvore conferida do
     /// processo `id_procedimento`, numa transação. Entrada inválida, e todo
     /// número ou id que se repete na mesma árvore, invalida qualquer palpite
-    /// anterior; cada linha inequívoca substitui a associação antiga.
+    /// anterior; cada linha inequívoca substitui a associação antiga. O id
+    /// do processo inválido não grava nada e fica nos avisos.
     pub(crate) fn registrar_documentos(
         &self,
         instalacao: &Instalacao,
         id_procedimento: &str,
         documentos: &[(&str, &str)],
-    ) -> Result<(), RegistroRecusado> {
-        conferir_id_procedimento(id_procedimento)?;
+    ) {
+        if !self.anotar_recusa(conferir_id_procedimento(id_procedimento)) {
+            return;
+        }
         let unico = |numero: &str, id: &str| {
             documentos
                 .iter()
@@ -72,7 +75,7 @@ impl IndiceLocal {
             })
             .partition(|(numero, id)| unico(numero, id));
         if validos.is_empty() && ambiguos.is_empty() {
-            return Ok(());
+            return;
         }
         let origem = instalacao.url_base();
         self.executar((), |banco, agora| {
@@ -98,7 +101,6 @@ impl IndiceLocal {
             }
             Ok(())
         });
-        Ok(())
     }
 
     /// O servidor divergiu: esquece o número.

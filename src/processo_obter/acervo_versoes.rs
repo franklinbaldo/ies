@@ -9,7 +9,6 @@ use crate::arvore_processo::{
 };
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
-use crate::documento::NumeroDocumento;
 use crate::documento_versoes::interpretar_historico;
 use crate::rodape_do_documento::versao_do_rodape;
 use std::collections::BTreeMap;
@@ -65,8 +64,7 @@ fn lista(html: &str, interacao: &serde_json::Value) -> String {
     let Some(id) = ids.first().filter(|p| ids.iter().all(|v| v == *p)) else {
         return "id_documento da gravação ilegível".to_owned();
     };
-    let numero = NumeroDocumento::novo("1").expect("número sintético");
-    match interpretar_historico(html, &numero, id, None) {
+    match interpretar_historico(html, id, None) {
         Ok(h) => format!(
             "{} versões, atual {}",
             h.len(),

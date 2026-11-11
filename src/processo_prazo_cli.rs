@@ -1,6 +1,7 @@
 //! CLI Web de controle de prazo: leitura, prévia e confirmação local testável.
 //! O binário de distribuição continua recusando escrita antes da rede.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -20,6 +21,8 @@ use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli};
 use serde_json::json;
 
+#[cfg(test)]
+mod acervo;
 mod exclusao;
 
 /// Recusas e efeito incerto do controle de prazo; nenhuma mensagem paralela.
@@ -136,7 +139,15 @@ fn previsualizar(
     } else {
         tela
     };
-    publicar_previa(cli, nup, pedido, &aberto, &tela, rede.feitas(), confirmar);
+    publicar_previa(
+        cli,
+        nup,
+        pedido,
+        (&aberto, indice),
+        &tela,
+        rede.feitas(),
+        confirmar,
+    );
     Ok(())
 }
 
@@ -145,7 +156,7 @@ fn publicar_previa(
     cli: &Cli,
     nup: &NumeroProcesso,
     pedido: &PedidoDePrazo,
-    aberto: &ProcessoAberto,
+    (aberto, indice): (&ProcessoAberto, &IndiceLocal),
     tela: &TelaDoPrazo,
     requisicoes: u8,
     confirmado: bool,
@@ -185,6 +196,7 @@ fn publicar_previa(
         }
     }
     if cli.json {
+        crate::indice_local::anexar_avisos(&mut resultado, indice);
         println!("{resultado}");
     } else {
         println!("Processo {} — prazo atual: {}", nup.as_str(), atual);
@@ -226,22 +238,12 @@ fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
     let Some(consulta) = consulta_do_controlador(local, url_post) else {
         return false;
     };
-    let mut acoes = Vec::new();
-    let mut resultados = Vec::new();
-    let mut processos = Vec::new();
-    for parte in consulta.split('&') {
-        let Some((chave, valor)) = parte.split_once('=') else {
-            return false;
-        };
-        match chave {
-            "acao" => acoes.push(valor),
-            "resultado" => resultados.push(valor),
-            "id_procedimento" => processos.push(valor),
-            _ => {}
-        }
-    }
-    acoes == ["controle_prazo_definir"]
-        && resultados == ["1"]
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
+    let processos: Vec<_> = consulta.valores("id_procedimento").collect();
+    consulta.acao() == Ok(AcaoDoSei::ControlePrazoDefinir)
+        && consulta.unico("resultado") == Ok("1")
         && (processos.is_empty() || processos == [id])
 }
 

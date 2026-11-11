@@ -60,7 +60,7 @@ fn caminho_4a_com_anexado_custa_o_mesmo_e_aprende_o_anexado() {
 fn caminho_1_com_anexado_numa_requisicao() {
     let amb = ambiente();
     let (inst, g) = (instalacao(), geracao());
-    amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
+    amb.indice.registrar_processo(&inst, NUP, ID);
     amb.indice
         .registrar_link(
             &inst,

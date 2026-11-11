@@ -28,6 +28,13 @@ testes e pelas instalações reais.
   `"Envio(Transporte(Status(StatusHttpRecusado { status: 500, … })))"` ou
   `"RedirecionamentoNaoReconhecido"`. Respostas 200 (validação da Infra,
   página de exceção) carregam só a mensagem do SEI, nunca um status.
+- Avisos do índice local (#786): a falha que o índice detecta (banco que
+  não abre, entrada recusada antes da gravação, estado ilegível) não muda o
+  resultado nem o código de saída. No sucesso, `--json` traz `avisos`, um
+  array tipado (`{"falha": "banco", "causa": {"erro": "diretorio_nao_privado"}}`,
+  `{"falha": "registro_recusado", "causa": "nup_invalido"}`), omitido quando
+  vazio; sem `--json`, uma linha `Aviso do índice: …` por falha em stderr.
+  Nunca caminho, URL, cookie ou `infra_hash`. `IES_SEM_INDICE` não é falha.
 - Códigos de saída: 0 sucesso (escrita confirmada por releitura), 1 falha (inclusive escrita não confirmada), 2 uso inválido.
 - Escritas exigem prévia, confirmação e verificação; escrita não confirmada nunca se repete automaticamente.
 - Comportamentos são mapeados empiricamente em instalações reais do SEI.

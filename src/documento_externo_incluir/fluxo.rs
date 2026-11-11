@@ -119,7 +119,7 @@ pub(crate) enum ErroIncluirExterno {
     Confirmacao(#[from] FalhaConfirmacao),
 }
 
-fn conferir_destino(
+pub(crate) fn conferir_destino(
     instalacao: &Instalacao,
     location: &str,
     id_procedimento: &str,

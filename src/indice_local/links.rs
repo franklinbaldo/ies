@@ -6,6 +6,7 @@
 use super::IndiceLocal;
 use super::validacao::{RegistroRecusado, UrlAssinada, conferir_chave, conferir_url};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -24,13 +25,10 @@ pub(crate) struct ChaveDoLink<'a> {
 /// Unidade da chave dos links: o `infra_unidade_atual` único e decimal da
 /// URL privada do Controle. `None` se ausente, repetido ou não decimal.
 pub(crate) fn unidade_dos_links(url_do_controle: &str) -> Option<String> {
-    let consulta = url_do_controle.split_once('?')?.1;
-    let mut valores = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("infra_unidade_atual="));
-    let unidade = valores.next()?;
+    let consulta = ConsultaDoControlador::ler(url_do_controle.split_once('?')?.1).ok()?;
+    let unidade = consulta.unico("infra_unidade_atual").ok()?;
     let decimal = !unidade.is_empty() && unidade.bytes().all(|b| b.is_ascii_digit());
-    (decimal && valores.next().is_none()).then(|| unidade.to_owned())
+    decimal.then(|| unidade.to_owned())
 }
 
 impl IndiceLocal {
@@ -95,6 +93,17 @@ impl IndiceLocal {
             Ok(())
         });
         Ok(())
+    }
+
+    /// [`Self::registrar_link`] para quem não decide pela recusa: ela fica nos
+    /// avisos. `true` se a entrada passou na conferência.
+    pub(crate) fn guardar_link(
+        &self,
+        instalacao: &Instalacao,
+        chave: ChaveDoLink<'_>,
+        url: &str,
+    ) -> bool {
+        self.anotar_recusa(self.registrar_link(instalacao, chave, url))
     }
 
     /// O link guardado não abriu a tela esperada: esquece-o.

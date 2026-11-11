@@ -1,7 +1,6 @@
 //! Filtros opcionais da pesquisa: somente controles comprovados na tela servida.
 //! Todos é oráculo de nomes, mas cada instalação precisa publicar os controles.
-use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::valor_do_atributo;
+use crate::html_atributos::valor_decodificado;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FiltrosDaPesquisa<'a> {
@@ -57,18 +56,10 @@ pub(crate) fn data_valida(data: &str) -> bool {
 #[error("{self:?}")]
 pub(crate) enum ErroFiltro {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[from] crate::html_atributos::ErroAtributoHtml),
     CriterioNaoOferecidoPelaTela,
     TipoNaoOferecidoPelaTela,
     ControleDeFiltroAmbiguo,
-    AtributoDoFiltroIlegivel,
-}
-
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroFiltro> {
-    valor_do_atributo(tag, nome)
-        .map_err(ErroFiltro::Atributo)?
-        .map(|v| decodificar_atributo(&v).ok_or(ErroFiltro::AtributoDoFiltroIlegivel))
-        .transpose()
 }
 
 fn unico<'a, 'html>(
@@ -79,7 +70,7 @@ fn unico<'a, 'html>(
     let mut encontrado = None;
     for tag in tags {
         if tag.name().as_utf8_str().eq_ignore_ascii_case(elemento)
-            && atributo(tag, "name")?.as_deref() == Some(nome)
+            && valor_decodificado(tag, "name")?.as_deref() == Some(nome)
         {
             if encontrado.is_some() {
                 return Err(ErroFiltro::ControleDeFiltroAmbiguo);
@@ -105,11 +96,11 @@ fn valor_do_tipo(
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("option") {
             continue;
         }
-        if atributo(tag, "disabled")?.is_some() {
+        if valor_decodificado(tag, "disabled")?.is_some() {
             continue;
         }
         if tag.inner_text(parser) == tipo {
-            let valor = atributo(tag, "value")?
+            let valor = valor_decodificado(tag, "value")?
                 .filter(|v| !v.is_empty() && v != "null")
                 .ok_or(ErroFiltro::TipoNaoOferecidoPelaTela)?;
             escolhidos.push(valor);
@@ -153,7 +144,7 @@ pub(crate) fn derivar_campos(
     for (data, nome) in [(filtros.de, "txtDataInicio"), (filtros.ate, "txtDataFim")] {
         if let Some(data) = data {
             let campo = unico(&tags, "input", nome)?;
-            if atributo(campo, "type")?
+            if valor_decodificado(campo, "type")?
                 .as_deref()
                 .is_some_and(|v| v != "text")
             {

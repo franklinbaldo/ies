@@ -24,6 +24,7 @@ mod cli_processo;
 mod cli_unidade_aux;
 mod colheita_do_controle;
 mod configuracao;
+mod consulta_do_controlador;
 mod controle_contexto;
 mod controle_reconhecido;
 mod copia_documento;

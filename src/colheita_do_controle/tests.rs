@@ -344,9 +344,7 @@ fn url_do_controle_sem_unidade_nao_grava_nada() {
 #[test]
 fn nova_colheita_substitui_o_par_que_divergiu() {
     let (_pasta, indice) = indice();
-    indice
-        .registrar_processo(&instalacao(), "NUP-A", "9")
-        .unwrap();
+    indice.registrar_processo(&instalacao(), "NUP-A", "9");
     let html = pagina_r(&[("10", "NUP-A", Some(href_da_linha("10", 'c')))], &[]);
     colher(&indice, &html, Some(MIME));
     assert_eq!(indice.conteudo().0, [processo("NUP-A", "10")]);
