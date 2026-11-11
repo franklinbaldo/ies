@@ -84,11 +84,15 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         assert!(base.contains(de), "{de}");
         base.replacen(de, para, 1)
     };
-    let casos = [
-        (
-            trocar("frmAtividadeListar", "frmOutro"),
-            super::erro::ErroTelaDeEnvio::FormularioDeEnvioAusente,
+    let ausente = conferir_tela_de_envio(&trocar("frmAtividadeListar", "frmOutro"), ID);
+    assert!(
+        matches!(
+            ausente,
+            Err(super::erro::ErroTelaDeEnvio::FormularioDeEnvioAusente(_))
         ),
+        "{ausente:?}"
+    );
+    let casos = [
         (
             trocar(
                 "name=\"hdnIdProtocolos\" value=\"10\"",
@@ -172,7 +176,11 @@ fn recusas_da_tela_antes_de_qualquer_post() {
         ),
     ];
     for (html, erro) in casos {
-        assert_eq!(conferir_tela_de_envio(&html, ID), Err(erro), "{erro:?}");
+        assert_eq!(
+            conferir_tela_de_envio(&html, ID),
+            Err(erro.clone()),
+            "{erro:?}"
+        );
     }
     // Duas declarações do autocomplete: nenhuma é escolhida.
     let linha = format!(

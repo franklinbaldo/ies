@@ -23,8 +23,8 @@ pub(crate) fn ler_vinculo_de_anexacao(
     let Some(texto) = html_da_raiz(html)? else {
         return Ok(None);
     };
-    let fora = ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada;
-    let dom = tl::parse(&texto, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let dom = tl::parse(&texto, tl::ParserOptions::default())
+        .map_err(ErroArvore::ParseDoHtmlDoNoDoProcessoFalhou)?;
     let parser = dom.parser();
     let mut achado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -99,7 +99,7 @@ fn conferir(
     texto: &str,
     id: &str,
 ) -> Result<VinculoDeAnexacao, ErroArvore> {
-    let fora = ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
+    let fora = || ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)
@@ -108,16 +108,16 @@ fn conferir(
     };
     let (anexados, pais) = (valores(CHAVE_DO_ANEXADO), valores("id_procedimento"));
     let ([anexado], [pai]) = (anexados.as_slice(), pais.as_slice()) else {
-        return Err(fora);
+        return Err(fora());
     };
     if *anexado != id || *pai == id || !super::decimal(pai) {
-        return Err(fora);
+        return Err(fora());
     }
     let absoluta =
         conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoTrabalhar, pai)
-            .map_err(|_| fora)?;
+            .map_err(ErroArvore::EnderecoDoVinculoDeAnexacaoRecusado)?;
     if texto.is_empty() || texto.trim() != texto || texto.contains(['<', '>', '&']) {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(VinculoDeAnexacao {
         numero: texto.to_owned(),

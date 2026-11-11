@@ -48,7 +48,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     let raiz = if pedido.cache_host.is_some() {
         Some(
             crate::cache_documento::raiz()
-                .map_err(|_| super::erro::ErroDocumentoObter::Anexo(ErroAnexo::EscritaFalhou))?,
+                .map_err(super::erro::ErroDocumentoObter::RaizDoCacheIlegivel)?,
         )
     } else {
         None

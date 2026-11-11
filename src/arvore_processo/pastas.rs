@@ -57,18 +57,18 @@ pub(super) fn pai_do_documento(pai: &str) -> Result<Pai, ErroArvore> {
 pub(super) fn ler_no_de_pasta(a: &[Literal; 15]) -> Result<NoDePasta, ErroArvore> {
     let texto = super::texto;
     if texto(&a[0])? == "AGUARDE" {
-        let fora = ErroArvore::AguardeForaDaFormaObservada;
-        let k = numero_depois(texto(&a[1])?, "AGUARDE").ok_or(fora)?;
+        let fora = || ErroArvore::AguardeForaDaFormaObservada;
+        let k = numero_depois(texto(&a[1])?, "AGUARDE").ok_or_else(fora)?;
         if numero_depois(texto(&a[2])?, "PASTA") != Some(k) || a[3] != Literal::Nulo {
-            return Err(fora);
+            return Err(fora());
         }
         return Ok(NoDePasta::Aguarde { k });
     }
-    let fora = ErroArvore::PastaForaDaFormaObservada;
-    let k = numero_depois(texto(&a[1])?, "PASTA").ok_or(fora)?;
+    let fora = || ErroArvore::PastaForaDaFormaObservada;
+    let k = numero_depois(texto(&a[1])?, "PASTA").ok_or_else(fora)?;
     if texto(&a[3])? != format!("javascript:abrirFecharPasta('PASTA{k}');") || a[4] != Literal::Nulo
     {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(NoDePasta::Pasta {
         k,
@@ -111,11 +111,11 @@ pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArv
 
 /// `'<p1>,<p2>,…'`: decimais, não vazia, sem repetição.
 fn protocolos_declarados(texto: &str) -> Result<Vec<&str>, ErroArvore> {
-    let fora = ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
+    let fora = || ErroArvore::ProtocolosDaPastaForaDaFormaObservada;
     let lista: Vec<&str> = texto.split(',').collect();
     let unicos: HashSet<&str> = lista.iter().copied().collect();
     if !lista.iter().all(|p| super::decimal(p)) || unicos.len() != lista.len() {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(lista)
 }
@@ -256,8 +256,8 @@ pub(crate) fn ler_acao_de_abrir_pastas(
 ) -> Result<Option<EnderecoDaArvore>, ErroArvore> {
     let mut achado = None;
     for linha in html.split('\n').filter(|l| l.contains(ACAO_DE_ABRIR)) {
-        let fora = ErroArvore::AcaoDeAbrirPastasForaDaFormaObservada;
-        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or(fora)?;
+        let fora = || ErroArvore::AcaoDeAbrirPastasForaDaFormaObservada;
+        let argumentos = ler_chamada(linha, "NosAcoes[", "infraArvoreAcao").ok_or_else(fora)?;
         let [
             _,
             Literal::Texto(rotulo),
@@ -269,10 +269,10 @@ pub(crate) fn ler_acao_de_abrir_pastas(
             Literal::Booleano(_),
         ] = argumentos.as_slice()
         else {
-            return Err(fora);
+            return Err(fora());
         };
         if *rotulo != format!("AP{id}") || alvo != id {
-            return Err(fora);
+            return Err(fora());
         }
         if achado.is_some() {
             return Err(ErroArvore::AcoesDeAbrirPastasRepetidas);
@@ -289,21 +289,21 @@ fn conferir_url_de_abrir(
     url: &str,
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroArvore> {
-    let recusa = ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
+    let recusa = || ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
     let absoluta =
         conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoVisualizar, id)
-            .map_err(|_| recusa)?;
+            .map_err(ErroArvore::EnderecoDeAbrirPastasRecusado)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
     let mut abrir = 0;
     for par in consulta.split('&') {
         match par.split_once('=') {
             Some(("abrir_pastas", "1")) => abrir += 1,
-            Some(("abrir_pastas" | "fechar_pastas", _)) => return Err(recusa),
+            Some(("abrir_pastas" | "fechar_pastas", _)) => return Err(recusa()),
             _ => {}
         }
     }
     if abrir != 1 {
-        return Err(recusa);
+        return Err(recusa());
     }
     Ok(EnderecoDaArvore::conferido(absoluta))
 }

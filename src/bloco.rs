@@ -32,7 +32,7 @@ impl TipoBloco {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBloco {
     /// O tokenizador de atributos recusou a tag.
@@ -41,7 +41,12 @@ pub(crate) enum ErroBloco {
     PaginaDeBlocosNaoImplementada,
     BlocoNaoEncontradoNaPagina,
     CabecalhoDeBlocosNaoReconhecido,
-    HtmlDeBlocosInvalido,
+    HtmlDeBlocosInvalido(#[source] tl::ParseError),
+    TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
+    InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    ChaveDeConsultaRecusada(#[source] crate::transporte::FalhaTransporte),
+    ValorDeConsultaRecusado(#[source] crate::transporte::FalhaTransporte),
     LegendaDeBlocosInvalida,
     LinhaDeBlocoForaDaForma,
     LinkDeBlocosAusente,
@@ -162,20 +167,20 @@ fn declaracao(legenda: &str, observados: usize) -> Result<(usize, Option<Faixa>)
         .trim_start_matches('(')
         .replace('.', "")
         .parse::<usize>()
-        .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+        .map_err(ErroBloco::TotalDaLegendaIlegivel)?;
     if let Some((_, intervalo)) = resto.split_once(" - ") {
         let (de, ate) = intervalo
             .split_once(" a ")
             .ok_or(ErroBloco::LegendaDeBlocosInvalida)?;
         let de = de
             .parse::<usize>()
-            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+            .map_err(ErroBloco::InicioDaFaixaIlegivel)?;
         let ate = ate
             .chars()
             .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<usize>()
-            .map_err(|_| ErroBloco::LegendaDeBlocosInvalida)?;
+            .map_err(ErroBloco::FimDaFaixaIlegivel)?;
         if de == 0 || ate < de || ate > total || ate - de + 1 != observados {
             return Err(ErroBloco::FaixaDeBlocosIncoerente);
         }
@@ -283,10 +288,10 @@ fn ler_linhas(
 }
 
 pub(crate) fn ler_lista(html: &str, tipo: TipoBloco) -> Result<ListaComLinks, ErroBloco> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroBloco::HtmlDeBlocosInvalido)?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblBlocos").map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
+    let tabelas = nos_com_id(&dom, "tblBlocos").map_err(ErroBloco::Atributo)?;
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroBloco::TabelaDeBlocosAusente),
         [no] => no
@@ -332,40 +337,40 @@ pub(crate) fn resolver_link(
     acao: AcaoDoSei,
     numero: Option<&str>,
 ) -> Result<String, ErroBloco> {
-    let nao = ErroBloco::LinkDeBlocosNaoReconhecido;
-    let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
+    let nao = || ErroBloco::LinkDeBlocosNaoReconhecido;
+    let consulta = href.strip_prefix("controlador.php?").ok_or_else(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
-        return Err(nao);
+        return Err(nao());
     }
     let (mut acoes, mut hashes, mut ids) = (0, 0, 0);
     for par in consulta.split('&') {
-        let (chave, valor) = par.split_once('=').ok_or(nao)?;
-        conferir_chave_de_consulta(chave).map_err(|_| nao)?;
-        conferir_valor_de_consulta(valor).map_err(|_| nao)?;
+        let (chave, valor) = par.split_once('=').ok_or_else(nao)?;
+        conferir_chave_de_consulta(chave).map_err(ErroBloco::ChaveDeConsultaRecusada)?;
+        conferir_valor_de_consulta(valor).map_err(ErroBloco::ValorDeConsultaRecusado)?;
         match chave {
             "acao" if valor == acao.como_na_url() => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
             "id_bloco" if numero == Some(valor) => ids += 1,
-            "acao" | "infra_hash" | "id_bloco" | "acao_ajax" => return Err(nao),
+            "acao" | "infra_hash" | "id_bloco" | "acao_ajax" => return Err(nao()),
             _ => {}
         }
     }
     if acoes != 1 || hashes != 1 || (numero.is_some() && ids != 1) || (numero.is_none() && ids != 0)
     {
-        return Err(nao);
+        return Err(nao());
     }
-    let base = url_da_tela.split('?').next().ok_or(nao)?;
-    let (pasta, _) = base.rsplit_once('/').ok_or(nao)?;
+    let base = url_da_tela.split('?').next().ok_or_else(nao)?;
+    let (pasta, _) = base.rsplit_once('/').ok_or_else(nao)?;
     let url = format!("{pasta}/{href}");
     let (host, caminho) = url
         .strip_prefix("https://")
         .and_then(|r| r.split_once('?'))
         .and_then(|(antes, _)| antes.split_once('/'))
-        .ok_or(nao)?;
+        .ok_or_else(nao)?;
     if !instalacao.autoriza_controlador(host, caminho) {
-        return Err(nao);
+        return Err(nao());
     }
     Ok(url)
 }
@@ -377,8 +382,8 @@ pub(crate) fn link_do_menu(
     html: &str,
     tipo: TipoBloco,
 ) -> Result<String, ErroBloco> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroBloco::HtmlDeBlocosInvalido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroBloco::HtmlDeBlocosInvalido)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {

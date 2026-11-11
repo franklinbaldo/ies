@@ -7,7 +7,8 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum EnderecoRecusado {
     NaoReconhecido,
     DeOutroProcesso,

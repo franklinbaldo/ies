@@ -63,7 +63,7 @@ pub(crate) enum ErroLinkDoHistorico {
 }
 
 /// Falhas da página do histórico e da troca de visão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
     /// O tokenizador de atributos recusou a tag.
@@ -81,7 +81,7 @@ pub(crate) enum ErroAndamentos {
 
 impl ErroAndamentos {
     /// A página é de outro NUP: um link guardado errou.
-    pub(crate) fn diverge_do_pedido(self) -> bool {
-        self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
+    pub(crate) fn diverge_do_pedido(&self) -> bool {
+        *self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     }
 }

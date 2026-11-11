@@ -16,17 +16,17 @@ pub(super) struct AnexadoLido {
 }
 
 pub(super) fn ler_anexado(a: &[Literal; ARGUMENTOS]) -> Result<AnexadoLido, ErroArvore> {
-    let fora = ErroArvore::ProcessoAnexadoForaDaFormaObservada;
+    let fora = || ErroArvore::ProcessoAnexadoForaDaFormaObservada;
     let id = super::id(&a[1])?;
     let pai = super::id(&a[2])?;
     if !endereco_observado(super::texto(&a[3])?, &pai, &id) {
-        return Err(fora);
+        return Err(fora());
     }
     // a12 é estado visual: `"noVisitado"` quando a árvore foi aberta a
     // partir do próprio anexado (`id_procedimento_anexado` no `ifrArvore`).
     let a12_observado = a[12] == Literal::Nulo || a[12] == Literal::Texto("noVisitado".to_owned());
     if !a12_observado || a[13..15].iter().any(|l| *l != Literal::Nulo) {
-        return Err(fora);
+        return Err(fora());
     }
     let nup = super::texto(&a[5])?;
     if nup.is_empty() || super::texto(&a[15])? != nup {

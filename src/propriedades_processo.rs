@@ -95,7 +95,7 @@ pub(crate) struct PropriedadesLidas {
 }
 
 /// Falhas do link na barra e da tela: um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
     /// O tokenizador de atributos recusou a tag.
@@ -124,7 +124,7 @@ pub(crate) enum ErroPropriedades {
 
 impl ErroPropriedades {
     /// A página não é o formulário deste processo: um link guardado errou.
-    pub(crate) fn link_envelhecido(self) -> bool {
+    pub(crate) fn link_envelhecido(&self) -> bool {
         matches!(
             self,
             Self::FormularioDasPropriedadesAusente

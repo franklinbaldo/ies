@@ -19,18 +19,18 @@ pub(crate) fn ler_propriedades(
     id: &str,
     fonte: FonteDasPropriedades,
 ) -> Result<PropriedadesLidas, ErroPropriedades> {
-    let ilegivel = ErroPropriedades::HtmlDasPropriedadesNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
+    let ilegivel = || ErroPropriedades::HtmlDasPropriedadesNaoInterpretado;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel())?;
     let parser = dom.parser();
     let formulario = match nos_com_id(&dom, FORMULARIO)
-        .map_err(|_| ilegivel)?
+        .map_err(|_| ilegivel())?
         .as_slice()
     {
         [] => return Err(ErroPropriedades::FormularioDasPropriedadesAusente),
         [unico] => unico
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ilegivel)?,
+            .ok_or_else(ilegivel)?,
         _ => return Err(ErroPropriedades::FormulariosDasPropriedadesRepetidos),
     };
     let campos = Campos { formulario, parser };
