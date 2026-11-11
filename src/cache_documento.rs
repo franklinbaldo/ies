@@ -206,7 +206,7 @@ pub(crate) fn publicar_parcial(
     match fs::hard_link(parcial, &caminho) {
         Ok(()) => {}
         Err(erro) if erro.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(_) => return Err(FalhaCache::Gravacao),
+        Err(erro) => return Err(FalhaCache::ArquivoDoCacheInacessivel(erro.kind())),
     }
     if hash_de_arquivo(&caminho)? != hash {
         return Err(FalhaCache::ArquivoDivergente);
@@ -252,7 +252,7 @@ pub(crate) fn copiar_para_saida(
     match parcial.confirmar() {
         Ok(()) => Ok(true),
         Err(FalhaDaGravacao::DestinoJaExiste) if hash_de_arquivo(destino)? == hash => Ok(false),
-        Err(_) => Err(FalhaCache::Gravacao),
+        Err(falha) => Err(FalhaCache::GravacaoPrivadaFalhou(falha)),
     }
 }
 
