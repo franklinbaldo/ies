@@ -168,6 +168,22 @@ fn salvar_previa_offline_recusa_base_ausente_edicao_ausente_e_igual() {
 }
 
 #[test]
+fn salvar_offline_nao_usa_a_versao_maxima_como_propria_edicao() {
+    // O sucessor de u32::MAX não existe: saturar o contador reutilizaria
+    // a foto como edição e confundiria a recusa pública da CLI.
+    let pasta = pasta_vazia("versao-maxima");
+    versao_local(&pasta, u32::MAX, "<p>foto original</p>");
+    let saida = salvar_offline(&pasta, &["--versao", "4294967295"]);
+    falha(&saida, "VersaoEditadaAusente");
+    assert!(!pasta.join("ies.sqlite3").exists());
+    assert_eq!(
+        std::fs::read_to_string(pasta.join("0011519.v4294967295.html")).unwrap(),
+        "<p>foto original</p>"
+    );
+    std::fs::remove_dir_all(pasta).unwrap();
+}
+
+#[test]
 fn bdd_89_01_previa_humana_mostra_antes_e_depois_sem_salvar() {
     // BDD-89-01 preexistente na issue #89: comparar a foto local vN e a
     // edição v(N+1), sem acessar sessão, índice ou SEI.

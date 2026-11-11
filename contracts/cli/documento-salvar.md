@@ -21,6 +21,8 @@ ocultos: a base é a própria foto. A decisão do proprietário de
 ## Escolha do par
 
 - `--versao N`: a base é `DOC.vN.html` e a edição `DOC.v(N+1).html`.
+  Se `N` for o maior `u32`, não existe `N+1`: recusar como
+  `VersaoEditadaAusente`, sem reutilizar a própria base como edição.
 - Sem `--versao`: a maior versão **local** M. Se `DOC.v(M−1).html`
   existe, a base é M − 1 e a edição M; senão a base é M e a edição
   M + 1 ainda falta. Só os nomes contam; isso não afirma a versão
