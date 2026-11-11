@@ -7,8 +7,8 @@
 use crate::arvore_processo::Assinante;
 use crate::documento::NumeroDocumento;
 use crate::documento_assinar::{
-    Confirmacao, DocumentoAssinado, ErroAssinar, PedidoDaAssinatura, ResultadoDaAssinatura,
-    assinar_documento, edicao_como_texto,
+    AcaoDaAssinatura, Confirmacao, DocumentoAssinado, ErroAssinar, PedidoDaAssinatura,
+    ResultadoDaAssinatura, assinar_documento, edicao_como_texto,
 };
 use crate::indice_local::IndiceLocal;
 use crate::processo::NumeroProcesso;
@@ -76,16 +76,17 @@ fn assinar_na_sessao(
     } else {
         None
     };
-    let confirmacao = match (&lidas, entrada.cargo) {
-        (Some(credenciais), Some(cargo)) => Some(Confirmacao { cargo, credenciais }),
-        _ => None,
+    let acao = match (&lidas, entrada.cargo) {
+        (Some(credenciais), Some(cargo)) => {
+            AcaoDaAssinatura::Confirmar(Confirmacao { cargo, credenciais })
+        }
+        (_, cargo) => AcaoDaAssinatura::Previa { cargo },
     };
     let pedido = PedidoDaAssinatura {
         numero: entrada.numero,
         unidade: cli.unidade.as_deref(),
         processo: entrada.processo,
-        cargo: entrada.cargo,
-        confirmacao,
+        acao,
     };
     let feito = assinar_documento(sessao, &pedido, indice, &mut EnvioHttps)?;
     if cli.json {

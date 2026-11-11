@@ -33,14 +33,30 @@ pub(crate) struct Confirmacao<'a> {
     pub(crate) credenciais: &'a Credenciais,
 }
 
-/// O número SEI, a `--unidade`, o `--processo`, o `--cargo` da prévia e,
-/// com `--confirmar`, a confirmação.
+/// O número SEI, a `--unidade`, o `--processo` e a ação: a prévia ou a
+/// confirmação.
 pub(crate) struct PedidoDaAssinatura<'a> {
     pub(crate) numero: &'a NumeroDocumento,
     pub(crate) unidade: Option<&'a str>,
     pub(crate) processo: Option<&'a NumeroProcesso>,
-    pub(crate) cargo: Option<&'a str>,
-    pub(crate) confirmacao: Option<Confirmacao<'a>>,
+    pub(crate) acao: AcaoDaAssinatura<'a>,
+}
+
+/// A prévia (com o `--cargo`, se houver) ou a confirmação, que só existe
+/// com cargo: o cargo fica num único lugar em cada caso.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum AcaoDaAssinatura<'a> {
+    Previa { cargo: Option<&'a str> },
+    Confirmar(Confirmacao<'a>),
+}
+
+impl AcaoDaAssinatura<'_> {
+    pub(crate) fn cargo(&self) -> Option<&str> {
+        match self {
+            Self::Previa { cargo } => *cargo,
+            Self::Confirmar(confirmacao) => Some(confirmacao.cargo),
+        }
+    }
 }
 
 /// Sucesso: prévia, nada a fazer (já assinado pela sessão), ou assinado e

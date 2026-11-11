@@ -89,7 +89,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     })?;
     Ok((
         String::new(),
-        lido.texto.clone().unwrap_or_default(),
+        lido.texto().map(str::to_owned).unwrap_or_default(),
         Some(lido),
     ))
 }
