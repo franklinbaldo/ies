@@ -158,7 +158,9 @@ pub(crate) fn trocar_unidade<V: EnvioDaTroca>(
     troca.oferecidas.clone_from(&tela.unidades);
     let escolhida = escolher(&tela, pedido.sigla)?.clone();
     let codificacao = codificacao_da_tela(&servida.mime).ok_or(ErroTroca::Transporte(
-        FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado,
+        FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+            crate::transporte::corpo::ErroCorpoHttp::CodificacaoNaoSuportada,
+        ),
     ))?;
     let tela_servida = TelaServida {
         url: &servida.url,

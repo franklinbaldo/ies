@@ -224,7 +224,7 @@ fn decodificar_corpo<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Fa
     // A resposta é limitada DURANTE a leitura, mesmo sem Content-Length.
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)?;
     corpo::decode_http_body(&bytes, &resposta.mime)
-        .map_err(|_| FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        .map_err(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
 }
 
 /// Status diferente de 200: o número sobe como veio; o corpo (fora 3xx)

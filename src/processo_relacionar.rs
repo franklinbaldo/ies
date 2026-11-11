@@ -179,8 +179,10 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
     }
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(FalhaRelacionar::ConsultaResposta)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|_| {
-        FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+        FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+            erro,
+        ))
     })
 }
 

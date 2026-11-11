@@ -191,8 +191,10 @@ fn html_200(resposta: RespostaHttp) -> Result<(String, String), ErroLogin> {
         ));
     }
     let html =
-        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|_| {
-            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        crate::transporte::corpo::decode_http_body(web.corpo.get_ref(), &mime).map_err(|erro| {
+            ErroLogin::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+                erro,
+            ))
         })?;
     Ok((html, mime))
 }

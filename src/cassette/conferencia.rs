@@ -150,7 +150,7 @@ pub(super) fn corpo_html(it: &serde_json::Value) -> Result<(Vec<u8>, String), St
 /// O HTML decodificado de uma resposta gravada.
 pub(crate) fn html_da_resposta(it: &serde_json::Value) -> Result<String, String> {
     let (bytes, encoding) = corpo_html(it)?;
-    legivel(&bytes, &encoding)
+    legivel(&bytes, &encoding).map_err(|erro| format!("{erro:?}"))
 }
 
 fn com_lf(bytes: &[u8]) -> Vec<u8> {

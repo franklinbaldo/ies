@@ -2,25 +2,38 @@
 //! Usado pelo transporte ao vivo (caixa, login, autocompletar do envio) e,
 //! nos testes, pela leitura das cassettes do acervo.
 
+/// Por que o corpo não virou texto.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroCorpoHttp {
+    /// O corpo passa de `MAX_HTML_BYTES`.
+    HtmlAcimaDoLimite,
+    /// UTF-8 declarado (ou presumido), bytes inválidos.
+    Utf8Invalido(#[source] std::str::Utf8Error),
+    /// O charset declarado não é UTF-8 nem ISO-8859-1.
+    CodificacaoNaoSuportada,
+}
+
 /// Decodifica bytes no `encoding` declarado; ISO-8859-1 (ou nenhum) mapeia
 /// cada byte ao caractere de mesmo código. Outra codificação é recusada.
-pub(crate) fn legivel(bytes: &[u8], encoding: &str) -> Result<String, String> {
+pub(crate) fn legivel(bytes: &[u8], encoding: &str) -> Result<String, ErroCorpoHttp> {
     let enc = encoding.to_ascii_lowercase();
     if enc.contains("utf-8") || enc == "utf8" {
-        return String::from_utf8(bytes.to_vec())
-            .map_err(|_| "resposta não é UTF-8 válido".to_owned());
+        return std::str::from_utf8(bytes)
+            .map(str::to_owned)
+            .map_err(ErroCorpoHttp::Utf8Invalido);
     }
     if enc.contains("8859-1") || enc.contains("latin1") || enc.is_empty() {
         return Ok(bytes.iter().copied().map(char::from).collect());
     }
-    Err("codificação de resposta ainda não suportada".into())
+    Err(ErroCorpoHttp::CodificacaoNaoSuportada)
 }
 
 /// Corpo de uma resposta HTML/XML: até `MAX_HTML_BYTES`, ISO-8859-1 se o
 /// `Content-Type` o declara, senão UTF-8 estrito.
-pub(crate) fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, String> {
+pub(crate) fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<String, ErroCorpoHttp> {
     if bytes.len() > crate::MAX_HTML_BYTES {
-        return Err("HTML maior que 8 MB".into());
+        return Err(ErroCorpoHttp::HtmlAcimaDoLimite);
     }
     let enc = if content_type.to_ascii_lowercase().contains("8859-1") {
         "iso-8859-1"

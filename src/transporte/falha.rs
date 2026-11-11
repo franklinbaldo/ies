@@ -55,7 +55,7 @@ pub enum FalhaTransporte {
     /// fluxos que veem o 302 para o login (entrada por id, link guardado).
     ControleRedirecionadoParaOLogin(#[source] StatusHttpRecusado),
     /// Corpo que não decodifica no charset declarado (ou UTF-8).
-    CorpoNaoDecodificavelNoCharsetDeclarado,
+    CorpoNaoDecodificavelNoCharsetDeclarado(#[source] super::corpo::ErroCorpoHttp),
     PaginaDeLoginRecebidaNoControle,
     RespostaExcessiva,
     Rede,
@@ -89,7 +89,7 @@ impl FalhaTransporte {
             | Self::SessaoTrocadaDuranteALeitura
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)
-            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
             | Self::RespostaExcessiva
             | Self::Rede
             | Self::Proxy => false,
@@ -120,7 +120,7 @@ impl FalhaTransporte {
             | Self::ArquivoPrivadoAcimaDoLimite
             | Self::ArquivoPrivadoNaoPodeSerLido
             | Self::SessaoTrocadaDuranteALeitura
-            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
             | Self::PaginaDeLoginRecebidaNoControle
             | Self::RespostaExcessiva
             | Self::Rede
@@ -166,7 +166,7 @@ impl FalhaTransporte {
             | Self::Status(_)
             | Self::BloqueioDeSegurancaDaInstalacao(_)
             | Self::ControleRedirecionadoParaOLogin(_)
-            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado(_)
             | Self::Rede
             | Self::Proxy => FatoDaResposta::NenhumAlemDoTransporte,
         }

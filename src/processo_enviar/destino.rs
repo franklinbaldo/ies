@@ -40,8 +40,10 @@ pub(crate) fn ler_resposta_da_consulta<R: std::io::Read>(
     }
     let bytes = ler_limitado(resposta.corpo, crate::MAX_HTML_BYTES)?;
     let texto =
-        crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|_| {
-            FalhaDaConsulta::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+        crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+            FalhaDaConsulta::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+                erro,
+            ))
         })?;
     itens_do_autocompletar(&texto)
 }
