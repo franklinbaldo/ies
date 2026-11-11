@@ -51,7 +51,9 @@ fn atributo_da_fonte(tag: &tl::HTMLTag<'_>, nome: &str) -> Option<String> {
         } else if let Some(texto) = restante.strip_prefix('\'') {
             texto.split('\'').next()
         } else {
-            restante.split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '/').next()
+            restante
+                .split(|c: char| c.is_ascii_whitespace() || c == '>' || c == '/')
+                .next()
         };
         if let Some(valor) = valor {
             return Some(valor.to_owned());
