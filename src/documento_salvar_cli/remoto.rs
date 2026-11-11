@@ -63,7 +63,7 @@ enum ErroSalvarNoSei {
     VersaoAlterada,
     BaseAlterada,
     /// A base não é UTF-8; guarda a causa da conversão.
-    BaseNaoUtf8(#[source] std::string::FromUtf8Error),
+    BaseNaoUtf8(#[source] std::str::Utf8Error),
     /// O número da versão seguinte não é válido; guarda a causa.
     ProximaVersaoInvalida(#[source] ErroVersao),
     /// O número da versão base não é válido; guarda a causa.
@@ -92,7 +92,10 @@ fn ler_par(
             ausente,
         )
         .map_err(ErroSalvarNoSei::Local)
-        .and_then(|bytes| String::from_utf8(bytes).map_err(ErroSalvarNoSei::BaseNaoUtf8))
+        .and_then(|bytes| {
+            String::from_utf8(bytes)
+                .map_err(|erro| ErroSalvarNoSei::BaseNaoUtf8(erro.utf8_error()))
+        })
     };
     Ok((
         ler(n, ErroCopia::BaseVersaoAusente)?,
