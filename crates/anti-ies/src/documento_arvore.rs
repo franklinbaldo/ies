@@ -248,6 +248,8 @@ pub fn responder(
                 Ok(lista) => lista,
                 Err(estado) => return Resposta::nova(estado),
             };
+            // A presença do documento em A não retira a ação de incluí-lo
+            // em B. Pertencimento é por bloco, não um veto global de barra.
             html(arvore(&documento, &situacao, &ciencia, lista))
         }
         Some("procedimento_trabalhar") => html(trabalhar(&documento)),
