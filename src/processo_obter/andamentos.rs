@@ -74,7 +74,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             Err(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore) => {
                 return Ok(Andamentos::LinkNaoPublicadoNaArvore);
             }
-            Err(erro) => return Err(ErroProcessoObter::LinkDoHistorico(*erro)),
+            Err(erro) => return Err(ErroProcessoObter::LinkDoHistorico(erro.clone())),
         },
     };
     contexto.aprender_link(AcaoDoSei::ProcedimentoConsultarHistorico, id, &pagina.url);

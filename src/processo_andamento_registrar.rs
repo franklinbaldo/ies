@@ -40,13 +40,13 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
     },
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
-    HtmlInvalido,
-    FormularioAusenteOuDuplicado,
+    HtmlInvalido(#[source] tl::ParseError),
+    FormularioAusenteOuDuplicado(#[source] ErroSubmissaoFormulario),
     ControleAusenteOuDuplicado,
     ProtocoloDiferente,
     CampoInesperado,
@@ -54,9 +54,8 @@ pub(crate) enum ErroTela {
 
 /// Um formulário, dois ocultos de identidade e um botão submit.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroTela::HtmlInvalido)?;
-    let form =
-        localizar_formulario(&dom, FORM).map_err(|_| ErroTela::FormularioAusenteOuDuplicado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlInvalido)?;
+    let form = localizar_formulario(&dom, FORM).map_err(ErroTela::FormularioAusenteOuDuplicado)?;
     let mut protocolo = Vec::new();
     let mut atividade = 0;
     let mut descricao = 0;
@@ -388,10 +387,10 @@ mod tests {
             conferir_formulario(&html, "124"),
             Err(ErroTela::ProtocoloDiferente)
         );
-        assert_eq!(
+        assert!(matches!(
             conferir_formulario(&format!("{html}{html}"), "123"),
-            Err(ErroTela::FormularioAusenteOuDuplicado)
-        );
+            Err(ErroTela::FormularioAusenteOuDuplicado(_))
+        ));
     }
     #[test]
     fn campo_inesperado_nao_pode_ser_enviado() {

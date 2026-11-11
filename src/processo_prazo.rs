@@ -19,7 +19,13 @@ pub(crate) enum ErroPrazo {
     OpcoesIncompativeis,
     DataInvalida,
     DiasInvalidos,
+    /// O valor de dias não cabe no tipo do pedido; guarda a conversão recusada.
+    DiasNaoCabemEmU16(#[source] std::num::TryFromIntError),
     TelaNaoObservada,
+    /// O tokenizador HTML recusou a tela do controle de prazo.
+    TelaNaoInterpretada(#[source] tl::ParseError),
+    /// O formulário de cadastro do prazo não foi localizado de forma única.
+    FormularioDoPrazoAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     OutroProcesso,
 }
 
@@ -67,7 +73,7 @@ pub(crate) fn interpretar_pedido(
         return Ok(PedidoDePrazo::Excluir);
     }
     if let Some(dias) = dias {
-        let dias = u16::try_from(dias).map_err(|_| ErroPrazo::DiasInvalidos)?;
+        let dias = u16::try_from(dias).map_err(ErroPrazo::DiasNaoCabemEmU16)?;
         if !(1..=999).contains(&dias) {
             return Err(ErroPrazo::DiasInvalidos);
         }
@@ -100,7 +106,7 @@ fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>,
 }
 
 fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroPrazo> {
-    crate::html_atributos::atributo_presente(tag, nome).map_err(|_| ErroPrazo::TelaNaoObservada)
+    crate::html_atributos::atributo_presente(tag, nome).map_err(ErroPrazo::Atributo)
 }
 
 pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo, ErroPrazo> {
@@ -108,9 +114,9 @@ pub(crate) fn ler_tela(html: &str, id_procedimento: &str) -> Result<TelaDoPrazo,
         return Err(ErroPrazo::TelaNaoObservada);
     }
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroPrazo::TelaNaoObservada)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroPrazo::TelaNaoInterpretada)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmControlePrazoCadastro")
-        .map_err(|_| ErroPrazo::TelaNaoObservada)?;
+        .map_err(ErroPrazo::FormularioDoPrazoAusente)?;
     if atributo(form, "method")?.as_deref() != Some("post")
         || atributo(form, "enctype")?.is_some_and(|v| v != "application/x-www-form-urlencoded")
     {

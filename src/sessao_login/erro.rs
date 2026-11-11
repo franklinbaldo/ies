@@ -28,7 +28,7 @@ pub(crate) enum ErroLogin {
     CampoDasCredenciaisVazio(CampoDasCredenciais),
     LinhaDasCredenciaisSemCampoConhecido,
     LoginEmAndamentoEmOutroProcesso,
-    ArquivoDeLockDoLoginInacessivel,
+    ArquivoDeLockDoLoginInacessivel(std::io::ErrorKind),
     /// URL ou cookie gravados que o transporte recusa antes da rede.
     ArquivoDaSessao(#[from] super::fluxo::SessaoGravadaInvalida),
     /// O GET da sessão gravada não mostrou um Controle reconhecível.
@@ -55,18 +55,22 @@ pub(crate) enum ErroLogin {
     #[cfg(unix)]
     DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
+    /// A serialização do marcador falhou; guarda a categoria do erro do serde.
+    SerializacaoDaSessaoFalhou(ArquivoPrivado, serde_json::error::Category),
     /// O marcador `.geracao` existe e não pôde ser lido.
     MarcadorDaSessaoIlegivel(#[source] super::gravacao::ErroMarcadorDaSessao),
     UnidadeExibidaDiferenteDaSolicitada,
     Transporte(#[from] FalhaTransporte),
     BotaoDeEnvioDoLoginNaoReconhecido,
     LinkDoControleDeProcessosNaoReconhecido,
+    LinkDoControleNaoInterpretado(#[source] tl::ParseError),
     OrgaoComMaisDeUmaOpcaoNaTelaDeLogin,
     OrgaoNaoEncontradoNaTelaDeLogin,
     SelecaoDeOrgaoAusenteNaTelaDeLogin,
     SelecaoDeOrgaoRepetidaNaTelaDeLogin,
     TelaAposOLoginNaoReconhecida,
     TelaDeLoginNaoReconhecida,
+    TelaDeLoginNaoInterpretada(#[source] tl::ParseError),
 }
 
 impl ErroLogin {
@@ -87,7 +91,7 @@ impl ErroLogin {
             | Self::CampoDasCredenciaisVazio(_)
             | Self::LinhaDasCredenciaisSemCampoConhecido
             | Self::LoginEmAndamentoEmOutroProcesso
-            | Self::ArquivoDeLockDoLoginInacessivel
+            | Self::ArquivoDeLockDoLoginInacessivel(_)
             | Self::ArquivoDaSessao(_)
             | Self::ControleDaSessaoExistenteNaoReconhecido(_)
             | Self::RedirecionamentoSemLocalizacao
@@ -105,17 +109,20 @@ impl ErroLogin {
             | Self::CookieDaSessaoNaoRecebido
             | Self::DestinoDaSessaoNaoEhArquivoRegular(_)
             | Self::GravacaoDaSessaoFalhou(_)
+            | Self::SerializacaoDaSessaoFalhou(..)
             | Self::MarcadorDaSessaoIlegivel(_)
             | Self::UnidadeExibidaDiferenteDaSolicitada
             | Self::BotaoDeEnvioDoLoginNaoReconhecido
             | Self::LinkDoControleDeProcessosNaoReconhecido
+            | Self::LinkDoControleNaoInterpretado(_)
             | Self::OrgaoComMaisDeUmaOpcaoNaTelaDeLogin
             | Self::OrgaoNaoEncontradoNaTelaDeLogin
             | Self::SelecaoDeOrgaoAusenteNaTelaDeLogin
             | Self::SelecaoDeOrgaoRepetidaNaTelaDeLogin
             | Self::TelaAposOLoginNaoReconhecida
             | Self::Atributo(_)
-            | Self::TelaDeLoginNaoReconhecida => false,
+            | Self::TelaDeLoginNaoReconhecida
+            | Self::TelaDeLoginNaoInterpretada(_) => false,
         }
     }
 }

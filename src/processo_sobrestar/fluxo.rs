@@ -112,7 +112,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
     let verificado = obter_processo(sessao, &leitura(nup, unidade, false), indice, &mut rede);
     previa.requisicoes = rede.feitas();
     let depois = verificado
-        .map_err(|_| ErroSobrestamento::NaoConfirmado)?
+        .map_err(ErroSobrestamento::NaoConfirmadoNaReleitura)?
         .arvore
         .aberto_em;
     // O estado posterior pode ter mudado por outro agente; resposta de

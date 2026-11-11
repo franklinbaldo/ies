@@ -2,19 +2,21 @@
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
-    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
-    OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
+    ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
+    EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    /// O tokenizador HTML recusou a tela.
     NaoInterpretada,
-    FormularioAusente,
+    HtmlNaoInterpretado(#[source] tl::ParseError),
+    FormularioAusente(#[source] ErroSubmissaoFormulario),
     OutroProcesso,
     OpcaoNaoOferecida,
     DestinoPreenchido,
@@ -46,14 +48,14 @@ pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
 /// Confere os controles antes de derivar um único POST.
 pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroTela::NaoInterpretada)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroTela::HtmlNaoInterpretado)?;
     let form =
-        localizar_formulario(&dom, OPERACAO.formulario).map_err(|_| ErroTela::FormularioAusente)?;
+        localizar_formulario(&dom, OPERACAO.formulario).map_err(ErroTela::FormularioAusente)?;
     let atributo = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
         valor_do_atributo(tag, nome).map_err(ErroTela::Atributo)
     };
     let presente = |tag: &tl::HTMLTag<'_>, nome: &'static str| {
-        atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada)
+        atributo_presente(tag, nome).map_err(ErroTela::Atributo)
     };
     let action = atributo(form, "action")?.ok_or(ErroTela::OutroProcesso)?;
     let action =
@@ -143,8 +145,7 @@ fn conferir_campo(
     vistos: &mut HashMap<String, usize>,
 ) -> Result<(), ErroTela> {
     let atributo = |nome: &'static str| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
-    let presente =
-        |nome: &'static str| atributo_presente(tag, nome).map_err(|_| ErroTela::NaoInterpretada);
+    let presente = |nome: &'static str| atributo_presente(tag, nome).map_err(ErroTela::Atributo);
     let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
     let nome = atributo("name")?.ok_or(ErroTela::CampoInesperado)?;
     let tipo = atributo("type")?.unwrap_or_else(|| {

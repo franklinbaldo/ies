@@ -118,10 +118,10 @@ fn definicoes_ativas(texto: &str, assinatura: &str, corpo_esperado: &str) -> Opt
 
 /// Por que a função de navegação não foi comprovada. Falha fechada: em
 /// qualquer caso, nenhum POST de navegação sai.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroGuardaDeNavegacao {
-    HtmlNaoInterpretado,
+    HtmlNaoInterpretado(#[source] tl::ParseError),
     NoDeTemplateNaoInterpretado,
     NoDeScriptNaoInterpretado,
     AtributoDoScript(#[source] crate::html_atributos::ErroAtributoHtml),
@@ -147,7 +147,7 @@ pub(super) fn script_publica_funcao_de_navegacao(
         FuncaoNaoDeclaradaEmScriptAtivo, HtmlNaoInterpretado, NoDeScriptNaoInterpretado,
         NoDeTemplateNaoInterpretado, ScriptForaDaFormaObservada,
     };
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| HtmlNaoInterpretado)?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(HtmlNaoInterpretado)?;
     let faixas = faixas_inertes(&dom).ok_or(NoDeTemplateNaoInterpretado)?;
     let mut encontradas = 0_usize;
     for no in dom.query_selector("script").into_iter().flatten() {
