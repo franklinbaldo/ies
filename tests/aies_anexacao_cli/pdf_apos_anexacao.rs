@@ -73,12 +73,7 @@ pub(super) fn baixar(pasta: &Pasta, arquivos: [&Path; 4], porta: u16, etapa: &st
 /// BDD-60-05: o PDF do processo principal não passa a pertencer ao
 /// processo anexado. Recusa tipada antes/depois, inclusive com ocultação,
 /// sem gravar bytes no diretório pedido.
-pub(super) fn recusar_nup_alheio(
-    pasta: &Pasta,
-    arquivos: [&Path; 4],
-    porta: u16,
-    etapa: &str,
-) {
+pub(super) fn recusar_nup_alheio(pasta: &Pasta, arquivos: [&Path; 4], porta: u16, etapa: &str) {
     let destino = pasta.0.join(format!("pdf_alheio_{etapa}"));
     fs::create_dir(&destino).unwrap();
     for ocultar in [false, true] {
@@ -103,11 +98,7 @@ pub(super) fn recusar_nup_alheio(
             String::from_utf8_lossy(&saida.stdout),
             String::from_utf8_lossy(&saida.stderr)
         );
-        super::falha_cli::falha_por(
-            &saida,
-            "Documento",
-            "NumeroSeiAusenteDaArvoreDoProcesso",
-        );
+        super::falha_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
         assert!(
             !destino.join("050000001.pdf").exists(),
             "recusa não pode criar arquivo de conteúdo alheio"
