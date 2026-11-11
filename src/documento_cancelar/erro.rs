@@ -63,3 +63,41 @@ impl From<CookieIlegivel> for ErroCancelar {
         Self::Cookie(erro)
     }
 }
+
+#[cfg(test)]
+mod testes_cadeia_de_causas {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn erros_de_cancelamento_retêm_as_causas_tipadas() {
+        let atributo = crate::html_atributos::ErroAtributoHtml::AtributoRepetidoNaTag {
+            atributo: "href",
+        };
+        let exemplos = [
+            ErroCancelar::Cookie(CookieIlegivel::Arquivo(FalhaTransporte::Rede)),
+            ErroCancelar::Abertura(ErroDocumentoObter::Processo(
+                crate::processo_obter::ErroProcessoObter::Transporte(FalhaTransporte::Rede),
+            )),
+            ErroCancelar::Link(ErroLinkCancelar::Atributo(atributo)),
+            ErroCancelar::Tela(FalhaTransporte::Rede),
+            ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(atributo)),
+            ErroCancelar::EnderecoDoProcessoRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
+            ErroCancelar::EnderecoDoDocumentoRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::DeOutroProcesso,
+            ),
+        ];
+        for erro in exemplos {
+            assert!(erro.source().is_some(), "perdeu a causa: {erro:?}");
+        }
+        let link = ErroLinkCancelar::Atributo(atributo);
+        assert!(
+            link.source()
+                .and_then(|fonte| fonte.downcast_ref::<crate::html_atributos::ErroAtributoHtml>())
+                .is_some(),
+            "a falha da tag deve sobreviver também ao leitor do link"
+        );
+    }
+}
