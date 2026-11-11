@@ -87,27 +87,27 @@ case "${ALVO}" in
   raposa)
     EMOJI="🦊"
     PAPEL="UX CLI e implementação"
-    PROMPT="Você é a 🦊 Raposa. Leia AGENTS.md e team/raposa.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD observável da CLI, valide gates locais e abra PR."
+    PROMPT="Você é a 🦊 Raposa. Leia AGENTS.md e team/raposa.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E da CLI com cassettes existentes, valide gates locais e abra PR."
     ;;
   coruja)
     EMOJI="🦉"
     PAPEL="Processos e reconciliação"
-    PROMPT="Você é a 🦉 Coruja. Leia AGENTS.md e team/coruja.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD de reconciliação de processos, valide gates e abra PR."
+    PROMPT="Você é a 🦉 Coruja. Leia AGENTS.md e team/coruja.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E de processos com cassettes existentes, valide gates e abra PR."
     ;;
   tartaruga)
     EMOJI="🐢"
     PAPEL="Fronteiras Web e navegação"
-    PROMPT="Você é a 🐢 Tartaruga. Leia AGENTS.md e team/tartaruga.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD, valide gates e abra PR."
+    PROMPT="Você é a 🐢 Tartaruga. Leia AGENTS.md e team/tartaruga.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo E2E guiado por cassettes, valide gates e abra PR."
     ;;
   gaviao)
     EMOJI="🦅"
     PAPEL="Revisão independente"
-    PROMPT="Você é o 🦅 Gavião. Leia AGENTS.md e team/gaviao.md. Faça revisão técnica independente de todas as PRs abertas na esteira, verifique escopo, conformidade BDD e emita parecer técnico nas PRs."
+    PROMPT="Você é o 🦅 Gavião. Leia AGENTS.md e team/gaviao.md. Faça revisão técnica independente de todas as PRs abertas na esteira, verifique escopo, E2E cassette-first e emita parecer técnico nas PRs."
     ;;
   polvo)
     EMOJI="🐙"
     PAPEL="Documentos e editor"
-    PROMPT="Você é o 🐙 Polvo. Leia AGENTS.md e team/polvo.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD de documentos, valide gates e abra PR."
+    PROMPT="Você é o 🐙 Polvo. Leia AGENTS.md e team/polvo.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance E2E de documentos com cassettes existentes, valide gates e abra PR."
     ;;
   texugo)
     EMOJI="🦡"
@@ -117,12 +117,12 @@ case "${ALVO}" in
   castor)
     EMOJI="🦫"
     PAPEL="Qualidade Rust e DRY"
-    PROMPT="Você é o 🦫 Castor. Leia AGENTS.md e team/castor.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo cenário BDD, garanta consistência e abra PR."
+    PROMPT="Você é o 🦫 Castor. Leia AGENTS.md e team/castor.md. Puxe a próxima issue livre de maior prioridade na fila aberta, avance o próximo E2E guiado por cassettes, garanta consistência e abra PR."
     ;;
   geral)
     EMOJI="🤖"
     PAPEL="Rotina geral"
-    PROMPT="Leia AGENTS.md. Verifique as issues e PRs abertas do repositório, escolha a tarefa prioritária na fila aberta e avance a implementação seguindo o método BDD e os limites do projeto."
+    PROMPT="Leia AGENTS.md. Verifique as issues e PRs abertas do repositório, escolha a tarefa prioritária na fila aberta e avance a implementação seguindo E2E cassette-first e os limites do projeto."
     ;;
   *)
     echo "Agente desconhecido: ${ALVO}" >&2

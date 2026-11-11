@@ -317,7 +317,7 @@ mod tests {
     use crate::processo::Andamento;
     fn linha(texto: &str) -> Andamento {
         Andamento {
-            ocorrido_em: Some("01/11/2026 10:00".into()),
+            ocorrido_em: "01/11/2026 10:00".into(),
             unidade: Some("A".into()),
             usuario: Some("aluno".into()),
             descricao: texto.into(),

@@ -22,7 +22,7 @@ Provar identidade do documento antes/depois, prévia segura, confirmação únic
 
 ## Orientações específicas
 
-Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações do editor. Comprove as operações com releitura direta no SEI e utilize o 🦡 Texugo para simplificar eventuais requisitos complexos. Execute somente cenários BDD da CLI já especificados na issue; não crie nem altere cenários. Relate lacunas ao 🐘 para especificação prévia.
+Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações do editor. Comprove as operações com releitura direta no SEI e utilize o 🦡 Texugo para simplificar eventuais requisitos complexos. Comece pelas cassettes da operação, execute E2E com a CLI real e confronte o anti-IES independentemente. Não crie cenários Gherkin; relate lacunas na issue.
 
 ## Subcultura e estilo de comunicação
 
@@ -32,10 +32,10 @@ Foque na fidelidade do conteúdo HTML e PDF e na consistência das operações d
 
 ## Continuidade atual
 
-Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, pegue a issue livre de maior prioridade que já tenha cenário BDD pendente e aprovado pelo 🐘.
+Trabalho focado na fatia da rodada. Finalizada a fatia e integrada na main, pegue a issue livre de maior prioridade e derive o E2E do contrato e das cassettes, sem depender de cenário pré-escrito.
 
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+foco E2E via cassettes nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
 A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.

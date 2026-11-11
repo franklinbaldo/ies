@@ -43,7 +43,7 @@ fn dois_marcadores_na_mesma_celula_saem_como_lista_de_dois() {
         marcadores(&conteudo),
         json!([
             {"nome": "Pendente", "cor": "amarelo", "texto": "Texto sintético", "id": "31", "rotulo": "31#Pendente"},
-            {"nome": "Revisão", "cor": "azul", "texto": null, "id": "32", "rotulo": "32#Revisão"}
+            {"nome": "Revisão", "cor": "azul", "id": "32", "rotulo": "32#Revisão"}
         ])
     );
 }
@@ -70,15 +70,15 @@ fn tooltip_le_o_literal_com_escapes_e_entidades() {
 }
 
 #[test]
-fn sem_tooltip_ou_sem_fragmento_publica_null() {
+fn sem_tooltip_ou_sem_fragmento_omite_as_chaves() {
     let sem_dica = ancora("7", "41", "verde", "x", "M1")
         .replace(" onmouseover=\"return infraTooltipMostrar('x');\"", "");
     let sem_id = ancora("7", "41", "verde", "", "M2").replace("#ID-41", "");
     assert_eq!(
         marcadores(&format!("{sem_dica}{sem_id}")),
         json!([
-            {"nome": "M1", "cor": "verde", "texto": null, "id": "41", "rotulo": "41#M1"},
-            {"nome": "M2", "cor": "verde", "texto": null, "id": null, "rotulo": null}
+            {"nome": "M1", "cor": "verde", "id": "41", "rotulo": "41#M1"},
+            {"nome": "M2", "cor": "verde"}
         ])
     );
 }

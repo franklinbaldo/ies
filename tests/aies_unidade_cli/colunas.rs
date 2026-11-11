@@ -234,7 +234,7 @@ fn bdd_565_01_previa_nao_grava_e_segunda_cli_rele_original() {
     );
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
-    assert_eq!(valor["depois"], Value::Null);
+    assert!(valor.get("depois").is_none());
     assert_eq!(valor["envio"]["metodo"], "POST");
 
     assert_eq!(
@@ -269,8 +269,8 @@ fn bdd_565_02_alvo_ja_satisfeito_confirma_sem_post_e_rele_estado() {
     assert_eq!(valor["alvo"], esperadas);
     assert_eq!(valor["confirmado"], true);
     assert_eq!(valor["alterado"], false);
-    assert_eq!(valor["envio"], Value::Null);
-    assert_eq!(valor["depois"], Value::Null);
+    assert!(valor.get("envio").is_none());
+    assert!(valor.get("depois").is_none());
     assert_eq!(valor["marcar"], serde_json::json!([]));
     assert_eq!(valor["desmarcar"], serde_json::json!([]));
     assert_eq!(valor["reconciliado_por_leitura"], false);
@@ -370,7 +370,7 @@ fn bdd_565_03_confirmar_aplica_post_unico_e_rele_mesmo_sqlite() {
     assert_eq!(valor["confirmado"], true);
     assert_eq!(valor["alterado"], true);
     assert_eq!(valor["reconciliado_por_leitura"], false);
-    assert_eq!(valor["falha_do_salvar"], Value::Null);
+    assert!(valor.get("falha_do_salvar").is_none());
 
     assert_eq!(
         releitura.status.code(),

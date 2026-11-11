@@ -41,8 +41,10 @@ impl NumeroProcesso {
 /// Não inventar identidade técnica de andamento a partir da ordem ou da data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Andamento {
-    pub ocorrido_em: Option<String>,
+    pub ocorrido_em: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unidade: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub usuario: Option<String>,
     pub descricao: String,
 }
@@ -72,14 +74,15 @@ mod tests {
     #[test]
     fn andamento_sem_id_inventado() {
         let andamento = Andamento {
-            ocorrido_em: None,
+            ocorrido_em: "01/11/2026 10:00".into(),
             unidade: Some("A".into()),
             usuario: None,
             descricao: "Processo encaminhado".into(),
         };
         let valor = serde_json::to_value(andamento).unwrap();
         assert!(valor.get("id").is_none());
-        assert!(valor["ocorrido_em"].is_null());
+        assert_eq!(valor["ocorrido_em"], "01/11/2026 10:00");
+        assert!(valor.get("usuario").is_none());
     }
 
     #[test]

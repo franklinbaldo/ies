@@ -26,8 +26,6 @@ tl = "0.7.8"
 [dev-dependencies]
 base64 = "0.23"
 native-tls = "0.2.18"
-cucumber = "0.23"
-futures = "0.3"
 anti-ies = { path = "crates/anti-ies" }
 sha1 = "0.11"
 zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
@@ -35,7 +33,3 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 [workspace]
 members = ["xtask", "crates/iesei", "crates/anti-ies"]
 resolver = "3"
-
-[[test]]
-name = "bdd_cli"
-harness = false

@@ -31,7 +31,7 @@ pub(crate) struct PropriedadesLidas {
     pub(crate) descricao: String,
     pub(crate) nome_na_arvore: String,
     pub(crate) observacoes: String,
-    pub(crate) nivel_de_acesso: Option<Nivel>,
+    pub(crate) nivel_de_acesso: Nivel,
 }
 #[derive(Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -46,6 +46,8 @@ pub(crate) enum Nivel {
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedadesDocumento {
+    /// Nenhum `rdoNivelAcesso` marcado no cadastro do documento.
+    NivelDeAcessoNaoMarcado,
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
@@ -104,10 +106,7 @@ fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroPropriedad
     decodificar_atributo(&tag.inner_text(parser))
         .ok_or(ErroPropriedadesDocumento::TextoCadastroDocumentoIlegivel)
 }
-fn nivel(
-    form: Tag<'_>,
-    parser: &tl::Parser<'_>,
-) -> Result<Option<Nivel>, ErroPropriedadesDocumento> {
+fn nivel(form: Tag<'_>, parser: &tl::Parser<'_>) -> Result<Nivel, ErroPropriedadesDocumento> {
     let mut marcados = Vec::new();
     for no in form.query_selector(parser, "input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
@@ -124,10 +123,10 @@ fn nivel(
         }
     }
     match marcados.as_slice() {
-        [] => Ok(None),
-        [Some(x)] if x == "0" => Ok(Some(Nivel::Publico)),
-        [Some(x)] if x == "1" => Ok(Some(Nivel::Restrito)),
-        [Some(x)] if x == "2" => Ok(Some(Nivel::Sigiloso)),
+        [] => Err(ErroPropriedadesDocumento::NivelDeAcessoNaoMarcado),
+        [Some(x)] if x == "0" => Ok(Nivel::Publico),
+        [Some(x)] if x == "1" => Ok(Nivel::Restrito),
+        [Some(x)] if x == "2" => Ok(Nivel::Sigiloso),
         _ => Err(ErroPropriedadesDocumento::NivelCadastroDocumentoInesperado),
     }
 }
@@ -246,10 +245,9 @@ pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
         PropriedadesDocumento::NaoPedidas => None,
         PropriedadesDocumento::Lidas(p) => {
             let nivel = match &p.nivel_de_acesso {
-                Some(Nivel::Publico) => "público",
-                Some(Nivel::Restrito) => "restrito",
-                Some(Nivel::Sigiloso) => "sigiloso",
-                None => "não informado",
+                Nivel::Publico => "público",
+                Nivel::Restrito => "restrito",
+                Nivel::Sigiloso => "sigiloso",
             };
             Some(format!(
                 "Cadastro: tipo {}; descrição {}; nome na árvore {}; observações {}; acesso {}.",
@@ -362,7 +360,7 @@ mod tests {
         let lida = ler_formulario(html, "21", "10").unwrap();
         assert_eq!(lida.tipo, "Anexo");
         assert_eq!(lida.descricao, "Backup de teste");
-        assert_eq!(lida.nivel_de_acesso, Some(Nivel::Publico));
+        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
     }
 
     #[test]
@@ -381,7 +379,7 @@ mod tests {
             (lida.tipo.as_str(), lida.descricao.as_str()),
             ("Ofício", "Revisão")
         );
-        assert_eq!(lida.nivel_de_acesso, Some(Nivel::Publico));
+        assert_eq!(lida.nivel_de_acesso, Nivel::Publico);
         assert!(ler_formulario(html, "21", "11").is_err());
     }
 }

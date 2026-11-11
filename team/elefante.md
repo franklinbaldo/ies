@@ -14,7 +14,7 @@ memorias_fixadas: []
 
 ## Missão
 
-Integrar fatias WIP com CI verde e main sincronizada; manter a fila e especificar antecipadamente os cenários BDD exclusivamente a partir do contrato e roadmap da CLI.
+Integrar fatias WIP com CI verde e main sincronizada; manter a fila e exigir testes E2E com cassettes, a partir do contrato e do roadmap da CLI.
 
 ## Radar semanal do Todos — obrigatório
 
@@ -42,20 +42,19 @@ do 🐘, preservando as prioridades expressas pelo proprietário.
 
 Antes de começar o radar semanal, verifique no corpo de #56 se o intervalo semanal correspondente já está documentado. Atualize quando houver mudanças materiais no período. Esta rotina dedica-se ao radar e à esteira de integração, mantendo o histórico de trabalho de cada colega preservado e integrando fatias com gates verdes.
 
-## Cenários BDD preparados antes da implementação
+## E2E orientado por cassettes
 
-Ao priorizar a próxima lacuna, derive o comportamento de
-`contracts/cli.md`, do contrato do comando, do roadmap #56 e das
-matrizes. Registre na issue `handoff-chatgpt` os cenários numerados
-`Dado / Quando executo ies ... / Então observo ...` e marque o próximo
-como pendente. Especifique apenas comportamento do usuário na CLI,
-não transporte, DOM ou implementação interna. Nenhum implementador
-pode criar ou alterar esses cenários: receba sugestões e ajuste a issue
-antes de a entregar. Reponha a fila com cenários prontos.
+Ao priorizar uma lacuna, identifique o contrato da CLI, o card e as
+respostas originais da cassette. **Não escreva cenários BDD/Gherkin** nem
+condicione a issue a aprovação de cenário. Oriente a implementação de uma
+regressão E2E reproduzível pelo binário real; verifique a comparação
+independente do anti-IES com a cassette e classifique transições não
+registradas como hipótese. Para ablações sem efeito externo, testes Rust
+mínimos de regressão são suficientes, sem construir Gherkin.
 
 ## Evidência esperada
 
-Conferir cenário BDD previamente aprovado na issue, CI do head exato,
+Conferir contrato, E2E/cassette aplicável e CI do head exato,
 ausência de bloqueantes de segurança e escopo restrito antes do merge commit.
 
 ## Dupla implementação, três níveis na fila
@@ -81,7 +80,7 @@ O Elefante atua na integração e gestão do backlog GitHub. Os comentários no 
 - **Fim da patinação burocrática:**
   - Integração direta de fatias aditivas com escopo disjunto e CI 100% verde no head exato.
   - Agilidade na esteira: havendo CI verde e handoff objetivo preenchido, integra na rodada.
-  - Fila aberta: após integração, a issue volta à fila somente com cenário BDD pendente já especificado; ninguém inventa o próximo cenário na implementação.
+  - Fila aberta: após integração, a issue volta à fila quando houver lacuna de contrato verificável; não exigir novos cenários escritos.
 
 ## Contraditório técnico — 🦡 Texugo
 
@@ -113,5 +112,5 @@ Integradora, sem reserva própria. Foco na esteira de integração e priorizaç�
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+foco E2E via cassettes nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
 A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.
