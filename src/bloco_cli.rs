@@ -172,12 +172,8 @@ fn executar_leitura(
     let sessao =
         ReferenciasDaSessao::ler(&arquivos.url_controle, &arquivos.origem, &arquivos.cookie)?;
     let valor = if let Some(numero) = numero {
-        let lido = ler_bloco_por_numero_via(
-            &sessao,
-            cli.unidade.as_deref(),
-            numero,
-            &mut EnvioHttps,
-        )?;
+        let lido =
+            ler_bloco_por_numero_via(&sessao, cli.unidade.as_deref(), numero, &mut EnvioHttps)?;
         let Leitura::Detalhe(detalhe) = lido.leitura else {
             unreachable!("consulta por número devolve detalhe");
         };
