@@ -432,3 +432,44 @@ fn limite_do_ambiente() {
     assert!(LimiteDoAnexo::novo(LIMITE_MAXIMO).is_some());
     assert!(LimiteDoAnexo::novo(0).is_none());
 }
+
+#[test]
+fn erro_utf8_nao_expoe_corpo_ou_nome_original_em_debug_ou_display() {
+    use std::error::Error;
+
+    // Mesmos bytes sintéticos no corpo e no filename* decodificado.
+    let sigilo = b"SIGILO_ANEXO_719_\xff";
+    let vetor_privado = format!("{sigilo:?}");
+    let erros = [
+        ler(resposta(&[("content-type", "text/plain")], sigilo)).unwrap_err(),
+        ler(pdf(&[(
+            "content-disposition",
+            "attachment; filename*=UTF-8''SIGILO_ANEXO_719_%FF",
+        )]))
+        .unwrap_err(),
+    ];
+    assert!(matches!(
+        erros[0],
+        ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_)
+    ));
+    assert!(matches!(
+        erros[1],
+        ErroAnexo::DisposicaoForaDaFormaObservada(ErroDisposicao::NomeEstendidoUtf8Invalido(_))
+    ));
+
+    for erro in &erros {
+        let mut mensagem = format!("{erro:?}\n{erro}");
+        let mut causa = erro.source();
+        let mut achou_utf8 = false;
+        while let Some(proxima) = causa {
+            mensagem.push_str(&format!("\n{proxima:?}\n{proxima}"));
+            achou_utf8 |= proxima.is::<std::str::Utf8Error>();
+            causa = proxima.source();
+        }
+        assert!(achou_utf8, "causa UTF-8 deve permanecer tipada");
+        assert!(
+            !mensagem.contains(&vetor_privado) && !mensagem.contains("SIGILO_ANEXO_719_"),
+            "formatar erro e causas não pode publicar os bytes originais"
+        );
+    }
+}
