@@ -217,3 +217,34 @@ fn bdd_332_03_nao_confirma_documento_interno_com_mesmo_rotulo() {
     .unwrap_err();
     assert!(matches!(erro, FalhaConfirmacao::NaoConfirmado));
 }
+
+#[test]
+fn causas_da_confirmacao_externa_permanecem_na_cadeia_de_erros() {
+    use std::error::Error as _;
+
+    let casos = [
+        FalhaConfirmacao::UploadRecusado(FalhaUpload::Recusado {
+            motivo: "recusado".to_owned(),
+        }),
+        FalhaConfirmacao::UploadIncerto(FalhaUpload::NaoConfirmado {
+            status_http: Some(503),
+        }),
+    ];
+    for erro in &casos {
+        assert!(
+            erro.source()
+                .and_then(|causa| causa.downcast_ref::<FalhaUpload>())
+                .is_some(),
+            "fonte do upload perdida: {erro:?}"
+        );
+    }
+
+    let cadastro = FalhaConfirmacao::TemporarioSemCadastro(FalhaCadastroEnvio::ReciboSemData);
+    assert!(
+        cadastro
+            .source()
+            .and_then(|causa| causa.downcast_ref::<FalhaCadastroEnvio>())
+            .is_some(),
+        "fonte da preparacao do cadastro perdida"
+    );
+}
