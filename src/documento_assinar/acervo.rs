@@ -116,15 +116,16 @@ fn arvore(
         if estado.escrita.as_deref() == Some(d.as_str()) {
             estado.escrita = None;
             let t = &estado.tela[&d];
-            let antes = estado.antes.get(&d).cloned().unwrap_or_default();
-            let classe = match lida.assinantes.as_slice() {
-                [a] if antes.is_empty()
-                    && a.nome == t.assinante
-                    && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
+            let classe = match (estado.antes.get(&d), lida.assinantes.as_slice()) {
+                (_, []) => "sem caneta depois".to_owned(),
+                (Some(antes), [a])
+                    if antes.is_empty()
+                        && a.nome == t.assinante
+                        && Some(&a.cargo) == t.cargo_da_tela.as_ref() =>
                 {
                     "verificada (caneta do assinante com o cargo)".to_owned()
                 }
-                [] => "sem caneta depois".to_owned(),
+                (None, _) => "caneta anterior não observada".to_owned(),
                 _ => "caneta diferente da esperada".to_owned(),
             };
             somar(contagem, "verificação", classe, nome);
