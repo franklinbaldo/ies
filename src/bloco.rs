@@ -64,9 +64,6 @@ pub(crate) struct BlocoLido {
     pub(crate) tipo: TipoBloco,
     pub(crate) estado: String,
     pub(crate) descricao: String,
-    /// A listagem não informa o número de documentos/processos do bloco.
-    /// None significa não observado, não zero.
-    pub(crate) quantidade_itens: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -281,7 +278,6 @@ fn ler_linhas(
             tipo,
             estado: texto_tag(celula(indice_estado)?, parser),
             descricao: texto_tag(celula(indice_descricao)?, parser),
-            quantidade_itens: None,
         });
     }
     Ok((itens, links))
@@ -438,11 +434,11 @@ mod tests {
         assert_eq!(l.lista.total_declarado, 1);
         assert_eq!(l.lista.itens[0].numero, "2195");
         assert_eq!(l.lista.itens[0].descricao, "Teste de Bloco");
-        assert_eq!(l.lista.itens[0].quantidade_itens, None);
+        // A tela de listagem não mostra quantidade de itens: o campo não existe.
         assert!(
-            serde_json::to_string(&l.lista)
+            !serde_json::to_string(&l.lista)
                 .unwrap()
-                .contains("\"quantidade_itens\":null")
+                .contains("quantidade_itens")
         );
         assert!(!serde_json::to_string(&l.lista).unwrap().contains(HASH));
     }

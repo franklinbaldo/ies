@@ -26,10 +26,11 @@ realmente feitos apenas nos sucessos. Sessão ativa é pré-requisito.
 
 O modelo da lista publica `tipo`, `total_declarado`,
 `faixa_observada` e `itens`. Cada item contém `numero`, `tipo`,
-`estado`, `descricao` e `quantidade_itens`, com **null** quando a
-quantidade não foi mostrada pela tela de lista. Não deduz número de documentos
-da quantidade de blocos. Link assinado, cookie e id interno jamais aparecem
-na saída.
+`estado` e `descricao`. A tela de lista não mostra quantidade de itens
+por bloco: o campo não existe na saída (nenhum `null`), e a quantidade vem
+só do detalhe ([`ies bloco N`](bloco-obter.md)). Não deduz número de
+documentos da quantidade de blocos. Link assinado, cookie e id interno
+jamais aparecem na saída.
 
 A tabela `tblBlocos` é lida pelos títulos de coluna, não pela posição
 fixa, e exige Número, Estado, Descrição, legenda e número de linha coerentes.

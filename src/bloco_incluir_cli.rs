@@ -88,16 +88,16 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
             "Documento {} incluído e conferido no bloco de assinatura {}. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
         );
-    } else if previa.desfecho.presente_antes() == Some(true) {
+    } else if previa.desfecho.presente_antes() {
         println!(
             "Documento {} já está no bloco de assinatura {}; nenhuma alteração necessária. Requisições: {}",
             previa.documento, previa.bloco, previa.requisicoes
         );
     } else {
-        let antes = match previa.desfecho.presente_antes() {
-            Some(true) => "já está no bloco; nada a incluir",
-            Some(false) => "não está no bloco",
-            None => "não observado no detalhe do bloco",
+        let antes = if previa.desfecho.presente_antes() {
+            "já está no bloco; nada a incluir"
+        } else {
+            "não está no bloco"
         };
         println!(
             "Prévia: documento {} no bloco de assinatura {}: {antes}. Para incluir, repita com --confirmar. Requisições: {}",
@@ -162,7 +162,7 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
                 "confirmado": false,
                 "alterado": false,
                 "presente_antes": presente,
-                "presente_depois": null,
+                "presente_depois": presente,
                 "origem": "web",
                 "requisicoes": rede.feitas(),
             })

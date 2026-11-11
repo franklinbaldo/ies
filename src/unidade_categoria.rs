@@ -31,7 +31,7 @@ impl CategoriaLista {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaCategoria {
-    UnidadeNaoObservada,
+    IdentificacaoDaUnidadeAusenteNoControle,
     /// Total ou faixa da categoria não publicáveis (`conferir_faixa_publicavel`).
     FaixaNaoPublicavel(#[from] crate::erro_web::ErroCaixa),
 }
@@ -43,7 +43,7 @@ pub(crate) fn selecionar(
     origem: &str,
 ) -> Result<Value, FalhaCategoria> {
     if leitura.unidade.is_none() {
-        return Err(FalhaCategoria::UnidadeNaoObservada);
+        return Err(FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle);
     }
     let (tabela, cobertura) = match categoria {
         CategoriaLista::Recebidos => (&leitura.caixa.recebidos, &leitura.recebidos),
@@ -160,7 +160,7 @@ mod tests {
         assert_eq!(leitura.unidade, None);
         assert_eq!(
             selecionar(&leitura, CategoriaLista::Gerados, "web"),
-            Err(FalhaCategoria::UnidadeNaoObservada)
+            Err(FalhaCategoria::IdentificacaoDaUnidadeAusenteNoControle)
         );
     }
 
