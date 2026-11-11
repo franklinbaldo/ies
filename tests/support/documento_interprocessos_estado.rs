@@ -161,6 +161,22 @@ fn semear_segundo_processo_se_necessario(
     .unwrap();
 }
 
+fn semear_pasta_pendente(banco: &Connection, origem: &Instalacao) {
+    use iesei::pastas_incompletas::{self, PastaPendente};
+    // DOC_A é visível; os protocolos da pasta ainda não estão carregados.
+    pastas_incompletas::guardar(
+        banco,
+        origem,
+        CENARIO,
+        "7",
+        &PastaPendente {
+            indice: 1,
+            protocolo_declarado: "900".into(),
+        },
+    )
+    .unwrap();
+}
+
 pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Instalacao) {
     let mut banco = Connection::open_in_memory().unwrap();
     banco_cassettes::iniciar(&banco).unwrap();
@@ -264,22 +280,7 @@ pub(super) fn estado(com_segundo: bool, modo: EstadoExtra) -> (Connection, Insta
         }
         EstadoExtra::NumeroRepetido => semear_numero_repetido(&mut banco, &origem),
         EstadoExtra::PdfNumeroDuplicado => semear_pdf_numero_repetido(&banco, &origem),
-        EstadoExtra::PastaPendente => {
-            // A árvore tem DOC_A visível e uma pasta cuja leitura é incompleta.
-            // DOC_B não pertence ao processo A; a ausência não está comprovada.
-            use iesei::pastas_incompletas::{self, PastaPendente};
-            pastas_incompletas::guardar(
-                &banco,
-                &origem,
-                CENARIO,
-                "7",
-                &PastaPendente {
-                    indice: 1,
-                    protocolo_declarado: "900".into(),
-                },
-            )
-            .unwrap();
-        }
+        EstadoExtra::PastaPendente => semear_pasta_pendente(&banco, &origem),
     }
     (banco, origem)
 }
