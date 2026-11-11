@@ -176,7 +176,7 @@ fn pdf_externo_e_o_quinto_pedido_pelo_link_da_arvore() {
     assert_eq!(anexo.tamanho, 12);
     assert_eq!(anexo.nome_original.as_deref(), Some("Minuta.pdf"));
     assert_eq!(anexo.disposicao, Some(Disposicao::Inline));
-    assert_eq!(anexo.texto, None);
+    assert_eq!(anexo.texto(), None);
     assert!(!format!("{d:?}").contains(HASH_CONTEUDO));
     // #88: o arquivo não serve rodapé; sem `--versao`, a barra não é lida.
     assert_eq!(d.versoes.lida, None);
@@ -266,7 +266,8 @@ fn externo_sem_src_com_saida_preserva_original_e_recusa_copia_divergente() {
     let doc = lido.unwrap();
     assert_eq!(doc.requisicoes, 6);
     assert_eq!(envio.roteiro.pedidos.len(), 6);
-    let arquivo = doc.anexo.unwrap().arquivo.unwrap();
+    let mut anexo = doc.anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().unwrap();
     assert_eq!(arquivo.nome(), "0000101.pdf");
     arquivo.concluir().unwrap();
     assert_eq!(
@@ -319,7 +320,8 @@ fn com_saida_o_parcial_fica_no_diretorio_ate_concluir() {
         saida: Some(&dir),
     };
     let (r, _) = rodar(&amb, pdf(), pedido);
-    let arquivo = r.unwrap().anexo.unwrap().arquivo.expect("parcial");
+    let mut anexo = r.unwrap().anexo.unwrap();
+    let arquivo = anexo.tirar_arquivo().expect("parcial");
     assert_eq!(arquivo.nome(), "0000101.pdf");
     arquivo.concluir().unwrap();
     assert_eq!(

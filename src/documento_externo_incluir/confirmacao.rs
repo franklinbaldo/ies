@@ -123,7 +123,7 @@ where
     // Número, rótulo e redirect não bastam para confirmar a inclusão externa:
     // documento interno concorrente ou natureza não observada são incertos.
     if novo.natureza.icone.as_deref() != Some("documento_pdf")
-        || novo.natureza.cancelado != Some(false)
+        || novo.natureza.cancelamento.cancelado() != Some(false)
     {
         return Err(FalhaConfirmacao::NaoConfirmado);
     }

@@ -89,8 +89,8 @@ fn json_do_documento(d: &DocumentoNaArvore) -> Value {
         "numero_sei": d.numero_sei,
         "pasta": d.pasta,
         "icone": d.natureza.icone,
-        "cancelado": d.natureza.cancelado,
-        "motivo_do_cancelamento": d.natureza.motivo_do_cancelamento,
+        "cancelado": d.natureza.cancelamento.cancelado(),
+        "motivo_do_cancelamento": d.natureza.cancelamento.motivo(),
         "dica": d.natureza.dica,
     })
 }
@@ -154,9 +154,9 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
             let _ = write!(texto, " [pasta {}]", pasta.rotulo);
         }
         let natureza = &documento.natureza;
-        match natureza.cancelado {
+        match natureza.cancelamento.cancelado() {
             Some(true) => {
-                let motivo = natureza.motivo_do_cancelamento.as_deref().unwrap_or("");
+                let motivo = natureza.cancelamento.motivo().unwrap_or("");
                 let _ = write!(texto, " [cancelado: {motivo}]");
             }
             None if natureza.icone.is_some() => {
@@ -164,7 +164,7 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
             }
             _ => {}
         }
-        if natureza.cancelado != Some(true)
+        if natureza.cancelamento.cancelado() != Some(true)
             && let Some(dica) = &natureza.dica
         {
             for linha in dica.lines().filter(|l| !l.is_empty()) {

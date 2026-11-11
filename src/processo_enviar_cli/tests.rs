@@ -2,7 +2,9 @@
 //! URL, e as falhas com as listas que o SEI publicou.
 use super::{humano, json_de_sucesso, sigla_de_destino};
 use crate::processo_concluir::FalhaDoEnvio;
-use crate::processo_enviar::{Destino, ProcessoEnviado};
+use crate::processo_enviar::{
+    DesfechoDoEnvio, Destino, MetodoRemocao, ProcessoEnviado, RemocaoDaAnotacao,
+};
 use serde_json::json;
 
 fn previa() -> ProcessoEnviado {
@@ -10,21 +12,15 @@ fn previa() -> ProcessoEnviado {
         nup: "00001.000001/2026-01".into(),
         id_procedimento: "10".into(),
         unidade: "TESTE".into(),
-        confirmado: false,
-        alterado: false,
         manter_aberto: false,
-        remover_anotacoes: false,
-        anotacao_antes: None,
-        anotacao_depois: None,
-        metodo_remocao: None,
+        remocao: None,
         destino: Destino {
             sigla: "TESTE_1_1".into(),
             descricao: "TESTE_1_1 - Unidade 1.1".into(),
             id_unidade: "110000002".into(),
         },
         aberto_em: vec!["TESTE".into()],
-        depois: None,
-        reconciliado_por: None,
+        desfecho: DesfechoDoEnvio::Previa,
         requisicoes: 5,
     }
 }
@@ -55,11 +51,11 @@ fn previa_publica_o_contrato_sem_url() {
 #[test]
 fn enviado_e_reconciliado() {
     let feito = ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
         manter_aberto: true,
-        depois: Some(vec!["TESTE".into(), "TESTE_1_1".into()]),
-        reconciliado_por: Some(FalhaDoEnvio::RespostaDoEnvioSemRedirecionamento),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: vec!["TESTE".into(), "TESTE_1_1".into()],
+            reconciliado_por: Some(FalhaDoEnvio::RespostaDoEnvioSemRedirecionamento),
+        },
         requisicoes: 7,
         ..previa()
     };
@@ -166,10 +162,10 @@ fn sugestoes_guardadas_compoem_erro_web_sem_consulta_extra() {
 #[test]
 fn saida_tipificada_serializa_destino_sem_value_intermediario() {
     let feito = ProcessoEnviado {
-        confirmado: true,
-        alterado: true,
-        depois: Some(vec!["TESTE_1_1".into()]),
-        reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+        desfecho: DesfechoDoEnvio::Enviado {
+            depois: vec!["TESTE_1_1".into()],
+            reconciliado_por: Some(FalhaDoEnvio::RedirecionamentoNaoReconhecidoAposEnviar),
+        },
         ..previa()
     };
     let mut bytes = Vec::new();
@@ -184,7 +180,7 @@ fn saida_tipificada_serializa_destino_sem_value_intermediario() {
     assert_eq!(recebido["destino"]["id_unidade"], "110000002");
     assert_eq!(
         recebido["falha_do_envio"],
-        format!("{:?}", feito.reconciliado_por.as_ref().unwrap())
+        format!("{:?}", feito.reconciliado_por().unwrap())
     );
     assert!(!String::from_utf8(bytes).unwrap().contains("infra_hash"));
 }
@@ -193,7 +189,11 @@ fn saida_tipificada_serializa_destino_sem_value_intermediario() {
 fn bdd_previa_publica_opcao_somente_se_solicitada() {
     let mut feito = previa();
     assert!(json_de_sucesso(&feito).get("remover_anotacoes").is_none());
-    feito.remover_anotacoes = true;
+    feito.remocao = Some(RemocaoDaAnotacao {
+        metodo: MetodoRemocao::CheckboxNoEnvio,
+        antes: None,
+        depois: None,
+    });
     assert_eq!(json_de_sucesso(&feito)["remover_anotacoes"], true);
     assert!(humano(&feito).contains("Remover anotações no envio: sim"));
 }

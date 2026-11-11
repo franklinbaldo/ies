@@ -38,15 +38,38 @@ pub(crate) enum EvidenciaDeCoincidencia {
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DiagnosticoPosEscrita {
-    pub(crate) evidencia: Option<EvidenciaDeCoincidencia>,
     pub(crate) causa_post: String,
-    pub(crate) causa_releitura: Option<String>,
-    /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
-    pub(crate) http_releitura: Option<StatusHttpRecusado>,
+    /// Só existe quando a releitura de reconciliação falhou.
+    pub(crate) releitura_falhou: Option<FalhaDaReleitura>,
     pub(crate) candidatos_observados: Option<Vec<String>>,
     /// NUPs com identidade, tipo e especificação lidos e coincidentes.
     /// Quando a releitura falhou, são provas parciais, não resultado final.
     pub(crate) candidatos_compativeis: Option<Vec<String>>,
+}
+
+/// A releitura que falhou: a causa, e o HTTP dela quando houve status.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FalhaDaReleitura {
+    pub(crate) causa: String,
+    /// Falha HTTP da leitura de reconciliação, distinta da resposta do POST.
+    pub(crate) http: Option<StatusHttpRecusado>,
+}
+
+#[cfg(test)]
+impl DiagnosticoPosEscrita {
+    /// Os candidatos compatíveis, com a releitura falha como prova parcial.
+    pub(crate) fn evidencia(&self) -> Option<EvidenciaDeCoincidencia> {
+        self.candidatos_compativeis.as_ref().map(|nups| {
+            if self.releitura_falhou.is_some() {
+                EvidenciaDeCoincidencia::Parcial
+            } else if nups.len() == 1 {
+                EvidenciaDeCoincidencia::UnicaSemProvaCausal
+            } else {
+                EvidenciaDeCoincidencia::Multiplas
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -179,24 +202,12 @@ impl ErroCriar {
             ),
             _ => return None,
         };
-        let evidencia = correspondentes.as_ref().map(|nups| {
-            if posterior.is_err() {
-                EvidenciaDeCoincidencia::Parcial
-            } else if nups.len() == 1 {
-                EvidenciaDeCoincidencia::UnicaSemProvaCausal
-            } else {
-                EvidenciaDeCoincidencia::Multiplas
-            }
-        });
         Some(DiagnosticoPosEscrita {
-            evidencia,
             causa_post,
-            causa_releitura: posterior.as_ref().err().map(|erro| format!("{erro:?}")),
-            http_releitura: posterior
-                .as_ref()
-                .err()
-                .and_then(|erro| erro.status_http())
-                .cloned(),
+            releitura_falhou: posterior.as_ref().err().map(|erro| FalhaDaReleitura {
+                causa: format!("{erro:?}"),
+                http: erro.status_http().cloned(),
+            }),
             candidatos_observados: posterior
                 .as_ref()
                 .ok()

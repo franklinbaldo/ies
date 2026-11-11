@@ -22,7 +22,7 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
         .nome_original
         .as_deref()
         .map_or_else(String::new, |n| format!(", nome original {n:?}"));
-    let dica = if gravado || a.texto.is_some() {
+    let dica = if gravado || a.texto().is_some() {
         ""
     } else {
         " Use --saida DIR para gravar o arquivo."
@@ -36,7 +36,7 @@ pub(super) fn linha_do_anexo(a: &AnexoLido, gravado: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::anexo_documento::Disposicao;
+    use crate::anexo_documento::{ConteudoDoAnexo, Disposicao};
 
     fn anexo(texto: Option<&str>) -> AnexoLido {
         AnexoLido {
@@ -45,8 +45,9 @@ mod tests {
             sha256: "ab".repeat(32),
             nome_original: Some("Minuta.pdf".to_owned()),
             disposicao: Some(Disposicao::Inline),
-            texto: texto.map(str::to_owned),
-            arquivo: None,
+            conteudo: texto.map_or(ConteudoDoAnexo::Nenhum, |t| {
+                ConteudoDoAnexo::Texto(t.to_owned())
+            }),
         }
     }
 

@@ -160,8 +160,14 @@ fn natureza(c: &Cassette<'_>, r: &Resposta<'_>, aberta: &ArvoreAberta) -> Regist
     registro.contagens = vec![
         ("documentos", documentos.len() as u64),
         ("sem_icone", conta(&|n| n.icone.is_none())),
-        ("cancelado_nao_lido", conta(&|n| n.cancelado.is_none())),
-        ("cancelados", conta(&|n| n.cancelado == Some(true))),
+        (
+            "cancelado_nao_lido",
+            conta(&|n| n.cancelamento.cancelado().is_none()),
+        ),
+        (
+            "cancelados",
+            conta(&|n| n.cancelamento.cancelado() == Some(true)),
+        ),
         ("com_dica", conta(&|n| n.dica.is_some())),
     ];
     for documento in documentos {

@@ -74,21 +74,21 @@ fn pdf_sem_saida_publica_metadados_e_hash_sem_texto() {
     assert_eq!(a.sha256, sha(b"%PDF-1.7 sintetico"));
     assert_eq!(a.nome_original.as_deref(), Some("Minuta de Contrato.pdf"));
     assert_eq!(a.disposicao, Some(Disposicao::Inline));
-    assert_eq!(a.texto, None);
-    assert_eq!(a.arquivo, None);
+    assert_eq!(a.texto(), None);
+    assert_eq!(a.conteudo, ConteudoDoAnexo::Nenhum);
 }
 
 #[test]
 fn pdf_com_saida_vai_para_parcial_0600_e_so_conclui_sem_sobrescrever() {
     let dir = pasta();
-    let a = ler_anexo(
+    let mut a = ler_anexo(
         pdf(&[]),
         "0000101",
         LimiteDoAnexo::default(),
         DestinoDoAnexo::Diretorio(&dir),
     )
     .unwrap();
-    let arquivo = a.arquivo.expect("parcial");
+    let arquivo = a.tirar_arquivo().expect("parcial");
     assert_eq!(arquivo.nome(), "0000101.pdf");
     let parciais: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().collect();
     assert_eq!(parciais.len(), 1);
@@ -140,14 +140,14 @@ fn saida_por_link_e_gravavel_por_outros_e_aceita() {
     std::os::unix::fs::symlink(&real, &atalho).unwrap();
     for (bits, numero) in [(0o755, "0000103"), (0o775, "0000104"), (0o777, "0000105")] {
         std::fs::set_permissions(&real, std::fs::Permissions::from_mode(bits)).unwrap();
-        let a = ler_anexo(
+        let mut a = ler_anexo(
             pdf(&[]),
             numero,
             LimiteDoAnexo::default(),
             DestinoDoAnexo::Diretorio(&atalho),
         )
         .unwrap();
-        a.arquivo.expect("parcial").concluir().unwrap();
+        a.tirar_arquivo().expect("parcial").concluir().unwrap();
         assert!(real.join(format!("{numero}.pdf")).is_file(), "{bits:o}");
     }
     assert_eq!(std::fs::read_dir(&real).unwrap().count(), 3);
@@ -177,7 +177,7 @@ fn texto_plano_no_charset_declarado_sem_controles() {
     ))
     .unwrap();
     assert_eq!(a.mime, "text/plain");
-    assert_eq!(a.texto.as_deref(), Some("Ofício\nlinha\u{fffd}[31m\tfim"));
+    assert_eq!(a.texto(), Some("Ofício\nlinha\u{fffd}[31m\tfim"));
     let utf8_invalido = ler(resposta(&[("content-type", "text/plain")], b"Of\xedcio"));
     assert!(matches!(
         utf8_invalido,
@@ -197,10 +197,7 @@ fn html_recebido_com_parametro_vazio_rende_o_texto_visivel() {
     assert_eq!(a.mime, "text/html");
     assert_eq!(a.nome_original, None);
     assert_eq!(a.disposicao, None);
-    assert_eq!(
-        a.texto.as_deref(),
-        Some("Texto do despacho recebido. Brasília")
-    );
+    assert_eq!(a.texto(), Some("Texto do despacho recebido. Brasília"));
 }
 
 #[test]

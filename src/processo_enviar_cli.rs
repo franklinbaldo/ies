@@ -176,13 +176,13 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         id_procedimento: &feito.id_procedimento,
         unidade: &feito.unidade,
         origem: "web",
-        confirmado: feito.confirmado,
-        alterado: feito.alterado,
+        confirmado: feito.confirmado(),
+        alterado: feito.alterado(),
         manter_aberto: feito.manter_aberto,
-        remover_anotacoes: feito.remover_anotacoes.then_some(true),
-        anotacao_antes: feito.anotacao_antes,
-        anotacao_depois: feito.anotacao_depois,
-        metodo_remocao: feito.metodo_remocao,
+        remover_anotacoes: feito.remover_anotacoes().then_some(true),
+        anotacao_antes: feito.anotacao_antes(),
+        anotacao_depois: feito.anotacao_depois(),
+        metodo_remocao: feito.metodo_remocao(),
         destino: DestinoPublico {
             sigla: &feito.destino.sigla,
             descricao: &feito.destino.descricao,
@@ -190,10 +190,10 @@ fn resultado_envio(feito: &ProcessoEnviado) -> ResultadoEnvio<'_> {
         },
         aberto_em: &feito.aberto_em,
         depois_esperado: feito.depois_esperado(),
-        depois: feito.depois.as_deref(),
-        reconciliado_por_leitura: feito.reconciliado_por.is_some(),
+        depois: feito.depois(),
+        reconciliado_por_leitura: feito.reconciliado_por().is_some(),
         requisicoes: feito.requisicoes,
-        falha_do_envio: feito.reconciliado_por.as_ref().map(|f| format!("{f:?}")),
+        falha_do_envio: feito.reconciliado_por().map(|f| format!("{f:?}")),
     }
 }
 

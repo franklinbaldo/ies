@@ -51,12 +51,50 @@ pub(crate) struct DocumentoOferecido {
 pub(crate) struct PreviaDocumental {
     pub(crate) bloco: String,
     pub(crate) documento: String,
-    /// `None`: o detalhe observado não é completo e não contém o documento.
-    pub(crate) presente_antes: Option<bool>,
     pub(crate) requisicoes: usize,
-    pub(crate) confirmado: bool,
-    pub(crate) alterado: bool,
-    pub(crate) presente_depois: Option<bool>,
+    pub(crate) desfecho: DesfechoDaInclusao,
+}
+
+/// Desfecho observado da inclusão. Cada variante carrega só o que existe nela:
+/// o pertencimento antes e depois, e a solicitação, são derivados daqui.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum DesfechoDaInclusao {
+    /// Prévia sem POST: o detalhe do bloco é completo e não contém o documento.
+    Previa,
+    /// Prévia sem POST: o detalhe do bloco não é completo e não o contém.
+    NaoObservadoNoDetalhe,
+    /// Já presente no detalhe: nenhuma escrita, com ou sem o pedido de confirmação.
+    JaEstava { confirmacao_pedida: bool },
+    /// POST aceito e releitura independente confirmou o documento no bloco.
+    Incluido,
+}
+
+impl DesfechoDaInclusao {
+    /// A solicitação do usuário (`--confirmar`), não prova autônoma de efeito.
+    pub(crate) fn confirmado(&self) -> bool {
+        match self {
+            Self::Previa | Self::NaoObservadoNoDetalhe => false,
+            Self::JaEstava { confirmacao_pedida } => *confirmacao_pedida,
+            Self::Incluido => true,
+        }
+    }
+
+    pub(crate) fn alterado(&self) -> bool {
+        matches!(self, Self::Incluido)
+    }
+
+    /// `None`: o detalhe observado não é completo e não contém o documento.
+    pub(crate) fn presente_antes(&self) -> Option<bool> {
+        match self {
+            Self::Previa | Self::Incluido => Some(false),
+            Self::NaoObservadoNoDetalhe => None,
+            Self::JaEstava { .. } => Some(true),
+        }
+    }
+
+    pub(crate) fn presente_depois(&self) -> Option<bool> {
+        self.alterado().then_some(true)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -221,18 +259,22 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         .iter()
         .any(|item| item.documento.as_deref() == Some(aberto.numero.as_str()));
     let completo = detalhe.itens.len() == detalhe.total_declarado;
-    let presente_antes = (presente || completo).then_some(presente);
-    if presente_antes == Some(true) {
-        return Ok(PreviaDocumental {
-            bloco: bloco.to_owned(),
-            documento: aberto.numero,
-            presente_antes,
-            requisicoes: usize::from(rede.feitas()),
-            confirmado: confirmar,
-            alterado: false,
-            presente_depois: None,
-        });
-    }
+    // `ausente`: o detalhe é completo e não contém o documento. Sem detalhe
+    // completo e sem o documento, o pertencimento não foi observado.
+    let ausente = match (presente || completo).then_some(presente) {
+        Some(true) => {
+            return Ok(PreviaDocumental {
+                bloco: bloco.to_owned(),
+                documento: aberto.numero,
+                requisicoes: usize::from(rede.feitas()),
+                desfecho: DesfechoDaInclusao::JaEstava {
+                    confirmacao_pedida: confirmar,
+                },
+            });
+        }
+        Some(false) => true,
+        None => false,
+    };
     let link = ler_bloco_escolher_da_barra(
         &instalacao,
         &aberto.html,
@@ -243,6 +285,43 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     let cookie = ler_cookie(sessao)?;
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let tela = ler_tela_de_escolha(&html)?;
+    let caixa = caixa_do_documento(&tela, bloco, &aberto)?;
+    let desfecho = match (ausente, confirmar) {
+        (true, true) => {
+            confirmar_documento(
+                sessao,
+                referencias,
+                unidade,
+                bloco,
+                &aberto,
+                &TelaDaInclusao {
+                    url: link.as_str(),
+                    html: &html,
+                    mime: &mime,
+                    nome_da_caixa: &caixa.nome,
+                },
+                &mut rede,
+            )?;
+            DesfechoDaInclusao::Incluido
+        }
+        (true, false) => DesfechoDaInclusao::Previa,
+        (false, true) => return Err(ErroIncluir::PertencimentoNaoObservado),
+        (false, false) => DesfechoDaInclusao::NaoObservadoNoDetalhe,
+    };
+    Ok(PreviaDocumental {
+        bloco: bloco.to_owned(),
+        documento: aberto.numero,
+        requisicoes: usize::from(rede.feitas()),
+        desfecho,
+    })
+}
+
+/// Confere na tela de escolha o bloco pedido e a única caixa do documento.
+fn caixa_do_documento<'t>(
+    tela: &'t TelaDeEscolha,
+    bloco: &str,
+    aberto: &DocumentoNaArvoreAberto,
+) -> Result<&'t DocumentoOferecido, ErroIncluir> {
     if !tela.blocos.iter().any(|b| b == bloco) {
         return Err(ErroIncluir::BlocoNaoOferecido);
     }
@@ -254,37 +333,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     if caixa.id != aberto.id_documento {
         return Err(ErroIncluir::DocumentoForaDaTela);
     }
-    let mut alterado = false;
-    let mut presente_depois = None;
-    if confirmar && presente_antes == Some(false) {
-        confirmar_documento(
-            sessao,
-            referencias,
-            unidade,
-            bloco,
-            &aberto,
-            &TelaDaInclusao {
-                url: link.as_str(),
-                html: &html,
-                mime: &mime,
-                nome_da_caixa: &caixa.nome,
-            },
-            &mut rede,
-        )?;
-        alterado = true;
-        presente_depois = Some(true);
-    } else if confirmar && presente_antes.is_none() {
-        return Err(ErroIncluir::PertencimentoNaoObservado);
-    }
-    Ok(PreviaDocumental {
-        bloco: bloco.to_owned(),
-        documento: aberto.numero,
-        presente_antes,
-        confirmado: confirmar,
-        alterado,
-        presente_depois,
-        requisicoes: usize::from(rede.feitas()),
-    })
+    Ok(caixa)
 }
 
 /// A tela fresca da oferta de inclusão, sem persistir HTML assinado.

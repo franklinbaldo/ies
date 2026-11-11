@@ -1,6 +1,6 @@
 //! Cenários técnicos auxiliares do BDD-332-03/04; transporte exclusivamente sintético.
 use super::*;
-use crate::arvore_processo::NaturezaDoDocumento;
+use crate::arvore_processo::{Cancelamento, NaturezaDoDocumento};
 use crate::documento_externo_incluir::cadastro::observar_cadastro;
 use crate::formulario_web::{CodificacaoDaTela, Redirecionamento302};
 
@@ -34,8 +34,7 @@ fn foto(novo: bool) -> FotoProcesso {
             pasta: None,
             natureza: NaturezaDoDocumento {
                 icone: Some("documento_pdf".into()),
-                cancelado: Some(false),
-                motivo_do_cancelamento: None,
+                cancelamento: Cancelamento::Ativo,
                 dica: None,
             },
         }]
