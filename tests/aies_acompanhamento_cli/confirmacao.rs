@@ -97,3 +97,41 @@ fn saida_humana_retirada_confirmada_nao_anuncia_previa() {
     assert_eq!(restante.len(), 1);
     assert_eq!(restante[0].grupo, "H");
 }
+
+#[test]
+fn redirecionamento_na_releitura_nao_confirma_retirada_nem_repete_post() {
+    let (saida, eventos, depois, segunda_cli) = executar_com_resposta_modo(
+        EstadoInicial::GrupoG,
+        true,
+        RespostaDeReleitura::Redirecionamento302,
+        false,
+    );
+    falha(&saida, "RedirecionamentoDeAcompanhamentoInesperado");
+    assert_eq!(
+        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        1
+    );
+    let restantes = depois.unwrap().itens;
+    assert_eq!(restantes.len(), 1);
+    assert_eq!(restantes[0].id, "832");
+    assert_eq!(segunda_cli.unwrap().status.code(), Some(0));
+}
+
+#[test]
+fn lista_ausente_apos_post_preserva_causa_sem_reenvio() {
+    let (saida, eventos, depois, segunda_cli) = executar_com_resposta_modo(
+        EstadoInicial::GrupoG,
+        true,
+        RespostaDeReleitura::SemTabela,
+        false,
+    );
+    falha(&saida, "ListaNaoPublicada");
+    assert_eq!(
+        eventos.iter().filter(|v| v.as_str() == "POST acompanhamento_excluir").count(),
+        1
+    );
+    let restantes = depois.unwrap().itens;
+    assert_eq!(restantes.len(), 1);
+    assert_eq!(restantes[0].id, "832");
+    assert_eq!(segunda_cli.unwrap().status.code(), Some(0));
+}
