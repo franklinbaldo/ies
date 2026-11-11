@@ -96,8 +96,7 @@ fn diferentes_versoes_nao_sobrescrevem() {
     let raiz = std::env::temp_dir().join(format!("ies-cache-versoes-{}", std::process::id()));
     let um = gravar_em(&raiz, "sei.exemplo", "001", Some(1), "html", b"<p>um</p>").unwrap();
     let dois = gravar_em(&raiz, "sei.exemplo", "001", Some(2), "html", b"<p>dois</p>").unwrap();
-    let desconhecida =
-        gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"<p>x</p>").unwrap();
+    let desconhecida = gravar_em(&raiz, "sei.exemplo", "001", None, "html", b"<p>x</p>").unwrap();
     assert_ne!(um, dois);
     assert_ne!(desconhecida, um);
     assert!(
@@ -179,8 +178,8 @@ fn publicar_parcial_preserva_erro_de_hard_link() {
     let parcial = raiz.join("parcial.pdf");
     let pdf = b"%PDF-1.7 sintetico";
     fs::write(&parcial, pdf).unwrap();
-    let erro = publicar_parcial(&parcial, &raiz, "sei.exemplo", "0007", &sha256(pdf), "pdf")
-        .unwrap_err();
+    let erro =
+        publicar_parcial(&parcial, &raiz, "sei.exemplo", "0007", &sha256(pdf), "pdf").unwrap_err();
     assert_eq!(
         erro,
         FalhaCache::ArquivoDoCacheInacessivel(std::io::ErrorKind::NotADirectory)
