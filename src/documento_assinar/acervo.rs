@@ -134,6 +134,40 @@ fn arvore(
     }
 }
 
+
+#[test]
+fn replay_nao_confunde_antes_ausente_com_antes_sem_caneta() {
+    use super::tests_apoio::{
+        CARGO, ID, ID_DOC, ORIGEM, arvore_do_documento, caneta_da_sessao, tela_padrao,
+    };
+    let instalacao = Instalacao::interpretar(ORIGEM).unwrap();
+    let tela = conferir_tela_de_assinatura(&tela_padrao(), ID_DOC).unwrap();
+    let depois = arvore_do_documento('S', &[caneta_da_sessao(CARGO)]);
+
+    // Hipótese sintética: uma captura pode mostrar o POST e a caneta
+    // posterior sem ter observado a árvore imediatamente anterior.
+    for (antes_observado, esperado) in [
+        (false, "caneta anterior não observada"),
+        (true, "verificada (caneta do assinante com o cargo)"),
+    ] {
+        let mut estado = Estado::default();
+        estado.tela.insert(ID_DOC.to_owned(), tela.clone());
+        estado.escrita = Some(ID_DOC.to_owned());
+        if antes_observado {
+            estado.antes.insert(ID_DOC.to_owned(), Vec::new());
+        }
+        let mut contagem = Contagem::new();
+        arvore(&mut contagem, &mut estado, &instalacao, &depois, ID, "sintetica");
+        assert_eq!(
+            contagem
+                .get(&("verificação", esperado.to_owned()))
+                .and_then(|por_instalacao| por_instalacao.get("sintetica")),
+            Some(&1),
+            "ausência da observação anterior não prova ausência de caneta"
+        );
+    }
+}
+
 #[test]
 #[ignore = "lê os ZIPs do acervo em IES_ACERVO_CACHE (padrão ~/.cache/ies); sem rede"]
 fn replay_de_documento_assinar_no_acervo() {
