@@ -46,7 +46,10 @@ fn formulario_simulado(
     cliente.read_to_string(&mut resposta).unwrap();
     servidor.join().unwrap();
     let (cabecalho, corpo) = resposta.split_once("\r\n\r\n").unwrap();
-    assert!(cabecalho.starts_with("HTTP/1.1 200 OK"), "anti-IES não ofereceu formulário de anexação");
+    assert!(
+        cabecalho.starts_with("HTTP/1.1 200 OK"),
+        "anti-IES não ofereceu formulário de anexação"
+    );
     corpo.to_owned()
 }
 
@@ -84,7 +87,10 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
         )
         .unwrap();
         for (indice, anexado) in observado.anexados.iter().enumerate() {
-            assert_ne!(anexado, &id, "processo anexado igual ao principal em {instalacao}");
+            assert_ne!(
+                anexado, &id,
+                "processo anexado igual ao principal em {instalacao}"
+            );
             processos::guardar(
                 &mut banco,
                 &origem,
@@ -100,7 +106,10 @@ fn confrontar(instalacao: &str, json: &serde_json::Value) -> (usize, usize) {
         let mut ids_simulados = projetado.anexados;
         ids_originais.sort_unstable();
         ids_simulados.sort_unstable();
-        assert_eq!(ids_simulados, ids_originais, "IDs de anexados divergentes em {instalacao}");
+        assert_eq!(
+            ids_simulados, ids_originais,
+            "IDs de anexados divergentes em {instalacao}"
+        );
         bilaterais += 1;
     }
     (lidos, bilaterais)
@@ -130,10 +139,18 @@ fn replay_de_processo_anexar_no_acervo() {
             .expect("ZIP, JSON, schema, origem e completude");
         assert_eq!(observacao.instalacao, instalacao);
         let (leitor, confronto) = confrontar(instalacao, &observacao.json);
-        assert!(leitor > 0, "nenhum GET original de formulário legível em {instalacao}");
+        assert!(
+            leitor > 0,
+            "nenhum GET original de formulário legível em {instalacao}"
+        );
         lidos += leitor;
         bilaterais += confronto;
     }
-    assert!(bilaterais > 0, "nenhum GET de anexação confrontado com anti-IES");
-    println!("anexação GET original: {lidos} leitores IES, {bilaterais} comparações com HTTP anti-IES; POST 503: NOT_RUN externo");
+    assert!(
+        bilaterais > 0,
+        "nenhum GET de anexação confrontado com anti-IES"
+    );
+    println!(
+        "anexação GET original: {lidos} leitores IES, {bilaterais} comparações com HTTP anti-IES; POST 503: NOT_RUN externo"
+    );
 }
