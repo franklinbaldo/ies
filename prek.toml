@@ -52,6 +52,17 @@ pass_filenames = false
 always_run = true
 stages = ["pre-commit", "pre-push"]
 
+# A saída das CLIs não traz null (#749): leitura dá valor ou erro tipado;
+# campo sem valor por natureza é omitido.
+[[repos.hooks]]
+id = "sem-null"
+name = "Sem null emitido pelo código de produção"
+entry = "python3 -I scripts/sem_null.py"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
 [[repos.hooks]]
 id = "lint-producao"
 name = "Clippy de produção sem panic nem curinga"
