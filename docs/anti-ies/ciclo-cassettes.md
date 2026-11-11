@@ -79,8 +79,8 @@ ao comando e contrato da CLI, ao SHA e à evidência executada:
    versão/unidade identificadas; comparar o resultado real com o
    contrato e com a hipótese do anti-IES. Leitura/GET pode ter efeito.
    Escrita exige prévia → `--confirmar` uma vez → releitura
-   independente, registrando o resíduo; nunca produção, credenciais
-   em log ou repetição de escrita não confirmada. Divergência real gera correção
+   independente, com orçamento de requisições declarado e resíduo
+   registrado; nunca produção, credenciais em log nem retry da escrita. Divergência real gera correção
    da fatia IES/anti-IES e regressão de cassette quando aplicável.
 
 **A concordância entre os dois programas não prova os níveis 2 ou 3.**
@@ -97,7 +97,8 @@ registre essa comparação `NOT_RUN`, mas exija PASS dos replays existentes
 antes do merge. Não exigir CI em cada commit WIP, somente no head final.
 O nível 3 acontece quando houver ambiente autorizado e acessível;
 `NOT_RUN` não é fracasso sintético, nem PASS real. O objetivo é
-compatibilidade observável, sem contagem fixa de GET/POST.
+compatibilidade observável, sem igualdade fixa de GETs/POSTs como
+critério de paridade; orçamento de ensaio e POST mutador único permanecem.
 
 **Registro mínimo na PR/issue**, sem relatório cerimonial: `comando/contrato` +
 `IES↔anti-IES: PASS/FAIL/NOT_RUN (teste/CI)` +
