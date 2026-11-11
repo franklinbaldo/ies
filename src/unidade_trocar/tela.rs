@@ -272,8 +272,9 @@ fn filtro(
     let valor = |t: &tl::HTMLTag<'_>| -> Result<String, super::ErroTroca> {
         match valor_do_atributo(t, "value").map_err(ErroTroca::AtributoDaTelaDeTrocaIlegivel)? {
             None => Ok(String::new()),
-            Some(bruto) => decodificar_atributo(&bruto)
-                .ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida),
+            Some(bruto) => {
+                decodificar_atributo(&bruto).ok_or(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)
+            }
         }
     };
     if tag.name() != "select" {
