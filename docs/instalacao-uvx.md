@@ -11,16 +11,16 @@ empacota o executavel `ies` como script nativo do wheel Python, em
 `bindings = "bin"`. Nao ha modulo Python, wrapper, chamada subprocess
 nem dependencia do interpretador Python durante a execucao do IES.
 
-O nome de distribuicao Python e **`ies-sei`**, porque `ies` ja esta
+O nome de distribuicao Python e **`ies-cli`**, porque `ies` ja esta
 ocupado por outro projeto no PyPI. O executavel continua se chamando
 **`ies`**.
 
 ## Executar sem instalar Rust (apos publicar os wheels)
 
 ```sh
-uvx --from ies-sei ies --help
-uvx --from ies-sei ies --version
-uvx --from ies-sei ies status --json
+uvx ies-cli --help
+uvx ies-cli --version
+uvx ies-cli status --json
 ```
 
 O `uvx` prepara um ambiente isolado, baixa o wheel compatível com o
@@ -33,12 +33,14 @@ Alternativamente, para instalar uma unica vez e chamar `ies`
 diretamente:
 
 ```sh
-uv tool install ies-sei
+uv tool install ies-cli
 ies --help
+sei --help
+ies-cli --help
 ```
 
 **Atencao:** estes comandos do indice PyPI so funcionam **depois** de
-publicar uma versao de `ies-sei` com wheels para a plataforma do
+publicar uma versao de `ies-cli` com wheels para a plataforma do
 usuario. Um wheel ausente pode forcar compilacao de fonte ou impedir a
 instalacao. Esta PR nao publica nada no PyPI.
 
@@ -51,7 +53,7 @@ Os arquivos produzidos ficam apenas como artifacts temporarios do
 GitHub Actions, **nao no Git**. Para testar um wheel baixado:
 
 ```sh
-uvx --from ./dist/ies_sei-0.1.0-<tags-da-plataforma>.whl ies --help
+uvx --from ./dist/ies_cli-0.1.0-<tags-da-plataforma>.whl ies --help
 ```
 
 O nome acima e ilustrativo: use o caminho do wheel real baixado do CI.
@@ -85,7 +87,7 @@ Para um futuro asset Linux de versao 0.1.0, por exemplo, o endereco
 poderia ter esta forma (exemplo, **nao indica uma Release existente**):
 
 ```text
-https://github.com/franklinbaldo/ies/releases/download/v0.1.0/ies_sei-0.1.0-py3-none-manylinux_2_34_x86_64.whl
+https://github.com/franklinbaldo/ies/releases/download/v0.1.0/ies_cli-0.1.0-py3-none-manylinux_2_34_x86_64.whl
 ```
 
 Cada plataforma tem seu proprio wheel. O `uvx --from URL` **nao
@@ -189,10 +191,10 @@ releases. Verifique os hashes antes de redistribuir os arquivos.
 Para permitir o comando mais curto, sem URL especifica da arquitetura,
 
 ```sh
-uvx --from ies-sei ies --help
+uvx --from ies-cli ies --help
 ```
 
-e necessario publicar `ies-sei` no PyPI ou informar ao `uvx` um
+e necessario publicar `ies-cli` no PyPI ou informar ao `uvx` um
 indice alternativo (PEP 503) que liste os wheels da Release. Em ambos
 os casos o `uvx` escolhe o wheel compatível automaticamente.
 
@@ -202,10 +204,10 @@ Antes de uma release:
 
 1. Conferir que `Cargo.toml` e `pyproject.toml` tem a mesma versao.
 2. Confirmar os gates canonicos (`prek`) e os tres smoke tests de wheel.
-3. Configurar um projeto `ies-sei` no PyPI com Trusted Publishing
+3. Configurar um projeto `ies-cli` no PyPI com Trusted Publishing
    autorizado ao repositorio e workflow de release revisado.
 4. Somente numa release aprovada, publicar os wheels por OIDC e verificar
-   o comando `uvx --from ies-sei ies --version` no indice real.
+   o comando `uvx --from ies-cli ies --version` no indice real.
 
 A PR de empacotamento **nao** cria automatismo de upload nem tokens.
 Lembre que rodas com OpenSSL ou glibc podem exigir verificacao adicional
