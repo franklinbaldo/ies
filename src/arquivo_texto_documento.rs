@@ -20,8 +20,9 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoTexto::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        FalhaDaGravacao::DiretorioGravavelPorOutros
-        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroArquivoTexto::EscritaFalhou,
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)

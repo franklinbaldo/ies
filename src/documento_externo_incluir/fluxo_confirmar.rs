@@ -82,6 +82,7 @@ fn conferir_upload(
 /// Navega até o cadastro atual, tenta um upload, depois um cadastro e uma
 /// releitura. A closure de upload representa UMA tentativa, nunca um retry.
 /// O chamador só deve oferecer a rota de escrita quando validada em TREINAMENTO.
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn executar_confirmacao_via<V, U>(
     sessao: &SessaoDoProcesso<'_>,

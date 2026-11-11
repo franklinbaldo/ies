@@ -8,6 +8,7 @@ mod anotacoes;
 mod destino;
 mod erro;
 mod fluxo;
+mod releitura_anotacao;
 mod tela;
 
 #[cfg(test)]
@@ -22,6 +23,8 @@ mod tests_anti_ies;
 pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_busca;
+#[cfg(test)]
+mod tests_causa_releitura;
 #[cfg(test)]
 mod tests_destino;
 #[cfg(test)]

@@ -98,7 +98,7 @@ pub(super) fn recusar_nup_alheio(pasta: &Pasta, arquivos: [&Path; 4], porta: u16
             String::from_utf8_lossy(&saida.stdout),
             String::from_utf8_lossy(&saida.stderr)
         );
-        super::falha_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
+        super::falha_por_cli::falha_por(&saida, "Documento", "NumeroSeiAusenteDaArvoreDoProcesso");
         assert!(
             !destino.join("050000001.pdf").exists(),
             "recusa não pode criar arquivo de conteúdo alheio"

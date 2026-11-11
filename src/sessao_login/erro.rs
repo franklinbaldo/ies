@@ -52,6 +52,7 @@ pub(crate) enum ErroLogin {
     ControleAposOLoginNaoReconhecido(ErroCaixa),
     CookieDaSessaoNaoRecebido,
     DestinoDaSessaoNaoEhArquivoRegular(ArquivoPrivado),
+    #[cfg(unix)]
     DiretorioDaSessaoGravavelPorOutros(ArquivoPrivado),
     GravacaoDaSessaoFalhou(ArquivoPrivado),
     /// O marcador `.geracao` existe e não pôde ser lido.
@@ -75,6 +76,8 @@ impl ErroLogin {
         match self {
             Self::Transporte(falha) => falha.sessao_encerrada(),
             Self::Formulario(erro) => erro.sessao_encerrada(),
+            #[cfg(unix)]
+            Self::DiretorioDaSessaoGravavelPorOutros(_) => false,
             Self::Configuracao(_)
             | Self::Origem(_)
             | Self::CaminhoDasCredenciaisNaoInformado
@@ -101,7 +104,6 @@ impl ErroLogin {
             | Self::ControleAposOLoginNaoReconhecido(_)
             | Self::CookieDaSessaoNaoRecebido
             | Self::DestinoDaSessaoNaoEhArquivoRegular(_)
-            | Self::DiretorioDaSessaoGravavelPorOutros(_)
             | Self::GravacaoDaSessaoFalhou(_)
             | Self::MarcadorDaSessaoIlegivel(_)
             | Self::UnidadeExibidaDiferenteDaSolicitada

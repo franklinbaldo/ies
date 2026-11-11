@@ -33,7 +33,7 @@ stages = ["pre-commit", "pre-push"]
 [[repos.hooks]]
 id = "lint"
 name = "Clippy rigoroso sem warnings"
-entry = "cargo clippy --locked --workspace --all-targets -- -D warnings -W clippy::pedantic"
+entry = "cargo clippy --locked --workspace --all-targets -- -D warnings -D dead_code -D unused_imports -W clippy::pedantic"
 language = "system"
 pass_filenames = false
 always_run = true
@@ -41,10 +41,21 @@ stages = ["pre-push"]
 
 # Produção sem panic nem curinga (#727). Só os alvos de produção: testes e
 # o emulador anti-ies (infraestrutura de teste) ficam de fora.
+# Sem dead code (#721): nenhum `allow`/`expect` de dead_code ou unused no
+# código. `forbid` não serve porque os derives do clap geram `allow`.
+[[repos.hooks]]
+id = "sem-dead-code"
+name = "Sem allow de dead code"
+entry = "bash -c '! grep -rnE \"(allow|expect)\\((dead_code|unused[a-z_]*)|cfg_attr\\([^]]*(dead_code|unused)\" --include=*.rs src crates tests xtask'"
+language = "system"
+pass_filenames = false
+always_run = true
+stages = ["pre-commit", "pre-push"]
+
 [[repos.hooks]]
 id = "lint-producao"
 name = "Clippy de produção sem panic nem curinga"
-entry = "cargo clippy --locked --workspace --exclude anti-ies -- -D warnings -D clippy::wildcard_enum_match_arm -D clippy::string_slice -D clippy::indexing_slicing -D clippy::expect_used -D clippy::unwrap_used -D clippy::panic -D clippy::as_conversions"
+entry = "cargo clippy --locked --workspace --exclude anti-ies -- -D warnings -D dead_code -D unused_imports -D clippy::wildcard_enum_match_arm -D clippy::string_slice -D clippy::indexing_slicing -D clippy::expect_used -D clippy::unwrap_used -D clippy::panic -D clippy::as_conversions"
 language = "system"
 pass_filenames = false
 always_run = true

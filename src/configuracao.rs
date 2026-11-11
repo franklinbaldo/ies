@@ -15,6 +15,7 @@ pub enum ErroConfiguracao {
     CookieSemCaminhoConfigurado,
     OrigemAutorizadaNaoConfigurada,
     ArquivoDeConfiguracaoNaoPodeSerLido,
+    #[cfg(unix)]
     ArquivoConfiguracaoPermissoesAbertas,
     ArquivoConfiguracaoLinkSimbolico,
     ArquivoConfiguracaoJsonInvalido,
@@ -67,7 +68,9 @@ fn arquivo_de_configuracao() -> Option<PathBuf> {
 #[error("{self:?}")]
 pub enum ErroGravacaoDaConfiguracao {
     CaminhoPrivadoAusenteOuNaoAbsoluto,
+    #[cfg(unix)]
     ArquivoPrivadoNaoLido,
+    #[cfg(unix)]
     PermissoesDeArquivoPrivadoInseguras,
     ConfiguracaoDeveTerCaminhoAbsoluto,
     ConfiguracaoNaoSerializada,
@@ -111,9 +114,12 @@ pub fn salvar_arquivos_de_acesso(
             FalhaDaGravacao::EscritaFalhou
             | FalhaDaGravacao::ConfirmacaoFalhou
             | FalhaDaGravacao::AcimaDoLimite => ErroGravacaoDaConfiguracao::ConfiguracaoNaoGravada,
+            #[cfg(unix)]
+            FalhaDaGravacao::DiretorioGravavelPorOutros => {
+                ErroGravacaoDaConfiguracao::ConfiguracaoJaExisteOuSemPermissao
+            }
             FalhaDaGravacao::SemNomeDeArquivo
             | FalhaDaGravacao::DiretorioAusente
-            | FalhaDaGravacao::DiretorioGravavelPorOutros
             | FalhaDaGravacao::DestinoJaExiste
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::CriacaoFalhou
@@ -137,7 +143,7 @@ enum FalhaConfiguracaoLocal {
     NaoRegular,
     AcimaDoLimite,
     // Só construída na conferência de permissões Unix.
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     PermissoesAbertas,
     LeituraFalhou,
     JsonInvalido,
@@ -148,6 +154,8 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
     fn from(causa: FalhaConfiguracaoLocal) -> Self {
         match causa {
             FalhaConfiguracaoLocal::LinkSimbolico => Self::ArquivoConfiguracaoLinkSimbolico,
+            #[cfg(unix)]
+            #[cfg(unix)]
             FalhaConfiguracaoLocal::PermissoesAbertas => Self::ArquivoConfiguracaoPermissoesAbertas,
             FalhaConfiguracaoLocal::JsonInvalido => Self::ArquivoConfiguracaoJsonInvalido,
             FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
@@ -267,7 +275,7 @@ pub enum ErroArquivoPrivado {
     LinkSimbolico(ArquivoPrivado),
     NaoRegular(ArquivoPrivado),
     Vazio(ArquivoPrivado),
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     PermissoesInseguras(ArquivoPrivado),
     MetadadosNaoLidos(ArquivoPrivado),
 }

@@ -21,7 +21,10 @@ use std::time::Duration;
 
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::{falha, falha_por};
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_cli::falha;
+use falha_por_cli::falha_por;
 
 /// O erro tipado inteiro, como sobe (`Error: <Debug>`, depois a cadeia).
 #[track_caller]
