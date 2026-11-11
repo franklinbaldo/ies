@@ -139,9 +139,6 @@ jobs:
       - name: Replay obrigatório do processo atribuir (#264, offline)
         run: cargo +1.99.1 test --locked --bin ies processo_atribuir::acervo::replay_de_processo_atribuir_no_acervo -- --ignored --exact --nocapture --test-threads=1
 
-      - name: Replay obrigatório do processo anexar (#751, offline)
-        run: cargo +1.99.1 test --locked --bin ies processo_anexar::acervo::replay_de_processo_anexar_no_acervo -- --ignored --exact --nocapture --test-threads=1
-
       - name: Exercitar ensaio único de atribuição sem acessar o SEI
         run: PYTHONPATH=scripts python3 -m unittest scripts.test_ensaio_processo_atribuir scripts.test_ensaio_processo_atribuir_persistencia -v
 

@@ -44,7 +44,7 @@ impl CampoExigidoDoCadastro {
 
 /// A URL provém exclusivamente do script servido e fica privada.
 /// Aceita a ausência observada de `id_procedimento` no endpoint de upload.
-fn conferir_upload(
+pub(crate) fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
     processo: &str,

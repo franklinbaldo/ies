@@ -21,6 +21,8 @@ use crate::visao_do_controle::{EnvioDoControle as _, EnvioHttps};
 use crate::{Cli, Domain, Processo, ProcessoAcao, processo_concluir_cli};
 use serde_json::json;
 
+#[cfg(test)]
+mod acervo;
 mod exclusao;
 
 /// Recusas e efeito incerto do controle de prazo; nenhuma mensagem paralela.

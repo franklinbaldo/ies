@@ -433,5 +433,7 @@ fn redirecionamento_da_inclusao(
 }
 
 #[cfg(test)]
+mod acervo;
+#[cfg(test)]
 #[path = "bloco_incluir/tests.rs"]
 mod tests;

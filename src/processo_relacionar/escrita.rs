@@ -42,7 +42,7 @@ const ADICIONAR: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 /// A action do script precisa identificar o processo que abriu a tela.
-fn action_do_processo(url: &str, id: &str) -> bool {
+pub(super) fn action_do_processo(url: &str, id: &str) -> bool {
     let Some(query) = url.strip_prefix("controlador.php?") else {
         return false;
     };
@@ -50,7 +50,7 @@ fn action_do_processo(url: &str, id: &str) -> bool {
 }
 
 /// O 302 de aceite volta à tela; resultado=1 e ação únicos.
-fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
+pub(super) fn aceite_da_remocao(localizacao: &str, url_post: &str, id: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };

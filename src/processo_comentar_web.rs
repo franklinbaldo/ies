@@ -292,3 +292,6 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         confirmado: confirmar_escrita,
     })
 }
+
+#[cfg(test)]
+mod acervo;

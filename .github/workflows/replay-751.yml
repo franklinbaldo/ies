@@ -1,0 +1,71 @@
+name: Replay dos fluxos da #751
+
+# Mesmo gatilho do CI oficial: roda no draft -> ready e sob demanda.
+on:
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replay-751-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay-fluxos-751:
+    # Gate da #782/#751: leitores de atributo e de consulta alterados, cada
+    # fluxo contra as gravações originais. ZIPs públicos conferidos por SHA-1
+    # (lista tirada dos cards); nenhum endpoint SEI é acessado.
+    name: replay dos fluxos da #751 (acervo público)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      IES_ACERVO_CACHE: ${{ github.workspace }}/.cache/ies-acervo-751
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal
+
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Cache dos ZIPs públicos conferidos
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ env.IES_ACERVO_CACHE }}
+          key: ies-acervo-751-${{ hashFiles('cassettes/**/*.md') }}
+
+      - name: Obter os ZIPs dos cards e conferir SHA-1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$IES_ACERVO_CACHE"
+          grep -h '^source_zip\|^archive_sha1' cassettes/*/*.md | paste - - | awk '{print $2, $4}' | sort -u |
+          while read -r url sha1; do
+            arquivo="$IES_ACERVO_CACHE/$(basename "$url")"
+            if ! printf '%s  %s\n' "$sha1" "$arquivo" | sha1sum --check --status; then
+              curl --fail --silent --show-error --location --retry 3 --max-time 300 --output "$arquivo" "$url"
+            fi
+            printf '%s  %s\n' "$sha1" "$arquivo" | sha1sum --check
+          done
+
+      - name: Replays obrigatórios dos fluxos alterados
+        shell: bash
+        run: |
+          set -euo pipefail
+          for teste in \
+            processo_anexar::acervo::replay_de_processo_anexar_no_acervo \
+            processo_prazo_cli::acervo::replay_de_processo_prazo_no_acervo \
+            processo_relacionar::acervo::replay_de_processo_relacionar_no_acervo \
+            processo_anotar::acervo::replay_de_processo_anotar_no_acervo \
+            processo_andamento_registrar::acervo::replay_de_andamento_registrar_no_acervo \
+            documento_externo_incluir::acervo::replay_de_documento_externo_no_acervo \
+            propriedades_documento::acervo::replay_de_propriedades_no_acervo; do
+            cargo +1.99.1 test --locked --bin ies "$teste" -- --ignored --exact --nocapture --test-threads=1
+          done

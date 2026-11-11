@@ -257,6 +257,8 @@ pub(crate) fn linha_humana(props: &PropriedadesDocumento) -> Option<String> {
 }
 
 #[cfg(test)]
+mod acervo;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};

@@ -93,7 +93,6 @@ fn identidade_do_conteudo_observado(json: &serde_json::Value, id: &str) -> (Stri
 fn revisao_do_conteudo_observado(
     json: &serde_json::Value,
     id: &str,
-    numero: &str,
     html_conteudo: &str,
     texto: &str,
 ) -> Revisao {
@@ -107,11 +106,9 @@ fn revisao_do_conteudo_observado(
         !ids.is_empty() && ids.iter().all(|valor| *valor == id),
         "histórico e corpo devem pertencer ao mesmo documento"
     );
-    let numero = crate::documento::NumeroDocumento::novo(numero).unwrap();
     let html_historico = html_da_resposta(historicos[0].interacao).unwrap();
     let lista = crate::documento_versoes::interpretar_historico(
         &html_historico,
-        &numero,
         id,
         None,
     )

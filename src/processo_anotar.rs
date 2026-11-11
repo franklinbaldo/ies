@@ -179,3 +179,5 @@ fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> 
         && consulta.unico("acao_origem") == Ok(AcaoDoSei::AnotacaoRegistrar.como_na_url())
         && consulta.unico("id_procedimento") == Ok(id)
 }
+#[cfg(test)]
+mod acervo;

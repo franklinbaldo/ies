@@ -400,5 +400,7 @@ mod tests {
 }
 
 #[cfg(test)]
+mod acervo;
+#[cfg(test)]
 #[path = "processo_andamento_registrar/tests_fluxo.rs"]
 mod tests_fluxo;
