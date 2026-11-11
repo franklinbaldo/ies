@@ -275,7 +275,7 @@ fn resultado_troca(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> R
 #[cfg(test)]
 use crate::unidade_trocar::UnidadeOferecida;
 #[cfg(test)]
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 #[cfg(test)]
 fn json_da_unidade(u: &UnidadeOferecida) -> Value {
@@ -291,29 +291,37 @@ fn json_das_unidades(lista: &[UnidadeOferecida]) -> Value {
 #[cfg(test)]
 pub(crate) fn json_de_sucesso(troca: &Troca, descartados: Option<usize>, pedidos: u32) -> Value {
     let alterado = troca.controle_novo.is_some();
-    let envio = troca.campos_do_envio.as_ref().map_or(
-        Value::Null,
-        |campos| json!({"metodo": "POST", "acao": AcaoDoSei::InfraTrocarUnidade, "campos": campos}),
-    );
     let ja_na_unidade = troca.escolhida.is_none();
-    let mut valor = json!({
-        "antes": troca.antes,
-        "pedida": troca.pedida,
-        "id_unidade": troca.escolhida.as_ref().map(|u| u.id_unidade.clone()),
-        "depois": if alterado || ja_na_unidade { json!(troca.pedida) } else { Value::Null },
-        "confirmado": troca.confirmado,
-        "alterado": alterado,
-        "escopo": "sessao_da_conta",
-        "oferecidas": if ja_na_unidade { Value::Null } else { json_das_unidades(&troca.oferecidas) },
-        "envio": envio,
-        "links_descartados": descartados,
-        "requisicoes": pedidos,
-    });
     // Sem valor, a chave é omitida: a saída não traz null.
-    if let Some(campos) = valor.as_object_mut() {
-        campos.retain(|_, v| !v.is_null());
+    let mut objeto = Map::new();
+    objeto.insert("antes".to_owned(), json!(troca.antes));
+    objeto.insert("pedida".to_owned(), json!(troca.pedida));
+    if let Some(escolhida) = &troca.escolhida {
+        objeto.insert("id_unidade".to_owned(), json!(escolhida.id_unidade));
     }
-    valor
+    if alterado || ja_na_unidade {
+        objeto.insert("depois".to_owned(), json!(troca.pedida));
+    }
+    objeto.insert("confirmado".to_owned(), json!(troca.confirmado));
+    objeto.insert("alterado".to_owned(), json!(alterado));
+    objeto.insert("escopo".to_owned(), json!("sessao_da_conta"));
+    if !ja_na_unidade {
+        objeto.insert(
+            "oferecidas".to_owned(),
+            json_das_unidades(&troca.oferecidas),
+        );
+    }
+    if let Some(campos) = &troca.campos_do_envio {
+        objeto.insert(
+            "envio".to_owned(),
+            json!({"metodo": "POST", "acao": AcaoDoSei::InfraTrocarUnidade, "campos": campos}),
+        );
+    }
+    if let Some(descartados) = descartados {
+        objeto.insert("links_descartados".to_owned(), json!(descartados));
+    }
+    objeto.insert("requisicoes".to_owned(), json!(pedidos));
+    Value::Object(objeto)
 }
 
 fn humano(troca: &Troca, pedidos: u32) -> String {

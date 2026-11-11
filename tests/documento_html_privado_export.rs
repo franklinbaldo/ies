@@ -53,7 +53,7 @@ fn cli_exporta_privado_sem_vazar_texto_e_recusa_sobrescrita_ou_outro_numero() {
     assert_eq!(resposta["documento"]["numero"], "0007");
     assert_eq!(resposta["escopo"], "html_privado_texto_exportado_offline");
     assert_eq!(resposta["autenticacao_remota"], false);
-    assert!(resposta["versao_atual"].is_null());
+    assert!(resposta.get("versao_atual").is_none());
     assert!(resposta.get("texto").is_none());
     assert!(!String::from_utf8_lossy(&primeiro.stdout).contains("Texto privado"));
     assert_eq!(primeiro.stderr, Vec::<u8>::new());

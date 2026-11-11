@@ -33,26 +33,26 @@ mais `colunas_ausentes`:
                                 "texto": "texto do marcador", "id": "31",
                                 "rotulo": "31#Pendente"},
                                {"nome": "Revisão", "cor": "azul",
-                                "texto": null, "id": "32",
+                                "id": "32",
                                 "rotulo": "32#Revisão"}]}}]}]
 ```
 
 - A **lista** não tem campo `categoria`: D é modo de exibição, não categoria.
 - `categoria` do **processo** é `"recebidos"` ou `"gerados"` quando o `id`
   apareceu nas tabelas `tblProcessosRecebidos`/`tblProcessosGerados` da
-  **mesma** tela R obtida pelo GET deste comando; senão `null`, que quer
-  dizer **"não observada"**, nunca "não tem". A D não traz marcador de
+  **mesma** tela R obtida pelo GET deste comando; senão a chave é
+  omitida: a D lida sozinha não produz a categoria (#749). A D não traz marcador de
   categoria por linha (verificado nas capturas de UnB, PEN1 e GO); a
   informação só existe porque a R foi lida antes, sem requisição a mais.
-  Sessão já na D: todos `null`. Como o comando deixa a sessão na D, as
-  leituras seguintes (PEN1, GO) saem com `null` até algo voltar à R; as
+  Sessão já na D: nenhum processo traz `categoria`. Como o comando deixa a sessão na D, as
+  leituras seguintes (PEN1, GO) saem sem `categoria` até algo voltar à R; as
   listas por categoria são `ies unidade recebidos|gerados`.
 - `colunas`: objeto com as chaves estáveis das colunas **presentes no
   cabeçalho** (`atribuicao`, `anotacao`, `tipo`,
   `especificacao`, `prioridade`, `interessados`, `observacao`,
   `controle_de_prazo`, `para_devolver`, `aguardando_retorno`,
   `ultima_movimentacao`, `marcadores`; ordem alfabética no JSON). Texto da célula com espaços
-  colapsados (inclusive `&nbsp;`); célula vazia é `null`. `interessados` é
+  colapsados (inclusive `&nbsp;`); célula de texto vazia tem a chave omitida. `interessados` é
   um **array** com o texto de cada `div.divRotuloItemCelula` (itens
   separados pelo HTML, PEN1); célula vazia é `[]`. `marcadores` é um
   **array** de objetos, um por marcador (um processo pode ter vários):
@@ -86,16 +86,16 @@ sem marcador, `&nbsp;`. Cada âncora vira
 - `texto`: o literal JS de aspas simples do `onmouseover`, na forma exata
   `return infraTooltipMostrar('<literal>');` (escapes `\'`, `\"`, `\\`,
   `\/`, `\n`, `\r`, `\t`; nenhum JavaScript executado), espaços
-  colapsados; vazio ou sem `onmouseover`: `null`.
+  colapsados; vazio ou sem `onmouseover`: chave omitida.
 - `id`: `<n>` do fragmento `#ID-<n>` (decimal; o mesmo id da linha da
-  tela de marcadores do processo); sem fragmento: `null`. É o
+  tela de marcadores do processo); sem fragmento: chave omitida. É o
   `id_marcador` do **marcador da unidade**, não da atribuição ao processo:
   na UnB 4.0.9 o mesmo `#ID-<n>` aparece em linhas de processos
   diferentes e é o `value` do checkbox e o `id_marcador` do link de
   alterar na tela de marcadores.
 - `rotulo`: `<id>#<nome>` (por exemplo `31#Pendente`), para o agente ler
   o nome e citar o marcador sem ambiguidade; o id é o trecho decimal antes
-  do primeiro `#` (o nome pode conter `#`). Sem `id`, `null`: o nome
+  do primeiro `#` (o nome pode conter `#`). Sem `id`, chave omitida: o nome
   sozinho não identifica.
 - O `href` precisa ser `controlador.php?` com uma `acao` igual a
   `andamento_marcador_gerenciar` e `id_procedimento` igual ao da linha. O

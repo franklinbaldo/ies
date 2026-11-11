@@ -58,11 +58,6 @@ pub(crate) fn definir_colunas(
     Ok(())
 }
 
-#[cfg(test)]
-fn opcional(colunas: Option<&[ColunaDoDetalhe]>) -> Value {
-    colunas.map_or(Value::Null, chaves)
-}
-
 /// Contrato do POST: apenas nomes de campos, nunca valores ou hashes.
 #[derive(serde::Serialize)]
 struct EnvioColunasPublico<'a> {
@@ -122,35 +117,38 @@ fn resultado_colunas(feito: &ColunasDefinidas) -> ResultadoColunas<'_> {
 #[cfg(test)]
 fn json_de_sucesso(feito: &ColunasDefinidas) -> Value {
     let plano = &feito.plano;
-    let envio = feito.campos_do_envio().map_or(Value::Null, |campos| {
-        json!({
-            "metodo": "POST",
-            "acao": AcaoDoSei::ProcedimentoConfigurarDetalhe,
-            "campos": campos,
-        })
-    });
-    let mut valor = json!({
-        "unidade": feito.unidade,
-        "origem": "web",
-        "confirmado": feito.confirmado(),
-        "alterado": feito.alterado(),
-        "antes": chaves(&plano.antes),
-        "alvo": chaves(&plano.alvo),
-        "marcar": chaves(&plano.marcar()),
-        "desmarcar": chaves(&plano.desmarcar()),
-        "indisponiveis": chaves(&plano.indisponiveis),
-        "envio": envio,
-        "depois": opcional(feito.depois()),
-        "reconciliado_por_leitura": feito.reconciliado_por().is_some(),
-    });
-    if let (Some(falha), Some(objeto)) = (feito.reconciliado_por(), valor.as_object_mut()) {
+    // Sem valor, a chave é omitida: a saída não traz null.
+    let mut objeto = serde_json::Map::new();
+    objeto.insert("unidade".to_owned(), json!(feito.unidade));
+    objeto.insert("origem".to_owned(), json!("web"));
+    objeto.insert("confirmado".to_owned(), json!(feito.confirmado()));
+    objeto.insert("alterado".to_owned(), json!(feito.alterado()));
+    objeto.insert("antes".to_owned(), chaves(&plano.antes));
+    objeto.insert("alvo".to_owned(), chaves(&plano.alvo));
+    objeto.insert("marcar".to_owned(), chaves(&plano.marcar()));
+    objeto.insert("desmarcar".to_owned(), chaves(&plano.desmarcar()));
+    objeto.insert("indisponiveis".to_owned(), chaves(&plano.indisponiveis));
+    if let Some(campos) = feito.campos_do_envio() {
+        objeto.insert(
+            "envio".to_owned(),
+            json!({
+                "metodo": "POST",
+                "acao": AcaoDoSei::ProcedimentoConfigurarDetalhe,
+                "campos": campos,
+            }),
+        );
+    }
+    if let Some(depois) = feito.depois() {
+        objeto.insert("depois".to_owned(), chaves(depois));
+    }
+    objeto.insert(
+        "reconciliado_por_leitura".to_owned(),
+        json!(feito.reconciliado_por().is_some()),
+    );
+    if let Some(falha) = feito.reconciliado_por() {
         objeto.insert("falha_do_salvar".to_owned(), json!(format!("{falha:?}")));
     }
-    // Sem valor, a chave é omitida: a saída não traz null.
-    if let Some(objeto) = valor.as_object_mut() {
-        objeto.retain(|_, v| !v.is_null());
-    }
-    valor
+    Value::Object(objeto)
 }
 
 fn lista_humana(nomes: &[&str]) -> String {

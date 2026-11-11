@@ -2,7 +2,6 @@
 //! estáveis de [`ColunaDoDetalhe`]. Cabeçalho desconhecido é recusa: uma
 //! mudança de layout não pode embaralhar campos.
 use super::ErroDetalhada;
-use crate::dominio::Categoria;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use crate::nivel_de_detalhe::{CabecalhoDaColuna, ColunaDoDetalhe, texto_colapsado};
@@ -22,7 +21,7 @@ pub(super) enum PapelDaColuna {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub(crate) enum ValorDaColuna {
-    /// Texto com espaços colapsados; `None` (JSON `null`) se a célula está vazia.
+    /// Texto com espaços colapsados; `None` se a célula está vazia (a chave sai do JSON).
     Texto(Option<String>),
     /// Itens separados pelo HTML (`div.divRotuloItemCelula`).
     Itens(Vec<String>),
@@ -36,24 +35,17 @@ pub(crate) struct ColunasDaLinha(pub(crate) Vec<(ColunaDoDetalhe, ValorDaColuna)
 
 impl Serialize for ColunasDaLinha {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut mapa = serializer.serialize_map(Some(self.0.len()))?;
-        for (coluna, valor) in &self.0 {
+        // A célula de texto vazia é omitida: a saída não traz null.
+        let lidas: Vec<_> = self
+            .0
+            .iter()
+            .filter(|(_, valor)| !matches!(valor, ValorDaColuna::Texto(None)))
+            .collect();
+        let mut mapa = serializer.serialize_map(Some(lidas.len()))?;
+        for (coluna, valor) in lidas {
             mapa.serialize_entry(coluna.chave(), valor)?;
         }
         mapa.end()
-    }
-}
-
-/// `"recebidos"`, `"gerados"` ou `null` (não observado na mesma leitura).
-// `serde(serialize_with)` exige a assinatura `fn(&T, S)`.
-#[allow(clippy::ref_option, clippy::trivially_copy_pass_by_ref)]
-pub(crate) fn serializar_categoria<S: Serializer>(
-    categoria: &Option<Categoria>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    match categoria {
-        Some(categoria) => serializer.serialize_str(categoria.rotulo()),
-        None => serializer.serialize_none(),
     }
 }
 

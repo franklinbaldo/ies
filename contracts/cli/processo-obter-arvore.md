@@ -32,7 +32,7 @@ anterior não se aplica ou falhou por palpite do índice:
 1. **Link da árvore no índice** (`resolvido_por: "indice_link"`): o NUP
    tem id conhecido e há link `procedimento_visualizar` guardado para ele
    nesta geração e unidade. Um GET. A árvore não publica a unidade, então
-   `unidade` sai `null`; com `--unidade` o passo é pulado.
+   `unidade` não sai (a chave some); com `--unidade` o passo é pulado.
 1b. **Link `procedimento_trabalhar` no índice** (`"indice_trabalhar"`):
    o NUP tem id conhecido e há link `procedimento_trabalhar` guardado para
    esse id nesta geração e unidade (colhido de uma linha do Controle por
@@ -176,30 +176,29 @@ com o destino do link do nó e `presente_entre_os_documentos`.
 
 ```json
 {"numero": "NUP", "id_procedimento": "N", "tipo": "a6 do nó PROCESSO",
- "unidade": "SIGLA ou null", "resolvido_por": "caixa",
+ "unidade": "SIGLA", "resolvido_por": "caixa",
  "requisicoes": 4,
- "anexado": false, "anexado_a": null,
+ "anexado": false,
  "anexados": [{"numero": "a5", "id_procedimento": "a1", "tipo": "a6"}],
  "aberto_em": [{"sigla": "…", "nome": "…", "atribuido_a": {"sigla": "…", "nome": "…"}}],
- "sobrestado_em": null,
- "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15 ou null",
-                 "pasta": "PASTA1 ou null", "icone": "documento_interno",
-                 "cancelado": false, "motivo_do_cancelamento": null}],
- "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15 ou null",
+ "documentos": [{"id_documento": "D", "rotulo": "a5", "numero_sei": "a15",
+                 "pasta": "PASTA1", "icone": "documento_interno",
+                 "cancelado": false}],
+ "documentos_movidos": [{"id": "a1 (n-m)", "rotulo": "a5", "numero_sei": "a15",
                          "destino": {"numero": "NUP", "id_procedimento": "N"},
                          "presente_entre_os_documentos": false}],
  "pastas": [{"id": "PASTA1", "rotulo": "I", "total": 20, "verificacao": "por_identidade"}],
- "verificacao_das_pastas": "por_identidade, mista, por_contagem ou null",
+ "verificacao_das_pastas": "por_identidade, mista ou por_contagem",
  "andamentos": {"tipo": "resumido", "total_declarado": 3,
                 "faixa_observada": {"inicio": 1, "fim": 3},
-                "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "… ou null", "descricao": "…"}]},
+                "itens": [{"ocorrido_em": "…", "unidade": "…", "usuario": "…", "descricao": "…"}]},
  "propriedades": {"tipo": "…", "especificacao": "…", "interessados": [],
-                  "assuntos": [{"codigo": "… ou null", "descricao": "…"}],
+                  "assuntos": [{"codigo": "…", "descricao": "…"}],
                   "observacoes": "", "nivel_de_acesso": "publico",
-                  "hipotese_legal": null, "data_de_geracao": "dd/mm/aaaa",
+                  "data_de_geracao": "dd/mm/aaaa",
                   "fonte": "procedimento_alterar"},
- "marcadores": [{"id": "…", "nome": "…", "cor": "…", "texto": "… ou null",
-                 "usuario": "… ou null", "data_hora": "dd/mm/aaaa hh:mm"}],
+ "marcadores": [{"id": "…", "nome": "…", "cor": "…", "texto": "…",
+                 "usuario": "…", "data_hora": "dd/mm/aaaa hh:mm"}],
  "marcadores_total_declarado": 1,
  "marcadores_faixa_observada": {"inicio": 1, "fim": 1},
  "nao_lidos": ["documentos_dos_anexados"]}
@@ -210,7 +209,7 @@ com `--sem-documentos`: vem da mesma árvore, sem custo, e é identidade do
 processo, não documento. Com algum anexado, `nao_lidos` termina em
 `documentos_dos_anexados`; o texto humano lista cada um com a dica
 `ies processo <NUP>`. `anexado` (`true` com o vínculo) e `anexado_a`
-(`{"numero", "id_procedimento"}` do pai, ou `null`) também saem sempre;
+(`{"numero", "id_procedimento"}` do pai) sai só com vínculo; `anexado` sai sempre;
 o texto humano diz `Anexado ao processo <NUP> (id N): ies processo <NUP>`.
 
 `andamentos`, `propriedades` e `marcadores` saem sempre como objeto lido
