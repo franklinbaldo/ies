@@ -11,6 +11,7 @@
 //! mesmo processo.
 use super::erro::ErroTelaDeConclusao;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
@@ -136,20 +137,11 @@ pub(crate) fn redirecionamento_esperado(
     let Some(consulta) = localizacao.and_then(|l| consulta_do_controlador(l, url_do_envio)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
-    };
-    matches!(
-        valores("acao").as_slice(),
-        [acao] if matches!(
-            AcaoDoSei::ler(acao),
-            Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
-        )
-    ) && valores("acao_origem") == [AcaoDoSei::ProcedimentoConcluir.como_na_url()]
-        && valores("id_procedimento") == [id]
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        matches!(
+            consulta.acao(),
+            Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+        ) && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoConcluir.como_na_url())
+            && consulta.unico("id_procedimento") == Ok(id)
+    })
 }

@@ -129,7 +129,9 @@ pub(super) fn resolver_action_no_host(
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroSubmissaoFormulario::Transporte(falha)
         }
-        _ => ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida),
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
     })?;
     Ok(absoluta)
 }
@@ -177,7 +179,9 @@ pub(super) fn conferir_consulta(
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroSubmissaoFormulario::Transporte(falha)
         }
-        _ => ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida),
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
     })?;
     if consulta.acao() != Ok(acao) {
         return Err(ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao);

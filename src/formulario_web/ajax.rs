@@ -95,7 +95,9 @@ fn conferir_consulta_ajax(
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroSubmissaoFormulario::Transporte(falha)
         }
-        _ => ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida),
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::UrlInvalida)
+        }
     })?;
     if consulta
         .unico("acao_ajax")

@@ -2,6 +2,7 @@
 // Evidência: UnB 4.0.9, GO e Todos tests/test_ciclo_atribuir_010.py @323eb01.
 //! O select não informa a atribuição atual: a árvore do processo é a fonte.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, SubmissaoDerivada, TelaServida,
@@ -64,30 +65,17 @@ fn acao_do_formulario(action: &str, id: &str) -> bool {
     let Some(consulta) = action.strip_prefix("controlador.php?") else {
         return false;
     };
-    let mut acao = 0;
-    let mut protocolo = 0;
-    let mut hash = 0;
-    for par in consulta.split('&') {
-        let Some((nome, valor)) = par.split_once('=') else {
-            return false;
-        };
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar) => {
-                acao += 1;
-            }
-            "id_procedimento" if valor == id => protocolo += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hash += 1;
-            }
-            "acao" | "id_procedimento" | "infra_hash" => return false,
-            _ => {
-                if nome.is_empty() || valor.contains(['#', '?']) {
-                    return false;
-                }
-            }
-        }
+    // Domínio: `#` e `?` nunca aparecem na URL assinada, em nenhum parâmetro.
+    if consulta.contains(['#', '?']) {
+        return false;
     }
-    acao == 1 && protocolo == 1 && hash == 1
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
+            && consulta.unico("id_procedimento") == Ok(id)
+            && consulta
+                .unico("infra_hash")
+                .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    })
 }
 
 /// Opções observadas do select, sem executar scripts.

@@ -10,6 +10,7 @@ pub(crate) struct ConsultaDoControlador<'a> {
     pares: Vec<(&'a str, &'a str)>,
 }
 
+/// A consulta não se deixa ler em pares.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroConsultaDoControlador {
@@ -17,10 +18,16 @@ pub(crate) enum ErroConsultaDoControlador {
     ParSemIgual,
     /// A chave ou o valor fora da forma que o transporte aceita enviar.
     RecusadaPeloTransporte(#[from] FalhaTransporte),
-    ChaveAusente {
+}
+
+/// A chave pedida não tem exatamente um valor aceito.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroChaveDaConsulta {
+    Ausente {
         chave: &'static str,
     },
-    ChaveRepetida {
+    Repetida {
         chave: &'static str,
     },
     /// `acao=` com valor fora de `AcaoDoSei`.
@@ -48,20 +55,20 @@ impl<'a> ConsultaDoControlador<'a> {
     }
 
     /// O único valor de `chave`.
-    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroConsultaDoControlador> {
+    pub(crate) fn unico(&self, chave: &'static str) -> Result<&'a str, ErroChaveDaConsulta> {
         let mut valores = self.valores(chave);
         let valor = valores
             .next()
-            .ok_or(ErroConsultaDoControlador::ChaveAusente { chave })?;
+            .ok_or(ErroChaveDaConsulta::Ausente { chave })?;
         match valores.next() {
-            Some(_) => Err(ErroConsultaDoControlador::ChaveRepetida { chave }),
+            Some(_) => Err(ErroChaveDaConsulta::Repetida { chave }),
             None => Ok(valor),
         }
     }
 
     /// A única `acao=`, lida no conjunto fechado do SEI.
-    pub(crate) fn acao(&self) -> Result<AcaoDoSei, ErroConsultaDoControlador> {
-        AcaoDoSei::ler(self.unico("acao")?).ok_or(ErroConsultaDoControlador::AcaoDesconhecida)
+    pub(crate) fn acao(&self) -> Result<AcaoDoSei, ErroChaveDaConsulta> {
+        AcaoDoSei::ler(self.unico("acao")?).ok_or(ErroChaveDaConsulta::AcaoDesconhecida)
     }
 
     /// Todos os valores de `chave`, na ordem publicada.

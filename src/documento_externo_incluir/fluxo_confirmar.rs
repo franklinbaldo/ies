@@ -59,7 +59,7 @@ fn conferir_upload(
         ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
             ErroIncluirExterno::ConsultaDoUploadForaDaForma(falha)
         }
-        _ => ErroIncluirExterno::EnderecoDeUploadRecusado,
+        ErroConsultaDoControlador::ParSemIgual => ErroIncluirExterno::EnderecoDeUploadRecusado,
     })?;
     match consulta
         .valores("id_procedimento")

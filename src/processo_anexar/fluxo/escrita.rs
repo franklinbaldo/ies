@@ -2,6 +2,7 @@
 //! O aceite 302 sozinho nunca demonstra que houve anexação.
 use super::{Destino, EtapaNaoComprovada, FalhaAnexar, ler_tela};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -11,7 +12,6 @@ use crate::instalacao::Instalacao;
 use crate::pagina_do_controle::codificacao_da_tela;
 use crate::processo_concluir::escrita::{Contador, obter_tela};
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::visao_do_controle::EnvioDoControle as _;
 
 const ANEXAR: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -32,24 +32,11 @@ fn aceite(localizacao: &str, url_post: &str, principal: &str) -> bool {
     let Some(query) = consulta_do_controlador(localizacao, url_post) else {
         return false;
     };
-    let (mut acao, mut resultado, mut id) = (0, 0, 0);
-    for parte in query.split('&') {
-        let Some((chave, valor)) = parte.split_once('=') else {
-            return false;
-        };
-        if conferir_chave_de_consulta(chave).is_err() || conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        match chave {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoAnexar) => acao += 1,
-            "resultado" if valor == "1" => resultado += 1,
-            "id_procedimento" if valor == principal => id += 1,
-            "acao" | "resultado" | "id_procedimento" => return false,
-            _ => {}
-        }
-    }
-    acao == 1 && resultado == 1 && id == 1
+    ConsultaDoControlador::ler(query).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ProcedimentoAnexar)
+            && consulta.unico("resultado") == Ok("1")
+            && consulta.unico("id_procedimento") == Ok(principal)
+    })
 }
 
 #[allow(clippy::too_many_arguments)] // Dados da única tela, origem e transporte.

@@ -2,26 +2,20 @@
 //! redirecionamentos automaticamente e sem inferir IDs ou URLs assinadas.
 use super::ErroCriar;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 
 pub(super) fn id_do_link(link: &str) -> Option<&str> {
-    let mut ids =
-        link.split('?').nth(1)?.split('&').filter(|par| {
-            par.split_once('=').map_or(*par, |(nome, _)| nome) == "id_tipo_procedimento"
-        });
-    let primeiro = ids.next()?.strip_prefix("id_tipo_procedimento=")?;
-    (ids.next().is_none() && !primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit()))
-        .then_some(primeiro)
+    let consulta = ConsultaDoControlador::ler(link.split('?').nth(1)?).ok()?;
+    let primeiro = consulta.unico("id_tipo_procedimento").ok()?;
+    (!primeiro.is_empty() && primeiro.bytes().all(|b| b.is_ascii_digit())).then_some(primeiro)
 }
 
 /// Exige exatamente uma ocorrência do parâmetro acao, com valor literal
 /// esperado. Uma segunda ação diferente também torna a URL ambígua.
 fn acao_unica(consulta: &str, esperada: AcaoDoSei) -> bool {
-    let mut acoes = consulta.split('&').filter_map(|par| {
-        let (nome, valor) = par.split_once('=').unwrap_or((par, ""));
-        (nome == "acao").then_some(valor)
-    });
-    acoes.next() == Some(esperada.como_na_url()) && acoes.next().is_none()
+    ConsultaDoControlador::ler(consulta)
+        .is_ok_and(|consulta| consulta.unico("acao") == Ok(esperada.como_na_url()))
 }
 
 pub(super) fn resolver_link(
