@@ -6,6 +6,7 @@ use super::{
     recibo::{FalhaUpload, ReciboUpload},
 };
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
+use crate::documento_criar::ErroCriar;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, SubmissaoDerivada, TelaServida,
 };
@@ -36,6 +37,8 @@ pub(crate) enum FalhaConfirmacao {
     TemporarioSemCadastro(FalhaCadastroEnvio),
     CadastroIncerto(#[source] ErroSubmissaoFormulario),
     ReleituraIncerta(#[source] ErroProcessoObter),
+    /// A árvore lida depois do cadastro não prova o documento criado.
+    CriacaoNaoConferida(#[source] ErroCriar),
     NaoConfirmado,
 }
 #[cfg(test)]
@@ -85,7 +88,11 @@ where
         FalhaUpload::Recusado { .. } | FalhaUpload::PreparacaoMultipart(_) => {
             FalhaConfirmacao::UploadRecusado(erro)
         }
-        FalhaUpload::NaoConfirmado { .. } => FalhaConfirmacao::UploadIncerto(erro),
+        FalhaUpload::NaoConfirmado { .. }
+        | FalhaUpload::EnvioSemResposta(_)
+        | FalhaUpload::CorpoNaoLido(_)
+        | FalhaUpload::CorpoIlegivel(_)
+        | FalhaUpload::TamanhoDoReciboIlegivel(_) => FalhaConfirmacao::UploadIncerto(erro),
     })?;
     let submissao = preparar_cadastro_definitivo(instalacao, tela, unidade, cadastro, &recibo)
         .map_err(FalhaConfirmacao::TemporarioSemCadastro)?;
@@ -106,7 +113,7 @@ where
         &depois.documentos,
         |rotulo, numero| rotulo == format!("{tipo} ({numero})"),
     )
-    .map_err(|_| FalhaConfirmacao::NaoConfirmado)?;
+    .map_err(FalhaConfirmacao::CriacaoNaoConferida)?;
     let novo = depois
         .documentos
         .iter()

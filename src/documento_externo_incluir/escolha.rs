@@ -9,11 +9,13 @@ pub(crate) enum EscolhaExterna {
     Formulario,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEscolhaExterna {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    /// O tokenizador HTML recusou a tela inteira.
+    HtmlNaoAnalisavel(#[source] tl::ParseError),
     NaoOferecido,
     Ambiguo,
     ForaDaForma,
@@ -23,7 +25,7 @@ pub(crate) enum ErroEscolhaExterna {
 /// SEI 4.1/5 publicam escolher(-1) na lista.
 pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolhaExterna> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
+        .map_err(ErroEscolhaExterna::HtmlNaoAnalisavel)?;
     // Links em <template> não estão na interface ativa.
     let mut inertes = Vec::new();
     for no in dom.query_selector("template").into_iter().flatten() {
@@ -68,7 +70,7 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
             escolhas.push(EscolhaExterna::Url(href));
         } else if (href == "#" || href == "javascript:void(0);") && pelo_script {
             let formularios = nos_com_id(&dom, "frmDocumentoEscolherTipo")
-                .map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
+                .map_err(ErroEscolhaExterna::Atributo)?;
             let [no] = formularios.as_slice() else {
                 return Err(ErroEscolhaExterna::ForaDaForma);
             };
@@ -96,8 +98,8 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
 /// da opção oferecida. A confirmação da seleção ocorrerá na tela recarregada.
 pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEscolhaExterna> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
-    let selects = nos_com_id(&dom, "selSerie").map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
+        .map_err(ErroEscolhaExterna::HtmlNaoAnalisavel)?;
+    let selects = nos_com_id(&dom, "selSerie").map_err(ErroEscolhaExterna::Atributo)?;
     let [no] = selects.as_slice() else {
         return Err(ErroEscolhaExterna::ForaDaForma);
     };
@@ -106,7 +108,7 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
         .and_then(tl::Node::as_tag)
         .ok_or(ErroEscolhaExterna::ForaDaForma)?;
     if !select.name().as_utf8_str().eq_ignore_ascii_case("select")
-        || atributo_presente(select, "disabled").map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+        || atributo_presente(select, "disabled").map_err(ErroEscolhaExterna::Atributo)?
         || valor_do_atributo(select, "name")
             .map_err(ErroEscolhaExterna::Atributo)?
             .as_deref()
@@ -116,8 +118,8 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
     }
     // A recarga do tipo usa flag 1; flag 2 é cadastro definitivo.
     // Conferi-la ANTES de enviar qualquer POST evita escrita acidental.
-    let flags = nos_com_id(&dom, "hdnFlagDocumentoCadastro")
-        .map_err(|_| ErroEscolhaExterna::ForaDaForma)?;
+    let flags =
+        nos_com_id(&dom, "hdnFlagDocumentoCadastro").map_err(ErroEscolhaExterna::Atributo)?;
     let [no] = flags.as_slice() else {
         return Err(ErroEscolhaExterna::ForaDaForma);
     };
@@ -149,7 +151,7 @@ pub(crate) fn identificar_tipo(html: &str, tipo: &str) -> Result<String, ErroEsc
         .filter_map(tl::Node::as_tag)
     {
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("option")
-            || atributo_presente(tag, "disabled").map_err(|_| ErroEscolhaExterna::ForaDaForma)?
+            || atributo_presente(tag, "disabled").map_err(ErroEscolhaExterna::Atributo)?
         {
             continue;
         }
