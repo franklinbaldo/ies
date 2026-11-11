@@ -15,17 +15,19 @@ pub(crate) use fluxo::{
 
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::DocumentoNaArvore;
-use crate::arvore_processo::endereco::conferir_endereco_relativo;
+use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     ListaForaDaForma,
+    /// O tokenizador HTML recusou a lista de tipos.
+    ListaNaoInterpretada(#[source] tl::ParseError),
     TipoAusente,
     TipoAmbiguo,
     NaoAplicado,
@@ -34,8 +36,10 @@ pub(crate) enum ErroCriar {
     /// O link é literal, mas a função de navegação que ele chama não foi
     /// comprovada em script ativo.
     NavegacaoNaoComprovadaPorScript(#[source] guarda_navegacao::ErroGuardaDeNavegacao),
-    EnderecoDoTipoNaoReconhecido,
+    EnderecoDoTipoNaoReconhecido(EnderecoRecusado),
     CadastroForaDaForma,
+    /// O tokenizador HTML recusou a tela do cadastro.
+    CadastroNaoInterpretado(#[source] tl::ParseError),
     TipoDoCadastroDiferente,
     DescricaoNaoOferecida,
     NivelNaoOferecido,
@@ -43,18 +47,21 @@ pub(crate) enum ErroCriar {
 }
 /// Apenas nomes publicados em table#tblSeries; nunca interpreta JS como código.
 pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
-    let err = ErroCriar::ListaForaDaForma;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| err)?;
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| err)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
+    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
-        return Err(err);
+        return Err(ErroCriar::ListaForaDaForma);
     };
     let parser = dom.parser();
-    let faixas = guarda_script::faixas_inertes(&dom).ok_or(err)?;
-    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(err)?;
-    let tabela = tabela.get(parser).and_then(tl::Node::as_tag).ok_or(err)?;
+    let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
+    let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
+    let tabela = tabela
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroCriar::ListaForaDaForma)?;
     if !tabela.name().as_utf8_str().eq_ignore_ascii_case("table") {
-        return Err(err);
+        return Err(ErroCriar::ListaForaDaForma);
     }
     let mut tipos = Vec::new();
     for tag in tabela
@@ -77,7 +84,8 @@ pub(crate) fn tipos_oferecidos(html: &str) -> Result<Vec<String>, ErroCriar> {
         let onclick = valor_do_atributo(tag, "onclick").map_err(ErroCriar::Atributo)?;
         // Na 4.0 "Externo" usa documento_receber, e não documento_gerar.
         // Nas 4.1/5.0, escolher(-1) também é externo.
-        let href = decodificar_atributo(href.as_deref().unwrap_or_default()).ok_or(err)?;
+        let href = decodificar_atributo(href.as_deref().unwrap_or_default())
+            .ok_or(ErroCriar::ListaForaDaForma)?;
         if !link_de_tipo_interno(&href, onclick.as_deref()) {
             continue;
         }
@@ -244,11 +252,11 @@ fn script_prova_escolha(html: &str) -> Result<(), guarda_navegacao::ErroGuardaDe
 /// o filtro da sessão. Nunca executar JS ou inferir a função pelo botão.
 pub(crate) fn filtro_de_todos(html: &str) -> Result<bool, ErroCriar> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCriar::ListaForaDaForma)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
     let faixas = guarda_script::faixas_inertes(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     let ocultas = guarda_script::faixas_ocultas(&dom).ok_or(ErroCriar::ListaForaDaForma)?;
     let botoes = nos_com_id(&dom, "ancExibirSeries")
-        .map_err(|_| ErroCriar::ListaForaDaForma)?
+        .map_err(ErroCriar::Atributo)?
         .into_iter()
         .filter(|no| {
             !no.get(dom.parser())
@@ -313,8 +321,8 @@ pub(crate) fn escolha_do_tipo(
     tipo: &str,
 ) -> Result<EscolhaDoDocumento, ErroCriar> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroCriar::ListaForaDaForma)?;
-    let tabelas = nos_com_id(&dom, "tblSeries").map_err(|_| ErroCriar::ListaForaDaForma)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroCriar::ListaNaoInterpretada)?;
+    let tabelas = nos_com_id(&dom, "tblSeries").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
         return Err(ErroCriar::ListaForaDaForma);
     };
@@ -394,7 +402,7 @@ pub(crate) fn cadastro_redirecionado(
         AcaoDoSei::DocumentoGerar,
         id_procedimento,
     )
-    .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
+    .map_err(ErroCriar::EnderecoDoTipoNaoReconhecido)
 }
 
 #[cfg(test)]

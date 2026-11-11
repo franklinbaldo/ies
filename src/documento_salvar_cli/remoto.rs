@@ -5,7 +5,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
 use crate::documento::NumeroDocumento;
-use crate::documento_versoes::VersaoDocumento;
+use crate::documento_versoes::{ErroVersao, VersaoDocumento};
 use crate::formulario_web::{
     CodificacaoDaTela, ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
@@ -62,6 +62,12 @@ enum ErroSalvarNoSei {
     Cookie(#[source] crate::transporte::FalhaTransporte),
     VersaoAlterada,
     BaseAlterada,
+    /// A base não é UTF-8; guarda a causa da conversão.
+    BaseNaoUtf8(#[source] std::string::FromUtf8Error),
+    /// O número da versão seguinte não é válido; guarda a causa.
+    ProximaVersaoInvalida(#[source] ErroVersao),
+    /// O número da versão base não é válido; guarda a causa.
+    VersaoBaseInvalida(#[source] ErroVersao),
     FotoLocalForaDaForma,
     EditorNaoServido(#[source] crate::transporte::FalhaTransporte),
     EditorForaDaForma,
@@ -79,14 +85,14 @@ fn ler_par(
 ) -> Result<(String, String), ErroSalvarNoSei> {
     copia_documento::pasta_segura(pasta).map_err(ErroSalvarNoSei::Local)?;
     let seguinte =
-        VersaoDocumento::nova(n.numero() + 1).map_err(|_| ErroSalvarNoSei::VersaoAlterada)?;
+        VersaoDocumento::nova(n.numero() + 1).map_err(ErroSalvarNoSei::ProximaVersaoInvalida)?;
     let ler = |v, ausente| {
         ler_regular(
             &pasta.join(crate::foto_documento::nome(numero.as_str(), v)),
             ausente,
         )
         .map_err(ErroSalvarNoSei::Local)
-        .and_then(|bytes| String::from_utf8(bytes).map_err(|_| ErroSalvarNoSei::BaseAlterada))
+        .and_then(|bytes| String::from_utf8(bytes).map_err(ErroSalvarNoSei::BaseNaoUtf8))
     };
     Ok((
         ler(n, ErroCopia::BaseVersaoAusente)?,
@@ -185,7 +191,7 @@ fn carregar_par(
     previa: &PreviaCopia,
 ) -> Result<(VersaoDocumento, String, String), ErroSalvarNoSei> {
     let n =
-        VersaoDocumento::nova(previa.versao_base).map_err(|_| ErroSalvarNoSei::VersaoAlterada)?;
+        VersaoDocumento::nova(previa.versao_base).map_err(ErroSalvarNoSei::VersaoBaseInvalida)?;
     let pasta = std::env::current_dir().map_err(ErroSalvarNoSei::PastaAtualIlegivel)?;
     let (base, editada) = ler_par(&pasta, numero, n)?;
     Ok((n, base, editada))

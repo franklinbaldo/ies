@@ -33,9 +33,8 @@ pub(crate) fn conferir_cadastro(
     nivel: Option<&str>,
 ) -> Result<(), ErroCriar> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCriar::CadastroForaDaForma)?;
-    let formularios =
-        nos_com_id(&dom, "frmDocumentoCadastro").map_err(|_| ErroCriar::CadastroForaDaForma)?;
+        .map_err(ErroCriar::CadastroNaoInterpretado)?;
+    let formularios = nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroCriar::Atributo)?;
     let [formulario] = formularios.as_slice() else {
         return Err(ErroCriar::CadastroForaDaForma);
     };
@@ -51,7 +50,7 @@ pub(crate) fn conferir_cadastro(
     {
         return Err(ErroCriar::CadastroForaDaForma);
     }
-    let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(|_| ErroCriar::CadastroForaDaForma)?;
+    let rotulos = nos_com_id(&dom, "lblSerieTitulo").map_err(ErroCriar::Atributo)?;
     let [rotulo] = rotulos.as_slice() else {
         return Err(ErroCriar::CadastroForaDaForma);
     };
@@ -72,8 +71,7 @@ pub(crate) fn conferir_cadastro(
         return Err(ErroCriar::TipoDoCadastroDiferente);
     }
     if descricao.is_some_and(|valor| !valor.is_empty()) {
-        let controles =
-            nos_com_id(&dom, "txtDescricao").map_err(|_| ErroCriar::CadastroForaDaForma)?;
+        let controles = nos_com_id(&dom, "txtDescricao").map_err(ErroCriar::Atributo)?;
         let [controle] = controles.as_slice() else {
             return Err(ErroCriar::DescricaoNaoOferecida);
         };
@@ -88,7 +86,7 @@ pub(crate) fn conferir_cadastro(
                 .as_deref()
                 != Some("txtDescricao")
             || crate::html_atributos::atributo_presente(controle, "disabled")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
         {
             return Err(ErroCriar::DescricaoNaoOferecida);
         }
@@ -100,7 +98,7 @@ pub(crate) fn conferir_cadastro(
             "sigiloso" => ("optSigiloso", "2"),
             _ => return Err(ErroCriar::NivelNaoOferecido),
         };
-        let controles = nos_com_id(&dom, id).map_err(|_| ErroCriar::CadastroForaDaForma)?;
+        let controles = nos_com_id(&dom, id).map_err(ErroCriar::Atributo)?;
         let [controle] = controles.as_slice() else {
             return Err(ErroCriar::NivelNaoOferecido);
         };
@@ -123,7 +121,7 @@ pub(crate) fn conferir_cadastro(
                 .as_deref()
                 != Some(valor)
             || crate::html_atributos::atributo_presente(controle, "disabled")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
         {
             return Err(ErroCriar::NivelNaoOferecido);
         }
@@ -157,9 +155,9 @@ fn conferir_controles_obrigatorios(
             continue;
         }
         if !crate::html_atributos::atributo_presente(tag, "required")
-            .map_err(|_| ErroCriar::CadastroForaDaForma)?
+            .map_err(ErroCriar::Atributo)?
             || crate::html_atributos::atributo_presente(tag, "disabled")
-                .map_err(|_| ErroCriar::CadastroForaDaForma)?
+                .map_err(ErroCriar::Atributo)?
             || !controle_oferecido(dom, formulario, tag)?
         {
             continue;

@@ -18,5 +18,5 @@ pub(super) fn conferir_link_do_tipo(
         AcaoDoSei::DocumentoGerar,
         id_procedimento,
     )
-    .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
+    .map_err(ErroCriar::EnderecoDoTipoNaoReconhecido)
 }
