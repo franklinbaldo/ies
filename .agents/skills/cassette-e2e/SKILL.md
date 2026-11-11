@@ -34,8 +34,9 @@ issues são referências, nunca pré-condição de implementação.
 5. **Se não há captura relevante:** teste a hipótese mínima no E2E,
    identifique explicitamente a lacuna da cassette, não rotule PASS de
    replay. Não bloquee o desenvolvimento esperando REA/live.
-6. **Live opcional, somente autorizado:** em SEI de treinamento, prévia,
-   confirmação única e verificação independente;
+6. **Live opcional, somente autorizado:** em SEI de treinamento,
+   orçamento de requisições declarado, prévia, POST mutador único,
+   sem retry e verificação independente;
    agentes nunca operam produção. Nunca registrar credencial, cookie,
    URL assinada ou `infra_hash`.
 
