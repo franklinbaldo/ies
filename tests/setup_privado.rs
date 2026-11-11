@@ -3,7 +3,6 @@
 #[test]
 fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
     use std::fs;
-    use std::path::Path;
     use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -45,7 +44,7 @@ fn setup_recusa_ancestral_regular_sem_expor_caminho_ou_bytes() {
     let erro = String::from_utf8_lossy(&output.stderr);
     assert!(erro.contains("ArquivoPrivadoNaoLido(NotADirectory)"), "{erro}");
     for privado in [&cookie, &ancestral, &destino] {
-        assert!(!erro.contains(Path::new(privado).to_string_lossy().as_ref()));
+        assert!(!erro.contains(privado.to_string_lossy().as_ref()));
     }
     assert!(!erro.contains("SENTINELA DE TESTE"));
     assert!(!destino.exists());
