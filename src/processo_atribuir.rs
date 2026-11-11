@@ -9,7 +9,6 @@ use crate::formulario_web::{
 };
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 use crate::instalacao::Instalacao;
-use crate::pagina_do_controle::codificacao_da_tela;
 
 const FORMULARIO: &str = "frmAtividadeAtribuir";
 const SELECAO: &str = "selAtribuicao";
@@ -295,29 +294,20 @@ pub(crate) fn planejar(
 
 /// A prévia já prova o payload do futuro POST sem enviar nada.
 /// A seleção é feita uma vez sobre a mesma tela e mesma identidade.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn preparar_submissao(
     instalacao: &Instalacao,
-    url: &str,
-    html: &str,
-    mime: &str,
+    servida: &TelaServida<'_>,
     id: &str,
     unidade: &str,
     login: Option<&str>,
     atual: Atribuicao<'_>,
 ) -> Result<(String, SubmissaoDerivada), ErroAtribuir> {
-    let tela = ler_tela(html, id)?;
+    let tela = ler_tela(servida.html, id)?;
     let valor = planejar(&tela, login, atual)?;
-    let codificacao = codificacao_da_tela(mime).ok_or(ErroAtribuir::CharsetDaTelaNaoSuportado)?;
-    let servida = TelaServida {
-        url,
-        html,
-        codificacao,
-    };
     let submissao = derivar_submissao(
         &ATRIBUIR_PROCESSO,
         instalacao,
-        &servida,
+        servida,
         unidade,
         &[(SELECAO, valor.as_str())],
     )

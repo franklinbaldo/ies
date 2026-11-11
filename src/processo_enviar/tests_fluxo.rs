@@ -63,6 +63,16 @@ fn recusas_pela_situacao_e_pela_barra_so_com_a_abertura() {
             },
         ),
         (
+            vec!["OUTRA"],
+            vec![pelo_envio(ID), pelo_envio(ID)],
+            ErroEnviar::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra),
+        ),
+        (
+            vec!["OUTRA"],
+            vec![pelo_envio("11")],
+            ErroEnviar::Barra(ErroEnviarNaBarra::EnderecoDoEnvioDeOutroProcesso),
+        ),
+        (
             vec![UNIDADE],
             vec![pelo_envio(ID), pelo_envio(ID)],
             ErroEnviar::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra),

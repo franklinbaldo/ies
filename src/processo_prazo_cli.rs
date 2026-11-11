@@ -118,12 +118,17 @@ fn previsualizar(
     let (html, mime) = obter_tela(&mut rede, &cookie, &link)?;
     let tela = ler_tela(&html, &aberto.arvore.processo.id).map_err(FalhaDoPrazo::from)?;
     let tela = if confirmar {
+        let codificacao =
+            codificacao_da_tela(&mime).ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
+        let servida = TelaServida {
+            url: &link,
+            html: &html,
+            codificacao,
+        };
         confirmar_prazo(
             sessao,
             &cookie,
-            &link,
-            &html,
-            &mime,
+            &servida,
             pedido,
             &aberto.arvore.processo.id,
             &mut rede,
@@ -241,13 +246,10 @@ fn aceite_confirmacao(local: &str, url_post: &str, id: &str) -> bool {
 }
 
 /// Apenas o primeiro POST tem efeito; erro depois do envio é incerto.
-#[allow(clippy::too_many_arguments)]
 fn confirmar_prazo<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     cookie: &str,
-    link: &str,
-    html: &str,
-    mime: &str,
+    servida: &TelaServida<'_>,
     pedido: &PedidoDePrazo,
     id: &str,
     rede: &mut Contador<'_, V>,
@@ -257,19 +259,12 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
     }
     let instalacao = Instalacao::interpretar(sessao.origem)
         .ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
-    let codificacao =
-        codificacao_da_tela(mime).ok_or(FalhaDoPrazo::ConfirmacaoSemFormularioSeguro)?;
-    let servida = TelaServida {
-        url: link,
-        html,
-        codificacao,
-    };
     let campos = campos_do_pedido(pedido);
     let valores: Vec<_> = campos
         .iter()
         .map(|(nome, valor)| (*nome, valor.as_str()))
         .collect();
-    let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, &servida, "", &valores)
+    let submissao = derivar_submissao(&DEFINIR_PRAZO, &instalacao, servida, "", &valores)
         .map_err(FalhaDoPrazo::SubmissaoRecusada)?;
     let mut enviou = false;
     let resultado = enviar_submissao_via(submissao, sessao.cookie, |post, c| {
@@ -294,7 +289,8 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         RespostaDoEnvio::Html(_) => {}
         RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
     }
-    let (nova, _) = obter_tela(rede, cookie, link).map_err(FalhaDoPrazo::TelaRelidaNaoObtida)?;
+    let (nova, _) =
+        obter_tela(rede, cookie, servida.url).map_err(FalhaDoPrazo::TelaRelidaNaoObtida)?;
     let verificada = ler_tela(&nova, id).map_err(FalhaDoPrazo::PrazoRelidoIlegivel)?;
     let hoje = (time::OffsetDateTime::now_utc().date() - time::OffsetDateTime::UNIX_EPOCH.date())
         .whole_days();
