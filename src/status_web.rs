@@ -152,7 +152,17 @@ mod testes {
     }
 
     #[test]
-    fn formulario_de_login_devolvido_com_http_200_nao_prova_sessao() {}
+    fn formulario_de_login_nao_prova_controle_web() {
+        // HTTP 200 informa sobre o transporte, não identifica a página do SEI.
+        let html = "<html><body><form id='frmLogin' method='post'>\
+                    <input name='txtUsuario' type='text'>\
+                    <input name='pwdSenha' type='password'>\
+                    </form></body></html>";
+        assert!(
+            projetar(html).is_err(),
+            "formulário de login não pode ser tratado como Controle Web"
+        );
+    }
 
     #[test]
     fn unidade_global_errada_nao_pode_gerar_sucesso_web() {
