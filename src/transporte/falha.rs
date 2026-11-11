@@ -126,3 +126,46 @@ impl FalhaTransporte {
         }
     }
 }
+
+/// O fato de domínio que uma falha estabelece sobre a resposta lida, para
+/// quem a traduz no erro da própria operação.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FatoDaResposta {
+    /// O corpo passou do limite de leitura.
+    CorpoAcimaDoLimite,
+    /// A tela de login veio no lugar da resposta pedida.
+    TelaDeLoginNoLugarDaResposta,
+    /// A falha não estabelece fato sobre a resposta: segue como transporte.
+    NenhumAlemDoTransporte,
+}
+
+impl FalhaTransporte {
+    /// O único `match` sobre todas as falhas para quem lê uma resposta.
+    pub(crate) fn fato_da_resposta(&self) -> FatoDaResposta {
+        match self {
+            Self::RespostaExcessiva => FatoDaResposta::CorpoAcimaDoLimite,
+            Self::PaginaDeLoginRecebidaNoControle => FatoDaResposta::TelaDeLoginNoLugarDaResposta,
+            Self::ChaveDeConsultaNaoCanonica
+            | Self::SeparadorDeConsultaAmbiguo
+            | Self::OrigemNaoAutorizada
+            | Self::UrlInvalida
+            | Self::CookieInvalido
+            | Self::TipoDeConteudoNaoHtml
+            | Self::TipoDeConteudoNaoXml
+            | Self::ArquivoPrivadoAusenteOuInacessivel
+            | Self::ArquivoPrivadoComPermissoesInseguras
+            | Self::CaminhoDeArquivoNaoEhArquivo
+            | Self::ArquivoPrivadoLinkSimbolico
+            | Self::ArquivoPrivadoVazio
+            | Self::ArquivoPrivadoAcimaDoLimite
+            | Self::ArquivoPrivadoNaoPodeSerLido
+            | Self::SessaoTrocadaDuranteALeitura
+            | Self::Status(_)
+            | Self::BloqueioDeSegurancaDaInstalacao(_)
+            | Self::ControleRedirecionadoParaOLogin(_)
+            | Self::CorpoNaoDecodificavelNoCharsetDeclarado
+            | Self::Rede
+            | Self::Proxy => FatoDaResposta::NenhumAlemDoTransporte,
+        }
+    }
+}

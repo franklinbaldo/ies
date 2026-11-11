@@ -6,6 +6,7 @@
 //! hash (e o texto, nos tipos de texto). Sem rede: quem chama faz o GET.
 use crate::arquivo_privado::FalhaDaGravacao;
 use crate::documento_web::ErroCorpoDocumento;
+use crate::transporte::FatoDaResposta;
 use crate::transporte::resposta_binaria::RespostaBinaria;
 use crate::transporte::resposta_http::falha_de_leitura;
 use crate::transporte::{FalhaTransporte, RespostaWeb, recusar_status};
@@ -191,30 +192,12 @@ impl ErroAnexo {
 /// A falha de leitura do corpo do anexo: a resposta excessiva é o limite do
 /// anexo; as demais seguem como falha de transporte.
 fn erro_de_leitura(erro: &std::io::Error) -> ErroAnexo {
-    match falha_de_leitura(erro) {
-        FalhaTransporte::RespostaExcessiva => ErroAnexo::AcimaDoLimite,
-        falha @ (FalhaTransporte::ChaveDeConsultaNaoCanonica
-        | FalhaTransporte::SeparadorDeConsultaAmbiguo
-        | FalhaTransporte::OrigemNaoAutorizada
-        | FalhaTransporte::UrlInvalida
-        | FalhaTransporte::CookieInvalido
-        | FalhaTransporte::TipoDeConteudoNaoHtml
-        | FalhaTransporte::TipoDeConteudoNaoXml
-        | FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
-        | FalhaTransporte::ArquivoPrivadoComPermissoesInseguras
-        | FalhaTransporte::CaminhoDeArquivoNaoEhArquivo
-        | FalhaTransporte::ArquivoPrivadoLinkSimbolico
-        | FalhaTransporte::ArquivoPrivadoVazio
-        | FalhaTransporte::ArquivoPrivadoAcimaDoLimite
-        | FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
-        | FalhaTransporte::SessaoTrocadaDuranteALeitura
-        | FalhaTransporte::Status(_)
-        | FalhaTransporte::BloqueioDeSegurancaDaInstalacao(_)
-        | FalhaTransporte::ControleRedirecionadoParaOLogin(_)
-        | FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
-        | FalhaTransporte::PaginaDeLoginRecebidaNoControle
-        | FalhaTransporte::Rede
-        | FalhaTransporte::Proxy) => ErroAnexo::Transporte(falha),
+    let falha = falha_de_leitura(erro);
+    match falha.fato_da_resposta() {
+        FatoDaResposta::CorpoAcimaDoLimite => ErroAnexo::AcimaDoLimite,
+        FatoDaResposta::TelaDeLoginNoLugarDaResposta | FatoDaResposta::NenhumAlemDoTransporte => {
+            ErroAnexo::Transporte(falha)
+        }
     }
 }
 

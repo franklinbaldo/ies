@@ -1,6 +1,6 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
 use crate::html_atributos::ErroAtributoHtml;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -138,30 +138,11 @@ impl ErroSubmissaoFormulario {
     /// A resposta do envio não pôde ser lida: a tela de login no lugar da
     /// resposta é sessão perdida no envio; as demais seguem como transporte.
     pub(crate) fn da_resposta(falha: FalhaTransporte) -> Self {
-        match falha {
-            FalhaTransporte::PaginaDeLoginRecebidaNoControle => Self::TelaDeLoginRecebidaAposEnvio,
-            outra @ (FalhaTransporte::ChaveDeConsultaNaoCanonica
-            | FalhaTransporte::SeparadorDeConsultaAmbiguo
-            | FalhaTransporte::OrigemNaoAutorizada
-            | FalhaTransporte::UrlInvalida
-            | FalhaTransporte::CookieInvalido
-            | FalhaTransporte::TipoDeConteudoNaoHtml
-            | FalhaTransporte::TipoDeConteudoNaoXml
-            | FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
-            | FalhaTransporte::ArquivoPrivadoComPermissoesInseguras
-            | FalhaTransporte::CaminhoDeArquivoNaoEhArquivo
-            | FalhaTransporte::ArquivoPrivadoLinkSimbolico
-            | FalhaTransporte::ArquivoPrivadoVazio
-            | FalhaTransporte::ArquivoPrivadoAcimaDoLimite
-            | FalhaTransporte::ArquivoPrivadoNaoPodeSerLido
-            | FalhaTransporte::SessaoTrocadaDuranteALeitura
-            | FalhaTransporte::Status(_)
-            | FalhaTransporte::BloqueioDeSegurancaDaInstalacao(_)
-            | FalhaTransporte::ControleRedirecionadoParaOLogin(_)
-            | FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado
-            | FalhaTransporte::RespostaExcessiva
-            | FalhaTransporte::Rede
-            | FalhaTransporte::Proxy) => Self::Transporte(outra),
+        match falha.fato_da_resposta() {
+            FatoDaResposta::TelaDeLoginNoLugarDaResposta => Self::TelaDeLoginRecebidaAposEnvio,
+            FatoDaResposta::CorpoAcimaDoLimite | FatoDaResposta::NenhumAlemDoTransporte => {
+                Self::Transporte(falha)
+            }
         }
     }
 }
