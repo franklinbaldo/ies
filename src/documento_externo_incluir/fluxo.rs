@@ -151,7 +151,31 @@ pub(crate) fn executar_previa<V: EnvioDoProcesso>(
         .map(|preparo| preparo.previa)
 }
 
-#[allow(clippy::too_many_lines)] // Navegação Web existente, agora também conserva o cadastro.
+/// POST de recarga do tipo: consulta de cadastro, nunca upload ou gravação definitiva.
+fn recarregar_tipo<V: EnvioDoProcesso>(
+    instalacao: &Instalacao,
+    sessao: &SessaoDoProcesso<'_>,
+    rede: &mut Contador<'_, V>,
+    tela: &TelaServida<'_>,
+    unidade: &str,
+    id_tipo: &str,
+) -> Result<String, ErroIncluirExterno> {
+    let submissao = derivar_submissao(
+        &RECARREGAR_TIPO,
+        instalacao,
+        tela,
+        unidade,
+        &[("selSerie", id_tipo), ("hdnIdSerie", id_tipo)],
+    )?;
+    let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
+        rede.post(post, cookie)
+    })?;
+    let RespostaDoEnvio::Html(recarregado) = resposta else {
+        return Err(ErroIncluirExterno::RecargaDoTipoSemHtml);
+    };
+    Ok(recarregado)
+}
+
 pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
     sessao: &SessaoDoProcesso<'_>,
     nup: &NumeroProcesso,
@@ -224,22 +248,14 @@ pub(crate) fn preparar_previa<V: EnvioDoProcesso>(
         html: &cadastro,
         codificacao,
     };
-    let submissao = derivar_submissao(
-        &RECARREGAR_TIPO,
+    let recarregado = recarregar_tipo(
         &instalacao,
+        sessao,
+        &mut rede,
         &servida,
         &unidade,
-        &[
-            ("selSerie", id_tipo.as_str()),
-            ("hdnIdSerie", id_tipo.as_str()),
-        ],
+        &id_tipo,
     )?;
-    let resposta = enviar_submissao_via(submissao, sessao.cookie, |post, cookie| {
-        rede.post(post, cookie)
-    })?;
-    let RespostaDoEnvio::Html(recarregado) = resposta else {
-        return Err(ErroIncluirExterno::RecargaDoTipoSemHtml);
-    };
     let observado = observar_cadastro(&recarregado, tipo, pdf.tamanho_bytes)
         .map_err(ErroIncluirExterno::CadastroNaoConferido)?;
     if observado.id_tipo != id_tipo {
