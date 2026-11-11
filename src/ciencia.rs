@@ -29,7 +29,7 @@ pub(crate) enum AlvoDaCiencia<'a> {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCiencia {
     /// O tokenizador de atributos recusou a tag.
@@ -38,6 +38,8 @@ pub(crate) enum ErroCiencia {
     AtividadesAmbiguas,
     ListaDeCienciasForaDaFormaObservada,
     AtividadesRepetidasNaLista,
+    ListaDeCienciasNaoInterpretada(#[source] tl::ParseError),
+    AceiteNaoInterpretado(#[source] tl::ParseError),
 }
 
 /// Só admite o valor da chave com uma única ocorrência. Uma chave duplicada
@@ -236,7 +238,7 @@ pub(crate) fn atividade_do_aceite(
     alvo: AlvoDaCiencia<'_>,
 ) -> Result<String, ErroCiencia> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCiencia::AceiteSemAtividade)?;
+        .map_err(ErroCiencia::AceiteNaoInterpretado)?;
     let parser = dom.parser();
     // Com JavaScript ativo, scripts aninhados em <template> ou <noscript>
     // não rodam. Ignore somente esses nós, em vez de recusar a resposta

@@ -133,12 +133,10 @@ fn url_do_onclick(onclick: &str) -> Option<&str> {
 /// Vários links iguais (barras móvel e padrão) valem como um.
 pub(crate) fn link_do_controle(html: &str) -> Result<Option<String>, ErroLogin> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?;
+        .map_err(ErroLogin::LinkDoControleNaoInterpretado)?;
     let parser = dom.parser();
     let mut achado: Option<String> = None;
-    for h in nos_com_id(&dom, "lnkControleProcessos")
-        .map_err(|_| ErroLogin::LinkDoControleDeProcessosNaoReconhecido)?
-    {
+    for h in nos_com_id(&dom, "lnkControleProcessos").map_err(ErroLogin::Atributo)? {
         let tag = h
             .get(parser)
             .and_then(tl::Node::as_tag)
@@ -279,7 +277,7 @@ pub(crate) fn derivar_login(
     credenciais: &Credenciais,
 ) -> Result<SubmissaoDerivada, ErroLogin> {
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| ErroLogin::TelaDeLoginNaoReconhecida)?;
+        .map_err(ErroLogin::TelaDeLoginNaoInterpretada)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmLogin")?;
     let acao = hdn_acao_do_onsubmit(form, tela.html)?;

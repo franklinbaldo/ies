@@ -60,7 +60,9 @@ fn pagina_atual(html: &str, categoria: Categoria) -> Result<usize, ErroPaginaDoC
     if valor.is_empty() || !valor.bytes().all(|b| b.is_ascii_digit()) {
         return Err(ilegivel());
     }
-    valor.parse().map_err(|_| ilegivel())
+    valor
+        .parse()
+        .map_err(|erro| ErroPaginaDoControle::PaginaAtualDaTabelaNaoCabeNoTipo { categoria, erro })
 }
 
 /// Tabela sem linhas: só a página 1 (vazia) existe.

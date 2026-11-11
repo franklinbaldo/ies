@@ -338,7 +338,7 @@ pub(crate) fn derivar_submissao_com_action(
     }
     // tl só recusa entradas acima de u32::MAX bytes, já barradas acima.
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
     match operacao.unidade {
         ConferenciaDaUnidade::NaTelaDoFormulario => conferir_unidade(&dom, unidade_solicitada)?,
         ConferenciaDaUnidade::NaTelaDeOrigemDoLink => {
@@ -457,7 +457,7 @@ where
     let mut marcado = resultado == ResultadoDoEnvio::ConferidoPorLeituraPosterior;
     if !marcadores.is_empty() {
         let dom = tl::parse(&html, tl::ParserOptions::default())
-            .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::RespostaExcessiva))?;
+            .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
         for MarcadorDeResultado { elemento, classe } in marcadores {
             marcado |= !nos_por_elemento_e_classe(&dom, None, elemento, classe)?.is_empty();
         }

@@ -168,7 +168,7 @@ fn ler_linhas(
 
 pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     Ok(CaixaDeEntrada {
         recebidos: ler_tabela(&dom, "tblProcessosRecebidos", Categoria::Recebidos)?,
         gerados: ler_tabela(&dom, "tblProcessosGerados", Categoria::Gerados)?,
@@ -179,7 +179,7 @@ pub fn parse_html(html: &str) -> Result<CaixaDeEntrada, ErroCaixa> {
 /// leitura e com as mesmas recusas de [`parse_html`].
 pub(crate) fn linhas_com_link(html: &str) -> Result<Vec<LinhaDoControle>, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let mut todas = Vec::new();
     for (tabela, categoria) in [
         ("tblProcessosRecebidos", Categoria::Recebidos),

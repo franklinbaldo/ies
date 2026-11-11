@@ -48,9 +48,13 @@ fn link_do_gerado(
 ) -> Result<String, ErroCriar> {
     let erro =
         || ErroCriar::Fotografia(reconciliacao::ErroFotografia::LinkDoCandidatoNaoComprovado);
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| erro())?;
+    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|causa| {
+        ErroCriar::Fotografia(reconciliacao::ErroFotografia::HtmlDoControleNaoAnalisavel(
+            causa,
+        ))
+    })?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(|_| erro())?;
+    let tabelas = nos_com_id(&dom, "tblProcessosGerados").map_err(ErroCriar::Atributo)?;
     let [tabela] = tabelas.as_slice() else {
         return Err(erro());
     };

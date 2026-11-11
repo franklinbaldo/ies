@@ -14,10 +14,10 @@ pub(crate) fn ler_anexo_publicado(
 ) -> Result<Option<EnderecoDoConteudo>, ErroPropriedadesDocumento> {
     let _ = ler_formulario(html, documento, processo)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
     let parser = dom.parser();
-    let nos = nos_com_id(&dom, "frmDocumentoCadastro")
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+    let nos =
+        nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
     let Some(form) = nos
         .first()
         .and_then(|no| no.get(parser))
@@ -47,7 +47,7 @@ pub(crate) fn ler_anexo_publicado(
             return Err(ErroPropriedadesDocumento::AnexoDoCadastroDivergente);
         }
         let link = EnderecoDoConteudo::do_cadastro(instalacao, href, id_anexo)
-            .map_err(|_| ErroPropriedadesDocumento::LinkAnexoCadastroInvalido)?;
+            .map_err(ErroPropriedadesDocumento::LinkAnexoCadastroInvalido)?;
         if encontrado.replace(link).is_some() {
             return Err(ErroPropriedadesDocumento::LinksAnexoCadastroRepetidos);
         }

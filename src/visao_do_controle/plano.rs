@@ -66,7 +66,7 @@ pub(super) fn posicao(
             }
             valor
                 .parse()
-                .map_err(|_| super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel)?
+                .map_err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaNaoCabeNoTipo)?
         }
         _ => return Err(super::ErroVisaoDoControle::PaginaAtualDaVisaoDetalhadaIlegivel),
     };

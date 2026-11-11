@@ -8,7 +8,7 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeEnvio {
     TelaDeEnvioDeOutroProcesso,
@@ -17,8 +17,9 @@ pub(crate) enum ErroTelaDeEnvio {
     AutocompletarDeUnidadeNaoDeclarado,
     ConsultaDoAutocompletarForaDaFormaObservada,
     CampoNaoPrevistoNaTelaDeEnvio,
-    FormularioDeEnvioAusente,
+    FormularioDeEnvioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TelaDeEnvioNaoInterpretada,
+    ParseDaTelaDeEnvioFalhou(#[source] tl::ParseError),
     TelaDeEnvioComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
@@ -33,6 +34,7 @@ pub(crate) enum FalhaDaConsulta {
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
     RespostaDoAutocompletarForaDaFormaObservada,
+    ParseDaRespostaDoAutocompletarFalhou(#[source] tl::ParseError),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

@@ -23,7 +23,7 @@ pub(crate) fn url_do_salto(
         return Err(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada);
     }
     let unidade = conferir_consulta(consulta, AcaoDoSei::ProcedimentoControlar, hash_do_salto)
-        .map_err(|_| super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?
+        .map_err(super::FalhaDepoisDoEnvio::ConsultaDaLocalizacaoForaDaForma)?
         .ok_or(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada)?;
     if unidade != id_unidade {
         return Err(super::FalhaDepoisDoEnvio::LocalizacaoDeOutraUnidade);

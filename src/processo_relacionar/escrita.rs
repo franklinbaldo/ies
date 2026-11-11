@@ -151,8 +151,9 @@ pub(super) fn remover<V: EnvioDoProcesso>(
         }
     }
     let (nova_tela, _) =
-        obter_tela(rede, cookie, servida.url).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
+        obter_tela(rede, cookie, servida.url).map_err(FalhaRelacionar::NaoConfirmadoNaReleitura)?;
+    let linhas = tela::ler_linhas(&nova_tela)
+        .map_err(FalhaRelacionar::NaoConfirmadoNaTelaDeRelacionamentos)?;
     // Um id removido não prova a remoção do NUP: a relação pode ter
     // reaparecido sob outro id, ou outra relação pode ter sido perdida.
     let destino_permanece = linhas
@@ -235,8 +236,9 @@ pub(super) fn adicionar<V: EnvioDoProcesso>(
         }
     }
     let (nova_tela, _) =
-        obter_tela(rede, cookie, servida.url).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
-    let linhas = tela::ler_linhas(&nova_tela).map_err(|_| FalhaRelacionar::NaoConfirmado(None))?;
+        obter_tela(rede, cookie, servida.url).map_err(FalhaRelacionar::NaoConfirmadoNaReleitura)?;
+    let linhas = tela::ler_linhas(&nova_tela)
+        .map_err(FalhaRelacionar::NaoConfirmadoNaTelaDeRelacionamentos)?;
     let destino_confirmado = linhas
         .iter()
         .any(|linha| linha.id == destino.id && super::mesmo_protocolo(&linha.nup, &destino.nup));

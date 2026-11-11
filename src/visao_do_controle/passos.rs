@@ -32,7 +32,7 @@ pub(super) fn unidade_da_tela(
 /// Controles de usuário que o `submit()` repete, com os valores servidos.
 fn campos_do_formulario(html: &str) -> Result<Vec<(String, String)>, ErroVisaoDoControle> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroVisaoDoControle::Caixa(crate::erro_web::ErroCaixa::HtmlDaCaixaInvalido))?;
+        .map_err(ErroVisaoDoControle::HtmlDoFormularioDoControleRecusadoPeloParser)?;
     let form = localizar_formulario(&dom, TROCAR_VISAO_DO_CONTROLE.formulario)?;
     campos_do_usuario(form, dom.parser(), CAMPOS_USUARIO).map_err(ErroVisaoDoControle::Formulario)
 }

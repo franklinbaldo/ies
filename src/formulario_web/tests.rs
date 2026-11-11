@@ -238,10 +238,10 @@ fn unidade_da_tela_precisa_ser_a_solicitada() {
         ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
     );
     let repetida = html.replace("<form", "<a id='lnkInfraUnidade'>OUTRA</a><form");
-    assert_eq!(
+    assert!(matches!(
         erro(&repetida, &[]),
-        ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela
-    );
+        ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+    ));
 }
 
 #[test]

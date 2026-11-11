@@ -86,19 +86,34 @@ fn src_vazio_e_download_de_anexo() {
 #[test]
 fn link_do_anexo_fora_da_forma_e_recusado() {
     let com = |src: String| ler(&com_src(&base(), 2, &src), "22");
-    for ruim in [
-        src_anexo().replace("&id_anexo=901", ""),
-        src_anexo().replace("id_anexo=901", "id_anexo=901&id_anexo=902"),
-        src_anexo().replace("id_anexo=901", "id_anexo=9a1"),
-        src_anexo().replace("id_anexo=901", "id_anexo="),
-        src_anexo().replace(HASH_CONTEUDO, "x"),
-        src_anexo().replace("controlador.php?", "controlador_externo.php?"),
+    let nao_reconhecido = Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido);
+    let recusado = Err(ErroConteudoNaArvore::EnderecoDoConteudoRecusado(
+        crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+    ));
+    for (ruim, esperado) in [
+        (
+            src_anexo().replace("&id_anexo=901", ""),
+            nao_reconhecido.clone(),
+        ),
+        (
+            src_anexo().replace("id_anexo=901", "id_anexo=901&id_anexo=902"),
+            nao_reconhecido.clone(),
+        ),
+        (
+            src_anexo().replace("id_anexo=901", "id_anexo=9a1"),
+            nao_reconhecido.clone(),
+        ),
+        (
+            src_anexo().replace("id_anexo=901", "id_anexo="),
+            nao_reconhecido.clone(),
+        ),
+        (src_anexo().replace(HASH_CONTEUDO, "x"), recusado),
+        (
+            src_anexo().replace("controlador.php?", "controlador_externo.php?"),
+            nao_reconhecido,
+        ),
     ] {
-        assert_eq!(
-            com(ruim.clone()),
-            Err(ErroConteudoNaArvore::EnderecoDoConteudoNaoReconhecido),
-            "{ruim}"
-        );
+        assert_eq!(com(ruim.clone()), esperado, "{ruim}");
     }
 }
 

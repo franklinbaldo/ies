@@ -38,7 +38,7 @@ pub(crate) fn derivar_submissao_de_login(
         ));
     }
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| ErroSubmissaoFormulario::Transporte(FalhaTransporte::RespostaExcessiva))?;
+        .map_err(ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado)?;
     let form = localizar_formulario(&dom, operacao.formulario)?;
     conferir_metodo_e_codificacao(form)?;
     let url = resolver_action_no_host(form, &servida, instalacao)?;

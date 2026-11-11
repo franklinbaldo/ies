@@ -241,9 +241,8 @@ fn ler_registro(
 pub(crate) fn ler_documentos(
     html: &str,
 ) -> Result<Vec<DocumentoEncontrado>, ErroDocumentoDaPesquisa> {
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| {
-        ErroDocumentoDaPesquisa::Linha(ErroResultadoPesquisa::HtmlDePesquisaNaoInterpretado)
-    })?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroResultadoPesquisa::HtmlDePesquisaRecusadoPeloParser)?;
     let parser = dom.parser();
     let tabela =
         match nos_por_elemento_e_classe(&dom, None, "table", "pesquisaResultado")?.as_slice() {

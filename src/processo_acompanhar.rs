@@ -50,6 +50,16 @@ pub(crate) enum ErroAcompanhar {
     LinhaDeAcompanhamentoInvalida,
     ListasDeAcompanhamentosRepetidas,
     OpcoesDeGrupoDeAcompanhamentoInvalidas,
+    /// O endereço do cadastro de acompanhamento foi recusado.
+    EnderecoDoCadastroRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
+    /// O parser HTML recusou a tela de acompanhamento.
+    TelaDeAcompanhamentoRecusadaPeloParser(#[source] tl::ParseError),
+    /// O parser HTML recusou a lista de acompanhamentos.
+    HtmlDeAcompanhamentoRecusadoPeloParser(#[source] tl::ParseError),
+    /// O parser HTML recusou a tela de exclusão.
+    HtmlDaTelaDeExclusaoRecusadoPeloParser(#[source] tl::ParseError),
+    /// O endereço de exclusão observado foi recusado.
+    EnderecoDaExclusaoRecusado(crate::arvore_processo::endereco::EnderecoRecusado),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -87,7 +97,7 @@ pub(crate) fn grupos_do_cadastro(
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
+        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
     let parser = dom.parser();
     let mut forms = Vec::new();
     for no in dom.query_selector("form").into_iter().flatten() {
@@ -140,9 +150,7 @@ pub(crate) fn grupos_do_cadastro(
         if tag.name() != "option" {
             continue;
         }
-        if atributo_presente(tag, "disabled")
-            .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?
-        {
+        if atributo_presente(tag, "disabled").map_err(ErroAcompanhar::Atributo)? {
             continue;
         }
         let valor =
@@ -197,7 +205,7 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         return Err(ErroAcompanhar::HtmlDeAcompanhamentoInvalido);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
+        .map_err(ErroAcompanhar::HtmlDeAcompanhamentoRecusadoPeloParser)?;
     let parser = dom.parser();
     let mut tabelas = Vec::new();
     for no in dom.query_selector("table").into_iter().flatten() {

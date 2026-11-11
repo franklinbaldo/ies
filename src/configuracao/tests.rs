@@ -73,10 +73,10 @@ fn diretorio_e_excesso_sao_diagnosticos_internos_distintos() {
 fn json_invalido_nao_e_campo_invalido() {
     let pasta = Pasta::nova();
     gravar(&pasta.arquivo(), "{");
-    assert_eq!(
+    assert!(matches!(
         ler_configuracao_local(&pasta.arquivo()).err(),
-        Some(FalhaConfiguracaoLocal::JsonInvalido)
-    );
+        Some(FalhaConfiguracaoLocal::JsonInvalido(_))
+    ));
     gravar(&pasta.arquivo(), r#"{"url_controle":7}"#);
     assert_eq!(
         ler_configuracao_local(&pasta.arquivo()).err(),

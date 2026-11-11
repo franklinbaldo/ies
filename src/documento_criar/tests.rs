@@ -134,10 +134,10 @@ fn link_direto_confere_acao_processo_e_origem_sem_executar_js() {
             "https://sei.exemplo.gov.br/sei/{href}"
         )))
     );
-    assert_eq!(
+    assert!(matches!(
         escolha_do_tipo(&instalacao, &html, "11", "Despacho"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
     let script = r#"<table id="tblSeries"><tr><td>
         <a href="javascript:void(0);" onclick="escolher(3);">Despacho</a>
         </td></tr></table>"#;
@@ -331,25 +331,25 @@ fn redirecionamento_da_escolha_valida_origem_processo_e_assinatura() {
         cadastro_redirecionado(&instalacao, &esperado, "4864"),
         Ok(esperado)
     );
-    assert_eq!(
+    assert!(matches!(
         cadastro_redirecionado(&instalacao, &link, "4865"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
     let externo = format!("https://host-malicioso.example/sei/{link}");
-    assert_eq!(
+    assert!(matches!(
         cadastro_redirecionado(&instalacao, &externo, "4864"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
     let sem_assinatura = "controlador.php?acao=documento_gerar&id_procedimento=4864";
-    assert_eq!(
+    assert!(matches!(
         cadastro_redirecionado(&instalacao, sem_assinatura, "4864"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
     let duplicado = format!("{link}&infra_hash={}", "b".repeat(64));
-    assert_eq!(
+    assert!(matches!(
         cadastro_redirecionado(&instalacao, &duplicado, "4864"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
 }
 
 #[test]
@@ -498,16 +498,16 @@ fn link_direto_do_oraculo_aceita_duas_identidades_iguais_sem_refazer_assinatura(
     let html_divergente = format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{divergente}\">Despacho</a></td></tr></table>"
     );
-    assert_eq!(
+    assert!(matches!(
         escolha_do_tipo(&instalacao, &html_divergente, "50693", "Despacho"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
     let triplo = href.replace("&infra_hash=", "&id_procedimento=50693&infra_hash=");
     let html_triplo = format!(
         "<table id=\"tblSeries\"><tr><td><a href=\"{triplo}\">Despacho</a></td></tr></table>"
     );
-    assert_eq!(
+    assert!(matches!(
         escolha_do_tipo(&instalacao, &html_triplo, "50693", "Despacho"),
-        Err(ErroCriar::EnderecoDoTipoNaoReconhecido)
-    );
+        Err(ErroCriar::EnderecoDoTipoNaoReconhecido(_))
+    ));
 }

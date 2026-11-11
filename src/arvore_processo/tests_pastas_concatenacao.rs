@@ -39,8 +39,8 @@ fn concatenacao_vazia_da_barra_nao_muda_a_leitura_das_pastas() {
 #[test]
 fn concatenacao_com_conteudo_continua_fora_da_forma_observada() {
     let html = com_concatenacao(&arvore_fechada(), "<a href=\"#\"></a>");
-    assert_eq!(
+    assert!(matches!(
         ler_arvore(&html, NUP, ID),
-        Err(super::ErroArvore::BarraDeNoForaDaFormaObservada)
-    );
+        Err(super::ErroArvore::BarraDeNoIlegivel(_))
+    ));
 }

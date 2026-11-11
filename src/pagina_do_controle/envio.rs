@@ -32,7 +32,8 @@ pub(crate) fn derivar_pagina(
         return Err(excessiva());
     }
     let usuario = {
-        let dom = tl::parse(tela.html, tl::ParserOptions::default()).map_err(|_| excessiva())?;
+        let dom = tl::parse(tela.html, tl::ParserOptions::default())
+            .map_err(ErroPaginaDoControle::HtmlDaTelaDeEnvioRecusadoPeloParser)?;
         let form = localizar_formulario(&dom, OBTER_PAGINA_DO_CONTROLE.formulario)?;
         regras::campos_do_usuario(form, dom.parser(), regras::CAMPOS_USUARIO)?
     };

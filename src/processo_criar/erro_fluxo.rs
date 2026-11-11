@@ -60,7 +60,11 @@ pub(crate) enum ErroCriar {
     Submissao(ErroSubmissaoFormulario),
     /// Origem ou cookie da sessão local ilegíveis, antes da rede.
     SessaoLocalIlegivel,
+    /// Cookie da sessão recusado pelo transporte, antes da rede.
+    CookieDaSessaoIlegivel(#[source] FalhaTransporte),
     UnidadeDiferente,
+    /// O Controle foi lido, mas a unidade publicada não pôde ser extraída.
+    UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
     Menu(crate::processo_criar_menu::ErroMenu),
     Lista(ErroListaDeTipos),
     Cadastro(ErroCadastro),

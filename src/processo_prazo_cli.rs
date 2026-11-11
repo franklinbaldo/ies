@@ -45,6 +45,12 @@ pub(crate) enum FalhaDoPrazo {
     ListaDePrazos(#[source] exclusao::ErroListaDePrazos),
     /// O POST saiu e a lista relida não pôde ser lida: efeito incerto.
     ListaRelidaIlegivel(#[source] exclusao::ErroListaDePrazos),
+    /// A tela do prazo, relida depois do POST, não foi obtida.
+    TelaRelidaNaoObtida(#[source] crate::processo_concluir::escrita::FalhaDaTela),
+    /// O processo, reaberto depois do POST, não foi aberto para conferência.
+    ProcessoRelidoNaoAbriu(#[source] crate::processo_obter::ErroProcessoObter),
+    /// O prazo relido depois do POST não tem forma legível.
+    PrazoRelidoIlegivel(#[source] crate::processo_prazo::ErroPrazo),
     /// A lista não publicou a ação de exclusão.
     AcaoDeExclusaoNaoPublicada,
 }
@@ -270,9 +276,8 @@ fn confirmar_prazo<V: EnvioDoProcesso>(
         RespostaDoEnvio::Html(_) => {}
         RespostaDoEnvio::Redirecionamento(_) => return Err(FalhaDoPrazo::NaoConfirmado(None)),
     }
-    let (nova, _) =
-        obter_tela(rede, cookie, link).map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
-    let verificada = ler_tela(&nova, id).map_err(|_| FalhaDoPrazo::NaoConfirmado(None))?;
+    let (nova, _) = obter_tela(rede, cookie, link).map_err(FalhaDoPrazo::TelaRelidaNaoObtida)?;
+    let verificada = ler_tela(&nova, id).map_err(FalhaDoPrazo::PrazoRelidoIlegivel)?;
     let hoje = (time::OffsetDateTime::now_utc().date() - time::OffsetDateTime::UNIX_EPOCH.date())
         .whole_days();
     if !crate::processo_prazo::releitura_confirma(pedido, &verificada.estado, hoje) {

@@ -71,6 +71,10 @@ pub(crate) enum FalhaRelacionar {
     ConsultaNaoXml,
     /// O POST pode ter sido enviado; causa preservada quando disponível.
     NaoConfirmado(Option<ErroSubmissaoFormulario>),
+    /// A releitura da tela de relacionamentos falhou após o POST.
+    NaoConfirmadoNaReleitura(#[source] crate::processo_concluir::escrita::FalhaDaTela),
+    /// A tela relida após o POST não tem a forma observada.
+    NaoConfirmadoNaTelaDeRelacionamentos(#[source] ErroTelaDeRelacionamentos),
 }
 pub(crate) struct Pedido<'a> {
     pub(crate) nup: &'a NumeroProcesso,
@@ -174,8 +178,10 @@ fn xml_da_consulta<R: Read>(mut resposta: RespostaWeb<R>) -> Result<String, Falh
     }
     let bytes = ler_limitado(&mut resposta.corpo, crate::MAX_HTML_BYTES)
         .map_err(FalhaRelacionar::ConsultaResposta)?;
-    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|_| {
-        FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
+    crate::transporte::corpo::decode_http_body(&bytes, &resposta.mime).map_err(|erro| {
+        FalhaRelacionar::ConsultaResposta(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+            erro,
+        ))
     })
 }
 

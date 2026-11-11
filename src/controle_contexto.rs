@@ -85,7 +85,7 @@ fn unidade_html_original(dom: &tl::VDom<'_>) -> Result<Option<String>, ErroCaixa
 #[cfg(test)]
 pub(crate) fn unidade_exibida_no_controle(html: &str) -> Result<String, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     unidade_html(&dom)?.ok_or(ErroCaixa::IdentificacaoDaUnidadeAusenteNoControle)
 }
 
@@ -106,7 +106,7 @@ fn valor_oculto_original(dom: &tl::VDom<'_>, id: &str) -> Result<Option<String>,
 
 pub(crate) fn contexto_da_pagina(html: &str) -> Result<ContextoPagina, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     contexto_do_dom(&dom)
 }
 
@@ -123,7 +123,7 @@ pub(crate) fn contexto_do_dom(dom: &tl::VDom<'_>) -> Result<ContextoPagina, Erro
 /// marcador", nas sete instalações do acervo; vazio em todas as telas GET).
 pub(crate) fn filtro_de_marcador_ativo(html: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let parser = dom.parser();
     for no in dom.query_selector("input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {

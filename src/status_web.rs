@@ -47,6 +47,7 @@ pub(crate) fn projetar(html: &str) -> Result<Value, FalhaControleWeb> {
             | ErroCaixa::HashesDeCriteriosGeradosRepetidosNoControle
             | ErroCaixa::HashesDeCriteriosRecebidosRepetidosNoControle
             | ErroCaixa::HtmlDaCaixaInvalido
+            | ErroCaixa::HtmlDaCaixaRecusadoPeloParser(_)
             | ErroCaixa::AtributoDaCaixaIlegivel(_)
             | ErroCaixa::IdentificacoesDaUnidadeRepetidasNoControle
             | ErroCaixa::TiposDeVisualizacaoRepetidosNoControle
