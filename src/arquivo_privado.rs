@@ -102,6 +102,9 @@ impl Politica {
 pub(crate) enum FalhaDaGravacao {
     SemNomeDeArquivo,
     DiretorioAusente,
+    /// O diretório (ou o atual, no caminho relativo) não pôde ser consultado:
+    /// o motivo do sistema.
+    DiretorioNaoConsultado(std::io::ErrorKind),
     /// Um nível do caminho existe e não é diretório.
     NivelDoCaminhoNaoEhDiretorio,
     /// Um nível do caminho não pôde ser consultado (o motivo do sistema).
@@ -110,6 +113,8 @@ pub(crate) enum FalhaDaGravacao {
     CriacaoDoDiretorioFalhou(std::io::ErrorKind),
     /// O sistema recusou criar o temporário `0600`.
     CriacaoDoTemporarioFalhou(std::io::ErrorKind),
+    /// O sistema recusou escrever ou sincronizar o temporário (o motivo).
+    ErroDeIoNaEscrita(std::io::ErrorKind),
     /// Oito nomes de temporário seguidos já existiam.
     NomesDeTemporarioEsgotados,
     /// O diretório real do destino é gravável por grupo ou outros
@@ -122,7 +127,8 @@ pub(crate) enum FalhaDaGravacao {
     /// Falha do sistema ao consultar o nome final antes da publicação.
     CriacaoFalhou(ErrorKind),
     EscritaFalhou,
-    ConfirmacaoFalhou,
+    /// O sistema recusou publicar no nome final (o motivo do sistema).
+    ConfirmacaoFalhou(std::io::ErrorKind),
 }
 
 /// O pai do destino existe e é diretório (links no caminho são aceitos)
@@ -163,8 +169,8 @@ fn diretorio_real(destino: &Path, politica: Politica) -> Result<PathBuf, FalhaDa
 /// `canonicalize` do diretório e, se é do IES, a conferência do modo do
 /// diretório real.
 fn real_e_conferido(pasta: &Path, dono: Diretorio) -> Result<PathBuf, FalhaDaGravacao> {
-    let real = fs::canonicalize(pasta).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
-    let info = fs::metadata(&real).map_err(|_| FalhaDaGravacao::DiretorioAusente)?;
+    let real = fs::canonicalize(pasta).map_err(|erro| falha_ao_consultar(&erro))?;
+    let info = fs::metadata(&real).map_err(|erro| falha_ao_consultar(&erro))?;
     if !info.is_dir() {
         return Err(FalhaDaGravacao::DiretorioAusente);
     }
@@ -189,7 +195,16 @@ fn absoluto(destino: &Path) -> Result<PathBuf, FalhaDaGravacao> {
     }
     std::env::current_dir()
         .map(|corrente| corrente.join(destino))
-        .map_err(|_| FalhaDaGravacao::DiretorioAusente)
+        .map_err(|erro| falha_ao_consultar(&erro))
+}
+
+/// Ausente quando o sistema diz que não existe; senão, o motivo.
+fn falha_ao_consultar(erro: &std::io::Error) -> FalhaDaGravacao {
+    if erro.kind() == ErrorKind::NotFound {
+        FalhaDaGravacao::DiretorioAusente
+    } else {
+        FalhaDaGravacao::DiretorioNaoConsultado(erro.kind())
+    }
 }
 
 /// Cria um nível `0700` dentro de um diretório real conferido como o
@@ -288,7 +303,7 @@ impl Parcial {
             .ok_or(FalhaDaGravacao::EscritaFalhou)?;
         arquivo
             .write_all(bytes)
-            .map_err(|_| FalhaDaGravacao::EscritaFalhou)?;
+            .map_err(|erro| FalhaDaGravacao::ErroDeIoNaEscrita(erro.kind()))?;
         self.escritos = total;
         Ok(())
     }
@@ -298,7 +313,7 @@ impl Parcial {
         if let Some(arquivo) = self.arquivo.take() {
             arquivo
                 .sync_all()
-                .map_err(|_| FalhaDaGravacao::EscritaFalhou)?;
+                .map_err(|erro| FalhaDaGravacao::ErroDeIoNaEscrita(erro.kind()))?;
         }
         Ok(())
     }
@@ -317,14 +332,14 @@ impl Parcial {
                     if erro.kind() == ErrorKind::AlreadyExists {
                         FalhaDaGravacao::DestinoJaExiste
                     } else {
-                        FalhaDaGravacao::ConfirmacaoFalhou
+                        FalhaDaGravacao::ConfirmacaoFalhou(erro.kind())
                     }
                 })?;
             }
             Modo::Substituir => {
                 conferir_destino(&self.destino, Modo::Substituir)?;
                 fs::rename(&self.temporario, &self.destino)
-                    .map_err(|_| FalhaDaGravacao::ConfirmacaoFalhou)?;
+                    .map_err(|erro| FalhaDaGravacao::ConfirmacaoFalhou(erro.kind()))?;
                 self.confirmado = true;
             }
         }

@@ -7,15 +7,15 @@ use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Conclusão de Processo", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeConclusao {
     TelaDeConclusaoDeOutroProcesso,
     OpcaoSomenteConcluirNaoMarcada,
     TelaDeConclusaoComReaberturaPreenchida,
     CampoNaoPrevistoNaTelaDeConclusao,
-    FormularioDeConclusaoAusente,
-    TelaDeConclusaoNaoInterpretada,
+    FormularioDeConclusaoAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
+    TelaDeConclusaoNaoInterpretada(#[source] tl::ParseError),
     TelaDeConclusaoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 

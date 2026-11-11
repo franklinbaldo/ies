@@ -117,10 +117,10 @@ fn declaracoes_das_pastas_conferidas() {
         "Pastas[2]['protocolos'] = '",
         "Pastas[2]['protocolos'] = x + '",
     );
-    assert_eq!(
+    assert!(matches!(
         ler(&mal),
-        Err(super::ErroArvore::ProtocolosDaPastaForaDaFormaObservada)
-    );
+        Err(super::ErroArvore::ProtocolosDaPastaIlegiveis(_))
+    ));
 }
 
 #[test]
@@ -211,10 +211,10 @@ fn aguarde_na_forma_observada() {
 #[test]
 fn barra_de_documento_de_pasta_fora_da_forma_e_recusa() {
     let html = arvore_aberta().replace("Nos[3].acoes = '", "Nos[3].acoes = x + '");
-    assert_eq!(
+    assert!(matches!(
         ler(&html),
-        Err(super::ErroArvore::BarraDeNoForaDaFormaObservada)
-    );
+        Err(super::ErroArvore::BarraDeNoIlegivel(_))
+    ));
 }
 
 #[test]
@@ -286,22 +286,30 @@ fn acao_de_abrir_pastas_fora_da_forma_e_recusa() {
         ),
         (
             url.replace("id_procedimento=10", "id_procedimento=11"),
-            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
+            super::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::DeOutroProcesso,
+            ),
         ),
         (
             url.replace(
                 "acao=procedimento_visualizar&",
                 "acao=procedimento_paginar&",
             ),
-            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
+            super::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
         ),
         (
             url.replace(&"f".repeat(64), "f"),
-            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
+            super::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
         ),
         (
             format!("https://outro.exemplo/{url}"),
-            super::ErroArvore::EnderecoDeAbrirPastasNaoReconhecido,
+            super::ErroArvore::EnderecoDeAbrirPastasRecusado(
+                crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+            ),
         ),
     ];
     for (endereco, esperado) in casos {

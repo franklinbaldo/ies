@@ -31,9 +31,11 @@ pub(crate) struct TelaDoProcesso {
     pub(crate) arvore: EnderecoDaArvore,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDoProcesso {
+    ParseDaTelaDoProcessoFalhou(#[source] tl::ParseError),
+    UnidadeDoControleIlegivel(#[source] crate::erro_web::ErroCaixa),
     UnidadeDaTelaDiferenteDaSolicitada,
     EnderecoDaArvoreDeOutroProcesso,
     /// Tela aberta por número SEI: a árvore não seleciona o documento pedido.
@@ -110,9 +112,9 @@ fn unidade_e_src(
     unidade: Option<&str>,
 ) -> Result<(String, String), ErroTelaDoProcesso> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?;
+        .map_err(ErroTelaDoProcesso::ParseDaTelaDoProcessoFalhou)?;
     let publicada = crate::controle_contexto::unidade_html(&dom)
-        .map_err(|_| ErroTelaDoProcesso::HtmlDaTelaDoProcessoNaoInterpretado)?
+        .map_err(ErroTelaDoProcesso::UnidadeDoControleIlegivel)?
         .ok_or(ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)?;
     if let Some(pedida) = unidade
         && pedida.split_whitespace().collect::<Vec<_>>().join(" ") != publicada

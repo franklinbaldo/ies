@@ -10,15 +10,20 @@ use crate::html_atributos::valor_do_atributo;
 use crate::indice_local::UnidadeGuardada;
 pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum ErroLupa {
     /// O tokenizador de atributos recusou a tag.
     Atributo(crate::html_atributos::ErroAtributoHtml),
     HtmlInesperado,
-    FormularioAusente,
+    /// O parser de HTML recusou a página recebida.
+    HtmlNaoInterpretado(#[source] tl::ParseError),
+    FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TabelaForaDaForma,
     TotalAusente,
     PaginaInvalida,
+    /// O número da página atual não é um inteiro decimal.
+    NumeroDaPaginaIlegivel(#[source] std::num::ParseIntError),
     LinhaSemIdentidade,
     PaginasDivergentes,
 }
@@ -83,13 +88,13 @@ fn total_da_legenda(legenda: &str) -> Option<usize> {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn ler_pagina(html: &str) -> Result<PaginaDaLupa, ErroLupa> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| ErroLupa::FormularioAusente)?;
+        .map_err(ErroLupa::FormularioAusente)?;
     let pagina: usize = campo_unico(form, parser, "hdnInfraPaginaAtual")?
         .parse()
-        .map_err(|_| ErroLupa::PaginaInvalida)?;
+        .map_err(ErroLupa::NumeroDaPaginaIlegivel)?;
     let seletores: Vec<_> = tags(form, parser, "select")
         .into_iter()
         .filter(|s| {
@@ -265,10 +270,10 @@ fn texto_da_tag(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 /// na lupa observada no GO pelo Todos @323eb01.
 pub(crate) fn conferir_filtros_de_lista_integral(html: &str) -> Result<(), ErroLupa> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| ErroLupa::HtmlInesperado)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroLupa::HtmlNaoInterpretado)?;
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| ErroLupa::FormularioAusente)?;
+        .map_err(ErroLupa::FormularioAusente)?;
     let inputs = tags(form, parser, "input");
     for nome in ["txtSiglaUnidade", "txtDescricaoUnidade"] {
         let mut encontrados = 0;

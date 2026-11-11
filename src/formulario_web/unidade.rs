@@ -10,7 +10,7 @@ pub(super) fn conferir_unidade(
     // só falha por identificações repetidas fora do par móvel/desktop.
     nos_com_id(dom, "lnkInfraUnidade")?;
     let publicada = crate::controle_contexto::unidade_html(dom)
-        .map_err(|_| ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela)?
+        .map_err(ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela)?
         .ok_or(ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela)?;
     let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
     if publicada != solicitada {

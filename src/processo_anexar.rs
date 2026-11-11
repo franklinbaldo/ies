@@ -31,7 +31,7 @@ pub(crate) enum ErroAtributoDaAnexacao {
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeAnexacao {
     Atributo(#[from] ErroAtributoDaAnexacao),
-    HtmlDeAnexacaoNaoInterpretado,
+    HtmlDeAnexacaoNaoInterpretado(#[source] tl::ParseError),
     FormularioDeAnexacaoNaoLocalizado(#[source] ErroSubmissaoFormulario),
     ControlesDaAnexacaoAusentesOuRepetidos,
     ListasDeAnexadosRepetidas,
@@ -40,11 +40,11 @@ pub(crate) enum ErroTelaDeAnexacao {
 }
 
 /// O XML das consultas `protocolo_RI1023` e `procedimento_anexacao_verificar`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroComplementosDaAnexacao {
     Atributo(#[from] ErroAtributoDaAnexacao),
-    ComplementosDaAnexacaoNaoInterpretados,
+    ComplementosDaAnexacaoNaoInterpretados(#[source] tl::ParseError),
     ProcessoAAnexarNaoIdentificado,
     IdentidadeDeAnexadoAmbigua,
     AnexacaoNaoVerificada,
@@ -73,7 +73,7 @@ fn atributo(
 /// Exige controles únicos dentro do formulário real.
 pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDeAnexacao::HtmlDeAnexacaoNaoInterpretado)?;
+        .map_err(ErroTelaDeAnexacao::HtmlDeAnexacaoNaoInterpretado)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, "frmProcedimentoAnexar")
         .map_err(ErroTelaDeAnexacao::FormularioDeAnexacaoNaoLocalizado)?;
@@ -203,7 +203,7 @@ pub(crate) fn ler_confirmacao(xml: &str) -> Result<bool, ErroComplementosDaAnexa
 }
 fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, ErroComplementosDaAnexacao> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroComplementosDaAnexacao::ComplementosDaAnexacaoNaoInterpretados)?;
+        .map_err(ErroComplementosDaAnexacao::ComplementosDaAnexacaoNaoInterpretados)?;
     let parser = dom.parser();
     if dom
         .query_selector("erros")

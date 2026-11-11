@@ -8,16 +8,19 @@ use std::num::NonZeroU32;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersaoDocumento(NonZeroU32);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroVersao {
     LinhaIncompleta,
+    /// O número da versão não cabe em u32; guarda o tipo do erro de conversão.
+    NumeroDaVersaoIlegivel(std::num::IntErrorKind),
     LinkInseguro,
     DocumentoDivergente,
     ListaIncompleta,
     VersaoNaoObservada,
     ColunasHistoricoInesperadas,
     HistoricoDocumentoAusente,
+    HistoricoDocumentoNaoInterpretado(#[source] tl::ParseError),
     HistoricoDocumentoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     HistoricosDocumentoDuplicados,
     LegendasHistoricoVersoesRepetidas,
@@ -39,8 +42,8 @@ impl VersaoDocumento {
         }
         Self::nova(
             texto
-                .parse()
-                .map_err(|_| ErroVersao::VersaoDocumentoInvalida)?,
+                .parse::<u32>()
+                .map_err(|erro| ErroVersao::NumeroDaVersaoIlegivel(*erro.kind()))?,
         )
     }
     pub fn numero(self) -> u32 {
@@ -266,7 +269,7 @@ pub fn interpretar_historico(
         return Err(ErroVersao::DocumentoDivergente);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroVersao::HistoricoDocumentoAusente)?;
+        .map_err(ErroVersao::HistoricoDocumentoNaoInterpretado)?;
     let parser = dom.parser();
     let mut tabela = None;
     for handle in nos_por_elemento_e_classe(&dom, None, "table", "infraTable")

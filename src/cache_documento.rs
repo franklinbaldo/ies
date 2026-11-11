@@ -1,6 +1,6 @@
 //! Cache privado e idempotente de documentos (#236).
 //! Nunca guarda URLs assinadas ou material de sessão.
-use crate::arquivo_privado::{self, Politica};
+use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
 use crate::foto_documento::sha256;
 use std::fs;
 use std::io::Read;
@@ -18,6 +18,10 @@ pub(crate) struct Registro {
 pub(crate) enum FalhaCache {
     Diretorio,
     Gravacao,
+    /// Leitura ou escrita de um arquivo do cache falhou; guarda o tipo de E/S.
+    ArquivoDoCacheInacessivel(std::io::ErrorKind),
+    /// A gravação privada do arquivo do cache foi recusada.
+    GravacaoPrivadaFalhou(#[source] FalhaDaGravacao),
     ArquivoDivergente,
     ConteudoInseguro,
 }
@@ -83,7 +87,8 @@ fn conferir_identidade(host: &str, numero: &str, extensao: &str) -> Result<(), F
 
 /// Um destino existente só é no-op se regular, privado e byte a byte igual.
 pub(crate) fn conferir_existente(destino: &Path, bytes: &[u8]) -> Result<(), FalhaCache> {
-    let info = fs::symlink_metadata(destino).map_err(|_| FalhaCache::Gravacao)?;
+    let info = fs::symlink_metadata(destino)
+        .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
     if !info.file_type().is_file() {
         return Err(FalhaCache::ArquivoDivergente);
     }
@@ -94,7 +99,8 @@ pub(crate) fn conferir_existente(destino: &Path, bytes: &[u8]) -> Result<(), Fal
             return Err(FalhaCache::ArquivoDivergente);
         }
     }
-    let existente = fs::read(destino).map_err(|_| FalhaCache::Gravacao)?;
+    let existente =
+        fs::read(destino).map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
     if existente != bytes {
         return Err(FalhaCache::ArquivoDivergente);
     }
@@ -157,7 +163,8 @@ pub(crate) fn gravar(
 
 fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
     use sha2::{Digest, Sha256};
-    let info = fs::symlink_metadata(caminho).map_err(|_| FalhaCache::Gravacao)?;
+    let info = fs::symlink_metadata(caminho)
+        .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
     if !info.file_type().is_file() {
         return Err(FalhaCache::ArquivoDivergente);
     }
@@ -168,13 +175,14 @@ fn hash_de_arquivo(caminho: &Path) -> Result<String, FalhaCache> {
             return Err(FalhaCache::ArquivoDivergente);
         }
     }
-    let mut arquivo = fs::File::open(caminho).map_err(|_| FalhaCache::Gravacao)?;
+    let mut arquivo = fs::File::open(caminho)
+        .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
     let mut buffer = [0u8; 16 * 1024];
     let mut sha = Sha256::new();
     loop {
         let lidos = arquivo
             .read(&mut buffer)
-            .map_err(|_| FalhaCache::Gravacao)?;
+            .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
         if lidos == 0 {
             break;
         }
@@ -225,20 +233,21 @@ pub(crate) fn copiar_para_saida(
         return Err(FalhaCache::ArquivoDivergente);
     }
     // A cópia do usuário deve ter inode próprio: sua edição não pode adulterar o cache.
-    let mut arquivo = fs::File::open(origem).map_err(|_| FalhaCache::Gravacao)?;
+    let mut arquivo = fs::File::open(origem)
+        .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
     let mut parcial = Parcial::abrir(destino, Politica::exclusiva().diretorio_do_usuario())
-        .map_err(|_| FalhaCache::Gravacao)?;
+        .map_err(FalhaCache::GravacaoPrivadaFalhou)?;
     let mut buffer = [0u8; 16 * 1024];
     loop {
         let lidos = arquivo
             .read(&mut buffer)
-            .map_err(|_| FalhaCache::Gravacao)?;
+            .map_err(|erro| FalhaCache::ArquivoDoCacheInacessivel(erro.kind()))?;
         if lidos == 0 {
             break;
         }
         parcial
             .escrever(buffer.split_at(lidos.min(buffer.len())).0)
-            .map_err(|_| FalhaCache::Gravacao)?;
+            .map_err(FalhaCache::GravacaoPrivadaFalhou)?;
     }
     match parcial.confirmar() {
         Ok(()) => Ok(true),

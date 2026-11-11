@@ -68,12 +68,14 @@ fn arquivo_de_configuracao() -> Option<PathBuf> {
 #[error("{self:?}")]
 pub enum ErroGravacaoDaConfiguracao {
     CaminhoPrivadoAusenteOuNaoAbsoluto,
+    /// O sistema não consultou o arquivo privado (o motivo do sistema).
     #[cfg(unix)]
-    ArquivoPrivadoNaoLido,
+    ArquivoPrivadoNaoLido(std::io::ErrorKind),
     #[cfg(unix)]
     PermissoesDeArquivoPrivadoInseguras,
     ConfiguracaoDeveTerCaminhoAbsoluto,
-    ConfiguracaoNaoSerializada,
+    /// A serialização falhou (a categoria do erro de `serde_json`).
+    ConfiguracaoNaoSerializada(serde_json::error::Category),
     ConfiguracaoNaoGravada,
     ConfiguracaoJaExisteOuSemPermissao,
 }
@@ -91,7 +93,7 @@ pub fn salvar_arquivos_de_acesso(
     for path in campos {
         use std::os::unix::fs::PermissionsExt;
         let perms = std::fs::metadata(path)
-            .map_err(|_| ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido)?
+            .map_err(|erro| ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(erro.kind()))?
             .permissions();
         if perms.mode() & 0o077 != 0 {
             return Err(ErroGravacaoDaConfiguracao::PermissoesDeArquivoPrivadoInseguras);
@@ -106,13 +108,14 @@ pub fn salvar_arquivos_de_acesso(
         origem: arquivos.origem.clone(),
     };
     let data = serde_json::to_vec_pretty(&config)
-        .map_err(|_| ErroGravacaoDaConfiguracao::ConfiguracaoNaoSerializada)?;
+        .map_err(|erro| ErroGravacaoDaConfiguracao::ConfiguracaoNaoSerializada(erro.classify()))?;
     // Gravação privada única (#211): arquivo novo 0600, sem link no
     // destino, em diretório fechado a outros, publicado inteiro ou não.
     arquivo_privado::gravar(destino, &data, Politica::exclusiva().diretorio_do_ies()).map_err(
         |falha| match falha {
             FalhaDaGravacao::EscritaFalhou
-            | FalhaDaGravacao::ConfirmacaoFalhou
+            | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+            | FalhaDaGravacao::ConfirmacaoFalhou(_)
             | FalhaDaGravacao::AcimaDoLimite => ErroGravacaoDaConfiguracao::ConfiguracaoNaoGravada,
             #[cfg(unix)]
             FalhaDaGravacao::DiretorioGravavelPorOutros => {
@@ -120,6 +123,7 @@ pub fn salvar_arquivos_de_acesso(
             }
             FalhaDaGravacao::SemNomeDeArquivo
             | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioNaoConsultado(_)
             | FalhaDaGravacao::DestinoJaExiste
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::CriacaoFalhou(_)
@@ -145,8 +149,13 @@ enum FalhaConfiguracaoLocal {
     // Só construída na conferência de permissões Unix.
     #[cfg(unix)]
     PermissoesAbertas,
-    LeituraFalhou,
-    JsonInvalido,
+    /// Só Unix: o caminho passou a apontar para outro arquivo (inode ou
+    /// dispositivo) entre a abertura e a conferência.
+    #[cfg(unix)]
+    ArquivoTrocadoDuranteALeitura,
+    /// Erro do sistema ao abrir, consultar ou ler o arquivo (o motivo).
+    ErroDeIoNaLeitura(std::io::ErrorKind),
+    JsonInvalido(serde_json::error::Category),
     CampoInvalido,
 }
 
@@ -155,15 +164,20 @@ impl From<FalhaConfiguracaoLocal> for ErroConfiguracao {
         match causa {
             FalhaConfiguracaoLocal::LinkSimbolico => Self::ArquivoConfiguracaoLinkSimbolico,
             #[cfg(unix)]
-            #[cfg(unix)]
             FalhaConfiguracaoLocal::PermissoesAbertas => Self::ArquivoConfiguracaoPermissoesAbertas,
-            FalhaConfiguracaoLocal::JsonInvalido => Self::ArquivoConfiguracaoJsonInvalido,
+            FalhaConfiguracaoLocal::JsonInvalido(_) => Self::ArquivoConfiguracaoJsonInvalido,
             FalhaConfiguracaoLocal::CampoInvalido => Self::ArquivoConfiguracaoCampoInvalido,
             FalhaConfiguracaoLocal::Ausente
             | FalhaConfiguracaoLocal::MetadadosNaoLidos
             | FalhaConfiguracaoLocal::NaoRegular
             | FalhaConfiguracaoLocal::AcimaDoLimite
-            | FalhaConfiguracaoLocal::LeituraFalhou => Self::ArquivoDeConfiguracaoNaoPodeSerLido,
+            | FalhaConfiguracaoLocal::ErroDeIoNaLeitura(_) => {
+                Self::ArquivoDeConfiguracaoNaoPodeSerLido
+            }
+            #[cfg(unix)]
+            FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura => {
+                Self::ArquivoDeConfiguracaoNaoPodeSerLido
+            }
         }
     }
 }
@@ -198,12 +212,13 @@ fn ler_configuracao_local(
     }
     // Validar também o descritor aberto e reler a entrada: não aceitar
     // troca de arquivo/symlink entre a inspeção do caminho e a abertura.
-    let arquivo = std::fs::File::open(path).map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
+    let arquivo = std::fs::File::open(path)
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
     let aberto = arquivo
         .metadata()
-        .map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
-    let no_caminho =
-        std::fs::symlink_metadata(path).map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
+    let no_caminho = std::fs::symlink_metadata(path)
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
     if no_caminho.file_type().is_symlink() {
         return Err(FalhaConfiguracaoLocal::LinkSimbolico);
     }
@@ -218,7 +233,7 @@ fn ler_configuracao_local(
             || no_caminho.ino() != aberto.ino()
             || no_caminho.dev() != aberto.dev()
         {
-            return Err(FalhaConfiguracaoLocal::LeituraFalhou);
+            return Err(FalhaConfiguracaoLocal::ArquivoTrocadoDuranteALeitura);
         }
         if aberto.permissions().mode() & 0o077 != 0 {
             return Err(FalhaConfiguracaoLocal::PermissoesAbertas);
@@ -228,12 +243,12 @@ fn ler_configuracao_local(
     arquivo
         .take(8_193)
         .read_to_end(&mut raw)
-        .map_err(|_| FalhaConfiguracaoLocal::LeituraFalhou)?;
+        .map_err(|erro| FalhaConfiguracaoLocal::ErroDeIoNaLeitura(erro.kind()))?;
     if raw.len() > 8_192 {
         return Err(FalhaConfiguracaoLocal::AcimaDoLimite);
     }
-    let json: serde_json::Value =
-        serde_json::from_slice(&raw).map_err(|_| FalhaConfiguracaoLocal::JsonInvalido)?;
+    let json: serde_json::Value = serde_json::from_slice(&raw)
+        .map_err(|erro| FalhaConfiguracaoLocal::JsonInvalido(erro.classify()))?;
     let objeto = json
         .as_object()
         .ok_or(FalhaConfiguracaoLocal::CampoInvalido)?;

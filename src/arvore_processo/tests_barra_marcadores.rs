@@ -81,12 +81,12 @@ fn link_repetido_de_outro_processo_ou_fora_da_regra_e_recusa() {
 #[test]
 fn barra_fora_da_forma_ou_repetida_e_recusa() {
     let fora = base().replace("Nos[0].acoes = '';", "Nos[0].acoes = montar();");
-    assert_eq!(
+    assert!(matches!(
         ler(&fora),
         Err(crate::marcadores_processo::ErroMarcadores::Barra(
-            crate::arvore_processo::ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada
+            crate::arvore_processo::ErroBarraDoProcesso::LinhaDaBarraIlegivel(_)
         ))
-    );
+    ));
     let repetida = com_acoes(&[gerenciar("10")]).replacen(
         "Nos[0].src = '';",
         "Nos[0].acoes = '';\nNos[0].src = '';",

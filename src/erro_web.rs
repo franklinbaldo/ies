@@ -84,6 +84,8 @@ pub enum ErroCaixa {
     HashesDeCriteriosGeradosRepetidosNoControle,
     HashesDeCriteriosRecebidosRepetidosNoControle,
     HtmlDaCaixaInvalido,
+    /// `tl` recusou o HTML da caixa; a causa fica no `source`.
+    HtmlDaCaixaRecusadoPeloParser(#[source] tl::ParseError),
     AtributoDaCaixaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     IdentificacoesDaUnidadeRepetidasNoControle,
     TiposDeVisualizacaoRepetidosNoControle,
@@ -123,6 +125,7 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
+            | Self::HtmlDaCaixaRecusadoPeloParser(_)
             | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle
@@ -161,6 +164,7 @@ impl ErroCaixa {
             | Self::HashesDeCriteriosGeradosRepetidosNoControle
             | Self::HashesDeCriteriosRecebidosRepetidosNoControle
             | Self::HtmlDaCaixaInvalido
+            | Self::HtmlDaCaixaRecusadoPeloParser(_)
             | Self::AtributoDaCaixaIlegivel(_)
             | Self::IdentificacoesDaUnidadeRepetidasNoControle
             | Self::TiposDeVisualizacaoRepetidosNoControle

@@ -38,7 +38,7 @@ pub(crate) struct PdfLocal {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, thiserror::Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaPdf {
     Ausente,
@@ -49,6 +49,9 @@ pub(crate) enum FalhaPdf {
     NomeInvalido,
     Conteudo,
     AcimaDoLimite,
+    /// O sistema recusou consultar, abrir ou ler o arquivo (motivo do sistema).
+    ArquivoIlegivel(ErrorKind),
+    /// A soma dos bytes lidos não cabe em `u64`: leitura impossível.
     Leitura,
     AlteradoDuranteLeitura,
     DivergenteDaPrevia,
@@ -101,26 +104,32 @@ fn inspecionar_pdf_com_acao(
         .map(|(pdf, _)| pdf)
 }
 
-fn inspecionar_pdf_com_arquivo(
-    caminho: &Path,
-    limite_observado: Option<u64>,
-    entre_metadata_e_leitura: impl FnOnce(),
-) -> Result<(PdfLocal, fs::File), FalhaPdf> {
-    // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
+/// Recusa links simbólicos em qualquer nível do caminho, antes de abrir o arquivo.
+fn conferir_ancestrais(caminho: &Path) -> Result<(), FalhaPdf> {
     for parte in caminho.ancestors().filter(|p| !p.as_os_str().is_empty()) {
         let info = fs::symlink_metadata(parte).map_err(|erro| {
             if erro.kind() == ErrorKind::NotFound {
                 FalhaPdf::Ausente
             } else {
-                FalhaPdf::Leitura
+                FalhaPdf::ArquivoIlegivel(erro.kind())
             }
         })?;
         if info.file_type().is_symlink() {
             return Err(FalhaPdf::LinkSimbolico);
         }
     }
+    Ok(())
+}
+
+fn inspecionar_pdf_com_arquivo(
+    caminho: &Path,
+    limite_observado: Option<u64>,
+    entre_metadata_e_leitura: impl FnOnce(),
+) -> Result<(PdfLocal, fs::File), FalhaPdf> {
+    // A recusa acontece antes de ler qualquer arquivo de sessão ou enviar HTTP.
+    conferir_ancestrais(caminho)?;
     if !fs::symlink_metadata(caminho)
-        .map_err(|_| FalhaPdf::Leitura)?
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?
         .is_file()
     {
         return Err(FalhaPdf::NaoRegular);
@@ -149,8 +158,12 @@ fn inspecionar_pdf_com_arquivo(
         // Mesmo O_NOFOLLOW/O_NONBLOCK da leitura privada do transporte.
         abertura.custom_flags(0o400_000 | 0o4_000);
     }
-    let mut arquivo = abertura.open(caminho).map_err(|_| FalhaPdf::Leitura)?;
-    let antes = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    let mut arquivo = abertura
+        .open(caminho)
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
+    let antes = arquivo
+        .metadata()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     if !antes.is_file() {
         return Err(FalhaPdf::NaoRegular);
     }
@@ -170,7 +183,9 @@ fn inspecionar_pdf_com_arquivo(
     let mut total = somar_lidos(0, inicio.len())?;
     let mut bloco = [0_u8; 8 * 1024];
     loop {
-        let lidos = arquivo.read(&mut bloco).map_err(|_| FalhaPdf::Leitura)?;
+        let lidos = arquivo
+            .read(&mut bloco)
+            .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
         if lidos == 0 {
             break;
         }
@@ -182,7 +197,9 @@ fn inspecionar_pdf_com_arquivo(
     }
     // Conferir o mesmo descritor após o hash: tamanho igual não prova
     // imutabilidade, pois outro processo pode regravar bytes no meio da leitura.
-    let depois = arquivo.metadata().map_err(|_| FalhaPdf::Leitura)?;
+    let depois = arquivo
+        .metadata()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     let alterado = total != antes.len()
         || depois.len() != antes.len()
         || matches!((antes.modified(), depois.modified()), (Ok(a), Ok(b)) if a != b);
@@ -194,7 +211,9 @@ fn inspecionar_pdf_com_arquivo(
     if alterado {
         return Err(FalhaPdf::AlteradoDuranteLeitura);
     }
-    arquivo.rewind().map_err(|_| FalhaPdf::Leitura)?;
+    arquivo
+        .rewind()
+        .map_err(|erro| FalhaPdf::ArquivoIlegivel(erro.kind()))?;
     Ok((
         PdfLocal {
             nome: nome.to_owned(),

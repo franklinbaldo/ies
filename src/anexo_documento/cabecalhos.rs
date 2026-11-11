@@ -36,7 +36,7 @@ pub(super) fn e_texto(mime: &str) -> bool {
 }
 
 /// O `Content-Disposition` fora do subconjunto observado da RFC 6266.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDisposicao {
     AspasSemFechamento,
@@ -46,8 +46,10 @@ pub(crate) enum ErroDisposicao {
     NomeSimplesForaDaForma,
     NomeEstendidoSemCharsetOuIdioma,
     PercentualInvalidoNoNomeEstendido,
+    /// O par hexadecimal não cabe num byte.
+    ByteDoPercentualNaoRepresentavel(#[source] std::num::TryFromIntError),
     CharsetDoNomeEstendidoNaoAceito,
-    NomeEstendidoUtf8Invalido,
+    NomeEstendidoUtf8Invalido(#[source] std::string::FromUtf8Error),
 }
 
 /// Disposição e nome original saneado.
@@ -158,14 +160,14 @@ fn estendido_rfc5987(valor: &str) -> Result<String, ErroDisposicao> {
             };
             bytes.push(
                 u8::try_from(alto * 16 + baixo)
-                    .map_err(|_| ErroDisposicao::PercentualInvalidoNoNomeEstendido)?,
+                    .map_err(ErroDisposicao::ByteDoPercentualNaoRepresentavel)?,
             );
         } else {
             bytes.push(b);
         }
     }
     match charset.to_ascii_lowercase().as_str() {
-        "utf-8" => String::from_utf8(bytes).map_err(|_| ErroDisposicao::NomeEstendidoUtf8Invalido),
+        "utf-8" => String::from_utf8(bytes).map_err(ErroDisposicao::NomeEstendidoUtf8Invalido),
         "iso-8859-1" => Ok(bytes.into_iter().map(char::from).collect()),
         _ => Err(ErroDisposicao::CharsetDoNomeEstendidoNaoAceito),
     }

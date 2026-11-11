@@ -33,10 +33,10 @@ const CONSULTAR: OperacaoDeFormulario = OperacaoDeFormulario {
 /// O navegador nao transmite botao sem name. A forma sintética mais antiga
 /// serve um submit nomeado: nesse caso, seu par entra no corpo.
 fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut nomeados = 0;
     let mut sem_nome = 0;
     for tag in form
@@ -64,7 +64,7 @@ fn envio_da_lupa(html: &str) -> Result<EnvioDoFormulario, FalhaDaLupa> {
             continue;
         }
         if crate::html_atributos::atributo_presente(tag, "disabled")
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?
+            .map_err(FalhaDaLupa::Atributo)?
         {
             continue;
         }
@@ -110,10 +110,10 @@ pub(super) fn consulta(
     // campos de formulário ausentes; a identidade e o paginador da página
     // são conferidos estruturalmente antes de derivar o único POST.
     let lida = super::ler_pagina(html).map_err(FalhaDaLupa::Tela)?;
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
     let form = crate::formulario_web::localizar_formulario(&dom, "frmUnidadeLista")
-        .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        .map_err(FalhaDaLupa::FormularioAusente)?;
     let mut superior = 0;
     let mut inferior = 0;
     for no in form
@@ -149,7 +149,7 @@ pub(super) fn consulta(
         campos.push(("selInfraPaginacaoInferior", indice.as_str()));
     }
     derivar_submissao(&operacao, instalacao, &tela, "", &campos)
-        .map_err(|_| FalhaDaLupa::FormularioInesperado)
+        .map_err(FalhaDaLupa::SubmissaoNaoDerivada)
 }
 
 #[cfg(test)]

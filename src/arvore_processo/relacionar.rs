@@ -5,7 +5,7 @@ use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRelacionarNaBarra {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),

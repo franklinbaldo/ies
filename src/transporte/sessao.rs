@@ -142,7 +142,7 @@ fn marcador(url_file: &Path) -> Result<Option<String>, FalhaTransporte> {
     caminho.push(".geracao");
     match arquivo_privado(Path::new(&caminho), 4_096) {
         Ok(texto) => Ok(Some(texto)),
-        Err(FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
+        Err(FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)) => Ok(None),
         Err(falha) => Err(falha),
     }
 }

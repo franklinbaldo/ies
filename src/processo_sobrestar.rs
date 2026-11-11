@@ -101,6 +101,8 @@ pub(crate) enum ErroSobrestamento {
     EnderecoDeRetomar(#[from] ErroEnderecoDeRetomar),
     EscritaNaoAplicada,
     NaoConfirmado,
+    /// A releitura após a escrita falhou; a escrita pode ter ocorrido.
+    NaoConfirmadoNaReleitura(#[source] ErroProcessoObter),
 }
 
 /// Prévia sem escrita. A URL assinada só vive dentro do fluxo de confirmação.

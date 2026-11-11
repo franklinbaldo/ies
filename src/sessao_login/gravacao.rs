@@ -42,7 +42,7 @@ impl TravaDoLogin {
         let caminho = caminho_ao_lado(url_controle, ".lock");
         let arquivo = abrir_privado(OpenOptions::new().write(true).create(true))
             .open(&caminho)
-            .map_err(|_| ErroLogin::ArquivoDeLockDoLoginInacessivel)?;
+            .map_err(|erro| ErroLogin::ArquivoDeLockDoLoginInacessivel(erro.kind()))?;
         let limite = Instant::now() + espera;
         loop {
             match arquivo.try_lock() {
@@ -53,8 +53,8 @@ impl TravaDoLogin {
                 Err(std::fs::TryLockError::WouldBlock) => {
                     return Err(ErroLogin::LoginEmAndamentoEmOutroProcesso);
                 }
-                Err(std::fs::TryLockError::Error(_)) => {
-                    return Err(ErroLogin::ArquivoDeLockDoLoginInacessivel);
+                Err(std::fs::TryLockError::Error(erro)) => {
+                    return Err(ErroLogin::ArquivoDeLockDoLoginInacessivel(erro.kind()));
                 }
             }
         }
@@ -119,7 +119,7 @@ fn ler_marcador(arquivos: &ArquivosDeAcesso) -> Result<Option<Marcador>, ErroMar
                 coluna: erro.column(),
             }
         }),
-        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel) => Ok(None),
+        Err(crate::transporte::FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)) => Ok(None),
         Err(falha) => Err(ErroMarcadorDaSessao::Ilegivel(falha)),
     }
 }
@@ -163,16 +163,18 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         }
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroLogin::GravacaoDaSessaoFalhou(papel),
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroLogin::GravacaoDaSessaoFalhou(papel),
     }
 }
 
@@ -224,8 +226,8 @@ pub(crate) fn regravar_url_do_controle(
         papel,
     )];
     if let Some(m) = marcador {
-        let json =
-            serde_json::to_string(&m).map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(papel))?;
+        let json = serde_json::to_string(&m)
+            .map_err(|erro| ErroLogin::SerializacaoDaSessaoFalhou(papel, erro.classify()))?;
         parciais.push((
             preparar(&geracao_caminho, &format!("{json}\n"), papel)?,
             papel,
@@ -253,8 +255,9 @@ pub(crate) fn gravar(
         cookie_sha256: sha256(cookie),
         url_controle_sha256: sha256(url),
     };
-    let json = serde_json::to_string(&marcador)
-        .map_err(|_| ErroLogin::GravacaoDaSessaoFalhou(ArquivoPrivado::UrlControle))?;
+    let json = serde_json::to_string(&marcador).map_err(|erro| {
+        ErroLogin::SerializacaoDaSessaoFalhou(ArquivoPrivado::UrlControle, erro.classify())
+    })?;
     let destinos = [
         (
             &arquivos.cookie,

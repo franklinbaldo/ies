@@ -23,8 +23,9 @@ pub(crate) enum ErroDasAnotacoes {
 #[error("{self:?}")]
 pub(crate) enum ErroLeituraDaAnotacao {
     TelaDeAnotacoesNaoInterpretada,
+    ParseDaTelaDeAnotacoesFalhou(#[source] tl::ParseError),
     TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
-    FormularioDeAnotacoesAusente,
+    FormularioDeAnotacoesAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     AnotacaoDeOutroProcesso,
     AnotacaoNaoPublicada,
     CamposDeAnotacaoRepetidos,
@@ -73,9 +74,9 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeitura
     use crate::html_atributos::valor_do_atributo;
 
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada)?;
+        .map_err(ErroLeituraDaAnotacao::ParseDaTelaDeAnotacoesFalhou)?;
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
-        .map_err(|_| ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
+        .map_err(ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
     let parser = dom.parser();
     let valor = |tag: &tl::HTMLTag<'_>,
                  nome: &'static str|

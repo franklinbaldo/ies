@@ -251,34 +251,58 @@ fn destino_fora_da_forma_e_recusa() {
     let href = href_do_destino(ID_DESTINO, "31");
     let com_href = |h: &str| arvore_com_movido("10", NUP, &html_do_movido(h, NUP_DESTINO));
     let com_texto = |t: &str| arvore_com_movido("10", NUP, &html_do_movido(&href, t));
+    let erro_forma = super::ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
+    let recusa = super::ErroArvore::EnderecoDoDestinoMovidoRecusado(
+        crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+    );
     let fora = [
-        com_href(&href_do_destino(ID_DESTINO, "32")),
-        com_href(&href_do_destino("10", "31")),
-        com_href(&href_do_destino("8a", "31")),
-        com_href(&href.replace("&id_documento=31", "")),
-        com_href(&href.replace("&id_documento=31", "&id_documento=31&id_documento=31")),
-        com_href(&href.replace(
-            &format!("id_procedimento={ID_DESTINO}"),
-            &format!("id_procedimento={ID_DESTINO}&id_procedimento={ID_DESTINO}"),
-        )),
-        com_href(&href.replace(
-            "acao=procedimento_trabalhar",
-            "acao=procedimento_visualizar",
-        )),
-        com_href(&href.replace(&"6".repeat(64), "6")),
-        com_href(&format!("{href}&id_procedimento_anexado=10")),
-        com_href(&format!("https://outro.exemplo/{href}")),
-        com_texto(""),
-        com_texto(" 00008.000008/2026-08"),
-        com_texto(NUP),
-        com_texto("<b>00008.000008/2026-08</b>"),
+        (
+            com_href(&href_do_destino(ID_DESTINO, "32")),
+            erro_forma.clone(),
+        ),
+        (com_href(&href_do_destino("10", "31")), erro_forma.clone()),
+        (com_href(&href_do_destino("8a", "31")), erro_forma.clone()),
+        (
+            com_href(&href.replace("&id_documento=31", "")),
+            erro_forma.clone(),
+        ),
+        (
+            com_href(&href.replace("&id_documento=31", "&id_documento=31&id_documento=31")),
+            erro_forma.clone(),
+        ),
+        (
+            com_href(&href.replace(
+                &format!("id_procedimento={ID_DESTINO}"),
+                &format!("id_procedimento={ID_DESTINO}&id_procedimento={ID_DESTINO}"),
+            )),
+            erro_forma.clone(),
+        ),
+        (
+            com_href(&href.replace(
+                "acao=procedimento_trabalhar",
+                "acao=procedimento_visualizar",
+            )),
+            recusa.clone(),
+        ),
+        (
+            com_href(&href.replace(&"6".repeat(64), "6")),
+            recusa.clone(),
+        ),
+        (
+            com_href(&format!("{href}&id_procedimento_anexado=10")),
+            erro_forma.clone(),
+        ),
+        (
+            com_href(&format!("https://outro.exemplo/{href}")),
+            recusa.clone(),
+        ),
+        (com_texto(""), erro_forma.clone()),
+        (com_texto(" 00008.000008/2026-08"), erro_forma.clone()),
+        (com_texto(NUP), erro_forma.clone()),
+        (com_texto("<b>00008.000008/2026-08</b>"), erro_forma.clone()),
     ];
-    for html in fora {
-        assert_eq!(
-            ler_tudo(&html),
-            Err(super::ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada),
-            "{html}"
-        );
+    for (html, esperado) in fora {
+        assert_eq!(ler_tudo(&html), Err(esperado), "{html}");
     }
     let link = html_do_movido(&href, NUP_DESTINO);
     let dois_links = arvore_com_movido("10", NUP, &format!("{link}{link}"));

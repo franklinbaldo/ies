@@ -52,7 +52,7 @@ impl LeituraDetalhada {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDetalhada {
     VisualizacaoIncorreta,
@@ -60,7 +60,7 @@ pub(crate) enum ErroDetalhada {
     UnidadeDiferente,
     ContextoDiferente,
     ColunasDaLinhaDiferentes,
-    ClassesDeEstadoDiferentesNoLink,
+    ClassesDeEstadoDiferentesNoLink(crate::classe_link_processo::ClassesDeEstadoDiferentesNoLink),
     TotalNaoDeclarado,
     FaixaSemIntervaloComPaginacao,
     FaixaDescontinua,
@@ -75,9 +75,15 @@ pub(crate) enum ErroDetalhada {
     CabecalhoProcessoDetalhadoRepetido,
     ColunaDaVisaoDetalhadaRepetida,
     FaixaDetalhadaInvalida,
-    HtmlDetalhadoNaoInterpretado,
+    HtmlDetalhadoNaoInterpretado(#[source] tl::ParseError),
     AtributoDaDetalhadaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
-    IdentificadorDetalhadoInvalido,
+    /// O total declarado na página não é um inteiro decimal.
+    TotalNaoNumerico(#[source] std::num::ParseIntError),
+    /// Um número da faixa exibida não é um inteiro decimal.
+    NumeroDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    /// O controle da página recusou o HTML recebido.
+    ControleDaPaginaNaoInterpretado(#[source] crate::erro_web::ErroCaixa),
+    IdentificadorDetalhadoInvalido(#[source] crate::erro_web::ErroCaixa),
     IdentificadorDetalhadoRepetido,
     ItensNaoPrevistosNaCelulaDetalhada,
     LegendaDetalhadaAusente,
@@ -86,7 +92,7 @@ pub(crate) enum ErroDetalhada {
     LinksDoProcessoDetalhadoRepetidos,
     MarcadorDaCelulaDetalhadaForaDaFormaObservada,
     NumeroDetalhadoRepetido,
-    NumeroDoProcessoDetalhadoAusente,
+    NumeroDoProcessoDetalhadoAusente(#[source] crate::processo::NumeroProcessoInvalido),
     TabelaDetalhadaAusente,
     TabelasDetalhadasRepetidas,
 }
@@ -151,7 +157,7 @@ fn faixa(
     let total = bruto
         .replace('.', "")
         .parse::<usize>()
-        .map_err(|_| ErroDetalhada::TotalNaoDeclarado)?;
+        .map_err(ErroDetalhada::TotalNaoNumerico)?;
     let Some((_, intervalo)) = restante.split_once(" - ") else {
         if paginacao_visivel {
             return Err(ErroDetalhada::FaixaSemIntervaloComPaginacao);
@@ -163,13 +169,13 @@ fn faixa(
         .ok_or(ErroDetalhada::FaixaDetalhadaInvalida)?;
     let inicio = inicio
         .parse::<usize>()
-        .map_err(|_| ErroDetalhada::FaixaDetalhadaInvalida)?;
+        .map_err(ErroDetalhada::NumeroDaFaixaIlegivel)?;
     let fim = fim
         .chars()
         .take_while(char::is_ascii_digit)
         .collect::<String>()
         .parse::<usize>()
-        .map_err(|_| ErroDetalhada::FaixaDetalhadaInvalida)?;
+        .map_err(ErroDetalhada::NumeroDaFaixaIlegivel)?;
     if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
         return Err(ErroDetalhada::FaixaDetalhadaInvalida);
     }
@@ -216,7 +222,7 @@ fn ler_linha(
     let Some(id) = id.strip_prefix('P') else {
         return Ok(None);
     };
-    let id = IdProcedimento::novo(id).map_err(|_| ErroDetalhada::IdentificadorDetalhadoInvalido)?;
+    let id = IdProcedimento::novo(id).map_err(ErroDetalhada::IdentificadorDetalhadoInvalido)?;
     let celulas: Vec<_> = tag
         .children()
         .top()
@@ -261,9 +267,9 @@ fn ler_linha(
         }
         let classe = atributo(link, "class")?.unwrap_or_default();
         let estado = crate::classe_link_processo::estado_do_link(&classe)
-            .map_err(|_| ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
+            .map_err(ErroDetalhada::ClassesDeEstadoDiferentesNoLink)?;
         let numero = NumeroProcesso::novo(&link.inner_text(parser))
-            .map_err(|_| ErroDetalhada::NumeroDoProcessoDetalhadoAusente)?;
+            .map_err(ErroDetalhada::NumeroDoProcessoDetalhadoAusente)?;
         escolhido = Some((
             ProcessoDetalhado {
                 id: id.clone(),
@@ -283,7 +289,7 @@ fn ler_linha(
 
 fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     let contexto =
-        contexto_da_pagina(html).map_err(|_| ErroDetalhada::HtmlDetalhadoNaoInterpretado)?;
+        contexto_da_pagina(html).map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?;
     if !contexto.eh_detalhada() {
         return Err(ErroDetalhada::VisualizacaoIncorreta);
     }
@@ -291,7 +297,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         return Err(ErroDetalhada::UnidadeNaoIdentificada);
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroDetalhada::HtmlDetalhadoNaoInterpretado)?;
+        .map_err(ErroDetalhada::HtmlDetalhadoNaoInterpretado)?;
     let parser = dom.parser();
     let tabelas = nos_com_id(&dom, "tblProcessosDetalhado")
         .map_err(ErroDetalhada::AtributoDaDetalhadaIlegivel)?;
@@ -348,9 +354,9 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
     // Marcadores de paginação sem faixa explícita não demonstram cobertura.
     let paginacao_visivel = indice_oculto_alem_da_primeira(&dom, parser)?
         || crate::paginacao_controle::controles_de_paginacao(html)
-            .map_err(|_| ErroDetalhada::HtmlDetalhadoNaoInterpretado)?
+            .map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?
         || crate::paginacao_controle::paginador_com_prefixo(html, "Detalhado")
-            .map_err(|_| ErroDetalhada::HtmlDetalhadoNaoInterpretado)?;
+            .map_err(ErroDetalhada::ControleDaPaginaNaoInterpretado)?;
     let (total, inicio, fim) = faixa(&texto(legenda, parser), processos.len(), paginacao_visivel)?;
     Ok(Pagina {
         contexto,

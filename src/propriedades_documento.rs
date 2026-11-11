@@ -44,22 +44,26 @@ pub(crate) enum Nivel {
 
 /// O cadastro do documento (barra, formulário, anexo) fora da forma observada:
 /// um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedadesDocumento {
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `EnderecoDoConteudo::do_cadastro` recusou o link do anexo.
-    LinkAnexoCadastroInvalido,
+    LinkAnexoCadastroInvalido(#[source] crate::arvore_processo::ErroConteudoNaArvore),
     AnexoDoCadastroDivergente,
-    BarraCadastroDocumentoIlegivel,
+    BarraCadastroDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
+    /// O parser HTML recusou a barra do documento.
+    BarraDoCadastroRecusadaPeloParser(#[source] tl::ParseError),
+    /// O parser HTML recusou a página do cadastro.
+    HtmlDoCadastroNaoInterpretado(#[source] tl::ParseError),
     CadastroDocumentoIlegivel,
     CampoCadastroDocumentoAusente,
     CampoCadastroDocumentoRepetido,
     FormularioCadastroDocumentoAusente,
     FormulariosCadastroDocumentoRepetidos,
     IdentidadeCadastroDocumentoDivergente,
-    LinkCadastroDocumentoInvalido,
+    LinkCadastroDocumentoInvalido(crate::arvore_processo::endereco::EnderecoRecusado),
     LinksAnexoCadastroRepetidos,
     LinksCadastroDocumentoRepetidos,
     NivelCadastroDocumentoInesperado,
@@ -84,8 +88,7 @@ fn campo<'p>(
     parser: &'p tl::Parser<'p>,
     id: &str,
 ) -> Result<Tag<'p>, ErroPropriedadesDocumento> {
-    let nos = nos_com_id_em(form, parser, id)
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+    let nos = nos_com_id_em(form, parser, id).map_err(ErroPropriedadesDocumento::Atributo)?;
     match nos.as_slice() {
         [unico] => unico
             .get(parser)
@@ -137,12 +140,12 @@ pub(crate) fn ler_link(
     processo: &str,
 ) -> Result<Option<LinkDoCadastro>, ErroPropriedadesDocumento> {
     let Some(barra) = barra_do_no(arvore, documento)
-        .map_err(|_| ErroPropriedadesDocumento::BarraCadastroDocumentoIlegivel)?
+        .map_err(ErroPropriedadesDocumento::BarraCadastroDocumentoIlegivel)?
     else {
         return Ok(None);
     };
     let dom = tl::parse(&barra, tl::ParserOptions::default())
-        .map_err(|_| ErroPropriedadesDocumento::BarraCadastroDocumentoIlegivel)?;
+        .map_err(ErroPropriedadesDocumento::BarraDoCadastroRecusadaPeloParser)?;
     let mut encontrado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
         let Some(tag) = no.get(dom.parser()).and_then(tl::Node::as_tag) else {
@@ -166,10 +169,10 @@ pub(crate) fn ler_link(
             continue;
         };
         conferir_endereco_relativo_por(instalacao, &href, fonte, "id_procedimento", processo)
-            .map_err(|_| ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
+            .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         let url =
             conferir_endereco_relativo_por(instalacao, &href, fonte, "id_documento", documento)
-                .map_err(|_| ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
+                .map_err(ErroPropriedadesDocumento::LinkCadastroDocumentoInvalido)?;
         if encontrado.replace(LinkDoCadastro { url, fonte }).is_some() {
             return Err(ErroPropriedadesDocumento::LinksCadastroDocumentoRepetidos);
         }
@@ -183,10 +186,10 @@ pub(crate) fn ler_formulario(
     processo: &str,
 ) -> Result<PropriedadesLidas, ErroPropriedadesDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+        .map_err(ErroPropriedadesDocumento::HtmlDoCadastroNaoInterpretado)?;
     let parser = dom.parser();
-    let nos = nos_com_id(&dom, "frmDocumentoCadastro")
-        .map_err(|_| ErroPropriedadesDocumento::CadastroDocumentoIlegivel)?;
+    let nos =
+        nos_com_id(&dom, "frmDocumentoCadastro").map_err(ErroPropriedadesDocumento::Atributo)?;
     let form = match nos.as_slice() {
         [unico] => unico
             .get(parser)

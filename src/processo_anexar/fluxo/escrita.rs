@@ -108,10 +108,10 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
             ));
         }
     }
-    let (depois, _) = obter_tela(rede, cookie, link)
-        .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?;
+    let (depois, _) =
+        obter_tela(rede, cookie, link).map_err(FalhaAnexar::NaoConfirmadoNaListaAposPost)?;
     let lista = ler_tela(&depois)
-        .map_err(|_| FalhaAnexar::NaoConfirmado(EtapaNaoComprovada::ListaAposPost))?
+        .map_err(FalhaAnexar::NaoConfirmadoNaTelaDaListaAposPost)?
         .anexados;
     if !lista.contains(&destino.id) || !anteriores.iter().all(|id| lista.contains(id)) {
         return Err(FalhaAnexar::NaoConfirmado(

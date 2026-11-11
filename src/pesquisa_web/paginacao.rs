@@ -30,7 +30,7 @@ pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoD
 };
 
 /// um erro por fato verificável da paginação da pesquisa.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPaginacaoDaPesquisa {
     /// O tokenizador de atributos recusou a tag.
@@ -47,6 +47,12 @@ pub(crate) enum ErroPaginacaoDaPesquisa {
     TotalDaPesquisaAlteradoAposPaginar,
     FaixaDaPesquisaDiferenteDaPaginaSolicitada,
     HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado,
+    /// O parser HTML recusou a tela de resultado.
+    TelaDeResultadoRecusadaPeloParser(#[source] tl::ParseError),
+    /// O formulário de paginação não foi localizado na tela de resultado.
+    FormularioDaPesquisaNaoLocalizadoNaTela(
+        #[source] crate::formulario_web::ErroSubmissaoFormulario,
+    ),
     LinkDePaginacaoDaPesquisaForaDaRegra,
 }
 
@@ -161,8 +167,9 @@ fn conferir_links_de_navegar(
     tamanho: u64,
     total: u64,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
+    let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroPaginacaoDaPesquisa::TelaDeResultadoRecusadaPeloParser)?;
     let parser = dom.parser();
     let mut publicados = 0;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -174,7 +181,7 @@ fn conferir_links_de_navegar(
         else {
             continue;
         };
-        let href = decodificar_atributo(&bruto).ok_or(ilegivel)?;
+        let href = decodificar_atributo(&bruto).ok_or_else(ilegivel)?;
         let Some(resto) = href.strip_prefix("javascript:navegar(") else {
             continue;
         };
@@ -201,11 +208,12 @@ pub(crate) fn conferir_protocolo_servido(
     html: &str,
     protocolo: &str,
 ) -> Result<(), ErroPaginacaoDaPesquisa> {
-    let ilegivel = ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
+    let ilegivel = || ErroPaginacaoDaPesquisa::HtmlDaTelaDeResultadoDaPesquisaNaoInterpretado;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroPaginacaoDaPesquisa::TelaDeResultadoRecusadaPeloParser)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, PAGINAR_PESQUISA_DE_PROTOCOLO.formulario)
-        .map_err(|_| ilegivel)?;
+        .map_err(ErroPaginacaoDaPesquisa::FormularioDaPesquisaNaoLocalizadoNaTela)?;
     let mut servidos = Vec::new();
     for tag in form
         .children()
@@ -221,7 +229,7 @@ pub(crate) fn conferir_protocolo_servido(
         {
             let bruto =
                 valor_do_atributo(tag, "value").map_err(ErroPaginacaoDaPesquisa::Atributo)?;
-            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ilegivel)?);
+            servidos.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or_else(ilegivel)?);
         }
     }
     if servidos != [protocolo] {

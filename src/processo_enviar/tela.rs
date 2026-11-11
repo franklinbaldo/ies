@@ -123,10 +123,10 @@ pub(crate) struct TelaDeEnvio {
 /// duas linhas do script.
 pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDeEnvio::TelaDeEnvioNaoInterpretada)?;
+        .map_err(ErroTelaDeEnvio::ParseDaTelaDeEnvioFalhou)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
-        .map_err(|_| ErroTelaDeEnvio::FormularioDeEnvioAusente)?;
+        .map_err(ErroTelaDeEnvio::FormularioDeEnvioAusente)?;
     let mut preenchida = false;
     let mut remover_anotacoes_oferecida = false;
     let mut textos = Vec::new();

@@ -219,7 +219,7 @@ pub(super) fn conferir_formulario(
 ) -> Result<(), ErroCancelar> {
     use crate::arvore_processo::endereco::conferir_endereco_relativo_por;
     let dom = tl::parse(tela.html, tl::ParserOptions::default())
-        .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
+        .map_err(ErroCancelar::HtmlDoFormularioNaoInterpretado)?;
     let form = localizar_formulario(&dom, CANCELAR.formulario).map_err(ErroCancelar::Formulario)?;
     let action = valor_do_atributo(form, "action")
         .map_err(|f| ErroCancelar::Formulario(ErroSubmissaoFormulario::AtributoHtml(f)))?
@@ -233,7 +233,7 @@ pub(super) fn conferir_formulario(
         "id_procedimento",
         processo,
     )
-    .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
+    .map_err(ErroCancelar::EnderecoDoProcessoRecusado)?;
     conferir_endereco_relativo_por(
         instalacao,
         &action,
@@ -241,7 +241,7 @@ pub(super) fn conferir_formulario(
         "id_documento",
         documento,
     )
-    .map_err(|_| ErroCancelar::FormularioDeOutroDocumento)?;
+    .map_err(ErroCancelar::EnderecoDoDocumentoRecusado)?;
     let mut motivos = 0;
     for tag in form
         .children()

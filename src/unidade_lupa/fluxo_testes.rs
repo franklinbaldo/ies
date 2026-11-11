@@ -162,7 +162,7 @@ fn filtro_restaurado_pelo_sei_nao_vira_lista_integral() {
             "PHPSESSID=SINTETICO",
         )
         .err(),
-        Some(FalhaDaLupa::FormularioInesperado),
+        Some(FalhaDaLupa::Tela(ErroLupa::PaginaInvalida)),
     );
     assert_eq!(
         (rede.gets, rede.posts),
@@ -313,7 +313,7 @@ fn filtro_adulterado_na_ultima_das_274_paginas_aborta_sem_retry() {
             "PHPSESSID=SINTETICO",
         )
         .err(),
-        Some(FalhaDaLupa::FormularioInesperado),
+        Some(FalhaDaLupa::Tela(ErroLupa::PaginaInvalida)),
         "falha fechada: nenhuma lista parcial deve ser devolvida para persistencia"
     );
     assert_eq!(roteiro.navegacao.gets, 4);
@@ -340,7 +340,7 @@ fn falha_de_filtro_publica_cinco_tentativas_sem_post_repetido() {
             &mut requisicoes,
         )
         .err(),
-        Some(FalhaDaLupa::FormularioInesperado),
+        Some(FalhaDaLupa::Tela(ErroLupa::PaginaInvalida)),
     );
     assert_eq!(requisicoes, 5, "4 GET + 1 POST, mesmo na recusa");
     assert_eq!((rede.gets, rede.posts), (4, 1));
@@ -360,7 +360,7 @@ fn falha_tardia_na_pagina_final_conta_todas_as_tentativas() {
             &mut requisicoes,
         )
         .err(),
-        Some(FalhaDaLupa::FormularioInesperado),
+        Some(FalhaDaLupa::Tela(ErroLupa::PaginaInvalida)),
     );
     assert_eq!(requisicoes, 4 + PAGINAS_GO_SINTETICAS);
     assert_eq!((roteiro.navegacao.gets, roteiro.posts), (4, 274));

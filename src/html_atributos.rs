@@ -29,6 +29,8 @@ pub(crate) enum ErroAtributoHtml {
     ValorEntreAspasSemFechamento,
     /// O atributo pedido aparece mais de uma vez na mesma tag.
     AtributoRepetidoNaTag { atributo: &'static str },
+    /// Os bytes da fonte da tag não são UTF-8 válido.
+    FonteDaTagNaoEhUtf8(#[source] std::str::Utf8Error),
 }
 
 /// Atributos na ordem da fonte, com nomes em minúsculas ASCII e valores
@@ -120,8 +122,8 @@ pub(super) fn eh_espaco_html(c: char) -> bool {
 pub(crate) fn atributos<'t>(
     tag: &'t tl::HTMLTag<'_>,
 ) -> Result<AtributosDaTag<'t>, ErroAtributoHtml> {
-    let fonte = std::str::from_utf8(tag.raw().as_bytes())
-        .map_err(|_| ErroAtributoHtml::InicioDaTagDeAberturaAusente)?;
+    let fonte =
+        std::str::from_utf8(tag.raw().as_bytes()).map_err(ErroAtributoHtml::FonteDaTagNaoEhUtf8)?;
     tokenizar_tag_de_abertura(fonte)
 }
 

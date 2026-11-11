@@ -245,30 +245,61 @@ fn localizacao_do_salto_fora_da_forma_ou_de_outra_unidade_e_recusada() {
         url_do_salto(&localizacao_limpa("https", ID_C), &post, ID_B),
         Err(super::FalhaDepoisDoEnvio::LocalizacaoDeOutraUnidade)
     );
-    for ruim in [
-        limpa.replace(HOST, "outro.exemplo.gov.br"),
-        limpa.replace("/sei/", "/outra/"),
-        limpa.replace(HOST, &format!("{HOST}:8443")),
-        limpa.replace("acao=procedimento_controlar", "acao=infra_trocar_unidade"),
-        limpa.replace(
-            "acao=procedimento_controlar",
-            "acao=procedimento_controlar&acao=x",
+    let forma = super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada;
+    let consulta = super::FalhaDepoisDoEnvio::ConsultaDaLocalizacaoForaDaForma(
+        super::tela::ConsultaForaDaForma,
+    );
+    for (ruim, esperado) in [
+        (limpa.replace(HOST, "outro.exemplo.gov.br"), forma.clone()),
+        (limpa.replace("/sei/", "/outra/"), forma.clone()),
+        (limpa.replace(HOST, &format!("{HOST}:8443")), forma.clone()),
+        (
+            limpa.replace("acao=procedimento_controlar", "acao=infra_trocar_unidade"),
+            consulta.clone(),
         ),
-        limpa.replace("&infra_hash=", "&acao_ajax=1&infra_hash="),
-        limpa.replace(&hash('9', 192), &hash('9', 100)),
-        limpa.replace("&infra_unidade_atual=110000002", ""),
-        limpa.replace(
-            "infra_sistema",
-            "infra_sistema=1&infra_unidade_atual=110000002&x",
+        (
+            limpa.replace(
+                "acao=procedimento_controlar",
+                "acao=procedimento_controlar&acao=x",
+            ),
+            consulta.clone(),
         ),
-        limpa.replace("infra_sistema=100000100", "infra_sistema=1;2"),
-        limpa.replace("acao=", "ação="),
-        limpa.replace("procedimento_controlar", "procedimento_controlar#x"),
-        "ftp://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar".to_owned(),
+        (
+            limpa.replace("&infra_hash=", "&acao_ajax=1&infra_hash="),
+            consulta.clone(),
+        ),
+        (
+            limpa.replace(&hash('9', 192), &hash('9', 100)),
+            consulta.clone(),
+        ),
+        (
+            limpa.replace("&infra_unidade_atual=110000002", ""),
+            forma.clone(),
+        ),
+        (
+            limpa.replace(
+                "infra_sistema",
+                "infra_sistema=1&infra_unidade_atual=110000002&x",
+            ),
+            consulta.clone(),
+        ),
+        (
+            limpa.replace("infra_sistema=100000100", "infra_sistema=1;2"),
+            consulta,
+        ),
+        (limpa.replace("acao=", "ação="), forma.clone()),
+        (
+            limpa.replace("procedimento_controlar", "procedimento_controlar#x"),
+            forma.clone(),
+        ),
+        (
+            "ftp://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar".to_owned(),
+            forma,
+        ),
     ] {
         assert_eq!(
             url_do_salto(&ruim, &post, ID_B).map(|_| ()),
-            Err(super::FalhaDepoisDoEnvio::LocalizacaoForaDaFormaObservada),
+            Err(esperado),
             "{ruim}"
         );
     }

@@ -32,16 +32,24 @@ fn texto(tag: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
 }
 
 /// A tela de detalhe do bloco fora da forma observada: um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBlocoDetalhe {
     CabecalhoDoBlocoInvalido,
     FaixaDoBlocoInvalida,
-    HtmlDoBlocoIlegivel,
+    HtmlDoBlocoIlegivel(#[source] tl::ParseError),
     LegendaDoBlocoInvalida,
     LinhaDoBlocoInvalida,
     TabelaDoBlocoAusente,
     TabelasDoBlocoRepetidas,
+    /// O total da legenda não é um inteiro decimal que caiba em `usize`.
+    TotalDaLegendaIlegivel(#[source] std::num::ParseIntError),
+    /// O primeiro número da faixa não é um inteiro decimal que caiba em `usize`.
+    InicioDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    /// O último número da faixa não é um inteiro decimal que caiba em `usize`.
+    FimDaFaixaIlegivel(#[source] std::num::ParseIntError),
+    /// `nos_com_id` recusou a tag do bloco.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlocoDetalhe> {
@@ -55,20 +63,20 @@ fn faixa(legenda: &str, linhas: usize) -> Result<(usize, Option<Faixa>), ErroBlo
         .trim_start_matches('(')
         .replace('.', "")
         .parse::<usize>()
-        .map_err(|_| ErroBlocoDetalhe::LegendaDoBlocoInvalida)?;
+        .map_err(ErroBlocoDetalhe::TotalDaLegendaIlegivel)?;
     if let Some((_, r)) = resto.split_once(" - ") {
         let (de, ate) = r
             .split_once(" a ")
             .ok_or(ErroBlocoDetalhe::FaixaDoBlocoInvalida)?;
         let de = de
             .parse::<usize>()
-            .map_err(|_| ErroBlocoDetalhe::FaixaDoBlocoInvalida)?;
+            .map_err(ErroBlocoDetalhe::InicioDaFaixaIlegivel)?;
         let ate = ate
             .chars()
             .take_while(char::is_ascii_digit)
             .collect::<String>()
             .parse::<usize>()
-            .map_err(|_| ErroBlocoDetalhe::FaixaDoBlocoInvalida)?;
+            .map_err(ErroBlocoDetalhe::FimDaFaixaIlegivel)?;
         if de == 0 || ate < de || ate > total || ate - de + 1 != linhas {
             return Err(ErroBlocoDetalhe::FaixaDoBlocoInvalida);
         }
@@ -158,10 +166,9 @@ pub(crate) fn ler_detalhe(
     estado: &str,
 ) -> Result<BlocoDetalhado, ErroBlocoDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroBlocoDetalhe::HtmlDoBlocoIlegivel)?;
+        .map_err(ErroBlocoDetalhe::HtmlDoBlocoIlegivel)?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblProtocolosBlocos")
-        .map_err(|_| ErroBlocoDetalhe::HtmlDoBlocoIlegivel)?;
+    let tabelas = nos_com_id(&dom, "tblProtocolosBlocos").map_err(ErroBlocoDetalhe::Atributo)?;
     let tabela = match tabelas.as_slice() {
         [] => return Err(ErroBlocoDetalhe::TabelaDoBlocoAusente),
         [no] => no

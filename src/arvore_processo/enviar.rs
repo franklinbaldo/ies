@@ -11,7 +11,7 @@ use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
 /// Recusas da leitura da barra (só pesam quando se pede para enviar).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviarNaBarra {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),

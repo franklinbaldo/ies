@@ -211,6 +211,9 @@ fn detalhada_recusa_classes_de_estado_diferentes_no_link() {
         "processoNaoVisualizado processoNaoVisualizadoSigiloso",
     ] {
         let erro = com_classe(classe).unwrap_err();
-        assert_eq!(erro, ErroDetalhada::ClassesDeEstadoDiferentesNoLink);
+        assert!(matches!(
+            erro,
+            ErroDetalhada::ClassesDeEstadoDiferentesNoLink(_)
+        ));
     }
 }

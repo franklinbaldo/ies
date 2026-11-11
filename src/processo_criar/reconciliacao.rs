@@ -24,6 +24,7 @@ pub(crate) enum ErroFotografia {
     IdentidadeAnteriorAusente,
     LinkDoCandidatoNaoComprovado,
     LinksDoCandidatoRepetidos,
+    HtmlDoControleNaoAnalisavel(#[source] tl::ParseError),
 }
 
 impl FotografiaDosGerados {

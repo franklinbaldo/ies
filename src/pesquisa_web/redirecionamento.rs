@@ -3,13 +3,14 @@
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
 use crate::dominio::IdProcedimento;
+use crate::erro_web::ErroCaixa;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoAusente,
@@ -17,13 +18,15 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     LocalizacaoDoRedirecionamentoNaoEhUrlHttps,
     LocalizacaoDoRedirecionamentoForaDaInstalacao,
     ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+    /// Chave ou valor de consulta recusado pelo transporte.
+    ParametroDeConsultaRecusadoNoRedirecionamento(#[source] FalhaTransporte),
     RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar,
     AcaoDeOrigemAusenteNoRedirecionamento,
     AcaoDeOrigemRepetidaNoRedirecionamento,
     AcaoDeOrigemDoRedirecionamentoDiferenteDaPesquisa,
     IdProcedimentoAusenteNoRedirecionamento,
     IdProcedimentoRepetidoNoRedirecionamento,
-    IdProcedimentoNaoDecimalNoRedirecionamento,
+    IdProcedimentoNaoDecimalNoRedirecionamento(#[source] ErroCaixa),
     InfraHashAusenteNoRedirecionamento,
     InfraHashRepetidoNoRedirecionamento,
     InfraHashForaDoFormatoNoRedirecionamento,
@@ -50,6 +53,8 @@ pub(crate) enum ErroRedirecionamentoDaPesquisa {
     IdDocumentoAusenteNoRedirecionamento,
     IdDocumentoRepetidoNoRedirecionamento,
     IdDocumentoNaoDecimalNoRedirecionamento,
+    /// O `id_documento` do 302 recusado pelo tipo de id (não decimal).
+    IdDocumentoRecusadoNoRedirecionamento(#[source] ErroCaixa),
 }
 
 /// URL absoluta de `procedimento_trabalhar` já conferida (mesma instalação,
@@ -180,12 +185,14 @@ fn parametros(consulta: &str) -> Result<Vec<(&str, &str)>, ErroRedirecionamentoD
     consulta
         .split('&')
         .map(|item| {
-            let (nome, valor) = item
-                .split_once('=')
-                .ok_or(ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento)?;
+            let (nome, valor) = item.split_once('=').ok_or(
+                ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+            )?;
             conferir_chave_de_consulta(nome)
                 .and_then(|()| conferir_valor_de_consulta(valor))
-                .map_err(|_| ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento)?;
+                .map_err(
+                    ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento,
+                )?;
             Ok((nome, valor))
         })
         .collect()
@@ -284,10 +291,9 @@ pub(crate) fn conferir_trabalho(
             return Err(ErroRedirecionamentoDaPesquisa::IdProcedimentoAusenteNoRedirecionamento);
         }
         [id] if documento => IdProcedimento::novo(id)
-            .map_err(|_| ErroRedirecionamentoDaPesquisa::IdDocumentoNaoDecimalNoRedirecionamento)?,
-        [id] => IdProcedimento::novo(id).map_err(|_| {
-            ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento
-        })?,
+            .map_err(ErroRedirecionamentoDaPesquisa::IdDocumentoRecusadoNoRedirecionamento)?,
+        [id] => IdProcedimento::novo(id)
+            .map_err(ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento)?,
         _ if documento => {
             return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRepetidoNoRedirecionamento);
         }

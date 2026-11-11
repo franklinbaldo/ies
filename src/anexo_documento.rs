@@ -134,16 +134,18 @@ impl ArquivoParcial {
             FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
             FalhaDaGravacao::SemNomeDeArquivo
             | FalhaDaGravacao::DiretorioAusente
+            | FalhaDaGravacao::DiretorioNaoConsultado(_)
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::AcimaDoLimite
             | FalhaDaGravacao::CriacaoFalhou(_)
             | FalhaDaGravacao::EscritaFalhou
+            | FalhaDaGravacao::ErroDeIoNaEscrita(_)
             | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
             | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
             | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
             | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
             | FalhaDaGravacao::NomesDeTemporarioEsgotados
-            | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+            | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
         })
     }
 }
@@ -170,6 +172,12 @@ pub(crate) enum ErroAnexo {
     DiretorioAusente,
     ArquivoJaExiste,
     EscritaFalhou,
+    /// A gravação do parcial no disco falhou; a causa é a da gravação.
+    GravacaoDoParcialFalhou(#[source] FalhaDaGravacao),
+    /// A publicação do parcial no cache falhou.
+    PublicacaoDoCacheFalhou(#[source] crate::cache_documento::FalhaCache),
+    /// O corpo de texto não decodifica como UTF-8 no charset declarado.
+    CorpoNaoUtf8NoCharsetDeclarado(#[source] std::string::FromUtf8Error),
 }
 
 impl ErroAnexo {
@@ -190,7 +198,10 @@ impl ErroAnexo {
             | Self::Corpo(_)
             | Self::DiretorioAusente
             | Self::ArquivoJaExiste
-            | Self::EscritaFalhou => false,
+            | Self::EscritaFalhou
+            | Self::GravacaoDoParcialFalhou(_)
+            | Self::PublicacaoDoCacheFalhou(_)
+            | Self::CorpoNaoUtf8NoCharsetDeclarado(_) => false,
         }
     }
 }
@@ -205,16 +216,18 @@ fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
         FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::EscritaFalhou
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
     }
 }
 
@@ -303,7 +316,7 @@ pub(crate) fn ler_anexo<R: Read>(
         aberto
             .parcial
             .sincronizar()
-            .map_err(|_| ErroAnexo::EscritaFalhou)?;
+            .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     }
     let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
@@ -365,7 +378,7 @@ fn publicar_cache(
             hash,
             extensao,
         )
-        .map_err(|_| ErroAnexo::EscritaFalhou)?;
+        .map_err(ErroAnexo::PublicacaoDoCacheFalhou)?;
     }
     Ok(())
 }
@@ -451,6 +464,7 @@ fn abrir_parcial(
     let parcial = Parcial::abrir(&dir.join(&nome), politica).map_err(|falha| match falha {
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
@@ -464,7 +478,8 @@ fn abrir_parcial(
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroAnexo::EscritaFalhou,
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroAnexo::EscritaFalhou,
     })?;
     Ok(ArquivoParcial { parcial, nome })
 }
@@ -483,7 +498,7 @@ fn abrir_parcial_cache(
             .criando_diretorios()
             .com_limite(conferido.limite),
     )
-    .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     Ok(ArquivoParcial { parcial, nome })
 }
 
@@ -514,9 +529,7 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
     let texto = if latin1 {
         bytes.iter().copied().map(char::from).collect()
     } else {
-        String::from_utf8(bytes.to_vec()).map_err(|_| {
-            ErroAnexo::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
-        })?
+        String::from_utf8(bytes.to_vec()).map_err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado)?
     };
     if mime == "text/html" {
         return crate::documento_web::texto_do_corpo(&texto).map_err(ErroAnexo::Corpo);

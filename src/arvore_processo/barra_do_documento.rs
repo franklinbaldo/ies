@@ -48,9 +48,12 @@ pub(crate) struct BarraDoDocumento {
     pub(crate) edicao: EdicaoNaBarra,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroBarraDoDocumento {
+    ParseDaBarraDoDocumentoFalhou(#[source] tl::ParseError),
+    ParseDaBarraDaCienciaFalhou(#[source] tl::ParseError),
+    LinhaDaBarraDoDocumentoIlegivel(#[source] super::ErroArvore),
     BarrasRepetidasNaArvore,
     AtributoDeLinkDaBarra(#[source] ErroAtributoHtml),
     EnderecoDasVersoesDeOutroDocumento,
@@ -77,7 +80,7 @@ pub(crate) fn ler_barra_do_documento(
         return Ok(nada);
     };
     let dom = tl::parse(&texto, tl::ParserOptions::default())
-        .map_err(|_| ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada)?;
+        .map_err(ErroBarraDoDocumento::ParseDaBarraDoDocumentoFalhou)?;
     let parser = dom.parser();
     let (mut links, mut edicoes) = (Vec::new(), Vec::new());
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -179,8 +182,8 @@ pub(crate) fn barra_do_no(html: &str, id: &str) -> Result<Option<String>, ErroBa
         if indice_da_barra(linha) != Some(indice) || concatenacao_vazia_da_barra(linha).is_some() {
             continue;
         }
-        let Some((_, lido)) = ler_barra(linha)
-            .map_err(|_| ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada)?
+        let Some((_, lido)) =
+            ler_barra(linha).map_err(ErroBarraDoDocumento::LinhaDaBarraDoDocumentoIlegivel)?
         else {
             return Err(ErroBarraDoDocumento::BarraDoDocumentoForaDaFormaObservada);
         };

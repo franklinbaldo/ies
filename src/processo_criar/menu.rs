@@ -7,13 +7,15 @@ use crate::instalacao::Instalacao;
 use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// O menu do Controle fora da forma observada.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMenu {
     LinkDeIniciarProcessoAusente,
     LinkDeIniciarProcessoNaoReconhecido,
     AtributoDoLinkDeIniciarIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     LinkDeIniciarProcessoRepetido,
+    HtmlDoMenuNaoAnalisavel(#[source] tl::ParseError),
+    ConsultaDoLinkRecusada(#[source] crate::transporte::FalhaTransporte),
 }
 
 /// O href literal do menu; apenas o padrão relativo demonstrado pelo SEI.
@@ -23,8 +25,8 @@ pub(crate) fn link_de_iniciar(
     url_controle: &str,
     html: &str,
 ) -> Result<String, ErroMenu> {
-    let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
+    let dom =
+        tl::parse(html, tl::ParserOptions::default()).map_err(ErroMenu::HtmlDoMenuNaoAnalisavel)?;
     let parser = dom.parser();
     let mut candidatos = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -74,10 +76,8 @@ pub(crate) fn link_de_iniciar(
         let (chave, valor) = par
             .split_once('=')
             .ok_or(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
-        conferir_chave_de_consulta(chave)
-            .map_err(|_| ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
-        conferir_valor_de_consulta(valor)
-            .map_err(|_| ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
+        conferir_chave_de_consulta(chave).map_err(ErroMenu::ConsultaDoLinkRecusada)?;
+        conferir_valor_de_consulta(valor).map_err(ErroMenu::ConsultaDoLinkRecusada)?;
         match chave {
             "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoEscolherTipo) => {
                 acoes += 1;
