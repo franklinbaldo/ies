@@ -34,7 +34,9 @@ fn cargo_unico_e_o_da_tela_mesmo_sem_selected() {
 fn recusas_da_tela() {
     let padrao = tela_padrao();
     let casos = [
-        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), super::erro::ErroTelaDeAssinatura::FormularioDeAssinaturaAusente),
+        (padrao.replace("frmAssinaturas\" method", "frmOutro\" method"), super::erro::ErroTelaDeAssinatura::FormularioDeAssinaturaAusente(
+            crate::formulario_web::ErroSubmissaoFormulario::FormularioAusenteNaTela
+        )),
         (padrao.clone(), super::erro::ErroTelaDeAssinatura::TelaDeAssinaturaDeOutroDocumento),
         (
             padrao.replace("<input type=\"hidden\" id=\"hdnIdBlocos\"", "<input type=\"text\" name=\"txtExtra\" value=\"\" /><input type=\"hidden\" id=\"hdnIdBlocos\""),
@@ -65,7 +67,7 @@ fn recusas_da_tela() {
         let id = if i == 1 { "22" } else { ID_DOC };
         assert_eq!(
             conferir_tela_de_assinatura(html, id),
-            Err(*erro),
+            Err(erro.clone()),
             "caso {i}"
         );
     }

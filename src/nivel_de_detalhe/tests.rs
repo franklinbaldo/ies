@@ -141,7 +141,9 @@ fn opcoes_faltando_repetidas_extras_ou_com_rotulo_trocado_sao_recusadas() {
     );
     assert_eq!(
         ler_nivel_de_detalhe("<html><form id='x'></form></html>"),
-        Err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)
+        Err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente(
+            crate::formulario_web::ErroSubmissaoFormulario::FormularioAusenteNaTela
+        ))
     );
     let dois = format!("{base}{base}");
     assert_eq!(

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub(crate) const FORMULARIO_DO_NIVEL_DE_DETALHE: &str = "frmAcessoExternoCancelar";
 
 /// um erro por fato verificável da tela de configuração.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroNivelDeDetalhe {
     AcaoDoFormularioDoNivelDeDetalheDiferente,
@@ -25,9 +25,9 @@ pub(crate) enum ErroNivelDeDetalhe {
     },
     AtributoHtml(#[from] ErroAtributoHtml),
     CampoNaoPrevistoNoFormularioDoNivelDeDetalhe,
-    FormularioDoNivelDeDetalheAusente,
+    FormularioDoNivelDeDetalheAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     FormulariosDoNivelDeDetalheRepetidos,
-    HtmlDoNivelDeDetalheNaoInterpretado,
+    HtmlDoNivelDeDetalheNaoInterpretado(#[source] tl::ParseError),
     OpcaoDoNivelDeDetalheNaoPrevista,
 }
 
@@ -50,10 +50,10 @@ pub(crate) fn texto_colapsado(texto: &str) -> String {
 
 /// `action` com exatamente um `acao=procedimento_configurar_detalhe`.
 fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
-    let diferente = E::AcaoDoFormularioDoNivelDeDetalheDiferente;
-    let bruto = atributo(form, "action")?.ok_or(diferente)?;
-    let acao = decodificar_atributo(&bruto).ok_or(diferente)?;
-    let (_, consulta) = acao.split_once('?').ok_or(diferente)?;
+    let diferente = || E::AcaoDoFormularioDoNivelDeDetalheDiferente;
+    let bruto = atributo(form, "action")?.ok_or_else(diferente)?;
+    let acao = decodificar_atributo(&bruto).ok_or_else(diferente)?;
+    let (_, consulta) = acao.split_once('?').ok_or_else(diferente)?;
     let acoes: Vec<_> = consulta
         .split('&')
         .filter_map(|par| par.strip_prefix("acao="))
@@ -61,7 +61,7 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
     if acoes == [AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url()] {
         Ok(())
     } else {
-        Err(diferente)
+        Err(diferente())
     }
 }
 
@@ -70,7 +70,7 @@ fn conferir_acao(form: &tl::HTMLTag<'_>) -> Result<(), E> {
 /// Prioridade); caixa `chkSin*` fora do catálogo é recusa.
 pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNivelDeDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
+        .map_err(ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
     let parser = dom.parser();
     let form =
         localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE).map_err(|erro| match erro {
@@ -78,7 +78,7 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
                 E::FormulariosDoNivelDeDetalheRepetidos
             }
             ErroSubmissaoFormulario::AtributoHtml(falha) => E::AtributoHtml(falha),
-            ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+            outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
             | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
             | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
             | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
@@ -105,8 +105,9 @@ pub(crate) fn ler_nivel_de_detalhe(html: &str) -> Result<NivelDeDetalhe, ErroNiv
             | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
             | ErroSubmissaoFormulario::FormularioAusenteNaTela
             | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
-            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela => {
-                E::FormularioDoNivelDeDetalheAusente
+            | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela(_)
+            | ErroSubmissaoFormulario::HtmlDaTelaNaoInterpretado(_)) => {
+                E::FormularioDoNivelDeDetalheAusente(outro)
             }
         })?;
     conferir_acao(form)?;

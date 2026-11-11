@@ -24,6 +24,12 @@ pub(crate) enum FalhaDaLupa {
     LinkForaDaInstalacao,
     CharsetInesperado,
     FormularioInesperado,
+    /// O parser de HTML recusou a página recebida.
+    HtmlNaoInterpretado(#[source] tl::ParseError),
+    /// O formulário da lupa não foi localizado na página.
+    FormularioAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
+    /// A submissão do formulário da lupa não pôde ser derivada.
+    SubmissaoNaoDerivada(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     ExcessoDePaginas,
 }
 
@@ -210,7 +216,7 @@ fn literais_do_script(script: &str) -> Vec<String> {
 /// estático de script da tela de cadastro, sem executar JavaScript.
 pub(super) fn candidatos(html: &str, acao: AcaoDoSei) -> Result<Vec<String>, FalhaDaLupa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| FalhaDaLupa::Tela(ErroLupa::HtmlInesperado))?;
+        .map_err(|e| FalhaDaLupa::Tela(ErroLupa::HtmlNaoInterpretado(e)))?;
     let parser = dom.parser();
     let mut urls = Vec::new();
     for seletor in ["a", "button", "input"] {
@@ -283,10 +289,10 @@ pub(super) fn destino(
 
 fn botao_novo(html: &str, url: &str, origem: &str) -> Result<String, FalhaDaLupa> {
     let dom =
-        tl::parse(html, tl::ParserOptions::default()).map_err(|_| FalhaDaLupa::LinkAusente)?;
+        tl::parse(html, tl::ParserOptions::default()).map_err(FalhaDaLupa::HtmlNaoInterpretado)?;
     let parser = dom.parser();
     let achados =
-        crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(|_| FalhaDaLupa::LinkAmbiguo)?;
+        crate::html_atributos::nos_com_id(&dom, "btnNovo").map_err(FalhaDaLupa::Atributo)?;
     if achados.is_empty() {
         return Err(FalhaDaLupa::LinkAusente);
     }
@@ -377,8 +383,7 @@ pub(crate) fn ler_integral_com_contador<T: TransporteLupa>(
             .map_err(FalhaDaLupa::Transporte)?;
         mime.clone_from(&resposta.resposta.mime);
         html = decodificar_resposta(resposta.resposta).map_err(FalhaDaLupa::Transporte)?;
-        super::conferir_filtros_de_lista_integral(&html)
-            .map_err(|_| FalhaDaLupa::FormularioInesperado)?;
+        super::conferir_filtros_de_lista_integral(&html).map_err(FalhaDaLupa::Tela)?;
         let lida = ler_pagina(&html).map_err(FalhaDaLupa::Tela)?;
         if lida.pagina != pagina || (!lidas.is_empty() && lida.paginas != total_paginas) {
             return Err(FalhaDaLupa::Tela(ErroLupa::PaginasDivergentes));

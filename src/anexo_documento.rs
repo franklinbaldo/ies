@@ -169,6 +169,12 @@ pub(crate) enum ErroAnexo {
     DiretorioAusente,
     ArquivoJaExiste,
     EscritaFalhou,
+    /// A gravação do parcial no disco falhou; a causa é a da gravação.
+    GravacaoDoParcialFalhou(#[source] FalhaDaGravacao),
+    /// A publicação do parcial no cache falhou.
+    PublicacaoDoCacheFalhou(#[source] crate::cache_documento::FalhaCache),
+    /// O corpo de texto não decodifica como UTF-8 no charset declarado.
+    CorpoNaoUtf8NoCharsetDeclarado(#[source] std::string::FromUtf8Error),
 }
 
 impl ErroAnexo {
@@ -189,7 +195,10 @@ impl ErroAnexo {
             | Self::Corpo(_)
             | Self::DiretorioAusente
             | Self::ArquivoJaExiste
-            | Self::EscritaFalhou => false,
+            | Self::EscritaFalhou
+            | Self::GravacaoDoParcialFalhou(_)
+            | Self::PublicacaoDoCacheFalhou(_)
+            | Self::CorpoNaoUtf8NoCharsetDeclarado(_) => false,
         }
     }
 }
@@ -301,7 +310,7 @@ pub(crate) fn ler_anexo<R: Read>(
         aberto
             .parcial
             .sincronizar()
-            .map_err(|_| ErroAnexo::EscritaFalhou)?;
+            .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     }
     let hash = hex::encode(hasher.finalize());
     publicar_cache(&mut arquivo, destino, numero, &hash, conferido.extensao)?;
@@ -363,7 +372,7 @@ fn publicar_cache(
             hash,
             extensao,
         )
-        .map_err(|_| ErroAnexo::EscritaFalhou)?;
+        .map_err(ErroAnexo::PublicacaoDoCacheFalhou)?;
     }
     Ok(())
 }
@@ -480,7 +489,7 @@ fn abrir_parcial_cache(
             .criando_diretorios()
             .com_limite(conferido.limite),
     )
-    .map_err(|_| ErroAnexo::EscritaFalhou)?;
+    .map_err(ErroAnexo::GravacaoDoParcialFalhou)?;
     Ok(ArquivoParcial { parcial, nome })
 }
 
@@ -511,9 +520,7 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
     let texto = if latin1 {
         bytes.iter().copied().map(char::from).collect()
     } else {
-        String::from_utf8(bytes.to_vec()).map_err(|_| {
-            ErroAnexo::Transporte(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
-        })?
+        String::from_utf8(bytes.to_vec()).map_err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado)?
     };
     if mime == "text/html" {
         return crate::documento_web::texto_do_corpo(&texto).map_err(ErroAnexo::Corpo);
