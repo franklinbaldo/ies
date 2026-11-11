@@ -191,4 +191,18 @@ fn replay_de_unidade_trocar_no_acervo() {
         leituras.iter().map(|(o, l, n, r)| (*o, *l, n.as_str(), r)),
     );
     publicar(&s);
+    // Relatório não é aceite: um replay recusado deve falhar no CI.
+    assert_ne!(lidos, 0, "nenhuma cassette de troca de unidade foi lida");
+    assert!(
+        leituras.iter().any(|(_, leitor, _, r)| {
+            *leitor == "Controle da unidade nova" && matches!(r, Resultado::Lido)
+        }),
+        "nenhuma transição gravada terminou em Controle reconhecido"
+    );
+    assert!(
+        leituras
+            .iter()
+            .all(|(_, _, _, r)| !matches!(r, Resultado::Recusado(_))),
+        "leitor da troca recusou respostas originais: consulte a tabela do replay"
+    );
 }
