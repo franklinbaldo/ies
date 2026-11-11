@@ -2,7 +2,6 @@
 //! Um erro por fato; a resposta não esperada da escrita é a
 //! `FalhaDoEnvio` de `processo concluir`, e a verificação, a mesma leitura.
 use crate::arvore_processo::{ErroEnderecoDeReabrir, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
@@ -26,7 +25,7 @@ pub(crate) enum ErroReabrir {
     ReaberturaNaoPublicadaNaBarra {
         aberto_em: Vec<String>,
     },
-    Barra(#[from] ErroHtml),
+    Barra(#[from] crate::arvore_processo::ErroReabrirNaBarra),
     /// O cookie não pôde ser lido antes da tela do nó.
     Cookie(#[from] CookieIlegivel),
     /// GET da tela do nó, antes da escrita.

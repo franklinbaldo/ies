@@ -8,7 +8,6 @@ use crate::arvore_processo::{ErroBlocoNaBarra, ler_bloco_escolher_da_barra};
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{FalhaLeitura, Leitura, ler_tipado_via};
 use crate::documento::NumeroDocumento;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, consulta_do_controlador,
@@ -62,13 +61,14 @@ pub(crate) struct PreviaDocumental {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroIncluir {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Abertura(#[from] ErroDocumentoObter),
     Barra(#[from] ErroBlocoNaBarra),
     /// A barra do documento não oferece "Incluir em Bloco de Assinatura".
     AcaoNaoOferecidaNaBarra,
     Cookie(#[from] CookieIlegivel),
     Tela(#[from] FalhaDaTela),
-    Html(#[from] ErroHtml),
     /// `selBloco` não oferece o bloco pedido.
     BlocoNaoOferecido,
     /// A tela de escolha não lista o documento pedido.
@@ -79,20 +79,27 @@ pub(crate) enum ErroIncluir {
     CharsetNaoSuportado,
     PertencimentoNaoObservado,
     NaoConfirmado,
+    CaixasDeDocumentosAmbiguas,
+    CaixasDoDocumentoPedido,
+    FormularioDeEscolherBlocoAusente,
+    FormulariosDeEscolherBlocoRepetidos,
+    SelecaoDeBlocoAusente,
+    SelecoesDeBlocoRepetidas,
+    TelaDeEscolherBlocoForaDaFormaObservada,
 }
 
-fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroHtml> {
-    let fora = || ErroHtml::valor("tela_de_escolher_bloco_fora_da_forma_observada");
-    let lidos = atributos(tag).map_err(|_| fora())?;
-    match lidos.valor(nome).map_err(|_| fora())? {
+fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroIncluir> {
+    let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
+    let lidos = atributos(tag).map_err(ErroIncluir::Atributo)?;
+    match lidos.valor(nome).map_err(ErroIncluir::Atributo)? {
         Some(bruto) => decodificar_atributo(bruto).map(Some).ok_or_else(fora),
         None => Ok(None),
     }
 }
 
 /// Lê o `frmBlocoEscolher`: um formulário, um `selBloco`.
-pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml> {
-    let fora = || ErroHtml::valor("tela_de_escolher_bloco_fora_da_forma_observada");
+pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroIncluir> {
+    let fora = || ErroIncluir::TelaDeEscolherBlocoForaDaFormaObservada;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora())?;
     let parser = dom.parser();
     let tags = |seletor: &str| -> Vec<&tl::HTMLTag<'_>> {
@@ -104,19 +111,17 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
     };
     let formularios = tags("form#frmBlocoEscolher");
     match formularios.len() {
-        0 => return Err(ErroHtml::ausente("formulario_de_escolher_bloco_ausente")),
+        0 => return Err(ErroIncluir::FormularioDeEscolherBlocoAusente),
         1 => {}
         _ => {
-            return Err(ErroHtml::repetido(
-                "formularios_de_escolher_bloco_repetidos",
-            ));
+            return Err(ErroIncluir::FormulariosDeEscolherBlocoRepetidos);
         }
     }
     let selecoes = tags("select#selBloco");
     let selecao = match selecoes.as_slice() {
-        [] => return Err(ErroHtml::ausente("selecao_de_bloco_ausente")),
+        [] => return Err(ErroIncluir::SelecaoDeBlocoAusente),
         [selecao] => *selecao,
-        _ => return Err(ErroHtml::repetido("selecoes_de_bloco_repetidas")),
+        _ => return Err(ErroIncluir::SelecoesDeBlocoRepetidas),
     };
     let mut blocos = Vec::new();
     for filho in selecao.children().all(parser) {
@@ -156,7 +161,7 @@ pub(crate) fn ler_tela_de_escolha(html: &str) -> Result<TelaDeEscolha, ErroHtml>
             .iter()
             .any(|d| d.nome == nome || d.id == id || d.numero == numero)
         {
-            return Err(ErroHtml::repetido("caixas_de_documentos_ambiguas"));
+            return Err(ErroIncluir::CaixasDeDocumentosAmbiguas);
         }
         documentos.push(DocumentoOferecido { nome, id, numero });
     }
@@ -240,7 +245,7 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     let mut caixas = tela.documentos.iter().filter(|d| d.numero == aberto.numero);
     let caixa = caixas.next().ok_or(ErroIncluir::DocumentoForaDaTela)?;
     if caixas.next().is_some() {
-        return Err(ErroHtml::repetido("caixas_do_documento_pedido").into());
+        return Err(ErroIncluir::CaixasDoDocumentoPedido);
     }
     if caixa.id != aberto.id_documento {
         return Err(ErroIncluir::DocumentoForaDaTela);

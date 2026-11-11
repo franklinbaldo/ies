@@ -11,8 +11,8 @@
 //! numa linha e o corpo da consulta no `prepararExecucao`, em duas formas
 //! (4.0 sem e 4.1/5.0 com `&unidade_atual=0`).
 use super::Destino;
+use super::erro::ErroTelaDeEnvio;
 use crate::arvore_processo::ACAO_DE_ENVIAR;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, ConsultaAjax, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
@@ -121,15 +121,12 @@ pub(crate) struct TelaDeEnvio {
 /// Confere a tela servida antes de qualquer POST: lista fechada de
 /// controles enviáveis, o processo, nada preenchido, o órgão efetivo e as
 /// duas linhas do script.
-pub(crate) fn conferir_tela_de_envio(
-    html: &str,
-    id: &str,
-) -> Result<TelaDeEnvio, super::erro::ErroTelaDeEnvio> {
+pub(crate) fn conferir_tela_de_envio(html: &str, id: &str) -> Result<TelaDeEnvio, ErroTelaDeEnvio> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("tela_de_envio_nao_interpretada"))?;
+        .map_err(|_| ErroTelaDeEnvio::TelaDeEnvioNaoInterpretada)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ENVIO)
-        .map_err(|_| ErroHtml::ausente("formulario_de_envio_ausente"))?;
+        .map_err(|_| ErroTelaDeEnvio::FormularioDeEnvioAusente)?;
     let mut preenchida = false;
     let mut remover_anotacoes_oferecida = false;
     let mut textos = Vec::new();
@@ -146,7 +143,7 @@ pub(crate) fn conferir_tela_de_envio(
         let elemento = tag.name().as_utf8_str().to_ascii_lowercase();
         if elemento == "option" {
             let valor = decodificado(tag, "value")?
-                .ok_or(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio"))?;
+                .ok_or(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio)?;
             let marcada = presente(tag, "selected")?;
             match selecao.as_deref() {
                 Some(ORGAO) => {
@@ -158,7 +155,7 @@ pub(crate) fn conferir_tela_de_envio(
                 }
                 Some("selUnidades") => preenchida = true,
                 Some(_) => preenchida |= marcada,
-                None => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio").into()),
+                None => return Err(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio),
             }
             continue;
         }
@@ -186,7 +183,7 @@ pub(crate) fn conferir_tela_de_envio(
         let servido = decodificado(tag, "value")?.unwrap_or_default();
         match (elemento.as_str(), tipo.as_str(), nome.as_str()) {
             ("input", "hidden", "hdnIdProtocolos") if servido != id => {
-                return Err(super::erro::ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso);
+                return Err(ErroTelaDeEnvio::TelaDeEnvioDeOutroProcesso);
             }
             ("input", "hidden", "hdnIdUnidade" | UNIDADES)
             | ("input", "text", TEXTO_DA_UNIDADE) => {
@@ -206,17 +203,17 @@ pub(crate) fn conferir_tela_de_envio(
                     textos.push(*texto);
                 }
             }
-            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_envio").into()),
+            _ => return Err(ErroTelaDeEnvio::CampoNaoPrevistoNaTelaDeEnvio),
         }
     }
     if preenchida {
-        return Err(super::erro::ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas);
+        return Err(ErroTelaDeEnvio::TelaDeEnvioComOpcoesPreenchidas);
     }
     // Sem opção marcada, o navegador envia a primeira.
     let orgao = orgao
         .or(orgao_primeira)
         .filter(|valor| valor != "null")
-        .ok_or(super::erro::ErroTelaDeEnvio::OrgaoDaTelaDeEnvioNaoSelecionado)?;
+        .ok_or(ErroTelaDeEnvio::OrgaoDaTelaDeEnvioNaoSelecionado)?;
     let (autocompletar, unidade_atual) = ler_script(html)?;
     Ok(TelaDeEnvio {
         orgao,
@@ -230,7 +227,7 @@ pub(crate) fn conferir_tela_de_envio(
 
 /// A URL do autocomplete de `hdnIdUnidade` e a forma do `prepararExecucao`,
 /// cada uma numa linha exata e única.
-fn ler_script(html: &str) -> Result<(String, bool), super::erro::ErroTelaDeEnvio> {
+fn ler_script(html: &str) -> Result<(String, bool), ErroTelaDeEnvio> {
     let mut urls = Vec::new();
     let mut formas = Vec::new();
     for linha in html.lines().map(str::trim) {
@@ -255,11 +252,11 @@ fn ler_script(html: &str) -> Result<(String, bool), super::erro::ErroTelaDeEnvio
     }
     let url = match urls.as_slice() {
         [Some(url)] => (*url).to_owned(),
-        _ => return Err(super::erro::ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado),
+        _ => return Err(ErroTelaDeEnvio::AutocompletarDeUnidadeNaoDeclarado),
     };
     match formas.as_slice() {
         [Some(unidade_atual)] => Ok((url, *unidade_atual)),
-        _ => Err(ErroHtml::valor("consulta_do_autocompletar_fora_da_forma_observada").into()),
+        _ => Err(ErroTelaDeEnvio::ConsultaDoAutocompletarForaDaFormaObservada),
     }
 }
 
@@ -272,22 +269,18 @@ fn rotulo(opcao: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> String {
         .join(" ")
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, super::erro::ErroTelaDeEnvio> {
-    atributo_presente(tag, nome).map_err(|e| {
-        super::erro::ErroTelaDeEnvio::Html(ErroHtml::atributo("tela_de_envio_nao_interpretada", e))
-    })
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeEnvio> {
+    atributo_presente(tag, nome).map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)
 }
 
 fn decodificado(
     tag: &tl::HTMLTag<'_>,
     nome: &'static str,
-) -> Result<Option<String>, super::erro::ErroTelaDeEnvio> {
+) -> Result<Option<String>, ErroTelaDeEnvio> {
     valor_do_atributo(tag, nome)
-        .map_err(|e| ErroHtml::atributo("tela_de_envio_nao_interpretada", e))?
+        .map_err(ErroTelaDeEnvio::TelaDeEnvioComAtributoIlegivel)?
         .map(|bruto| {
-            decodificar_atributo(&bruto).ok_or(super::erro::ErroTelaDeEnvio::Html(ErroHtml::html(
-                "tela_de_envio_nao_interpretada",
-            )))
+            decodificar_atributo(&bruto).ok_or(ErroTelaDeEnvio::TelaDeEnvioNaoInterpretada)
         })
         .transpose()
 }

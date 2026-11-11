@@ -32,7 +32,7 @@ Nenhuma delas abre sessão ou rede.
 
 ## Recibo temporário — núcleo offline da PR #380
 
-A função Rust `documento_externo_incluir::recibo::interpretar_resposta` reconhece o recibo `nome_upload#nome#tipo#tamanho#data_hora#` observado no Todos/UnB e a recusa explícita `ERRO#motivo`. O formato tem seis campos, com o último vazio. Um recibo só é aceito quando HTTP 200, nome e tamanho conferem com o PDF esperado e não há campo ausente ou adicional; resposta divergente, HTML genérico ou status inesperado vira `FalhaUpload::EfeitoIncerto`, sem autorizar cadastro ou retry. Esta etapa é **somente um interpretador testado com respostas sintéticas**, ainda sem transporte e sem vínculo com a CLI de escrita. Um recibo válido não prova documento criado.
+A função Rust `documento_externo_incluir::recibo::interpretar_resposta` reconhece o recibo `nome_upload#nome#tipo#tamanho#data_hora#` observado no Todos/UnB e a recusa explícita `ERRO#motivo`. O formato tem seis campos, com o último vazio. Um recibo só é aceito quando HTTP 200, nome e tamanho conferem com o PDF esperado e não há campo ausente ou adicional; resposta divergente, HTML genérico ou status inesperado vira `FalhaUpload::NaoConfirmado`, sem autorizar cadastro ou retry. Esta etapa é **somente um interpretador testado com respostas sintéticas**, ainda sem transporte e sem vínculo com a CLI de escrita. Um recibo válido não prova documento criado.
 
 ## Preparação multipart offline — continuação da #380
 

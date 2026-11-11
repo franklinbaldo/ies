@@ -12,6 +12,8 @@ pub(crate) use fluxo::{FalhaDaLupa, HttpsLupa, ler_integral_com_contador};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ErroLupa {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(crate::html_atributos::ErroAtributoHtml),
     HtmlInesperado,
     FormularioAusente,
     TabelaForaDaForma,
@@ -30,7 +32,7 @@ pub(crate) struct PaginaDaLupa {
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroLupa> {
-    let bruto = valor_do_atributo(tag, nome).map_err(|_| ErroLupa::HtmlInesperado)?;
+    let bruto = valor_do_atributo(tag, nome).map_err(ErroLupa::Atributo)?;
     bruto
         .map(|x| decodificar_atributo(&x).ok_or(ErroLupa::HtmlInesperado))
         .transpose()

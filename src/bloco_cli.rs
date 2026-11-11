@@ -4,7 +4,6 @@ use crate::bloco::{self, ErroBloco, TipoBloco};
 use crate::bloco_detalhe::{self};
 use crate::configuracao;
 use crate::controle_reconhecido;
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::pagina_do_controle::codificacao_da_tela;
@@ -19,12 +18,15 @@ mod paginacao;
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaLeitura {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     Transporte(#[from] FalhaTransporte),
     Controle(#[from] ErroCaixa),
     Bloco(#[from] ErroBloco),
-    Detalhe(#[source] ErroHtml),
+    Detalhe(#[source] crate::bloco_detalhe::ErroBlocoDetalhe),
     Submissao(#[from] ErroSubmissaoFormulario),
-    Html(#[source] ErroHtml),
+    UnidadeInesperada,
+    HtmlDeBlocosInvalido,
 }
 /// Lista ou detalhe de bloco, já tipados.
 pub(crate) enum Leitura {
@@ -86,10 +88,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
     if unidade_esperada
         .is_some_and(|v| v.split_whitespace().collect::<Vec<_>>().join(" ") != unidade)
     {
-        return Err(FalhaLeitura::Html(
-            ErroHtml::valor("unidade_inesperada_na_leitura_de_blocos")
-                .com_mensagem("unidade atual diferente da solicitada"),
-        ));
+        return Err(FalhaLeitura::UnidadeInesperada);
     }
     let url_lista = bloco::link_do_menu(&controle.instalacao, &controle.url, &controle.html, tipo)?;
     let cookie = sessao.cookie().valor()?;
@@ -442,13 +441,7 @@ mod tests_fluxo {
         )
         .err()
         .unwrap();
-        assert!(matches!(
-            erro,
-            FalhaLeitura::Html(ErroHtml {
-                onde: "unidade_inesperada_na_leitura_de_blocos",
-                ..
-            })
-        ));
+        assert!(matches!(erro, FalhaLeitura::UnidadeInesperada));
         assert_eq!(envio.urls.len(), 1);
     }
 }

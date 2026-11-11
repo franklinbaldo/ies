@@ -31,20 +31,20 @@ Abertura do processo e histórico (variável conforme índice), mais 1 GET do fo
 
 ## Recusas tipadas próprias
 
-| Erro ou `onde` (stderr) | Quando ocorre |
+| Erro (stderr) | Quando ocorre |
 | --- | --- |
 | `ErroRegistrarAndamento::AcaoNaoOferecida` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
-| `barra_do_andamento_fora_da_forma` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
+| `ErroAndamentoNaBarra::Barra(ErroBarraDoProcesso::BarraDoProcessoForaDaFormaObservada)` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroTela::CampoInesperado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::CharsetNaoSuportado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroTela::ControleAusenteOuDuplicado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::NaoConfirmado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroAndamentoNaBarra::OutroProcesso` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
-| `endereco_de_atualizar_andamento_nao_reconhecido` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
+| `ErroAndamentoNaBarra::EnderecoDeAtualizarAndamentoNaoReconhecido` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroTela::FormularioAusenteOuDuplicado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroTela::ProtocoloDiferente` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::HistoricoNaoPublicado` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
-| `links_de_atualizar_andamento_repetidos` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
+| `ErroAndamentoNaBarra::LinksDeAtualizarAndamentoRepetidos` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela(SessaoEncerrada(..))` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroTela::HtmlInvalido` | Recusa nomeada na operação de andamento; o erro sai no stderr. |
 | `ErroRegistrarAndamento::Tela` | Recusa nomeada na operação de andamento; o erro sai no stderr. |

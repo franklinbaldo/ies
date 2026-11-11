@@ -44,6 +44,8 @@ const REGISTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTela {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     HtmlInvalido,
     FormularioAusenteOuDuplicado,
     ControleAusenteOuDuplicado,
@@ -73,7 +75,7 @@ pub(crate) fn conferir_formulario(html: &str, id: &str) -> Result<(), ErroTela> 
         ) {
             continue;
         }
-        let attr = |nome| valor_do_atributo(tag, nome).map_err(|_| ErroTela::HtmlInvalido);
+        let attr = |nome| valor_do_atributo(tag, nome).map_err(ErroTela::Atributo);
         let Some(nome) = attr("name")?.filter(|s| !s.is_empty()) else {
             continue;
         };

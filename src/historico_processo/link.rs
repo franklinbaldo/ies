@@ -8,8 +8,8 @@
 //!   é definida na página).
 //!
 //! Só essas formas exatas; nada de regex nem de JavaScript executado.
+use super::ErroLinkDoHistorico;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -42,30 +42,29 @@ pub(crate) fn ler_link_do_historico(
     instalacao: &Instalacao,
     html: &str,
     id: &str,
-) -> Result<EnderecoDoHistorico, super::ErroLinkDoHistorico> {
+) -> Result<EnderecoDoHistorico, ErroLinkDoHistorico> {
     let mut achados = do_onclick(html)?;
     achados.extend(do_script(html)?);
     let url = match achados.as_slice() {
-        [] => return Err(super::ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore),
+        [] => return Err(ErroLinkDoHistorico::LinkDoHistoricoAusenteNaArvore),
         [url] => url,
-        _ => return Err(ErroHtml::repetido("links_do_historico_repetidos_na_arvore").into()),
+        _ => return Err(ErroLinkDoHistorico::LinksDoHistoricoRepetidosNaArvore),
     };
     conferir_endereco_relativo(instalacao, url, super::ACAO_DO_HISTORICO, id)
         .map(EnderecoDoHistorico)
         .map_err(|recusa| match recusa {
-            EnderecoRecusado::NaoReconhecido => super::ErroLinkDoHistorico::Html(ErroHtml::valor(
-                "endereco_do_historico_nao_reconhecido",
-            )),
+            EnderecoRecusado::NaoReconhecido => {
+                ErroLinkDoHistorico::EnderecoDoHistoricoNaoReconhecido
+            }
             EnderecoRecusado::DeOutroProcesso => {
-                super::ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso
+                ErroLinkDoHistorico::EnderecoDoHistoricoDeOutroProcesso
             }
         })
 }
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
-fn do_onclick(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
-    let ilegivel =
-        super::ErroLinkDoHistorico::Html(ErroHtml::html("html_da_arvore_nao_interpretado"));
+fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
+    let ilegivel = ErroLinkDoHistorico::HtmlDaArvoreNaoInterpretado;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -78,8 +77,8 @@ fn do_onclick(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
                 continue;
             };
             let bruto = valor_do_atributo(a, "onclick")
-                .map_err(|_| ilegivel)?
-                .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
+                .map_err(ErroLinkDoHistorico::Atributo)?
+                .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
             let onclick = decodificar_atributo(&bruto).ok_or(ilegivel)?;
             if onclick == SEM_ARGUMENTO {
                 continue;
@@ -87,7 +86,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
             let url = onclick
                 .strip_prefix(COM_ARGUMENTO)
                 .and_then(|resto| resto.strip_suffix("');"))
-                .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
+                .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
             achados.push(url.to_owned());
         }
     }
@@ -95,7 +94,7 @@ fn do_onclick(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
 }
 
 /// Forma `UnB`: a linha da função seguida da linha que atribui o `src`.
-fn do_script(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
+fn do_script(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
     let linhas: Vec<&str> = html.lines().map(str::trim).collect();
     let mut achados = Vec::new();
     for (i, linha) in linhas.iter().enumerate() {
@@ -107,7 +106,7 @@ fn do_script(html: &str) -> Result<Vec<String>, super::ErroLinkDoHistorico> {
             .flatten()
             .and_then(|seguinte| seguinte.strip_prefix(SRC))
             .and_then(|resto| resto.strip_suffix("';"))
-            .ok_or(ErroHtml::valor("link_do_historico_fora_da_forma_observada"))?;
+            .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
         achados.push(url.to_owned());
     }
     Ok(achados)

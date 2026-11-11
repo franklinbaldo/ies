@@ -2,7 +2,6 @@
 //! Forma observada (`UnB` 4.0.9, PEN1 5.0.4, GO 5.0.3; capturas privadas):
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
@@ -12,9 +11,13 @@ use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDaPesquisa {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     /// `https://`, `http://` ou `//`: o menu observado é relativo.
     LinkDaPesquisaComEnderecoAbsoluto,
-    Html(#[from] ErroHtml),
+    LinkDaPesquisaAusenteNoControle,
+    LinkDaPesquisaNaoReconhecido,
+    LinksDaPesquisaRepetidosNoControle,
 }
 
 /// URL absoluta do link de pesquisa do Controle, resolvida contra a URL
@@ -32,7 +35,7 @@ pub(crate) fn link_da_pesquisa(
     {
         return Err(ErroLinkDaPesquisa::LinkDaPesquisaComEnderecoAbsoluto);
     }
-    let nao = ErroLinkDaPesquisa::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
+    let nao = ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido;
     let consulta = href.strip_prefix("controlador.php?").ok_or(nao)?;
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao);
@@ -73,7 +76,7 @@ const ACAO_DA_PESQUISA: &str = "protocolo_pesquisar";
 /// O único `href` (decodificado) de `<a>` cuja consulta tem
 /// `acao=protocolo_pesquisar`; `protocolo_pesquisa_rapida` não conta.
 fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
-    let nao = ErroLinkDaPesquisa::Html(ErroHtml::valor("link_da_pesquisa_nao_reconhecido"));
+    let nao = ErroLinkDaPesquisa::LinkDaPesquisaNaoReconhecido;
     let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| nao)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
@@ -81,7 +84,8 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let Some(bruto) = valor_do_atributo(tag, "href").map_err(|_| nao)? else {
+        let Some(bruto) = valor_do_atributo(tag, "href").map_err(ErroLinkDaPesquisa::Atributo)?
+        else {
             continue;
         };
         let Some(href) = decodificar_atributo(&bruto) else {
@@ -101,9 +105,9 @@ fn href_publicado(html: &str) -> Result<String, ErroLinkDaPesquisa> {
         }
     }
     match achados.len() {
-        0 => Err(ErroHtml::ausente("link_da_pesquisa_ausente_no_controle").into()),
+        0 => Err(ErroLinkDaPesquisa::LinkDaPesquisaAusenteNoControle),
         1 => Ok(achados.remove(0)),
-        _ => Err(ErroHtml::repetido("links_da_pesquisa_repetidos_no_controle").into()),
+        _ => Err(ErroLinkDaPesquisa::LinksDaPesquisaRepetidosNoControle),
     }
 }
 

@@ -3,7 +3,6 @@
 use super::erro::{ErroEnviar, ErroTelaDeEnvio, FalhaDaConsulta};
 use super::tests_apoio::*;
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::processo_concluir::tests_apoio::*;
 use crate::transporte::FalhaTransporte;
 
@@ -64,9 +63,7 @@ fn recusas_pela_situacao_e_pela_barra_so_com_a_abertura() {
         (
             vec![UNIDADE],
             vec![pelo_envio(ID), pelo_envio(ID)],
-            ErroEnviar::Barra(ErroEnviarNaBarra::Html(ErroHtml::repetido(
-                "links_de_enviar_repetidos_na_barra",
-            ))),
+            ErroEnviar::Barra(ErroEnviarNaBarra::LinksDeEnviarRepetidosNaBarra),
         ),
         (
             vec![UNIDADE],
@@ -114,9 +111,7 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     for (resposta, erro) in [
         (
             ok(fora),
-            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::Html(ErroHtml::ausente(
-                "formulario_de_envio_ausente",
-            ))),
+            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::FormularioDeEnvioAusente),
         ),
         (
             r302("controlador.php?acao=principal"),

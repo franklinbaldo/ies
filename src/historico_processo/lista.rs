@@ -3,7 +3,6 @@
 //! `(N registros):` da `table#tblHistorico` e a visão servida em
 //! `form#frmProcedimentoHistorico input[name=hdnTipoHistorico]`.
 use super::{AndamentosLidos, ErroAndamentos, TipoDoHistorico};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{decodificar_atributo, localizar_formulario};
 use crate::historico::ler_historico;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -12,7 +11,7 @@ use crate::html_atributos::{nos_com_id, valor_do_atributo};
 pub(crate) fn ler_andamentos(html: &str, nup: &str) -> Result<AndamentosLidos, ErroAndamentos> {
     let detalhe = ler_historico(html, nup)?;
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::ausente("legenda_dos_andamentos_ausente"))?;
+        .map_err(|_| ErroAndamentos::LegendaDosAndamentosAusente)?;
     let total_declarado = legenda(&dom)?;
     let tipo = tipo_servido(&dom)?;
     if detalhe.andamentos.len() as u64 > total_declarado {
@@ -33,7 +32,7 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
         .and_then(|nos| nos.first().copied())
         .and_then(|no| no.get(parser))
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::ausente("legenda_dos_andamentos_ausente"))?;
+        .ok_or(ErroAndamentos::LegendaDosAndamentosAusente)?;
     let legendas: Vec<String> = tabela
         .query_selector(parser, "caption")
         .into_iter()
@@ -49,13 +48,11 @@ fn legenda(dom: &tl::VDom<'_>) -> Result<u64, ErroAndamentos> {
         })
         .collect();
     let texto = match legendas.as_slice() {
-        [] => return Err(ErroHtml::ausente("legenda_dos_andamentos_ausente").into()),
+        [] => return Err(ErroAndamentos::LegendaDosAndamentosAusente),
         [texto] => texto,
-        _ => return Err(ErroHtml::valor("legenda_dos_andamentos_fora_da_forma_observada").into()),
+        _ => return Err(ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada),
     };
-    let fora = ErroAndamentos::Html(ErroHtml::valor(
-        "legenda_dos_andamentos_fora_da_forma_observada",
-    ));
+    let fora = ErroAndamentos::LegendaDosAndamentosForaDaFormaObservada;
     let resto = texto.strip_prefix("Lista de Andamentos (").ok_or(fora)?;
     let numero = resto
         .strip_suffix(" registros):")
@@ -82,11 +79,11 @@ fn tipo_servido(dom: &tl::VDom<'_>) -> Result<TipoDoHistorico, ErroAndamentos> {
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("input"))
     {
         if valor_do_atributo(tag, "name")
-            .map_err(|_| ausente)?
+            .map_err(ErroAndamentos::Atributo)?
             .as_deref()
             == Some(super::CAMPO_TIPO)
         {
-            let bruto = valor_do_atributo(tag, "value").map_err(|_| ausente)?;
+            let bruto = valor_do_atributo(tag, "value").map_err(ErroAndamentos::Atributo)?;
             valores.push(decodificar_atributo(&bruto.unwrap_or_default()).ok_or(ausente)?);
         }
     }

@@ -4,7 +4,6 @@ use super::Destino;
 use super::destino::{escolher_destino, itens_do_autocompletar, ler_resposta_da_consulta};
 use super::erro::{ErroEnviar, FalhaDaConsulta};
 use super::tests_apoio::*;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::RespostaDoPost;
 use crate::transporte::{FalhaTransporte, RespostaWeb};
 use std::io::Cursor;
@@ -57,9 +56,7 @@ fn itens_na_forma_observada() {
     ] {
         assert_eq!(
             itens_do_autocompletar(fora),
-            Err(FalhaDaConsulta::Html(ErroHtml::valor(
-                "resposta_do_autocompletar_fora_da_forma_observada"
-            ))),
+            Err(FalhaDaConsulta::RespostaDoAutocompletarForaDaFormaObservada),
             "{fora}"
         );
     }

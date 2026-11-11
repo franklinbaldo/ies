@@ -107,42 +107,28 @@ comparar o texto do subcódigo.
 ## Forma não observada
 
 Um elemento ausente, repetido, com valor fora da forma ou um HTML
-ilegível não sustenta decisão: só diz onde a leitura da tela falhou.
-Por isso é um tipo só, `ErroHtml { onde, problema, mensagem }`
-(`src/erro_html.rs`), e não um erro por leitor.
+ilegível é um erro do leitor que o detecta, declarado ao lado dele e
+nomeado pelo fato: `FormularioAusenteNaTela`,
+`BarrasDoProcessoRepetidasNaArvore`, `LinhaDoControleIlegivel`. Quem
+consome o leitor embrulha o erro dele com `#[from]` e não o
+re-traduz.
 
-- `onde` é o diagnóstico e a folha pública: o `subcodigo` legado não
-  muda. `problema` (`ausente`, `repetido`, `valor`, `html`, ou
-  `atributo` com o `ErroAtributoHtml` que subiu) vai no caminho, depois
-  de `html`.
-- A mensagem é a genérica do problema (`ErroHtml::ausente("onde")`);
-  `.com_mensagem("...")` só onde o ponto tem texto próprio. A igualdade
-  compara `onde` e `problema`, não a mensagem.
-- Um `enum` com outras causas compõe com `Html(#[from] ErroHtml)`
-  (`thiserror`): o `From` derivado deixa `?` e `.into()` converterem, e
-  o caminho não repete `html`. Um leitor que só falha por forma devolve
-  `ErroHtml`.
-- O erro de forma que algum código casa fora de teste (`match` em
-  fluxo, `matches!`, `==`, conversão entre tipos) sustenta uma decisão e
-  continua sendo um erro próprio.
-- **Só nasce de DOM; URL, cabeçalho, arquivo, configuração, entrada e
-  domínio têm erro próprio.** `ErroHtml` é só o que nasce lendo a
-  tela servida (`tl::`, `html_atributos`, leitores de tela, árvore e
-  barra). URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
+- O erro nasce onde é detectado. A barra do nó `PROCESSO` é lida num
+  lugar (`ancoras_da_barra`) e falha com `ErroBarraDoProcesso`; as
+  ações que leem links dessa barra (`ErroConcluirNaBarra`,
+  `ErroEnviarNaBarra`, …) carregam `Barra(#[from] ErroBarraDoProcesso)`
+  em vez de cada uma repetir as duas variantes.
+- Não há tipo genérico de forma nem campo que diga o lugar por texto.
+  `ErroHtml { onde, problema, mensagem }` existiu até 10/11/2026 e foi
+  removido por ablação: apagado o tipo, o compilador apontou cada uso,
+  e cada um virou a variante do leitor que detecta a falha.
+- A causa do tokenizador (`ErroAtributoHtml`) sobe como `#[source]`
+  onde o leitor a recebe.
+- Os mesmos limites de antes valem: só é forma o que nasce lendo a tela
+  servida. URL e `Location`, cabeçalho HTTP, arquivo local, configuração,
   validação de entrada e fato do domínio ficam no `enum` do módulo onde
-  nascem, ainda que o nome diga `Ausente` ou `Invalido`. Redirecionamento
-  ou `action` fora da instalação é recusa de segurança, não forma.
-- **Leitor novo não declara `enum` de forma: devolve `ErroHtml`.**
-
-`scripts/migrar_erro_html.py` (tree-sitter, com o compilador como
-oráculo) migrou 350 erros de 68 tipos e eliminou 4 tipos inteiros. Os
-77 `map_err(|_| ...)` cuja origem era `ErroAtributoHtml` passaram a
-carregar a causa. Os 21 erros casados fora de teste ficaram. A
-migração escolheu pelo nome, não pela origem; os erros de proxy,
-`Location`, cabeçalho do anexo, diretório local, id de entrada e fato do
-domínio voltaram à forma de antes. O script agora só toma o erro cujo
-todo ponto de construção fora de teste está numa `fn` que lê DOM ou num
-módulo de leitura de tela (`MODULOS_DE_TELA`).
+  nascem. Redirecionamento ou `action` fora da instalação é recusa de
+  segurança, não forma.
 
 ## Consequências
 

@@ -119,15 +119,15 @@ na forma observada colhe os links como antes.
 
 Recusas da tabela D, além das do contrato da operação:
 
-| Fato observado | Erro ou `onde` (stderr) |
+| Fato observado | Erro (stderr) |
 | --- | --- |
-| Cabeçalho com rótulo fora de Processo e das 12 colunas | `cabecalho_da_visao_detalhada_nao_reconhecido` |
-| Mesma coluna duas vezes no cabeçalho | `coluna_da_visao_detalhada_repetida` |
+| Cabeçalho com rótulo fora de Processo e das 12 colunas | `ErroDetalhada::CabecalhoDaVisaoDetalhadaNaoReconhecido` |
+| Mesma coluna duas vezes no cabeçalho | `ErroDetalhada::ColunaDaVisaoDetalhadaRepetida` |
 | `data-label` da célula diferente do cabeçalho da coluna | `ErroDetalhada::RotuloDaCelulaDiferenteDoCabecalho` |
 | Interessados com texto fora de `divRotuloItemCelula` | `ErroDetalhada::ItensDaCelulaNaoSeparados` |
-| Itens `divItemCelula` em coluna de texto único | `itens_nao_previstos_na_celula_detalhada` |
+| Itens `divItemCelula` em coluna de texto único | `ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada` |
 | Marcadores com texto ou tag fora de `a.ancMarcador` | `ErroDetalhada::TextoForaDosMarcadoresNaCelula` |
-| `a` da célula Marcadores fora da forma observada | `marcador_da_celula_detalhada_fora_da_forma_observada` |
+| `a` da célula Marcadores fora da forma observada | `ErroDetalhada::MarcadorDaCelulaDetalhadaForaDaFormaObservada` |
 
 Rótulo do cabeçalho: texto de `div.infraDivRotuloOrdenacao` (ou do `th`);
 sem texto, o `aria-label` do ícone (SEI 5.0.x) ou o argumento de
@@ -187,7 +187,7 @@ da D) depois de ler, com até 1 GET + 4 POST e as recusas
 
 ## Demais recusas da troca
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
 | 302 ao trocar de visão | `ErroVisaoDoControle::RedirecionamentoAoTrocarVisao` |
 | Resposta da troca em outra visão | `ErroVisaoDoControle::VisaoNaoTrocadaAposEnvio` |
@@ -196,7 +196,7 @@ da D) depois de ler, com até 1 GET + 4 POST e as recusas
 | Índice incompatível com a faixa | `PaginaAtualDaVisaoDetalhadaIncompativelComAFaixa` |
 | Mais de uma página sem `lnkDetalhado*`/`selDetalhadoPaginacao*` | `PaginadorDaVisaoDetalhadaNaoPublicado` |
 | Critério da D diferente após paginar | `CriteriosDaVisaoDetalhadaAlteradosAposPaginar` |
-| Total ou faixa diferentes após paginar | `TotalDeclaradoAlteradoAposPaginar`, `faixa_da_resposta_diferente_da_pagina_solicitada` |
+| Total ou faixa diferentes após paginar | `TotalDeclaradoAlteradoAposPaginar`, `ErroVisaoDoControle::FaixaDaRespostaDiferenteDaPaginaSolicitada` |
 
 Derivação, envio, login, MIME, charset e status seguem a
 [submissão derivada](../../docs/arquitetura/0002-submeter-formulario-observado.md)

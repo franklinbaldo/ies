@@ -1,6 +1,5 @@
 //! Validação offline do cadastro de processo servido pelo SEI.
 //! Sem envio HTTP, JS, URLs montadas ou deduções a partir do nome do tipo.
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -13,7 +12,12 @@ pub(crate) enum ErroCadastro {
     HipoteseLegalDesabilitada,
     HipoteseLegalNaoIdentificada,
     EspecificacaoAcimaDoLimite { limite: usize, tamanho: usize },
-    Html(#[from] ErroHtml),
+    AssuntoSugeridoNaoUnico,
+    CadastroDeProcessoAusenteOuRepetido,
+    CadastroDeProcessoHtmlInvalido,
+    AtributoDoCadastroIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    EspecificacaoNaoPublicadaNoCadastro,
+    LimiteDaEspecificacaoInvalidoNoCadastro,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,19 +73,19 @@ fn conferir_cadastro_interno(
     permite_ajax_pendente: bool,
 ) -> Result<CadastroObservado, ErroCadastro> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+        .map_err(|_| ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
     let formularios = nos_com_id(&dom, "frmProcedimentoCadastro")
-        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
     let [formulario] = formularios.as_slice() else {
-        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
+        return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     };
     let parser = dom.parser();
     let form = formulario
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+        .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
     if form.name().as_utf8_str() != "form" {
-        return Err(ErroHtml::ausente("cadastro_de_processo_ausente_ou_repetido").into());
+        return Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido);
     }
 
     let mut ids = Vec::new();
@@ -92,39 +96,39 @@ fn conferir_cadastro_interno(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-        let nome = valor_do_atributo(tag, "name")
-            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+            .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
+        let nome =
+            valor_do_atributo(tag, "name").map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
         match nome.as_deref() {
             Some("hdnIdTipoProcedimento") => {
                 ids.push(
                     valor_do_atributo(tag, "value")
-                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?,
+                        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?,
                 );
             }
             Some("txtDescricao") => {
                 if atributo_presente(tag, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
                 {
-                    return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
+                    return Err(ErroCadastro::EspecificacaoNaoPublicadaNoCadastro);
                 }
                 // Usar apenas o limite publicado neste cadastro, nunca
                 // um valor fixo extrapolado de outras instalações.
                 limite_especificacao = valor_do_atributo(tag, "maxlength")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
                     .map(|literal| {
-                        literal.parse::<usize>().map_err(|_| {
-                            ErroHtml::valor("limite_da_especificacao_invalido_no_cadastro")
-                        })
+                        literal
+                            .parse::<usize>()
+                            .map_err(|_| ErroCadastro::LimiteDaEspecificacaoInvalidoNoCadastro)
                     })
                     .transpose()?;
                 descricoes += 1;
             }
             Some("rdoNivelAcesso") => {
                 let valor = valor_do_atributo(tag, "value")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
                 let desabilitado = atributo_presente(tag, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
                 radios.push((valor, desabilitado));
             }
             _ => {}
@@ -134,7 +138,7 @@ fn conferir_cadastro_interno(
         return Err(ErroCadastro::TipoDeCadastroDivergente);
     }
     if descricoes != 1 {
-        return Err(ErroHtml::ausente("especificacao_nao_publicada_no_cadastro").into());
+        return Err(ErroCadastro::EspecificacaoNaoPublicadaNoCadastro);
     }
     let valor_nivel = match nivel {
         "publico" => "0",
@@ -179,14 +183,14 @@ fn conferir_listas(
         let select = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
-        let nome = valor_do_atributo(select, "name")
-            .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+            .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
+        let nome =
+            valor_do_atributo(select, "name").map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
         let destino = match nome.as_deref() {
             Some("selAssuntos") => {
                 selects_assunto += 1;
                 if atributo_presente(select, "disabled")
-                    .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                    .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
                 {
                     return Err(ErroCadastro::AssuntoDesabilitado);
                 }
@@ -198,7 +202,7 @@ fn conferir_listas(
                 // não impede a prévia nem exige hipótese legal.
                 if nivel == "restrito"
                     && atributo_presente(select, "disabled")
-                        .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                        .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
                 {
                     return Err(ErroCadastro::HipoteseLegalDesabilitada);
                 }
@@ -214,14 +218,14 @@ fn conferir_listas(
             let tag = opcao
                 .get(parser)
                 .and_then(tl::Node::as_tag)
-                .ok_or(ErroHtml::html("cadastro_de_processo_html_invalido"))?;
+                .ok_or(ErroCadastro::CadastroDeProcessoHtmlInvalido)?;
             if atributo_presente(tag, "disabled")
-                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?
+                .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?
             {
                 continue;
             }
             let valor = valor_do_atributo(tag, "value")
-                .map_err(|e| ErroHtml::atributo("cadastro_de_processo_html_invalido", e))?;
+                .map_err(ErroCadastro::AtributoDoCadastroIlegivel)?;
             let titulo = html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned();
             if let Some(valor) = valor.filter(|v| !v.is_empty() && v != "null") {
                 destino.push((valor, titulo));
@@ -229,10 +233,10 @@ fn conferir_listas(
         }
     }
     let [(id_assunto, assunto)] = assuntos.as_slice() else {
-        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
+        return Err(ErroCadastro::AssuntoSugeridoNaoUnico);
     };
     if selects_assunto != 1 || assunto.is_empty() {
-        return Err(ErroHtml::valor("assunto_sugerido_nao_unico").into());
+        return Err(ErroCadastro::AssuntoSugeridoNaoUnico);
     }
     let hipotese_legal = if nivel == "restrito" {
         if selects_hipotese != 1 {
@@ -276,9 +280,7 @@ mod tests {
     fn recusa_formulario_ausente_e_tipo_de_outro_cadastro() {
         assert_eq!(
             conferir_cadastro("<div></div>", "12", "publico"),
-            Err(ErroCadastro::Html(ErroHtml::ausente(
-                "cadastro_de_processo_ausente_ou_repetido"
-            )))
+            Err(ErroCadastro::CadastroDeProcessoAusenteOuRepetido)
         );
         assert_eq!(
             conferir_cadastro(&tela(ASSUNTO, "", HIPOTESE), "13", "publico"),
@@ -294,9 +296,7 @@ mod tests {
         ] {
             assert_eq!(
                 conferir_cadastro(&tela(opcoes, "", HIPOTESE), "12", "publico"),
-                Err(ErroCadastro::Html(ErroHtml::valor(
-                    "assunto_sugerido_nao_unico"
-                )))
+                Err(ErroCadastro::AssuntoSugeridoNaoUnico)
             );
         }
     }

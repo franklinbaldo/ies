@@ -1,6 +1,5 @@
 //! A unidade publicada na tela do formulário, conferida com a solicitada.
 use super::ErroSubmissaoFormulario;
-use crate::erro_html::ErroHtml;
 use crate::html_atributos::nos_com_id;
 
 pub(super) fn conferir_unidade(
@@ -11,10 +10,8 @@ pub(super) fn conferir_unidade(
     // só falha por identificações repetidas fora do par móvel/desktop.
     nos_com_id(dom, "lnkInfraUnidade")?;
     let publicada = crate::controle_contexto::unidade_html(dom)
-        .map_err(|_| ErroHtml::repetido("identificacoes_da_unidade_repetidas_na_tela"))?
-        .ok_or(ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela",
-        ))?;
+        .map_err(|_| ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela)?
+        .ok_or(ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela)?;
     let solicitada = solicitada.split_whitespace().collect::<Vec<_>>().join(" ");
     if publicada != solicitada {
         return Err(ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada);

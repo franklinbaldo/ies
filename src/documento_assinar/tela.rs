@@ -9,8 +9,8 @@
 //! `txtUsuario`, `selCargoFuncao`, `pwdSenha`; botões `type=button`. O
 //! `assinarSenha()` põe `hdnFormaAutenticacao='S'` e chama `submit()`. A
 //! resposta aceita é a mesma tela com `inicializar()` chamando `finalizar()`.
+use super::erro::ErroTelaDeAssinatura;
 use crate::arvore_processo::ACAO_DE_ASSINAR;
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, decodificar_atributo, localizar_formulario,
@@ -79,12 +79,12 @@ pub(crate) struct TelaDeAssinatura {
 pub(crate) fn conferir_tela_de_assinatura(
     html: &str,
     id_documento: &str,
-) -> Result<TelaDeAssinatura, super::erro::ErroTelaDeAssinatura> {
+) -> Result<TelaDeAssinatura, ErroTelaDeAssinatura> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
+        .map_err(|_| ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
-        .map_err(|_| ErroHtml::ausente("formulario_de_assinatura_ausente"))?;
+        .map_err(|_| ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
     for tag in form
@@ -122,15 +122,15 @@ pub(crate) fn conferir_tela_de_assinatura(
             ("input", "password", SENHA) if !senha => senha = true,
             ("select", _, ORGAO) if orgao.is_none() => orgao = Some(opcoes(tag, parser)?),
             ("select", _, CARGO) if cargos.is_none() => cargos = Some(opcoes(tag, parser)?),
-            _ => return Err(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura").into()),
+            _ => return Err(ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura),
         }
     }
     if documentos.as_deref() != Some(id_documento) {
-        return Err(super::erro::ErroTelaDeAssinatura::TelaDeAssinaturaDeOutroDocumento);
+        return Err(ErroTelaDeAssinatura::TelaDeAssinaturaDeOutroDocumento);
     }
     let assinante = assinante.unwrap_or_default();
     if assinante.trim().is_empty() || id_usuario.is_none_or(|id| id.trim().is_empty()) {
-        return Err(super::erro::ErroTelaDeAssinatura::AssinanteNaoPublicadoNaTela);
+        return Err(ErroTelaDeAssinatura::AssinanteNaoPublicadoNaTela);
     }
     let orgao = match orgao.unwrap_or_default().as_slice() {
         [] => None,
@@ -142,11 +142,11 @@ pub(crate) fn conferir_tela_de_assinatura(
             }
         }
     }
-    .ok_or(super::erro::ErroTelaDeAssinatura::OrgaoDoAssinanteNaoSelecionado)?;
+    .ok_or(ErroTelaDeAssinatura::OrgaoDoAssinanteNaoSelecionado)?;
     if !senha {
-        return Err(ErroHtml::ausente("campo_de_senha_ausente_na_tela").into());
+        return Err(ErroTelaDeAssinatura::CampoDeSenhaAusenteNaTela);
     }
-    let opcoes = cargos.ok_or(ErroHtml::valor("campo_nao_previsto_na_tela_de_assinatura"))?;
+    let opcoes = cargos.ok_or(ErroTelaDeAssinatura::CampoNaoPrevistoNaTelaDeAssinatura)?;
     let validas: Vec<&(String, bool)> = opcoes
         .iter()
         .filter(|(v, _)| v != VAZIA && !v.is_empty())
@@ -169,7 +169,7 @@ pub(crate) fn conferir_tela_de_assinatura(
 fn opcoes(
     select: &tl::HTMLTag<'_>,
     parser: &tl::Parser<'_>,
-) -> Result<Vec<(String, bool)>, super::erro::ErroTelaDeAssinatura> {
+) -> Result<Vec<(String, bool)>, ErroTelaDeAssinatura> {
     let mut lidas = Vec::new();
     for tag in select
         .children()
@@ -179,36 +179,27 @@ fn opcoes(
         .filter(|t| t.name().as_utf8_str().eq_ignore_ascii_case("option"))
     {
         let valor =
-            valor(tag, "value")?.ok_or(ErroHtml::html("tela_de_assinatura_nao_interpretada"))?;
+            valor(tag, "value")?.ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
         lidas.push((valor, presente(tag, "selected")?));
     }
     Ok(lidas)
 }
 
-fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, super::erro::ErroTelaDeAssinatura> {
-    atributo_presente(tag, nome).map_err(|e| {
-        super::erro::ErroTelaDeAssinatura::Html(ErroHtml::atributo(
-            "tela_de_assinatura_nao_interpretada",
-            e,
-        ))
-    })
+fn presente(tag: &tl::HTMLTag<'_>, nome: &str) -> Result<bool, ErroTelaDeAssinatura> {
+    atributo_presente(tag, nome).map_err(ErroTelaDeAssinatura::TelaDeAssinaturaComAtributoIlegivel)
 }
 
 /// Valor do atributo com as entidades decodificadas.
 fn valor(
     tag: &tl::HTMLTag<'_>,
     nome: &'static str,
-) -> Result<Option<String>, super::erro::ErroTelaDeAssinatura> {
+) -> Result<Option<String>, ErroTelaDeAssinatura> {
     match valor_do_atributo(tag, nome)
-        .map_err(|e| ErroHtml::atributo("tela_de_assinatura_nao_interpretada", e))?
+        .map_err(ErroTelaDeAssinatura::TelaDeAssinaturaComAtributoIlegivel)?
     {
-        Some(bruto) => {
-            decodificar_atributo(&bruto)
-                .map(Some)
-                .ok_or(super::erro::ErroTelaDeAssinatura::Html(ErroHtml::html(
-                    "tela_de_assinatura_nao_interpretada",
-                )))
-        }
+        Some(bruto) => decodificar_atributo(&bruto)
+            .map(Some)
+            .ok_or(ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada),
         None => Ok(None),
     }
 }

@@ -1,7 +1,6 @@
 //! Leitura da anotação de origem, sem efetuar alterações.
 //! Forma observada no SEI 4.0.9 de treinamento (Todos,
 //! `tests/paginas_reais/processo_anotacao_registrar.html`).
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio,
@@ -12,10 +11,22 @@ use crate::formulario_web::{
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroDasAnotacoes {
-    LinkDasAnotacoes(#[source] ErroHtml),
+    LinkDasAnotacoes(#[source] crate::arvore_processo::ErroLinkDasAnotacoes),
     TelaDasAnotacoes(#[from] crate::transporte::FalhaTransporte),
     TelaDasAnotacoesRedirecionada,
-    LeituraDasAnotacoes(#[source] ErroHtml),
+    LeituraDasAnotacoes(#[from] ErroLeituraDaAnotacao),
+}
+
+/// Por que o formulário de anotação não comprova o texto do processo.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroLeituraDaAnotacao {
+    TelaDeAnotacoesNaoInterpretada,
+    TelaDeAnotacoesComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    FormularioDeAnotacoesAusente,
+    AnotacaoDeOutroProcesso,
+    AnotacaoNaoPublicada,
+    CamposDeAnotacaoRepetidos,
 }
 
 /// POST do botão Salvar no formulário de anotação observado no SEI 4.0.9.
@@ -56,21 +67,23 @@ pub(crate) fn salvar_oferecido(html: &str) -> bool {
         })
 }
 
-pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroHtml> {
+pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroLeituraDaAnotacao> {
     use crate::formulario_web::{decodificar_atributo, localizar_formulario};
     use crate::html_atributos::valor_do_atributo;
 
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::html("tela_de_anotacoes_nao_interpretada"))?;
+        .map_err(|_| ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada)?;
     let form = localizar_formulario(&dom, "frmAnotacaoCadastro")
-        .map_err(|_| ErroHtml::ausente("formulario_de_anotacoes_ausente"))?;
+        .map_err(|_| ErroLeituraDaAnotacao::FormularioDeAnotacoesAusente)?;
     let parser = dom.parser();
-    let valor = |tag: &tl::HTMLTag<'_>, nome: &'static str| -> Result<Option<String>, ErroHtml> {
+    let valor = |tag: &tl::HTMLTag<'_>,
+                 nome: &'static str|
+     -> Result<Option<String>, ErroLeituraDaAnotacao> {
         valor_do_atributo(tag, nome)
-            .map_err(|e| ErroHtml::atributo("tela_de_anotacoes_nao_interpretada", e))?
+            .map_err(ErroLeituraDaAnotacao::TelaDeAnotacoesComAtributoIlegivel)?
             .map(|bruto| {
                 decodificar_atributo(&bruto)
-                    .ok_or(ErroHtml::html("tela_de_anotacoes_nao_interpretada"))
+                    .ok_or(ErroLeituraDaAnotacao::TelaDeAnotacoesNaoInterpretada)
             })
             .transpose()
     };
@@ -95,14 +108,14 @@ pub(crate) fn texto_anotacao(html: &str, id: &str) -> Result<String, ErroHtml> {
     }
     match (ids.as_slice(), descricoes.as_slice()) {
         ([Some(publicado)], [texto]) if publicado == id => Ok(texto.clone()),
-        ([Some(_)], [_]) => Err(ErroHtml::valor("anotacao_de_outro_processo")),
-        ([], _) | (_, []) => Err(ErroHtml::ausente("anotacao_nao_publicada")),
-        _ => Err(ErroHtml::repetido("campos_de_anotacao_repetidos")),
+        ([Some(_)], [_]) => Err(ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso),
+        ([], _) | (_, []) => Err(ErroLeituraDaAnotacao::AnotacaoNaoPublicada),
+        _ => Err(ErroLeituraDaAnotacao::CamposDeAnotacaoRepetidos),
     }
 }
 
 /// Ausência só é comprovada se a tela do mesmo processo publicar o texto vazio.
-pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroHtml> {
+pub(crate) fn anotacao_presente(html: &str, id: &str) -> Result<bool, ErroLeituraDaAnotacao> {
     texto_anotacao(html, id).map(|texto| !texto.trim().is_empty())
 }
 
@@ -156,6 +169,9 @@ mod tests {
     fn bdd_tela_de_outro_processo_nao_comprova_anotacao() {
         // Dado formulário servido para outro id,
         // quando confiro, então não se infere existência nem ausência.
-        assert!(anotacao_presente(&formulario("99999", "Anotação"), "50693").is_err());
+        assert_eq!(
+            anotacao_presente(&formulario("99999", "Anotação"), "50693"),
+            Err(super::ErroLeituraDaAnotacao::AnotacaoDeOutroProcesso)
+        );
     }
 }

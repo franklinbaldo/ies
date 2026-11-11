@@ -10,7 +10,6 @@ pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_propriedades;
 
 /// Qual tela a barra publicou (e o `acao` do link guardado no índice).
@@ -97,8 +96,9 @@ pub(crate) struct PropriedadesLidas {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroPropriedades {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDasPropriedadesRepetidosNaBarra,
     EnderecoDasPropriedadesNaoReconhecido,
     EnderecoDasPropriedadesDeOutroProcesso,
@@ -109,7 +109,15 @@ pub(crate) enum ErroPropriedades {
     ListaOcultaDasPropriedadesNaoObservada,
     NivelDeAcessoNaoMarcado,
     TextoDasPropriedadesNaoDecodificado,
-    Html(#[from] ErroHtml),
+    AssuntoForaDaFormaObservada,
+    CampoDasPropriedadesAusente,
+    CampoDasPropriedadesRepetido,
+    DataDeGeracaoForaDaFormaObservada,
+    FormulariosDasPropriedadesRepetidos,
+    HtmlDasPropriedadesNaoInterpretado,
+    InteressadoForaDaFormaObservada,
+    NivelDeAcessoForaDaFormaObservada,
+    OpcoesMarcadasRepetidas,
 }
 
 impl ErroPropriedades {

@@ -1,5 +1,4 @@
 use super::{ErroAtribuir, ler_tela, planejar};
-use crate::erro_html::ErroHtml;
 const ID: &str = "50693";
 const HTML: &str = r#"<html><body>
 <form id="frmAtividadeAtribuir" method="post"
@@ -80,9 +79,7 @@ fn protocolo_de_outro_processo_nao_e_aceito() {
             ),
             ID
         ),
-        Err(ErroAtribuir::Html(ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma"
-        )))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
@@ -105,9 +102,7 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
     );
     assert_eq!(
         ler_tela(&html, ID),
-        Err(ErroAtribuir::Html(ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma"
-        )))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
@@ -115,18 +110,14 @@ fn opcao_nula_desabilitada_nao_permissa_envio() {
 fn formulario_get_e_select_multiple_sao_recusados() {
     assert_eq!(
         ler_tela(&HTML.replace("method=\"post\"", "method=\"get\""), ID),
-        Err(ErroAtribuir::Html(ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma"
-        )))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
     assert_eq!(
         ler_tela(
             &HTML.replace("name=\"selAtribuicao\"", "name=\"selAtribuicao\" multiple"),
             ID
         ),
-        Err(ErroAtribuir::Html(ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma"
-        )))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
@@ -140,9 +131,7 @@ fn mesmo_id_publicado_para_logins_distintos_e_recusado() {
     );
     assert_eq!(
         ler_tela(&html, ID),
-        Err(ErroAtribuir::Html(ErroHtml::valor(
-            "tela_da_atribuicao_fora_da_forma"
-        )))
+        Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma)
     );
 }
 
@@ -266,9 +255,7 @@ fn formulario_com_controles_inertes_nao_e_oferta_de_atribuicao() {
     for (indice, html) in casos.iter().enumerate() {
         assert_eq!(
             ler_tela(html, ID),
-            Err(ErroAtribuir::Html(ErroHtml::valor(
-                "tela_da_atribuicao_fora_da_forma"
-            ))),
+            Err(ErroAtribuir::TelaDaAtribuicaoForaDaForma),
             "controle inerte no cenário {indice} deve recusar a escrita",
         );
     }

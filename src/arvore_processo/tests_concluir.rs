@@ -8,7 +8,6 @@ use super::concluir::{
 };
 use super::tests::{NUP, arvore, no_documento, no_processo};
 use super::tests_tela::instalacao;
-use crate::erro_html::ErroHtml;
 use crate::propriedades_processo::tests_apoio::{acao_da_barra, com_barra};
 
 pub(crate) const HASH_CONCLUIR: &str =
@@ -143,9 +142,7 @@ fn formas_repetidas_e_enderecos_recusados() {
             "10",
         )
     };
-    let erro = Err(ErroConcluirNaBarra::Html(ErroHtml::repetido(
-        "formas_de_concluir_repetidas_na_barra",
-    )));
+    let erro = Err(ErroConcluirNaBarra::FormasDeConcluirRepetidasNaBarra);
     assert_eq!(ler(&[pela_tela("10"), ACAO_FUNCAO.to_owned()]), erro);
     assert_eq!(ler(&[pela_tela("10"), pela_tela("10")]), erro);
     assert_eq!(ler(&[ACAO_FUNCAO.to_owned(), ACAO_FUNCAO.to_owned()]), erro);
@@ -156,17 +153,13 @@ fn formas_repetidas_e_enderecos_recusados() {
     let sem_hash = acao_da_barra(&link_de_concluir("10").replace(HASH_CONCLUIR, "abc"));
     assert_eq!(
         ler(&[sem_hash]),
-        Err(ErroConcluirNaBarra::Html(ErroHtml::valor(
-            "endereco_da_conclusao_nao_reconhecido"
-        )))
+        Err(ErroConcluirNaBarra::EnderecoDaConclusaoNaoReconhecido)
     );
     // Forma 4.0 com a raiz sem `href` assinado (a forma da fixture comum).
     let raiz_crua = com_barra(&arvore(&[no_processo(0, "10", NUP)]), 0, ACAO_FUNCAO);
     assert_eq!(
         ler_concluir_da_barra(&instalacao(), &raiz_crua, "10"),
-        Err(ErroConcluirNaBarra::Html(ErroHtml::valor(
-            "endereco_da_tela_do_no_nao_reconhecido"
-        )))
+        Err(ErroConcluirNaBarra::EnderecoDaTelaDoNoNaoReconhecido)
     );
 }
 
@@ -197,9 +190,7 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let sem = tela.replace("function concluirProcesso(){", "function outraCoisa(){");
     assert_eq!(
         ler(&sem),
-        Err(ErroFuncaoDeConcluir::Html(ErroHtml::ausente(
-            "funcao_de_concluir_ausente_na_tela_do_no"
-        )))
+        Err(ErroFuncaoDeConcluir::FuncaoDeConcluirAusenteNaTelaDoNo)
     );
     let ativo = tela.replace(
         "//if (confirm('Confirma conclusão",
@@ -211,9 +202,7 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     let duas = tela.replace("</script>", &format!("{}</script>", funcao_extra()));
     assert_eq!(
         ler(&duas),
-        Err(ErroFuncaoDeConcluir::Html(ErroHtml::repetido(
-            "funcoes_de_concluir_repetidas_na_tela_do_no"
-        )))
+        Err(ErroFuncaoDeConcluir::FuncoesDeConcluirRepetidasNaTelaDoNo)
     );
     let outro = tela.replace(
         &format!("id_procedimento=10&atualizar_arvore=1&{CONTEXTO}&infra_hash={HASH_FUNCAO}"),
@@ -229,9 +218,7 @@ fn funcao_ausente_fora_da_forma_ou_repetida() {
     );
     assert_eq!(
         ler(&reabrir),
-        Err(ErroFuncaoDeConcluir::Html(ErroHtml::valor(
-            "endereco_da_conclusao_nao_reconhecido"
-        )))
+        Err(ErroFuncaoDeConcluir::EnderecoDaConclusaoNaoReconhecido)
     );
 }
 

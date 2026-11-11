@@ -21,6 +21,8 @@ pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_docume
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ErroLinkCancelar {
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(crate::html_atributos::ErroAtributoHtml),
     BarraForaDaForma,
     LinksRepetidos,
     EnderecoNaoReconhecido,
@@ -61,11 +63,8 @@ pub(crate) fn ler_link_cancelar(
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        let attrs = atributos(tag).map_err(|_| ErroLinkCancelar::BarraForaDaForma)?;
-        let Some(bruto) = attrs
-            .valor("href")
-            .map_err(|_| ErroLinkCancelar::BarraForaDaForma)?
-        else {
+        let attrs = atributos(tag).map_err(ErroLinkCancelar::Atributo)?;
+        let Some(bruto) = attrs.valor("href").map_err(ErroLinkCancelar::Atributo)? else {
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or(ErroLinkCancelar::BarraForaDaForma)?;

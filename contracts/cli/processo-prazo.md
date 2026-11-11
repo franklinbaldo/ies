@@ -62,7 +62,7 @@ restauração de tela.
 
 ## Falhas e subcódigos
 
-| Erro ou `onde` (stderr) | Condição |
+| Erro (stderr) | Condição |
 | --- | --- |
 | `ErroPrazo::OpcoesIncompativeis` | Combinação de opções mutuamente exclusivas |
 | `ErroPrazo::DataInvalida` | Data não existe |
@@ -74,8 +74,6 @@ restauração de tela.
 | `ErroLinkPrazo::EnderecoNaoReconhecido` | URL fora da forma segura |
 | `ErroLinkPrazo::EnderecoDeOutroProcesso` | URL de outro processo |
 | `FalhaDoPrazo::ControleNaoOferecidoNaBarra` | Ação ausente |
-| `tela_de_prazo_redirecionada` (sem erro próprio confirmado no código) | GET não publicou HTML 200 |
-| `sessao_encerrada_ao_ler_prazo` (sem erro próprio confirmado no código) | Login no lugar da tela |
 | erro do clap (saída 2) | `--confirmar` sem `--ate`, `--dias` ou `--excluir` (uso, saída 2) |
 
 Falhas do transporte e da abertura preservam os subcódigos específicos das

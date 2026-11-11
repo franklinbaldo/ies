@@ -1,7 +1,6 @@
 //! Recusas e resultado de `ies processo enviar`
 //! (contracts/cli/processo-enviar.md). Um erro por fato.
 use crate::arvore_processo::{ErroEnviarNaBarra, MotivoAbertoEm};
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
@@ -16,7 +15,11 @@ pub(crate) enum ErroTelaDeEnvio {
     TelaDeEnvioComOpcoesPreenchidas,
     OrgaoDaTelaDeEnvioNaoSelecionado,
     AutocompletarDeUnidadeNaoDeclarado,
-    Html(#[from] ErroHtml),
+    ConsultaDoAutocompletarForaDaFormaObservada,
+    CampoNaoPrevistoNaTelaDeEnvio,
+    FormularioDeEnvioAusente,
+    TelaDeEnvioNaoInterpretada,
+    TelaDeEnvioComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.
@@ -29,7 +32,7 @@ pub(crate) enum FalhaDaConsulta {
     Transporte(#[from] FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
-    Html(#[from] ErroHtml),
+    RespostaDoAutocompletarForaDaFormaObservada,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

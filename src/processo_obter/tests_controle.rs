@@ -3,7 +3,6 @@
 use super::controle::link_do_processo_no_controle;
 use super::tests_apoio::{ID, controle, trabalhar_controle};
 use crate::arvore_processo::tests::NUP;
-use crate::erro_html::ErroHtml;
 
 #[test]
 fn acha_a_linha_do_nup_exato() {
@@ -35,9 +34,7 @@ fn repeticoes_sao_recusa() {
     let html = controle(&[(ID, NUP), ("11", NUP)]);
     assert_eq!(
         link_do_processo_no_controle(&html, NUP),
-        Err(super::ErroProcessoObter::Html(ErroHtml::repetido(
-            "processo_repetido_no_controle"
-        )))
+        Err(super::ErroProcessoObter::ProcessoRepetidoNoControle)
     );
     let duas = controle(&[(ID, NUP)]).replace(
         "</a></td>",
@@ -48,9 +45,7 @@ fn repeticoes_sao_recusa() {
     );
     assert_eq!(
         link_do_processo_no_controle(&duas, NUP),
-        Err(super::ErroProcessoObter::Html(ErroHtml::repetido(
-            "links_do_processo_repetidos_no_controle"
-        )))
+        Err(super::ErroProcessoObter::LinksDoProcessoRepetidosNoControle)
     );
 }
 

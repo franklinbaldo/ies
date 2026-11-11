@@ -14,7 +14,6 @@ pub(crate) mod tests_apoio;
 #[cfg(test)]
 mod tests_tela;
 
-use crate::erro_html::ErroHtml;
 pub(crate) use tela::ler_marcadores;
 
 /// `acao` do link na barra, da tela e do link guardado no índice.
@@ -85,8 +84,9 @@ pub(crate) enum TelaDosMarcadores {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
-    BarraDoProcessoForaDaFormaObservada,
-    BarrasDoProcessoRepetidasNaArvore,
+    /// O tokenizador de atributos recusou a tag.
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
+    Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
     LinksDosMarcadoresRepetidosNaBarra,
     EnderecoDosMarcadoresNaoReconhecido,
     EnderecoDosMarcadoresDeOutroProcesso,
@@ -94,7 +94,12 @@ pub(crate) enum ErroMarcadores {
     NumeroDosMarcadoresDiferenteDoSolicitado,
     IdDosMarcadoresDiferenteDoAberto,
     MarcadoresAlemDoTotalDeclarado,
-    Html(#[from] ErroHtml),
+    CabecalhoDosMarcadoresNaoReconhecido,
+    HtmlDosMarcadoresNaoInterpretado,
+    LegendaDosMarcadoresForaDaFormaObservada,
+    LinhaDoMarcadorForaDaFormaObservada,
+    MarcadorRepetidoNaTela,
+    TabelasDosMarcadoresRepetidas,
 }
 
 impl ErroMarcadores {

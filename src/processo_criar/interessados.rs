@@ -1,7 +1,6 @@
 //! Interessados do cadastro de processo: autocomplete que a tela publicou.
 //! Cada pedido faz uma consulta sem efeito de escrita, por URL assinada
 //! observada, e exige identidade unívoca; nenhum nome vira ID inventado.
-use crate::erro_html::ErroHtml;
 use crate::formulario_web::{
     ConsultaAjax, EfeitoAvaliado, TelaServida, decodificar_atributo, derivar_consulta_ajax,
     localizar_formulario,
@@ -27,7 +26,10 @@ pub(crate) enum ErroInteressado {
     DerivacaoRecusada,
     NaoOferecido,
     Ambiguo,
-    Html(#[from] ErroHtml),
+    InteressadoControlesAusentes,
+    AtributoDosControlesDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    InteressadoRespostaNaoReconhecida,
+    AtributoDaRespostaDeInteressadoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Falha observada no transporte do AJAX consultivo, antes da escrita.
     Transporte(#[from] crate::transporte::FalhaTransporte),
 }
@@ -41,7 +43,10 @@ impl ErroInteressado {
             | Self::DerivacaoRecusada
             | Self::NaoOferecido
             | Self::Ambiguo
-            | Self::Html(_) => None,
+            | Self::InteressadoControlesAusentes
+            | Self::AtributoDosControlesDeInteressadoIlegivel(_)
+            | Self::InteressadoRespostaNaoReconhecida
+            | Self::AtributoDaRespostaDeInteressadoIlegivel(_) => None,
         }
     }
 }
@@ -57,14 +62,14 @@ fn campo_unico(
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::ausente("interessado_controles_ausentes"))?;
+            .ok_or(ErroInteressado::InteressadoControlesAusentes)?;
         let lido = valor_do_atributo(tag, "name")
-            .map_err(|e| ErroHtml::atributo("interessado_controles_ausentes", e))?;
+            .map_err(ErroInteressado::AtributoDosControlesDeInteressadoIlegivel)?;
         if lido.as_deref() == Some(nome) {
             if atributo_presente(tag, "disabled")
-                .map_err(|e| ErroHtml::atributo("interessado_controles_ausentes", e))?
+                .map_err(ErroInteressado::AtributoDosControlesDeInteressadoIlegivel)?
             {
-                return Err(ErroHtml::ausente("interessado_controles_ausentes").into());
+                return Err(ErroInteressado::InteressadoControlesAusentes);
             }
             achados += 1;
         }
@@ -72,7 +77,7 @@ fn campo_unico(
     if achados == 1 {
         Ok(())
     } else {
-        Err(ErroHtml::ausente("interessado_controles_ausentes").into())
+        Err(ErroInteressado::InteressadoControlesAusentes)
     }
 }
 
@@ -80,9 +85,9 @@ fn campo_unico(
 /// Também confere os campos reais do formulário que receberá os IDs.
 fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::ausente("interessado_controles_ausentes"))?;
+        .map_err(|_| ErroInteressado::InteressadoControlesAusentes)?;
     let form = localizar_formulario(&dom, "frmProcedimentoCadastro")
-        .map_err(|_| ErroHtml::ausente("interessado_controles_ausentes"))?;
+        .map_err(|_| ErroInteressado::InteressadoControlesAusentes)?;
     campo_unico(form, dom.parser(), "input", "hdnInteressadosProcedimento")?;
     campo_unico(form, dom.parser(), "input", "txtInteressadoProcedimento")?;
     campo_unico(form, dom.parser(), "select", "selInteressadosProcedimento")?;
@@ -99,16 +104,16 @@ fn url_publicada(html: &str) -> Result<String, ErroInteressado> {
 
 fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado> {
     let dom = tl::parse(xml, tl::ParserOptions::default())
-        .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+        .map_err(|_| ErroInteressado::InteressadoRespostaNaoReconhecida)?;
     let parser = dom.parser();
     let roots: Vec<_> = dom.query_selector("itens").into_iter().flatten().collect();
     let [root] = roots.as_slice() else {
-        return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
+        return Err(ErroInteressado::InteressadoRespostaNaoReconhecida);
     };
     let root = root
         .get(parser)
         .and_then(tl::Node::as_tag)
-        .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+        .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)?;
     let mut itens = Vec::new();
     // Só itens subordinados à raiz oferecida no XML são selecionáveis;
     // outros elementos do documento não são candidatos de interessado.
@@ -116,20 +121,13 @@ fn itens_da_resposta(xml: &str) -> Result<Vec<(String, String)>, ErroInteressado
         let tag = handle
             .get(parser)
             .and_then(tl::Node::as_tag)
-            .ok_or(ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+            .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)?;
         let ler = |nome| -> Result<String, ErroInteressado> {
             valor_do_atributo(tag, nome)
-                .map_err(|e| {
-                    ErroInteressado::Html(ErroHtml::atributo(
-                        "interessado_resposta_nao_reconhecida",
-                        e,
-                    ))
-                })?
+                .map_err(ErroInteressado::AtributoDaRespostaDeInteressadoIlegivel)?
                 .and_then(|s| decodificar_atributo(&s))
                 .filter(|s| !s.is_empty())
-                .ok_or(ErroInteressado::Html(ErroHtml::valor(
-                    "interessado_resposta_nao_reconhecida",
-                )))
+                .ok_or(ErroInteressado::InteressadoRespostaNaoReconhecida)
         };
         itens.push((ler("id")?, ler("descricao")?));
     }
@@ -197,12 +195,12 @@ pub(crate) fn resolver<V: EnvioDoControle>(
                 .trim(),
             "application/xml" | "text/xml"
         ) {
-            return Err(ErroHtml::valor("interessado_resposta_nao_reconhecida").into());
+            return Err(ErroInteressado::InteressadoRespostaNaoReconhecida);
         }
         let mime = resposta.resposta.mime.clone();
         let bytes = ler_limitado(resposta.resposta.corpo, crate::MAX_HTML_BYTES)?;
         let xml = decode_http_body(&bytes, &mime)
-            .map_err(|_| ErroHtml::valor("interessado_resposta_nao_reconhecida"))?;
+            .map_err(|_| ErroInteressado::InteressadoRespostaNaoReconhecida)?;
         let escolhido = escolher(pedido, &itens_da_resposta(&xml)?)?;
         if !resultados
             .iter()

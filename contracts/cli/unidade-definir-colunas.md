@@ -35,7 +35,7 @@ de backend: só a Web, e a mesma sessão.
 Erros de uso, com **zero requisições** (antes de ler a configuração local):
 erro do clap, saída 2, com o erro de `ErroDaListaDeColunas` na mensagem:
 
-| Fato | Erro ou `onde` (stderr) |
+| Fato | Erro (stderr) |
 | --- | --- |
 | `--definir` vazio ou só espaços | `ListaDeColunasVazia` |
 | Item vazio entre vírgulas | `ItemVazioNaListaDeColunas` |

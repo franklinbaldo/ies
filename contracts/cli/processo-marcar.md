@@ -87,7 +87,7 @@ A tabela abaixo descreve os erros; o stderr traz o nome do erro.
 Recusas pré-submissão permanecem **sem POST**. Se o POST chegou a ser tentado,
 a confirmação depende da resposta causal e da releitura independente.
 
-| Erro ou `onde` (stderr) | Condição observável ou regra |
+| Erro (stderr) | Condição observável ou regra |
 | --- | --- |
 | `ErroMarcar::RotuloSemSeparador` | Rótulo sem `#` |
 | `IdDoMarcadorNaoDecimal` | Identificador ausente ou fora da forma decimal |

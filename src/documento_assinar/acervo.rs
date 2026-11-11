@@ -107,7 +107,7 @@ fn arvore(
                 format!("publicada, {} assinante(s)", a.assinantes.len())
             }
             Ok(a) => format!("não publicada, {} assinante(s)", a.assinantes.len()),
-            Err(erro) => format!("`{}`", erro.onde),
+            Err(erro) => format!("`{erro:?}`"),
         };
         somar(contagem, "árvore (ação e caneta)", classe, nome);
         if tela_do_documento(inst, h, &d, processo).is_some() {

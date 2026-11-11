@@ -1,13 +1,12 @@
 //! Posição e plano de página da visão D e leitura dos ocultos que a
 //! paginação confere, sem rede.
 use crate::caixa_detalhada::LeituraDetalhada;
-use crate::erro_html::ErroHtml;
 use crate::erro_web::ErroCaixa;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::paginas::FaixaNaPagina;
 
 fn html_invalido(_: impl Sized) -> super::ErroVisaoDoControle {
-    super::ErroVisaoDoControle::Caixa(ErroCaixa::Html(ErroHtml::html("html_da_caixa_invalido")))
+    super::ErroVisaoDoControle::Caixa(ErroCaixa::HtmlDaCaixaInvalido)
 }
 
 /// Valores de `value` dos elementos com o `id` dado, na ordem do documento.

@@ -2,7 +2,6 @@
 //! na forma observada (`UnB` e GO, `&` cru no `src`). HTML sintético.
 use super::tela::TelaDoProcesso;
 use super::*;
-use crate::erro_html::ErroHtml;
 use crate::instalacao::Instalacao;
 use std::fmt::Write as _;
 
@@ -67,24 +66,18 @@ fn recusas_da_tela() {
         .replace("<a id=\"lnkInfraUnidade\" href=\"#\">U</a>", "");
     assert_eq!(
         ler(&sem_unidade, None),
-        Err(super::ErroTelaDoProcesso::Html(ErroHtml::ausente(
-            "identificacao_da_unidade_ausente_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::IdentificacaoDaUnidadeAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[]), None),
-        Err(super::ErroTelaDoProcesso::Html(ErroHtml::ausente(
-            "arvore_ausente_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::ArvoreAusenteNaTelaDoProcesso)
     );
     assert_eq!(
         ler(
             &tela_do_processo("U", &[src_da_arvore("10"), src_da_arvore("10")]),
             None
         ),
-        Err(super::ErroTelaDoProcesso::Html(ErroHtml::repetido(
-            "arvores_repetidas_na_tela_do_processo"
-        )))
+        Err(super::ErroTelaDoProcesso::ArvoresRepetidasNaTelaDoProcesso)
     );
     assert_eq!(
         ler(&tela_do_processo("U", &[src_da_arvore("11")]), None),
@@ -100,9 +93,7 @@ fn recusas_da_tela() {
     ] {
         assert_eq!(
             ler(&tela_do_processo("U", std::slice::from_ref(&src)), None),
-            Err(super::ErroTelaDoProcesso::Html(ErroHtml::valor(
-                "endereco_da_arvore_nao_reconhecido"
-            ))),
+            Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido),
             "{src}"
         );
     }
@@ -124,6 +115,6 @@ fn arvore_vazia_com_validacao_de_acesso_e_erro_proprio() {
     let sem_modal = tela_do_processo("SEAD/CDE-09516", &[String::new()]);
     assert!(matches!(
         ler(&sem_modal, None),
-        Err(super::ErroTelaDoProcesso::Html(_))
+        Err(super::ErroTelaDoProcesso::EnderecoDaArvoreNaoReconhecido)
     ));
 }
