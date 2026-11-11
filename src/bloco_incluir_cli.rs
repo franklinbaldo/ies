@@ -2,15 +2,15 @@
 //! (#381; contracts/cli/bloco-incluir.md). BDD-381-01/02: prévia e confirmação
 //! causal documental e BDD-381-04: prévia processual sem escrita.
 //! Erros sobem até o `main` (#695).
-use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::bloco::TipoBloco;
 use crate::bloco_cli::{Leitura, ler_bloco_por_numero_via};
-use crate::processo::NumeroProcesso;
-use crate::processo_concluir::escrita::{Contador, leitura};
-use crate::processo_obter::obter_processo;
+use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
+use crate::processo::NumeroProcesso;
+use crate::processo_concluir::escrita::{Contador, leitura};
 use crate::processo_obter::SessaoDoProcesso;
+use crate::processo_obter::obter_processo;
 use crate::transporte::sessao::ReferenciasDaSessao;
 use crate::visao_do_controle::EnvioHttps;
 use crate::{Cli, configuracao};
@@ -129,12 +129,7 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
     };
     let mut envio = EnvioHttps;
     let mut rede = Contador::novo(&mut envio);
-    let lido = ler_bloco_por_numero_via(
-        &referencias,
-        cli.unidade.as_deref(),
-        bloco,
-        &mut rede,
-    )?;
+    let lido = ler_bloco_por_numero_via(&referencias, cli.unidade.as_deref(), bloco, &mut rede)?;
     let Leitura::Detalhe(detalhe) = lido.leitura else {
         unreachable!("número identifica detalhe");
     };
@@ -150,31 +145,43 @@ fn prever_processo(cli: &Cli, bloco: &str, nup_bruto: &str) -> anyhow::Result<()
     if aberto.arvore.processo.nup != nup.as_str() {
         return Err(ErroPreviaProcessual::IdentidadeDoProcessoDivergente.into());
     }
-    let presente = detalhe.itens.iter().any(|item| item.processo == nup.as_str());
+    let presente = detalhe
+        .itens
+        .iter()
+        .any(|item| item.processo == nup.as_str());
     if !presente && detalhe.itens.len() != detalhe.total_declarado {
         return Err(ErroPreviaProcessual::PertencimentoNaoComprovado.into());
     }
     if cli.json {
-        println!("{}", json!({
-            "bloco": bloco,
-            "tipo_bloco": detalhe.tipo.rotulo(),
-            "alvo": {"processo": nup.as_str()},
-            "confirmado": false,
-            "alterado": false,
-            "presente_antes": presente,
-            "presente_depois": null,
-            "origem": "web",
-            "requisicoes": rede.feitas(),
-        }));
+        println!(
+            "{}",
+            json!({
+                "bloco": bloco,
+                "tipo_bloco": detalhe.tipo.rotulo(),
+                "alvo": {"processo": nup.as_str()},
+                "confirmado": false,
+                "alterado": false,
+                "presente_antes": presente,
+                "presente_depois": null,
+                "origem": "web",
+                "requisicoes": rede.feitas(),
+            })
+        );
     } else if presente {
         println!(
             "Processo {} já está no bloco {} ({}); nenhuma inclusão necessária. Requisições: {}",
-            nup.as_str(), bloco, detalhe.tipo.rotulo(), rede.feitas()
+            nup.as_str(),
+            bloco,
+            detalhe.tipo.rotulo(),
+            rede.feitas()
         );
     } else {
         println!(
             "Prévia: processo {} ausente do bloco {} ({}). Para incluir, repita com --confirmar quando a confirmação estiver disponível. Requisições: {}",
-            nup.as_str(), bloco, detalhe.tipo.rotulo(), rede.feitas()
+            nup.as_str(),
+            bloco,
+            detalhe.tipo.rotulo(),
+            rede.feitas()
         );
     }
     Ok(())
