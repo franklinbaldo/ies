@@ -4,10 +4,10 @@
 //! Erros sobem até o `main` (#695).
 use crate::bloco_incluir::{PedidoDaInclusao, PreviaDocumental, prever_documento};
 use crate::bloco::TipoBloco;
-use crate::bloco_cli::{FalhaLeitura, Leitura, ler_bloco_por_numero_via};
-use crate::processo::{NumeroProcesso, NumeroProcessoInvalido};
+use crate::bloco_cli::{Leitura, ler_bloco_por_numero_via};
+use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::{Contador, leitura};
-use crate::processo_obter::{ErroProcessoObter, obter_processo};
+use crate::processo_obter::obter_processo;
 use crate::documento::NumeroDocumento;
 use crate::indice_local::IndiceLocal;
 use crate::processo_obter::SessaoDoProcesso;
@@ -110,9 +110,6 @@ fn publicar(json_mode: bool, previa: &PreviaDocumental) {
 #[derive(Debug, thiserror::Error)]
 #[error("{self:?}")]
 enum ErroPreviaProcessual {
-    Nup(#[from] NumeroProcessoInvalido),
-    Bloco(#[from] FalhaLeitura),
-    Processo(#[from] ErroProcessoObter),
     TipoInadequado,
     PertencimentoNaoComprovado,
     IdentidadeDoProcessoDivergente,
