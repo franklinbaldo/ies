@@ -117,6 +117,7 @@ mod processo_sobrestar_cli;
 mod propriedades_documento;
 mod propriedades_processo;
 mod relogin_cli;
+mod resposta_ajax;
 mod rodape_do_documento;
 mod saida;
 mod sessao_login;

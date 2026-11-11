@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn id_do_retorno_repetido_tem_a_causa_da_chave() {
-        assert_eq!(
+        assert!(matches!(
             retorno(
                 "controlador.php?acao=procedimento_trabalhar&id_procedimento=12&id_procedimento=13"
             ),
@@ -120,18 +120,18 @@ mod tests {
                     chave: "id_procedimento"
                 }
             ))
-        );
+        ));
     }
 
     #[test]
     fn id_do_retorno_ausente_tem_a_causa_da_chave() {
-        assert_eq!(
+        assert!(matches!(
             retorno("controlador.php?acao=procedimento_trabalhar"),
             Err(ErroCriar::IdDoRetornoIlegivel(
                 ErroChaveDaConsulta::Ausente {
                     chave: "id_procedimento"
                 }
             ))
-        );
+        ));
     }
 }

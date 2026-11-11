@@ -72,7 +72,7 @@ impl DiagnosticoPosEscrita {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroCriar {
     /// O tokenizador de atributos recusou a tag.

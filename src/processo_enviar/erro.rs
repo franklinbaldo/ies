@@ -5,6 +5,7 @@ use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::processo_concluir::escrita::CookieIlegivel;
 use crate::processo_concluir::{FalhaDoEnvio, VerificacaoPorLeitura};
 use crate::processo_obter::ErroProcessoObter;
+use crate::resposta_ajax::ErroXml;
 use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Enviar Processo", antes de qualquer POST.
@@ -23,7 +24,7 @@ pub(crate) enum ErroTelaDeEnvio {
 }
 
 /// Por que a consulta do autocomplete não deu a lista de unidades.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum FalhaDaConsulta {
     /// Derivação ou cookie: nada saiu.
@@ -32,11 +33,12 @@ pub(crate) enum FalhaDaConsulta {
     Transporte(#[from] FalhaTransporte),
     /// 200 sem `application/xml`/`text/xml` (tela de login, outra página).
     RespostaDoAutocompletarNaoXml,
-    AtributoDoItemIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     RespostaDoAutocompletarForaDaFormaObservada,
+    /// O XML da resposta não foi lido (`ErroXml` leva a causa do `quick-xml`).
+    Xml(#[from] ErroXml),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnviar {
     /// O cookie privado da sessão não pôde ser lido.

@@ -81,39 +81,41 @@ fn complemento_ambiguo_nao_e_aceito() {
         "</complementos>",
         "<complemento nome=\"IdProcedimento\">43</complemento></complementos>",
     ));
-    assert_eq!(
+    assert!(matches!(
         ler_destino(&alterado),
         Err(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua)
-    );
-    assert_eq!(
+    ));
+    assert!(matches!(
         ler_destino(&HtmlServido::de_teste("<complementos/>")),
         Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado)
-    );
+    ));
 }
 #[test]
 fn verificacao_da_anexacao_exige_s_ou_n_unico() {
     assert_eq!(
         ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">S</complemento></complementos>"#
-        )),
-        Ok(true)
+        ))
+        .ok(),
+        Some(true)
     );
     assert_eq!(
         ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">N</complemento></complementos>"#
-        )),
-        Ok(false)
+        ))
+        .ok(),
+        Some(false)
     );
-    assert_eq!(
+    assert!(matches!(
         ler_confirmacao(&HtmlServido::de_teste("<complementos/>")),
         Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
-    );
-    assert_eq!(
+    ));
+    assert!(matches!(
         ler_confirmacao(&HtmlServido::de_teste(
             r#"<complementos><complemento nome="Anexacao">S</complemento><complemento nome="Anexacao">N</complemento></complementos>"#
         )),
         Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
-    );
+    ));
 }
 #[test]
 fn recusa_o_proprio_principal_antes_da_escrita() {

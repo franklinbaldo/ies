@@ -137,19 +137,18 @@ fn bdd_333_04_limpeza_inconclusiva_falha_sem_tramitar() {
         ],
     ));
     let erro = resultado.expect_err("sem releitura não há envio autorizado");
-    assert_eq!(
+    assert!(matches!(
         erro,
-        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(Box::new(
-            super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
+        super::ErroEnviar::NaoConfirmadoNaLimpezaDaAnotacao(interna)
+            if matches!(interna.as_ref(), super::ErroEnviar::NaoConfirmadoNaRemocaoDeAnotacoes {
                 depois: None,
-                causa: Box::new(super::ErroEnviar::Anotacoes(
-                    super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
-                        crate::transporte::FalhaTransporte::Rede,
-                    ),
-                )),
-            }
-        ))
-    );
+                causa,
+            } if matches!(causa.as_ref(), super::ErroEnviar::Anotacoes(
+                super::anotacoes::ErroDasAnotacoes::TelaDasAnotacoes(
+                    crate::transporte::FalhaTransporte::Rede,
+                ),
+            )))
+    ));
     assert_eq!(
         pedidos
             .iter()

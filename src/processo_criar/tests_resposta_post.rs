@@ -335,5 +335,5 @@ fn location_com_fragmento_da_arvore_identifica_o_processo_criado() {
         "controlador.php?acao=procedimento_trabalhar&acao_origem=procedimento_gerar&acao_retorno=procedimento_escolher_tipo&id_procedimento=51229&atualizar_arvore=1&infra_sistema=100000100&infra_unidade_atual=110000846&infra_hash={HASH}#ID-51229"
     );
     let r = super::links::retorno_da_criacao(&instalacao, &localizacao, &envio);
-    assert_eq!(r.map(|(_, id)| id), Ok("51229".to_owned()));
+    assert_eq!(r.map(|(_, id)| id).ok(), Some("51229".to_owned()));
 }

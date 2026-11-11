@@ -4,6 +4,7 @@
 use crate::formulario_web::ErroSubmissaoFormulario;
 use crate::formulario_web::localizar_formulario;
 use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
+use crate::resposta_ajax::{ErroXml, RespostaAjax};
 use std::collections::HashSet;
 
 pub(crate) mod fluxo;
@@ -38,10 +39,10 @@ pub(crate) enum ErroTelaDeAnexacao {
 }
 
 /// O XML das consultas `protocolo_RI1023` e `procedimento_anexacao_verificar`.
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroComplementosDaAnexacao {
-    Atributo(#[from] ErroAtributoDaAnexacao),
+    Xml(#[from] ErroXml),
     ProcessoAAnexarNaoIdentificado,
     IdentidadeDeAnexadoAmbigua,
     AnexacaoNaoVerificada,
@@ -203,32 +204,18 @@ pub(crate) fn ler_confirmacao(
 fn ler_complementos(
     xml: &crate::tela_html::HtmlServido,
 ) -> Result<Vec<(String, String)>, ErroComplementosDaAnexacao> {
-    let dom = crate::tela_html::interpretar(xml);
-    let parser = dom.parser();
-    if dom
-        .query_selector("erros")
-        .into_iter()
-        .flatten()
-        .next()
-        .is_some()
-    {
+    let resposta = RespostaAjax::ler(xml)?;
+    if !resposta.elementos("erros").is_empty() {
         return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
     }
-    let mut valores = Vec::new();
-    for no in dom.query_selector("complemento").into_iter().flatten() {
-        let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            continue;
-        };
-        if let Some(nome) = valor_decodificado(tag, "nome")
-            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
-        {
-            valores.push((
-                nome,
-                html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned(),
-            ));
-        }
-    }
-    Ok(valores)
+    Ok(resposta
+        .elementos("complemento")
+        .into_iter()
+        .filter_map(|complemento| {
+            let nome = complemento.atributo("nome")?;
+            Some((nome.to_owned(), complemento.texto().to_owned()))
+        })
+        .collect())
 }
 /// Recusa identidade igual ou já anexada antes da operação irreversível.
 pub(crate) fn decidir(
