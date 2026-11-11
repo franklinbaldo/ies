@@ -12,7 +12,9 @@ use rusqlite::Connection;
 use serde_json::Value;
 #[path = "support/falha.rs"]
 mod falha_cli;
-use falha_cli::falha_por;
+#[path = "support/falha_por.rs"]
+mod falha_por_cli;
+use falha_por_cli::falha_por;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};

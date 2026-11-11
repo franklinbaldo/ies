@@ -25,6 +25,7 @@ pub(crate) enum ProvaDaCriacao {
 }
 
 /// Classificacao por fatos tipados, sem interpretar textos.
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EvidenciaDeCoincidencia {
     UnicaSemProvaCausal,
@@ -106,17 +107,6 @@ pub(crate) enum ErroCriar {
 /// Consultas dos testes sobre o erro tipado; a CLI publica o próprio erro.
 #[cfg(test)]
 impl ErroCriar {
-    /// Somente valores numéricos do atributo maxlength observado na tela;
-    /// não publica a descrição nem pressupõe limite global.
-    pub(crate) fn limite_da_especificacao(&self) -> Option<(usize, usize)> {
-        match self {
-            Self::Cadastro(ErroCadastro::EspecificacaoAcimaDoLimite { limite, tamanho }) => {
-                Some((*limite, *tamanho))
-            }
-            _ => None,
-        }
-    }
-
     pub(crate) fn opcoes_para_escolha(&self) -> Option<&[(String, String)]> {
         match self {
             Self::Hipotese(erro) => erro.opcoes_para_escolha(),
@@ -154,17 +144,6 @@ impl ErroCriar {
         matches!(
             self,
             Self::RecusaDoPost(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_))
-        )
-    }
-
-    pub(crate) fn apos_post(&self) -> bool {
-        matches!(
-            self,
-            Self::NaoConfirmado
-                | Self::VerificacaoAposPost(_)
-                | Self::RespostaHttpSemProva(_)
-                | Self::PosEscrita { .. }
-                | Self::PosRespostaInesperada { .. }
         )
     }
 

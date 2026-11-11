@@ -130,9 +130,10 @@ impl ArquivoParcial {
     pub(crate) fn concluir(self) -> Result<(), ErroAnexo> {
         self.parcial.confirmar().map_err(|falha| match falha {
             FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
+            #[cfg(unix)]
+            FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
             FalhaDaGravacao::SemNomeDeArquivo
             | FalhaDaGravacao::DiretorioAusente
-            | FalhaDaGravacao::DiretorioGravavelPorOutros
             | FalhaDaGravacao::DestinoNaoEhArquivoRegular
             | FalhaDaGravacao::AcimaDoLimite
             | FalhaDaGravacao::CriacaoFalhou(_)
@@ -200,9 +201,10 @@ impl ErroAnexo {
 fn erro_ao_escrever(falha: FalhaDaGravacao) -> ErroAnexo {
     match falha {
         FalhaDaGravacao::AcimaDoLimite => ErroAnexo::AcimaDoLimite,
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
         FalhaDaGravacao::SemNomeDeArquivo
         | FalhaDaGravacao::DiretorioAusente
-        | FalhaDaGravacao::DiretorioGravavelPorOutros
         | FalhaDaGravacao::DestinoJaExiste
         | FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::CriacaoFalhou(_)
@@ -453,8 +455,9 @@ fn abrir_parcial(
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroAnexo::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroAnexo::ArquivoJaExiste,
         // Diretório do usuário: a peça não confere o modo.
-        FalhaDaGravacao::DiretorioGravavelPorOutros
-        | FalhaDaGravacao::DestinoNaoEhArquivoRegular
+        #[cfg(unix)]
+        FalhaDaGravacao::DiretorioGravavelPorOutros => ErroAnexo::EscritaFalhou,
+        FalhaDaGravacao::DestinoNaoEhArquivoRegular
         | FalhaDaGravacao::AcimaDoLimite
         | FalhaDaGravacao::CriacaoFalhou(_)
         | FalhaDaGravacao::CriacaoDoDiretorioFalhou(_)

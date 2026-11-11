@@ -21,7 +21,7 @@ fn regressao_496_documento_em_arvore_parcial_recusa_sem_falso_ausente() {
             argumentos.push("--ocultar-inacessiveis");
         }
         let (saida, trilha) = apoio::executar_pasta_pendente(&argumentos);
-        falha_cli::falha_por(&saida, "Documento", "Processo");
+        falha_por_cli::falha_por(&saida, "Documento", "Processo");
         let stderr = String::from_utf8_lossy(&saida.stderr);
         assert!(
             stderr.contains("PastasNaoCarregadasSemAcaoDeAbrir"),

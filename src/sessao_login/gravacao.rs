@@ -157,6 +157,7 @@ fn traduzir(falha: FalhaDaGravacao, papel: ArquivoPrivado) -> ErroLogin {
         FalhaDaGravacao::DestinoNaoEhArquivoRegular => {
             ErroLogin::DestinoDaSessaoNaoEhArquivoRegular(papel)
         }
+        #[cfg(unix)]
         FalhaDaGravacao::DiretorioGravavelPorOutros => {
             ErroLogin::DiretorioDaSessaoGravavelPorOutros(papel)
         }

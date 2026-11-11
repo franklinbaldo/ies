@@ -38,6 +38,7 @@ pub(crate) enum FalhaConfirmacao {
     ReleituraIncerta(#[source] ErroProcessoObter),
     NaoConfirmado,
 }
+#[cfg(test)]
 impl FalhaConfirmacao {
     pub(crate) fn temporario_possivel(&self) -> bool {
         !matches!(

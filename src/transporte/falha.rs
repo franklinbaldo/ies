@@ -35,7 +35,7 @@ pub enum FalhaTransporte {
     /// A consulta AJAX não declarou `application/xml` nem `text/xml`.
     TipoDeConteudoNaoXml,
     ArquivoPrivadoAusenteOuInacessivel,
-    #[cfg_attr(not(unix), allow(dead_code))]
+    #[cfg(unix)]
     ArquivoPrivadoComPermissoesInseguras,
     CaminhoDeArquivoNaoEhArquivo,
     ArquivoPrivadoLinkSimbolico,
@@ -71,6 +71,8 @@ impl FalhaTransporte {
             Self::ControleRedirecionadoParaOLogin(_) | Self::PaginaDeLoginRecebidaNoControle => {
                 true
             }
+            #[cfg(unix)]
+            Self::ArquivoPrivadoComPermissoesInseguras => false,
             Self::ChaveDeConsultaNaoCanonica
             | Self::SeparadorDeConsultaAmbiguo
             | Self::OrigemNaoAutorizada
@@ -79,7 +81,6 @@ impl FalhaTransporte {
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
             | Self::ArquivoPrivadoAusenteOuInacessivel
-            | Self::ArquivoPrivadoComPermissoesInseguras
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
@@ -103,6 +104,8 @@ impl FalhaTransporte {
             Self::Status(recusa)
             | Self::BloqueioDeSegurancaDaInstalacao(recusa)
             | Self::ControleRedirecionadoParaOLogin(recusa) => Some(recusa),
+            #[cfg(unix)]
+            Self::ArquivoPrivadoComPermissoesInseguras => None,
             Self::ChaveDeConsultaNaoCanonica
             | Self::SeparadorDeConsultaAmbiguo
             | Self::OrigemNaoAutorizada
@@ -111,7 +114,6 @@ impl FalhaTransporte {
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
             | Self::ArquivoPrivadoAusenteOuInacessivel
-            | Self::ArquivoPrivadoComPermissoesInseguras
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
@@ -145,6 +147,8 @@ impl FalhaTransporte {
         match self {
             Self::RespostaExcessiva => FatoDaResposta::CorpoAcimaDoLimite,
             Self::PaginaDeLoginRecebidaNoControle => FatoDaResposta::TelaDeLoginNoLugarDaResposta,
+            #[cfg(unix)]
+            Self::ArquivoPrivadoComPermissoesInseguras => FatoDaResposta::NenhumAlemDoTransporte,
             Self::ChaveDeConsultaNaoCanonica
             | Self::SeparadorDeConsultaAmbiguo
             | Self::OrigemNaoAutorizada
@@ -153,7 +157,6 @@ impl FalhaTransporte {
             | Self::TipoDeConteudoNaoHtml
             | Self::TipoDeConteudoNaoXml
             | Self::ArquivoPrivadoAusenteOuInacessivel
-            | Self::ArquivoPrivadoComPermissoesInseguras
             | Self::CaminhoDeArquivoNaoEhArquivo
             | Self::ArquivoPrivadoLinkSimbolico
             | Self::ArquivoPrivadoVazio
