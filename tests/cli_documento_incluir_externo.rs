@@ -320,7 +320,7 @@ fn inspecao_local_humana_mantem_aviso_sem_sessao_ou_rede() {
         "Anexo",
     ]);
     assert_eq!(saida.status.code(), Some(0), "{:?}", saida.stderr);
-    assert!(saida.stderr.is_empty());
+    assert_eq!(saida.stderr, b"");
     let humano = String::from_utf8(saida.stdout).unwrap();
     assert_eq!(
         humano,
