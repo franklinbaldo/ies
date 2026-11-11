@@ -2,9 +2,8 @@
 //! O transporte é injetável; a confirmação nunca repete a submissão.
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
 use crate::documento_criar::conferir_criacao;
-use crate::documento_criar::fluxo::ErroPreviaCriacao;
+use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
-use crate::formulario_web::{RespostaDoPost, SubmissaoDerivada};
 use crate::processo_obter::ErroProcessoObter;
 use crate::transporte::FalhaTransporte;
 use crate::transporte::sessao::CookieDaSessao;
@@ -78,6 +77,24 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
     })
 }
 
+/// O único POST de criação e a releitura que o comprova.
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroConfirmacaoDaCriacao {
+    /// Pasta fechada na foto inicial: nenhuma escrita é enviada.
+    ArvoreIncompleta,
+    /// IDs de documento repetidos/vazios ou processo sem ID antes do POST.
+    FotoInicialInconsistente,
+    /// A releitura não demonstra um documento novo único do tipo pedido.
+    NaoConfirmado,
+    /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
+    /// preservar sua causa sem autorizar uma segunda tentativa.
+    NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
+    /// O GET de reconciliação falhou após o POST; preservar a causa
+    /// observada, sem inferir que o documento deixou de ser criado.
+    NaoConfirmadoNaReleitura(ErroProcessoObter),
+}
+
 pub(super) fn postar_e_verificar<T, R, P, L>(
     transporte: &mut T,
     submissao: SubmissaoDerivada,
@@ -86,7 +103,7 @@ pub(super) fn postar_e_verificar<T, R, P, L>(
     tipo: &str,
     enviar: P,
     reler: L,
-) -> Result<String, ErroPreviaCriacao>
+) -> Result<String, ErroConfirmacaoDaCriacao>
 where
     R: Read,
     P: FnOnce(&mut T, SubmissaoDerivada, &str) -> Result<RespostaDoPost<R>, FalhaTransporte>,
@@ -95,7 +112,7 @@ where
     // Nunca emitir uma escrita quando a própria foto inicial já impede
     // demonstrar seu efeito. Validação anterior à primeira requisição.
     if antes.pastas_nao_carregadas {
-        return Err(ErroPreviaCriacao::ArvoreIncompleta);
+        return Err(ErroConfirmacaoDaCriacao::ArvoreIncompleta);
     }
     let mut ids = std::collections::HashSet::new();
     if antes.id.is_empty()
@@ -104,7 +121,7 @@ where
             .iter()
             .any(|documento| documento.id.is_empty() || !ids.insert(documento.id.as_str()))
     {
-        return Err(ErroPreviaCriacao::FotoInicialInconsistente);
+        return Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente);
     }
     let resposta = enviar_submissao_via(submissao, cookie, |post, cookie| {
         enviar(transporte, post, cookie)
@@ -115,20 +132,20 @@ where
     let depois = reler(transporte);
     let resposta = match resposta {
         Ok(resposta) => resposta,
-        Err(causa) => return Err(ErroPreviaCriacao::NaoConfirmadoNoEnvio(causa)),
+        Err(causa) => return Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(causa)),
     };
-    let depois = depois.map_err(ErroPreviaCriacao::NaoConfirmadoNaReleitura)?;
+    let depois = depois.map_err(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura)?;
     if depois.pastas_nao_carregadas || antes.id != depois.id {
-        return Err(ErroPreviaCriacao::NaoConfirmado);
+        return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-        .map_err(|_| ErroPreviaCriacao::NaoConfirmado)?;
+        .map_err(|_| ErroConfirmacaoDaCriacao::NaoConfirmado)?;
     let id_novo = depois
         .documentos
         .iter()
         .find(|doc| doc.numero_sei.as_deref() == Some(numero.as_str()))
         .map(|doc| doc.id.as_str())
-        .ok_or(ErroPreviaCriacao::NaoConfirmado)?;
+        .ok_or(ErroConfirmacaoDaCriacao::NaoConfirmado)?;
     // HTML 200 genérico não confirma que o servidor aceitou a gravação.
     // Em conta compartilhada, a mudança da árvore pode ser concorrente.
     // Só o redirecionamento observado para o ID do documento novo serve
@@ -142,7 +159,7 @@ where
         }
     };
     if !resposta_conferivel {
-        return Err(ErroPreviaCriacao::NaoConfirmado);
+        return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     Ok(numero)
 }
