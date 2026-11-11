@@ -1,3 +1,0 @@
-cassettes/unb/unidade-troca-e-volta-unb--c834c505aee4.md
-cassettes/ufrj/unidade-troca-e-volta-ufrj--b2c6346c8f1e.md
-cassettes/go/unidade-troca-e-volta-go--adbfaefa1d78.md
