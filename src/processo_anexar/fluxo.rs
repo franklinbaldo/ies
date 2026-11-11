@@ -77,7 +77,7 @@ pub(crate) enum FalhaAnexar {
     ConsultaTransporte(FalhaTransporte),
     ConsultaResposta(FalhaTransporte),
 }
-mod escrita;
+pub(super) mod escrita;
 
 pub(crate) struct Pedido<'a> {
     pub(crate) anexado: &'a NumeroProcesso,

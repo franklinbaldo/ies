@@ -1,10 +1,10 @@
 //! Link de "Iniciar Processo" publicado pelo Controle da sessão.
 //! Não inferir URL, não executar JS e não seguir redirecionamento.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 /// O menu do Controle fora da forma observada.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -71,27 +71,18 @@ pub(crate) fn link_de_iniciar(
     if href.contains(['#', '\\', '\'']) || !href.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (chave, valor) = par
-            .split_once('=')
-            .ok_or(ErroMenu::LinkDeIniciarProcessoNaoReconhecido)?;
-        conferir_chave_de_consulta(chave).map_err(ErroMenu::ConsultaDoLinkRecusada)?;
-        conferir_valor_de_consulta(valor).map_err(ErroMenu::ConsultaDoLinkRecusada)?;
-        match chave {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProcedimentoEscolherTipo) => {
-                acoes += 1;
-            }
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
-            }
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroMenu::ConsultaDoLinkRecusada(falha)
         }
-    }
-    if acoes != 1 || hashes != 1 {
+        ErroConsultaDoControlador::ParSemIgual => ErroMenu::LinkDeIniciarProcessoNaoReconhecido,
+    })?;
+    if consulta.acao() != Ok(AcaoDoSei::ProcedimentoEscolherTipo)
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(ErroMenu::LinkDeIniciarProcessoNaoReconhecido);
     }
     let base = url_controle

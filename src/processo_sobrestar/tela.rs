@@ -1,6 +1,7 @@
 //! Conferência estrutural do formulário de sobrestamento observado na `UnB` (#269).
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
@@ -220,15 +221,10 @@ pub(crate) fn redirecionamento_esperado(
     else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
     };
-    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
-        && valores("acao_origem") == [AcaoDoSei::ProcedimentoSobrestar.como_na_url()]
-        && valores("id_procedimento") == [id]
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        && consulta.unico("acao_origem") == Ok(AcaoDoSei::ProcedimentoSobrestar.como_na_url())
+        && consulta.unico("id_procedimento") == Ok(id)
 }

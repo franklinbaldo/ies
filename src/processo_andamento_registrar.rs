@@ -2,6 +2,7 @@
 //! Casos: Todos src/todos/andamento.py @323eb01.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::ErroAndamentoNaBarra;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida,
@@ -151,16 +152,11 @@ fn localizacao_esperada(local: Option<&str>, origem: &str, id: &str) -> bool {
     let Some(consulta) = local.and_then(|l| consulta_do_controlador(l, origem)) else {
         return false;
     };
-    let valores = |chave: &str| -> Vec<&str> {
-        consulta
-            .split('&')
-            .filter_map(|par| par.split_once('='))
-            .filter(|(k, _)| *k == chave)
-            .map(|(_, v)| v)
-            .collect()
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
     };
-    valores("acao") == [AcaoDoSei::ProcedimentoConsultarHistorico.como_na_url()]
-        && valores("id_procedimento") == [id]
+    consulta.acao() == Ok(AcaoDoSei::ProcedimentoConsultarHistorico)
+        && consulta.unico("id_procedimento") == Ok(id)
 }
 pub(crate) struct Resultado {
     pub(crate) numero: String,
@@ -403,6 +399,8 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod acervo;
 #[cfg(test)]
 #[path = "processo_andamento_registrar/tests_fluxo.rs"]
 mod tests_fluxo;

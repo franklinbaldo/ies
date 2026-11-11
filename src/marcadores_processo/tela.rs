@@ -6,7 +6,7 @@
 use super::{ErroMarcadores, MarcadorDoProcesso, MarcadoresLidos, TelaDosMarcadores};
 use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
-use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em};
+use crate::html_atributos::{atributos, nos_com_id, nos_com_id_em, valor_decodificado};
 use crate::nivel_de_detalhe::texto_colapsado;
 use std::collections::HashSet;
 
@@ -114,7 +114,8 @@ fn conferir_identidade(dom: &tl::VDom<'_>, nup: &str, id: &str) -> Result<(), Er
     if formulario.name() != "form" {
         return Err(ErroMarcadores::TelaDosMarcadoresAusente);
     }
-    let action = atributo(formulario, "action")?.ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
+    let action = valor_decodificado(formulario, "action")?
+        .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
     let consulta = action
         .strip_prefix("controlador.php?")
         .ok_or(ErroMarcadores::TelaDosMarcadoresAusente)?;
@@ -210,12 +211,12 @@ fn linha(
     let [caixa] = caixas.as_slice() else {
         return Err(LINHA);
     };
-    let id = atributo(caixa, "value")?.ok_or(LINHA)?;
+    let id = valor_decodificado(caixa, "value")?.ok_or(LINHA)?;
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(LINHA);
     }
     for ancora in descendentes(selecao, parser, "a") {
-        if let Some(id_ancora) = atributo(ancora, "id")?
+        if let Some(id_ancora) = valor_decodificado(ancora, "id")?
             && id_ancora
                 .strip_prefix("lnkInfraID-")
                 .is_some_and(|resto| resto != id)
@@ -223,7 +224,8 @@ fn linha(
             return Err(LINHA);
         }
     }
-    if atributo(texto_td, "id")?.is_some_and(|v| v != format!("tdAndamentoMarcador{id}")) {
+    if valor_decodificado(texto_td, "id")?.is_some_and(|v| v != format!("tdAndamentoMarcador{id}"))
+    {
         return Err(LINHA);
     }
     // Marcador: o texto da célula; o ícone dá a cor; os `title`, quando
@@ -235,9 +237,9 @@ fn linha(
     let [icone] = descendentes(marcador, parser, "img")[..] else {
         return Err(LINHA);
     };
-    let cor = cor(&atributo(icone, "src")?.ok_or(LINHA)?)?;
+    let cor = cor(&valor_decodificado(icone, "src")?.ok_or(LINHA)?)?;
     for tag in [icone, *caixa] {
-        if let Some(titulo) = atributo(tag, "title")?
+        if let Some(titulo) = valor_decodificado(tag, "title")?
             && texto_colapsado(&titulo) != nome
         {
             return Err(LINHA);
@@ -296,24 +298,10 @@ fn eh_data_hora(texto: &str) -> bool {
         })
 }
 
-/// Valor do atributo com entidades decodificadas.
-fn atributo(tag: Tag<'_>, nome: &'static str) -> Result<Option<String>, ErroMarcadores> {
-    let lidos = atributos(tag).map_err(ErroMarcadores::Atributo)?;
-    lidos
-        .valor(nome)
-        .map_err(ErroMarcadores::Atributo)?
-        .map(|v| decodificar(v).ok_or(LINHA))
-        .transpose()
-}
-
 /// Entidades decodificadas (`&nbsp;` como espaço inseparável).
-fn decodificar(bruto: &str) -> Option<String> {
-    decodificar_atributo(bruto)
-}
-
 /// Texto visível, entidades decodificadas e espaços colapsados.
 fn texto(tag: Tag<'_>, parser: &tl::Parser<'_>) -> Result<String, ErroMarcadores> {
-    decodificar(&tag.inner_text(parser))
+    decodificar_atributo(&tag.inner_text(parser))
         .map(|t| texto_colapsado(&t))
         .ok_or(LINHA)
 }

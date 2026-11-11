@@ -1,5 +1,7 @@
 //! Escolha do documento externo na lista e do tipo no cadastro inicial (#332).
 //! Os links e opções provêm das telas do Todos (`UnB` SEI 4/PEN3 SEI 5).
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{atributo_presente, nos_com_id, valor_do_atributo};
 
@@ -55,11 +57,10 @@ pub(crate) fn escolher_externo(html: &str) -> Result<EscolhaExterna, ErroEscolha
         let href = decodificar_atributo(&href).ok_or(ErroEscolhaExterna::ForaDaForma)?;
         let onclick = valor_do_atributo(tag, "onclick").map_err(ErroEscolhaExterna::Atributo)?;
         // A classificação vem da ação, nunca do texto da âncora.
-        let pelo_link = href.starts_with("controlador.php?")
-            && href
-                .split('?')
-                .nth(1)
-                .is_some_and(|q| q.split('&').any(|p| p == "acao=documento_receber"));
+        let pelo_link = href
+            .strip_prefix("controlador.php?")
+            .and_then(|q| ConsultaDoControlador::ler(q).ok())
+            .is_some_and(|q| q.acao() == Ok(AcaoDoSei::DocumentoReceber));
         let pelo_script = onclick
             .as_deref()
             .is_some_and(|v| v.trim().trim_end_matches(';').trim() == "escolher(-1)");

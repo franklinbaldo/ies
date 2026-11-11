@@ -2,8 +2,8 @@
 //! Oráculo: Todos src/todos/anexacao.py @323eb01 (`UnB` 4.0.9).
 //! Nenhum JavaScript executado, atributos só via `html_atributos`.
 use crate::formulario_web::ErroSubmissaoFormulario;
-use crate::formulario_web::{decodificar_atributo, localizar_formulario};
-use crate::html_atributos::{ErroAtributoHtml, valor_do_atributo};
+use crate::formulario_web::localizar_formulario;
+use crate::html_atributos::{ErroAtributoHtml, valor_decodificado};
 use std::collections::HashSet;
 
 pub(crate) mod fluxo;
@@ -22,8 +22,7 @@ pub(crate) struct Destino {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAtributoDaAnexacao {
-    AtributosAmbiguosNaAnexacao(#[source] ErroAtributoHtml),
-    EntidadeHtmlNaoInterpretadaNaAnexacao,
+    AtributoDaAnexacaoIlegivel(#[source] ErroAtributoHtml),
 }
 
 /// A tela `frmProcedimentoAnexar` fora da forma observada.
@@ -58,18 +57,6 @@ pub(crate) enum ErroAnexacaoRecusada {
     ProcessoJaAnexado,
 }
 
-fn atributo(
-    tag: &tl::HTMLTag<'_>,
-    nome: &'static str,
-) -> Result<Option<String>, ErroAtributoDaAnexacao> {
-    valor_do_atributo(tag, nome)
-        .map_err(ErroAtributoDaAnexacao::AtributosAmbiguosNaAnexacao)?
-        .map(|v| {
-            decodificar_atributo(&v)
-                .ok_or(ErroAtributoDaAnexacao::EntidadeHtmlNaoInterpretadaNaAnexacao)
-        })
-        .transpose()
-}
 /// Exige controles únicos dentro do formulário real.
 pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao> {
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -95,12 +82,14 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao>
         let elemento = tag.name().as_utf8_str();
         // `UnB` 4.0.9 publica o envio como <button type="submit">.
         if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
-            && let Some(nome) = atributo(tag, "name")?
+            && let Some(nome) = valor_decodificado(tag, "name")
+                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
             && let Some(visto) = vistos.get_mut(pos)
         {
             *visto += 1;
-            let tipo = atributo(tag, "type")?;
+            let tipo = valor_decodificado(tag, "type")
+                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?;
             let valido = match pos {
                 0 | 1 => tipo
                     .as_deref()
@@ -124,7 +113,11 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao>
         let Some(tag) = table.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        if atributo(tag, "summary")?.as_deref() == Some("Lista de Processos Anexados") {
+        if valor_decodificado(tag, "summary")
+            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+            .as_deref()
+            == Some("Lista de Processos Anexados")
+        {
             tabelas.push(tag);
         }
     }
@@ -146,11 +139,14 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao>
         .filter_map(tl::Node::as_tag)
     {
         if !tag.name().as_utf8_str().eq_ignore_ascii_case("input")
-            || !atributo(tag, "type")?.is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
+            || !valor_decodificado(tag, "type")
+                .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+                .is_some_and(|v| v.eq_ignore_ascii_case("checkbox"))
         {
             continue;
         }
-        let id = atributo(tag, "value")?
+        let id = valor_decodificado(tag, "value")
+            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
             .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()))
             .ok_or(ErroTelaDeAnexacao::IdDoAnexadoAusenteOuInvalido)?;
         if !ids.insert(id.clone()) {
@@ -219,7 +215,9 @@ fn ler_complementos(xml: &str) -> Result<Vec<(String, String)>, ErroComplementos
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
-        if let Some(nome) = atributo(tag, "nome")? {
+        if let Some(nome) = valor_decodificado(tag, "nome")
+            .map_err(ErroAtributoDaAnexacao::AtributoDaAnexacaoIlegivel)?
+        {
             valores.push((
                 nome,
                 html_escape::decode_html_entities(&tag.inner_text(parser)).into_owned(),
@@ -246,6 +244,8 @@ pub(crate) fn decidir(
 #[cfg(test)]
 #[path = "processo_anexar/acervo.rs"]
 mod acervo;
+#[cfg(test)]
+mod acervo_leitores;
 #[cfg(test)]
 #[path = "processo_anexar/tests.rs"]
 mod tests;

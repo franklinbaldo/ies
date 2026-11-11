@@ -14,16 +14,19 @@ pub(crate) enum ErroCorpoHttp {
     CodificacaoNaoSuportada,
 }
 
-/// Decodifica bytes no `encoding` declarado; ISO-8859-1 (ou nenhum) mapeia
-/// cada byte ao caractere de mesmo código. Outra codificação é recusada.
-pub(crate) fn legivel(bytes: &[u8], encoding: &str) -> Result<String, ErroCorpoHttp> {
-    let enc = encoding.to_ascii_lowercase();
+/// Decodifica bytes no `encoding` declarado. Sem codificação declarada
+/// (`None`), cada byte vira o caractere de mesmo código, como em ISO-8859-1.
+/// Outra codificação é recusada.
+pub(crate) fn legivel(bytes: &[u8], encoding: Option<&str>) -> Result<String, ErroCorpoHttp> {
+    let Some(enc) = encoding.map(str::to_ascii_lowercase) else {
+        return Ok(bytes.iter().copied().map(char::from).collect());
+    };
     if enc.contains("utf-8") || enc == "utf8" {
         return std::str::from_utf8(bytes)
             .map(str::to_owned)
             .map_err(ErroCorpoHttp::Utf8Invalido);
     }
-    if enc.contains("8859-1") || enc.contains("latin1") || enc.is_empty() {
+    if enc.contains("8859-1") || enc.contains("latin1") {
         return Ok(bytes.iter().copied().map(char::from).collect());
     }
     Err(ErroCorpoHttp::CodificacaoNaoSuportada)
@@ -40,7 +43,7 @@ pub(crate) fn decode_http_body(bytes: &[u8], content_type: &str) -> Result<Strin
     } else {
         "utf-8"
     };
-    legivel(bytes, enc)
+    legivel(bytes, Some(enc))
 }
 
 #[cfg(test)]
@@ -76,8 +79,8 @@ mod tests {
 
     #[test]
     fn codificacao_desconhecida_e_recusada() {
-        assert!(legivel(b"abc", "shift_jis").is_err());
-        assert_eq!(legivel(b"\xe9", "").unwrap(), "é");
-        assert_eq!(legivel(b"\xe9", "latin1").unwrap(), "é");
+        assert!(legivel(b"abc", Some("shift_jis")).is_err());
+        assert_eq!(legivel(b"\xe9", None).unwrap(), "é");
+        assert_eq!(legivel(b"\xe9", Some("latin1")).unwrap(), "é");
     }
 }

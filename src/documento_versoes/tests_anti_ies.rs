@@ -1,6 +1,5 @@
 //! BDD-88-01/03: resposta do anti-IES atravessa os leitores reais do IES.
 use super::{VersaoDocumento, interpretar_historico};
-use crate::documento::NumeroDocumento;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
 use crate::rodape_do_documento::versao_do_rodape;
 use anti_ies::Estado;
@@ -101,8 +100,7 @@ fn bdd_88_01_leitor_ies_confere_lista_e_visualiza_versao_servida() {
         "bdd-88",
     );
     assert_eq!(lista.estado, Estado::Ok);
-    let numero = NumeroDocumento::novo("0011519").unwrap();
-    let historico = interpretar_historico(&lista.corpo, &numero, "42", None).unwrap();
+    let historico = interpretar_historico(&lista.corpo, "42", None).unwrap();
     assert_eq!(historico.atual().unwrap().numero(), 3);
     let antiga = historico
         .selecionar(VersaoDocumento::nova(1).unwrap())

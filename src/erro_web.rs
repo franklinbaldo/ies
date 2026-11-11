@@ -86,7 +86,7 @@ pub enum ErroCaixa {
     HtmlDaCaixaInvalido,
     /// `tl` recusou o HTML da caixa; a causa fica no `source`.
     HtmlDaCaixaRecusadoPeloParser(#[source] tl::ParseError),
-    AtributoDaCaixaIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    AtributoDaCaixaIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
     IdentificacoesDaUnidadeRepetidasNoControle,
     TiposDeVisualizacaoRepetidosNoControle,
     UnidadeInesperada,

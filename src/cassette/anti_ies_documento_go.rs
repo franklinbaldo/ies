@@ -232,7 +232,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         documento_na_arvore(&captura.json, id);
     let numero = NumeroDocumento::novo(&numero_observado).unwrap();
     let html_original = html_da_resposta(respostas[0].interacao).unwrap();
-    let historico_original = interpretar_historico(&html_original, &numero, id, None)
+    let historico_original = interpretar_historico(&html_original, id, None)
         .expect("leitor real do IES na lista original");
     let conteudo = corpo_da_cassette(&captura.json, id, &numero_observado, exigir_corpo);
     let mut revisoes = revisoes_observadas(&historico_original, "");
@@ -269,7 +269,7 @@ fn confrontar_cassette_historico_por_http(caminho_card: &str, exigir_corpo: bool
         servir_historico_de_cassette(documento, instalacao, conteudo.is_some());
     // A mesma lista original é lida pelo IES; a projeção HTTP do anti-IES
     // deve conservar todas as versões, usuários, unidades e datas.
-    confrontar_historico_http(endereco, id, &processo, &numero, &historico_original);
+    confrontar_historico_http(endereco, id, &processo, &historico_original);
     confrontar_corpo_observado_http(endereco, id, &processo, &numero, conteudo.as_ref());
     confrontar_recusas_de_versoes(
         endereco,
