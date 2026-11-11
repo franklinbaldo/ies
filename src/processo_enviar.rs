@@ -8,6 +8,7 @@ mod anotacoes;
 mod destino;
 mod erro;
 mod fluxo;
+mod releitura_anotacao;
 mod tela;
 
 #[cfg(test)]
