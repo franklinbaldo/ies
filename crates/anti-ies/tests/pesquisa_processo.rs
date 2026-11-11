@@ -94,7 +94,6 @@ fn pesquisa_do_nup_serve_a_tela_e_a_arvore_sem_criar_documentos() {
     servidor.join().unwrap();
 }
 
-
 /// A entrada por id sem assinatura é navegação do processo persistido,
 /// não da representação separada usada para criar documentos.
 #[test]
