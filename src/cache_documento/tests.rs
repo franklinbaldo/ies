@@ -177,17 +177,10 @@ fn publicar_parcial_preserva_erro_de_hard_link() {
     let ancestral = raiz.join("ies");
     fs::write(&ancestral, b"sentinela").unwrap();
     let parcial = raiz.join("parcial.pdf");
-    let pdf = b"%PDF-1.7 sintético";
+    let pdf = b"%PDF-1.7 sintetico";
     fs::write(&parcial, pdf).unwrap();
-    let erro = publicar_parcial(
-        &parcial,
-        &raiz,
-        "sei.exemplo",
-        "0007",
-        &sha256(pdf),
-        "pdf",
-    )
-    .unwrap_err();
+    let erro = publicar_parcial(&parcial, &raiz, "sei.exemplo", "0007", &sha256(pdf), "pdf")
+        .unwrap_err();
     assert_eq!(
         erro,
         FalhaCache::ArquivoDoCacheInacessivel(std::io::ErrorKind::NotADirectory)
