@@ -137,7 +137,7 @@ pub fn ler_historico(html: &str, numero: &str) -> Result<DetalheProcesso, ErroHi
             return Err(ErroHistorico::LinhaInvalida);
         }
         detalhe.andamentos.push(Andamento {
-            ocorrido_em: Some(ocorrido_em),
+            ocorrido_em,
             unidade: (!unidade.is_empty()).then_some(unidade),
             usuario: (!usuario.is_empty()).then_some(usuario),
             descricao,

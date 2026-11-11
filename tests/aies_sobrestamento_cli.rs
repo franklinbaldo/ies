@@ -294,9 +294,9 @@ fn verificar(
         // A segunda CLI, e não apenas o SQLite, comprova o estado final.
         if sobrestado {
             assert_eq!(observado["aberto_em"][0]["sigla"], "TESTE");
-            assert!(observado["sobrestado_em"].is_null());
+            assert!(observado.get("sobrestado_em").is_none());
         } else {
-            assert!(observado["aberto_em"].is_null());
+            assert!(observado.get("aberto_em").is_none());
             assert_eq!(observado["sobrestado_em"][0]["sigla"], "TESTE");
         }
     }

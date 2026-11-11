@@ -12,7 +12,7 @@ fn le_a_visao_resumida_com_total_igual_as_linhas() {
     assert_eq!(lidos.total_declarado, 3);
     assert_eq!(lidos.itens.len(), 3);
     let primeiro = &lidos.itens[0];
-    assert_eq!(primeiro.ocorrido_em.as_deref(), Some("01/01/2026 10:00"));
+    assert_eq!(primeiro.ocorrido_em, "01/01/2026 10:00");
     assert_eq!(primeiro.unidade.as_deref(), Some("U0"));
     assert_eq!(primeiro.usuario.as_deref(), Some("p0"));
     assert_eq!(primeiro.descricao, "Andamento sintetico 0");

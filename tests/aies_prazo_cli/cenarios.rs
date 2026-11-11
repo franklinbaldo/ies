@@ -231,7 +231,7 @@ fn bdd_272_02_outra_invocacao_da_cli_le_prazo_persistido() {
         let segunda: serde_json::Value = serde_json::from_slice(&saidas[1].stdout).unwrap();
         assert_eq!(primeira["confirmado"], true);
         assert_eq!(segunda["confirmado"], false);
-        assert!(segunda["solicitado"].is_null());
+        assert!(segunda.get("solicitado").is_none());
         assert_eq!(segunda["atual"]["tipo"], tipo);
         assert_eq!(segunda["atual"][campo], valor);
         assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
@@ -274,7 +274,7 @@ fn bdd_272_03_outra_invocacao_da_cli_observa_prazo_excluido() {
     assert_eq!(primeira["confirmado"], true);
     assert_eq!(segunda["confirmado"], false);
     assert_eq!(segunda["atual"]["tipo"], "sem_prazo");
-    assert!(segunda["solicitado"].is_null());
+    assert!(segunda.get("solicitado").is_none());
     assert_eq!(estado_final, (None, false));
     assert_eq!(pedidos.iter().filter(|p| p.starts_with("POST ")).count(), 1);
     let escrita = pedidos

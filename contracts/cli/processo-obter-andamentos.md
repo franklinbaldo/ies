@@ -34,7 +34,7 @@ juntas ou repetidas são `links_do_historico_repetidos_na_arvore`; um
 **Link não publicado.** Em GO, duas árvores não publicaram o link em
 nenhuma forma. Sem o link, o histórico não é lido: o comando falha com
 `LinkDoHistorico(LinkDoHistoricoAusenteNaArvore)` (saída 1, nada é
-publicado como `null`). Só `--sem-andamentos` dispensa a leitura, e
+publicado). Só `--sem-andamentos` dispensa a leitura, e
 então o JSON sai sem a chave `andamentos`, com
 `"andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos"`. Link
 presente mas inválido ou repetido também é recusa tipada.
@@ -110,7 +110,7 @@ Históricos acima de 75 linhas: **NOT_RUN**.
 "andamentos": {"tipo": "resumido", "total_declarado": 3,
   "faixa_observada": {"inicio": 1, "fim": 3},
   "itens": [{"ocorrido_em": "dd/mm/aaaa hh:mm", "unidade": "SIGLA",
-             "usuario": "sigla ou null", "descricao": "texto"}]}
+             "usuario": "sigla", "descricao": "texto"}]}
 ```
 
 `tipo` é o nome da visão do SEI ("Ver histórico completo"), não uma

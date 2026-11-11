@@ -77,7 +77,6 @@ pub(super) fn tentar_salvar_documento(cli: &Cli) -> Option<anyhow::Result<()>> {
                     json!({
                         "previa": dados,
                         "confirmado": false,
-                        "assinaturas_remotas": null,
                         "aviso_assinaturas": "editar pode remover assinaturas; a oferta do editor ainda não foi verificada"
                     })
                 );

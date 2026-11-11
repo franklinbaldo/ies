@@ -23,7 +23,7 @@ pub(crate) struct ProcessoDetalhado {
     pub(crate) sigiloso: bool,
     /// Categoria das linhas, preenchida por `visao_do_controle` quando as
     /// tabelas R do mesmo GET a mostraram; `null` = não observada.
-    #[serde(serialize_with = "colunas::serializar_categoria")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) categoria: Option<Categoria>,
     /// Colunas configuradas do cabeçalho, por chave estável.
     pub(crate) colunas: ColunasDaLinha,

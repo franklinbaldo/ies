@@ -73,16 +73,10 @@ fn colunas_de_go_saem_com_chaves_estaveis_e_texto_colapsado() {
     let processo = &leitura.processos[0];
     assert_eq!(processo.numero, "000007/2026");
     let json = serde_json::to_value(processo).unwrap();
-    assert_eq!(json["categoria"], serde_json::Value::Null);
+    assert!(json.get("categoria").is_none());
     let colunas = json["colunas"].as_object().unwrap();
     let chaves: Vec<_> = colunas.keys().map(String::as_str).collect();
-    let mut esperadas = vec![
-        "atribuicao",
-        "tipo",
-        "interessados",
-        "controle_de_prazo",
-        "ultima_movimentacao",
-    ];
+    let mut esperadas = vec!["atribuicao", "tipo", "interessados", "ultima_movimentacao"];
     esperadas.sort_unstable();
     let mut obtidas = chaves.clone();
     obtidas.sort_unstable();
@@ -93,7 +87,7 @@ fn colunas_de_go_saem_com_chaves_estaveis_e_texto_colapsado() {
         colunas["interessados"],
         serde_json::json!(["Pessoa A", "Pessoa B"])
     );
-    assert!(colunas["controle_de_prazo"].is_null());
+    assert!(colunas.get("controle_de_prazo").is_none());
     assert_eq!(colunas["ultima_movimentacao"], "3");
     assert_eq!(
         leitura.colunas_ausentes(),
@@ -129,7 +123,7 @@ fn icone_da_unb_e_rotulado_pelo_tooltip_e_celulas_sem_data_label() {
     let json = serde_json::to_value(&leitura.processos[0]).unwrap();
     assert_eq!(json["colunas"]["anotacao"], "nota");
     assert_eq!(json["colunas"]["para_devolver"], "-9");
-    assert!(json["colunas"]["aguardando_retorno"].is_null());
+    assert!(json["colunas"].get("aguardando_retorno").is_none());
 }
 
 #[test]

@@ -23,29 +23,35 @@ mod anexo;
 #[path = "documento_obter_cli/lote.rs"]
 mod lote;
 
-/// Metadados de um documento lido, sem o texto.
+/// Metadados de um documento lido, sem o texto. Campo sem valor
+/// (`pasta`, `unidade`, `tipo` do externo) não tem chave.
 pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, Value> {
-    let valor = json!({
-        "numero": d.numero,
-        "id_documento": d.id_documento,
-        "rotulo": d.rotulo,
-        "tipo": d.tipo,
-        "icone": d.natureza.icone,
-        "cancelado": d.natureza.cancelamento.cancelado(),
-        "pasta": d.pasta,
-        "processo": {"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo},
-        "unidade": d.unidade,
-        "resolvido_por": d.resolvido_por.como_texto(),
-        "requisicoes": d.requisicoes,
-        "fonte": AcaoDoSei::DocumentoVisualizar,
-        "versao_atual": null,
-    });
-    let mut mapa = match valor {
-        Value::Object(mapa) => mapa,
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
-            serde_json::Map::new()
-        }
-    };
+    let mut mapa = serde_json::Map::new();
+    mapa.insert("numero".to_owned(), json!(d.numero));
+    mapa.insert("id_documento".to_owned(), json!(d.id_documento));
+    mapa.insert("rotulo".to_owned(), json!(d.rotulo));
+    mapa.insert("tipo".to_owned(), json!(d.tipo));
+    mapa.insert("icone".to_owned(), json!(d.natureza.icone));
+    mapa.insert(
+        "cancelado".to_owned(),
+        json!(d.natureza.cancelamento.cancelado()),
+    );
+    if let Some(pasta) = &d.pasta {
+        mapa.insert("pasta".to_owned(), json!(pasta));
+    }
+    mapa.insert(
+        "processo".to_owned(),
+        json!({"nup": d.processo.nup, "id": d.processo.id, "tipo": d.processo.tipo}),
+    );
+    if let Some(unidade) = &d.unidade {
+        mapa.insert("unidade".to_owned(), json!(unidade));
+    }
+    mapa.insert(
+        "resolvido_por".to_owned(),
+        json!(d.resolvido_por.como_texto()),
+    );
+    mapa.insert("requisicoes".to_owned(), json!(d.requisicoes));
+    mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoVisualizar));
     match &d.propriedades {
         PropriedadesDocumento::NaoPedidas => {}
         PropriedadesDocumento::Lidas(p) => {
@@ -54,7 +60,7 @@ pub(crate) fn json_do_documento(d: &DocumentoObtido) -> serde_json::Map<String, 
     }
     if let Some(a) = &d.anexo {
         // Externo: o título do HTML recebido é do órgão de origem (fatia 3).
-        mapa.insert("tipo".to_owned(), Value::Null);
+        mapa.remove("tipo");
         mapa.insert("fonte".to_owned(), json!(AcaoDoSei::DocumentoDownloadAnexo));
         mapa.insert("anexo".to_owned(), anexo::json_do_anexo(a));
     }
@@ -362,10 +368,6 @@ fn apresentar_metadados(d: &DocumentoObtido) {
     }
 }
 
-#[expect(
-    clippy::indexing_slicing,
-    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
-)]
 fn publicar(
     json_mode: bool,
     lidos: lote::LoteLido,
@@ -402,14 +404,16 @@ fn publicar(
             .map(|(i, d)| {
                 let mut objeto = json_do_documento(d);
                 documento_versao_cli::inserir_campos(&mut objeto, d);
-                objeto.insert(
-                    "cache".to_owned(),
-                    caches.get(i).and_then(Option::as_ref).map_or(
-                        Value::Null,
-                        |c| json!({"caminho": c.caminho, "versao": c.versao, "sha256": c.sha256}),
-                    ),
-                );
-                objeto.insert("crc_rodape".to_owned(), json!(d.versoes.crc_rodape));
+                if let Some(c) = caches.get(i).and_then(Option::as_ref) {
+                    let mut cache = json!({"caminho": c.caminho, "sha256": c.sha256});
+                    if let (Some(versao), Some(campos)) = (c.versao, cache.as_object_mut()) {
+                        campos.insert("versao".to_owned(), json!(versao));
+                    }
+                    objeto.insert("cache".to_owned(), cache);
+                }
+                if let Some(crc) = &d.versoes.crc_rodape {
+                    objeto.insert("crc_rodape".to_owned(), json!(crc));
+                }
                 if let Some(g) = gravado(i) {
                     let arquivo = documento_versao_cli::json_do_arquivo(
                         &g.nome, g.bytes, &g.sha256, g.gravado,
@@ -417,17 +421,21 @@ fn publicar(
                     objeto.insert("arquivo".to_owned(), arquivo);
                 } else {
                     let texto = match &d.anexo {
-                        Some(a) => json!(a.texto()),
-                        None => json!(d.texto),
+                        Some(a) => a.texto().map(|t| json!(t)),
+                        None => Some(json!(d.texto)),
                     };
-                    objeto.insert("texto".to_owned(), texto);
+                    if let Some(texto) = texto {
+                        objeto.insert("texto".to_owned(), texto);
+                    }
                 }
                 Value::Object(objeto)
             })
             .collect();
         let mut valor = json!({"documentos": documentos, "requisicoes": total});
-        if omitidos > 0 {
-            valor["documentos_omitidos"] = json!(omitidos);
+        if omitidos > 0
+            && let Some(campos) = valor.as_object_mut()
+        {
+            campos.insert("documentos_omitidos".to_owned(), json!(omitidos));
         }
         relogin_cli::anotar(&mut valor, nota);
         println!("{}", serde_json::to_string_pretty(&valor)?);
