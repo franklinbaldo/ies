@@ -206,7 +206,7 @@ fn status_recusa_ancestral_regular_sem_expor_caminho_ou_conteudo() {
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let diagnostico = String::from_utf8_lossy(&output.stderr);
     assert!(!diagnostico.contains("cookie-privado"));
-    assert!(!diagnostico.contains(&url.to_string_lossy().to_string()));
+    assert!(!diagnostico.contains(url.to_string_lossy().as_ref()));
     assert!(!diagnostico.contains("DADO FICTICIO"));
     assert_eq!(fs::read_to_string(&url).unwrap(), "DADO FICTICIO");
     fs::remove_dir_all(dir).unwrap();
