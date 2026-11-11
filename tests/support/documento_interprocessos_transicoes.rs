@@ -270,6 +270,23 @@ pub(super) fn conferir_estado_apos_cli(
             "o documento interno permanece íntegro"
         );
     }
+    if matches!(modo, EstadoExtra::PastaPendente) {
+        let pendente = iesei::pastas_incompletas::ler(db, instalacao, CENARIO, "7")
+            .unwrap()
+            .expect("pasta pendente permanece registrada");
+        assert_eq!(pendente.indice, 1);
+        assert_eq!(pendente.protocolo_declarado, "900");
+        for (id, numero, corpo) in [
+            ("42", DOC_A, "primeiro processo"),
+            ("43", DOC_B, "segundo processo"),
+        ] {
+            let guardado = documento_versoes::ler(db, instalacao, CENARIO, id)
+                .unwrap()
+                .expect("documento não desaparece após a recusa");
+            assert_eq!(guardado.numero, numero);
+            assert!(guardado.revisoes[0].html_corpo.contains(corpo));
+        }
+    }
     if matches!(modo, EstadoExtra::TituloTrocadoAoVisualizar) {
         assert!(transicao, "CLI não buscou o corpo depois de ler a árvore");
         let observado: String = db
