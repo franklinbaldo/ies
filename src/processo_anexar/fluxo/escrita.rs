@@ -65,9 +65,8 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
     anteriores: &[String],
     rede: &mut Contador<'_, V>,
 ) -> Result<(), FalhaAnexar> {
-    let codificacao = codificacao_da_tela(mime).ok_or(FalhaAnexar::Estrutura(
-        "charset_da_tela_de_anexacao_nao_suportado",
-    ))?;
+    let codificacao =
+        codificacao_da_tela(mime).ok_or(FalhaAnexar::CharsetDaTelaDeAnexacaoNaoSuportado)?;
     let tela = TelaServida {
         url: link,
         html,

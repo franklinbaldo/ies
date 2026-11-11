@@ -27,7 +27,10 @@ use crate::processo_obter::{
 use crate::transporte::{FalhaTransporte, RespostaWeb, ler_limitado, recusar_status};
 use crate::visao_do_controle::EnvioDoControle as _;
 use std::io::Read;
-use tela::{DestinoConsultado, Relacionamento, ler_destino, ler_linhas, url_complementar};
+use tela::{
+    DestinoConsultado, ErroDestinoDaConsulta, ErroTelaDeRelacionamentos, Relacionamento,
+    ler_destino, ler_linhas, url_complementar,
+};
 
 const CONSULTA: ConsultaAjax = ConsultaAjax {
     acao_ajax: "protocolo_RI1023",
@@ -49,7 +52,17 @@ pub(crate) enum FalhaRelacionar {
     Tela(FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada,
-    Estrutura(&'static str),
+    TelaDeRelacionamentos(#[from] ErroTelaDeRelacionamentos),
+    RelacionamentosRepetidosNaTela,
+    DestinoARemoverSemIdentificador,
+    CharsetDaTelaDeRelacionamentosNaoSuportado,
+    ConsultaComplementarDeRelacionamentoNaoDeclarada,
+    ConsultaDeRelacionamentoRedirecionada,
+    DestinoDaConsulta(#[from] ErroDestinoDaConsulta),
+    DestinoARelacionarNaoIdentificado,
+    AcaoExcluirRelacionamentoNaoDeclarada,
+    IdDaOrigemNaActionAusente,
+    ActionDeRemocaoDeOutroProcesso,
     ConsultaDerivacao(ErroSubmissaoFormulario),
     ConsultaTransporte(FalhaTransporte),
     ConsultaResposta(FalhaTransporte),
@@ -138,9 +151,7 @@ fn relacionamento_existente<'a>(
         [] => Ok(None),
         [linha] if linha.id == id_origem => Err(FalhaRelacionar::RelacionamentoConsigoMesmo),
         [linha] => Ok(Some(*linha)),
-        _ => Err(FalhaRelacionar::Estrutura(
-            "relacionamentos_repetidos_na_tela",
-        )),
+        _ => Err(FalhaRelacionar::RelacionamentosRepetidosNaTela),
     }
 }
 
@@ -201,7 +212,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             FalhaRelacionar::SessaoEncerrada
         }
     })?;
-    let relacionados = ler_linhas(&html).map_err(FalhaRelacionar::Estrutura)?;
+    let relacionados = ler_linhas(&html)?;
     if mesmo_protocolo(pedido.nup.as_str(), pedido.com.as_str()) {
         return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
     }
@@ -227,18 +238,14 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
                 previa.id_destino = Some(linha.id.clone());
             }
             _ => {
-                return Err(FalhaRelacionar::Estrutura(
-                    "relacionamentos_repetidos_na_tela",
-                ));
+                return Err(FalhaRelacionar::RelacionamentosRepetidosNaTela);
             }
         }
         if pedido.confirmar && !previa.sem_efeito() {
             let id_destino = previa
                 .id_destino
                 .as_deref()
-                .ok_or(FalhaRelacionar::Estrutura(
-                    "destino_a_remover_sem_identificador",
-                ))?;
+                .ok_or(FalhaRelacionar::DestinoARemoverSemIdentificador)?;
             escrita::remover(
                 sessao,
                 &instalacao,
@@ -263,15 +270,15 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         return Ok(previa);
     }
     // O AJAX de consulta é um POST de LEITURA, não uma gravação da relação.
-    let codificacao = codificacao_da_tela(&mime).ok_or(FalhaRelacionar::Estrutura(
-        "charset_da_tela_de_relacionamentos_nao_suportado",
-    ))?;
+    let codificacao = codificacao_da_tela(&mime)
+        .ok_or(FalhaRelacionar::CharsetDaTelaDeRelacionamentosNaoSuportado)?;
     let tela = TelaServida {
         url: link.as_str(),
         html: &html,
         codificacao,
     };
-    let url = url_complementar(&html).map_err(FalhaRelacionar::Estrutura)?;
+    let url = url_complementar(&html)
+        .ok_or(FalhaRelacionar::ConsultaComplementarDeRelacionamentoNaoDeclarada)?;
     let consulta = derivar_consulta_ajax(
         &CONSULTA,
         &instalacao,
@@ -284,16 +291,14 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .post(consulta, &cookie)
         .map_err(FalhaRelacionar::ConsultaTransporte)?;
     if resposta.resposta.status_code == 302 {
-        return Err(FalhaRelacionar::Estrutura(
-            "consulta_de_relacionamento_redirecionada",
-        ));
+        return Err(FalhaRelacionar::ConsultaDeRelacionamentoRedirecionada);
     }
     let xml = xml_da_consulta(resposta.resposta)?;
     let DestinoConsultado {
         id: destino_id,
         nup,
         tipo,
-    } = ler_destino(&xml).map_err(FalhaRelacionar::Estrutura)?;
+    } = ler_destino(&xml)?;
     if destino_id == id {
         return Err(FalhaRelacionar::RelacionamentoConsigoMesmo);
     }
@@ -322,9 +327,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
             previa
                 .id_destino
                 .as_deref()
-                .ok_or(FalhaRelacionar::Estrutura(
-                    "destino_a_relacionar_nao_identificado",
-                ))?,
+                .ok_or(FalhaRelacionar::DestinoARelacionarNaoIdentificado)?,
             &previa.destino,
             previa.tipo_destino.as_deref().unwrap_or(""),
             &relacionados,

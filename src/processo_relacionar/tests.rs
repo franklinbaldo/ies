@@ -1,6 +1,9 @@
 //! Testes sintéticos: cenários dos testes do Todos @323eb01.
 //! Os testes foram escritos antes do leitor Rust (RED local indisponível).
-use super::tela::{ler_destino, ler_linhas, url_complementar};
+use super::tela::{
+    ErroDestinoDaConsulta, ErroTelaDeRelacionamentos, ler_destino, ler_linhas, url_complementar,
+};
+use crate::formulario_web::ErroSubmissaoFormulario;
 
 fn tela() -> String {
     let hash = "a".repeat(64);
@@ -40,7 +43,7 @@ fn repeticao_de_id_e_de_tabela_falha_fechado() {
     let linha = r#"<tr><td><a href="controlador.php?acao=procedimento_trabalhar&id_procedimento=22">99999</a></td></tr>"#;
     assert_eq!(
         ler_linhas(&tela().replace("</table>", &format!("{linha}</table>"))),
-        Err("relacionamentos_repetidos_na_tela")
+        Err(ErroTelaDeRelacionamentos::RelacionamentosRepetidosNaTela)
     );
     let duplicada = tela().replace(
         "</form>",
@@ -48,7 +51,7 @@ fn repeticao_de_id_e_de_tabela_falha_fechado() {
     );
     assert_eq!(
         ler_linhas(&duplicada),
-        Err("tabela_de_relacionamentos_ausente_ou_repetida")
+        Err(ErroTelaDeRelacionamentos::TabelaDeRelacionamentosAusenteOuRepetida)
     );
 }
 
@@ -56,17 +59,18 @@ fn repeticao_de_id_e_de_tabela_falha_fechado() {
 fn sem_tabela_e_falta_da_consulta_sao_recusas_tipadas() {
     assert_eq!(
         ler_linhas("<html></html>"),
-        Err("formulario_de_relacionamentos_ausente_ou_repetido")
+        Err(
+            ErroTelaDeRelacionamentos::FormularioDeRelacionamentosNaoLocalizado(
+                ErroSubmissaoFormulario::FormularioAusenteNaTela
+            )
+        )
     );
     assert!(
         url_complementar(&tela())
             .unwrap()
             .contains("acao_ajax=protocolo_RI1023")
     );
-    assert_eq!(
-        url_complementar("<script></script>"),
-        Err("consulta_complementar_de_relacionamento_nao_declarada")
-    );
+    assert_eq!(url_complementar("<script></script>"), None);
 }
 
 #[test]
@@ -77,7 +81,7 @@ fn xml_complementos_identifica_destino_sem_inventar_id() {
     assert_eq!(d.nup, "12345.000001/2026-01");
     assert_eq!(
         ler_destino("<erros><erro descricao='Não encontrado.'/></erros>").err(),
-        Some("processo_de_destino_nao_encontrado")
+        Some(ErroDestinoDaConsulta::ProcessoDeDestinoNaoEncontrado)
     );
 }
 
@@ -86,11 +90,11 @@ fn xml_destino_duplicado_ou_vazio_e_recusado() {
     let duplicado = r#"<complementos><complemento nome="IdProcedimento">11</complemento><complemento nome="IdProcedimento">12</complemento><complemento nome="ProtocoloProcedimentoFormatado">00001</complemento></complementos>"#;
     assert_eq!(
         ler_destino(duplicado).err(),
-        Some("destino_da_consulta_ambiguo")
+        Some(ErroDestinoDaConsulta::DestinoDaConsultaAmbiguo)
     );
     assert_eq!(
         ler_destino("<complementos/>").err(),
-        Some("destino_a_relacionar_nao_identificado")
+        Some(ErroDestinoDaConsulta::DestinoARelacionarNaoIdentificado)
     );
 }
 
@@ -136,14 +140,14 @@ fn extrai_action_da_funcao_de_remocao() {
 fn action_solto_comentado_ou_em_template_nao_autoriza_remocao() {
     let servido = tela_com_remocao_servida();
     let apenas_outra_funcao = servido.replace("function acaoRemover(id)", "function outra(id)");
-    assert!(super::tela::url_exclusao(&apenas_outra_funcao).is_err());
+    assert!(super::tela::url_exclusao(&apenas_outra_funcao).is_none());
 
     let em_template = format!("<html><head><template>{servido}</template></head></html>");
-    assert!(super::tela::url_exclusao(&em_template).is_err());
+    assert!(super::tela::url_exclusao(&em_template).is_none());
 
     let em_comentario =
         servido.replace("function acaoRemover(id){", "/*\nfunction acaoRemover(id){");
-    assert!(super::tela::url_exclusao(&em_comentario).is_err());
+    assert!(super::tela::url_exclusao(&em_comentario).is_none());
 }
 
 /// Dado que falta o campo ou o submit do handler, ou há função duplicada,
@@ -155,17 +159,17 @@ fn remocao_sem_passos_ou_com_handler_duplicado_e_recusada() {
         super::tela::url_exclusao(
             &servido.replace("getElementById('hdnInfraItemId').value=id;", "void(0);")
         )
-        .is_err()
+        .is_none()
     );
     assert!(
         super::tela::url_exclusao(&servido.replace(
             "getElementById('frmProcedimentoListarRelacionamentos').submit();",
             "void(0);",
         ))
-        .is_err()
+        .is_none()
     );
     let duplicada = servido.replace("</script>", "function acaoRemover(id){}\n</script>");
-    assert!(super::tela::url_exclusao(&duplicada).is_err());
+    assert!(super::tela::url_exclusao(&duplicada).is_none());
 }
 
 /// Dado o script do SEI 4 da `UnB` envolto em `<!--//--><![CDATA[//><!--`

@@ -1,7 +1,10 @@
 //! Prévia Web de anexação: abre principal, lê a tela e consulta somente
 //! a identidade do anexado e sua condição de assinatura. Não grava nada.
 //! POST de escrita apenas após prévia e confirmação, com releitura de prova.
-use super::{Destino, decidir, ler_confirmacao, ler_destino, ler_tela};
+use super::{
+    Destino, ErroAnexacaoRecusada, ErroComplementosDaAnexacao, ErroTelaDeAnexacao, decidir,
+    ler_confirmacao, ler_destino, ler_tela,
+};
 use crate::arvore_processo::ErroAnexarNaBarra;
 use crate::formulario_web::{
     ConsultaAjax, EfeitoAvaliado, ErroSubmissaoFormulario, TelaServida, derivar_consulta_ajax,
@@ -54,7 +57,14 @@ pub(crate) enum FalhaAnexar {
     Tela(FalhaTransporte),
     TelaRedirecionada,
     SessaoEncerrada,
-    Estrutura(&'static str),
+    TelaDeAnexacao(#[from] ErroTelaDeAnexacao),
+    CharsetDaTelaDeAnexacaoNaoSuportado,
+    Consulta(#[from] ErroConsultaDeAnexacao),
+    ConsultaDeIdentidadeRedirecionada,
+    ConsultaDeAssinaturasRedirecionada,
+    Complementos(#[from] ErroComplementosDaAnexacao),
+    NupDoAnexadoDiferenteDoSolicitado,
+    Recusada(#[from] ErroAnexacaoRecusada),
     ConsultaDerivacao(ErroSubmissaoFormulario),
     ConsultaTransporte(FalhaTransporte),
     ConsultaResposta(FalhaTransporte),
@@ -84,17 +94,25 @@ pub(crate) struct Previa {
 
 /// A URL das consultas tem origem exclusivamente no script servido; nunca
 /// construímos URL assinada por inferência nem interpretamos o JavaScript.
-pub(super) fn url_da_consulta(html: &str, inicio: &str) -> Result<String, &'static str> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("{self:?}")]
+pub(crate) enum ErroConsultaDeAnexacao {
+    ConsultasDeAnexacaoRepetidas,
+    ConsultaDeAnexacaoNaoPublicada,
+    ConsultaDeAnexacaoForaDaFormaObservada,
+}
+
+pub(super) fn url_da_consulta(html: &str, inicio: &str) -> Result<String, ErroConsultaDeAnexacao> {
     let mut achados = html.split(inicio).skip(1);
     let primeiro = achados
         .next()
         .and_then(|resto| resto.split_once('\'').map(|(url, _)| url));
     if achados.next().is_some() {
-        return Err("consultas_de_anexacao_repetidas");
+        return Err(ErroConsultaDeAnexacao::ConsultasDeAnexacaoRepetidas);
     }
-    let url = primeiro.ok_or("consulta_de_anexacao_nao_publicada")?;
+    let url = primeiro.ok_or(ErroConsultaDeAnexacao::ConsultaDeAnexacaoNaoPublicada)?;
     if !url.starts_with("controlador_ajax.php?") {
-        return Err("consulta_de_anexacao_fora_da_forma_observada");
+        return Err(ErroConsultaDeAnexacao::ConsultaDeAnexacaoForaDaFormaObservada);
     }
     Ok(url.to_owned())
 }
@@ -162,10 +180,9 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
                 FalhaAnexar::SessaoEncerrada
             }
         })?;
-    let vista = ler_tela(&html).map_err(FalhaAnexar::Estrutura)?;
-    let codificacao = codificacao_da_tela(&mime).ok_or(FalhaAnexar::Estrutura(
-        "charset_da_tela_de_anexacao_nao_suportado",
-    ))?;
+    let vista = ler_tela(&html)?;
+    let codificacao =
+        codificacao_da_tela(&mime).ok_or(FalhaAnexar::CharsetDaTelaDeAnexacaoNaoSuportado)?;
     let tela = TelaServida {
         url: link.as_str(),
         html: &html,
@@ -181,25 +198,22 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         &IDENTIFICAR,
         "new infraAjaxComplementar('txtProtocolo','",
         pedido.anexado.as_str(),
-        "consulta_de_identidade_redirecionada",
+        FalhaAnexar::ConsultaDeIdentidadeRedirecionada,
     )?;
-    let anexado = ler_destino(&xml).map_err(FalhaAnexar::Estrutura)?;
+    let anexado = ler_destino(&xml)?;
     if anexado.nup != pedido.anexado.as_str() {
-        return Err(FalhaAnexar::Estrutura(
-            "nup_do_anexado_diferente_do_solicitado",
-        ));
+        return Err(FalhaAnexar::NupDoAnexadoDiferenteDoSolicitado);
     }
-    decidir(pedido.principal.as_str(), &id, &anexado, &vista.anexados)
-        .map_err(FalhaAnexar::Estrutura)?;
+    decidir(pedido.principal.as_str(), &id, &anexado, &vista.anexados)?;
 
     let xml = consulta.enviar(
         &mut rede,
         &CONFERIR,
         "new infraAjaxComplementar(null,'",
         anexado.id.as_str(),
-        "consulta_de_assinaturas_redirecionada",
+        FalhaAnexar::ConsultaDeAssinaturasRedirecionada,
     )?;
-    let assinaturas_em_dia = ler_confirmacao(&xml).map_err(FalhaAnexar::Estrutura)?;
+    let assinaturas_em_dia = ler_confirmacao(&xml)?;
     let resultado = if pedido.confirmar {
         escrita::confirmar(
             sessao,
@@ -252,9 +266,9 @@ impl ConsultaDaTela<'_> {
         operacao: &ConsultaAjax,
         declaracao: &str,
         id_procedimento: &str,
-        redirecionada: &'static str,
+        redirecionada: FalhaAnexar,
     ) -> Result<String, FalhaAnexar> {
-        let url = url_da_consulta(self.tela.html, declaracao).map_err(FalhaAnexar::Estrutura)?;
+        let url = url_da_consulta(self.tela.html, declaracao)?;
         let consulta = derivar_consulta_ajax(
             operacao,
             self.instalacao,
@@ -267,7 +281,7 @@ impl ConsultaDaTela<'_> {
             .post(consulta, self.cookie)
             .map_err(FalhaAnexar::ConsultaTransporte)?;
         if resposta.resposta.status_code == 302 {
-            return Err(FalhaAnexar::Estrutura(redirecionada));
+            return Err(redirecionada);
         }
         decodificar_resposta_xml(resposta.resposta).map_err(FalhaAnexar::ConsultaResposta)
     }
