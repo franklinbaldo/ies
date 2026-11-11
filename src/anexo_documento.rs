@@ -177,7 +177,7 @@ pub(crate) enum ErroAnexo {
     /// A publicação do parcial no cache falhou.
     PublicacaoDoCacheFalhou(#[source] crate::cache_documento::FalhaCache),
     /// O corpo de texto não decodifica como UTF-8 no charset declarado.
-    CorpoNaoUtf8NoCharsetDeclarado(#[source] std::string::FromUtf8Error),
+    CorpoNaoUtf8NoCharsetDeclarado(#[source] std::str::Utf8Error),
 }
 
 impl ErroAnexo {
@@ -528,7 +528,9 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
     let texto = if latin1 {
         bytes.iter().copied().map(char::from).collect()
     } else {
-        String::from_utf8(bytes.to_vec()).map_err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado)?
+        std::str::from_utf8(bytes)
+            .map_err(ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado)?
+            .to_owned()
     };
     if mime == "text/html" {
         return crate::documento_web::texto_do_corpo(&texto).map_err(ErroAnexo::Corpo);
