@@ -178,6 +178,12 @@ pub(super) fn executar_pdf_numero_repetido(args: &[&str]) -> (Output, Vec<String
     executar_com_estado(true, EstadoExtra::PdfNumeroDuplicado, args)
 }
 
+/// Primeiro `ies processo` observa a lista parcial. No mesmo SQLite,
+/// `ies documento --processo` exige a identidade documental inequívoca.
+pub(super) fn executar_pasta_pendente(args: &[&str]) -> (Output, Vec<String>) {
+    executar_com_estado(true, EstadoExtra::PastaPendente, args)
+}
+
 /// A árvore oferece um href válido; a mesma identidade é revogada somente
 /// no GET de conteúdo, antes de o anti-IES consultar o SQLite.
 pub(super) fn executar_revogado_ao_visualizar(args: &[&str]) -> (Output, Vec<String>) {
@@ -226,6 +232,10 @@ fn executar_com_estado(
     args: &[&str],
 ) -> (Output, Vec<String>) {
     let pasta = Pasta::nova();
+    // O índice operacional é privado e só funciona sob HOME 0700.
+    if matches!(modo, EstadoExtra::PastaPendente) {
+        fs::set_permissions(&pasta.0, fs::Permissions::from_mode(0o700)).unwrap();
+    }
     let (cert, identidade) = certificado(&pasta.0);
     let origem = pasta.privado("origem", ORIGEM);
     let nome_hash = ["infra", "hash"].join("_");
@@ -289,23 +299,48 @@ fn executar_com_estado(
             canal.flush().unwrap();
         }
     });
-    let saida = Command::new(env!("CARGO_BIN_EXE_ies"))
-        .args(args)
-        .env("IES_URL_CONTROLE_FILE", url)
-        .env("IES_COOKIE_FILE", cookie)
-        .env("IES_ORIGEM_FILE", origem)
-        .env("SSL_CERT_FILE", cert)
-        .env("https_proxy", format!("http://127.0.0.1:{porta}"))
-        .env("HOME", &pasta.0)
-        .env_remove("HTTPS_PROXY")
-        .env_remove("all_proxy")
-        .env_remove("ALL_PROXY")
-        .env_remove("NO_PROXY")
-        .env_remove("no_proxy")
-        .env_remove("IES_CONFIG_FILE")
-        .env_remove("IES_CREDENCIAIS_FILE")
-        .output()
-        .expect("binário ies");
+    let comando = || {
+        let mut cli = Command::new(env!("CARGO_BIN_EXE_ies"));
+        cli.env("IES_URL_CONTROLE_FILE", &url)
+            .env("IES_COOKIE_FILE", &cookie)
+            .env("IES_ORIGEM_FILE", &origem)
+            .env("SSL_CERT_FILE", &cert)
+            .env("https_proxy", format!("http://127.0.0.1:{porta}"))
+            .env("HOME", &pasta.0)
+            .env_remove("HTTPS_PROXY")
+            .env_remove("all_proxy")
+            .env_remove("ALL_PROXY")
+            .env_remove("NO_PROXY")
+            .env_remove("no_proxy")
+            .env_remove("IES_CONFIG_FILE")
+            .env_remove("IES_CREDENCIAIS_FILE");
+        cli
+    };
+    if matches!(modo, EstadoExtra::PastaPendente) {
+        let primeira = comando()
+            .args([
+                "--json", "processo", NUP_A, "--sem-andamentos",
+                "--sem-propriedades", "--sem-marcadores",
+            ])
+            .output()
+            .expect("consulta informativa anterior");
+        assert_eq!(
+            primeira.status.code(), Some(0),
+            "processo com pasta pendente: {}",
+            String::from_utf8_lossy(&primeira.stderr)
+        );
+        let observado: Value = serde_json::from_slice(&primeira.stdout).unwrap();
+        assert_eq!(observado["numero"], NUP_A);
+        assert_eq!(observado["documentos_incluidos"], false);
+        assert_eq!(observado["documentos"], serde_json::json!([]));
+        assert!(
+            observado["aviso_leitura_parcial"].as_str().is_some_and(
+                |aviso| aviso.contains("leitura parcial")
+            ),
+            "lista vazia não significa ausência: {observado}"
+        );
+    }
+    let saida = comando().args(args).output().expect("binário ies");
     parar.store(true, Ordering::Release);
     tunel.join().expect("proxy TLS");
     simulador.join().expect("anti-IES SQLite");
