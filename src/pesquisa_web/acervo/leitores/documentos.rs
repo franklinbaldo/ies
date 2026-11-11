@@ -200,7 +200,7 @@ fn pagina_seguinte(
     let dom = tl::parse(&html, tl::ParserOptions::default()).ok()?;
     let numero = match pagina_selecionada(&dom) {
         Ok(Some(n)) => u32::try_from(n).unwrap_or(u32::MAX),
-        _ => return recusa("pagina_selecionada_nao_observada_no_paginador"),
+        _ => return recusa("pagina_selecionada_ausente_no_paginador"),
     };
     let pedido = match planejar_pagina_por(*primeira, Some(html_1), numero) {
         Ok(Some(pedido)) => pedido,

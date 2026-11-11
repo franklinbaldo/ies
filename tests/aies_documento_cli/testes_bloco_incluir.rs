@@ -74,7 +74,7 @@ fn bdd_381_01_previa_documental_sem_incluir() {
     assert_eq!(previa["presente_antes"], false);
     assert_eq!(previa["confirmado"], false);
     assert_eq!(previa["alterado"], false);
-    assert!(previa["presente_depois"].is_null());
+    assert_eq!(previa["presente_depois"], false);
 
     // Nova execução no MESMO SQLite da prévia: o bloco continua sem DOC.
     let lido = executar(&pasta, &["--json", "bloco", BLOCO], 3);
@@ -164,7 +164,7 @@ fn bdd_381_03_idempotencia_sem_nova_escrita() {
     assert_eq!(retorno["presente_antes"], true);
     assert_eq!(retorno["confirmado"], true);
     assert_eq!(retorno["alterado"], false);
-    assert!(retorno["presente_depois"].is_null());
+    assert_eq!(retorno["presente_depois"], true);
 
     // Outra execução e o banco provam ausência de duplicação.
     let leitura = executar(&pasta, &["--json", "bloco", BLOCO], 3);

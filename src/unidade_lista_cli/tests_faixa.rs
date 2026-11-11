@@ -46,11 +46,8 @@ fn detalhada_parcial_exporta_faixa_observada() {
     let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
     // A visão D é uma lista própria do SEI, na mesma forma das outras.
     assert_eq!(valor.as_array().map(Vec::len), Some(1));
-    // D é modo de exibição, não categoria: a chave existe e vale null.
-    assert_eq!(
-        valor[0].as_object().unwrap().get("categoria"),
-        Some(&serde_json::Value::Null)
-    );
+    // D é modo de exibição, não categoria: a chave não existe.
+    assert!(valor[0].get("categoria").is_none());
     assert_eq!(valor[0]["unidade"], "PPI");
     assert_eq!(valor[0]["origem"], "web");
     assert_eq!(valor[0]["total_declarado"], 3);
@@ -63,13 +60,23 @@ fn detalhada_parcial_exporta_faixa_observada() {
 #[test]
 fn exportacao_detalhada_e_lista_unica_sem_categoria() {
     let texto = exportar_detalhada(
-        &detalhada("(1 registros - 1 a 1):", "outraClasse"),
+        &detalhada("(1 registros - 1 a 1):", "processoVisualizado"),
         "detalhada-lista-unica",
     );
     let valor: serde_json::Value = serde_json::from_str(&texto).unwrap();
     let processos = valor[0]["processos"].as_array().unwrap();
     assert_eq!(processos.len(), 1);
     assert_eq!(processos[0]["numero"], "000042/2026");
-    assert!(processos[0]["visualizado"].is_null());
+    assert_eq!(processos[0]["visualizado"], true);
+    assert_eq!(processos[0]["sigiloso"], false);
     assert_eq!(valor[0]["unidade"], "PPI");
+}
+
+#[test]
+fn link_sem_classe_de_estado_recusa_a_exportacao() {
+    let html = detalhada("(1 registros - 1 a 1):", "outraClasse");
+    assert_eq!(
+        ler_paginas(&[html], Some("PPI")).map(|l| l.processos.len()),
+        Err(crate::caixa_detalhada::ErroDetalhada::EstadoDoLinkDoProcessoAusente)
+    );
 }

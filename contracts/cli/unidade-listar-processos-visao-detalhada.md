@@ -20,7 +20,7 @@ Um **array com uma lista** na [forma única](unidade-recebidos-gerados.md),
 mais `colunas_ausentes`:
 
 ```json
-[{"unidade": "TESTE", "origem": "web", "categoria": null,
+[{"unidade": "TESTE", "origem": "web",
   "total_declarado": 332, "faixa_observada": {"inicio": 1, "fim": 100},
   "colunas_ausentes": ["anotacao", "especificacao", "prioridade",
                        "observacao", "ultima_movimentacao", "marcadores"],
@@ -37,7 +37,7 @@ mais `colunas_ausentes`:
                                 "rotulo": "32#Revisão"}]}}]}]
 ```
 
-- `categoria` da **lista** é `null`: D é modo de exibição, não categoria.
+- A **lista** não tem campo `categoria`: D é modo de exibição, não categoria.
 - `categoria` do **processo** é `"recebidos"` ou `"gerados"` quando o `id`
   apareceu nas tabelas `tblProcessosRecebidos`/`tblProcessosGerados` da
   **mesma** tela R obtida pelo GET deste comando; senão `null`, que quer

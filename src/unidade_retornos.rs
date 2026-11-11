@@ -25,7 +25,7 @@ pub(crate) enum ErroRetornos {
     ParseDaTelaDeRetornosFalhou(#[source] tl::ParseError),
     PaginadorDosRetornosIlegivel(#[source] crate::erro_web::ErroCaixa),
     ListaDeRetornosIncompleta,
-    PaginacaoDosRetornosNaoObservada,
+    PaginadorDosRetornosVisivel,
 }
 
 fn atributo(tag: &tl::HTMLTag<'_>, nome: &'static str) -> Result<Option<String>, ErroRetornos> {
@@ -192,7 +192,7 @@ pub(crate) fn extrair_retornos(html: &str) -> Result<Vec<Retorno>, ErroRetornos>
         if crate::paginacao_controle::paginador_com_prefixo(html, prefixo)
             .map_err(ErroRetornos::PaginadorDosRetornosIlegivel)?
         {
-            return Err(ErroRetornos::PaginacaoDosRetornosNaoObservada);
+            return Err(ErroRetornos::PaginadorDosRetornosVisivel);
         }
     }
     let dom = tl::parse(html, tl::ParserOptions::default())
@@ -341,7 +341,7 @@ mod tests {
             + "<a id='lnkDevolverProximaPaginaSuperior'>proxima</a>";
         assert_eq!(
             extrair_retornos(&html),
-            Err(ErroRetornos::PaginacaoDosRetornosNaoObservada)
+            Err(ErroRetornos::PaginadorDosRetornosVisivel)
         );
     }
     #[test]

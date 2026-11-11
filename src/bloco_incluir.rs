@@ -61,8 +61,6 @@ pub(crate) struct PreviaDocumental {
 pub(crate) enum DesfechoDaInclusao {
     /// Prévia sem POST: o detalhe do bloco é completo e não contém o documento.
     Previa,
-    /// Prévia sem POST: o detalhe do bloco não é completo e não o contém.
-    NaoObservadoNoDetalhe,
     /// Já presente no detalhe: nenhuma escrita, com ou sem o pedido de confirmação.
     JaEstava { confirmacao_pedida: bool },
     /// POST aceito e releitura independente confirmou o documento no bloco.
@@ -73,7 +71,7 @@ impl DesfechoDaInclusao {
     /// A solicitação do usuário (`--confirmar`), não prova autônoma de efeito.
     pub(crate) fn confirmado(&self) -> bool {
         match self {
-            Self::Previa | Self::NaoObservadoNoDetalhe => false,
+            Self::Previa => false,
             Self::JaEstava { confirmacao_pedida } => *confirmacao_pedida,
             Self::Incluido => true,
         }
@@ -83,17 +81,17 @@ impl DesfechoDaInclusao {
         matches!(self, Self::Incluido)
     }
 
-    /// `None`: o detalhe observado não é completo e não contém o documento.
-    pub(crate) fn presente_antes(&self) -> Option<bool> {
+    /// Pertencimento lido no detalhe antes de qualquer escrita.
+    pub(crate) fn presente_antes(&self) -> bool {
         match self {
-            Self::Previa | Self::Incluido => Some(false),
-            Self::NaoObservadoNoDetalhe => None,
-            Self::JaEstava { .. } => Some(true),
+            Self::Previa | Self::Incluido => false,
+            Self::JaEstava { .. } => true,
         }
     }
 
-    pub(crate) fn presente_depois(&self) -> Option<bool> {
-        self.alterado().then_some(true)
+    /// Sem escrita, o estado depois é o próprio estado lido antes.
+    pub(crate) fn presente_depois(&self) -> bool {
+        self.presente_antes() || self.alterado()
     }
 }
 
@@ -116,7 +114,12 @@ pub(crate) enum ErroIncluir {
     Transporte(#[from] FalhaTransporte),
     Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
     CharsetNaoSuportado,
-    PertencimentoNaoObservado,
+    /// O detalhe do bloco não lista todos os seus itens (`lidos` de `declarados`)
+    /// e não contém o documento: o pertencimento não pode ser afirmado.
+    DetalheIncompletoSemDocumento {
+        lidos: usize,
+        declarados: usize,
+    },
     NaoConfirmado,
     CaixasDeDocumentosAmbiguas,
     CaixasDoDocumentoPedido,
@@ -259,22 +262,22 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
         .iter()
         .any(|item| item.documento.as_deref() == Some(aberto.numero.as_str()));
     let completo = detalhe.itens.len() == detalhe.total_declarado;
-    // `ausente`: o detalhe é completo e não contém o documento. Sem detalhe
-    // completo e sem o documento, o pertencimento não foi observado.
-    let ausente = match (presente || completo).then_some(presente) {
-        Some(true) => {
-            return Ok(PreviaDocumental {
-                bloco: bloco.to_owned(),
-                documento: aberto.numero,
-                requisicoes: usize::from(rede.feitas()),
-                desfecho: DesfechoDaInclusao::JaEstava {
-                    confirmacao_pedida: confirmar,
-                },
-            });
-        }
-        Some(false) => true,
-        None => false,
-    };
+    if !presente && !completo {
+        return Err(ErroIncluir::DetalheIncompletoSemDocumento {
+            lidos: detalhe.itens.len(),
+            declarados: detalhe.total_declarado,
+        });
+    }
+    if presente {
+        return Ok(PreviaDocumental {
+            bloco: bloco.to_owned(),
+            documento: aberto.numero,
+            requisicoes: usize::from(rede.feitas()),
+            desfecho: DesfechoDaInclusao::JaEstava {
+                confirmacao_pedida: confirmar,
+            },
+        });
+    }
     let link = ler_bloco_escolher_da_barra(
         &instalacao,
         &aberto.html,
@@ -286,27 +289,24 @@ pub(crate) fn prever_documento<V: EnvioDoProcesso>(
     let (html, mime) = obter_tela(&mut rede, &cookie, link.as_str())?;
     let tela = ler_tela_de_escolha(&html)?;
     let caixa = caixa_do_documento(&tela, bloco, &aberto)?;
-    let desfecho = match (ausente, confirmar) {
-        (true, true) => {
-            confirmar_documento(
-                sessao,
-                referencias,
-                unidade,
-                bloco,
-                &aberto,
-                &TelaDaInclusao {
-                    url: link.as_str(),
-                    html: &html,
-                    mime: &mime,
-                    nome_da_caixa: &caixa.nome,
-                },
-                &mut rede,
-            )?;
-            DesfechoDaInclusao::Incluido
-        }
-        (true, false) => DesfechoDaInclusao::Previa,
-        (false, true) => return Err(ErroIncluir::PertencimentoNaoObservado),
-        (false, false) => DesfechoDaInclusao::NaoObservadoNoDetalhe,
+    let desfecho = if confirmar {
+        confirmar_documento(
+            sessao,
+            referencias,
+            unidade,
+            bloco,
+            &aberto,
+            &TelaDaInclusao {
+                url: link.as_str(),
+                html: &html,
+                mime: &mime,
+                nome_da_caixa: &caixa.nome,
+            },
+            &mut rede,
+        )?;
+        DesfechoDaInclusao::Incluido
+    } else {
+        DesfechoDaInclusao::Previa
     };
     Ok(PreviaDocumental {
         bloco: bloco.to_owned(),

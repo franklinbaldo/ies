@@ -43,7 +43,7 @@ fn interior(orgao: &str) -> String {
          <input type='hidden' id='hdnIdAssunto' name='hdnIdAssunto' value=''>\
          <input type='hidden' id='hdnIdAssinante' name='hdnIdAssinante' value=''>\
          <input type='hidden' id='hdnIdContato' name='hdnIdContato' value=''>\
-         <input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>\
+         <input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' maxlength='50' value=''>\
          <select id='selTipoProcedimentoPesquisa' name='selTipoProcedimentoPesquisa'><option value='null'>-</option></select>\
          <input type='hidden' id='hdnIdUsuarioGerador1' name='hdnIdUsuarioGerador1' value=''>\
          <input type='hidden' id='hdnIdUsuarioGerador2' name='hdnIdUsuarioGerador2' value=''>\
@@ -317,8 +317,7 @@ fn regras_do_orgao(html: &str) -> Vec<String> {
 
 /// Troca o campo do termo por `campo` (atributo `maxlength` variado).
 fn com_campo_do_termo(campo: &str) -> String {
-    let servido =
-        "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' value=''>";
+    let servido = "<input type='text' id='txtProtocoloPesquisa' name='txtProtocoloPesquisa' maxlength='50' value=''>";
     let html = observado();
     assert!(html.contains(servido), "fixture sem o campo do termo");
     html.replace(servido, campo)

@@ -106,7 +106,7 @@ fn bdd_381_04_previa_sem_inclusao_e_releitura_do_bloco_interno() {
     assert_eq!(valor["presente_antes"], false);
     assert_eq!(valor["confirmado"], false);
     assert_eq!(valor["alterado"], false);
-    assert!(valor["presente_depois"].is_null());
+    assert_eq!(valor["presente_depois"], false);
     assert_eq!(valor["requisicoes"], pedidos.len());
     // A pesquisa rápida usa POST de leitura; a prévia proíbe POST mutador.
     assert!(
