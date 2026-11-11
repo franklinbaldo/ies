@@ -194,8 +194,19 @@ fn bdd_381_04_lista_parcial_nao_prova_ausencia_de_colisao() {
     .unwrap();
     let (resultado, pedidos) = executar_ciencia_processo(
         &pasta,
-        &["--json", "bloco", "incluir", BLOCO_INTERNO, "--processo", NUP_INTERNO],
+        &[
+            "--json",
+            "bloco",
+            "incluir",
+            BLOCO_INTERNO,
+            "--processo",
+            NUP_INTERNO,
+        ],
     );
-    assert_eq!(resultado.status.code(), Some(1), "lista parcial não exclui colisão");
+    assert_eq!(
+        resultado.status.code(),
+        Some(1),
+        "lista parcial não exclui colisão"
+    );
     assert!(pedidos.iter().all(|p| p.starts_with("GET ")), "{pedidos:?}");
 }
