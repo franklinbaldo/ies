@@ -11,25 +11,39 @@ pública é o [contrato da CLI](contracts/cli.md). O
 [Todos](https://github.com/franklinbaldo/todos) é **oráculo de
 comportamento**, não arquitetura a portar.
 
-## Prioridade vigente do proprietário: eliminar antipatterns
+## Método vigente do proprietário: E2E via cassettes, sem BDD/Gherkin
 
-Desde 10/11/2026, **identificar, demonstrar e remover antipatterns reais**
-tem prioridade sobre novas capacidades e hardening preventivo. A fila é
-coordenada pela [issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
-e suas sub-issues #717–#723; a ordem atual consta do [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
+Desde 11/11/2026, **BDD, Gherkin, Cucumber e a obrigação de escrever
+cenários `Dado/Quando/Então` estão revogados.** Não criar novas features,
+steps, cenários numerados ou testes para satisfazer uma narrativa BDD.
+Os identificadores antigos em issues, memórias e relatórios são históricos,
+**não** gates nem pré-requisito de implementação.
 
-Fazer ablações pequenas com contraprova, testes e redução real de
-complexidade. Não trocar cada problema por novos wrappers, enums ou
-estruturas de `Causa`; tipos são instrumentos, não entregas por si só.
-Triar caso a caso: defaults de fatiamento e exceções de plataforma não
-são erros; "não observado" é (#749). Respeitar os BDDs
-públicos existentes, as três provas independentes, a ausência de retry
-e todos os limites de segurança. Fatias já em curso continuam sujeitas
-ao CI e à integração normal, mas não abrem nova frente prioritária.
-Para ablação **sem mudança de comportamento público**, usar testes técnicos
-sem inventar BDD interno; se alterar a CLI, 🐘 prepara o cenário BDD
-público antes da implementação. A exigência de BDD dos itens 2–4
-abaixo refere-se às capacidades e alterações observáveis da CLI.
+**E2E cassette-first:** escolher comportamento contratado da CLI, procurar
+as cassettes e seus cards, conferir integridade e proveniência; executar
+**o binário real do IES** sobre respostas originais quando possível e,
+se houver transição de estado, executar CLI real ↔ anti-IES ↔ SQLite
+compartilhado com estado **derivado prioritariamente das cassettes**.
+Confrontar o simulador independentemente com a fonte, sem usar a própria
+saída do IES como oráculo. Não exigir cassette inexistente como condição
+para começar: usar hipótese mínima rotulada, nunca confundi-la com
+compatibilidade externa comprovada. O guia é
+[docs/anti-ies/ciclo-cassettes.md](docs/anti-ies/ciclo-cassettes.md)
+e a [skill cassette-e2e](.agents/skills/cassette-e2e/SKILL.md).
+
+**Testes:** remover o runner e as features Gherkin. Não apagar testes
+unitários, regressões Rust ou E2E úteis sem substituí-los por uma prova
+cassette-backed equivalente; testes legados sintéticos são evidência
+auxiliar, não critério autossuficiente de paridade. Novos testes de
+comportamento SEI priorizam cassettes; testes locais de tipos, parser,
+formatação e lógica permanecem válidos quando necessários.
+
+**Prioridade atual:** identificar e eliminar antipatterns reais, conforme
+[issue-mãe #716](https://github.com/franklinbaldo/ies/issues/716)
+e [roadmap #56](https://github.com/franklinbaldo/ies/issues/56).
+Ablação pequena, contraprova e menos código. Não introduzir novos
+subcódigos, camadas de `Causa`, wrappers ou estruturas defensivas por
+reflexo. Preservar contratos, evidências e limites de segurança.
 
 ## Equipe de agentes e avatares
 
@@ -64,61 +78,47 @@ risco, mas nunca falsificar CI, expor segredos ou acessar produção.
 
 ## Rituais do proprietário não são churn
 
-Cafezinho, memórias OKF, fichas, BDD, cassettes, handoff e CI são
+Cafezinho, memórias OKF, fichas, cassettes, E2E, handoff e CI são
 rituais deliberados, mesmo quando seu valor surge depois. **Antichurn
 atua dentro do método, não contra ele.** Nenhum agente, inclusive 🦡,
 pode descumpri-los por simplicidade. Pode propor mudanças fundamentadas,
 mas cumpre a regra vigente até decisão do proprietário. Elimine
 retrabalho e cerimônias extras, não rituais. Não invente evidência.
 
-## Coordenação entre rotinas: BDD, revezamento e handoff mínimo
+## Coordenação entre rotinas: cassettes, E2E, revezamento e handoff
 
-Estas regras são a **fonte única** dos prompts curtos das automações.
+Estas regras são a fonte única dos prompts curtos das automações.
 
-1. **Fila aberta:** `handoff-chatgpt` usa título
-   `<prioridade 0–100> <emoji, se em trabalho> <título>`; emoji marca
-   trabalho ativo, nunca reserva antecipada.
-2. **Fonte e ordem:** [contrato CLI](contracts/cli.md) → [roadmap #56](https://github.com/franklinbaldo/ies/issues/56)
-   e [matrizes](docs/matriz-derivacao-cli.md) → próximo item pendente →
-   **cenários BDD escritos previamente pelo 🐘 na issue** → implementação.
-   Sem BDD pronto, a issue não pode ser assumida para implementação.
-3. **BDD só da CLI:** cenários numerados `Dado` (contexto do usuário),
-   `Quando executo ies ...` (comando/flags contratados), `Então`
-   (saída humana/JSON, exit code, arquivo ou efeito observável via CLI).
-   Valem sucesso, falha e prévia. **Proibido BDD interno:** HTTP, DOM,
-   parser, função Rust, requests, fixtures, estruturas ou arquitetura.
-   Testes técnicos continuam permitidos, mas não viram novos cenários.
-4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** pegar a issue livre mais prioritária
-   com cenário BDD **pendente e pronto**, implementá-lo sem criar,
-   reescrever ou ampliar cenários/flags. Se faltou especificação, pedir
-   ao 🐘 na issue e escolher outra pronta. Handoff: `FEITO:` ID/cenário
-   atendido; `CLI:` comando e resultado; `CONTINUAR:` próximo ID já
-   previsto. Após a integração, a issue volta à fila se houver BDD pendente.
-5. **Revisão e integração:** 🦅 avalia a PR contra o BDD prévio;
-   🐘/🦡 integram com gates verdes. Preservar testes existentes;
-   `--confirmar` grava em treinamento, sem trava de ensaio.
-6. **Prioridade da fila:** seguir a ablação de antipatterns vigente acima;
-   nas capacidades já em curso, implementar o caminho contratado mais simples,
-   sem hardening especulativo, sem romper limites invioláveis nem gates.
-7. **Backlog:** qualquer agente pode relatar lacunas/bugs/sugestões,
-   mas não redigir BDD próprio para implementá-los. 🐘 especifica os
-   cenários a partir do contrato e roadmap; 🐘/🦡 ordenam prioridades.
-   **Experimento de ferramenta** (lib, gate, medição, instrumentação)
-   só vira issue com **dono e problema medido** que ele resolve; sem
-   isso, fica como nota em memória OKF ou conversa no Cafezinho.
-8. **Cafezinho permanente e livre:** a convivência do time acontece na
-   issue aberta com as etiquetas `cafezinho` e `conversa`
-   ([Cafezinho #388](https://github.com/franklinbaldo/ies/issues/388)).
-   **Em toda rodada, antes da memória de encerramento, visite a issue,
-   leia o que os colegas compartilharam e participe se quiser.** Pode conversar sobre trabalho,
-   arte, ciência, música, livros, hobbies, novidades, ideias, dúvidas ou
-   qualquer outro assunto; pode responder, iniciar conversa, pesquisar
-   curiosidades e propor brincadeiras. Sem tema, agenda, relatório, cota
-   de tempo ou obrigação de postar. O Cafezinho independe de BDD, CI
-   verde, commit, handoff ou conclusão de trabalho. Não substitui as
-   responsabilidades de cada rotina nem autoriza violar os limites de
-   segurança. Uma única issue permanece aberta; **não criar/fechar
-   Cafezinho diariamente**. Cada agente participa com sua personalidade.
+1. **Fila aberta:** título `<prioridade 0–100> <emoji, se em trabalho>
+   <título>`; o emoji marca execução em curso, nunca reserva antecipada.
+2. **Fonte:** contrato da CLI → roadmap #56 e issue → cassettes relevantes
+   → teste E2E executável → implementação ou ablação. **Não há gate BDD**.
+   O implementador pode começar por uma lacuna contratada sem pedir que o
+   🐘 escreva cenário. A prioridade vigente é eliminar antipatterns.
+3. **E2E obrigatório para comportamento Web afetado:** CLI Rust real,
+   respostas de cassette original quando disponíveis, anti-IES e SQLite
+   compartilhado para transições, verificação independente de saída/estado,
+   negativas relevantes e contagem de POST. **Não apenas parser isolado**.
+   Hipótese sintética é permitida para transição não capturada, mas seu
+   resultado é explicitamente separado do confronto com a fonte original.
+4. **Implementadores 🦊 🦉 🐢 🐙 🦫:** assumem issue livre de maior prioridade,
+   procuram cards primeiro e entregam fatia relevante sem criar
+   narrativas Gherkin. Handoff: `FEITO` (operação/arquivo), `E2E`
+   (cassette, resultado, CI), `CONTINUAR` (lacuna contratada).
+5. **Revisão e integração:** 🦅 verifica diff, regressão real, cassettes,
+   comportamento do usuário, escopo e ausência de invenção. 🐘/🦡 integram
+   com gates verdes no head sincronizado. Preservar testes ainda úteis;
+   remover testes mortos ou redundantes fundamentadamente.
+6. **Anti-IES:** a mesma PR vertical modifica tipos, rota e SQL versionado
+   quando o comportamento exigir; o simulador é estado funcional, não
+   coleção de HTML congelado.
+7. **Backlog:** qualquer agente relata defeitos verificáveis, lacunas e
+   antipatterns; não depende de cenário pré-escrito. 🐘/🦡 priorizam;
+   evitar issues de ferramentas sem problema medido.
+8. **Cafezinho permanente e livre:** em toda rodada visitar a
+   [issue #388](https://github.com/franklinbaldo/ies/issues/388), ler as
+   conversas e participar livremente; não há obrigação de comentar,
+   pauta nem cota. Não substitui as responsabilidades técnicas.
 
 ### Memórias OKF: fechar o ciclo
 
@@ -175,7 +175,7 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
 
 ## Método: observar → contratar → RED → GREEN → validar
 
-1. **Observar (cassette-first).** Para cada BDD, procure primeiro
+1. **Observar (cassette-first).** Para cada operação, procure primeiro
    cards/cassettes existentes e leia a estrutura observada. Não invente
    o que já está gravado. Sem cassette, siga com hipótese testável.
    Rede local bloqueada? Use [GitHub Actions](docs/cassettes.md),
@@ -183,11 +183,11 @@ Procedimentos específicos: [🦅 Gavião](team/gaviao.md) e
 2. **Contratar.** Contrato OKF da operação, erros tipados e shim
    compilável; decisão de arquitetura só quando houver uma de verdade
    (ADR em `docs/arquitetura/`).
-3. **RED.** Execute antes do código o BDD já definido na issue,
-   com fixtures sintéticas quando preciso; registre a falha.
-   Testes internos auxiliares não são cenários BDD.
+3. **RED.** Execute primeiro um teste E2E com o binário real sobre
+   respostas gravadas quando disponíveis; registre a falha. Para estados
+   não capturados, use hipótese e fixture mínima sem alegar paridade.
 4. **GREEN.** Implementação mínima, refatoração e gates.
-5. **Validar ao vivo.** Em treinamento, com orçamento de requests
+5. **Validar ao vivo.** Depois do E2E e confronto independente, em treinamento, com orçamento de requests
    declarado; registre PASS/FAIL/NOT_RUN no
    [relatório live](docs/validacao-live/). Sem execução não há PASS:
    `NOT_RUN` com o bloqueio explícito.

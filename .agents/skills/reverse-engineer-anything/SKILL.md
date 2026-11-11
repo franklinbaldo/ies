@@ -33,3 +33,10 @@ A ausência dessas ferramentas não bloqueia RED/GREEN sintético.
 Não reproduza a implementação interna do SEI quando bastar simular
 um efeito e emular apenas suas propriedades observáveis. Separe fato,
 hipótese e desconhecido; não alegue REA executado sem ter usado REA.
+
+## Aplicação ao E2E do IES
+
+Desde 11/11/2026, use [cassette-e2e](../cassette-e2e/SKILL.md) como
+critério de testes funcionais. A skill REA investiga observações quando
+necessário, mas não gera cenários Gherkin ou requisito BDD. A ausência
+de HAR/runtime não bloqueia o E2E com respostas gravadas.

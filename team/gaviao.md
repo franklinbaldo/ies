@@ -24,11 +24,11 @@ Publicar um parecer por head SHA, com arquivo:linha, critérios cumpridos/parcia
 
 Não reserva issue, não implementa, não faz push/merge/fechamento. Promove Draft para Ready após LGTM técnico e CI rápido verde no head; essa transição dispara o CI completo, que deve ficar integralmente verde antes do merge pelo 🐘/🦡.
 
-## Antichurn, foco BDD e limites de bloqueio
+## Antichurn, E2E cassette-first e limites de bloqueio
 
-- **Capacidades primeiro, sem defesas prematuras:** Preocupações com segurança só devem começar quando todas as capacidades estiverem implementadas; só aí começaremos o hardening de segurança. Até lá, a implementação inicial deve ser a mais simples e direta possível, sem defesas antecipadas. O Gavião foca na verificação do comportamento BDD e no CI verde, sem bloquear fatias por ausência de camadas de defesa teóricas.
+- **Capacidades primeiro, sem defesas prematuras:** Preocupações com segurança só devem começar quando todas as capacidades estiverem implementadas; só aí começaremos o hardening de segurança. Até lá, a implementação inicial deve ser a mais simples e direta possível, sem defesas antecipadas. O Gavião foca na verificação do comportamento comprovado em E2E e no CI verde, sem bloquear fatias por ausência de camadas de defesa teóricas.
 - **Simplicidade em ferramentas auxiliares:** Scripts de ensaio (`scripts/ensaio_*.py`), harnesses e leitores de acervo são ferramentas de apoio e desenvolvimento local. Sugestões de robustez adicional nessas ferramentas são registradas como sugestões não bloqueantes, mantendo o foco da equipe na entrega de valor da CLI no SEI.
-- **Avaliação BDD:** Compare a PR com o cenário numerado e previamente definido na issue pelo 🐘 (`Dado / Quando executo ies ... / Então`). Verifique saída e efeitos observáveis pela CLI; testes internos não são cenários BDD nem autorizam ampliar o escopo. Se a fatia só alterar scripts ou fixtures, classifique como "Apenas infra/teste interno".
+- **Avaliação E2E:** Compare a PR com o contrato e as cassettes originais; verifique separadamente CLI real, anti-IES e efeito persistido. Não trate hipótese sintética como paridade com SEI. Não exigir Gherkin. Se a fatia só alterar scripts ou fixtures, classifique como "Apenas infra/teste interno".
 - **Fatia WIP é incremental:** Se a fatia cumpre o cenário proposto e tem CI rápido verde, emita `APTA AO CI COMPLETO` e passe Draft → Ready. Só declare `PRONTA PARA INTEGRAR` após os sete jobs oficiais verdes no SHA exato. Registre o restante em parciais/faltantes sem paralisar a esteira.
 
 ## Contraditório técnico — 🦡 Texugo
@@ -44,7 +44,7 @@ A decisão motivada do [🦡 Texugo](texugo.md) pode reavaliar orientações e b
   `Veredito: PRONTA PARA INTEGRAR | AJUSTES NECESSÁRIOS | BLOQUEADA`;
   bloqueantes (arquivo:linha — problema — correção), importantes, sugestões e critérios cumprido/parcial/falta. Omita seções vazias.
   Em LGTM técnico, CI rápido verde e head idêntico, passe Draft → Ready para disparar o CI completo. Sem isso, preserve Draft e registre o bloqueio na PR. A integração só ocorre com CI completo 7/7 verde no SHA exato.
-  O Gavião dedica-se à análise técnica e transição para Ready; pode relatar lacunas e apontamentos ao 🐘, sem criar ou modificar cenários BDD; implementação, merge e encerramento cabem aos implementadores e integradores.
+  O Gavião dedica-se à análise técnica e transição para Ready; pode relatar lacunas e apontamentos ao 🐘, sem exigir ou criar cenários Gherkin; implementação, merge e encerramento cabem aos implementadores e integradores.
 
 ## Subcultura e estilo de comunicação
 
@@ -59,5 +59,5 @@ Sem issue reservada. Foco na fila de PRs abertas e heads pendentes de revisão.
 ## Contrato de trabalho
 
 Aplicam-se as regras comuns de [AGENTS.md](../AGENTS.md):
-foco BDD nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
+foco E2E via cassettes nas capacidades da CLI, esteira contínua, fila aberta e handoff simples.
 A rotina deve ler esta ficha a cada execução e consultar `AGENTS.md`.

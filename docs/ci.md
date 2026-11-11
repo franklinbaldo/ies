@@ -153,3 +153,16 @@ automáticas para gerados.
 Arquivos que precisem superar o limite exigem reconsideração explícita da
 política — nunca truncamento ou minificação para contornar o check.
 
+
+## E2E cassette-first sem runner Gherkin (11/11/2026)
+
+O teste Cucumber/Gherkin e o arquivo `.feature` foram excluídos, assim
+como suas dependências de desenvolvimento. A suíte Rust existente continua
+executada por `cargo test --locked --workspace --all-targets`; E2Es de
+integração devem exercitar o binário real e usar cassettes originais, com
+confronto separado do anti-IES com a fonte. Testes unitários não são
+excluídos automaticamente. Não criar um gate especial de BDD nem
+aceitar somente resultados sintéticos como fidelidade às cassettes.
+
+Consultar [skill](../.agents/skills/cassette-e2e/SKILL.md) e
+[ciclo](anti-ies/ciclo-cassettes.md).
