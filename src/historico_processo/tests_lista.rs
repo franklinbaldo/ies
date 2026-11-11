@@ -94,16 +94,26 @@ fn tipo_ausente_repetido_ou_desconhecido_e_recusa() {
     let html = pagina_do_historico(NUP, "10", 'R', 1, 1);
     let campo =
         "  <input type=\"hidden\" id=\"hdnTipoHistorico\" name=\"hdnTipoHistorico\" value=\"R\" />";
-    for trocado in [
-        html.replace(campo, ""),
-        html.replace(campo, &format!("{campo}{campo}")),
-        html.replace(campo, &campo.replace("value=\"R\"", "value=\"X\"")),
-        html.replace("frmProcedimentoHistorico\" method", "outroForm\" method"),
+    let nao_publicado = Err(super::ErroAndamentos::TipoDoHistoricoNaoPublicado);
+    let sem_formulario = Err(super::ErroAndamentos::FormularioDoTipoNaoLocalizado(
+        crate::formulario_web::ErroSubmissaoFormulario::FormularioAusenteNaTela,
+    ));
+    for (trocado, esperado) in [
+        (html.replace(campo, ""), nao_publicado.clone()),
+        (
+            html.replace(campo, &format!("{campo}{campo}")),
+            nao_publicado.clone(),
+        ),
+        (
+            html.replace(campo, &campo.replace("value=\"R\"", "value=\"X\"")),
+            nao_publicado,
+        ),
+        (
+            html.replace("frmProcedimentoHistorico\" method", "outroForm\" method"),
+            sem_formulario,
+        ),
     ] {
-        assert_eq!(
-            ler_andamentos(&trocado, NUP),
-            Err(super::ErroAndamentos::TipoDoHistoricoNaoPublicado)
-        );
+        assert_eq!(ler_andamentos(&trocado, NUP), esperado);
     }
 }
 

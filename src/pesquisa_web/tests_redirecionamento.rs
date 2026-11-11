@@ -402,8 +402,8 @@ fn redirect_de_documento_na_pesquisa_rapida_nao_aceita_id_protocolo() {
         conferir(&format!("{destino}&id_documento=42")),
         Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRepetidoNoRedirecionamento)
     );
-    assert_eq!(
+    assert!(matches!(
         conferir(&destino.replace("id_documento=42", "id_documento=x")),
-        Err(ErroRedirecionamentoDaPesquisa::IdDocumentoNaoDecimalNoRedirecionamento)
-    );
+        Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRecusadoNoRedirecionamento(_))
+    ));
 }

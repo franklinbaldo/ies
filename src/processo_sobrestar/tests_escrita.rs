@@ -137,7 +137,10 @@ fn sobrestar_sem_resposta_exige_releitura_sem_retry() {
         true,
         respostas_sobrestar(Err(FalhaTransporte::Rede), Err(FalhaTransporte::Rede)),
     );
-    assert_eq!(r, Err(ErroSobrestamento::NaoConfirmado));
+    assert!(matches!(
+        r,
+        Err(ErroSobrestamento::NaoConfirmadoNaReleitura(_))
+    ));
     assert_eq!(pedidos, pedidos_sobrestar());
 }
 #[test]
@@ -197,7 +200,7 @@ fn retomar_get_mutador_recusado_nao_atribui_mudanca_concorrente() {
         ok(arvore(&[UNIDADE], &[sobrestar()])),
     ]);
     let (resultado, pedidos) = rodar(Acao::Retomar, None, true, respostas);
-    assert_eq!(resultado, Err(ErroSobrestamento::NaoConfirmado));
+    assert!(matches!(resultado, Err(ErroSobrestamento::NaoConfirmado)));
     assert_eq!(pedidos.len(), 6);
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "GET").count(), 6);
 }
@@ -210,7 +213,7 @@ fn sobrestar_post_redirecionado_ao_login_nao_prova_efeito_concorrente() {
         true,
         respostas_sobrestar(r302("controlador.php?acao=login"), ok(sobrestado())),
     );
-    assert_eq!(resultado, Err(ErroSobrestamento::NaoConfirmado));
+    assert!(matches!(resultado, Err(ErroSobrestamento::NaoConfirmado)));
     assert_eq!(pedidos, pedidos_sobrestar());
     assert_eq!(pedidos.iter().filter(|p| p.metodo == "POST").count(), 1);
 }
