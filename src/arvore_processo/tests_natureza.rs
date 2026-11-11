@@ -18,9 +18,14 @@ fn natureza(no: String) -> NaturezaDoDocumento {
     lida.documentos[0].natureza.clone()
 }
 
-fn esperada(icone: Option<&str>, cancelamento: Cancelamento) -> NaturezaDoDocumento {
+/// A recusa tipada da árvore com o `DOCUMENTO` dado.
+fn recusa(no: String) -> ErroArvore {
+    ler_arvore(&arvore(&[no_processo(0, "10", NUP), no]), NUP, "10").unwrap_err()
+}
+
+fn esperada(icone: &str, cancelamento: Cancelamento) -> NaturezaDoDocumento {
     NaturezaDoDocumento {
-        icone: icone.map(str::to_owned),
+        icone: icone.to_owned(),
         cancelamento,
         dica: None,
     }
@@ -41,7 +46,7 @@ fn icone_e_o_radical_opaco_com_ou_sem_versao() {
     assert_eq!(natureza(no_documento(1, "21", "10", "0000101")), interno());
     assert_eq!(
         natureza(documento("Anexo 0000101", "Anexo 0000101", [PDF; 3])),
-        esperada(Some("documento_pdf"), Cancelamento::Ativo)
+        esperada("documento_pdf", Cancelamento::Ativo)
     );
 }
 
@@ -55,7 +60,7 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
         )),
         com_dica(
             esperada(
-                Some("documento_cancelado"),
+                "documento_cancelado",
                 Cancelamento::Cancelado {
                     motivo: "erro".into(),
                 },
@@ -71,7 +76,7 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
         )),
         com_dica(
             esperada(
-                Some("documento_cancelado"),
+                "documento_cancelado",
                 Cancelamento::Cancelado {
                     motivo: " enviado em duplicidade ".into(),
                 },
@@ -82,30 +87,27 @@ fn cancelado_com_as_duas_marcas_publica_o_motivo() {
 }
 
 #[test]
-fn meia_marca_de_cancelamento_e_null() {
+fn meia_marca_de_cancelamento_e_recusa_tipada() {
     assert_eq!(
-        natureza(documento(
+        recusa(documento(
             "Ofício 0000101",
             "Ofício 0000101",
             [CANCELADO; 3]
         )),
-        esperada(Some("documento_cancelado"), Cancelamento::NaoObservado)
+        ErroArvore::IconeDeCancelamentoSemMotivoNaDica
     );
     assert_eq!(
-        natureza(documento(
+        recusa(documento(
             "Ofício 0000101",
             "Documento Cancelado: erro",
             [PDF; 3]
         )),
-        com_dica(
-            esperada(Some("documento_pdf"), Cancelamento::NaoObservado),
-            "Documento Cancelado: erro"
-        )
+        ErroArvore::DicaDeCancelamentoSemIconeDeCancelado
     );
 }
 
 #[test]
-fn icone_fora_da_forma_e_null_sem_recusar_a_arvore() {
+fn icone_fora_da_forma_e_recusa_tipada() {
     let casos = [
         [PDF, PDF, CANCELADO],
         ["/infra_css/imagens/documento.gif"; 3],
@@ -117,8 +119,8 @@ fn icone_fora_da_forma_e_null_sem_recusar_a_arvore() {
     ];
     for icones in casos {
         assert_eq!(
-            natureza(documento("Anexo 0000101", "Anexo 0000101", icones)),
-            esperada(None, Cancelamento::NaoObservado),
+            recusa(documento("Anexo 0000101", "Anexo 0000101", icones)),
+            ErroArvore::IconeDoDocumentoForaDaFormaObservada,
             "{icones:?}"
         );
     }
@@ -139,7 +141,7 @@ fn email_publica_o_icone_e_a_dica_decodificada() {
                 "Data de Envio: 01/01/2026 10:00:00\nDe: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br\nAssunto: x\n"
                     .into()
             ),
-            ..esperada(Some("documento_email"), Cancelamento::Ativo)
+            ..esperada("documento_email", Cancelamento::Ativo)
         }
     );
 }

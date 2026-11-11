@@ -506,18 +506,25 @@ pub fn atender_http(
         .localizacao
         .as_ref()
         .map_or_else(String::new, |valor| format!("Location: {valor}\r\n"));
+    // Só o PDF do download é corpo binário; o SEI o serve como anexo.
+    let disposicao = if resposta.corpo_binario.is_some() {
+        "Content-Disposition: attachment; filename=\"anexo.pdf\"\r\n"
+    } else {
+        ""
+    };
     let bytes = resposta
         .corpo_binario
         .as_deref()
         .unwrap_or(resposta.corpo.as_bytes());
     write!(
         fluxo,
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{}{}Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n\r\n",
         resposta.estado.codigo_http(),
         resposta.estado.motivo_http(),
         resposta.tipo_conteudo,
         bytes.len(),
         location,
+        disposicao,
     )?;
     fluxo.write_all(bytes)?;
     fluxo.flush()

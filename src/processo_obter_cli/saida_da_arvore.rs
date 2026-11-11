@@ -154,19 +154,9 @@ pub(super) fn humano_dos_documentos(arvore: &ArvoreLida, texto: &mut String) {
             let _ = write!(texto, " [pasta {}]", pasta.rotulo);
         }
         let natureza = &documento.natureza;
-        match natureza.cancelamento.cancelado() {
-            Some(true) => {
-                let motivo = natureza.cancelamento.motivo().unwrap_or("");
-                let _ = write!(texto, " [cancelado: {motivo}]");
-            }
-            None if natureza.icone.is_some() => {
-                texto.push_str(" [cancelamento não confirmado]");
-            }
-            _ => {}
-        }
-        if natureza.cancelamento.cancelado() != Some(true)
-            && let Some(dica) = &natureza.dica
-        {
+        if let Some(motivo) = natureza.cancelamento.motivo() {
+            let _ = write!(texto, " [cancelado: {motivo}]");
+        } else if let Some(dica) = &natureza.dica {
             for linha in dica.lines().filter(|l| !l.is_empty()) {
                 let _ = write!(texto, "\n    {}", linha.trim());
             }

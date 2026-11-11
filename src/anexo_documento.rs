@@ -106,8 +106,8 @@ pub(crate) struct AnexoLido {
     pub(crate) mime: String,
     pub(crate) tamanho: u64,
     pub(crate) sha256: String,
-    pub(crate) nome_original: Option<String>,
-    pub(crate) disposicao: Option<Disposicao>,
+    pub(crate) nome_original: String,
+    pub(crate) disposicao: Disposicao,
     pub(crate) conteudo: ConteudoDoAnexo,
 }
 
@@ -161,6 +161,8 @@ pub(crate) enum ErroAnexo {
     TipoNaoPermitido,
     CabecalhoRepetido,
     DisposicaoForaDaFormaObservada(#[source] cabecalhos::ErroDisposicao),
+    /// Sem `Content-Disposition`: o comando promete disposição e nome.
+    CabecalhoDeDisposicaoAusente,
     AcimaDoLimite,
     Vazio,
     ConteudoComLinkAssinado,
@@ -191,6 +193,7 @@ impl ErroAnexo {
             | Self::TipoNaoPermitido
             | Self::CabecalhoRepetido
             | Self::DisposicaoForaDaFormaObservada(_)
+            | Self::CabecalhoDeDisposicaoAusente
             | Self::AcimaDoLimite
             | Self::Vazio
             | Self::ConteudoComLinkAssinado
@@ -263,7 +266,7 @@ pub(crate) fn ler_anexo<R: Read>(
             corpo: resposta.corpo,
         })));
     }
-    let conferido = conferir(&resposta, limite)?;
+    let mut conferido = conferir(&resposta, limite)?;
     let RespostaBinaria { corpo, .. } = resposta;
     let mut arquivo = match destino {
         DestinoDoAnexo::SoMetadados => None,
@@ -312,6 +315,11 @@ pub(crate) fn ler_anexo<R: Read>(
     if conferido.mime == "text/html" {
         conferir_html(&guardado, &conferido.valor_do_tipo)?;
     }
+    // Depois do corpo, como o login e a exceção do SEI.
+    let (disposicao, nome_original) = conferido
+        .disposicao
+        .take()
+        .ok_or(ErroAnexo::CabecalhoDeDisposicaoAusente)?;
     if let Some(aberto) = &mut arquivo {
         aberto
             .parcial
@@ -333,8 +341,8 @@ pub(crate) fn ler_anexo<R: Read>(
         mime: conferido.mime,
         tamanho,
         sha256: hash,
-        nome_original: conferido.nome_original,
-        disposicao: conferido.disposicao,
+        nome_original,
+        disposicao,
         conteudo,
     })
 }
@@ -390,8 +398,7 @@ struct Conferido {
     mime: String,
     valor_do_tipo: String,
     extensao: &'static str,
-    nome_original: Option<String>,
-    disposicao: Option<Disposicao>,
+    disposicao: Option<(Disposicao, String)>,
     limite: u64,
 }
 
@@ -416,14 +423,11 @@ fn conferir<R: Read>(
     let valor_do_tipo = tipo.unwrap_or_default().to_owned();
     let mime = cabecalhos::tipo_principal(&valor_do_tipo).ok_or(ErroAnexo::SemTipoDeConteudo)?;
     let extensao = cabecalhos::extensao(&mime).ok_or(ErroAnexo::TipoNaoPermitido)?;
-    let (disposicao, nome_original) = match disposicao {
-        Some(valor) => {
-            let (d, nome) = cabecalhos::ler_disposicao(valor)
-                .map_err(ErroAnexo::DisposicaoForaDaFormaObservada)?;
-            (Some(d), nome)
-        }
-        None => (None, None),
-    };
+    let disposicao = disposicao
+        .map(|valor| {
+            cabecalhos::ler_disposicao(valor).map_err(ErroAnexo::DisposicaoForaDaFormaObservada)
+        })
+        .transpose()?;
     let limite = if cabecalhos::e_texto(&mime) {
         u64::try_from(crate::MAX_HTML_BYTES)
             .map_or(limite.bytes(), |maximo| limite.bytes().min(maximo))
@@ -439,7 +443,6 @@ fn conferir<R: Read>(
         mime,
         valor_do_tipo,
         extensao,
-        nome_original,
         disposicao,
         limite,
     })
