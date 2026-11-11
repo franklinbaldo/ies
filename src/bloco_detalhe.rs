@@ -122,12 +122,18 @@ fn ler_itens(
         if td.len() != headers.len() {
             return Err(ErroBlocoDetalhe::LinhaDoBlocoInvalida);
         }
-        let processo = texto(td[processo], parser);
+        let celula = |i: usize| {
+            td.get(i)
+                .copied()
+                .ok_or(ErroBlocoDetalhe::LinhaDoBlocoInvalida)
+        };
+        let processo = texto(celula(processo)?, parser);
         if processo.is_empty() {
             return Err(ErroBlocoDetalhe::LinhaDoBlocoInvalida);
         }
         let doc = documento
-            .map(|i| texto(td[i], parser))
+            .map(|i| celula(i).map(|c| texto(c, parser)))
+            .transpose()?
             .filter(|s| !s.is_empty());
         if tipo == TipoBloco::Assinatura && doc.is_none() {
             return Err(ErroBlocoDetalhe::LinhaDoBlocoInvalida);
@@ -136,9 +142,10 @@ fn ler_itens(
             processo,
             documento: doc,
             tipo: tipo_coluna
-                .map(|i| texto(td[i], parser))
+                .map(|i| celula(i).map(|c| texto(c, parser)))
+                .transpose()?
                 .filter(|s| !s.is_empty()),
-            anotacoes: texto(td[anotacoes], parser),
+            anotacoes: texto(celula(anotacoes)?, parser),
         });
     }
     Ok(itens)

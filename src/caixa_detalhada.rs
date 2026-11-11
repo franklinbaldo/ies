@@ -3,6 +3,7 @@
 mod celula_marcadores;
 mod colunas;
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::controle_contexto::{ContextoPagina, contexto_da_pagina};
 use crate::dominio::{Categoria, IdProcedimento};
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
@@ -189,12 +190,13 @@ fn eh_link_do_processo(href: &str, id: &str) -> bool {
         .iter()
         .filter_map(|s| s.strip_prefix("id_procedimento="))
         .collect();
-    acoes.len() == 1
-        && matches!(
-            acoes[0],
-            "procedimento_trabalhar" | "procedimento_visualizar"
+    matches!(
+        acoes.as_slice(),
+        [acao] if matches!(
+            AcaoDoSei::ler(acao),
+            Some(AcaoDoSei::ProcedimentoTrabalhar | AcaoDoSei::ProcedimentoVisualizar)
         )
-        && ids == [id]
+    ) && ids == [id]
 }
 
 /// Lido da fonte da tag; tag ilegível não vira atributo ausente.
@@ -326,7 +328,7 @@ fn ler_pagina(html: &str) -> Result<Pagina, ErroDetalhada> {
         .iter()
         .filter_map(|papel| match papel {
             colunas::PapelDaColuna::Configurada(coluna) => Some(*coluna),
-            _ => None,
+            colunas::PapelDaColuna::Processo | colunas::PapelDaColuna::SemRotulo => None,
         })
         .collect();
     let mut processos = Vec::new();

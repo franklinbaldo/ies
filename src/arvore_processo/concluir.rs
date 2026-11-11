@@ -13,12 +13,9 @@
 use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use super::literais::{Literal, ler_declaracao};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-/// A `acao` da conclusão nas duas formas.
-pub(crate) const ACAO_DE_CONCLUIR: &str = "procedimento_concluir";
-/// A `acao` da tela do nó, onde a forma 4.0 publica a URL.
-pub(crate) const ACAO_DA_TELA_DO_NO: &str = "arvore_visualizar";
 const ONCLICK: &str = "concluirProcesso();";
 
 /// URL absoluta e assinada: `Debug` redigido, sem `Display`.
@@ -72,7 +69,7 @@ pub(crate) fn ler_concluir_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(ACAO_DE_CONCLUIR))
+        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoConcluir))
         .collect();
     let funcoes = ancoras
         .iter()
@@ -80,16 +77,18 @@ pub(crate) fn ler_concluir_da_barra(
         .count();
     match (links.as_slice(), funcoes) {
         ([], 0) => Ok(None),
-        ([href], 0) => conferir_endereco_relativo(instalacao, href, ACAO_DE_CONCLUIR, id)
-            .map(|url| Some(ConcluirNaBarra::PelaTela(EnderecoDeEscrita(url))))
-            .map_err(|recusa| match recusa {
-                EnderecoRecusado::NaoReconhecido => {
-                    ErroConcluirNaBarra::EnderecoDaConclusaoNaoReconhecido
-                }
-                EnderecoRecusado::DeOutroProcesso => {
-                    ErroConcluirNaBarra::EnderecoDaConclusaoDeOutroProcesso
-                }
-            }),
+        ([href], 0) => {
+            conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoConcluir, id)
+                .map(|url| Some(ConcluirNaBarra::PelaTela(EnderecoDeEscrita(url))))
+                .map_err(|recusa| match recusa {
+                    EnderecoRecusado::NaoReconhecido => {
+                        ErroConcluirNaBarra::EnderecoDaConclusaoNaoReconhecido
+                    }
+                    EnderecoRecusado::DeOutroProcesso => {
+                        ErroConcluirNaBarra::EnderecoDaConclusaoDeOutroProcesso
+                    }
+                })
+        }
         ([], 1) => tela_do_no_da_raiz(instalacao, html, id)
             .map(|tela_do_no| Some(ConcluirNaBarra::PelaFuncao { tela_do_no }))
             .ok_or(ErroConcluirNaBarra::EnderecoDaTelaDoNoNaoReconhecido),
@@ -125,7 +124,7 @@ pub(super) fn tela_do_no_da_raiz(
     let [href] = achados.as_slice() else {
         return None;
     };
-    conferir_endereco_relativo(instalacao, href, ACAO_DA_TELA_DO_NO, id)
+    conferir_endereco_relativo(instalacao, href, AcaoDoSei::ArvoreVisualizar, id)
         .ok()
         .map(EnderecoDeEscrita)
 }
@@ -215,7 +214,7 @@ pub(crate) fn ler_funcao_de_concluir(
         [url] => *url,
         _ => return Err(ErroFuncaoDeConcluir::FuncoesDeConcluirRepetidasNaTelaDoNo),
     };
-    conferir_endereco_relativo(instalacao, url, ACAO_DE_CONCLUIR, id)
+    conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoConcluir, id)
         .map(EnderecoDeEscrita)
         .map_err(|recusa| match recusa {
             EnderecoRecusado::NaoReconhecido => {

@@ -7,6 +7,7 @@ use super::formulario_pesquisa::CAMPOS_OCULTOS_DA_PESQUISA;
 #[cfg(test)]
 use super::resposta::ListaDaPesquisa;
 use super::resposta::{FaixaDaPesquisa, RespostaDaPesquisa};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
     decodificar_atributo, localizar_formulario,
@@ -15,7 +16,7 @@ use crate::html_atributos::valor_do_atributo;
 
 /// `navegar(inicio)`: `submit()` por script, só `hdnInicio` reescrito.
 pub(crate) const PAGINAR_PESQUISA_DE_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: CAMPOS_OCULTOS_DA_PESQUISA,

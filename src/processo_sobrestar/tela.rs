@@ -1,5 +1,6 @@
 //! Conferência estrutural do formulário de sobrestamento observado na `UnB` (#269).
 //! Fonte: `Todos tests/test_ciclo_sobrestar_010.py` @323eb01.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, localizar_formulario,
@@ -20,7 +21,7 @@ pub(crate) enum ErroTela {
     CampoInesperado,
 }
 pub(crate) const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_sobrestar",
+    acao: AcaoDoSei::ProcedimentoSobrestar,
     formulario: "frmDesentranharDocumento",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmSalvar"),
     campos_ocultos_exigidos: &[
@@ -226,7 +227,7 @@ pub(crate) fn redirecionamento_esperado(
             .map(|(_, v)| v)
             .collect()
     };
-    valores("acao") == ["arvore_visualizar"]
-        && valores("acao_origem") == ["procedimento_sobrestar"]
+    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
+        && valores("acao_origem") == [AcaoDoSei::ProcedimentoSobrestar.como_na_url()]
         && valores("id_procedimento") == [id]
 }

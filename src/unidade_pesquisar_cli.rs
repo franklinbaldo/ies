@@ -139,6 +139,10 @@ fn atualizar_por_web(
     Ok((lista, lida.requisicoes, persistida))
 }
 
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn executar(
     json_mode: bool,
     unidade_esperada: Option<&str>,

@@ -4,6 +4,7 @@
 //! observada nas cassettes da `UnB` 4.0.9, UFRJ 4.1.5 e GO 5.0.3. Nenhum JS é
 //! executado: as formas são conferidas como texto e atributos.
 use super::ErroTroca;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, OperacaoDeFormulario,
@@ -18,13 +19,12 @@ use crate::instalacao::Instalacao;
 mod consulta;
 pub(crate) use consulta::{ConsultaForaDaForma, conferir_consulta};
 
-pub(crate) const ACAO_DE_TROCAR: &str = "infra_trocar_unidade";
 /// O oculto que `selecionarUnidade()` cria antes do `submit()`.
 pub(crate) const CAMPO_CRIADO: &str = "selInfraUnidades";
 
 /// O formulário da tela, declarado pela operação (sem catálogo central).
 pub(crate) const TROCAR_UNIDADE: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_TROCAR,
+    acao: AcaoDoSei::InfraTrocarUnidade,
     formulario: "frmInfraSelecaoUnidade",
     envio: EnvioDoFormulario::SubmitPorScriptComCampoCriado(CAMPO_CRIADO),
     campos_ocultos_exigidos: &[
@@ -110,7 +110,7 @@ pub(crate) fn link_da_troca(
     if !relativo.bytes().all(|b| (33..=126).contains(&b)) || relativo.contains(['#', '\\', '\'']) {
         return Err(ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada);
     }
-    conferir_consulta(consulta, ACAO_DE_TROCAR, |h| h.len() == 64)
+    conferir_consulta(consulta, AcaoDoSei::InfraTrocarUnidade, |h| h.len() == 64)
         .map_err(|ConsultaForaDaForma| ErroTroca::LinkDeTrocaDeUnidadeForaDaFormaObservada)?;
     let base = url_da_tela.split('?').next().unwrap_or_default();
     let (pasta, _) = base
@@ -191,11 +191,10 @@ fn tabela_da_lista<'d>(
         if !legendas.iter().any(|l| l.starts_with(LEGENDA)) {
             continue;
         }
-        if achada.is_some() || legendas.len() != 1 {
+        let (None, [legenda]) = (&achada, legendas.as_slice()) else {
             return Err(ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida);
-        }
-        let total =
-            total_da_legenda(&legendas[0]).ok_or(super::ErroTroca::ListaDeUnidadesIncompleta)?;
+        };
+        let total = total_da_legenda(legenda).ok_or(super::ErroTroca::ListaDeUnidadesIncompleta)?;
         achada = Some((tabela, total));
     }
     achada.ok_or(super::ErroTroca::TelaDeTrocaDeUnidadeNaoReconhecida)
@@ -232,17 +231,19 @@ fn ler_linha(
     let esperado = format!("infraSelecionarItens(this,'Infra'); selecionarUnidade({id})");
     if atributo(radio, "type")?.as_deref() != Some("radio")
         || atributo(radio, "onclick")?.as_deref().map(str::trim) != Some(esperado.as_str())
-        || celulas.len() < 3
     {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
-    let sigla = texto(celulas[1], parser);
+    let [_, sigla, descricao, ..] = celulas.as_slice() else {
+        return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
+    };
+    let sigla = texto(sigla, parser);
     if sigla.is_empty() || atributo(radio, "title")?.as_deref() != Some(sigla.as_str()) {
         return Err(super::ErroTroca::LinhaDeUnidadeForaDaFormaObservada);
     }
     let marcada =
         atributo_presente(radio, "checked").map_err(ErroTroca::AtributoDaLinhaDeUnidadeIlegivel)?;
-    let descricao = texto(celulas[2], parser);
+    let descricao = texto(descricao, parser);
     Ok(Some((
         UnidadeOferecida {
             sigla,

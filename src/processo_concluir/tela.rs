@@ -10,7 +10,7 @@
 //! responde 302 para `arvore_visualizar` (ou `principal`), da conclusão do
 //! mesmo processo.
 use super::erro::ErroTelaDeConclusao;
-use crate::arvore_processo::ACAO_DE_CONCLUIR;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDoProcesso,
     OperacaoDeFormulario, ResultadoDoEnvio, consulta_do_controlador, localizar_formulario,
@@ -35,7 +35,7 @@ const PROCESSOS: &str = "selProcedimentos";
 /// Salvar a tela de conclusão: janela sem barra da unidade, aberta pelo
 /// link da barra da árvore da tela do processo conferida.
 pub(crate) const CONCLUIR_PROCESSO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: ACAO_DE_CONCLUIR,
+    acao: AcaoDoSei::ProcedimentoConcluir,
     formulario: FORMULARIO_DE_CONCLUSAO,
     envio: EnvioDoFormulario::BotaoDeEnvio(BOTAO_SALVAR),
     campos_ocultos_exigidos: &OCULTOS,
@@ -154,7 +154,10 @@ pub(crate) fn redirecionamento_esperado(
     };
     matches!(
         valores("acao").as_slice(),
-        ["arvore_visualizar" | "principal"]
-    ) && valores("acao_origem") == [ACAO_DE_CONCLUIR]
+        [acao] if matches!(
+            AcaoDoSei::ler(acao),
+            Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+        )
+    ) && valores("acao_origem") == [AcaoDoSei::ProcedimentoConcluir.como_na_url()]
         && valores("id_procedimento") == [id]
 }

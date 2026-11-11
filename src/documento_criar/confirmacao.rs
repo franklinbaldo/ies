@@ -1,5 +1,6 @@
 //! Fronteira de escrita única e releitura para documento criar (#246).
 //! O transporte é injetável; a confirmação nunca repete a submissão.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
 use crate::documento_criar::conferir_criacao;
 use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
@@ -69,8 +70,12 @@ pub(crate) fn redirecionamento_do_mesmo_controlador(
             .split('&')
             .filter_map(|campo| campo.strip_prefix("id_documento="));
         matches!(
-            acoes.next(),
-            Some("documento_visualizar" | "arvore_visualizar" | "procedimento_visualizar")
+            acoes.next().and_then(AcaoDoSei::ler),
+            Some(
+                AcaoDoSei::DocumentoVisualizar
+                    | AcaoDoSei::ArvoreVisualizar
+                    | AcaoDoSei::ProcedimentoVisualizar
+            )
         ) && acoes.next().is_none()
             && ids.next() == Some(id_novo)
             && ids.next().is_none()

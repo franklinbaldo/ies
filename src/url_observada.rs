@@ -41,8 +41,7 @@ pub(crate) fn partes_https(url: &str) -> Option<UrlHttps<'_>> {
 
 /// Declara um esquema RFC lexical na primeira componente da referência.
 pub(crate) fn tem_esquema(referencia: &str) -> bool {
-    let fim = referencia.find(['/', '?']).unwrap_or(referencia.len());
-    referencia[..fim]
+    primeira_componente(referencia)
         .split_once(':')
         .is_some_and(|(esquema, _)| {
             !esquema.is_empty()
@@ -55,10 +54,14 @@ pub(crate) fn tem_esquema(referencia: &str) -> bool {
 /// Para login, qualquer prefixo não vazio terminado em ':' era recusado;
 /// não mudar essa regra histórica quando o token não é RFC.
 pub(crate) fn tem_prefixo_de_esquema(referencia: &str) -> bool {
-    let fim = referencia.find(['/', '?']).unwrap_or(referencia.len());
-    referencia[..fim]
+    primeira_componente(referencia)
         .split_once(':')
         .is_some_and(|(esquema, _)| !esquema.is_empty())
+}
+
+/// Até a primeira `/` ou `?` (a referência inteira se não houver).
+fn primeira_componente(referencia: &str) -> &str {
+    referencia.split(['/', '?']).next().unwrap_or(referencia)
 }
 
 pub(crate) fn esquema_e_resto(referencia: &str) -> Option<(&str, &str)> {
@@ -73,8 +76,8 @@ pub(crate) fn resto_http_ou_https(referencia: &str) -> Option<&str> {
 /// Caminho com a barra inicial; não remove segmentos nem resolve '..'.
 pub(crate) fn caminho_absoluto(url: &str) -> Option<&str> {
     let resto = url.strip_prefix("https://")?;
-    let indice = resto.find('/')?;
-    Some(resto[indice..].split('?').next().unwrap_or_default())
+    let (_, caminho) = resto.split_at(resto.find('/')?);
+    caminho.split('?').next()
 }
 
 /// Diretório sintático da URL servida, sem normalizar a referência.

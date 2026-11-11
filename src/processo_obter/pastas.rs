@@ -5,11 +5,10 @@
 //! `FECHAR_PASTAS`, nunca restauração.
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite, ler_arvore_da_pagina};
 use super::{EnvioDoProcesso, ErroProcessoObter};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ErroArvore, ler_acao_de_abrir_pastas};
 use crate::formulario_web::{EfeitoAvaliado, EstadoDeSessao};
 use crate::instalacao::Instalacao;
-
-pub(super) const ACAO: &str = "procedimento_visualizar";
 
 /// Efeito do GET de `ABRIR_PASTAS`: a ação irmã `FECHAR_PASTAS` sugere que
 /// o servidor lembra as pastas abertas (não medido pelo IES; nas cassettes
@@ -88,7 +87,11 @@ pub(super) fn completar<V: EnvioDoProcesso>(
             return Err(ErroProcessoObter::Arvore(erro));
         }
     };
-    contexto.aprender_link(ACAO, &objeto(&id), endereco.as_str());
+    contexto.aprender_link(
+        AcaoDoSei::ProcedimentoVisualizar,
+        &objeto(&id),
+        endereco.as_str(),
+    );
     Ok(completa)
 }
 
@@ -132,7 +135,7 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
     let objeto = objeto(id);
     let instalacao = &contexto.instalacao;
     let Some(link) = contexto
-        .chave(ACAO, &objeto)
+        .chave(AcaoDoSei::ProcedimentoVisualizar, &objeto)
         .and_then(|chave| contexto.indice.link(instalacao, chave))
     else {
         return Ok(Guardado::Seguir);
@@ -143,18 +146,18 @@ pub(super) fn pelo_link_guardado<V: EnvioDoProcesso>(
                 let _ = contexto
                     .indice
                     .registrar_processo(instalacao, contexto.nup, id);
-                contexto.aprender_link(ACAO, &objeto, link.url());
+                contexto.aprender_link(AcaoDoSei::ProcedimentoVisualizar, &objeto, link.url());
                 return Ok(Guardado::Aberta(Box::new(aberta)));
             }
             Err(erro) if erro.diverge_do_pedido() => {
                 contexto.indice.esquecer_processo(instalacao, contexto.nup);
-                contexto.esquecer_link(ACAO, &objeto);
+                contexto.esquecer_link(AcaoDoSei::ProcedimentoVisualizar, &objeto);
                 return Ok(Guardado::Divergiu);
             }
             Err(ErroArvore::NoDoProcessoAusenteNaArvore) => {}
             Err(erro) => return Err(ErroProcessoObter::Arvore(erro)),
         }
     }
-    contexto.esquecer_link(ACAO, &objeto);
+    contexto.esquecer_link(AcaoDoSei::ProcedimentoVisualizar, &objeto);
     Ok(Guardado::Seguir)
 }

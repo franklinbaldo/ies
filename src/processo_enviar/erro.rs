@@ -75,7 +75,8 @@ pub(crate) enum ErroEnviar {
     /// A tentativa de limpar foi relida, mas a anotação segue preenchida: não tramitar.
     AnotacaoNaoLimpaAntesDeEnviar,
     /// A limpeza pode ter sido aplicada; não prosseguir nem tentar novamente.
-    NaoConfirmadoNaLimpezaDaAnotacao,
+    /// Carrega o que impediu a releitura.
+    NaoConfirmadoNaLimpezaDaAnotacao(#[source] Box<ErroEnviar>),
     /// O envio foi confirmado; a releitura da anotação falhou.
     NaoConfirmadoNaRemocaoDeAnotacoes {
         /// Unidades comprovadas pela árvore após envio; indisponível na limpeza pré-envio.

@@ -1,6 +1,7 @@
 //! BDD-89-02/03/04: editor SEI 4 projetado a partir de observações, releitura.
 //! A escrita externa permanece bloqueada até validação da instalação.
 use crate::Cli;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arquivo_copia::ler_regular;
 use crate::copia_documento::{self, ErroCopia, PreviaCopia};
 use crate::documento::NumeroDocumento;
@@ -24,7 +25,7 @@ use std::path::Path;
 /// Fluxo SEI 4 observado no catálogo (UnB/PEN1/UFRJ), ainda sem replay
 /// dos corpos originais de POST. Só usado na instalação sintética sei.test.
 const EDITAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "editor_salvar",
+    acao: AcaoDoSei::EditorSalvar,
     formulario: "frmEditor",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnVersao", "hdnIgnorarNovaVersao"],

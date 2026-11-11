@@ -1,6 +1,6 @@
 //! Recusas tipadas da derivação e do envio de formulário (uma por fato).
 use crate::html_atributos::ErroAtributoHtml;
-use crate::transporte::{FalhaTransporte, StatusHttpRecusado};
+use crate::transporte::{FalhaTransporte, FatoDaResposta, StatusHttpRecusado};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
@@ -101,7 +101,48 @@ impl ErroSubmissaoFormulario {
     pub(crate) fn status_http(&self) -> Option<&StatusHttpRecusado> {
         match self {
             Self::Transporte(falha) => falha.status_http(),
-            _ => None,
+            Self::EfeitoDaOperacaoNaoAvaliado
+            | Self::UnidadeDaTelaDiferenteDaSolicitada
+            | Self::FormulariosComMesmoIdentificadorNaTela
+            | Self::MetodoDoFormularioDiferenteDePost
+            | Self::EnctypeDoFormularioNaoUrlencoded
+            | Self::AcceptCharsetPublicadoNoFormulario
+            | Self::AcaoDoFormularioNaoEhUrlHttps
+            | Self::AcaoDoFormularioForaDaInstalacao
+            | Self::AcaoDoFormularioDiferenteDaOperacao
+            | Self::AcaoDoFormularioSemInfraHashUnico
+            | Self::EntidadeHtmlDesconhecidaNoAtributo { .. }
+            | Self::CampoOcultoAusenteNoFormulario { .. }
+            | Self::CampoOcultoRepetidoNoFormulario { .. }
+            | Self::HdnAcaoPublicadoSemRegraDaOperacao
+            | Self::CampoForaDaListaDaOperacao { .. }
+            | Self::CampoNaoPublicadoPeloFormulario { .. }
+            | Self::CampoInformadoMaisDeUmaVez { .. }
+            | Self::CampoCriadoPeloScriptJaPublicado { .. }
+            | Self::ValorNaoRepresentavelNaCodificacao { .. }
+            | Self::TelaDeLoginRecebidaAposEnvio
+            | Self::MarcadorDeResultadoAusenteNaResposta
+            | Self::ValidacaoRecusadaPeloSei(_)
+            | Self::AtributoHtml(_)
+            | Self::AcaoDoFormularioAusente
+            | Self::BotaoDeEnvioAusenteNoFormulario
+            | Self::BotoesDeEnvioRepetidosNoFormulario
+            | Self::FormularioAusenteNaTela
+            | Self::IdentificacaoDaUnidadeAusenteNaTela
+            | Self::IdentificacoesDaUnidadeRepetidasNaTela => None,
+        }
+    }
+}
+
+impl ErroSubmissaoFormulario {
+    /// A resposta do envio não pôde ser lida: a tela de login no lugar da
+    /// resposta é sessão perdida no envio; as demais seguem como transporte.
+    pub(crate) fn da_resposta(falha: FalhaTransporte) -> Self {
+        match falha.fato_da_resposta() {
+            FatoDaResposta::TelaDeLoginNoLugarDaResposta => Self::TelaDeLoginRecebidaAposEnvio,
+            FatoDaResposta::CorpoAcimaDoLimite | FatoDaResposta::NenhumAlemDoTransporte => {
+                Self::Transporte(falha)
+            }
         }
     }
 }

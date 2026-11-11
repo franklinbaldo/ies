@@ -5,6 +5,7 @@
 //! assinada: guarda a que a tela publicou e a devolve igual.
 use super::IndiceLocal;
 use super::validacao::{RegistroRecusado, UrlAssinada, conferir_chave, conferir_url};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use rusqlite::OptionalExtension;
 
@@ -16,7 +17,7 @@ use rusqlite::OptionalExtension;
 pub(crate) struct ChaveDoLink<'a> {
     pub(crate) geracao_sessao: &'a str,
     pub(crate) unidade: &'a str,
-    pub(crate) acao: &'a str,
+    pub(crate) acao: AcaoDoSei,
     pub(crate) alvo: &'a str,
 }
 
@@ -51,7 +52,7 @@ impl IndiceLocal {
                         origem.as_str(),
                         chave.geracao_sessao,
                         chave.unidade,
-                        chave.acao,
+                        chave.acao.como_na_url(),
                         chave.alvo,
                     ],
                     |l| l.get(0),
@@ -85,7 +86,7 @@ impl IndiceLocal {
                     origem,
                     chave.geracao_sessao,
                     chave.unidade,
-                    chave.acao,
+                    chave.acao.como_na_url(),
                     chave.alvo,
                     url,
                     agora
@@ -107,7 +108,7 @@ impl IndiceLocal {
                     origem.as_str(),
                     chave.geracao_sessao,
                     chave.unidade,
-                    chave.acao,
+                    chave.acao.como_na_url(),
                     chave.alvo,
                 ],
             )?;

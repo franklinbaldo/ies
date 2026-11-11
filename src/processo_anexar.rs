@@ -97,8 +97,9 @@ pub(crate) fn ler_tela(html: &str) -> Result<TelaDeAnexacao, ErroTelaDeAnexacao>
         if (elemento.eq_ignore_ascii_case("input") || elemento.eq_ignore_ascii_case("button"))
             && let Some(nome) = atributo(tag, "name")?
             && let Some(pos) = esperados.iter().position(|c| *c == nome)
+            && let Some(visto) = vistos.get_mut(pos)
         {
-            vistos[pos] += 1;
+            *visto += 1;
             let tipo = atributo(tag, "type")?;
             let valido = match pos {
                 0 | 1 => tipo
@@ -177,11 +178,10 @@ pub(crate) fn ler_destino(xml: &str) -> Result<Destino, ErroComplementosDaAnexac
     if ids.is_empty() || nups.is_empty() {
         return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
     }
-    if ids.len() != 1 || nups.len() != 1 || tipos.len() > 1 {
+    let ([(_, id)], [(_, nup)], false) = (ids.as_slice(), nups.as_slice(), tipos.len() > 1) else {
         return Err(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua);
-    }
-    let id = ids[0].1.as_str();
-    let nup = nups[0].1.as_str();
+    };
+    let (id, nup) = (id.as_str(), nup.as_str());
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) || nup.is_empty() {
         return Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado);
     }

@@ -158,13 +158,7 @@ fn metadados(
 
 /// `dd/mm/aaaa`, como mostrado.
 fn eh_data(valor: &str) -> bool {
-    let b = valor.as_bytes();
-    b.len() == 10
-        && b[2] == b'/'
-        && b[5] == b'/'
-        && b.iter()
-            .enumerate()
-            .all(|(i, c)| i == 2 || i == 5 || c.is_ascii_digit())
+    crate::pesquisa_web::filtros::ano_mes_dia(valor).is_some()
 }
 
 /// Um registro: a linha de título e as seguintes até o próximo título.

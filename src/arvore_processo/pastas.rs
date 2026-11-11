@@ -10,6 +10,7 @@ use super::{
     Barra, DocumentoLido, ErroArvore, Literal, PastaNaArvore, VerificacaoDaPasta,
     tela::EnderecoDaArvore,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
@@ -83,15 +84,18 @@ const PARAMETRO: &str = "id_rel_protocolo_protocolo=";
 pub(super) fn identidade_da_barra(barra: &str) -> Result<Option<String>, ErroArvore> {
     let mut achado: Option<&str> = None;
     for (posicao, _) in barra.match_indices(PARAMETRO) {
+        let (antes, depois) = barra.split_at(posicao);
         // Só o parâmetro inteiro: depois de `?` ou `&` (cru ou `&amp;`).
-        if !matches!(barra[..posicao].bytes().last(), Some(b'?' | b'&' | b';')) {
+        if !matches!(antes.bytes().last(), Some(b'?' | b'&' | b';')) {
             continue;
         }
-        let resto = &barra[posicao + PARAMETRO.len()..];
+        let Some(resto) = depois.strip_prefix(PARAMETRO) else {
+            continue;
+        };
         let fim = resto
             .find(|c: char| !c.is_ascii_alphanumeric())
             .unwrap_or(resto.len());
-        let valor = &resto[..fim];
+        let (valor, _) = resto.split_at(fim);
         if !super::decimal(valor) {
             return Err(ErroArvore::BarraDeNoForaDaFormaObservada);
         }
@@ -172,6 +176,9 @@ pub(super) fn conferir_pastas(
     }
     let mut lidas = Vec::with_capacity(pastas.len());
     for (k, rotulo) in &pastas {
+        let declarados_da_pasta = declarados
+            .get(k)
+            .ok_or(ErroArvore::PastaSemProtocolosDeclarados)?;
         let da_pasta: Vec<&DocumentoLido> = documentos
             .iter()
             .filter(|d| d.pai == Pai::Pasta(*k))
@@ -182,13 +189,13 @@ pub(super) fn conferir_pastas(
             }
             (None, 0, 0)
         } else {
-            let (v, i, c) = conferir_pasta(&da_pasta, &declarados[k])?;
+            let (v, i, c) = conferir_pasta(&da_pasta, declarados_da_pasta)?;
             (Some(v), i, c)
         };
         lidas.push(PastaNaArvore {
             id: format!("PASTA{k}"),
             rotulo: (*rotulo).to_owned(),
-            total_declarado: declarados[k].len(),
+            total_declarado: declarados_da_pasta.len(),
             verificacao,
             conferidos_por_identidade: por_identidade,
             conferidos_por_contagem: por_contagem,
@@ -283,8 +290,9 @@ fn conferir_url_de_abrir(
     id: &str,
 ) -> Result<EnderecoDaArvore, ErroArvore> {
     let recusa = ErroArvore::EnderecoDeAbrirPastasNaoReconhecido;
-    let absoluta = conferir_endereco_relativo(instalacao, url, "procedimento_visualizar", id)
-        .map_err(|_| recusa)?;
+    let absoluta =
+        conferir_endereco_relativo(instalacao, url, AcaoDoSei::ProcedimentoVisualizar, id)
+            .map_err(|_| recusa)?;
     let consulta = url.split_once('?').map_or("", |(_, c)| c);
     let mut abrir = 0;
     for par in consulta.split('&') {

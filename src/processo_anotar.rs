@@ -1,5 +1,6 @@
 //! Prévia e registro único de anotação a partir do formulário servido.
 //! A releitura da mesma identidade ocorre após o POST, sem retry.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::MotivoAbertoEm;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, consulta_do_controlador,
@@ -178,7 +179,7 @@ fn redirecionamento_esperado(localizacao: Option<&str>, url: &str, id: &str) -> 
             .map(|(_, valor)| valor)
             .collect()
     };
-    valores("acao") == ["arvore_visualizar"]
-        && valores("acao_origem") == ["anotacao_registrar"]
+    valores("acao") == [AcaoDoSei::ArvoreVisualizar.como_na_url()]
+        && valores("acao_origem") == [AcaoDoSei::AnotacaoRegistrar.como_na_url()]
         && valores("id_procedimento") == [id]
 }

@@ -357,7 +357,11 @@ pub(super) fn geracao() -> String {
     crate::sessao_login::geracao_da_sessao(COOKIE)
 }
 
-pub(super) fn chave<'a>(geracao: &'a str, acao: &'a str, alvo: &'a str) -> ChaveDoLink<'a> {
+pub(super) fn chave<'a>(
+    geracao: &'a str,
+    acao: crate::acao_do_sei::AcaoDoSei,
+    alvo: &'a str,
+) -> ChaveDoLink<'a> {
     ChaveDoLink {
         geracao_sessao: geracao,
         unidade: ID_UNIDADE,

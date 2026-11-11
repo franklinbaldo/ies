@@ -15,12 +15,12 @@ use super::{
     ARGUMENTOS, ArvoreLida, DestinoDoMovido, DocumentoLido, DocumentoMovido, EnderecoDaArvore,
     ErroArvore, ProcessoNaArvore,
 };
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
 
 const TIPO: &str = "DOCUMENTO_MOVIDO";
-const ACAO_DO_DESTINO: &str = "procedimento_trabalhar";
 
 /// Um movido lido, com o pai (a2) ainda não conferido.
 pub(super) struct MovidoLido {
@@ -208,7 +208,8 @@ fn conferir(
         return Err(fora);
     }
     let absoluta =
-        conferir_endereco_relativo(instalacao, href, ACAO_DO_DESTINO, destino).map_err(|_| fora)?;
+        conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoTrabalhar, destino)
+            .map_err(|_| fora)?;
     if texto.is_empty()
         || texto.trim() != texto
         || texto.contains(['<', '>', '&'])

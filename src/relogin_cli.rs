@@ -121,7 +121,7 @@ fn em_cada_objeto(valor: &mut Value, mut f: impl FnMut(&mut serde_json::Map<Stri
                 }
             }
         }
-        _ => {}
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
 

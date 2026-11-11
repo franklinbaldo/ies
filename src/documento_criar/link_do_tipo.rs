@@ -3,6 +3,7 @@
 //! Conserva a URL assinada original para o GET; só a cópia usada para
 //! validação perde a segunda ocorrência idêntica.
 use super::ErroCriar;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::endereco::conferir_endereco_com_identidade_repetida;
 use crate::instalacao::Instalacao;
 
@@ -11,6 +12,11 @@ pub(super) fn conferir_link_do_tipo(
     href: &str,
     id_procedimento: &str,
 ) -> Result<String, ErroCriar> {
-    conferir_endereco_com_identidade_repetida(instalacao, href, "documento_gerar", id_procedimento)
-        .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
+    conferir_endereco_com_identidade_repetida(
+        instalacao,
+        href,
+        AcaoDoSei::DocumentoGerar,
+        id_procedimento,
+    )
+    .map_err(|_| ErroCriar::EnderecoDoTipoNaoReconhecido)
 }

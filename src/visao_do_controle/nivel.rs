@@ -3,6 +3,7 @@
 use super::envio::{EnvioDoControle, Sessao, TelaAtual};
 use super::passos::{contexto, trocar, unidade_da_tela};
 use super::{ErroVisaoDoControle, Visao};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -107,7 +108,7 @@ pub(super) fn link_do_nivel_de_detalhe(
         conferir_chave_de_consulta(nome).map_err(|_| invalido.clone())?;
         conferir_valor_de_consulta(valor).map_err(|_| invalido.clone())?;
         match nome {
-            "acao" if valor == crate::nivel_de_detalhe::ACAO_DO_NIVEL_DE_DETALHE => acoes += 1,
+            "acao" if valor == AcaoDoSei::ProcedimentoConfigurarDetalhe.como_na_url() => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }

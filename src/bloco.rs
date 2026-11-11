@@ -1,5 +1,6 @@
 //! Leitores puros de blocos do SEI: tabela por cabeçalho, sem JS nem escrita.
 //! Oráculo de cenários: Todos `src/todos/sei/blocos_lista.py` @323eb01.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use crate::instalacao::Instalacao;
@@ -15,11 +16,11 @@ pub(crate) enum TipoBloco {
     Reuniao,
 }
 impl TipoBloco {
-    pub(crate) const fn acao(self) -> &'static str {
+    pub(crate) const fn acao(self) -> AcaoDoSei {
         match self {
-            Self::Assinatura => "bloco_assinatura_listar",
-            Self::Interno => "bloco_interno_listar",
-            Self::Reuniao => "bloco_reuniao_listar",
+            Self::Assinatura => AcaoDoSei::BlocoAssinaturaListar,
+            Self::Interno => AcaoDoSei::BlocoInternoListar,
+            Self::Reuniao => AcaoDoSei::BlocoReuniaoListar,
         }
     }
     pub(crate) const fn rotulo(self) -> &'static str {
@@ -209,10 +210,13 @@ fn ler_linhas(
         nomes
             .iter()
             .position(|n| n == s)
-            .expect("cabeçalho conferido")
+            .ok_or(ErroBloco::CabecalhoDeBlocosNaoReconhecido)
     };
-    let (indice_numero, indice_estado, indice_descricao) =
-        (posicao("Número"), posicao("Estado"), posicao("Descrição"));
+    let (indice_numero, indice_estado, indice_descricao) = (
+        posicao("Número")?,
+        posicao("Estado")?,
+        posicao("Descrição")?,
+    );
     let mut itens = Vec::new();
     let mut links = Vec::new();
     let mut vistos = HashSet::new();
@@ -235,14 +239,16 @@ fn ler_linhas(
         if td.len() != nomes.len() {
             return Err(ErroBloco::LinhaDeBlocoForaDaForma);
         }
-        let numero = td[indice_numero].inner_text(parser).into_owned();
+        let celula = |i: usize| td.get(i).copied().ok_or(ErroBloco::LinhaDeBlocoForaDaForma);
+        let coluna_numero = celula(indice_numero)?;
+        let numero = coluna_numero.inner_text(parser).into_owned();
         if numero.is_empty() || !numero.bytes().all(|b| b.is_ascii_digit()) {
             return Err(ErroBloco::NumeroDoBlocoInvalido);
         }
         if !vistos.insert(numero.clone()) {
             return Err(ErroBloco::NumeroDoBlocoRepetido);
         }
-        let mut hrefs = td[indice_numero]
+        let mut hrefs = coluna_numero
             .query_selector(parser, "a")
             .ok_or(ErroBloco::LinkDeBlocosNaoReconhecido)?
             .filter_map(|n| n.get(parser))
@@ -268,8 +274,8 @@ fn ler_linhas(
         itens.push(BlocoLido {
             numero,
             tipo,
-            estado: texto_tag(td[indice_estado], parser),
-            descricao: texto_tag(td[indice_descricao], parser),
+            estado: texto_tag(celula(indice_estado)?, parser),
+            descricao: texto_tag(celula(indice_descricao)?, parser),
             quantidade_itens: None,
         });
     }
@@ -323,7 +329,7 @@ pub(crate) fn resolver_link(
     instalacao: &Instalacao,
     url_da_tela: &str,
     href: &str,
-    acao: &str,
+    acao: AcaoDoSei,
     numero: Option<&str>,
 ) -> Result<String, ErroBloco> {
     let nao = ErroBloco::LinkDeBlocosNaoReconhecido;
@@ -337,7 +343,7 @@ pub(crate) fn resolver_link(
         conferir_chave_de_consulta(chave).map_err(|_| nao)?;
         conferir_valor_de_consulta(valor).map_err(|_| nao)?;
         match chave {
-            "acao" if valor == acao => acoes += 1,
+            "acao" if valor == acao.como_na_url() => acoes += 1,
             "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
                 hashes += 1;
             }
@@ -385,10 +391,10 @@ pub(crate) fn link_do_menu(
         let Some(href) = decodificar_atributo(&bruto) else {
             continue;
         };
-        if href
-            .split_once('?')
-            .is_some_and(|(_, q)| q.split('&').any(|p| p == format!("acao={}", tipo.acao())))
-        {
+        if href.split_once('?').is_some_and(|(_, q)| {
+            q.split('&')
+                .any(|p| p.strip_prefix("acao=").and_then(AcaoDoSei::ler) == Some(tipo.acao()))
+        }) {
             candidatos.push(href);
         }
     }
@@ -477,13 +483,22 @@ mod tests {
         let instalacao = Instalacao::interpretar("https://sei.exemplo.gov.br/sei").unwrap();
         let base = "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_controlar";
         let href = format!("controlador.php?acao=bloco_interno_listar&infra_hash={HASH}");
-        assert!(resolver_link(&instalacao, base, &href, "bloco_interno_listar", None).is_ok());
+        assert!(
+            resolver_link(
+                &instalacao,
+                base,
+                &href,
+                AcaoDoSei::BlocoInternoListar,
+                None
+            )
+            .is_ok()
+        );
         assert_eq!(
             resolver_link(
                 &instalacao,
                 base,
                 &format!("{href}&infra_hash={HASH}"),
-                "bloco_interno_listar",
+                AcaoDoSei::BlocoInternoListar,
                 None
             ),
             Err(ErroBloco::LinkDeBlocosNaoReconhecido)
@@ -493,7 +508,7 @@ mod tests {
                 &instalacao,
                 base,
                 "https://outra.test/controlador.php?acao=bloco_interno_listar",
-                "bloco_interno_listar",
+                AcaoDoSei::BlocoInternoListar,
                 None
             ),
             Err(ErroBloco::LinkDeBlocosNaoReconhecido)

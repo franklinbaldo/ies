@@ -1,5 +1,6 @@
 //! Fluxo Web de criação de processo: prévia sem POST criador; escrita única
 //! com 302 e verificação da identidade na árvore. Nunca há retry.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, EstadoDeSessao, EstadoDoProcesso,
     OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio, TelaServida, derivar_submissao,
@@ -20,7 +21,7 @@ use crate::transporte::sessao::CookieDaSessao;
 use crate::visao_do_controle::EnvioDoControle;
 
 const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_escolher_tipo",
+    acao: AcaoDoSei::ProcedimentoEscolherTipo,
     formulario: "frmProcedimentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnFiltroTipoProcedimento"],
@@ -34,7 +35,7 @@ const FILTRO_TIPOS: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_escolher_tipo",
+    acao: AcaoDoSei::ProcedimentoEscolherTipo,
     formulario: "frmProcedimentoEscolherTipo",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &["hdnIdTipoProcedimento"],
@@ -48,7 +49,7 @@ const ESCOLHER_TIPO: OperacaoDeFormulario = OperacaoDeFormulario {
 };
 
 const CADASTRAR: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "procedimento_gerar",
+    acao: AcaoDoSei::ProcedimentoGerar,
     formulario: "frmProcedimentoCadastro",
     envio: EnvioDoFormulario::SubmitPorScript,
     campos_ocultos_exigidos: &[
@@ -232,7 +233,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
             let id_tipo = id_do_link(&link)
                 .ok_or(ErroCriar::TipoSemIdentificador)?
                 .to_owned();
-            let url = resolver_link(&instalacao, &lista.url, &link, "procedimento_gerar")?;
+            let url = resolver_link(&instalacao, &lista.url, &link, AcaoDoSei::ProcedimentoGerar)?;
             (id_tipo, get(envio, &url, cookie_valor, requisicoes)?)
         }
         EscolhaDoTipo::Formulario(id_tipo) => {
@@ -256,7 +257,7 @@ pub(crate) fn criar_com_contagem<V: EnvioDoControle>(
                     .localizacao()
                     .ok_or(ErroCriar::EscolhaInesperada)?,
                 redirecionamento.url_do_envio(),
-                "procedimento_gerar",
+                AcaoDoSei::ProcedimentoGerar,
             )
             .map_err(|_| ErroCriar::EscolhaInesperada)?;
             (id_tipo, get(envio, &url, cookie_valor, requisicoes)?)

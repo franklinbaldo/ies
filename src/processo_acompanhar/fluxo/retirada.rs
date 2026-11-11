@@ -1,5 +1,6 @@
 //! A retirada confirmada consome um POST e exige releitura independente.
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 
 /// Depois do único POST, comprovar a perda exclusiva da linha escolhida.
 /// Resposta do POST ou releitura insuficiente devolvem escrita não confirmada (saída 1).
@@ -40,7 +41,7 @@ pub(super) fn confirmar_remocao<V: EnvioDoProcesso>(
                 crate::arvore_processo::conferir_endereco_relativo(
                     instalacao,
                     &format!("controlador.php?{consulta}"),
-                    "acompanhamento_gerenciar",
+                    AcaoDoSei::AcompanhamentoGerenciar,
                     id,
                 )
                 .is_ok()

@@ -1,5 +1,6 @@
 //! Projeção tipada de processos nas respostas HTML de pesquisa do SEI Web.
 //! Parser puro: não executa links nem presume permissão/resultado live.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{
     nos_por_elemento_e_classe, nos_por_elemento_e_classe_em_todas_as_ocorrencias, valor_do_atributo,
 };
@@ -99,7 +100,7 @@ fn validar_href_de_processo(href: &str) -> Result<&str, ErroResultadoPesquisa> {
         .iter()
         .filter_map(|campo| campo.strip_prefix("acao="))
         .collect();
-    if acoes != ["procedimento_trabalhar"] {
+    if acoes != [AcaoDoSei::ProcedimentoTrabalhar.como_na_url()] {
         return Err(ErroResultadoPesquisa::LinkDePesquisaNaoAbreProcesso);
     }
     validar_nomes_dos_parametros(&campos)?;

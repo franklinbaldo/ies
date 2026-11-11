@@ -1,6 +1,9 @@
 //! Regressões sintéticas: função de navegação inerte não autoriza POST (#246).
 //! Oráculo positivo: Todos `tests/test_escolha_na_lista_010.py` @323eb01.
 //! Os casos negativos são adversariais HTML, não capturas de treinamento.
+use super::guarda_navegacao::ErroGuardaDeNavegacao::{
+    FuncaoNaoDeclaradaEmScriptAtivo, ScriptForaDaFormaObservada,
+};
 use super::*;
 
 const ESCOLHER: &str = r"function escolher(id) {
@@ -32,7 +35,9 @@ fn escolher_ignora_codigo_em_template_json_ou_comentario_html() {
         let tela = format!("{}{}", script_inerte(ESCOLHER, forma), tabela);
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+            )),
             "forma inerte {forma} não pode autorizar navegação POST"
         );
     }
@@ -52,7 +57,9 @@ fn filtro_exibir_todos_ignora_script_inerte() {
         let tela = format!("{}{}", script_inerte(EXIBIR, forma), botoes);
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::FuncaoNaoDeclaradaEmScriptAtivo
+            )),
             "forma inerte {forma} não pode autorizar POST do filtro"
         );
     }
@@ -71,27 +78,50 @@ fn comentario_string_e_bloco_inalcancavel_nao_provam_navegacao() {
     let filtro = r#"<a id="ancExibirSeries" href="javascript:void(0);"
         onclick="exibirSeries('T');">Todos</a>
         <table id="tblSeries"></table>"#;
-    for (forma, montar) in [
-        (0, format!("/* {ESCOLHER} */")),
-        (1, format!("const exemplo = `{ESCOLHER}`;")),
-        (2, format!("if (false) {{ {ESCOLHER} }}")),
+    for (forma, montar, motivo) in [
+        (
+            0,
+            format!("/* {ESCOLHER} */"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        (
+            1,
+            format!("const exemplo = `{ESCOLHER}`;"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        // Declaração dentro de bloco: fora do nível superior.
+        (
+            2,
+            format!("if (false) {{ {ESCOLHER} }}"),
+            ScriptForaDaFormaObservada,
+        ),
     ] {
         let tela = format!("<script>{montar}</script>{tabela}");
         assert_eq!(
             escolha_do_tipo(&instalacao, &tela, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(motivo)),
             "função escolher inerte em JS ativo forma {forma}"
         );
     }
-    for (forma, montar) in [
-        (0, format!("// {EXIBIR}")),
-        (1, format!("const exemplo = `{EXIBIR}`;")),
-        (2, format!("if (false) {{ {EXIBIR} }}")),
+    for (forma, montar, motivo) in [
+        // O comentário de linha só cobre a primeira linha: o `}` final
+        // fecha um bloco que não abriu.
+        (0, format!("// {EXIBIR}"), ScriptForaDaFormaObservada),
+        (
+            1,
+            format!("const exemplo = `{EXIBIR}`;"),
+            FuncaoNaoDeclaradaEmScriptAtivo,
+        ),
+        (
+            2,
+            format!("if (false) {{ {EXIBIR} }}"),
+            ScriptForaDaFormaObservada,
+        ),
     ] {
         let tela = format!("<script>{montar}</script>{filtro}");
         assert_eq!(
             filtro_de_todos(&tela),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(motivo)),
             "função exibirSeries inerte em JS ativo forma {forma}"
         );
     }
@@ -115,7 +145,9 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         let html = format!("<script>{expressao}</script>{tabela}");
         assert_eq!(
             escolha_do_tipo(&instalacao, &html, "4864", "Despacho"),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+            )),
             "expressão não-global não autoriza POST de escolha"
         );
     }
@@ -126,7 +158,9 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
         let html = format!("<script>{expressao}</script>{filtro}");
         assert_eq!(
             filtro_de_todos(&html),
-            Err(ErroCriar::LinkDoTipoNaoNavegavel),
+            Err(ErroCriar::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+            )),
             "expressão não-global não autoriza POST de filtro"
         );
     }
@@ -175,7 +209,11 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
         });
     assert!(matches!(
         resultado,
-        Err(ErroDocumentoCriar::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
+        Err(ErroDocumentoCriar::Tipo(
+            ErroCriar::NavegacaoNaoComprovadaPorScript(
+                super::guarda_navegacao::ErroGuardaDeNavegacao::ScriptForaDaFormaObservada
+            )
+        ))
     ));
     let mut esperados = apoio::pedidos_da_abertura();
     esperados.push(apoio::get(&format!("{}/{}", apoio::ORIGEM, link)));

@@ -192,18 +192,23 @@ fn ler_argumentos(mut resto: &str) -> Result<(Vec<Literal>, &str), ErroArvore> {
     loop {
         let (literal, depois) = ler_literal(resto)?;
         argumentos.push(literal);
-        match depois.as_bytes().first() {
-            Some(b',') => resto = &depois[1..],
-            Some(b')') => return Ok((argumentos, &depois[1..])),
-            None => return Err(ErroArvore::DeclaracaoDeNoForaDaFormaObservada),
-            Some(_) => return Err(ErroArvore::ArgumentoDeNoNaoLiteral),
+        if let Some(seguinte) = depois.strip_prefix(',') {
+            resto = seguinte;
+        } else if let Some(seguinte) = depois.strip_prefix(')') {
+            return Ok((argumentos, seguinte));
+        } else if depois.is_empty() {
+            return Err(ErroArvore::DeclaracaoDeNoForaDaFormaObservada);
+        } else {
+            return Err(ErroArvore::ArgumentoDeNoNaoLiteral);
         }
     }
 }
 
 fn ler_literal(resto: &str) -> Result<(Literal, &str), ErroArvore> {
-    if let Some(&aspa @ (b'"' | b'\'')) = resto.as_bytes().first() {
-        return ler_texto(&resto[1..], char::from(aspa));
+    for aspa in ['"', '\''] {
+        if let Some(texto) = resto.strip_prefix(aspa) {
+            return ler_texto(texto, aspa);
+        }
     }
     let fim = resto.find([',', ')', ';']).unwrap_or(resto.len());
     let (palavra, depois) = resto.split_at(fim);
@@ -227,9 +232,9 @@ fn inteiro(palavra: &str) -> bool {
 fn ler_texto(resto: &str, aspa: char) -> Result<(Literal, &str), ErroArvore> {
     let mut texto = String::new();
     let mut caracteres = resto.char_indices();
-    while let Some((posicao, caractere)) = caracteres.next() {
+    while let Some((_, caractere)) = caracteres.next() {
         if caractere == aspa {
-            return Ok((Literal::Texto(texto), &resto[posicao + 1..]));
+            return Ok((Literal::Texto(texto), caracteres.as_str()));
         }
         if caractere != '\\' {
             texto.push(caractere);

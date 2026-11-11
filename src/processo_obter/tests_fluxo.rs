@@ -2,6 +2,7 @@
 //! 4a e 4b) e do aprendizado no índice local.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
 
 fn conferir_aberto(r: &ProcessoAberto, por: ResolvidoPor, requisicoes: u8, unidade: Option<&str>) {
@@ -45,13 +46,16 @@ fn caminho_4a_linha_do_controle_e_aprende_tudo() {
             .link(&inst, chave(&g, acao, objeto))
             .map(|u| u.url().to_owned())
     };
-    assert_eq!(link("procedimento_visualizar", ID), Some(url_arvore(ID)));
     assert_eq!(
-        link("procedimento_trabalhar", ID),
+        link(AcaoDoSei::ProcedimentoVisualizar, ID),
+        Some(url_arvore(ID))
+    );
+    assert_eq!(
+        link(AcaoDoSei::ProcedimentoTrabalhar, ID),
         Some(absoluta(&trabalhar_controle(ID)))
     );
     assert_eq!(
-        link("protocolo_pesquisa_rapida", ""),
+        link(AcaoDoSei::ProtocoloPesquisaRapida, ""),
         Some(absoluta(&action_rapida()))
     );
 }
@@ -92,7 +96,7 @@ fn caminho_3_pesquisa_rapida_guardada() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "protocolo_pesquisa_rapida", ""),
+            chave(&g, AcaoDoSei::ProtocoloPesquisaRapida, ""),
             &absoluta(&action_rapida()),
         )
         .unwrap();
@@ -150,7 +154,7 @@ fn caminho_1_link_da_arvore_numa_requisicao_sem_unidade() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -185,7 +189,7 @@ fn com_unidade_o_link_da_arvore_e_pulado() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();

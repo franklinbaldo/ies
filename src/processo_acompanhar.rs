@@ -2,6 +2,7 @@
 //! A leitura/seleção não toca rede; a UI não infere grupo nem sucesso de escrita
 //! pela resposta HTTP. Casos do Todos `tests/test_processo_acompanhar_010.py` @323eb01.
 
+use crate::acao_do_sei::AcaoDoSei;
 use crate::html_atributos::{atributo_presente, valor_do_atributo};
 
 mod exclusao;
@@ -106,8 +107,11 @@ pub(crate) fn grupos_do_cadastro(
     let action = campo(form, "action")?.ok_or(ErroAcompanhar::CadastroNaoPublicado)?;
     let action = crate::formulario_web::decodificar_atributo(&action)
         .ok_or(ErroAcompanhar::HtmlDeAcompanhamentoInvalido)?;
-    if !parametro_unico(&action, "acao", "acompanhamento_cadastrar")
-        || !parametro_unico(&action, "id_procedimento", id_procedimento)
+    if !parametro_unico(
+        &action,
+        "acao",
+        AcaoDoSei::AcompanhamentoCadastrar.como_na_url(),
+    ) || !parametro_unico(&action, "id_procedimento", id_procedimento)
     {
         return Err(ErroAcompanhar::CadastroDeOutroProcesso);
     }
@@ -241,11 +245,11 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         if td.is_empty() {
             continue;
         }
-        if td.len() != 6 {
+        let [selecao, grupo, observacao, _, _, _] = td.as_slice() else {
             return Err(ErroAcompanhar::LinhaDeAcompanhamentoInvalida);
-        }
+        };
         let mut ids = Vec::new();
-        for item in td[0].children().all(parser) {
+        for item in selecao.children().all(parser) {
             let Some(tag) = item.as_tag() else { continue };
             if tag.name() != "input" {
                 continue;
@@ -263,8 +267,8 @@ pub(crate) fn acompanhamentos_da_lista(html: &str) -> Result<Vec<Acompanhamento>
         }
         linhas.push(Acompanhamento {
             id,
-            grupo: texto(&td[1].inner_text(parser)),
-            observacao: texto(&td[2].inner_text(parser)),
+            grupo: texto(&grupo.inner_text(parser)),
+            observacao: texto(&observacao.inner_text(parser)),
         });
     }
     if !cabecalho {

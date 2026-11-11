@@ -3,9 +3,9 @@
 use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::{EnderecoDeEscrita, tela_do_no_da_raiz};
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
 
-const ACAO_SOBRESTAR: &str = "procedimento_sobrestar";
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -28,19 +28,21 @@ pub(crate) fn ler_sobrestar_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(ACAO_SOBRESTAR))
+        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoSobrestar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),
-        [link] => conferir_endereco_relativo(instalacao, link, ACAO_SOBRESTAR, id)
-            .map(EnderecoDeEscrita::novo)
-            .map(Some)
-            .map_err(|erro| match erro {
-                EnderecoRecusado::NaoReconhecido => {
-                    ErroAcaoSobrestar::EnderecoDoSobrestamentoNaoReconhecido
-                }
-                EnderecoRecusado::DeOutroProcesso => ErroAcaoSobrestar::OutroProcesso,
-            }),
+        [link] => {
+            conferir_endereco_relativo(instalacao, link, AcaoDoSei::ProcedimentoSobrestar, id)
+                .map(EnderecoDeEscrita::novo)
+                .map(Some)
+                .map_err(|erro| match erro {
+                    EnderecoRecusado::NaoReconhecido => {
+                        ErroAcaoSobrestar::EnderecoDoSobrestamentoNaoReconhecido
+                    }
+                    EnderecoRecusado::DeOutroProcesso => ErroAcaoSobrestar::OutroProcesso,
+                })
+        }
         _ => Err(ErroAcaoSobrestar::AcoesDeSobrestamentoRepetidasNaBarra),
     }
 }
@@ -92,12 +94,15 @@ pub(crate) fn ler_endereco_de_retomar(
         ([url], []) | ([], [url]) => *url,
         _ => return Err(ErroEnderecoDeRetomar::EnderecosDeRetomarRepetidosNaTela),
     };
-    conferir_endereco_relativo(instalacao, url, "procedimento_remover_sobrestamento", id)
-        .map(EnderecoDeEscrita::novo)
-        .map_err(|e| match e {
-            EnderecoRecusado::NaoReconhecido => {
-                ErroEnderecoDeRetomar::EnderecoDeRetomarNaoReconhecido
-            }
-            EnderecoRecusado::DeOutroProcesso => ErroEnderecoDeRetomar::OutroProcesso,
-        })
+    conferir_endereco_relativo(
+        instalacao,
+        url,
+        AcaoDoSei::ProcedimentoRemoverSobrestamento,
+        id,
+    )
+    .map(EnderecoDeEscrita::novo)
+    .map_err(|e| match e {
+        EnderecoRecusado::NaoReconhecido => ErroEnderecoDeRetomar::EnderecoDeRetomarNaoReconhecido,
+        EnderecoRecusado::DeOutroProcesso => ErroEnderecoDeRetomar::OutroProcesso,
+    })
 }

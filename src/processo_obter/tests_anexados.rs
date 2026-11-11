@@ -3,6 +3,7 @@
 //! índice aprende o par NUP ↔ id do anexado sem requisição a mais.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::{NUP, arvore, no_documento, no_processo};
 use crate::arvore_processo::tests_anexados::{NUP_ANEXADO, no_anexado};
 
@@ -63,7 +64,7 @@ fn caminho_1_com_anexado_numa_requisicao() {
     amb.indice
         .registrar_link(
             &inst,
-            chave(&g, "procedimento_visualizar", ID),
+            chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID),
             &url_arvore(ID),
         )
         .unwrap();
@@ -79,7 +80,10 @@ fn caminho_1_com_anexado_numa_requisicao() {
     // O anexado não ganha link: nenhum endereço dele foi aberto.
     assert!(
         amb.indice
-            .link(&inst, chave(&g, "procedimento_visualizar", ID_ANEXADO))
+            .link(
+                &inst,
+                chave(&g, AcaoDoSei::ProcedimentoVisualizar, ID_ANEXADO)
+            )
             .is_none()
     );
 }

@@ -7,10 +7,8 @@
 use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::instalacao::Instalacao;
-
-/// A `acao` da tela de envio e do POST.
-pub(crate) const ACAO_DE_ENVIAR: &str = "procedimento_enviar";
 
 /// Recusas da leitura da barra (só pesam quando se pede para enviar).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -33,11 +31,11 @@ pub(crate) fn ler_enviar_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(ACAO_DE_ENVIAR))
+        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoEnviar))
         .collect();
     match links.as_slice() {
         [] => Ok(None),
-        [href] => conferir_endereco_relativo(instalacao, href, ACAO_DE_ENVIAR, id)
+        [href] => conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoEnviar, id)
             .map(|url| Some(EnderecoDeEscrita::novo(url)))
             .map_err(|recusa| match recusa {
                 EnderecoRecusado::NaoReconhecido => {

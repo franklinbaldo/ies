@@ -7,12 +7,13 @@
 use super::abertura::{ArvoreAberta, Contexto, Lida, Rede, fora_de_palpite};
 use super::login::{DestinoDoRedirecionamento, destino};
 use super::{Andamentos, EnvioDoProcesso, ErroProcessoObter, PedidoDeAndamentos};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, RespostaDoEnvio, TelaServida, derivar_submissao, enviar_submissao_via,
 };
 use crate::historico_processo::{
-    ACAO_DO_HISTORICO, AndamentosLidos, CAMPO_TIPO, ErroAndamentos, ErroLinkDoHistorico,
-    TipoDoHistorico, VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico, ler_andamentos,
+    AndamentosLidos, CAMPO_TIPO, ErroAndamentos, ErroLinkDoHistorico, TipoDoHistorico,
+    VER_HISTORICO_COMPLETO, conferir_regra_de_ver_historico, ler_andamentos,
 };
 use crate::pagina_do_controle::codificacao_da_tela;
 
@@ -76,7 +77,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
             Err(erro) => return Err(ErroProcessoObter::LinkDoHistorico(*erro)),
         },
     };
-    contexto.aprender_link(ACAO_DO_HISTORICO, id, &pagina.url);
+    contexto.aprender_link(AcaoDoSei::ProcedimentoConsultarHistorico, id, &pagina.url);
     if leitura.pedido == PedidoDeAndamentos::Completos
         && pagina.lidos.tipo == TipoDoHistorico::Resumido
     {
@@ -93,7 +94,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     id: &str,
 ) -> Result<Option<PaginaLida>, ErroProcessoObter> {
     let Some(link) = contexto
-        .chave(ACAO_DO_HISTORICO, id)
+        .chave(AcaoDoSei::ProcedimentoConsultarHistorico, id)
         .and_then(|chave| contexto.indice.link(&contexto.instalacao, chave))
     else {
         return Ok(None);
@@ -108,13 +109,13 @@ fn pelo_guardado<V: EnvioDoProcesso>(
                 lidos,
             })),
             Err(erro) if erro.diverge_do_pedido() => {
-                contexto.esquecer_link(ACAO_DO_HISTORICO, id);
+                contexto.esquecer_link(AcaoDoSei::ProcedimentoConsultarHistorico, id);
                 Ok(None)
             }
             Err(erro) => Err(ErroProcessoObter::Andamentos(erro)),
         },
         Lida::Login | Lida::Redirecionamento(_) => {
-            contexto.esquecer_link(ACAO_DO_HISTORICO, id);
+            contexto.esquecer_link(AcaoDoSei::ProcedimentoConsultarHistorico, id);
             Ok(None)
         }
         Lida::Falha(falha) => Err(ErroProcessoObter::Transporte(falha)),
@@ -178,7 +179,10 @@ fn ver_completo<V: EnvioDoProcesso>(
                 DestinoDoRedirecionamento::Outro => {
                     ErroProcessoObter::RedirecionamentoNaoReconhecido
                 }
-                _ => ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada),
+                DestinoDoRedirecionamento::RecusaSemAssinatura
+                | DestinoDoRedirecionamento::Login => {
+                    ErroProcessoObter::SessaoEncerrada(crate::erro_publico::SessaoEncerrada)
+                }
             });
         }
         Err(ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio) => {

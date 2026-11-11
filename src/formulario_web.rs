@@ -10,6 +10,7 @@ mod login;
 mod redirecionamento;
 mod unidade;
 
+use crate::acao_do_sei::{AcaoDaSubmissao, AcaoDoSei};
 use crate::html_atributos::{nos_com_id, nos_por_elemento_e_classe};
 use crate::instalacao::Instalacao;
 use crate::transporte::sessao::CookieDaSessao;
@@ -75,7 +76,7 @@ pub(crate) enum EnvioDoFormulario {
 /// Declaração `const` feita pela própria operação; não há catálogo central.
 #[derive(Debug)]
 pub(crate) struct OperacaoDeFormulario {
-    pub(crate) acao: &'static str,
+    pub(crate) acao: AcaoDoSei,
     pub(crate) formulario: &'static str,
     pub(crate) envio: EnvioDoFormulario,
     pub(crate) campos_ocultos_exigidos: &'static [&'static str],
@@ -138,7 +139,7 @@ pub(crate) struct SubmissaoDerivada {
     url: String,
     host: String,
     caminho: String,
-    acao: &'static str,
+    acao: AcaoDaSubmissao,
     referer: String,
     nomes: Vec<String>,
     corpo: Vec<u8>,
@@ -196,7 +197,9 @@ fn ordenar_campos<'c>(
 ) -> Result<Vec<(&'c str, &'c str)>, ErroSubmissaoFormulario> {
     let criado = match operacao.envio {
         EnvioDoFormulario::SubmitPorScriptComCampoCriado(campo) => Some(campo),
-        _ => None,
+        EnvioDoFormulario::BotaoDeEnvio(_)
+        | EnvioDoFormulario::SubmitPorScript
+        | EnvioDoFormulario::BotaoDesabilitadoPeloOnsubmit(_) => None,
     };
     for (i, (nome, _)) in campos.iter().enumerate() {
         let campo = (*nome).to_owned();
@@ -204,7 +207,7 @@ fn ordenar_campos<'c>(
             if controles.iter().any(|c| c.nome() == *nome) {
                 return Err(ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { campo });
             }
-            if campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+            if campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
                 return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
             }
             continue;
@@ -235,7 +238,7 @@ fn ordenar_campos<'c>(
         let multipla = publicados
             .iter()
             .all(|c| matches!(c, Controle::SelecaoMultipla(_)));
-        if !multipla && campos[..i].iter().any(|(anterior, _)| anterior == nome) {
+        if !multipla && campos.iter().take(i).any(|(anterior, _)| anterior == nome) {
             return Err(ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { campo });
         }
     }
@@ -357,7 +360,7 @@ pub(crate) fn derivar_submissao_com_action(
         url,
         host: servida.host.to_owned(),
         caminho: servida.caminho.to_owned(),
-        acao: operacao.acao,
+        acao: AcaoDaSubmissao::Controlador(operacao.acao),
         referer: tela.url.to_owned(),
         nomes: ordenados.iter().map(|(n, _)| (*n).to_owned()).collect(),
         corpo: corpo.into_bytes(),
@@ -441,12 +444,7 @@ where
             url_do_envio,
         }));
     }
-    let html = decodificar_resposta(resposta).map_err(|falha| match falha {
-        FalhaTransporte::PaginaDeLoginRecebidaNoControle => {
-            ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
-        }
-        outra => ErroSubmissaoFormulario::Transporte(outra),
-    })?;
+    let html = decodificar_resposta(resposta).map_err(ErroSubmissaoFormulario::da_resposta)?;
     // 200 com a validação da Infra: recusa do SEI, com ou sem marcador.
     if let Some(mensagem) = mensagem_de_validacao_da_infra(&html) {
         return Err(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(mensagem));

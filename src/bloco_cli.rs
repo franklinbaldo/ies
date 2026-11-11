@@ -1,5 +1,6 @@
 //! CLI Web de blocos: GET Controle, GET lista e, para bloco N, GET detalhe.
 //! Paginação interna com um POST de formulário observado, sem JS, retry ou restauração.
+use crate::acao_do_sei::AcaoDoSei;
 use crate::bloco::{self, ErroBloco, TipoBloco};
 use crate::bloco_detalhe::{self};
 use crate::configuracao;
@@ -126,7 +127,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             &controle.instalacao,
             &url_lista,
             href,
-            "rel_bloco_protocolo_listar",
+            AcaoDoSei::RelBlocoProtocoloListar,
             Some(numero),
         )?;
         requisicoes += 1;
@@ -137,7 +138,7 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
             .itens
             .iter()
             .find(|b| b.numero == numero)
-            .expect("href_do_bloco validou a linha")
+            .ok_or(FalhaLeitura::Bloco(ErroBloco::BlocoNaoEncontradoNaPagina))?
             .estado
             .as_str();
         let detalhe = bloco_detalhe::ler_detalhe(&html, numero, tipo, estado)
@@ -154,6 +155,10 @@ pub(crate) fn ler_tipado_via<V: EnvioDoControle>(
         leitura: Leitura::Lista(lista.lista),
     })
 }
+#[expect(
+    clippy::indexing_slicing,
+    reason = "serde_json::Value: leitura ausente dá Null e a escrita é em objeto json! local; projeção de saída a substituir em #733"
+)]
 fn executar_leitura(
     cli: &Cli,
     tipo: TipoBloco,

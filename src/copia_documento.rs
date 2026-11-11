@@ -28,7 +28,11 @@ pub enum ErroCopia {
     /// ou versão no próprio HTML).
     FotoDivergente,
     GravacaoFalhou,
+    /// A gravação privada recusou a foto (o motivo da gravação).
+    GravacaoDaFotoRecusada(#[source] crate::arquivo_privado::FalhaDaGravacao),
     LeituraFalhou,
+    /// A foto local existe e não pôde ser consultada (o motivo do sistema).
+    ConsultaDaFotoFalhou(std::io::ErrorKind),
     EdicaoIgualABase,
     BaseVersaoAusente,
     NomeVersaoLocalInvalido,
@@ -246,10 +250,9 @@ pub fn previa_local(
         &pasta.join(nome(numero, seguinte)),
         ErroCopia::VersaoEditadaAusente,
     )?;
-    if editada == base {
+    let Some(trecho) = trecho_divergente(&base, &editada) else {
         return Err(ErroCopia::EdicaoIgualABase);
-    }
-    let trecho = trecho_divergente(&base, &editada).expect("a edição difere da base");
+    };
     Ok(PreviaCopia {
         documento: numero.to_owned(),
         versao_base: n.numero(),

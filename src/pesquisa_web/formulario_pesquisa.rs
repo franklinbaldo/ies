@@ -6,6 +6,7 @@ use super::redirecionamento::{
 };
 use super::regras_formulario::{ErroRegraDoFormularioDePesquisa, PesquisarEm, ler_regras_da_tela};
 use super::resposta::{ErroRespostaDaPesquisa, RespostaDaPesquisa, ler_resposta_html};
+use crate::acao_do_sei::AcaoDoSei;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, MarcadorDeResultado, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
@@ -61,7 +62,7 @@ pub(crate) const MARCADORES_DA_RESPOSTA: ResultadoDoEnvio = ResultadoDoEnvio::Um
 /// O servidor pode lembrar página/filtro da sessão
 /// (docs/como-o-sei-funciona/tabelas-e-paginacao.md): não é consulta pura.
 pub(crate) const PESQUISAR_PROTOCOLO: OperacaoDeFormulario = OperacaoDeFormulario {
-    acao: "protocolo_pesquisar",
+    acao: AcaoDoSei::ProtocoloPesquisar,
     formulario: "frmPesquisaProtocolo",
     envio: EnvioDoFormulario::BotaoDeEnvio("sbmPesquisar"),
     campos_ocultos_exigidos: CAMPOS_OCULTOS_DA_PESQUISA,
@@ -229,7 +230,7 @@ fn derivar_com(
     // O navegador conta `maxlength` em unidades UTF-16; termo maior não
     // seria digitável na tela servida e não sai em POST.
     if let Some(maxlength) = regras.maxlength_do_termo
-        && protocolo.encode_utf16().count() > maxlength as usize
+        && usize::try_from(maxlength).is_ok_and(|maximo| protocolo.encode_utf16().count() > maximo)
     {
         return Err(ErroPesquisaProtocolo::RegraDoFormulario(
             ErroRegraDoFormularioDePesquisa::TermoAcimaDoMaxlengthDaTela { maxlength },
@@ -301,7 +302,37 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
                 ErroRespostaDaPesquisa::RespostaDaPesquisaNaoReconhecida,
             )
         }
-        outro => ErroPesquisaProtocolo::Submissao(outro),
+        outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
+        | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+        | ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela
+        | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
+        | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded
+        | ErroSubmissaoFormulario::AcceptCharsetPublicadoNoFormulario
+        | ErroSubmissaoFormulario::AcaoDoFormularioNaoEhUrlHttps
+        | ErroSubmissaoFormulario::AcaoDoFormularioForaDaInstalacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioDiferenteDaOperacao
+        | ErroSubmissaoFormulario::AcaoDoFormularioSemInfraHashUnico
+        | ErroSubmissaoFormulario::EntidadeHtmlDesconhecidaNoAtributo { .. }
+        | ErroSubmissaoFormulario::CampoOcultoAusenteNoFormulario { .. }
+        | ErroSubmissaoFormulario::CampoOcultoRepetidoNoFormulario { .. }
+        | ErroSubmissaoFormulario::HdnAcaoPublicadoSemRegraDaOperacao
+        | ErroSubmissaoFormulario::CampoForaDaListaDaOperacao { .. }
+        | ErroSubmissaoFormulario::CampoNaoPublicadoPeloFormulario { .. }
+        | ErroSubmissaoFormulario::CampoInformadoMaisDeUmaVez { .. }
+        | ErroSubmissaoFormulario::CampoCriadoPeloScriptJaPublicado { .. }
+        | ErroSubmissaoFormulario::ValorNaoRepresentavelNaCodificacao { .. }
+        | ErroSubmissaoFormulario::TelaDeLoginRecebidaAposEnvio
+        | ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(_)
+        | ErroSubmissaoFormulario::AtributoHtml(_)
+        | ErroSubmissaoFormulario::Transporte(_)
+        | ErroSubmissaoFormulario::AcaoDoFormularioAusente
+        | ErroSubmissaoFormulario::BotaoDeEnvioAusenteNoFormulario
+        | ErroSubmissaoFormulario::BotoesDeEnvioRepetidosNoFormulario
+        | ErroSubmissaoFormulario::FormularioAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacaoDaUnidadeAusenteNaTela
+        | ErroSubmissaoFormulario::IdentificacoesDaUnidadeRepetidasNaTela) => {
+            ErroPesquisaProtocolo::Submissao(outro)
+        }
     }
 }
 

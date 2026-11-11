@@ -153,7 +153,10 @@ fn interpretar(set_cookie: &str, url: &str, host: &str) -> Result<Efeito, ErroLo
 fn caminho_casa(cookie: &str, pedido: &str) -> bool {
     pedido == cookie
         || (pedido.starts_with(cookie)
-            && (cookie.ends_with('/') || pedido[cookie.len()..].starts_with('/')))
+            && (cookie.ends_with('/')
+                || pedido
+                    .strip_prefix(cookie)
+                    .is_some_and(|resto| resto.starts_with('/'))))
 }
 
 impl PoteDeCookies {

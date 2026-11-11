@@ -4,16 +4,16 @@
 //! a tela tem escrita (remover, adicionar) que nunca é tocada.
 use super::tests_apoio::*;
 use super::*;
+use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::tests::NUP;
+use crate::marcadores_processo::ErroMarcadores;
 use crate::marcadores_processo::tests_apoio::{
     HASH_MARCADORES, link_dos_marcadores, tela_com, tela_dos_marcadores,
 };
-use crate::marcadores_processo::{ACAO, ErroMarcadores};
 use crate::propriedades_processo::tests_apoio::{
     acao_da_barra, barra, com_barra, link_das_propriedades,
 };
 
-const ALTERAR: &str = "procedimento_alterar";
 const TODOS: (bool, bool) = (true, true);
 const SO_MARCADORES: (bool, bool) = (false, true);
 
@@ -21,7 +21,10 @@ const SO_MARCADORES: (bool, bool) = (false, true);
 /// propriedades e dos marcadores.
 fn arvore_completa(id: &str) -> String {
     let acoes = [
-        acao_da_barra(&link_das_propriedades(ALTERAR, id)),
+        acao_da_barra(&link_das_propriedades(
+            AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+            id,
+        )),
         acao_da_barra(&link_dos_marcadores(id)),
     ];
     com_barra(&arvore_com_historico(id, NUP), 0, &barra(&acoes))
@@ -57,7 +60,10 @@ fn pedidos_frio(depois: &[String]) -> Vec<Pedido> {
 
 fn guardado(amb: &Ambiente) -> Option<String> {
     amb.indice
-        .link(&instalacao(), chave(&geracao(), ACAO, ID))
+        .link(
+            &instalacao(),
+            chave(&geracao(), AcaoDoSei::AndamentoMarcadorGerenciar, ID),
+        )
         .map(|u| u.url().to_owned())
 }
 
@@ -90,7 +96,7 @@ fn frio_padrao_le_historico_propriedades_e_os_dois_marcadores_com_seis_get() {
         pedidos,
         pedidos_frio(&[
             url_historico(ID),
-            url_propriedades(ALTERAR, ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
             url_marcadores()
         ])
     );
@@ -117,7 +123,10 @@ fn sem_marcadores_nao_pede_a_tela() {
     assert_eq!(r.requisicoes, 5);
     assert_eq!(
         pedidos,
-        pedidos_frio(&[url_historico(ID), url_propriedades(ALTERAR, ID)])
+        pedidos_frio(&[
+            url_historico(ID),
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID)
+        ])
     );
     assert_eq!(r.marcadores, Marcadores::Omitidos);
     assert_eq!(r.marcadores.motivo(), Some("omitidos_por_sem_marcadores"));
@@ -135,7 +144,10 @@ fn combinacoes_com_sem_andamentos_e_sem_propriedades() {
             PedidoDeAndamentos::Omitidos,
             TODOS,
             vec![ok(propriedades()), ok(marcadores())],
-            vec![url_propriedades(ALTERAR, ID), url_marcadores()],
+            vec![
+                url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
+                url_marcadores(),
+            ],
         ),
         (
             PedidoDeAndamentos::VisaoServida,
@@ -186,8 +198,8 @@ fn barra_sem_o_link_publica_o_motivo_sem_requisicao() {
 #[test]
 fn link_invalido_na_barra_so_pesa_quando_os_marcadores_sao_lidos() {
     let arvore = arvore_completa(ID).replace(
-        &format!("acao={ACAO}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento={ID}&"),
-        &format!("acao={ACAO}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento=99&"),
+        &format!("acao={}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento={ID}&", AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()),
+        &format!("acao={}&acao_origem=procedimento_visualizar&acao_retorno=arvore_visualizar&id_procedimento=99&", AcaoDoSei::AndamentoMarcadorGerenciar.como_na_url()),
     );
     let amb = ambiente();
     let (r, _) = rodar_marc(
@@ -278,12 +290,15 @@ fn quente(amb: &Ambiente, marcadores_guardados: Option<&str>) {
     let (inst, g) = (instalacao(), geracao());
     amb.indice.registrar_processo(&inst, NUP, ID).unwrap();
     let mut links = vec![
-        ("procedimento_visualizar", url_arvore(ID)),
-        ("procedimento_consultar_historico", url_historico(ID)),
-        (ALTERAR, url_propriedades(ALTERAR, ID)),
+        (AcaoDoSei::ProcedimentoVisualizar, url_arvore(ID)),
+        (AcaoDoSei::ProcedimentoConsultarHistorico, url_historico(ID)),
+        (
+            AcaoDoSei::ProcedimentoAlterar,
+            url_propriedades(AcaoDoSei::ProcedimentoAlterar.como_na_url(), ID),
+        ),
     ];
     if let Some(url) = marcadores_guardados {
-        links.push((ACAO, url.to_owned()));
+        links.push((AcaoDoSei::AndamentoMarcadorGerenciar, url.to_owned()));
     }
     for (acao, url) in links {
         amb.indice
@@ -315,7 +330,10 @@ fn repeticao_quente_custa_quatro_e_so_marcadores_custa_dois() {
         [
             get(&url_arvore(ID)),
             get(&url_historico(ID)),
-            get(&url_propriedades(ALTERAR, ID)),
+            get(&url_propriedades(
+                AcaoDoSei::ProcedimentoAlterar.como_na_url(),
+                ID
+            )),
             get(&url_guardada()),
         ]
     );
