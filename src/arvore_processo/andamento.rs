@@ -1,10 +1,11 @@
 //! "Atualizar Andamento" na barra do nó PROCESSO.
 //! Caso: Todos src/todos/andamento.py @323eb01; cassete `UnB`
 //! processo-andamento-registrar-unb. Nunca executa JS nem publica URL.
-use super::barra_do_processo::{acao_do_href, ancoras_da_barra};
+use super::barra_do_processo::ancoras_da_barra;
 use super::concluir::EnderecoDeEscrita;
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::menciona_acao;
 use crate::instalacao::Instalacao;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -26,7 +27,7 @@ pub(crate) fn ler_andamento_da_barra(
     let links: Vec<&str> = ancoras
         .iter()
         .filter_map(|a| a.href.as_deref())
-        .filter(|href| acao_do_href(href) == Some(AcaoDoSei::ProcedimentoAtualizarAndamento))
+        .filter(|href| menciona_acao(href, AcaoDoSei::ProcedimentoAtualizarAndamento))
         .collect();
     match links.as_slice() {
         [] => Ok(None),

@@ -3,6 +3,7 @@
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::barra_do_no;
 use crate::arvore_processo::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
+use crate::consulta_do_controlador::menciona_acao;
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
@@ -74,10 +75,7 @@ pub(crate) fn ler_link_cancelar(
             continue;
         };
         let href = decodificar_atributo(bruto).ok_or(ErroLinkCancelar::BarraForaDaForma)?;
-        let acao = href
-            .split_once('?')
-            .and_then(|(_, query)| query.split('&').find_map(|p| p.strip_prefix("acao=")));
-        if acao.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::DocumentoCancelar) {
+        if menciona_acao(&href, AcaoDoSei::DocumentoCancelar) {
             links.push(href);
         }
     }
