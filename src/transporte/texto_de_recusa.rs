@@ -55,8 +55,9 @@ pub(crate) fn texto_do_html(html: &str) -> Option<String> {
         }
         texto
     };
-    let partes: Vec<&str> = [titulo.as_deref().unwrap_or(""), corpo.as_str()]
+    let partes: Vec<&str> = [titulo.as_deref(), Some(corpo.as_str())]
         .into_iter()
+        .flatten()
         .map(str::trim)
         .filter(|parte| !parte.is_empty())
         .collect();

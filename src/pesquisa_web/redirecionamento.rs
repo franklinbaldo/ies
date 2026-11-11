@@ -2,12 +2,14 @@
 //! Forma observada nas cassettes `processo-busca-*` (`unb`, `pen1`, `ufrj`, `go`),
 //! POSTs 6 e 10: `Location` relativo para `procedimento_trabalhar`.
 //! Contrato: docs/arquitetura/0002-submeter-formulario-observado.md.
+use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::dominio::IdProcedimento;
 use crate::erro_web::ErroCaixa;
 use crate::formulario_web::Redirecionamento302;
 use crate::instalacao::Instalacao;
 use crate::sessao_login::redirecionamento::{ErroDeOrigem, esquema_http, sufixo_da_mesma_origem};
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 use crate::url_observada::{esquema_e_resto, partes_https, pasta, tem_esquema};
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -180,22 +182,16 @@ fn resolver(
     })
 }
 
-/// Valores por nome de parâmetro, com nomes canônicos e sem `;`.
-fn parametros(consulta: &str) -> Result<Vec<(&str, &str)>, ErroRedirecionamentoDaPesquisa> {
-    consulta
-        .split('&')
-        .map(|item| {
-            let (nome, valor) = item.split_once('=').ok_or(
-                ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
-            )?;
-            conferir_chave_de_consulta(nome)
-                .and_then(|()| conferir_valor_de_consulta(valor))
-                .map_err(
-                    ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento,
-                )?;
-            Ok((nome, valor))
-        })
-        .collect()
+/// Parâmetros da consulta do 302: nomes canônicos e sem `;`, cada um com `=`.
+fn parametros(consulta: &str) -> Result<ConsultaDoControlador<'_>, ErroRedirecionamentoDaPesquisa> {
+    ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(falha)
+        }
+        ErroConsultaDoControlador::ParSemIgual => {
+            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
+        }
+    })
 }
 
 fn valores<'a>(parametros: &[(&str, &'a str)], nome: &str) -> Vec<&'a str> {
@@ -278,12 +274,16 @@ pub(crate) fn conferir_trabalho(
         return Err(ErroRedirecionamentoDaPesquisa::LocalizacaoDoRedirecionamentoForaDaInstalacao);
     }
     let pares = parametros(consulta)?;
-    if valores(&pares, "acao") != ["procedimento_trabalhar"] {
+    if pares.acao() != Ok(AcaoDoSei::ProcedimentoTrabalhar) {
         return Err(ErroRedirecionamentoDaPesquisa::RedirecionamentoParaAcaoDiferenteDeProcedimentoTrabalhar);
     }
     conferir_acao_de_origem(&pares, &origem)?;
     let documento = matches!(origem, OrigemDoTrabalho::PesquisaRapidaDocumento);
-    let id = match valores(&pares, origem.chave_do_id()).as_slice() {
+    let id = match pares
+        .valores(origem.chave_do_id())
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
         [] | [""] if documento => {
             return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento);
         }
@@ -309,12 +309,16 @@ pub(crate) fn conferir_trabalho(
         );
     }
     if let OrigemDoTrabalho::EntradaPorIdComDocumento { documento, .. } = origem
-        && valores(&pares, "id_documento") != [documento]
+        && pares.valores("id_documento").collect::<Vec<_>>() != [documento]
     {
         return Err(ErroRedirecionamentoDaPesquisa::IdDocumentoDoRedirecionamentoDiferenteDoPedido);
     }
     conferir_infra_hash(&pares)?;
-    let unidade = match valores(&pares, "infra_unidade_atual").as_slice() {
+    let unidade = match pares
+        .valores("infra_unidade_atual")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
         [] => return Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualAusenteNoRedirecionamento),
         [unidade] => *unidade,
         _ => return Err(ErroRedirecionamentoDaPesquisa::UnidadeAtualRepetidaNoRedirecionamento),
@@ -328,7 +332,11 @@ pub(crate) fn conferir_trabalho(
             ErroRedirecionamentoDaPesquisa::UnidadeAtualDoRedirecionamentoDiferenteDaDoEnvio,
         );
     }
-    let sistema = match valores(&pares, "infra_sistema").as_slice() {
+    let sistema = match pares
+        .valores("infra_sistema")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
         [] => return Err(ErroRedirecionamentoDaPesquisa::InfraSistemaAusenteNoRedirecionamento),
         [sistema] if decimal(sistema) => *sistema,
         [_] => {
@@ -348,11 +356,11 @@ pub(crate) fn conferir_trabalho(
 
 /// `acao_origem` do 302: ausente, igual à esperada pela origem, ou recusa.
 fn conferir_acao_de_origem(
-    pares: &[(&str, &str)],
+    pares: &ConsultaDoControlador<'_>,
     origem: &OrigemDoTrabalho<'_>,
 ) -> Result<(), ErroRedirecionamentoDaPesquisa> {
     match (
-        valores(pares, "acao_origem").as_slice(),
+        pares.valores("acao_origem").collect::<Vec<_>>().as_slice(),
         origem.acao_de_origem(),
     ) {
         ([], None) => {}
@@ -376,8 +384,10 @@ fn conferir_acao_de_origem(
 }
 
 /// Um `infra_hash` de 64 dígitos hexadecimais, nem ausente nem repetido.
-fn conferir_infra_hash(pares: &[(&str, &str)]) -> Result<(), ErroRedirecionamentoDaPesquisa> {
-    match valores(pares, "infra_hash").as_slice() {
+fn conferir_infra_hash(
+    pares: &ConsultaDoControlador<'_>,
+) -> Result<(), ErroRedirecionamentoDaPesquisa> {
+    match pares.valores("infra_hash").collect::<Vec<_>>().as_slice() {
         [] => return Err(ErroRedirecionamentoDaPesquisa::InfraHashAusenteNoRedirecionamento),
         [hash] if hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()) => {}
         [_] => {
@@ -395,7 +405,7 @@ pub(crate) fn documento_do_trabalho(
 ) -> Result<String, ErroRedirecionamentoDaPesquisa> {
     let consulta = partir_https(trabalho.as_str()).map_or("", |(_, _, consulta)| consulta);
     let pares = parametros(consulta)?;
-    match valores(&pares, "id_documento").as_slice() {
+    match pares.valores("id_documento").collect::<Vec<_>>().as_slice() {
         [] | [""] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoAusenteNoRedirecionamento),
         [id] if decimal(id) => Ok((*id).to_owned()),
         [_] => Err(ErroRedirecionamentoDaPesquisa::IdDocumentoNaoDecimalNoRedirecionamento),

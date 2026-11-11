@@ -4,6 +4,7 @@ use super::erro::{ErroCancelar, FalhaDoCancelamento, VerificacaoDoCancelamento a
 use super::ler_link_cancelar;
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{Cancelamento, ProcessoNaArvore};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::documento::NumeroDocumento;
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
@@ -274,29 +275,13 @@ pub(super) fn localizacao_aceita(
     let Some(consulta) = consulta_do_controlador(localizacao, enviado) else {
         return false;
     };
-    let mut acao = 0;
-    let mut proc = 0;
-    let mut doc = 0;
-    let mut atualizar = 0;
-    for par in consulta.split('&') {
-        let Some((nome, valor)) = par.split_once('=') else {
-            return false;
-        };
-        if crate::transporte::conferir_chave_de_consulta(nome).is_err()
-            || crate::transporte::conferir_valor_de_consulta(valor).is_err()
-        {
-            return false;
-        }
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ArvoreVisualizar) => acao += 1,
-            "id_procedimento" if valor == id_proc => proc += 1,
-            "id_documento" if valor == id_doc => doc += 1,
-            "atualizar_arvore" if valor == "1" => atualizar += 1,
-            "acao" | "id_procedimento" | "id_documento" | "atualizar_arvore" => return false,
-            _ => {}
-        }
-    }
-    acao == 1 && proc == 1 && doc == 1 && atualizar == 1
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
+    consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+        && consulta.unico("id_procedimento") == Ok(id_proc)
+        && consulta.unico("id_documento") == Ok(id_doc)
+        && consulta.unico("atualizar_arvore") == Ok("1")
 }
 
 fn enviar<V: EnvioDoProcesso>(

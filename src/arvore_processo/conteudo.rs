@@ -9,6 +9,7 @@
 use super::endereco::{EnderecoRecusado, conferir_endereco_relativo_por};
 use super::literais::{Literal, indice_do_src, ler_declaracao, ler_src};
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::instalacao::Instalacao;
 
 /// URL absoluta do conteúdo, assinada: `Debug` redigido, sem `Display`.
@@ -153,23 +154,15 @@ pub(crate) fn ler_conteudo_na_arvore(
 /// O `id_anexo` único e decimal de `controlador.php?…`.
 fn id_anexo_unico(src: &str) -> Option<&str> {
     let consulta = src.strip_prefix("controlador.php?")?;
-    let mut ids = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("id_anexo="));
-    let id = ids.next()?;
-    (ids.next().is_none() && !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
+    let id = ConsultaDoControlador::ler(consulta)
+        .ok()?
+        .unico("id_anexo")
+        .ok()?;
+    (!id.is_empty() && id.bytes().all(|b| b.is_ascii_digit())).then_some(id)
 }
 
 /// A `acao` única de `controlador.php?…`, sem conferir o resto.
 fn acao_unica(src: &str) -> Option<AcaoDoSei> {
     let consulta = src.strip_prefix("controlador.php?")?;
-    let mut acoes = consulta
-        .split('&')
-        .filter_map(|par| par.strip_prefix("acao="));
-    let acao = acoes.next()?;
-    acoes
-        .next()
-        .is_none()
-        .then_some(acao)
-        .and_then(AcaoDoSei::ler)
+    ConsultaDoControlador::ler(consulta).ok()?.acao().ok()
 }

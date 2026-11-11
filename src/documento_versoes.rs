@@ -1,6 +1,5 @@
 //! Histórico Web observado: nunca constrói links nem abre editor.
 use crate::acao_do_sei::AcaoDoSei;
-use crate::documento::NumeroDocumento;
 use crate::html_atributos::{nos_por_elemento_e_classe, valor_do_atributo};
 use std::collections::HashSet;
 use std::num::NonZeroU32;
@@ -261,7 +260,6 @@ fn legenda_unica(tabela: &tl::HTMLTag<'_>, parser: &tl::Parser<'_>) -> Result<St
 /// disponível na tabela de origem, é obrigatório conferir a cobertura.
 pub fn interpretar_historico(
     html: &str,
-    documento: &NumeroDocumento,
     id_interno: &str,
     total_declarado: Option<usize>,
 ) -> Result<HistoricoDocumento, ErroVersao> {
@@ -306,7 +304,6 @@ pub fn interpretar_historico(
     if declaradas != entradas.len() || total_declarado.is_some_and(|n| n != declaradas) {
         return Err(ErroVersao::ListaIncompleta);
     }
-    let _ = documento; // Número SEI é opaco: ID interno vem do nó do documento.
     Ok(HistoricoDocumento { entradas })
 }
 
@@ -363,9 +360,7 @@ pub(crate) mod testes {
 
     #[test]
     fn forma_servida_com_id_repetido_e_ancora_de_recuperar_e_lida() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let h =
-            interpretar_historico(&pagina_servida("42", "42", &[2, 1]), &doc, "42", None).unwrap();
+        let h = interpretar_historico(&pagina_servida("42", "42", &[2, 1]), "42", None).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 2);
         assert_eq!(h.len(), 2);
         let v1 = h.selecionar(VersaoDocumento::nova(1).unwrap()).unwrap();
@@ -377,9 +372,8 @@ pub(crate) mod testes {
 
     #[test]
     fn id_repetido_com_valores_diferentes_e_recusado() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
-            interpretar_historico(&pagina_servida("42", "43", &[1]), &doc, "42", None),
+            interpretar_historico(&pagina_servida("42", "43", &[1]), "42", None),
             Err(ErroVersao::LinkInseguro)
         );
         // Uma âncora a mais que não é fragmento continua ambígua.
@@ -388,26 +382,23 @@ pub(crate) mod testes {
             "<a href=\"controlador.php?acao=outra\">x</a></td></tr>",
         );
         assert_eq!(
-            interpretar_historico(&extra, &doc, "42", None),
+            interpretar_historico(&extra, "42", None),
             Err(ErroVersao::LinkVersaoAusenteOuAmbiguo)
         );
     }
 
     #[test]
     fn booleano_antes_de_class_e_href_nao_esconde_versoes() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         let html = crate::html_atributos::com_booleano_antes_dos_atributos(&pagina(
             &[1, 4],
             &["42", "42"],
         ));
-        let h = interpretar_historico(&html, &doc, "42", Some(2)).unwrap();
+        let h = interpretar_historico(&html, "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
     }
     #[test]
     fn atual_e_nao_contiguas() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
-        let h =
-            interpretar_historico(&pagina(&[1, 4], &["42", "42"]), &doc, "42", Some(2)).unwrap();
+        let h = interpretar_historico(&pagina(&[1, 4], &["42", "42"]), "42", Some(2)).unwrap();
         assert_eq!(h.atual().unwrap().numero(), 4);
         assert_eq!(
             h.selecionar(VersaoDocumento::nova(2).unwrap()),
@@ -416,17 +407,16 @@ pub(crate) mod testes {
     }
     #[test]
     fn recusa_duplicada_e_documento_trocado() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         assert_eq!(
-            interpretar_historico(&pagina(&[1, 1], &["42", "42"]), &doc, "42", None),
+            interpretar_historico(&pagina(&[1, 1], &["42", "42"]), "42", None),
             Err(ErroVersao::VersaoDocumentoDuplicada)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["43"]), &doc, "42", None),
+            interpretar_historico(&pagina(&[1], &["43"]), "42", None),
             Err(ErroVersao::DocumentoDivergente)
         );
         assert_eq!(
-            interpretar_historico(&pagina(&[1], &["42"]), &doc, "42", Some(2)),
+            interpretar_historico(&pagina(&[1], &["42"]), "42", Some(2)),
             Err(ErroVersao::ListaIncompleta)
         );
     }
@@ -436,20 +426,18 @@ pub(crate) mod testes {
             VersaoDocumento::nova(0),
             Err(ErroVersao::VersaoDocumentoInvalida)
         );
-        let doc = NumeroDocumento::novo("0007").unwrap();
         let html = pagina(&[1], &["42"]).replace(
             "acao=documento_visualizar",
             "acao=documento_visualizar&amp;acao=editor_montar",
         );
         assert_eq!(
-            interpretar_historico(&html, &doc, "42", None),
+            interpretar_historico(&html, "42", None),
             Err(ErroVersao::LinkInseguro)
         );
     }
 
     #[test]
     fn legendas_repetidas_nao_podem_confirmar_cobertura_de_versoes() {
-        let doc = NumeroDocumento::novo("0007").unwrap();
         let pagina = pagina(&[1], &["42"]);
         let duplicada = pagina.replacen(
             "</caption>",
@@ -463,7 +451,7 @@ pub(crate) mod testes {
         );
         for html in [duplicada, extra] {
             assert_eq!(
-                interpretar_historico(&html, &doc, "42", None),
+                interpretar_historico(&html, "42", None),
                 Err(ErroVersao::LegendasHistoricoVersoesRepetidas)
             );
         }

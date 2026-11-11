@@ -16,6 +16,7 @@ use super::{
     ErroArvore, ProcessoNaArvore,
 };
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::html_atributos::atributos;
 use crate::instalacao::Instalacao;
 use std::collections::{HashMap, HashSet};
@@ -70,16 +71,11 @@ fn endereco_observado(url: &str, pai: &str) -> bool {
     let Some(consulta) = url.strip_prefix("controlador.php?") else {
         return false;
     };
-    let (mut acoes, mut ids) = (0, 0);
-    for par in consulta.split('&') {
-        match par.split_once('=').unwrap_or((par, "")) {
-            ("acao", "arvore_visualizar") => acoes += 1,
-            ("id_procedimento", valor) if valor == pai => ids += 1,
-            ("acao" | "id_procedimento" | "id_documento", _) => return false,
-            _ => {}
-        }
-    }
-    acoes == 1 && ids == 1
+    ConsultaDoControlador::ler(consulta).is_ok_and(|consulta| {
+        consulta.acao() == Ok(AcaoDoSei::ArvoreVisualizar)
+            && consulta.unico("id_procedimento") == Ok(pai)
+            && consulta.valores("id_documento").next().is_none()
+    })
 }
 
 /// Confere os movidos contra o processo e marca os cuja primeira parte é

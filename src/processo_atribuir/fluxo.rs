@@ -3,6 +3,7 @@
 //! A CLI mantém --confirmar fechado até haver validação live em treinamento.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{AbertoEm, ErroAtribuirNaBarra};
+use crate::consulta_do_controlador::ConsultaDoControlador;
 use crate::formulario_web::{
     ErroSubmissaoFormulario, Redirecionamento302, RespostaDoEnvio, consulta_do_controlador,
     enviar_submissao_via,
@@ -300,33 +301,22 @@ fn redirecionamento_esperado(resposta: &Redirecionamento302, id: &str) -> bool {
     else {
         return false;
     };
-    let (mut acao, mut procedimento, mut origem) = (None, None, None);
-    for item in consulta.split('&') {
-        let Some((nome, valor)) = item.split_once('=') else {
-            return false;
-        };
-        let destino = match nome {
-            "acao" => &mut acao,
-            "id_procedimento" => &mut procedimento,
-            "acao_origem" => &mut origem,
-            _ => continue,
-        };
-        if destino.replace(valor).is_some() {
-            return false;
-        }
-    }
+    let Ok(consulta) = ConsultaDoControlador::ler(consulta) else {
+        return false;
+    };
     // Tanto `arvore_visualizar` quanto `principal` são destinos
     // genéricos: sem ID explícito, uma leitura coincidente pode ser
     // atribuição/remoção concorrente de outro agente, não deste POST.
     // O 302 é apenas inspecionado, nunca seguido.
     let acao_esperada = matches!(
-        acao.and_then(AcaoDoSei::ler),
-        Some(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
+        consulta.acao(),
+        Ok(AcaoDoSei::ArvoreVisualizar | AcaoDoSei::Principal)
     );
     // O aceite observado publica também a ação que originou o 302.
     // Sem essa ligação ao POST de atribuição, a árvore coincidente
     // pode ter sido alterada por outro agente: não declarar sucesso.
     acao_esperada
-        && procedimento == Some(id)
-        && origem.and_then(AcaoDoSei::ler) == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
+        && consulta.unico("id_procedimento") == Ok(id)
+        && consulta.unico("acao_origem").ok().and_then(AcaoDoSei::ler)
+            == Some(AcaoDoSei::ProcedimentoAtribuicaoCadastrar)
 }

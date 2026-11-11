@@ -3,10 +3,11 @@
 //! `<a link="protocolo_pesquisar" href="controlador.php?acao=protocolo_pesquisar&…&infra_hash=<64 hex>">`,
 //! exatamente um por Controle. Só esse link é seguido, da mesma resposta.
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::decodificar_atributo;
 use crate::html_atributos::valor_do_atributo;
 use crate::instalacao::Instalacao;
-use crate::transporte::{FalhaTransporte, conferir_chave_de_consulta, conferir_valor_de_consulta};
+use crate::transporte::FalhaTransporte;
 
 /// um erro por fato verificável do link no Controle.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -45,23 +46,18 @@ pub(crate) fn link_da_pesquisa(
     if !href.bytes().all(|b| (33..=126).contains(&b)) || href.contains(['#', '\\', '\'']) {
         return Err(nao());
     }
-    let (mut acoes, mut hashes) = (0, 0);
-    for par in consulta.split('&') {
-        let (nome, valor) = par.split_once('=').ok_or_else(nao)?;
-        conferir_chave_de_consulta(nome)
-            .map_err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte)?;
-        conferir_valor_de_consulta(valor)
-            .map_err(ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte)?;
-        match nome {
-            "acao" if AcaoDoSei::ler(valor) == Some(AcaoDoSei::ProtocoloPesquisar) => acoes += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hashes += 1;
-            }
-            "acao" | "infra_hash" | "acao_ajax" => return Err(nao()),
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroLinkDaPesquisa::ConsultaDoLinkRecusadaPeloTransporte(falha)
         }
-    }
-    if acoes != 1 || hashes != 1 {
+        ErroConsultaDoControlador::ParSemIgual => nao(),
+    })?;
+    if consulta.acao() != Ok(AcaoDoSei::ProtocoloPesquisar)
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(nao());
     }
     let base = url_do_controle.split('?').next().unwrap_or_default();

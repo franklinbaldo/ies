@@ -16,7 +16,7 @@ pub(crate) enum ErroTelaDeConclusao {
     CampoNaoPrevistoNaTelaDeConclusao,
     FormularioDeConclusaoAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
     TelaDeConclusaoNaoInterpretada(#[source] tl::ParseError),
-    TelaDeConclusaoComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
+    TelaDeConclusaoComAtributoIlegivel(#[from] crate::html_atributos::ErroAtributoHtml),
 }
 
 /// Por que a resposta da escrita não é a esperada. A escrita saiu (ou pode

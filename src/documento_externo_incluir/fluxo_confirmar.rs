@@ -7,13 +7,13 @@ use super::{
     fluxo::{ErroIncluirExterno, preparar_previa},
     recibo::{FalhaUpload, ReciboUpload},
 };
+use crate::consulta_do_controlador::{ConsultaDoControlador, ErroConsultaDoControlador};
 use crate::formulario_web::{CodificacaoDaTela, TelaServida, enviar_submissao_via};
 use crate::indice_local::IndiceLocal;
 use crate::instalacao::Instalacao;
 use crate::processo::NumeroProcesso;
 use crate::processo_concluir::escrita::leitura;
 use crate::processo_obter::{EnvioDoProcesso, SessaoDoProcesso, obter_processo};
-use crate::transporte::{conferir_chave_de_consulta, conferir_valor_de_consulta};
 
 pub(crate) struct InclusaoComprovada {
     pub(crate) numero_sei: String,
@@ -44,7 +44,7 @@ impl CampoExigidoDoCadastro {
 
 /// A URL provém exclusivamente do script servido e fica privada.
 /// Aceita a ausência observada de `id_procedimento` no endpoint de upload.
-fn conferir_upload(
+pub(crate) fn conferir_upload(
     instalacao: &Instalacao,
     relativo: &str,
     processo: &str,
@@ -55,35 +55,27 @@ fn conferir_upload(
     if relativo.len() > 8_192 || !relativo.bytes().all(|b| (33..=126).contains(&b)) {
         return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
-    let mut acao = 0;
-    let mut hash = 0;
-    let mut processo_informado = false;
-    for par in consulta.split('&') {
-        let (chave, valor) = par
-            .split_once('=')
-            .ok_or(ErroIncluirExterno::EnderecoDeUploadRecusado)?;
-        conferir_chave_de_consulta(chave)
-            .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
-        conferir_valor_de_consulta(valor)
-            .map_err(ErroIncluirExterno::ConsultaDoUploadForaDaForma)?;
-        match chave {
-            "acao" if valor == "documento_upload_anexo" => acao += 1,
-            "infra_hash" if valor.len() == 64 && valor.bytes().all(|b| b.is_ascii_hexdigit()) => {
-                hash += 1;
-            }
-            "id_procedimento" if valor == processo && !processo_informado => {
-                processo_informado = true;
-            }
-            "id_procedimento" => {
-                return Err(ErroIncluirExterno::UploadParaOutroProcesso);
-            }
-            "acao" | "infra_hash" | "acao_ajax" => {
-                return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
-            }
-            _ => {}
+    let consulta = ConsultaDoControlador::ler(consulta).map_err(|erro| match erro {
+        ErroConsultaDoControlador::RecusadaPeloTransporte(falha) => {
+            ErroIncluirExterno::ConsultaDoUploadForaDaForma(falha)
         }
+        ErroConsultaDoControlador::ParSemIgual => ErroIncluirExterno::EnderecoDeUploadRecusado,
+    })?;
+    match consulta
+        .valores("id_procedimento")
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [] => {}
+        [informado] if *informado == processo => {}
+        _ => return Err(ErroIncluirExterno::UploadParaOutroProcesso),
     }
-    if acao != 1 || hash != 1 {
+    if consulta.unico("acao") != Ok("documento_upload_anexo")
+        || consulta.valores("acao_ajax").next().is_some()
+        || !consulta
+            .unico("infra_hash")
+            .is_ok_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
         return Err(ErroIncluirExterno::EnderecoDeUploadRecusado);
     }
     Ok(format!("{}/{relativo}", instalacao.url_base()))
