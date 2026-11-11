@@ -84,7 +84,9 @@ fn encaminhar_colunas(
             .unwrap();
         let mut canal = tls.accept(tcp).unwrap();
         let mut pedido = cabecalho(&mut canal);
-        assert!(pedido.starts_with(format!("{metodo} /sei/controlador.php?acao={acao}").as_bytes()));
+        assert!(
+            pedido.starts_with(format!("{metodo} /sei/controlador.php?acao={acao}").as_bytes())
+        );
         let tamanho = String::from_utf8_lossy(&pedido)
             .lines()
             .filter_map(|linha| linha.split_once(':'))
