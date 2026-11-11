@@ -75,7 +75,7 @@ fn tela_r_paginada_publica_total_faixa_e_planeja_a_pagina_seguinte() {
     assert_eq!(
         resultado(&replay, Leitor::Detalhada),
         [&Resultado::NaoAplicavel(
-            "tela_na_visao_r_o_comando_troca_para_d"
+            "tela_na_visao_r_o_comando_troca_para_d".to_owned()
         )]
     );
     assert_eq!(replay.paginas.len(), 2);
@@ -96,7 +96,7 @@ fn tela_d_le_colunas_e_planeja_a_pagina_seguinte() {
     assert_eq!(
         resultado(&replay, Leitor::Recebidos),
         [&Resultado::NaoAplicavel(
-            "tela_na_visao_d_o_comando_troca_para_r"
+            "tela_na_visao_d_o_comando_troca_para_r".to_owned()
         )]
     );
 }
@@ -113,7 +113,10 @@ fn redirecionamento_e_tela_de_login_sao_recusas_do_transporte() {
     ]);
     assert_eq!(
         resultado(&replay, Leitor::TelaDeLogin),
-        [&Resultado::Recusado("PaginaDeLoginRecebidaNoControle")]
+        [&Resultado::Recusado(format!(
+            "{:?}",
+            crate::transporte::FalhaTransporte::PaginaDeLoginRecebidaNoControle
+        ))]
     );
     assert!(
         de(&replay, Leitor::Transporte)[0]

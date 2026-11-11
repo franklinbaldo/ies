@@ -146,7 +146,10 @@ fn redirect_sem_location_nao_prova_a_criacao_mesmo_com_arvore_alterada() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -173,7 +176,7 @@ fn falha_do_post_ainda_rele_a_arvore_sem_repetir_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::NaoConfirmadoNoEnvio(_))
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(_))
     ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
@@ -194,7 +197,10 @@ fn dois_documentos_novos_sao_nao_confirmado_apos_post_unico() {
             Ok(foto(2))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -216,7 +222,7 @@ fn leitura_posterior_falha_sem_segunda_escrita() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::NaoConfirmadoNaReleitura(
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura(
             ErroProcessoObter::Transporte(FalhaTransporte::Rede)
         ))
     ));
@@ -244,7 +250,7 @@ fn foto_incompleta_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::ArvoreIncompleta)
+        Err(ErroConfirmacaoDaCriacao::ArvoreIncompleta)
     ));
     assert!(
         rede.chamadas.is_empty(),
@@ -272,7 +278,7 @@ fn foto_inicial_com_ids_duplicados_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+        Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)
     ));
     assert!(rede.chamadas.is_empty(), "IDs ambíguos não autorizam POST");
 }
@@ -297,7 +303,7 @@ fn foto_inicial_sem_id_do_processo_recusa_antes_do_post() {
     );
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::FotoInicialInconsistente)
+        Err(ErroConfirmacaoDaCriacao::FotoInicialInconsistente)
     ));
     assert!(
         rede.chamadas.is_empty(),
@@ -337,7 +343,10 @@ fn redirect_para_host_externo_nao_comprova_criacao() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);
 }
@@ -413,7 +422,10 @@ fn html_200_sem_aceite_nao_comprova_post_ante_concorrencia() {
             Ok(foto(1))
         },
     );
-    assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+    ));
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1, "nunca repetir POST");
 }
@@ -444,7 +456,7 @@ fn falha_http_403_do_post_preserva_recusa_apesar_de_arvore_concorrente() {
     let erro = resultado.expect_err("POST com falha não confirma a criação concorrente");
     assert_eq!(
         erro,
-        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
+        ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
             FalhaTransporte::Status(StatusHttpRecusado {
                 status: 403,
                 mensagem_do_servidor: Some("acesso negado sintético".into()),
@@ -481,7 +493,7 @@ fn falha_http_503_do_post_preserva_mensagem_saneada() {
     let erro = resultado.expect_err("HTTP 503 não confirma efeito");
     assert_eq!(
         erro,
-        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
+        ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::Transporte(
             FalhaTransporte::Status(StatusHttpRecusado {
                 status: 503,
                 mensagem_do_servidor: Some("indisponibilidade sintética".into()),
@@ -526,7 +538,10 @@ fn redirecionamento_invalido_ou_id_alheio_nao_confirma() {
                 Ok(foto(1))
             },
         );
-        assert!(matches!(resultado, Err(ErroPreviaCriacao::NaoConfirmado)));
+        assert!(matches!(
+            resultado,
+            Err(ErroConfirmacaoDaCriacao::NaoConfirmado)
+        ));
         assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
         assert_eq!(rede.submissoes.len(), 1);
     }
@@ -568,9 +583,9 @@ fn validacao_infra_200_preserva_a_causa_apos_post() {
     let erro = resultado.expect_err("validacao Infra 200 e escrita incerta");
     assert_eq!(
         erro,
-        ErroPreviaCriacao::NaoConfirmadoNoEnvio(ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei(
-            "Recusa sintética".into()
-        ))
+        ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(
+            ErroSubmissaoFormulario::ValidacaoRecusadaPeloSei("Recusa sintética".into())
+        )
     );
     assert_eq!(rede.chamadas, ["POST criador", "GET arvore"]);
     assert_eq!(rede.submissoes.len(), 1);

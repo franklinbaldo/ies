@@ -42,7 +42,7 @@ fn campos_duplicados_nao_podem_ser_escolhidos_arbitrariamente() {
     );
     assert_eq!(
         ler_tela(&repetida),
-        Err("controles_da_anexacao_ausentes_ou_repetidos")
+        Err(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos)
     );
 }
 #[test]
@@ -53,13 +53,16 @@ fn lista_duplicada_ou_anexado_duplicado_nao_e_aceito() {
     );
     assert_eq!(
         ler_tela(&tabela_repetida),
-        Err("listas_de_anexados_repetidas")
+        Err(ErroTelaDeAnexacao::ListasDeAnexadosRepetidas)
     );
     let id_repetido = html().replace(
         "</table>",
         r#"<tr><td><input type="checkbox" value="22"></td></tr></table>"#,
     );
-    assert_eq!(ler_tela(&id_repetido), Err("ids_de_anexados_repetidos"));
+    assert_eq!(
+        ler_tela(&id_repetido),
+        Err(ErroTelaDeAnexacao::IdsDeAnexadosRepetidos)
+    );
 }
 #[test]
 fn complemento_identifica_numero_id_e_tipo_sem_adivinhar() {
@@ -71,10 +74,13 @@ fn complemento_ambiguo_nao_e_aceito() {
         "</complementos>",
         "<complemento nome=\"IdProcedimento\">43</complemento></complementos>",
     );
-    assert_eq!(ler_destino(&alterado), Err("identidade_de_anexado_ambigua"));
+    assert_eq!(
+        ler_destino(&alterado),
+        Err(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua)
+    );
     assert_eq!(
         ler_destino("<complementos/>"),
-        Err("processo_a_anexar_nao_identificado")
+        Err(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado)
     );
 }
 #[test]
@@ -93,31 +99,31 @@ fn verificacao_da_anexacao_exige_s_ou_n_unico() {
     );
     assert_eq!(
         ler_confirmacao("<complementos/>"),
-        Err("anexacao_nao_verificada")
+        Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
     );
     assert_eq!(
         ler_confirmacao(
             r#"<complementos><complemento nome="Anexacao">S</complemento><complemento nome="Anexacao">N</complemento></complementos>"#
         ),
-        Err("anexacao_nao_verificada")
+        Err(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)
     );
 }
 #[test]
 fn recusa_o_proprio_principal_antes_da_escrita() {
     assert_eq!(
         decidir("12345.000002/2026-01", "11", &destino(), &[]),
-        Err("anexacao_ao_mesmo_processo")
+        Err(ErroAnexacaoRecusada::AnexacaoAoMesmoProcesso)
     );
     assert_eq!(
         decidir("12345.000001/2026-01", "42", &destino(), &[]),
-        Err("anexacao_ao_mesmo_processo")
+        Err(ErroAnexacaoRecusada::AnexacaoAoMesmoProcesso)
     );
 }
 #[test]
 fn existente_e_recusado_e_novo_e_aceito() {
     assert_eq!(
         decidir("12345.000001/2026-01", "11", &destino(), &["42".into()]),
-        Err("processo_ja_anexado")
+        Err(ErroAnexacaoRecusada::ProcessoJaAnexado)
     );
     assert_eq!(
         decidir("12345.000001/2026-01", "11", &destino(), &[]),
@@ -149,18 +155,18 @@ fn consulta_ajax_exige_literal_unico_e_endereco_relativo() {
     );
     assert_eq!(
         url_da_consulta(&format!("{script}{script}"), prefixo),
-        Err("consultas_de_anexacao_repetidas")
+        Err(fluxo::ErroConsultaDeAnexacao::ConsultasDeAnexacaoRepetidas)
     );
     assert_eq!(
         url_da_consulta("", prefixo),
-        Err("consulta_de_anexacao_nao_publicada")
+        Err(fluxo::ErroConsultaDeAnexacao::ConsultaDeAnexacaoNaoPublicada)
     );
     assert_eq!(
         url_da_consulta(
             "new infraAjaxComplementar('txtProtocolo','https://outro.test/')",
             prefixo
         ),
-        Err("consulta_de_anexacao_fora_da_forma_observada")
+        Err(fluxo::ErroConsultaDeAnexacao::ConsultaDeAnexacaoForaDaFormaObservada)
     );
 }
 #[test]

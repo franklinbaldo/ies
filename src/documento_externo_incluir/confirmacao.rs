@@ -26,15 +26,16 @@ impl FotoProcesso {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{self:?}")]
 pub(crate) enum FalhaConfirmacao {
     FotoInicialIncompleta,
     FotoInicialInconsistente,
     UploadRecusado(FalhaUpload),
     UploadIncerto(FalhaUpload),
     TemporarioSemCadastro(FalhaCadastroEnvio),
-    CadastroIncerto(ErroSubmissaoFormulario),
-    ReleituraIncerta(ErroProcessoObter),
+    CadastroIncerto(#[source] ErroSubmissaoFormulario),
+    ReleituraIncerta(#[source] ErroProcessoObter),
     NaoConfirmado,
 }
 impl FalhaConfirmacao {

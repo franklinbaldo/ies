@@ -36,14 +36,14 @@ A abertura do principal reutiliza o índice/fluxo normal e pode precisar de vár
 | `ErroAnexarNaBarra::LinksDeAnexarRepetidosNaBarra` | Mais de um link de anexar na barra. |
 | `FalhaAnexar::TelaRedirecionada` | GET da tela retornou redirecionamento não seguido. |
 | `FalhaAnexar::AnexacaoAoProprioProcesso` | Processo anexado e principal possuem a mesma identidade. |
-| `FalhaAnexar::Estrutura("processo_ja_anexado")` | Identificador já consta na lista observada. |
-| `FalhaAnexar::Estrutura("formulario_de_anexacao_ausente_ou_repetido")` | Formulário ausente ou duplicado. |
-| `FalhaAnexar::Estrutura("controles_da_anexacao_ausentes_ou_repetidos")` | Campos obrigatórios ausentes, duplicados ou com tipo indevido. |
-| `FalhaAnexar::Estrutura("listas_de_anexados_repetidas")` | Duas tabelas da lista observadas. |
-| `FalhaAnexar::Estrutura("ids_de_anexados_repetidos")` | Mesmo id aparece mais de uma vez na lista. |
-| `FalhaAnexar::Estrutura("processo_a_anexar_nao_identificado")` | Consulta não publicou identidade válida. |
-| `FalhaAnexar::Estrutura("identidade_de_anexado_ambigua")` | Complementos de identidade repetidos. |
-| `FalhaAnexar::Estrutura("anexacao_nao_verificada")` | Consulta de assinatura não publicou S/N únicos. |
+| `FalhaAnexar::Recusada(ErroAnexacaoRecusada::ProcessoJaAnexado)` | Identificador já consta na lista observada. |
+| `FalhaAnexar::TelaDeAnexacao(ErroTelaDeAnexacao::FormularioDeAnexacaoNaoLocalizado(…))` | Formulário ausente ou duplicado. |
+| `FalhaAnexar::TelaDeAnexacao(ErroTelaDeAnexacao::ControlesDaAnexacaoAusentesOuRepetidos)` | Campos obrigatórios ausentes, duplicados ou com tipo indevido. |
+| `FalhaAnexar::TelaDeAnexacao(ErroTelaDeAnexacao::ListasDeAnexadosRepetidas)` | Duas tabelas da lista observadas. |
+| `FalhaAnexar::TelaDeAnexacao(ErroTelaDeAnexacao::IdsDeAnexadosRepetidos)` | Mesmo id aparece mais de uma vez na lista. |
+| `FalhaAnexar::Complementos(ErroComplementosDaAnexacao::ProcessoAAnexarNaoIdentificado)` | Consulta não publicou identidade válida. |
+| `FalhaAnexar::Complementos(ErroComplementosDaAnexacao::IdentidadeDeAnexadoAmbigua)` | Complementos de identidade repetidos. |
+| `FalhaAnexar::Complementos(ErroComplementosDaAnexacao::AnexacaoNaoVerificada)` | Consulta de assinatura não publicou S/N únicos. |
 
 ## Critérios ainda pendentes
 

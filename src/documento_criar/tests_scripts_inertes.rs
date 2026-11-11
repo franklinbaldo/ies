@@ -146,7 +146,7 @@ fn expressao_nomeada_nao_publica_funcao_global_de_navegacao() {
 fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
     // Regressão end-to-end para a guarda do POST de navegação: sem função
     // global publicada, quatro GETs de prévia; nenhum POST de filtro/escolha.
-    use super::fluxo::{ErroPreviaCriacao, PedidoCriacao, executar_criacao};
+    use super::fluxo::{ErroDocumentoCriar, PedidoCriacao, executar_criacao};
     use crate::processo_concluir::tests_apoio as apoio;
     use crate::propriedades_processo::tests_apoio::acao_da_barra;
     let link = format!(
@@ -175,7 +175,7 @@ fn expressao_na_lista_servida_recusa_post_com_orcamento_exato() {
         });
     assert!(matches!(
         resultado,
-        Err(ErroPreviaCriacao::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
+        Err(ErroDocumentoCriar::Tipo(ErroCriar::LinkDoTipoNaoNavegavel))
     ));
     let mut esperados = apoio::pedidos_da_abertura();
     esperados.push(apoio::get(&format!("{}/{}", apoio::ORIGEM, link)));

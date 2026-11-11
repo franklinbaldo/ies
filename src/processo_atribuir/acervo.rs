@@ -2,7 +2,6 @@
 //! Confere ZIPs, membros, schema e host antes de usar o leitor real.
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::erro_publico::Rotulo as _;
 use crate::html_atributos::{nos_com_id, valor_do_atributo};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -47,20 +46,22 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
         let (leitor, resultado) = match (resposta.metodo, resposta.status) {
             ("POST", _) => (
                 "resposta de escrita",
-                Resultado::NaoAplicavel("post_nao_comprova_atribuicao"),
+                Resultado::NaoAplicavel("post_nao_comprova_atribuicao".to_owned()),
             ),
             ("GET", 200) => (
                 "formulário de atribuição",
                 match html_da_resposta(resposta.interacao) {
-                    Err(_) => Resultado::NaoAplicavel("html_nao_observado"),
+                    Err(_) => Resultado::NaoAplicavel("html_nao_observado".to_owned()),
                     Ok(html) => {
                         let id = gravacao::id_procedimento(resposta.interacao)
                             .or_else(|| id_da_tela(&html));
                         match id {
-                            None => Resultado::NaoAplicavel("id_do_processo_nao_observado"),
+                            None => {
+                                Resultado::NaoAplicavel("id_do_processo_nao_observado".to_owned())
+                            }
                             Some(id) => match super::ler_tela(&html, &id) {
                                 Ok(_) => Resultado::Lido,
-                                Err(erro) => Resultado::Recusado(erro.rotulo()),
+                                Err(erro) => Resultado::Recusado(format!("{erro:?}")),
                             },
                         }
                     }
@@ -68,7 +69,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
             ),
             _ => (
                 "resposta sem formulário",
-                Resultado::NaoAplicavel("status_ou_metodo_nao_lido"),
+                Resultado::NaoAplicavel("status_ou_metodo_nao_lido".to_owned()),
             ),
         };
         registros.push(Registro {
@@ -100,7 +101,7 @@ fn replay_sintetico_nao_converte_post_em_prova_de_atribuicao() {
     assert_eq!(lidos[0].resultado, Resultado::Lido);
     assert_eq!(
         lidos[1].resultado,
-        Resultado::NaoAplicavel("post_nao_comprova_atribuicao")
+        Resultado::NaoAplicavel("post_nao_comprova_atribuicao".to_owned())
     );
 }
 

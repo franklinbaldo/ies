@@ -5,7 +5,6 @@
 use super::{AlvoDaCiencia, atividade_do_aceite, atividade_na_lista};
 use crate::cassette::acervo::{INSTALACOES, Resultado, gravacao, publicar, tabela};
 use crate::cassette::{ZipDoAcervo, archive_filename, conferir_cassette_ate, html_da_resposta};
-use crate::erro_publico::Rotulo as _;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -41,13 +40,13 @@ enum ProvaPendente {
 
 fn conferir_lista(interacao: &Value, atividade: Option<ProvaPendente>) -> Resultado {
     let Ok(html) = html_da_resposta(interacao) else {
-        return Resultado::NaoAplicavel("corpo_da_lista_nao_gravado");
+        return Resultado::NaoAplicavel("corpo_da_lista_nao_gravado".to_owned());
     };
     let Some(prova) = atividade else {
-        return Resultado::NaoAplicavel("aceite_sem_atividade_observada");
+        return Resultado::NaoAplicavel("aceite_sem_atividade_observada".to_owned());
     };
     let Some(processo_da_lista) = gravacao::id_procedimento(interacao) else {
-        return Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado");
+        return Resultado::NaoAplicavel("id_procedimento_da_lista_nao_observado".to_owned());
     };
     let (processo, id, documento) = match &prova {
         ProvaPendente::Processo {
@@ -61,23 +60,27 @@ fn conferir_lista(interacao: &Value, atividade: Option<ProvaPendente>) -> Result
         } => (id_procedimento, id_atividade, Some(id_documento)),
     };
     if *processo != processo_da_lista {
-        return Resultado::NaoAplicavel("lista_de_outro_processo");
+        return Resultado::NaoAplicavel("lista_de_outro_processo".to_owned());
     }
     match documento {
         Some(documento) => match id_documento_da_resposta(interacao) {
             Some(id) if id == *documento => {}
-            Some(_) => return Resultado::NaoAplicavel("lista_de_outro_documento"),
-            None => return Resultado::NaoAplicavel("id_documento_da_lista_nao_observado"),
+            Some(_) => return Resultado::NaoAplicavel("lista_de_outro_documento".to_owned()),
+            None => {
+                return Resultado::NaoAplicavel("id_documento_da_lista_nao_observado".to_owned());
+            }
         },
         None if !gravacao::parametro(interacao, "id_documento").is_empty() => {
-            return Resultado::NaoAplicavel("lista_documental_nao_prova_ciencia_do_processo");
+            return Resultado::NaoAplicavel(
+                "lista_documental_nao_prova_ciencia_do_processo".to_owned(),
+            );
         }
         None => {}
     }
     match atividade_na_lista(&html, id) {
         Ok(true) => Resultado::Lido,
-        Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista"),
-        Err(erro) => Resultado::Recusado(erro.rotulo()),
+        Ok(false) => Resultado::Recusado("atividade_nao_consta_da_lista".to_owned()),
+        Err(erro) => Resultado::Recusado(format!("{erro:?}")),
     }
 }
 
@@ -106,7 +109,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
             }
             ("procedimento_ciencia" | "documento_ciencia", "GET", _) => (
                 "aceite da ciência",
-                Resultado::NaoAplicavel("status_sem_prova_de_aceite"),
+                Resultado::NaoAplicavel("status_sem_prova_de_aceite".to_owned()),
             ),
             ("protocolo_ciencia_listar", "GET", 200) => (
                 "lista de ciências",
@@ -116,7 +119,7 @@ fn replay(instalacao: &str, json: &Value) -> Vec<Registro> {
                 atividade = None;
                 (
                     "lista de ciências",
-                    Resultado::NaoAplicavel("status_sem_html_da_lista"),
+                    Resultado::NaoAplicavel("status_sem_html_da_lista".to_owned()),
                 )
             }
             _ => continue,
@@ -211,7 +214,7 @@ mod tests;
 /// O GET de aceite gravado: a prova pendente do aceite lido, ou o resultado
 /// que o replay registra (não aplicável ou recusado).
 fn ler_aceite(resposta: &gravacao::Resposta<'_>) -> Result<ProvaPendente, Resultado> {
-    let nao_aplicavel = |motivo| Err(Resultado::NaoAplicavel(motivo));
+    let nao_aplicavel = |motivo: &str| Err(Resultado::NaoAplicavel(motivo.to_owned()));
     // O rótulo da gravação não prova a ação executada: a URL realmente
     // servida deve publicar uma única acao igual à operação. Uma tela
     // preparatória não é GET de ciência.
@@ -239,7 +242,8 @@ fn ler_aceite(resposta: &gravacao::Resposta<'_>) -> Result<ProvaPendente, Result
             id_procedimento: processo,
         }
     };
-    let id = atividade_do_aceite(&html, alvo).map_err(|erro| Resultado::Recusado(erro.rotulo()))?;
+    let id = atividade_do_aceite(&html, alvo)
+        .map_err(|erro| Resultado::Recusado(format!("{erro:?}")))?;
     Ok(match id_documento {
         Some(id_documento) if resposta.operacao == "documento_ciencia" => {
             ProvaPendente::Documento {

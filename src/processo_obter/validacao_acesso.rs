@@ -10,7 +10,6 @@ use crate::formulario_web::{
     derivar_submissao, enviar_submissao_via,
 };
 use crate::sessao_login::{Credenciais, ErroLogin};
-use crate::transporte::StatusHttpRecusado;
 use std::path::PathBuf;
 
 const OPERACAO: OperacaoDeFormulario = OperacaoDeFormulario {
@@ -46,13 +45,6 @@ impl ErroValidacaoAcesso {
             Self::ModalNaoReconhecida
             | Self::RedirecionamentoSemProva
             | Self::ReleituraNaoConfirmada => false,
-        }
-    }
-
-    pub(super) fn status_http(&self) -> Option<&StatusHttpRecusado> {
-        match self {
-            Self::Formulario(erro) => erro.status_http(),
-            _ => None,
         }
     }
 }

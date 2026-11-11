@@ -56,7 +56,7 @@ fn executar(
     respostas: Vec<crate::processo_concluir::tests_apoio::Resposta>,
     confirmar: bool,
 ) -> (
-    Result<Previa, ErroPrevia>,
+    Result<Previa, ErroAcompanhar>,
     Vec<crate::processo_concluir::tests_apoio::Pedido>,
 ) {
     let amb = ambiente();
@@ -153,7 +153,10 @@ fn falha_na_releitura_depois_do_post_e_nao_confirmado_sem_retry() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), Err(FalhaTransporte::Rede)]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    ));
     assert_eq!(pedidos, requests_post());
 }
 
@@ -162,6 +165,9 @@ fn lista_apos_post_sem_linha_nova_e_nao_confirmado() {
     let mut respostas = preparar();
     respostas.extend([r302(&gerenciar()), ok(lista("Outro"))]);
     let (resultado, pedidos) = executar(respostas, true);
-    assert!(matches!(resultado, Err(ErroPrevia::NaoConfirmado)));
+    assert!(matches!(
+        resultado,
+        Err(ErroAcompanhar::AcompanhamentoNaoConfirmado)
+    ));
     assert_eq!(pedidos, requests_post());
 }

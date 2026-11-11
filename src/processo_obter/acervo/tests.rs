@@ -110,13 +110,13 @@ fn sem_arvore_do_mesmo_id_ou_sem_id_na_url_e_nao_aplicavel() {
     assert_eq!(
         de(&registros, Leitor::Andamentos),
         [&Resultado::NaoAplicavel(
-            "sem_arvore_do_mesmo_id_na_cassette"
+            "sem_arvore_do_mesmo_id_na_cassette".to_owned()
         )]
     );
     assert_eq!(
         de(&registros, Leitor::Marcadores),
         [&Resultado::NaoAplicavel(
-            "id_procedimento_nao_publicado_na_url_servida"
+            "id_procedimento_nao_publicado_na_url_servida".to_owned()
         )]
     );
 }

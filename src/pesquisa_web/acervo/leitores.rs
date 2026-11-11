@@ -6,7 +6,6 @@
 use super::{Leitor, Registro, Resultado};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_reconhecido::unidade_do_controle;
-use crate::erro_publico::Rotulo as _;
 use crate::formulario_web::{
     RespostaDoEnvio, RespostaDoPost, SubmissaoDerivada, TelaServida, enviar_submissao_via,
 };
@@ -124,10 +123,10 @@ fn web(r: &Resposta<'_>) -> RespostaWeb<std::io::Cursor<Vec<u8>>> {
 /// Requisição 1 do comando: transporte, unidade reconhecida e link do menu.
 fn controle(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     let lido = decodificar_resposta(web(r))
-        .map_err(|f| f.rotulo())
+        .map_err(|f| format!("{f:?}"))
         .and_then(|html| {
-            let unidade = unidade_do_controle(&html).map_err(|e| e.rotulo())?;
-            link_da_pesquisa(&c.instalacao, &url(r), &html).map_err(|e| e.rotulo())?;
+            let unidade = unidade_do_controle(&html).map_err(|e| format!("{e:?}"))?;
+            link_da_pesquisa(&c.instalacao, &url(r), &html).map_err(|e| format!("{e:?}"))?;
             Ok(unidade)
         });
     match lido {
@@ -144,12 +143,13 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
     estado.pendente = None;
     estado.na_tela_de_resultado = false;
     let Some(unidade) = estado.unidade.as_deref() else {
-        let motivo = Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela");
+        let motivo =
+            Resultado::NaoAplicavel("unidade_do_controle_nao_gravada_antes_da_tela".to_owned());
         return c.registro(Leitor::Tela, r.passo, motivo);
     };
     let derivada = derivar(r, &url(r), |tela| {
         derivar_pesquisa_de_protocolo(&c.instalacao, tela, unidade, TERMO_DE_PROVA)
-            .map_err(|e| e.rotulo())
+            .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(submissao) => {
@@ -165,12 +165,14 @@ fn tela(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Registro {
 fn derivar<T>(
     r: &Resposta<'_>,
     url: &str,
-    f: impl FnOnce(&TelaServida<'_>) -> Result<T, &'static str>,
-) -> Result<T, &'static str> {
+    f: impl FnOnce(&TelaServida<'_>) -> Result<T, String>,
+) -> Result<T, String> {
     let mime = gravacao::mime(r.interacao);
-    let html = decodificar_resposta(web(r)).map_err(|f| f.rotulo())?;
-    let codificacao = codificacao_da_tela(&mime)
-        .ok_or(ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado.rotulo())?;
+    let html = decodificar_resposta(web(r)).map_err(|f| format!("{f:?}"))?;
+    let codificacao = codificacao_da_tela(&mime).ok_or(format!(
+        "{:?}",
+        ErroBuscaDeProcesso::CharsetDaTelaNaoSuportado
+    ))?;
     f(&TelaServida {
         url,
         html: &html,
@@ -192,7 +194,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
                 "tela_da_pesquisa_nao_derivada_antes_do_envio",
             )
         };
-        return vec![c.registro(leitor, r.passo, Resultado::NaoAplicavel(motivo))];
+        return vec![c.registro(leitor, r.passo, Resultado::NaoAplicavel(motivo.to_owned()))];
     };
     let url_do_envio = submissao.url().to_owned();
     let gravada = RespostaDoPost {
@@ -202,7 +204,7 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let enviada = match enviar_submissao_via(submissao, c.cookie, |_, _| Ok(gravada)) {
         Ok(enviada) => enviada,
         Err(erro) => {
-            let sub = crate::erro_publico::rotulo(&falha_do_envio(erro));
+            let sub = format!("{:?}", falha_do_envio(erro));
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
@@ -219,12 +221,13 @@ fn envio(c: &Cassette<'_>, r: &Resposta<'_>, estado: &mut Estado) -> Vec<Registr
     let interpretado = match interpretar_envio(enviada, &c.instalacao) {
         Ok(i) => i,
         Err(erro) => {
-            let sub = erro.rotulo();
+            let sub = format!("{erro:?}");
             return vec![c.registro(Leitor::Envio, r.passo, Resultado::Recusado(sub))];
         }
     };
     if opcao == Opcao::Indeterminada {
-        let motivo = Resultado::NaoAplicavel("opcao_pesquisar_em_nao_observada_na_resposta");
+        let motivo =
+            Resultado::NaoAplicavel("opcao_pesquisar_em_nao_observada_na_resposta".to_owned());
         return vec![c.registro(Leitor::Envio, r.passo, motivo)];
     }
     match interpretado.resposta {
@@ -262,7 +265,7 @@ fn em_documentos(c: &Cassette<'_>, r: &Resposta<'_>, enviada: &RespostaDoEnvio) 
         _ => c.registro(
             Leitor::Envio,
             r.passo,
-            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos"),
+            Resultado::NaoAplicavel("lista_da_pesquisa_em_documentos".to_owned()),
         ),
     }
 }
@@ -284,13 +287,13 @@ fn plano(
             return c.lido(Leitor::PlanoDaPagina, r.passo, "uma_pagina_so");
         }
         Err(erro) => {
-            let sub = erro.rotulo();
+            let sub = format!("{erro:?}");
             return c.registro(Leitor::PlanoDaPagina, r.passo, Resultado::Recusado(sub));
         }
     };
     let derivada = derivar(r, url_do_envio, |tela| {
         derivar_pagina_da_pesquisa(&c.instalacao, tela, unidade, TERMO_DE_PROVA, pedido.inicio)
-            .map_err(|e| e.rotulo())
+            .map_err(|e| format!("{e:?}"))
     });
     match derivada {
         Ok(_) => c.lido(Leitor::PlanoDaPagina, r.passo, "pagina_2_planejada"),

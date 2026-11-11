@@ -14,9 +14,21 @@ const GRUPO: &str = "selGrupoAcompanhamento";
 const PROTOCOLO: &str = "hdnIdProtocolo";
 const TABELA: &str = "Tabela de Acompanhamentos.";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcompanhar {
+    /// O cookie privado da sessão não pôde ser lido.
+    Cookie(#[from] crate::processo_concluir::escrita::CookieIlegivel),
+    Abertura(#[from] crate::processo_obter::ErroProcessoObter),
+    OrigemNaoAutorizada,
+    UnidadeNaoPublicada,
+    LinkNaoPublicado,
+    Barra(#[from] crate::arvore_processo::ErroAcompanharNaBarra),
+    Transporte(#[from] crate::transporte::FalhaTransporte),
+    Formulario(#[from] crate::formulario_web::ErroSubmissaoFormulario),
+    PedidoDeAcompanhamentoInvalido,
+    RedirecionamentoDeAcompanhamentoInesperado,
+    TelaDeAcompanhamentoInesperada,
     /// O tokenizador de atributos recusou a tag.
     Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     CadastroNaoPublicado,

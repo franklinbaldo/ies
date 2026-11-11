@@ -54,7 +54,7 @@ fn cadastro(flag: &str, escolhido: bool) -> String {
         id = if escolhido { "293" } else { "" }
     )
 }
-fn executar(flag: &str) -> (Result<PreviaExterna, ErroPreviaExterna>, Vec<a::Pedido>) {
+fn executar(flag: &str) -> (Result<PreviaExterna, ErroIncluirExterno>, Vec<a::Pedido>) {
     let amb = a::ambiente();
     let mut respostas = a::abertura(arvore());
     respostas.push(a::ok(lista()));
@@ -95,7 +95,7 @@ fn dado_flag_de_gravacao_quando_consulto_previa_entao_nao_envio_post() {
     let (resultado, pedidos) = executar("2");
     assert!(matches!(
         resultado,
-        Err(ErroPreviaExterna::TipoNaoOferecido)
+        Err(ErroIncluirExterno::TipoNaoOferecido(_))
     ));
     let mut esperados = a::pedidos_da_abertura();
     esperados.push(a::get(&url(&link_escolha())));
@@ -114,10 +114,7 @@ fn dado_cadastro_minimo_quando_consulto_sei_entao_projeto_campo_visivel_no_resul
 fn confirmar_com_upload_recusado(
     identidade: &str,
 ) -> (
-    Result<
-        super::super::fluxo_confirmar::InclusaoComprovada,
-        super::super::fluxo_confirmar::ErroConfirmacaoExterna,
-    >,
+    Result<super::super::fluxo_confirmar::InclusaoComprovada, ErroIncluirExterno>,
     Vec<a::Pedido>,
 ) {
     // Cenário BDD-332-04 previamente especificado na issue: nunca repetir upload.
@@ -158,11 +155,9 @@ fn bdd_332_04_dado_upload_recusado_quando_confirmo_entao_nao_cadastro() {
         let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
         assert!(matches!(
             resultado,
-            Err(
-                super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-                    super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
-                )
-            )
+            Err(ErroIncluirExterno::Confirmacao(
+                super::super::confirmacao::FalhaConfirmacao::UploadRecusado(_)
+            ))
         ));
         assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
         assert!(
@@ -182,9 +177,7 @@ fn destino_de_outro_processo_ou_ambiguo_recusa_antes_do_upload() {
         let (resultado, pedidos) = confirmar_com_upload_recusado(identidade);
         assert!(matches!(
             resultado,
-            Err(
-                super::super::fluxo_confirmar::ErroConfirmacaoExterna::EnderecoDeUploadNaoObservado
-            )
+            Err(ErroIncluirExterno::EnderecoDeUploadNaoObservado)
         ));
         assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
     }
@@ -243,11 +236,9 @@ fn bdd_332_04_dado_recibo_e_cadastro_quando_releitura_nao_muda_entao_saida_3() {
     });
     assert!(matches!(
         resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::Sequencia(
-                super::super::confirmacao::FalhaConfirmacao::NaoConfirmado
-            )
-        )
+        Err(ErroIncluirExterno::Confirmacao(
+            super::super::confirmacao::FalhaConfirmacao::NaoConfirmado
+        ))
     ));
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 5);
     let definitivos: Vec<_> = pedidos
@@ -304,11 +295,9 @@ fn bdd_332_04_formulario_sem_campos_de_cadastro_nao_deixa_upload_temporario() {
     });
     assert!(matches!(
         resultado,
-        Err(
-            super::super::fluxo_confirmar::ErroConfirmacaoExterna::CampoCadastroNaoOferecido(
-                "txtDataElaboracao"
-            )
-        )
+        Err(ErroIncluirExterno::CampoDoCadastroNaoOferecido(
+            super::super::fluxo_confirmar::CampoExigidoDoCadastro::DataElaboracao
+        ))
     ));
     assert!(!upload_tentado);
     assert_eq!(pedidos.len(), a::pedidos_da_abertura().len() + 3);
@@ -339,7 +328,7 @@ fn link_externo_da_unb_com_id_procedimento_repetido_e_aceito_sem_reconstruir() {
         assert!(
             matches!(
                 conferir_destino(&instalacao, &recusado, "10"),
-                Err(ErroPreviaExterna::LinkNaoConferido)
+                Err(ErroIncluirExterno::DestinoDoExternoRecusado(_))
             ),
             "{recusado}"
         );

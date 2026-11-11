@@ -13,7 +13,6 @@ use crate::arvore_processo::{
 use crate::cassette::acervo::{INSTALACOES, gravacao, percorrer, publicar};
 use crate::cassette::html_da_resposta;
 use crate::documento_web::{identidade_do_titulo, texto_do_corpo};
-use crate::erro_publico::Rotulo as _;
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -32,7 +31,7 @@ fn tela(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -> 
     let instalacao = gravacao::instalacao(json)?;
     Some(match ler_tela_do_documento(&instalacao, html, &id, None) {
         Ok(_) => "documento selecionado na árvore".to_owned(),
-        Err(erro) => format!("`{}`", erro.rotulo()),
+        Err(erro) => format!("`{erro:?}`"),
     })
 }
 
@@ -52,10 +51,10 @@ fn arvore(html: &str, interacao: &serde_json::Value, json: &serde_json::Value) -
         .map(|d| {
             let icone = d.natureza.icone.as_deref().unwrap_or("?");
             let forma = match ler_conteudo_na_arvore(&instalacao, html, &d.id) {
-                Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar",
-                Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo",
-                Ok(ConteudoNaArvore::Vazio) => "vazio",
-                Err(erro) => erro.rotulo(),
+                Ok(ConteudoNaArvore::Visualizar(_)) => "documento_visualizar".to_owned(),
+                Ok(ConteudoNaArvore::DownloadDeAnexo(_)) => "documento_download_anexo".to_owned(),
+                Ok(ConteudoNaArvore::Vazio) => "vazio".to_owned(),
+                Err(erro) => format!("{erro:?}"),
             };
             format!("`{icone}` → `{forma}`")
         })
@@ -95,16 +94,16 @@ fn anexo(interacao: &serde_json::Value) -> String {
                 "sem texto"
             }
         ),
-        Err(erro) => format!("`{}`", erro.rotulo()),
+        Err(erro) => format!("`{erro:?}`"),
     }
 }
 
 fn conteudo(html: &str) -> String {
     match identidade_do_titulo(html) {
-        Err(erro) => format!("`{}`", erro.rotulo()),
+        Err(erro) => format!("`{erro:?}`"),
         Ok(_) => match texto_do_corpo(html) {
             Ok(_) => "título e texto lidos".to_owned(),
-            Err(erro) => format!("`{}`", erro.rotulo()),
+            Err(erro) => format!("`{erro:?}`"),
         },
     }
 }
