@@ -4,7 +4,13 @@ use super::*;
 
 #[test]
 fn atributo_repetido_no_botao_recusa_antes_do_post_mutador() {
-    let mut previa = args(false);
+    for confirmar in [false, true] {
+        verificar_recusa_sem_post_mutador(confirmar);
+    }
+}
+
+fn verificar_recusa_sem_post_mutador(confirmar: bool) {
+    let mut previa = args(confirmar);
     previa.push("--remover-anotacoes");
     let (saidas, pedidos, depois) = executar_com_ensaio_local(
         &[&previa],
