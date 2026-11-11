@@ -24,7 +24,7 @@ pub(crate) use fluxo::{DocumentoCancelado, PedidoDoCancelamento, cancelar_docume
 #[error("{self:?}")]
 pub(crate) enum ErroLinkCancelar {
     /// O tokenizador de atributos recusou a tag.
-    Atributo(crate::html_atributos::ErroAtributoHtml),
+    Atributo(#[source] crate::html_atributos::ErroAtributoHtml),
     BarraForaDaForma,
     /// A barra do documento não pôde ser lida do HTML da tela.
     BarraDoDocumentoIlegivel(#[source] crate::arvore_processo::ErroBarraDoDocumento),
