@@ -69,7 +69,7 @@ fn vindo_da_resumida<V: EnvioDoControle>(
         (Categoria::Recebidos, &resumida.caixa.recebidos),
         (Categoria::Gerados, &resumida.caixa.gerados),
     ] {
-        total += tabela.total_declarado.unwrap_or(tabela.processos.len());
+        total += tabela.total_declarado;
         for processo in &tabela.processos {
             categorias.insert(processo.id.as_str().to_owned(), categoria);
         }

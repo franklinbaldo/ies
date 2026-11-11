@@ -34,11 +34,15 @@ impl FotografiaDosGerados {
     pub(crate) fn da_tela(html: &str, unidade: &str) -> Result<Self, ErroFotografia> {
         let leitura = crate::paginas::juntar(&[html.to_owned()], Some(unidade))?;
         let tabela = &leitura.caixa.gerados;
-        let total = tabela
-            .total_declarado
-            .ok_or(ErroFotografia::CoberturaIncompleta)?;
+        let total = tabela.total_declarado;
+        let faixa = leitura.gerados.faixa_observada()?;
         if tabela.processos.len() != total
-            || (total != 0 && leitura.gerados.faixa_observada() != Some((1, total)))
+            || (total != 0
+                && faixa
+                    != crate::paginas::FaixaObservada::Lidas {
+                        inicio: 1,
+                        fim: total,
+                    })
         {
             return Err(ErroFotografia::CoberturaIncompleta);
         }

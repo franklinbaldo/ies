@@ -62,16 +62,11 @@ fn legenda_no_singular_comprova_a_pagina_unica() {
         let leitura = juntar(&[html], None).unwrap();
         assert_eq!(
             leitura.recebidos.faixa_observada(),
-            Some((1, 1)),
+            Ok(FaixaObservada::Lidas { inicio: 1, fim: 1 }),
             "{legenda}"
         );
         assert!(
-            conferir_faixa_publicavel(
-                Categoria::Recebidos,
-                &leitura.caixa.recebidos,
-                &leitura.recebidos
-            )
-            .is_ok(),
+            conferir_faixa_publicavel(Categoria::Recebidos, &leitura.recebidos).is_ok(),
             "{legenda}"
         );
     }

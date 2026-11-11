@@ -7,6 +7,7 @@ use super::{Leitor, Lista, PaginaLida, Registro, Replay, Resultado, paginacao};
 use crate::cassette::acervo::gravacao::{self, Resposta};
 use crate::controle_contexto::ContextoPagina;
 use crate::dominio::Categoria;
+use crate::paginas::FaixaObservada;
 use crate::transporte::{FalhaTransporte, RespostaWeb, decodificar_resposta};
 use crate::unidade_categoria::{CategoriaLista, selecionar};
 use base64::Engine as _;
@@ -272,17 +273,29 @@ fn resumida(
         (Leitor::Gerados, CategoriaLista::Gerados, Lista::Gerados),
     ] {
         let mut l = cas.registro(leitor, resp.passo, Resultado::Lido);
-        match selecionar(&leitura, lista, "acervo") {
-            Ok(modelo) => {
+        let cobertura = match lista.categoria() {
+            Categoria::Recebidos => &leitura.recebidos,
+            Categoria::Gerados => &leitura.gerados,
+        };
+        let lido = selecionar(&leitura, lista, "acervo").and_then(|modelo| {
+            let faixa = cobertura.faixa_observada()?;
+            Ok((modelo, faixa))
+        });
+        match lido {
+            Ok((modelo, faixa)) => {
                 let processos = modelo["processos"].as_array().map_or(0, Vec::len) as u64;
                 let total = modelo["total_declarado"].as_u64().unwrap_or(0);
                 l.contagens = vec![("linhas", processos), ("total_declarado", total)];
                 l.formas.push(forma_da_lista(processos, total).into());
-                let faixa = &modelo["faixa_observada"];
-                let faixa = faixa["inicio"].as_u64().zip(faixa["fim"].as_u64());
+                let faixa = match faixa {
+                    FaixaObservada::SemLinhas => None,
+                    FaixaObservada::Lidas { inicio, fim } => Some((inicio, fim)),
+                };
                 if let Some((i, f)) = faixa {
-                    l.contagens.push(("faixa_inicio", i));
-                    l.contagens.push(("faixa_fim", f));
+                    l.contagens
+                        .push(("faixa_inicio", u64::try_from(i).unwrap_or(u64::MAX)));
+                    l.contagens
+                        .push(("faixa_fim", u64::try_from(f).unwrap_or(u64::MAX)));
                 }
                 let tabela = match lista.categoria() {
                     Categoria::Recebidos => &leitura.caixa.recebidos,
@@ -290,12 +303,7 @@ fn resumida(
                 };
                 let mut p = cas.pagina(resp.passo, categoria, unidade);
                 p.total = usize::try_from(total).unwrap_or(usize::MAX);
-                p.faixa = faixa.map(|(i, f)| {
-                    (
-                        usize::try_from(i).unwrap_or(0),
-                        usize::try_from(f).unwrap_or(0),
-                    )
-                });
+                p.faixa = faixa;
                 p.ids = tabela
                     .processos
                     .iter()

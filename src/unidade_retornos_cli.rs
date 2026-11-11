@@ -57,10 +57,11 @@ pub(super) fn listar(
     )
     .map_err(relogin_cli::subir)?;
     let quantidade = resultado.itens.len();
+    // Zero retornos é a lista vazia observada, não ausência de faixa.
     let faixa = if quantidade == 0 {
-        serde_json::Value::Null
+        json!([])
     } else {
-        json!({"inicio":1,"fim":quantidade})
+        json!([1, quantidade])
     };
     let requisicoes = relogin_cli::somar(resultado.requisicoes, nota.as_ref());
     if json_mode {

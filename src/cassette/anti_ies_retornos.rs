@@ -17,8 +17,15 @@ fn converter(retorno: &crate::unidade_retornos::Retorno) -> Retorno {
         numero: retorno.numero.clone(),
         unidade: retorno.unidade.clone(),
         data_programada: retorno.data_programada.clone(),
-        retornado_em: retorno.retornado_em.clone(),
-        prazo_restante: retorno.prazo_restante.clone(),
+        // O armazenamento da cassette guarda célula vazia como NULL.
+        retornado_em: match &retorno.retornado_em {
+            crate::unidade_retornos::DataDeRetorno::Pendente => None,
+            crate::unidade_retornos::DataDeRetorno::Em(data) => Some(data.clone()),
+        },
+        prazo_restante: match &retorno.prazo_restante {
+            crate::unidade_retornos::PrazoRestante::SemPrazo => None,
+            crate::unidade_retornos::PrazoRestante::Em(prazo) => Some(prazo.clone()),
+        },
     }
 }
 
