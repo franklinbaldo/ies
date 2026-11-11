@@ -2,6 +2,9 @@
 //! O unico POST e reservado ao anti-IES de teste; release recusa antes da rede.
 use super::*;
 use crate::acao_do_sei::AcaoDoSei;
+use crate::consulta_do_controlador::{
+    ConsultaDoControlador, ErroChaveDaConsulta, ErroConsultaDoControlador, menciona_acao,
+};
 use crate::formulario_web::derivar_submissao_com_action;
 use crate::url_observada::UrlHttps;
 
@@ -43,8 +46,12 @@ pub(crate) enum ErroLinkDaLista {
     LinkDaListaAusente,
     /// Mais de um link do Controle aponta para a lista de prazos.
     LinkDaListaRepetido,
-    /// O link da lista está fora da forma segura (caminho, host ou hash).
+    /// O link da lista está fora da forma segura (caminho, host, ação única ou hash).
     LinkDaListaForaDaForma,
+    /// A consulta do link não se deixa ler em pares.
+    ConsultaDoLinkIlegivel(#[source] ErroConsultaDoControlador),
+    /// O link não traz exatamente um `infra_hash`.
+    InfraHashDoLink(#[source] ErroChaveDaConsulta),
 }
 
 /// Lê o href realmente publicado na pagina do Controle, sem fabricar token.
@@ -68,10 +75,7 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
         let Some(href) = crate::formulario_web::decodificar_atributo(&bruto) else {
             continue;
         };
-        if !href
-            .split(['?', '&'])
-            .any(|parte| parte == "acao=controle_prazo_listar")
-        {
+        if !menciona_acao(&href, AcaoDoSei::ControlePrazoListar) {
             continue;
         }
         if href.starts_with('/') || href.contains("://") || href.contains("..") {
@@ -85,13 +89,14 @@ pub(super) fn link_da_lista(html: &str, origem: &str) -> Result<String, ErroLink
         let consulta = alvo
             .consulta
             .ok_or(ErroLinkDaLista::LinkDaListaForaDaForma)?;
-        let hashes: Vec<_> = consulta
-            .split('&')
-            .filter_map(|parte| parte.strip_prefix("infra_hash="))
-            .collect();
-        let [hash] = hashes.as_slice() else {
+        let consulta = ConsultaDoControlador::ler(consulta)
+            .map_err(ErroLinkDaLista::ConsultaDoLinkIlegivel)?;
+        if consulta.acao() != Ok(AcaoDoSei::ControlePrazoListar) {
             return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
-        };
+        }
+        let hash = consulta
+            .unico("infra_hash")
+            .map_err(ErroLinkDaLista::InfraHashDoLink)?;
         if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(ErroLinkDaLista::LinkDaListaForaDaForma);
         }
@@ -381,7 +386,7 @@ pub(super) fn executar(
 
 #[cfg(test)]
 mod tests {
-    use super::{ErroAcaoDeExclusao, action_de_exclusao};
+    use super::{ErroAcaoDeExclusao, ErroLinkDaLista, action_de_exclusao, link_da_lista};
 
     fn hash() -> String {
         "a".repeat(64)
@@ -425,6 +430,33 @@ mod tests {
         assert_eq!(
             action_de_exclusao(&colada),
             Err(ErroAcaoDeExclusao::ForaDaForma)
+        );
+    }
+
+    fn controle_com(href: &str) -> String {
+        format!("<html><body><a href=\"{href}\">Prazos</a></body></html>")
+    }
+
+    #[test]
+    fn link_da_lista_aceita_a_forma_publicada() {
+        let href = format!(
+            "controlador.php?acao=controle_prazo_listar&infra_sistema=1&infra_hash={}",
+            hash()
+        );
+        let link = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei");
+        assert_eq!(link.ok(), Some(format!("https://sei.exemplo/sei/{href}")));
+    }
+
+    #[test]
+    fn link_da_lista_com_duas_acoes_e_recusado() {
+        let href = format!(
+            "controlador.php?acao=outra&acao=controle_prazo_listar&infra_hash={}",
+            hash()
+        );
+        let erro = link_da_lista(&controle_com(&href), "https://sei.exemplo/sei").err();
+        assert!(
+            matches!(erro, Some(ErroLinkDaLista::LinkDaListaForaDaForma)),
+            "{erro:?}"
         );
     }
 }
