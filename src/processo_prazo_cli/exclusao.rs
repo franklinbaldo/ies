@@ -301,16 +301,23 @@ fn publicar_exclusao(
     aberto: &crate::processo_obter::ProcessoAberto,
     requisicoes: u8,
 ) {
-    let resultado = json!({
+    // Na prévia o prazo atual não é lido: a chave `atual` sai, sem null.
+    let mut resultado = json!({
         "nup": nup.as_str(),
         "id_procedimento": aberto.arvore.processo.id,
-        "unidade": aberto.unidade,
         "origem": "web",
-        "atual": if confirmar { json!({"tipo": "sem_prazo"}) } else { Value::Null },
         "solicitado": {"excluir": true},
         "confirmado": confirmar,
         "requisicoes": requisicoes,
     });
+    if let Some(objeto) = resultado.as_object_mut() {
+        if let Some(unidade) = &aberto.unidade {
+            objeto.insert("unidade".to_owned(), json!(unidade));
+        }
+        if confirmar {
+            objeto.insert("atual".to_owned(), json!({"tipo": "sem_prazo"}));
+        }
+    }
     if cli.json {
         println!("{resultado}");
     } else if confirmar {

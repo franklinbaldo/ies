@@ -192,14 +192,14 @@ fn sucesso_publica_escopo_da_sessao_e_so_nomes_dos_campos() {
     assert!(!texto.contains("infra_hash") && !texto.contains("https://"));
     assert!(humano(&troca, 5).contains("toda a sessão da conta"));
 
-    // Já na unidade: oferecidas e envio devem continuar null, não [].
+    // Já na unidade: oferecidas e envio saem da saída (não viram [] nem null).
     troca.escolhida = None;
     troca.campos_do_envio = None;
     troca.controle_novo = None;
     let legado = json_de_sucesso(&troca, None, 2);
     let direto = serde_json::to_value(resultado_troca(&troca, None, 2)).unwrap();
     assert_eq!(direto, legado);
-    assert!(direto["oferecidas"].is_null());
-    assert!(direto["envio"].is_null());
+    assert!(direto.get("oferecidas").is_none());
+    assert!(direto.get("envio").is_none());
     assert_eq!(direto["depois"], "PR-B");
 }

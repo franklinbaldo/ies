@@ -91,8 +91,7 @@ na consulta informativa.
 
 ## Saída
 
-Cada item de `documentos` ganha `pasta`: o id do nó (`"PASTA1"`) ou `null`
-na raiz. Ao lado, `pastas` lista as pastas na ordem da árvore:
+Cada item de `documentos` ganha `pasta`: o id do nó (`"PASTA1"`) ; na raiz, a chave `pasta` sai. Ao lado, `pastas` lista as pastas na ordem da árvore:
 
 ```json
 {"documentos": [{"id_documento": "D", "rotulo": "…", "numero_sei": "…", "pasta": "PASTA1"}],
@@ -105,7 +104,7 @@ na raiz. Ao lado, `pastas` lista as pastas na ordem da árvore:
 `total` é a quantidade declarada em `Pastas[k]['protocolos']`, já
 conferida; `verificacao` e as duas quantidades dizem como. No topo,
 `verificacao_das_pastas` é a mais fraca presente (`por_contagem` <
-`mista` < `por_identidade`) ou `null` sem pastas; se alguma pasta não é
+`mista` < `por_identidade`) ou a chave sai sem pastas; se alguma pasta não é
 toda por identidade, `verificacao_das_pastas_motivo:
 "documentos_sem_identidade_na_barra"`. Identidade só é alegada onde foi
 conferida. `pastas` sai `[]` sem pastas, e as três
@@ -116,7 +115,7 @@ Na consulta informativa com leitura de documentos incompleta, a CLI retorna
 **código 0** com os metadados do processo que foram comprovados e, sem
 `--sem-documentos`, apresenta `documentos_incluidos: false`,
 `documentos: []`, `documentos_movidos: []`, `pastas: []`,
-`verificacao_das_pastas: null` e `aviso_leitura_parcial` com o motivo
+`verificacao_das_pastas` ausente e `aviso_leitura_parcial` com o motivo
 legível. A saída humana informa `Aviso: leitura parcial do processo: lista
 de documentos incompleta (...)`. A lista vazia **não** afirma ausência de
 documentos. Com `--sem-documentos`, permanecem omitidos os campos de

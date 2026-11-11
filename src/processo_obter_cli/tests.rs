@@ -91,7 +91,7 @@ fn andamentos_lidos_saem_com_total_faixa_e_itens_e_deixam_nao_lidos() {
             "itens": [
                 {"ocorrido_em": "01/01/2026 10:00", "unidade": "U1", "usuario": "p1",
                  "descricao": "Processo sintetico gerado"},
-                {"ocorrido_em": "02/01/2026 10:00", "unidade": "U2", "usuario": null,
+                {"ocorrido_em": "02/01/2026 10:00", "unidade": "U2",
                  "descricao": "Andamento sintetico"}
             ]
         })
@@ -139,21 +139,18 @@ fn forma_do_json() {
             "resolvido_por": "caixa",
             "requisicoes": 3,
             "anexado": false,
-            "anexado_a": null,
             "anexados": [],
-            "aberto_em": [{"sigla": "UNIDADE TESTE", "nome": "Unidade Teste", "atribuido_a": null}],
-            "sobrestado_em": null,
+            "aberto_em": [{"sigla": "UNIDADE TESTE", "nome": "Unidade Teste"}],
             "documentos": [
-                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101", "pasta": null,
-                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                {"id_documento": "21", "rotulo": "Despacho 0000101", "numero_sei": "0000101",
+                 "icone": "documento_interno", "cancelado": false,
                  "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"},
-                {"id_documento": "22", "rotulo": "E-mail", "numero_sei": null, "pasta": null,
-                 "icone": "documento_interno", "cancelado": false, "motivo_do_cancelamento": null,
+                {"id_documento": "22", "rotulo": "E-mail",
+                 "icone": "documento_interno", "cancelado": false,
                  "dica": "De: pessoa@exemplo.gov.br\nPara: outra@exemplo.gov.br"}
             ],
             "documentos_movidos": [],
             "pastas": [],
-            "verificacao_das_pastas": null,
             "nao_lidos": ["andamentos", "marcadores", "propriedades"],
             "andamentos_nao_lidos_motivo": "omitidos_por_sem_andamentos",
             "marcadores_nao_lidos_motivo": "omitidos_por_sem_marcadores",
@@ -163,12 +160,12 @@ fn forma_do_json() {
 }
 
 #[test]
-fn sem_documentos_tira_a_chave_e_unidade_nao_observada_e_null() {
+fn sem_documentos_tira_a_chave_e_unidade_nao_observada_sai() {
     let nup = NumeroProcesso::novo("00001.000001/2026-01").unwrap();
     let valor = json_do_processo(&nup, &aberto(None), true);
     assert!(valor.get("documentos").is_none());
     assert!(valor.get("pastas").is_none());
-    assert!(valor["unidade"].is_null());
+    assert!(valor.get("unidade").is_none());
     assert_eq!(valor["numero"], "00001.000001/2026-01");
     let texto = valor.to_string();
     assert!(!texto.contains("infra_hash") && !texto.contains("controlador.php"));
@@ -334,7 +331,7 @@ fn processo_anexado_publica_o_pai_sem_url_e_com_a_dica() {
     }
     let nao = json_do_processo(&nup, &aberto(None), true);
     assert_eq!(nao["anexado"], false);
-    assert!(nao["anexado_a"].is_null());
+    assert!(nao.get("anexado_a").is_none());
     let texto = humano(&nup, &anexado_a_um_pai(), true);
     assert!(
         texto.contains(

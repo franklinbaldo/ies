@@ -1,5 +1,5 @@
 //! RED/GREEN de `aberto_em` e da natureza dos documentos no JSON e no
-//! texto humano: lista, `[]` ou `null` com motivo (primeiro em
+//! texto humano: lista, `[]` ou chave ausente com motivo (primeiro em
 //! `nao_lidos`); `icone`, `cancelado` e motivo por documento.
 use super::tests::aberto;
 use super::*;
@@ -44,7 +44,7 @@ fn aberto_em_sai_como_lista_mesmo_sem_documentos() {
         json!([
             {"sigla": "Unidade1", "nome": "Unidade Um",
              "atribuido_a": {"sigla": "aluno2", "nome": "Aluno Dois"}},
-            {"sigla": "ACE", "nome": "Arquivo Central", "atribuido_a": null}
+            {"sigla": "ACE", "nome": "Arquivo Central"}
         ])
     );
     assert!(valor.get("aberto_em_nao_lido_motivo").is_none());
@@ -68,12 +68,12 @@ fn sem_andamentos_abertos_e_lista_vazia() {
 }
 
 #[test]
-fn nao_lido_e_null_com_motivo_e_primeiro_em_nao_lidos() {
+fn nao_lido_sai_sem_chave_com_motivo_e_primeiro_em_nao_lidos() {
     let processo = com_aberto_em(AbertoEm::NaoLido(
         MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao,
     ));
     let valor = json_do_processo(&nup(), &processo, false);
-    assert!(valor["aberto_em"].is_null());
+    assert!(valor.get("aberto_em").is_none());
     assert_eq!(
         valor["aberto_em_nao_lido_motivo"],
         "raiz_publica_o_vinculo_de_anexacao"
@@ -89,7 +89,7 @@ fn nao_lido_e_null_com_motivo_e_primeiro_em_nao_lidos() {
 }
 
 #[test]
-fn sobrestado_publica_a_unidade_e_aberto_em_null_com_motivo() {
+fn sobrestado_publica_a_unidade_e_sem_aberto_em_com_motivo() {
     let processo = com_aberto_em(AbertoEm::Sobrestado(vec![UnidadeSobrestada {
         sigla: "Unidade1".into(),
         nome: "Unidade Um".into(),
@@ -99,7 +99,7 @@ fn sobrestado_publica_a_unidade_e_aberto_em_null_com_motivo() {
         valor["sobrestado_em"],
         json!([{"sigla": "Unidade1", "nome": "Unidade Um"}])
     );
-    assert!(valor["aberto_em"].is_null());
+    assert!(valor.get("aberto_em").is_none());
     assert_eq!(
         valor["aberto_em_nao_lido_motivo"],
         "raiz_publica_o_sobrestamento"
@@ -114,7 +114,7 @@ fn sobrestado_publica_a_unidade_e_aberto_em_null_com_motivo() {
 }
 
 #[test]
-fn sobrestado_em_sai_null_fora_da_frase_do_sobrestamento() {
+fn sobrestado_em_sai_fora_da_frase_do_sobrestamento() {
     let casos = [
         duas_unidades(),
         AbertoEm::Unidades(Vec::new()),
@@ -122,8 +122,21 @@ fn sobrestado_em_sai_null_fora_da_frase_do_sobrestamento() {
     ];
     for caso in casos {
         let valor = json_do_processo(&nup(), &com_aberto_em(caso), false);
-        assert_eq!(valor.get("sobrestado_em"), Some(&Value::Null), "{valor}");
+        assert!(valor.get("sobrestado_em").is_none(), "{valor}");
     }
+}
+
+#[test]
+fn aberto_em_nao_lido_falha_antes_de_publicar_o_json() {
+    let nao_lido = com_aberto_em(AbertoEm::NaoLido(
+        MotivoAbertoEm::RaizPublicaOVinculoDeAnexacao,
+    ));
+    assert!(
+        super::saida_da_arvore::exigir_aberto_em_lido(&nao_lido.arvore.aberto_em).is_err(),
+        "leitura que falhou não pode sair como aberto_em ausente"
+    );
+    let lido = com_aberto_em(duas_unidades());
+    assert!(super::saida_da_arvore::exigir_aberto_em_lido(&lido.arvore.aberto_em).is_ok());
 }
 
 #[test]
@@ -168,7 +181,7 @@ fn dica_sai_no_json_e_cada_linha_no_texto_humano() {
         valor["documentos"][0]["dica"],
         "Data de Envio: 01/01/2026 10:00:00\nDe: a@x\nAssunto: y\n"
     );
-    assert!(valor["documentos"][1]["dica"].is_null());
+    assert!(valor["documentos"][1].get("dica").is_none());
     let texto = humano(&nup(), &processo, false);
     assert!(
         texto.contains(

@@ -70,7 +70,7 @@ fn previa_publica_antes_alvo_diferenca_e_campos_sem_valores() {
     assert_eq!(valor["envio"]["metodo"], "POST");
     assert_eq!(valor["envio"]["acao"], "procedimento_configurar_detalhe");
     assert_eq!(valor["envio"]["campos"][0], "sbmSalvar");
-    assert_eq!(valor["depois"], Value::Null);
+    assert!(valor.get("depois").is_none());
     assert_eq!(valor["reconciliado_por_leitura"], false);
     assert!(!valor.to_string().contains("infra_hash"));
 }
