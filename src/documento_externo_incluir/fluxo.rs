@@ -108,6 +108,8 @@ pub(crate) enum ErroIncluirExterno {
     CodificacaoNaoPublicada,
     Pdf(#[from] FalhaPdf),
     EnderecoDeUploadNaoObservado,
+    /// A consulta do endereço de upload tem chave ou valor fora da forma canônica.
+    ConsultaDoUploadForaDaForma(#[source] FalhaTransporte),
     CampoDoCadastroNaoOferecido(CampoExigidoDoCadastro),
     Confirmacao(#[from] FalhaConfirmacao),
 }

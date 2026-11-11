@@ -8,13 +8,13 @@ pub struct IdentidadeDoDocumento {
     pub tipo: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroTituloDocumento {
     TituloSemNumeroSei,
     TituloSemTipoDocumento,
     CabecalhosHtmlRepetidos,
-    HtmlDocumentoNaoInterpretado,
+    HtmlDocumentoNaoInterpretado(#[source] tl::ParseError),
     TituloDocumentoAusente,
     TituloDocumentoSemIdentificacaoSei,
     TitulosDeDocumentoRepetidos,
@@ -22,7 +22,7 @@ pub enum ErroTituloDocumento {
 
 pub fn identidade_do_titulo(html: &str) -> Result<IdentidadeDoDocumento, ErroTituloDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTituloDocumento::HtmlDocumentoNaoInterpretado)?;
+        .map_err(ErroTituloDocumento::HtmlDocumentoNaoInterpretado)?;
     let parser = dom.parser();
     // O <title> de SVG no corpo descreve um ícone, não um documento SEI.
     // Em um HTML com <head>, é esse cabeçalho que define a identidade.
@@ -207,7 +207,7 @@ mod tests {
 }
 
 /// Erros de extração textual; não convertidos em mensagens livres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroCorpoDocumento {
     CorpoVazio,
@@ -216,7 +216,7 @@ pub enum ErroCorpoDocumento {
     ArvoreDocumentoAninhamentoExcessivo,
     CorpoDocumentoAusente,
     CorposDeDocumentoRepetidos,
-    HtmlCorpoDocumentoNaoInterpretado,
+    HtmlCorpoDocumentoNaoInterpretado(#[source] tl::ParseError),
 }
 /// Ícones SVG e templates não renderizados não compõem o texto do documento.
 fn ignorar_subarvore_decorativa(nome: &str) -> bool {
@@ -285,7 +285,7 @@ fn anexar_texto(
 /// Recusa conteúdo executável no corpo para evitar expor scripts ou segredos.
 pub fn texto_do_corpo(html: &str) -> Result<String, ErroCorpoDocumento> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCorpoDocumento::HtmlCorpoDocumentoNaoInterpretado)?;
+        .map_err(ErroCorpoDocumento::HtmlCorpoDocumentoNaoInterpretado)?;
     let parser = dom.parser();
     let mut corpos = dom
         .query_selector("body")

@@ -57,7 +57,7 @@ fn falhas_da_aplicacao_preservam_a_causa_tipificada() {
     assert!(matches!(
         aplicar_troca(&arquivos, &indice, &instalacao, &cookie_ausente, &novo),
         Err(FalhaAplicarTroca::Cookie(
-            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel
+            FalhaTransporte::ArquivoPrivadoAusenteOuInacessivel(_)
         ))
     ));
 

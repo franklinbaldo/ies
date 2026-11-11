@@ -69,10 +69,10 @@ pub(crate) fn campos_do_envio(plano: &PlanoDasColunas) -> Vec<(&'static str, &'s
 /// catálogo. Botões `button`/`reset` e controles `disabled` não são enviados.
 pub(crate) fn conferir_controles_do_formulario(html: &str) -> Result<(), ErroNivelDeDetalhe> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
+        .map_err(ErroNivelDeDetalhe::HtmlDoNivelDeDetalheNaoInterpretado)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DO_NIVEL_DE_DETALHE)
-        .map_err(|_| ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;
+        .map_err(ErroNivelDeDetalhe::FormularioDoNivelDeDetalheAusente)?;
     for tag in form
         .children()
         .all(parser)

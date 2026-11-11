@@ -8,7 +8,7 @@ use crate::sessao_login::ErroLogin;
 use crate::transporte::FalhaTransporte;
 
 /// Recusas da tela "Assinatura de Documento", antes do POST.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroTelaDeAssinatura {
     TelaDeAssinaturaDeOutroDocumento,
@@ -16,7 +16,9 @@ pub(crate) enum ErroTelaDeAssinatura {
     OrgaoDoAssinanteNaoSelecionado,
     CampoDeSenhaAusenteNaTela,
     CampoNaoPrevistoNaTelaDeAssinatura,
-    FormularioDeAssinaturaAusente,
+    FormularioDeAssinaturaAusente(#[source] crate::formulario_web::ErroSubmissaoFormulario),
+    /// O parser de HTML recusou a tela de assinatura.
+    HtmlDaTelaDeAssinaturaRecusadoPeloParser(#[source] tl::ParseError),
     TelaDeAssinaturaNaoInterpretada,
     TelaDeAssinaturaComAtributoIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
 }

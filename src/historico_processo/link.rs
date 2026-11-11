@@ -68,11 +68,11 @@ pub(crate) fn ler_link_do_historico(
 
 /// Forma GO: URL no `onclick` de cada `a` dentro de `div#divConsultarAndamento`.
 fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
-    let ilegivel = ErroLinkDoHistorico::HtmlDaArvoreNaoInterpretado;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| ilegivel)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroLinkDoHistorico::HtmlDaArvoreNaoInterpretado)?;
     let parser = dom.parser();
     let mut achados = Vec::new();
-    for div in nos_com_id(&dom, "divConsultarAndamento").map_err(|_| ilegivel)? {
+    for div in nos_com_id(&dom, "divConsultarAndamento").map_err(ErroLinkDoHistorico::Atributo)? {
         let Some(div) = div.get(parser).and_then(tl::Node::as_tag) else {
             continue;
         };
@@ -83,7 +83,8 @@ fn do_onclick(html: &str) -> Result<Vec<String>, ErroLinkDoHistorico> {
             let bruto = valor_do_atributo(a, "onclick")
                 .map_err(ErroLinkDoHistorico::Atributo)?
                 .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
-            let onclick = decodificar_atributo(&bruto).ok_or(ilegivel)?;
+            let onclick = decodificar_atributo(&bruto)
+                .ok_or(ErroLinkDoHistorico::LinkDoHistoricoForaDaFormaObservada)?;
             if onclick == SEM_ARGUMENTO {
                 continue;
             }

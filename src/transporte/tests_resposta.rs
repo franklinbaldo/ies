@@ -47,10 +47,12 @@ fn tipo_de_conteudo_nao_html_tem_erro_proprio() {
 #[test]
 fn corpo_invalido_no_charset_declarado_tem_erro_proprio() {
     // 0xE7 isolado não é UTF-8 válido; sem charset, o corpo é lido como UTF-8.
-    assert_eq!(
+    assert!(matches!(
         decodificar_resposta(resposta(200, "text/html", b"<html>a\xe7\xe3o</html>")),
-        Err(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado)
-    );
+        Err(FalhaTransporte::CorpoNaoDecodificavelNoCharsetDeclarado(
+            crate::transporte::corpo::ErroCorpoHttp::Utf8Invalido(_)
+        ))
+    ));
     // O mesmo corpo é válido quando o charset ISO-8859-1 é declarado.
     assert!(
         decodificar_resposta(resposta(

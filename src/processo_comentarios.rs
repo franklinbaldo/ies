@@ -39,7 +39,7 @@ pub enum TelaDosComentarios {
     Lista(ComentariosLidos),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroComentarios {
     VisaoNaoPublicada,
@@ -48,6 +48,8 @@ pub(crate) enum ErroComentarios {
     CabecalhoDosComentariosInvalido,
     FormulariosDeComentariosRepetidos,
     HtmlDosComentariosNaoInterpretado,
+    ParseDoHtmlDosComentariosFalhou(#[source] tl::ParseError),
+    TotalDaLegendaDosComentariosIlegivel(#[source] std::num::ParseIntError),
     IdDoComentarioRepetido,
     LegendaDosComentariosInvalida,
     LinhaDoComentarioInvalida,
@@ -124,7 +126,7 @@ impl std::fmt::Debug for EnderecoDosComentarios {
 }
 
 /// Falhas verificáveis ao procurar a ação publicada na barra do processo.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDosComentarios {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
@@ -309,7 +311,7 @@ fn ler_lista<'p>(
     }
     let total_declarado = numero
         .parse::<usize>()
-        .map_err(|_| ErroComentarios::LegendaDosComentariosInvalida)?;
+        .map_err(ErroComentarios::TotalDaLegendaDosComentariosIlegivel)?;
     let colunas = ler_colunas(tabela, parser)?;
     let itens = ler_itens(tabela, parser, &colunas, total_declarado)?;
     Ok(TelaDosComentarios::Lista(ComentariosLidos {
@@ -328,7 +330,7 @@ fn ler_lista<'p>(
 /// dados incompletos ou ids de comentários não inequívocos.
 pub(crate) fn ler_tela(html: &str) -> Result<TelaDosComentarios, ErroComentarios> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroComentarios::HtmlDosComentariosNaoInterpretado)?;
+        .map_err(ErroComentarios::ParseDoHtmlDosComentariosFalhou)?;
     let parser = dom.parser();
     let cadastros = nos_com_id(&dom, "frmComentarioCadastro")
         .map_err(ErroComentarios::AtributoDosComentariosIlegivel)?;

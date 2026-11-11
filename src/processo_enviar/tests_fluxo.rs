@@ -108,11 +108,23 @@ fn tela_recusada_custa_um_get_sem_consulta() {
     let mut pedidos = pedidos_da_abertura();
     pedidos.push(get(&url_da_tela()));
     let fora = tela_de_envio(Versao::V41, ID).replace("frmAtividadeListar", "frmOutro");
-    for (resposta, erro) in [
-        (
-            ok(fora),
-            ErroEnviar::TelaDeEnvio(ErroTelaDeEnvio::FormularioDeEnvioAusente),
+    let (r, feitos) = rodar_envio(
+        DESTINO,
+        false,
+        true,
+        com(abertura(arvore(&[UNIDADE], &enviar())), vec![ok(fora)]),
+    );
+    assert!(
+        matches!(
+            r,
+            Err(ErroEnviar::TelaDeEnvio(
+                ErroTelaDeEnvio::FormularioDeEnvioAusente(_)
+            ))
         ),
+        "{r:?}"
+    );
+    assert_eq!(feitos, pedidos);
+    for (resposta, erro) in [
         (
             r302("controlador.php?acao=principal"),
             ErroEnviar::TelaDaEscritaRedirecionada,

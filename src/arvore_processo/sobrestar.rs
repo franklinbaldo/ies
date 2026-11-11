@@ -8,7 +8,7 @@ use crate::instalacao::Instalacao;
 
 const ONCLICK_RETOMAR: &str = "removerSobrestamentoProcesso();";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAcaoSobrestar {
     Barra(#[from] crate::arvore_processo::ErroBarraDoProcesso),
@@ -73,9 +73,10 @@ pub(crate) fn ler_retomar_da_barra(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroEnderecoDeRetomar {
+    FuncaoDeRetomarForaDaForma(#[source] super::concluir::FuncaoForaDaForma),
+    VariavelDeRetomarForaDaForma(#[source] super::concluir::FuncaoForaDaForma),
     OutroProcesso,
     EnderecoDeRetomarAusenteNaTela,
-    EnderecoDeRetomarForaDaForma,
     EnderecoDeRetomarNaoReconhecido,
     EnderecosDeRetomarRepetidosNaTela,
 }
@@ -86,9 +87,9 @@ pub(crate) fn ler_endereco_de_retomar(
     id: &str,
 ) -> Result<EnderecoDeEscrita, ErroEnderecoDeRetomar> {
     let funcoes = super::concluir::urls_das_funcoes(html, "removerSobrestamentoProcesso")
-        .map_err(|_| ErroEnderecoDeRetomar::EnderecoDeRetomarForaDaForma)?;
+        .map_err(ErroEnderecoDeRetomar::FuncaoDeRetomarForaDaForma)?;
     let variaveis = super::concluir::urls_das_variaveis(html, "linkRemoverSobrestamentoProcesso")
-        .map_err(|_| ErroEnderecoDeRetomar::EnderecoDeRetomarForaDaForma)?;
+        .map_err(ErroEnderecoDeRetomar::VariavelDeRetomarForaDaForma)?;
     let url = match (funcoes.as_slice(), variaveis.as_slice()) {
         ([], []) => return Err(ErroEnderecoDeRetomar::EnderecoDeRetomarAusenteNaTela),
         ([url], []) | ([], [url]) => *url,

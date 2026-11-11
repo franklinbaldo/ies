@@ -29,10 +29,10 @@ pub(super) struct MovidoLido {
 }
 
 pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroArvore> {
-    let fora = ErroArvore::DocumentoMovidoForaDaFormaObservada;
+    let fora = || ErroArvore::DocumentoMovidoForaDaFormaObservada;
     let id = super::texto(&a[1])?;
     if documento_do_composto(id).is_none() {
-        return Err(fora);
+        return Err(fora());
     }
     let pai = super::texto(&a[2])?;
     // a3 acompanha o pai: um a3 de outro processo é pai divergente.
@@ -40,11 +40,11 @@ pub(super) fn ler_movido(a: &[Literal; ARGUMENTOS]) -> Result<MovidoLido, ErroAr
         return Err(ErroArvore::DocumentoMovidoComPaiDiferenteDoProcesso);
     }
     if !endereco_observado(super::texto(&a[3])?, pai) {
-        return Err(fora);
+        return Err(fora());
     }
     let rotulo = super::texto(&a[5])?;
     if rotulo.is_empty() {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(MovidoLido {
         pai: pai.to_owned(),
@@ -133,8 +133,8 @@ pub(crate) fn ler_destinos_dos_movidos(
         let Some(id) = indice_do_html(linha).and_then(|i| nos.get(&i)) else {
             continue;
         };
-        let Some((_, texto)) = ler_html(linha)
-            .map_err(|_| ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada)?
+        let Some((_, texto)) =
+            ler_html(linha).map_err(|e| ErroArvore::LinhaDoDestinoMovidoIlegivel(Box::new(e)))?
         else {
             continue;
         };
@@ -155,8 +155,8 @@ fn destino_do_html(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<Option<DestinoDoMovido>, ErroArvore> {
-    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
-    let dom = tl::parse(texto, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let dom = tl::parse(texto, tl::ParserOptions::default())
+        .map_err(ErroArvore::ParseDoDestinoMovidoFalhou)?;
     let parser = dom.parser();
     let mut achado = None;
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -188,34 +188,34 @@ fn conferir(
     id: &str,
     processo: &ProcessoNaArvore,
 ) -> Result<DestinoDoMovido, ErroArvore> {
-    let fora = ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
+    let fora = || ErroArvore::DestinoDoDocumentoMovidoForaDaFormaObservada;
     let valores = |nome: &str| -> Vec<&str> {
         pares(href)
             .filter(|(chave, _)| *chave == nome)
             .map(|(_, valor)| valor)
             .collect()
     };
-    let documento = documento_do_composto(id).ok_or(fora)?;
+    let documento = documento_do_composto(id).ok_or_else(fora)?;
     let (destinos, documentos) = (valores("id_procedimento"), valores("id_documento"));
     let ([destino], [doc]) = (destinos.as_slice(), documentos.as_slice()) else {
-        return Err(fora);
+        return Err(fora());
     };
     if *doc != documento
         || *destino == processo.id
         || !super::decimal(destino)
         || !valores("id_procedimento_anexado").is_empty()
     {
-        return Err(fora);
+        return Err(fora());
     }
     let absoluta =
         conferir_endereco_relativo(instalacao, href, AcaoDoSei::ProcedimentoTrabalhar, destino)
-            .map_err(|_| fora)?;
+            .map_err(ErroArvore::EnderecoDoDestinoMovidoRecusado)?;
     if texto.is_empty()
         || texto.trim() != texto
         || texto.contains(['<', '>', '&'])
         || texto == processo.nup
     {
-        return Err(fora);
+        return Err(fora());
     }
     Ok(DestinoDoMovido {
         numero: texto.to_owned(),

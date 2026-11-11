@@ -16,10 +16,11 @@ pub(super) fn destino_oferecido(
     if !id_alvo.bytes().all(|b| b.is_ascii_digit()) || id_alvo.is_empty() {
         return Err(recusada());
     }
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| recusada())?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroAcompanhar::HtmlDaTelaDeExclusaoRecusadoPeloParser)?;
     let parser = dom.parser();
     let form = crate::formulario_web::localizar_formulario(&dom, "frmGerenciarAcompanhamento")
-        .map_err(|_| recusada())?;
+        .map_err(ErroAcompanhar::Formulario)?;
     let action = campo(form, "action")?.ok_or_else(recusada)?;
     let action = decodificar_atributo(&action).ok_or_else(recusada)?;
     crate::arvore_processo::conferir_endereco_relativo(
@@ -28,7 +29,7 @@ pub(super) fn destino_oferecido(
         AcaoDoSei::AcompanhamentoGerenciar,
         id_procedimento,
     )
-    .map_err(|_| recusada())?;
+    .map_err(ErroAcompanhar::EnderecoDaExclusaoRecusado)?;
 
     // Mesmo alvo na checkbox, no link da linha e no campo enviado.
     let mut campos = 0;
@@ -82,7 +83,7 @@ pub(super) fn destino_oferecido(
             AcaoDoSei::AcompanhamentoExcluir,
             id_procedimento,
         )
-        .map_err(|_| recusada())?;
+        .map_err(ErroAcompanhar::EnderecoDaExclusaoRecusado)?;
         destinos.push(destino);
     }
     match destinos.as_slice() {

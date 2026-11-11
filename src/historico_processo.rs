@@ -49,7 +49,7 @@ pub(crate) struct AndamentosLidos {
 }
 
 /// Falhas do link do histórico na árvore: um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroLinkDoHistorico {
     /// O tokenizador de atributos recusou a tag.
@@ -57,13 +57,14 @@ pub(crate) enum ErroLinkDoHistorico {
     LinkDoHistoricoAusenteNaArvore,
     EnderecoDoHistoricoDeOutroProcesso,
     EnderecoDoHistoricoNaoReconhecido,
-    HtmlDaArvoreNaoInterpretado,
+    /// O tokenizador HTML recusou a árvore onde o link é procurado.
+    HtmlDaArvoreNaoInterpretado(#[source] tl::ParseError),
     LinkDoHistoricoForaDaFormaObservada,
     LinksDoHistoricoRepetidosNaArvore,
 }
 
 /// Falhas da página do histórico e da troca de visão.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroAndamentos {
     /// O tokenizador de atributos recusou a tag.
@@ -77,11 +78,15 @@ pub(crate) enum ErroAndamentos {
     VisaoDoHistoricoDiferenteDaPedida,
     LegendaDosAndamentosAusente,
     LegendaDosAndamentosForaDaFormaObservada,
+    RegraDeVerHistoricoNaoInterpretada(#[source] tl::ParseError),
+    TabelaDoHistoricoNaoInterpretada(#[source] tl::ParseError),
+    NumeroDeRegistrosIlegivel(#[source] std::num::ParseIntError),
+    FormularioDoTipoNaoLocalizado(#[source] crate::formulario_web::ErroSubmissaoFormulario),
 }
 
 impl ErroAndamentos {
     /// A página é de outro NUP: um link guardado errou.
-    pub(crate) fn diverge_do_pedido(self) -> bool {
-        self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
+    pub(crate) fn diverge_do_pedido(&self) -> bool {
+        *self == Self::Historico(ErroHistorico::NumeroDoHistoricoDiferenteDoSolicitado)
     }
 }

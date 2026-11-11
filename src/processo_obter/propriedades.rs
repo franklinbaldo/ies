@@ -22,7 +22,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     let endereco = match &aberta.propriedades {
         Ok(Some(endereco)) => endereco,
         Ok(None) => return Ok(Propriedades::NaoPublicadasNaBarra),
-        Err(erro) => return Err(ErroProcessoObter::Propriedades(*erro)),
+        Err(erro) => return Err(ErroProcessoObter::Propriedades(erro.clone())),
     };
     let id = aberta.arvore.processo.id.as_str();
     let fonte = endereco.fonte;
@@ -63,7 +63,7 @@ fn pelo_guardado<V: EnvioDoProcesso>(
     match rede.get(&url)? {
         Lida::Html { html, .. } => match ler_propriedades(&html, contexto.nup, id, fonte) {
             Ok(lidas) => Ok(Some((url, lidas))),
-            Err(erro) if erro.link_envelhecido() => {
+            Err(erro) if erro.clone().link_envelhecido() => {
                 contexto.esquecer_link(acao, id);
                 Ok(None)
             }

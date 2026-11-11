@@ -7,7 +7,7 @@ use super::{
     escolha_do_tipo, filtro_de_todos, tipos_oferecidos,
 };
 use crate::acao_do_sei::AcaoDoSei;
-use crate::arvore_processo::ErroLinkIncluirDocumento;
+use crate::arvore_processo::{ErroLinkIncluirDocumento, MotivoAbertoEm};
 use crate::formulario_web::{
     ConferenciaDaUnidade, EfeitoAvaliado, EnvioDoFormulario, ErroSubmissaoFormulario,
     EstadoDeSessao, EstadoDoProcesso, OperacaoDeFormulario, RespostaDoEnvio, ResultadoDoEnvio,
@@ -109,7 +109,7 @@ pub(crate) enum ErroDocumentoCriar {
     Abertura(#[from] ErroProcessoObter),
     OrigemNaoAutorizada,
     UnidadeNaoPublicada,
-    SituacaoNaoLida,
+    SituacaoNaoLida(MotivoAbertoEm),
     ProcessoNaoAbertoNaUnidade,
     Link(#[from] ErroLinkIncluirDocumento),
     LinkNaoPublicado,
@@ -186,8 +186,8 @@ pub(crate) fn executar_criacao<V: EnvioDoProcesso>(
     let unidade = aberto
         .unidade
         .ok_or(ErroDocumentoCriar::UnidadeNaoPublicada)?;
-    let abertas = siglas_abertas(&aberto.arvore.aberto_em)
-        .map_err(|_| ErroDocumentoCriar::SituacaoNaoLida)?;
+    let abertas =
+        siglas_abertas(&aberto.arvore.aberto_em).map_err(ErroDocumentoCriar::SituacaoNaoLida)?;
     if !abertas.contains(&unidade) {
         return Err(ErroDocumentoCriar::ProcessoNaoAbertoNaUnidade);
     }

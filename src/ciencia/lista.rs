@@ -11,16 +11,19 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
     if !identificador(atividade) {
         return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
-    let fora = ErroCiencia::ListaDeCienciasForaDaFormaObservada;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora)?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroCiencia::ListaDeCienciasNaoInterpretada)?;
     let parser = dom.parser();
-    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(|_| fora)?;
+    let tabelas = nos_com_id(&dom, "tblAndamentos").map_err(ErroCiencia::Atributo)?;
     let [unica] = tabelas.as_slice() else {
-        return Err(fora);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
-    let tabela = unica.get(parser).and_then(tl::Node::as_tag).ok_or(fora)?;
+    let tabela = unica
+        .get(parser)
+        .and_then(tl::Node::as_tag)
+        .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
     if tabela.name().as_utf8_str() != "table" {
-        return Err(fora);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
     // O SEI depende de JavaScript ativo. Mesmo que o parser HTML indexe
     // a tabela ou o checkbox dentro de <template> ou <noscript>, o navegador
@@ -47,7 +50,7 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
             .next()
             .is_some();
         if ancestral_inerte || descendente_inerte {
-            return Err(fora);
+            return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         }
     }
     let legendas: Vec<String> = tabela
@@ -58,13 +61,13 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         .map(|no| no.inner_text(parser).into_owned())
         .collect();
     let [legenda] = legendas.as_slice() else {
-        return Err(fora);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     };
     // Com ou sem contagem: `UnB` 4.0.9 publica "Lista de Ciências (1 registro):".
     let contagem = legenda
         .strip_prefix("Lista de Ciências")
         .and_then(|resto| resto.strip_suffix(':'))
-        .ok_or(fora)?;
+        .ok_or(ErroCiencia::ListaDeCienciasForaDaFormaObservada)?;
     let contagem_valida = contagem.is_empty()
         || contagem
             .strip_prefix(" (")
@@ -74,12 +77,12 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
                 identificador(n) && matches!(palavra, "registro" | "registros")
             });
     if !contagem_valida {
-        return Err(fora);
+        return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
     }
     let mut ocorrencias = 0;
     for no in tabela.query_selector(parser, "input").into_iter().flatten() {
         let Some(tag) = no.get(parser).and_then(tl::Node::as_tag) else {
-            return Err(fora);
+            return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         };
         let tipo = valor_do_atributo(tag, "type").map_err(ErroCiencia::Atributo)?;
         if tipo.as_deref() != Some("checkbox") {
@@ -88,13 +91,13 @@ pub(crate) fn atividade_na_lista(html: &str, atividade: &str) -> Result<bool, Er
         let nome = valor_do_atributo(tag, "name").map_err(ErroCiencia::Atributo)?;
         let valor = valor_do_atributo(tag, "value").map_err(ErroCiencia::Atributo)?;
         let Some(nome) = nome else {
-            return Err(fora);
+            return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         };
         let Some(resto) = nome.strip_prefix("chkInfraItem") else {
             continue;
         };
         if !resto.bytes().all(|c| c.is_ascii_digit()) {
-            return Err(fora);
+            return Err(ErroCiencia::ListaDeCienciasForaDaFormaObservada);
         }
         if valor.as_deref() == Some(atividade) {
             ocorrencias += 1;

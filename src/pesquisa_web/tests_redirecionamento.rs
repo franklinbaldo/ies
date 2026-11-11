@@ -179,9 +179,14 @@ fn nomes_de_parametro_nao_canonicos_ou_ponto_e_virgula_sao_recusados() {
         observado().replace("id_documento=", "id_documento=1;acao=x"),
         format!("{}&&", observado()),
     ] {
-        assert_eq!(
-            erro(&alterado),
-            ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento,
+        assert!(
+            matches!(
+                erro(&alterado),
+                ErroRedirecionamentoDaPesquisa::ParametroNaoCanonicoNaLocalizacaoDoRedirecionamento
+                    | ErroRedirecionamentoDaPesquisa::ParametroDeConsultaRecusadoNoRedirecionamento(
+                        _
+                    )
+            ),
             "{alterado}"
         );
     }
@@ -225,9 +230,11 @@ fn id_procedimento_ausente_vazio_repetido_ou_nao_decimal_e_recusado() {
     );
     for id in ["7a", "-7", "+7", "%37", "0x7"] {
         let alterado = format!("controlador.php?{}", consulta(id));
-        assert_eq!(
-            erro(&alterado),
-            ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento,
+        assert!(
+            matches!(
+                erro(&alterado),
+                ErroRedirecionamentoDaPesquisa::IdProcedimentoNaoDecimalNoRedirecionamento(_)
+            ),
             "{id}"
         );
     }
@@ -395,8 +402,8 @@ fn redirect_de_documento_na_pesquisa_rapida_nao_aceita_id_protocolo() {
         conferir(&format!("{destino}&id_documento=42")),
         Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRepetidoNoRedirecionamento)
     );
-    assert_eq!(
+    assert!(matches!(
         conferir(&destino.replace("id_documento=42", "id_documento=x")),
-        Err(ErroRedirecionamentoDaPesquisa::IdDocumentoNaoDecimalNoRedirecionamento)
-    );
+        Err(ErroRedirecionamentoDaPesquisa::IdDocumentoRecusadoNoRedirecionamento(_))
+    ));
 }

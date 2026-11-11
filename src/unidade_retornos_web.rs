@@ -23,6 +23,8 @@ pub(crate) enum ErroLeituraRetornos {
     MesDosRetornosInacessivel,
     MesDaCliInvalido,
     UnidadeDiferenteDaSolicitada,
+    /// O parser de HTML recusou a tela do calendário dos retornos.
+    HtmlDoCalendarioNaoInterpretado(#[source] tl::ParseError),
 }
 
 impl ErroLeituraRetornos {
@@ -40,7 +42,8 @@ impl ErroLeituraRetornos {
             | Self::MesDosRetornosInacessivel
             | Self::MesDaCliInvalido
             | Self::Atributo(_)
-            | Self::UnidadeDiferenteDaSolicitada => false,
+            | Self::UnidadeDiferenteDaSolicitada
+            | Self::HtmlDoCalendarioNaoInterpretado(_) => false,
         }
     }
 }
@@ -158,10 +161,8 @@ fn conferir_link(
         let (k, v) = par
             .split_once('=')
             .ok_or(ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-        transporte::conferir_chave_de_consulta(k)
-            .map_err(|_| ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
-        transporte::conferir_valor_de_consulta(v)
-            .map_err(|_| ErroLeituraRetornos::LinkDeRetornosForaDaInstalacao)?;
+        transporte::conferir_chave_de_consulta(k).map_err(ErroLeituraRetornos::Transporte)?;
+        transporte::conferir_valor_de_consulta(v).map_err(ErroLeituraRetornos::Transporte)?;
         if !vistos.insert(k) || k == "acao_ajax" {
             return Err(nao);
         }
@@ -187,7 +188,7 @@ fn links(
     instalacao: &Instalacao,
 ) -> Result<Vec<Link>, ErroLeituraRetornos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?;
+        .map_err(ErroLeituraRetornos::HtmlDoCalendarioNaoInterpretado)?;
     let parser = dom.parser();
     let mut saida = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
@@ -263,7 +264,7 @@ fn hoje_na_tela(
     instalacao: &Instalacao,
 ) -> Result<Option<(u16, u8)>, ErroLeituraRetornos> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroLeituraRetornos::CalendarioDosRetornosDesconhecido)?;
+        .map_err(ErroLeituraRetornos::HtmlDoCalendarioNaoInterpretado)?;
     let parser = dom.parser();
     let mut marcado = None;
     let mut celulas_marcadas = 0;

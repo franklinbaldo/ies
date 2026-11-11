@@ -81,10 +81,10 @@ pub(crate) fn conferir_tela_de_assinatura(
     id_documento: &str,
 ) -> Result<TelaDeAssinatura, ErroTelaDeAssinatura> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroTelaDeAssinatura::TelaDeAssinaturaNaoInterpretada)?;
+        .map_err(ErroTelaDeAssinatura::HtmlDaTelaDeAssinaturaRecusadoPeloParser)?;
     let parser = dom.parser();
     let form = localizar_formulario(&dom, FORMULARIO_DE_ASSINATURA)
-        .map_err(|_| ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;
+        .map_err(ErroTelaDeAssinatura::FormularioDeAssinaturaAusente)?;
     let (mut documentos, mut id_usuario, mut assinante) = (None, None, None);
     let (mut orgao, mut cargos, mut senha) = (None, None, false);
     for tag in form

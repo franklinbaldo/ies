@@ -16,6 +16,7 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
     match falha {
         FalhaDaGravacao::SemNomeDeArquivo => ErroArquivoTexto::NomeAusente,
         FalhaDaGravacao::DiretorioAusente
+        | FalhaDaGravacao::DiretorioNaoConsultado(_)
         | FalhaDaGravacao::NivelDoCaminhoNaoEhDiretorio
         | FalhaDaGravacao::NivelDoCaminhoIlegivel(_) => ErroArquivoTexto::DiretorioAusente,
         FalhaDaGravacao::DestinoJaExiste => ErroArquivoTexto::DestinoJaExiste,
@@ -29,7 +30,8 @@ fn traduzir(falha: crate::arquivo_privado::FalhaDaGravacao) -> ErroArquivoTexto 
         | FalhaDaGravacao::CriacaoDoTemporarioFalhou(_)
         | FalhaDaGravacao::NomesDeTemporarioEsgotados
         | FalhaDaGravacao::EscritaFalhou
-        | FalhaDaGravacao::ConfirmacaoFalhou => ErroArquivoTexto::EscritaFalhou,
+        | FalhaDaGravacao::ErroDeIoNaEscrita(_)
+        | FalhaDaGravacao::ConfirmacaoFalhou(_) => ErroArquivoTexto::EscritaFalhou,
     }
 }
 

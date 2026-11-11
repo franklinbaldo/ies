@@ -2,7 +2,7 @@
 //! O transporte é injetável; a confirmação nunca repete a submissão.
 use crate::acao_do_sei::AcaoDoSei;
 use crate::arvore_processo::{ArvoreLida, DocumentoNaArvore};
-use crate::documento_criar::conferir_criacao;
+use crate::documento_criar::{ErroCriar, conferir_criacao};
 use crate::formulario_web::{ErroSubmissaoFormulario, RespostaDoPost, SubmissaoDerivada};
 use crate::formulario_web::{RespostaDoEnvio, enviar_submissao_via};
 use crate::processo_obter::ErroProcessoObter;
@@ -92,6 +92,8 @@ pub(crate) enum ErroConfirmacaoDaCriacao {
     FotoInicialInconsistente,
     /// A releitura não demonstra um documento novo único do tipo pedido.
     NaoConfirmado,
+    /// A releitura não traz um documento novo do tipo pedido; guarda o motivo.
+    NaoDemonstradoNaArvore(#[source] ErroCriar),
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
     NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
@@ -144,7 +146,7 @@ where
         return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     let numero = conferir_criacao(&antes.documentos, &depois.documentos, tipo)
-        .map_err(|_| ErroConfirmacaoDaCriacao::NaoConfirmado)?;
+        .map_err(ErroConfirmacaoDaCriacao::NaoDemonstradoNaArvore)?;
     let id_novo = depois
         .documentos
         .iter()

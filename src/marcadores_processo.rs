@@ -78,7 +78,7 @@ pub(crate) enum TelaDosMarcadores {
 }
 
 /// Falhas do link na barra e da tela: um erro por fato.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub(crate) enum ErroMarcadores {
     /// O tokenizador de atributos recusou a tag.
@@ -93,6 +93,10 @@ pub(crate) enum ErroMarcadores {
     MarcadoresAlemDoTotalDeclarado,
     CabecalhoDosMarcadoresNaoReconhecido,
     HtmlDosMarcadoresNaoInterpretado,
+    /// O parser de HTML recusou a tela de marcadores.
+    HtmlDosMarcadoresRecusadoPeloParser(#[source] tl::ParseError),
+    /// O número da legenda dos marcadores não é um inteiro decimal.
+    NumeroDaLegendaIlegivel(#[source] std::num::ParseIntError),
     LegendaDosMarcadoresForaDaFormaObservada,
     LinhaDoMarcadorForaDaFormaObservada,
     MarcadorRepetidoNaTela,
@@ -101,7 +105,7 @@ pub(crate) enum ErroMarcadores {
 
 impl ErroMarcadores {
     /// A página não é a tela deste processo: um link guardado errou.
-    pub(crate) fn link_envelhecido(self) -> bool {
+    pub(crate) fn link_envelhecido(&self) -> bool {
         matches!(
             self,
             Self::TelaDosMarcadoresAusente

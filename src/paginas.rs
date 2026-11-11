@@ -17,13 +17,13 @@ struct Faixa {
 }
 
 /// A legenda declara total ou faixa fora da forma observada.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 #[error("{self:?}")]
 pub enum ErroFaixaDaLegenda {
     TotalIlegivel,
     FaixaSemSeparador,
-    InicioIlegivel,
-    FimIlegivel,
+    InicioIlegivel(#[source] std::num::ParseIntError),
+    FimIlegivel(#[source] std::num::ParseIntError),
     /// Início zero, início depois do fim, fim acima do total ou tamanho
     /// diferente das linhas servidas.
     FaixaIncoerenteComAsLinhas,
@@ -51,12 +51,12 @@ fn faixa_da_legenda(legenda: &str, linhas: usize) -> Result<Option<Faixa>, ErroF
         let inicio = inicio
             .trim()
             .parse::<usize>()
-            .map_err(|_| ErroFaixaDaLegenda::InicioIlegivel)?;
+            .map_err(ErroFaixaDaLegenda::InicioIlegivel)?;
         let fim = fim
             .trim()
             .trim_end_matches(|c: char| !c.is_ascii_digit())
             .parse::<usize>()
-            .map_err(|_| ErroFaixaDaLegenda::FimIlegivel)?;
+            .map_err(ErroFaixaDaLegenda::FimIlegivel)?;
         if inicio == 0 || inicio > fim || fim > total || fim - inicio + 1 != linhas {
             return Err(ErroFaixaDaLegenda::FaixaIncoerenteComAsLinhas);
         }
@@ -86,7 +86,7 @@ fn faixa_da_tabela(
     linhas: usize,
 ) -> Result<Option<Faixa>, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let parser = dom.parser();
     let tabela = match nos_com_id(&dom, id)
         .map_err(ErroCaixa::AtributoDaCaixaIlegivel)?

@@ -48,7 +48,7 @@ pub(super) fn ler<V: EnvioDoProcesso>(
     let raiz = if pedido.cache_host.is_some() {
         Some(
             crate::cache_documento::raiz()
-                .map_err(|_| super::erro::ErroDocumentoObter::Anexo(ErroAnexo::EscritaFalhou))?,
+                .map_err(super::erro::ErroDocumentoObter::RaizDoCacheIlegivel)?,
         )
     } else {
         None
@@ -80,7 +80,12 @@ pub(super) fn ler<V: EnvioDoProcesso>(
         | ErroAnexo::Corpo(_)
         | ErroAnexo::DiretorioAusente
         | ErroAnexo::ArquivoJaExiste
-        | ErroAnexo::EscritaFalhou) => super::erro::ErroDocumentoObter::Anexo(outro),
+        | ErroAnexo::EscritaFalhou
+        | ErroAnexo::GravacaoDoParcialFalhou(_)
+        | ErroAnexo::PublicacaoDoCacheFalhou(_)
+        | ErroAnexo::CorpoNaoUtf8NoCharsetDeclarado(_)) => {
+            super::erro::ErroDocumentoObter::Anexo(outro)
+        }
     })?;
     Ok((
         String::new(),

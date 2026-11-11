@@ -64,6 +64,10 @@ pub(crate) enum ErroComentar {
     TelaDaLista(#[source] FalhaDaTela),
     ListaIlegivel(#[source] ErroComentarios),
     ListaForaDaForma,
+    /// O tokenizador HTML recusou a lista de comentários.
+    ListaHtmlNaoInterpretada(#[source] tl::ParseError),
+    /// O tokenizador de atributos recusou o `href` de um link da lista.
+    AtributoDaLinkIlegivel(#[source] crate::html_atributos::ErroAtributoHtml),
     /// Zero ou mais de um link `comentario_cadastrar` na lista.
     LinkDoCadastroNaoUnico,
     LinkDoCadastroRecusado(EnderecoRecusado),
@@ -73,6 +77,7 @@ pub(crate) enum ErroComentar {
     CharsetDoCadastroNaoSuportado,
     Formulario(#[source] ErroSubmissaoFormulario),
     EnderecoDoFormularioRecusado,
+    EnderecoDoFormularioRecusadoPelaPolitica(EnderecoRecusado),
     /// O POST saiu e a releitura não comprovou o comentário: não repita
     /// `--confirmar` sem conferir a lista.
     NaoConfirmado {
@@ -107,7 +112,8 @@ pub(crate) struct Previa {
 /// A URL é conferida pela política canônica do controlador e pela identidade.
 fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<String, ErroComentar> {
     let fora = || ErroComentar::ListaForaDaForma;
-    let dom = tl::parse(html, tl::ParserOptions::default()).map_err(|_| fora())?;
+    let dom = tl::parse(html, tl::ParserOptions::default())
+        .map_err(ErroComentar::ListaHtmlNaoInterpretada)?;
     let mut links = Vec::new();
     for no in dom.query_selector("a").into_iter().flatten() {
         let tag = no
@@ -116,7 +122,7 @@ fn link_do_cadastro(instalacao: &Instalacao, html: &str, id: &str) -> Result<Str
             .ok_or_else(fora)?;
         let href = atributos(tag)
             .and_then(|a| a.valor("href"))
-            .map_err(|_| fora())?;
+            .map_err(ErroComentar::AtributoDaLinkIlegivel)?;
         if let Some(href) = href {
             let href = decodificar_atributo(href).ok_or_else(fora)?;
             if href
@@ -267,7 +273,7 @@ pub(crate) fn prever<V: EnvioDoProcesso>(
         .strip_prefix(&format!("{}/", instalacao.url_base()))
         .ok_or(ErroComentar::EnderecoDoFormularioRecusado)?;
     conferir_endereco_relativo(&instalacao, endereco, AcaoDoSei::ComentarioCadastrar, id)
-        .map_err(|_| ErroComentar::EnderecoDoFormularioRecusado)?;
+        .map_err(ErroComentar::EnderecoDoFormularioRecusadoPelaPolitica)?;
     if confirmar_escrita {
         confirmar(
             submissao,

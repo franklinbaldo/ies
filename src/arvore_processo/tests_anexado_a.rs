@@ -96,32 +96,47 @@ fn link_do_pai_fora_da_forma_e_recusa() {
     let href = href_do_pai(ID_PAI, "10");
     let com_href = |h: &str| arvore_do_anexado("10", NUP, &html_do_anexado(h, NUP_PAI));
     let com_texto = |t: &str| arvore_do_anexado("10", NUP, &html_do_anexado(&href, t));
+    let forma = super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada;
+    let recusa = super::ErroArvore::EnderecoDoVinculoDeAnexacaoRecusado(
+        crate::arvore_processo::endereco::EnderecoRecusado::NaoReconhecido,
+    );
     let casos = [
-        com_href(&href_do_pai(ID_PAI, "11")),
-        com_href(&href_do_pai("10", "10")),
-        com_href(&href.replace(
-            "acao=procedimento_trabalhar",
-            "acao=procedimento_visualizar",
-        )),
-        com_href(&href.replace(&"4".repeat(64), &"4".repeat(63))),
-        com_href(&format!("{ORIGEM}/{href}")),
-        com_href(&href.replace("&infra_sistema", "&id_procedimento=91&infra_sistema")),
-        com_href(&href.replace(
-            "&infra_sistema",
-            "&id_procedimento_anexado=10&infra_sistema",
-        )),
-        com_href(&href.replace("id_procedimento=90", "id_procedimento=9a")),
-        com_texto(""),
-        com_texto(&format!(" {NUP_PAI}")),
-        com_texto(&format!("{NUP_PAI}&amp;")),
-        com_texto(&format!("<b>{NUP_PAI}</b>")),
+        (com_href(&href_do_pai(ID_PAI, "11")), Err(forma.clone())),
+        (com_href(&href_do_pai("10", "10")), Err(forma.clone())),
+        (
+            com_href(&href.replace(
+                "acao=procedimento_trabalhar",
+                "acao=procedimento_visualizar",
+            )),
+            Err(recusa.clone()),
+        ),
+        (
+            com_href(&href.replace(&"4".repeat(64), &"4".repeat(63))),
+            Err(recusa.clone()),
+        ),
+        (com_href(&format!("{ORIGEM}/{href}")), Err(recusa.clone())),
+        (
+            com_href(&href.replace("&infra_sistema", "&id_procedimento=91&infra_sistema")),
+            Err(forma.clone()),
+        ),
+        (
+            com_href(&href.replace(
+                "&infra_sistema",
+                "&id_procedimento_anexado=10&infra_sistema",
+            )),
+            Err(forma.clone()),
+        ),
+        (
+            com_href(&href.replace("id_procedimento=90", "id_procedimento=9a")),
+            Err(forma.clone()),
+        ),
+        (com_texto(""), Err(forma.clone())),
+        (com_texto(&format!(" {NUP_PAI}")), Err(forma.clone())),
+        (com_texto(&format!("{NUP_PAI}&amp;")), Err(forma.clone())),
+        (com_texto(&format!("<b>{NUP_PAI}</b>")), Err(forma.clone())),
     ];
-    for html in casos {
-        assert_eq!(
-            ler(&html),
-            Err(super::ErroArvore::VinculoDeAnexacaoForaDaFormaObservada),
-            "{html}"
-        );
+    for (html, esperado) in casos {
+        assert_eq!(ler(&html), esperado, "{html}");
     }
 }
 
@@ -143,10 +158,10 @@ fn links_ou_html_repetidos_e_html_nao_literal_sao_recusa() {
     );
     let nao_literal = arvore(&[no_processo(0, "10", NUP)])
         .replace("Nos[0].html = '';", "Nos[0].html = montar();");
-    assert_eq!(
+    assert!(matches!(
         ler(&nao_literal),
-        Err(super::ErroArvore::HtmlDoNoDoProcessoForaDaFormaObservada)
-    );
+        Err(super::ErroArvore::HtmlDoNoDoProcessoIlegivel(_))
+    ));
 }
 
 #[test]

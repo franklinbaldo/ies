@@ -34,7 +34,7 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 | ErroDetalhada::UnidadeDiferente
                 | ErroDetalhada::ContextoDiferente
                 | ErroDetalhada::ColunasDaLinhaDiferentes
-                | ErroDetalhada::ClassesDeEstadoDiferentesNoLink
+                | ErroDetalhada::ClassesDeEstadoDiferentesNoLink(_)
                 | ErroDetalhada::TotalNaoDeclarado
                 | ErroDetalhada::FaixaSemIntervaloComPaginacao
                 | ErroDetalhada::FaixaDescontinua
@@ -49,9 +49,12 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 | ErroDetalhada::CabecalhoProcessoDetalhadoRepetido
                 | ErroDetalhada::ColunaDaVisaoDetalhadaRepetida
                 | ErroDetalhada::FaixaDetalhadaInvalida
-                | ErroDetalhada::HtmlDetalhadoNaoInterpretado
+                | ErroDetalhada::HtmlDetalhadoNaoInterpretado(_)
+                | ErroDetalhada::TotalNaoNumerico(_)
+                | ErroDetalhada::NumeroDaFaixaIlegivel(_)
+                | ErroDetalhada::ControleDaPaginaNaoInterpretado(_)
                 | ErroDetalhada::AtributoDaDetalhadaIlegivel(_)
-                | ErroDetalhada::IdentificadorDetalhadoInvalido
+                | ErroDetalhada::IdentificadorDetalhadoInvalido(_)
                 | ErroDetalhada::IdentificadorDetalhadoRepetido
                 | ErroDetalhada::ItensNaoPrevistosNaCelulaDetalhada
                 | ErroDetalhada::LegendaDetalhadaAusente
@@ -60,7 +63,7 @@ pub(crate) fn unidade_do_controle(html: &str) -> Result<String, ErroCaixa> {
                 | ErroDetalhada::LinksDoProcessoDetalhadoRepetidos
                 | ErroDetalhada::MarcadorDaCelulaDetalhadaForaDaFormaObservada
                 | ErroDetalhada::NumeroDetalhadoRepetido
-                | ErroDetalhada::NumeroDoProcessoDetalhadoAusente
+                | ErroDetalhada::NumeroDoProcessoDetalhadoAusente(_)
                 | ErroDetalhada::TabelaDetalhadaAusente
                 | ErroDetalhada::TabelasDetalhadasRepetidas => ErroCaixa::HtmlDaCaixaInvalido,
             });
