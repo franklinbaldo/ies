@@ -69,7 +69,6 @@ fn arquivo_de_configuracao() -> Option<PathBuf> {
 pub enum ErroGravacaoDaConfiguracao {
     CaminhoPrivadoAusenteOuNaoAbsoluto,
     /// O sistema não consultou o arquivo privado (o motivo do sistema).
-    #[cfg(unix)]
     ArquivoPrivadoNaoLido(std::io::ErrorKind),
     #[cfg(unix)]
     PermissoesDeArquivoPrivadoInseguras,
@@ -85,18 +84,27 @@ pub fn salvar_arquivos_de_acesso(
     arquivos: &ArquivosDeAcesso,
 ) -> Result<(), ErroGravacaoDaConfiguracao> {
     use crate::arquivo_privado::{self, FalhaDaGravacao, Politica};
-    let campos = [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem];
-    if campos.iter().any(|p| !p.is_absolute() || !p.is_file()) {
-        return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
-    }
-    #[cfg(unix)]
-    for path in campos {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = std::fs::metadata(path)
-            .map_err(|erro| ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(erro.kind()))?
-            .permissions();
-        if perms.mode() & 0o077 != 0 {
-            return Err(ErroGravacaoDaConfiguracao::PermissoesDeArquivoPrivadoInseguras);
+    for path in [&arquivos.url_controle, &arquivos.cookie, &arquivos.origem] {
+        if !path.is_absolute() {
+            return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
+        }
+        // Consultar uma vez: Path::is_file descartava a causa da falha.
+        let info = std::fs::metadata(path).map_err(|erro| {
+            if erro.kind() == std::io::ErrorKind::NotFound {
+                ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto
+            } else {
+                ErroGravacaoDaConfiguracao::ArquivoPrivadoNaoLido(erro.kind())
+            }
+        })?;
+        if !info.is_file() {
+            return Err(ErroGravacaoDaConfiguracao::CaminhoPrivadoAusenteOuNaoAbsoluto);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if info.permissions().mode() & 0o077 != 0 {
+                return Err(ErroGravacaoDaConfiguracao::PermissoesDeArquivoPrivadoInseguras);
+            }
         }
     }
     if !destino.is_absolute() {
