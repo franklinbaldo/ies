@@ -191,7 +191,7 @@ fn submeter_envio<V: EnvioDoProcesso>(
         html: &tela.html,
         codificacao: tela.codificacao,
     };
-    let submissao = derivar_submissao(&ENVIAR_PROCESSO, instalacao, &servida, "", &pares)
+    let submissao = derivar_submissao(&ENVIAR_PROCESSO, instalacao, &servida, None, &pares)
         .map_err(|causa| erro_apos_limpeza(feito, causa))?;
     enviar(rede, sessao, submissao, &feito.id_procedimento).map_err(|erro| match erro {
         ErroEnviar::Formulario(causa) => erro_apos_limpeza(feito, causa),
@@ -375,7 +375,7 @@ fn limpar_anotacao<V: EnvioDoProcesso>(
         &super::anotacoes::REGISTRAR_ANOTACAO,
         instalacao,
         &servida,
-        "",
+        None,
         &[("txaDescricao", "")],
     )?;
     let mut saiu = false;

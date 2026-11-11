@@ -111,7 +111,7 @@ fn post_do_salvar_repete_os_campos_do_navegador_na_tela_da_pen1() {
         &SALVAR_NIVEL_DE_DETALHE,
         &instalacao,
         &tela,
-        "TESTE",
+        Some("TESTE"),
         &campos,
     )
     .unwrap();

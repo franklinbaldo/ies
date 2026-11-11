@@ -64,7 +64,7 @@ pub(super) fn confirmar<V: EnvioDoProcesso>(
         &ANEXAR,
         instalacao,
         &tela,
-        "",
+        None,
         &[
             ("txtProtocolo", &destino.nup),
             ("txtIdentificacaoProtocolo", &destino.tipo),

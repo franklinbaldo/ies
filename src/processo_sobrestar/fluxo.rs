@@ -68,7 +68,7 @@ pub(crate) fn executar<V: EnvioDoProcesso>(
                 &tela::OPERACAO,
                 &instalacao,
                 &tela_servida,
-                &previa.unidade,
+                Some(previa.unidade.as_str()),
                 &valores,
             )?;
             // A submissão é consumida no POST único. Qualquer falha depois

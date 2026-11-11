@@ -258,8 +258,14 @@ fn derivar_com(
     if let Some(inicio) = inicio {
         campos.push(("hdnInicio", inicio));
     }
-    derivar_submissao(operacao, instalacao, tela, unidade_solicitada, &campos)
-        .map_err(ErroPesquisaProtocolo::Submissao)
+    derivar_submissao(
+        operacao,
+        instalacao,
+        tela,
+        Some(unidade_solicitada),
+        &campos,
+    )
+    .map_err(ErroPesquisaProtocolo::Submissao)
 }
 
 /// Resposta classificada, o HTML 200 (para a paginação) e, no 302, a URL
@@ -307,6 +313,7 @@ pub(crate) fn falha_do_envio(erro: ErroSubmissaoFormulario) -> ErroPesquisaProto
         }
         outro @ (ErroSubmissaoFormulario::EfeitoDaOperacaoNaoAvaliado
         | ErroSubmissaoFormulario::UnidadeDaTelaDiferenteDaSolicitada
+        | ErroSubmissaoFormulario::UnidadeNaoInformada
         | ErroSubmissaoFormulario::FormulariosComMesmoIdentificadorNaTela
         | ErroSubmissaoFormulario::MetodoDoFormularioDiferenteDePost
         | ErroSubmissaoFormulario::EnctypeDoFormularioNaoUrlencoded

@@ -228,7 +228,14 @@ fn post_derivado_e_o_do_navegador_com_sel_infra_unidades_no_fim() {
         html: &html,
         codificacao: CodificacaoDaTela::Iso88591,
     };
-    let s = derivar_submissao(&TROCAR_UNIDADE, &instalacao(), &servida, "PR-A", &campos).unwrap();
+    let s = derivar_submissao(
+        &TROCAR_UNIDADE,
+        &instalacao(),
+        &servida,
+        Some("PR-A"),
+        &campos,
+    )
+    .unwrap();
     assert_eq!(
         s.url(),
         format!(

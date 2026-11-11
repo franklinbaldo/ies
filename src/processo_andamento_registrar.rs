@@ -250,7 +250,13 @@ pub(crate) fn registrar<V: EnvioDoProcesso>(
         html: &html,
         codificacao,
     };
-    let submissao = derivar_submissao(&REGISTRAR, &instalacao, &tela, &unidade, &[(TEXTO, texto)])?;
+    let submissao = derivar_submissao(
+        &REGISTRAR,
+        &instalacao,
+        &tela,
+        Some(unidade.as_str()),
+        &[(TEXTO, texto)],
+    )?;
     let mut resultado = Resultado {
         numero: numero.as_str().to_owned(),
         texto: texto.to_owned(),

@@ -394,7 +394,7 @@ pub(super) fn pesquisar_no_controle<V: EnvioDoProcesso>(
         &PESQUISA_RAPIDA,
         &contexto.instalacao,
         &servida,
-        &controle.unidade,
+        Some(controle.unidade.as_str()),
         &[(CAMPO, valor)],
     )?;
     rede.pesquisar(contexto, submissao, valor)?
