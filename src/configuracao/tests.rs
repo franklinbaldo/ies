@@ -247,3 +247,29 @@ fn arquivo_privado_que_falha_e_identificado_pelo_papel() {
         Err(ErroArquivoPrivado::Vazio(ArquivoPrivado::Origem))
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn metadados_de_arquivo_privado_preservam_causa_de_ancestral_regular() {
+    use super::{
+        ArquivoPrivado, ArquivosDeAcesso, ErroArquivoPrivado, verificar_arquivos_privados,
+    };
+    let pasta = Pasta::nova();
+    let url = pasta.0.join("url");
+    gravar(&url, "sentinela-sintetica");
+    let origem = pasta.0.join("origem");
+    gravar(&origem, "origem-ficticia");
+    let arquivos = ArquivosDeAcesso {
+        cookie: url.join("cookie"),
+        url_controle: url.clone(),
+        origem,
+    };
+    assert_eq!(
+        verificar_arquivos_privados(&arquivos),
+        Err(ErroArquivoPrivado::MetadadosNaoLidos(
+            ArquivoPrivado::Cookie,
+            std::io::ErrorKind::NotADirectory
+        ))
+    );
+    assert_eq!(fs::read_to_string(url).unwrap(), "sentinela-sintetica");
+}
