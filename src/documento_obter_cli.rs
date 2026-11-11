@@ -291,7 +291,7 @@ fn gravar(
             gravados.push(None);
             continue;
         };
-        let Some(arquivo) = a.arquivo.take() else {
+        let Some(arquivo) = a.tirar_arquivo() else {
             if let Some(Some(cache)) = caches.get(i) {
                 let extensao = cache
                     .caminho
@@ -425,7 +425,7 @@ fn publicar(
                     objeto.insert("arquivo".to_owned(), arquivo);
                 } else {
                     let texto = match &d.anexo {
-                        Some(a) => json!(a.texto),
+                        Some(a) => json!(a.texto()),
                         None => json!(d.texto),
                     };
                     objeto.insert("texto".to_owned(), texto);
@@ -458,7 +458,7 @@ fn publicar(
                     println!("{linha}");
                 }
                 (None, Some(a)) => {
-                    if let Some(texto) = &a.texto {
+                    if let Some(texto) = a.texto() {
                         println!("{texto}");
                     }
                 }
