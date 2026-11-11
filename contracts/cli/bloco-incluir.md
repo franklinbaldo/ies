@@ -13,8 +13,8 @@ implementation: stub
 **Contrato aprovado de gramática:** decisão do proprietário registrada em
 [#381](https://github.com/franklinbaldo/ies/issues/381#issuecomment-6746036266),
 consolidando a inclusão de documento em bloco de assinatura (#381) e de
-processo em bloco interno/de reunião (#343). **O comando ainda não está
-implementado:** este contrato não torna nenhuma confirmação executável.
+processo em bloco interno/de reunião (#343). A confirmação documental já tem fatias executáveis;
+a família processual está na etapa de prévia, não de confirmação.
 Conservar a CLI exclusivamente Web, sem REST/SOAP, nem URL/hashes adivinhados.
 
 ## Entrada e resolução de identidade
@@ -54,11 +54,12 @@ O item **não observado** não equivale a ausente: não declarar prévia
 de inclusão como se a lista estivesse vazia. Quando não se consegue
 verificar pertencimento, recusar a confirmação com motivo verificável.
 
-A leitura `ies bloco N` atualmente demonstra detalhe tipado de
-**assinatura** ([contrato](bloco-obter.md)); ainda não demonstra detalhe
-interno/reunião. A fatia de `--processo` deve completar essa leitura
-funcional junto da inclusão. Não usar HTML de detalhe inventado como
-prova nem fingir que o leitor atual já cobre todos os tipos.
+A leitura `ies bloco N` é ampliada na mesma fatia de prévia
+processual para resolver detalhes de **assinatura, interno e reunião**
+pelas listas tipadas publicadas ([contrato](bloco-obter.md)).
+Colisões e páginas parciais não podem virar identidade inequívoca.
+A ampliação tem comprovação sintética, não prova de paridade com
+instalação real. Não usar HTML inventado como evidência externa.
 
 ## Confirmação e prova causal
 
@@ -113,7 +114,7 @@ identificado, bloco de tipo inadequado, item já presente, ação ou
 formulário não oferecido, recusa da instalação e leitura insuficiente.
 Falha antes da escrita: saída 1, sem mutação. Após tentativa de
 escrita sem prova suficiente: **saída 1** com um erro tipado de
-efeito incerto (a confirmação, BDD-381-02, ainda não existe no código),
+efeito incerto (a confirmação documental corresponde ao BDD-381-02),
 carregando o que foi observado e orientando nova consulta de leitura,
 **nunca retry** (decisão [#681](https://github.com/franklinbaldo/ies/issues/681)).
 Se a leitura posterior divergir, não afirmar sucesso por mera coincidência
