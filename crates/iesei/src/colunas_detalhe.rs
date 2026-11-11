@@ -168,6 +168,44 @@ pub fn guardar(
     Ok(())
 }
 
+/// Aplica o conjunto exato de opções marcadas ao estado observado.
+/// Não cria um estado vazio a partir de ausência de observação.
+/// # Errors
+/// Recusa opções não oferecidas, repetidas e falhas SQL.
+pub fn definir(
+    banco: &Connection,
+    instalacao: &Instalacao,
+    cenario: &str,
+    marcadas: &[Coluna],
+) -> Result<Option<Configuracao>, Erro> {
+    let Some(mut configuracao) = ler(banco, instalacao, cenario)? else {
+        return Ok(None);
+    };
+    let mut vistas = std::collections::HashSet::new();
+    if !marcadas.iter().all(|coluna| {
+        vistas.insert(*coluna)
+            && configuracao.opcoes.iter().any(|opcao| opcao.coluna == *coluna)
+    }) {
+        return Err(Erro::DadoInvalido);
+    }
+    let tx = banco.unchecked_transaction()?;
+    for opcao in &mut configuracao.opcoes {
+        opcao.marcada = marcadas.contains(&opcao.coluna);
+        tx.execute(
+            "UPDATE colunas_detalhe SET marcada=?1
+             WHERE origem=?2 AND cenario=?3 AND coluna=?4",
+            params![
+                opcao.marcada,
+                instalacao.url_base(),
+                cenario,
+                opcao.coluna.chave()
+            ],
+        )?;
+    }
+    tx.commit()?;
+    Ok(Some(configuracao))
+}
+
 /// Recupera apenas a configuração que o cenário efetivamente contém.
 /// # Errors
 /// Recusa colunas desconhecidas, unidades inconsistentes e falhas SQL.
