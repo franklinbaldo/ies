@@ -7,7 +7,7 @@ use crate::html_atributos::valor_do_atributo;
 /// pelo total da legenda da primeira página, mesmo quando coincide.
 pub(crate) fn controles_de_paginacao(html: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let parser = dom.parser();
     for seletor in ["a", "select"] {
         if let Some(elementos) = dom.query_selector(seletor) {
@@ -49,7 +49,7 @@ pub(crate) fn paginador_da_tabela(
 /// (`lnkDetalhadoProximaPagina*`, `selDetalhadoPaginacao*`: PEN1 e GO).
 pub(crate) fn paginador_com_prefixo(html: &str, prefixo: &str) -> Result<bool, ErroCaixa> {
     let dom = tl::parse(html, tl::ParserOptions::default())
-        .map_err(|_| ErroCaixa::HtmlDaCaixaInvalido)?;
+        .map_err(ErroCaixa::HtmlDaCaixaRecusadoPeloParser)?;
     let parser = dom.parser();
     for (seletor, marcas) in [
         (
