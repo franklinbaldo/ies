@@ -96,10 +96,10 @@ pub(crate) enum ErroConfirmacaoDaCriacao {
     NaoDemonstradoNaArvore(#[source] ErroCriar),
     /// O POST pode ter produzido efeito mesmo com falha HTTP ou de rede;
     /// preservar sua causa sem autorizar uma segunda tentativa.
-    NaoConfirmadoNoEnvio(ErroSubmissaoFormulario),
+    NaoConfirmadoNoEnvio(#[source] ErroSubmissaoFormulario),
     /// O GET de reconciliação falhou após o POST; preservar a causa
     /// observada, sem inferir que o documento deixou de ser criado.
-    NaoConfirmadoNaReleitura(ErroProcessoObter),
+    NaoConfirmadoNaReleitura(#[source] ErroProcessoObter),
 }
 
 pub(super) fn postar_e_verificar<T, R, P, L>(
@@ -169,4 +169,33 @@ where
         return Err(ErroConfirmacaoDaCriacao::NaoConfirmado);
     }
     Ok(numero)
+}
+
+#[cfg(test)]
+mod testes_causas {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn falhas_pos_escrita_preservam_causa_no_error_source() {
+        let envio = ErroConfirmacaoDaCriacao::NaoConfirmadoNoEnvio(
+            ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            envio
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroSubmissaoFormulario>()),
+            Some(ErroSubmissaoFormulario::Transporte(FalhaTransporte::Rede))
+        ));
+
+        let releitura = ErroConfirmacaoDaCriacao::NaoConfirmadoNaReleitura(
+            ErroProcessoObter::Transporte(FalhaTransporte::Rede),
+        );
+        assert!(matches!(
+            releitura
+                .source()
+                .and_then(|fonte| fonte.downcast_ref::<ErroProcessoObter>()),
+            Some(ErroProcessoObter::Transporte(FalhaTransporte::Rede))
+        ));
+    }
 }
