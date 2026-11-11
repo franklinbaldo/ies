@@ -349,7 +349,7 @@ pub(super) fn confirmar(
 
 #[cfg(test)]
 mod testes_moldura {
-    use super::{corpos_da_edicao, ler_par, ErroSalvarNoSei};
+    use super::{ErroSalvarNoSei, corpos_da_edicao, ler_par};
     use crate::documento::NumeroDocumento;
     use crate::documento_versoes::VersaoDocumento;
     use std::error::Error;
