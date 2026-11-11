@@ -151,4 +151,3 @@ fn texto_do_anexo(mime: &str, bytes: &[u8], tipo: &str) -> Result<String, ErroAn
         })
         .collect())
 }
-
